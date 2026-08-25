@@ -64,6 +64,7 @@ static PAPACC_RESULT papacc_network_count_addresses(
 static PAPACC_RESULT papacc_network_convert_address(
     const IP_ADAPTER_ADDRESSES *adapter,
     const IP_ADAPTER_UNICAST_ADDRESS *unicast,
+    PAPACC_U32 interface_instance_id,
     PAPACC_NETWORK_INTERFACE_ADDRESS *entry)
 {
     const SOCKADDR *socket_address = unicast->Address.lpSockaddr;
@@ -103,6 +104,7 @@ static PAPACC_RESULT papacc_network_convert_address(
         return result;
     }
 
+    entry->interface_instance_id = interface_instance_id;
     entry->interface_is_up =
         (adapter->OperStatus == IfOperStatusUp) ? PAPACC_TRUE : PAPACC_FALSE;
     entry->interface_is_loopback =
@@ -121,9 +123,12 @@ static PAPACC_RESULT papacc_network_write_addresses(
     const IP_ADAPTER_ADDRESSES *adapter;
     const IP_ADAPTER_UNICAST_ADDRESS *unicast;
     PAPACC_SIZE count = 0;
+    PAPACC_U32 interface_instance_id = 0;
     PAPACC_RESULT result;
 
     for (adapter = adapters; adapter != NULL; adapter = adapter->Next) {
+        PAPACC_BOOL adapter_has_entry = PAPACC_FALSE;
+
         for (unicast = adapter->FirstUnicastAddress;
              unicast != NULL;
              unicast = unicast->Next) {
@@ -131,9 +136,18 @@ static PAPACC_RESULT papacc_network_write_addresses(
                 continue;
             }
 
+            if (adapter_has_entry == PAPACC_FALSE) {
+                if (interface_instance_id == UINT32_MAX) {
+                    return PAPACC_RESULT_LIMIT_EXCEEDED;
+                }
+                ++interface_instance_id;
+                adapter_has_entry = PAPACC_TRUE;
+            }
+
             result = papacc_network_convert_address(
                 adapter,
                 unicast,
+                interface_instance_id,
                 &entries[count]);
             if (result != PAPACC_RESULT_OK) {
                 return result;

@@ -7,7 +7,8 @@ int main(void)
     PAPACC_SIZE index;
 
     if (entry.address.family != PAPACC_IP_FAMILY_UNSPECIFIED ||
-        entry.interface_index != 0 || entry.scope_id != 0 ||
+        entry.interface_instance_id != 0 || entry.interface_index != 0 ||
+        entry.scope_id != 0 ||
         entry.interface_is_up != PAPACC_FALSE ||
         entry.interface_is_loopback != PAPACC_FALSE) {
         return 1;

@@ -9,6 +9,7 @@ int main(void)
     PAPACC_SIZE required = 0;
     PAPACC_SIZE capacity = 0;
     PAPACC_SIZE index;
+    PAPACC_U32 previous_instance_id = 0;
     PAPACC_RESULT result;
     int attempt;
 
@@ -81,7 +82,8 @@ int main(void)
             free(entries);
             return 9;
         }
-        if (entry->interface_index == 0 ||
+        if (entry->interface_instance_id == 0 ||
+            entry->interface_index == 0 ||
             (entry->interface_is_up != PAPACC_FALSE &&
              entry->interface_is_up != PAPACC_TRUE) ||
             (entry->interface_is_loopback != PAPACC_FALSE &&
@@ -89,10 +91,35 @@ int main(void)
             free(entries);
             return 10;
         }
+        if ((index == 0 && entry->interface_instance_id != 1) ||
+            (index != 0 &&
+             entry->interface_instance_id != previous_instance_id &&
+             entry->interface_instance_id != previous_instance_id + 1)) {
+            free(entries);
+            return 11;
+        }
+        previous_instance_id = entry->interface_instance_id;
         if (entry->address.family == PAPACC_IP_FAMILY_IPV4 &&
             entry->scope_id != 0) {
             free(entries);
-            return 11;
+            return 12;
+        }
+    }
+
+    for (index = 0; index < count; ++index) {
+        PAPACC_SIZE other_index;
+
+        for (other_index = index + 1; other_index < count; ++other_index) {
+            const PAPACC_NETWORK_INTERFACE_ADDRESS *left = &entries[index];
+            const PAPACC_NETWORK_INTERFACE_ADDRESS *right =
+                &entries[other_index];
+
+            if (left->interface_instance_id == right->interface_instance_id &&
+                left->address.family == right->address.family &&
+                left->interface_index != right->interface_index) {
+                free(entries);
+                return 13;
+            }
         }
     }
 
