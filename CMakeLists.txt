@@ -49,6 +49,29 @@ set_target_properties(papacc_network PROPERTIES
 papacc_enable_warnings(papacc_network)
 
 if(WIN32)
+    add_library(papacc_network_win32 STATIC
+        src/platform/win32/network_interfaces_win32.c
+    )
+
+    target_include_directories(papacc_network_win32
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+    )
+
+    target_link_libraries(
+        papacc_network_win32
+        PUBLIC papacc_network
+        PRIVATE iphlpapi
+    )
+
+    set_target_properties(papacc_network_win32 PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_network_win32)
+
     add_library(papacc_pal STATIC
         src/platform/win32/pal_time_win32.c
     )
@@ -201,7 +224,55 @@ if(BUILD_TESTING)
 
     add_test(NAME papacc.network.ip_address COMMAND papacc_ip_address_test)
 
+    add_executable(papacc_network_interface_test
+        tests/network_interface_test.c
+    )
+
+    target_include_directories(papacc_network_interface_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+    )
+
+    target_link_libraries(papacc_network_interface_test PRIVATE papacc_network)
+
+    set_target_properties(papacc_network_interface_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_network_interface_test)
+
+    add_test(NAME papacc.network.interface_model COMMAND papacc_network_interface_test)
+
     if(WIN32)
+        add_executable(papacc_network_discovery_win32_test
+            tests/network_discovery_win32_test.c
+        )
+
+        target_include_directories(papacc_network_discovery_win32_test
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+        )
+
+        target_link_libraries(
+            papacc_network_discovery_win32_test
+            PRIVATE papacc_network_win32
+        )
+
+        set_target_properties(papacc_network_discovery_win32_test PROPERTIES
+            C_STANDARD 99
+            C_STANDARD_REQUIRED YES
+            C_EXTENSIONS NO
+        )
+
+        papacc_enable_warnings(papacc_network_discovery_win32_test)
+
+        add_test(
+            NAME papacc.network.discovery.win32
+            COMMAND papacc_network_discovery_win32_test
+        )
+
         add_executable(papacc_pal_time_test
             tests/pal_time_test.c
         )
