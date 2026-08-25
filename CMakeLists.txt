@@ -29,6 +29,25 @@ set_target_properties(papacc_core PROPERTIES
 
 papacc_enable_warnings(papacc_core)
 
+add_library(papacc_network STATIC
+    src/network/ip_address.c
+)
+
+target_include_directories(papacc_network
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+)
+
+target_link_libraries(papacc_network PUBLIC papacc_core)
+
+set_target_properties(papacc_network PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS NO
+)
+
+papacc_enable_warnings(papacc_network)
+
 if(WIN32)
     add_library(papacc_pal STATIC
         src/platform/win32/pal_time_win32.c
@@ -160,6 +179,27 @@ if(BUILD_TESTING)
     papacc_enable_warnings(papacc_server_config_test)
 
     add_test(NAME papacc.server.configuration COMMAND papacc_server_config_test)
+
+    add_executable(papacc_ip_address_test
+        tests/ip_address_test.c
+    )
+
+    target_include_directories(papacc_ip_address_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+    )
+
+    target_link_libraries(papacc_ip_address_test PRIVATE papacc_network)
+
+    set_target_properties(papacc_ip_address_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_ip_address_test)
+
+    add_test(NAME papacc.network.ip_address COMMAND papacc_ip_address_test)
 
     if(WIN32)
         add_executable(papacc_pal_time_test
