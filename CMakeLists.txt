@@ -77,6 +77,25 @@ add_executable(papacc_server
 
 target_link_libraries(papacc_server PRIVATE papacc_core)
 
+add_library(papacc_server_config STATIC
+    apps/server/server_config.c
+)
+
+target_include_directories(papacc_server_config
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+)
+
+target_link_libraries(papacc_server_config PUBLIC papacc_core)
+
+set_target_properties(papacc_server_config PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS NO
+)
+
+papacc_enable_warnings(papacc_server_config)
+
 set_target_properties(papacc_server PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED YES
@@ -117,6 +136,30 @@ if(BUILD_TESTING)
     papacc_enable_warnings(papacc_types_test)
 
     add_test(NAME papacc.types COMMAND papacc_types_test)
+
+    add_executable(papacc_server_config_test
+        tests/server_config_test.c
+    )
+
+    target_include_directories(papacc_server_config_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+    )
+
+    target_link_libraries(
+        papacc_server_config_test
+        PRIVATE papacc_server_config
+    )
+
+    set_target_properties(papacc_server_config_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_server_config_test)
+
+    add_test(NAME papacc.server.configuration COMMAND papacc_server_config_test)
 
     if(WIN32)
         add_executable(papacc_pal_time_test
