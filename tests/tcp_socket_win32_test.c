@@ -12,6 +12,7 @@ static int papacc_test_bound_socket(
 
     if (socket_context->is_open != PAPACC_TRUE ||
         socket_context->is_bound != PAPACC_TRUE ||
+        socket_context->is_listening != PAPACC_FALSE ||
         socket_context->family != expected_family ||
         socket_context->native_socket == INVALID_SOCKET) {
         return 1;
@@ -54,6 +55,32 @@ static int papacc_test_bound_socket(
     return 0;
 }
 
+static int papacc_test_listener(
+    PAPACC_TCP_SOCKET_WIN32 *socket_context,
+    PAPACC_IP_FAMILY expected_family)
+{
+    SOCKET original_socket = socket_context->native_socket;
+
+    if (papacc_test_bound_socket(socket_context, expected_family) != 0) {
+        return 1;
+    }
+    if (papacc_tcp_socket_win32_listen(socket_context) != PAPACC_RESULT_OK ||
+        socket_context->is_open != PAPACC_TRUE ||
+        socket_context->is_bound != PAPACC_TRUE ||
+        socket_context->is_listening != PAPACC_TRUE ||
+        socket_context->native_socket != original_socket) {
+        return 2;
+    }
+    if (papacc_tcp_socket_win32_listen(socket_context) !=
+            PAPACC_RESULT_INVALID_STATE ||
+        socket_context->is_listening != PAPACC_TRUE ||
+        socket_context->native_socket != original_socket) {
+        return 3;
+    }
+
+    return 0;
+}
+
 int main(void)
 {
     static const PAPACC_U8 ipv6_loopback[PAPACC_IP_ADDRESS_BYTE_COUNT] = {
@@ -70,6 +97,13 @@ int main(void)
 
     papacc_tcp_socket_win32_close(NULL);
     papacc_tcp_socket_win32_close(&socket_context);
+
+    if (papacc_tcp_socket_win32_listen(NULL) !=
+            PAPACC_RESULT_INVALID_ARGUMENT ||
+        papacc_tcp_socket_win32_listen(&socket_context) !=
+            PAPACC_RESULT_INVALID_STATE) {
+        return 1;
+    }
 
     if (papacc_ip_address_set_ipv4(
             &target.address, 127, 0, 0, 1) != PAPACC_RESULT_OK) {
@@ -109,7 +143,7 @@ int main(void)
 
     if (papacc_tcp_socket_win32_bind(
             &platform, &target, 0, &socket_context) != PAPACC_RESULT_OK ||
-        papacc_test_bound_socket(
+        papacc_test_listener(
             &socket_context, PAPACC_IP_FAMILY_IPV4) != 0) {
         test_result = 7;
         goto cleanup;
@@ -129,6 +163,7 @@ int main(void)
     if (socket_context.native_socket != INVALID_SOCKET ||
         socket_context.is_open != PAPACC_FALSE ||
         socket_context.is_bound != PAPACC_FALSE ||
+        socket_context.is_listening != PAPACC_FALSE ||
         socket_context.family != PAPACC_IP_FAMILY_UNSPECIFIED) {
         test_result = 9;
         goto cleanup;
@@ -137,7 +172,9 @@ int main(void)
     memset(target.address.bytes, 0, sizeof(target.address.bytes));
     target.address.family = PAPACC_IP_FAMILY_IPV4;
     if (papacc_tcp_socket_win32_bind(
-            &platform, &target, 0, &socket_context) != PAPACC_RESULT_OK) {
+            &platform, &target, 0, &socket_context) != PAPACC_RESULT_OK ||
+        papacc_test_listener(
+            &socket_context, PAPACC_IP_FAMILY_IPV4) != 0) {
         test_result = 10;
         goto cleanup;
     }
@@ -151,7 +188,7 @@ int main(void)
     result = papacc_tcp_socket_win32_bind(
         &platform, &target, 0, &socket_context);
     if (result == PAPACC_RESULT_OK) {
-        if (papacc_test_bound_socket(
+        if (papacc_test_listener(
                 &socket_context, PAPACC_IP_FAMILY_IPV6) != 0) {
             test_result = 12;
             goto cleanup;
@@ -165,7 +202,9 @@ int main(void)
     if (papacc_ip_address_set_ipv4(
             &target.address, 127, 0, 0, 1) != PAPACC_RESULT_OK ||
         papacc_tcp_socket_win32_bind(
-            &platform, &target, 0, &socket_context) != PAPACC_RESULT_OK) {
+            &platform, &target, 0, &socket_context) != PAPACC_RESULT_OK ||
+        papacc_test_listener(
+            &socket_context, PAPACC_IP_FAMILY_IPV4) != 0) {
         test_result = 14;
     }
 

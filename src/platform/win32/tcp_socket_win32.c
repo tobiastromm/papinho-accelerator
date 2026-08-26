@@ -49,6 +49,7 @@ PAPACC_RESULT papacc_tcp_socket_win32_bind(
     }
     if (socket_context->is_open != PAPACC_FALSE ||
         socket_context->is_bound != PAPACC_FALSE ||
+        socket_context->is_listening != PAPACC_FALSE ||
         socket_context->native_socket != INVALID_SOCKET ||
         socket_context->family != PAPACC_IP_FAMILY_UNSPECIFIED) {
         return PAPACC_RESULT_INVALID_ARGUMENT;
@@ -119,7 +120,29 @@ PAPACC_RESULT papacc_tcp_socket_win32_bind(
     socket_context->native_socket = native_socket;
     socket_context->is_open = PAPACC_TRUE;
     socket_context->is_bound = PAPACC_TRUE;
+    socket_context->is_listening = PAPACC_FALSE;
     socket_context->family = target->address.family;
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_tcp_socket_win32_listen(
+    PAPACC_TCP_SOCKET_WIN32 *socket_context)
+{
+    if (socket_context == NULL) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    if (socket_context->is_open != PAPACC_TRUE ||
+        socket_context->is_bound != PAPACC_TRUE ||
+        socket_context->is_listening != PAPACC_FALSE ||
+        socket_context->native_socket == INVALID_SOCKET) {
+        return PAPACC_RESULT_INVALID_STATE;
+    }
+
+    if (listen(socket_context->native_socket, SOMAXCONN) == SOCKET_ERROR) {
+        return PAPACC_RESULT_INTERNAL_ERROR;
+    }
+
+    socket_context->is_listening = PAPACC_TRUE;
     return PAPACC_RESULT_OK;
 }
 
@@ -138,5 +161,6 @@ void papacc_tcp_socket_win32_close(
     socket_context->native_socket = INVALID_SOCKET;
     socket_context->is_open = PAPACC_FALSE;
     socket_context->is_bound = PAPACC_FALSE;
+    socket_context->is_listening = PAPACC_FALSE;
     socket_context->family = PAPACC_IP_FAMILY_UNSPECIFIED;
 }
