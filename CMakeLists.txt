@@ -33,6 +33,7 @@ add_library(papacc_network STATIC
     src/network/bind_selection.c
     src/network/bind_target.c
     src/network/ip_address.c
+    src/network/network_interface.c
 )
 
 target_include_directories(papacc_network

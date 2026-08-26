@@ -84,6 +84,10 @@ int main(void)
         }
         if (entry->interface_instance_id == 0 ||
             entry->interface_index == 0 ||
+            (entry->interface_persistent_id.is_valid != PAPACC_FALSE &&
+             entry->interface_persistent_id.is_valid != PAPACC_TRUE) ||
+            (entry->interface_persistent_id.is_valid == PAPACC_FALSE &&
+             entry->interface_persistent_id.value != 0) ||
             (entry->interface_is_up != PAPACC_FALSE &&
              entry->interface_is_up != PAPACC_TRUE) ||
             (entry->interface_is_loopback != PAPACC_FALSE &&
@@ -119,6 +123,14 @@ int main(void)
                 left->interface_index != right->interface_index) {
                 free(entries);
                 return 13;
+            }
+            if (left->interface_instance_id == right->interface_instance_id &&
+                (left->interface_persistent_id.is_valid !=
+                     right->interface_persistent_id.is_valid ||
+                 left->interface_persistent_id.value !=
+                     right->interface_persistent_id.value)) {
+                free(entries);
+                return 14;
             }
         }
     }

@@ -4,10 +4,18 @@ int main(void)
 {
     PAPACC_NETWORK_INTERFACE_ADDRESS entry =
         PAPACC_NETWORK_INTERFACE_ADDRESS_INITIALIZER;
+    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID valid = { PAPACC_TRUE, 42 };
+    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID same = { PAPACC_TRUE, 42 };
+    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID different = { PAPACC_TRUE, 43 };
+    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID valid_zero = { PAPACC_TRUE, 0 };
+    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID invalid =
+        PAPACC_NETWORK_INTERFACE_PERSISTENT_ID_INITIALIZER;
     PAPACC_SIZE index;
 
     if (entry.address.family != PAPACC_IP_FAMILY_UNSPECIFIED ||
         entry.interface_instance_id != 0 || entry.interface_index != 0 ||
+        entry.interface_persistent_id.is_valid != PAPACC_FALSE ||
+        entry.interface_persistent_id.value != 0 ||
         entry.scope_id != 0 ||
         entry.interface_is_up != PAPACC_FALSE ||
         entry.interface_is_loopback != PAPACC_FALSE) {
@@ -17,6 +25,21 @@ int main(void)
         if (entry.address.bytes[index] != 0) {
             return 2;
         }
+    }
+
+    if (papacc_network_interface_persistent_id_equal(&valid, &same) !=
+            PAPACC_TRUE ||
+        papacc_network_interface_persistent_id_equal(&valid, &different) !=
+            PAPACC_FALSE ||
+        papacc_network_interface_persistent_id_equal(&invalid, &valid) !=
+            PAPACC_FALSE ||
+        papacc_network_interface_persistent_id_equal(&invalid, &invalid) !=
+            PAPACC_FALSE ||
+        papacc_network_interface_persistent_id_equal(&valid_zero, &valid_zero) !=
+            PAPACC_TRUE ||
+        papacc_network_interface_persistent_id_equal(NULL, &valid) !=
+            PAPACC_FALSE) {
+        return 3;
     }
 
     return 0;

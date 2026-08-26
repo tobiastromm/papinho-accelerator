@@ -3,11 +3,28 @@
 #include <iphlpapi.h>
 
 #include <stdlib.h>
+#include <stddef.h>
 
 #include "network_interface.h"
 
 #define PAPACC_ADAPTER_BUFFER_INITIAL_SIZE ((ULONG)(15U * 1024U))
 #define PAPACC_ADAPTER_BUFFER_MAX_ATTEMPTS 4
+
+static PAPACC_NETWORK_INTERFACE_PERSISTENT_ID
+papacc_network_adapter_persistent_id(const IP_ADAPTER_ADDRESSES *adapter)
+{
+    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID persistent_id =
+        PAPACC_NETWORK_INTERFACE_PERSISTENT_ID_INITIALIZER;
+    const size_t luid_end = offsetof(IP_ADAPTER_ADDRESSES, Luid) +
+                            sizeof(adapter->Luid);
+
+    if ((size_t)adapter->Length >= luid_end) {
+        persistent_id.is_valid = PAPACC_TRUE;
+        persistent_id.value = (PAPACC_U64)adapter->Luid.Value;
+    }
+
+    return persistent_id;
+}
 
 static PAPACC_BOOL papacc_network_unicast_is_valid(
     const IP_ADAPTER_UNICAST_ADDRESS *unicast)
@@ -105,6 +122,8 @@ static PAPACC_RESULT papacc_network_convert_address(
     }
 
     entry->interface_instance_id = interface_instance_id;
+    entry->interface_persistent_id =
+        papacc_network_adapter_persistent_id(adapter);
     entry->interface_is_up =
         (adapter->OperStatus == IfOperStatusUp) ? PAPACC_TRUE : PAPACC_FALSE;
     entry->interface_is_loopback =
