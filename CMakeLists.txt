@@ -34,6 +34,7 @@ add_library(papacc_network STATIC
     src/network/bind_target.c
     src/network/ip_address.c
     src/network/network_interface.c
+    src/network/persistent_bind_selection.c
 )
 
 target_include_directories(papacc_network
@@ -273,6 +274,30 @@ if(BUILD_TESTING)
     papacc_enable_warnings(papacc_bind_selection_test)
 
     add_test(NAME papacc.network.bind_selection COMMAND papacc_bind_selection_test)
+
+    add_executable(papacc_persistent_bind_selection_test
+        tests/persistent_bind_selection_test.c
+    )
+
+    target_include_directories(papacc_persistent_bind_selection_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+    )
+
+    target_link_libraries(
+        papacc_persistent_bind_selection_test PRIVATE papacc_network)
+
+    set_target_properties(papacc_persistent_bind_selection_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_persistent_bind_selection_test)
+
+    add_test(
+        NAME papacc.network.persistent_bind_selection
+        COMMAND papacc_persistent_bind_selection_test)
 
     add_executable(papacc_bind_target_test
         tests/bind_target_test.c
