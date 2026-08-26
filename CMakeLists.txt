@@ -169,6 +169,26 @@ set_target_properties(papacc_server_config PROPERTIES
 
 papacc_enable_warnings(papacc_server_config)
 
+add_library(papacc_server_cli STATIC
+    apps/server/server_cli.c
+)
+
+target_include_directories(papacc_server_cli
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+)
+
+target_link_libraries(papacc_server_cli PUBLIC papacc_server_config)
+
+set_target_properties(papacc_server_cli PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS NO
+)
+
+papacc_enable_warnings(papacc_server_cli)
+
 set_target_properties(papacc_server PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED YES
@@ -234,6 +254,28 @@ if(BUILD_TESTING)
     papacc_enable_warnings(papacc_server_config_test)
 
     add_test(NAME papacc.server.configuration COMMAND papacc_server_config_test)
+
+    add_executable(papacc_server_cli_test
+        tests/server_cli_test.c
+    )
+
+    target_include_directories(papacc_server_cli_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+    )
+
+    target_link_libraries(papacc_server_cli_test PRIVATE papacc_server_cli)
+
+    set_target_properties(papacc_server_cli_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_server_cli_test)
+
+    add_test(NAME papacc.server.cli COMMAND papacc_server_cli_test)
 
     add_executable(papacc_ip_address_test
         tests/ip_address_test.c
