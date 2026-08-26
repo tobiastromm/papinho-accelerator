@@ -235,13 +235,39 @@ if(WIN32)
 
     papacc_enable_warnings(papacc_server_network)
 
+    add_library(papacc_server_console_win32 STATIC
+        apps/server/server_console_win32.c
+    )
+
+    target_include_directories(papacc_server_console_win32
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+    )
+
+    target_link_libraries(papacc_server_console_win32 PUBLIC papacc_core)
+
+    set_target_properties(papacc_server_console_win32 PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_server_console_win32)
+
     target_include_directories(papacc_server
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
             ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
     )
     target_link_libraries(
-        papacc_server PRIVATE papacc_server_cli papacc_server_cli_interfaces)
+        papacc_server
+        PRIVATE
+            papacc_server_cli
+            papacc_server_cli_interfaces
+            papacc_server_network
+            papacc_server_console_win32)
 endif()
 
 set_target_properties(papacc_server PROPERTIES
@@ -385,6 +411,31 @@ if(BUILD_TESTING)
         add_test(
             NAME papacc.server.network
             COMMAND papacc_server_network_test)
+
+        add_executable(papacc_server_console_win32_test
+            tests/server_console_win32_test.c
+        )
+
+        target_include_directories(papacc_server_console_win32_test
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+        )
+
+        target_link_libraries(
+            papacc_server_console_win32_test
+            PRIVATE papacc_server_console_win32)
+
+        set_target_properties(papacc_server_console_win32_test PROPERTIES
+            C_STANDARD 99
+            C_STANDARD_REQUIRED YES
+            C_EXTENSIONS NO
+        )
+
+        papacc_enable_warnings(papacc_server_console_win32_test)
+
+        add_test(
+            NAME papacc.server.console_win32
+            COMMAND papacc_server_console_win32_test)
     endif()
 
     add_executable(papacc_ip_address_test
