@@ -36,17 +36,12 @@ typedef struct PAPACC_NETWORK_INTERFACE {
 typedef struct PAPACC_NETWORK_INTERFACE_ADDRESS {
     PAPACC_IP_ADDRESS address;
     PAPACC_U32 interface_instance_id;
-    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID interface_persistent_id;
     PAPACC_U32 interface_index;
     PAPACC_U32 scope_id;
-    PAPACC_BOOL interface_is_up;
-    PAPACC_BOOL interface_is_loopback;
 } PAPACC_NETWORK_INTERFACE_ADDRESS;
 
 #define PAPACC_NETWORK_INTERFACE_ADDRESS_INITIALIZER \
-    { PAPACC_IP_ADDRESS_INITIALIZER, 0, \
-      PAPACC_NETWORK_INTERFACE_PERSISTENT_ID_INITIALIZER, \
-      0, 0, PAPACC_FALSE, PAPACC_FALSE }
+    { PAPACC_IP_ADDRESS_INITIALIZER, 0, 0, 0 }
 
 typedef struct PAPACC_NETWORK_DISCOVERY_SNAPSHOT {
     PAPACC_NETWORK_INTERFACE *interfaces;
@@ -71,10 +66,9 @@ typedef struct PAPACC_NETWORK_DISCOVERY_SNAPSHOT {
  * cross-family grouping identity. IPv4 entries always have scope_id zero;
  * IPv6 scope IDs are kept outside PAPACC_IP_ADDRESS.
  *
- * PAPACC_NETWORK_INTERFACE owns persistent identity and interface state.
- * Their copies in an address record are temporary projection metadata kept
- * for compatibility with the current Bind Selection pipeline and must match
- * the corresponding interface record in a discovery snapshot.
+ * PAPACC_NETWORK_INTERFACE is the sole portable source for persistent
+ * identity, presentation metadata, and interface state. Address records hold
+ * only address-level facts and associate to the catalog by instance ID.
  *
  * persistent_id is an opaque, machine-local token used to find the
  * same interface in later discovery snapshots. It is not globally unique, an
@@ -88,7 +82,10 @@ typedef struct PAPACC_NETWORK_DISCOVERY_SNAPSHOT {
  * address, and presentation byte storage. All projections come from one
  * logical enumeration; the caller keeps all three storages alive.
  *
- * Discovery reports facts and applies no address selection or ranking policy.
+ * The canonical API for interface metadata is
+ * papacc_network_discover_local_snapshot(). The legacy address-only API
+ * reports address-level facts only. Discovery applies no selection or ranking
+ * policy.
  * On success, out_count and out_required both describe the complete snapshot.
  * If capacity is insufficient, no entries are written, out_count is zero,
  * out_required reports the needed capacity, and LIMIT_EXCEEDED is returned.

@@ -25,7 +25,9 @@ typedef struct PAPACC_BIND_SELECTION {
  * are transient runtime objects and must not be persisted as configuration.
  *
  * ALL_INTERFACES is a semantic mode, not 0.0.0.0 stored as configuration.
- * Translation to IPv4/IPv6 wildcard addresses belongs to future bind-target
+ * Snapshot validation uses the interface catalog as the sole authority for
+ * interface existence; an interface need not have an address to be selected.
+ * Translation to IPv4/IPv6 wildcard addresses belongs to bind-target
  * resolution and listener layers.
  */
 PAPACC_RESULT papacc_bind_selection_validate(
@@ -33,7 +35,6 @@ PAPACC_RESULT papacc_bind_selection_validate(
 
 PAPACC_RESULT papacc_bind_selection_validate_snapshot(
     const PAPACC_BIND_SELECTION *selection,
-    const PAPACC_NETWORK_INTERFACE_ADDRESS *entries,
-    PAPACC_SIZE entry_count);
+    const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *snapshot);
 
 #endif

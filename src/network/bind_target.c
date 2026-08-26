@@ -70,12 +70,32 @@ static PAPACC_BOOL papacc_bind_entry_has_prior_duplicate(
 
 static PAPACC_RESULT papacc_bind_count_selected_targets(
     const PAPACC_BIND_SELECTION *selection,
-    const PAPACC_NETWORK_INTERFACE_ADDRESS *entries,
-    PAPACC_SIZE entry_count,
+    const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *snapshot,
     PAPACC_SIZE *out_required)
 {
     PAPACC_SIZE index;
+    PAPACC_SIZE selected_index;
     PAPACC_SIZE required = 0;
+    const PAPACC_NETWORK_INTERFACE_ADDRESS *entries = snapshot->addresses;
+    PAPACC_SIZE entry_count = snapshot->address_count;
+
+    for (selected_index = 0;
+         selected_index < selection->interface_instance_count;
+         ++selected_index) {
+        PAPACC_BOOL has_bindable_address = PAPACC_FALSE;
+        for (index = 0; index < entry_count; ++index) {
+            if (entries[index].interface_instance_id ==
+                    selection->interface_instance_ids[selected_index] &&
+                papacc_bind_entry_is_applicable(selection, &entries[index]) ==
+                    PAPACC_TRUE) {
+                has_bindable_address = PAPACC_TRUE;
+                break;
+            }
+        }
+        if (has_bindable_address == PAPACC_FALSE) {
+            return PAPACC_RESULT_INVALID_STATE;
+        }
+    }
 
     for (index = 0; index < entry_count; ++index) {
         if (papacc_bind_entry_is_applicable(selection, &entries[index]) ==
@@ -134,8 +154,7 @@ static void papacc_bind_write_all_targets(PAPACC_BIND_TARGET *targets)
 
 PAPACC_RESULT papacc_bind_targets_resolve(
     const PAPACC_BIND_SELECTION *selection,
-    const PAPACC_NETWORK_INTERFACE_ADDRESS *entries,
-    PAPACC_SIZE entry_count,
+    const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *snapshot,
     PAPACC_BIND_TARGET *targets,
     PAPACC_SIZE capacity,
     PAPACC_SIZE *out_count,
@@ -146,7 +165,9 @@ PAPACC_RESULT papacc_bind_targets_resolve(
 
     if (out_count == NULL || out_required == NULL ||
         (targets == NULL && capacity != 0) ||
-        (entries == NULL && entry_count != 0)) {
+        snapshot == NULL ||
+        (snapshot->interfaces == NULL && snapshot->interface_count != 0) ||
+        (snapshot->addresses == NULL && snapshot->address_count != 0)) {
         return PAPACC_RESULT_INVALID_ARGUMENT;
     }
 
@@ -162,18 +183,13 @@ PAPACC_RESULT papacc_bind_targets_resolve(
         required = 2;
     } else {
         result = papacc_bind_selection_validate_snapshot(
-            selection,
-            entries,
-            entry_count);
+            selection, snapshot);
         if (result != PAPACC_RESULT_OK) {
             return result;
         }
 
         result = papacc_bind_count_selected_targets(
-            selection,
-            entries,
-            entry_count,
-            &required);
+            selection, snapshot, &required);
         if (result != PAPACC_RESULT_OK) {
             return result;
         }
@@ -193,8 +209,8 @@ PAPACC_RESULT papacc_bind_targets_resolve(
     } else {
         papacc_bind_write_selected_targets(
             selection,
-            entries,
-            entry_count,
+            snapshot->addresses,
+            snapshot->address_count,
             targets,
             out_count);
     }

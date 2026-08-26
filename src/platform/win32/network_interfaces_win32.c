@@ -181,7 +181,7 @@ static PAPACC_NETWORK_INTERFACE papacc_network_convert_interface(
 static PAPACC_RESULT papacc_network_convert_address(
     const IP_ADAPTER_ADDRESSES *adapter,
     const IP_ADAPTER_UNICAST_ADDRESS *unicast,
-    const PAPACC_NETWORK_INTERFACE *interface_record,
+    PAPACC_U32 interface_instance_id,
     PAPACC_NETWORK_INTERFACE_ADDRESS *entry)
 {
     const SOCKADDR *socket_address = unicast->Address.lpSockaddr;
@@ -213,10 +213,7 @@ static PAPACC_RESULT papacc_network_convert_address(
     if (result != PAPACC_RESULT_OK) {
         return result;
     }
-    entry->interface_instance_id = interface_record->interface_instance_id;
-    entry->interface_persistent_id = interface_record->persistent_id;
-    entry->interface_is_up = interface_record->is_up;
-    entry->interface_is_loopback = interface_record->is_loopback;
+    entry->interface_instance_id = interface_instance_id;
     return PAPACC_RESULT_OK;
 }
 
@@ -249,7 +246,8 @@ static PAPACC_RESULT papacc_network_write_snapshot(
                 continue;
             }
             result = papacc_network_convert_address(
-                adapter, unicast, &interface_record, &addresses[address_index]);
+                adapter, unicast, interface_record.interface_instance_id,
+                &addresses[address_index]);
             if (result != PAPACC_RESULT_OK) {
                 return result;
             }

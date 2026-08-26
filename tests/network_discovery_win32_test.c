@@ -183,8 +183,6 @@ int main(void)
     for (index = 0; index < snapshot.address_count; ++index) {
         const PAPACC_NETWORK_INTERFACE_ADDRESS *address =
             &snapshot.addresses[index];
-        const PAPACC_NETWORK_INTERFACE *interface_record;
-
         if ((address->address.family != PAPACC_IP_FAMILY_IPV4 &&
              address->address.family != PAPACC_IP_FAMILY_IPV6) ||
             address->interface_instance_id == 0 ||
@@ -193,17 +191,6 @@ int main(void)
             (address->address.family == PAPACC_IP_FAMILY_IPV4 &&
              address->scope_id != 0)) {
             exit_code = 11;
-            goto cleanup;
-        }
-        interface_record =
-            &snapshot.interfaces[address->interface_instance_id - 1];
-        if (address->interface_persistent_id.is_valid !=
-                interface_record->persistent_id.is_valid ||
-            address->interface_persistent_id.value !=
-                interface_record->persistent_id.value ||
-            address->interface_is_up != interface_record->is_up ||
-            address->interface_is_loopback != interface_record->is_loopback) {
-            exit_code = 12;
             goto cleanup;
         }
     }

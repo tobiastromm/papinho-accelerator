@@ -46,11 +46,7 @@ int main(void)
 
     if (entry.address.family != PAPACC_IP_FAMILY_UNSPECIFIED ||
         entry.interface_instance_id != 0 || entry.interface_index != 0 ||
-        entry.interface_persistent_id.is_valid != PAPACC_FALSE ||
-        entry.interface_persistent_id.value != 0 ||
-        entry.scope_id != 0 ||
-        entry.interface_is_up != PAPACC_FALSE ||
-        entry.interface_is_loopback != PAPACC_FALSE) {
+        entry.scope_id != 0) {
         return 4;
     }
     for (index = 0; index < PAPACC_IP_ADDRESS_BYTE_COUNT; ++index) {

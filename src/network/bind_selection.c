@@ -53,19 +53,19 @@ PAPACC_RESULT papacc_bind_selection_validate(
 
 PAPACC_RESULT papacc_bind_selection_validate_snapshot(
     const PAPACC_BIND_SELECTION *selection,
-    const PAPACC_NETWORK_INTERFACE_ADDRESS *entries,
-    PAPACC_SIZE entry_count)
+    const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *snapshot)
 {
     PAPACC_SIZE selected_index;
-    PAPACC_SIZE entry_index;
-    PAPACC_BOOL found;
+    PAPACC_SIZE interface_index;
     PAPACC_RESULT result;
 
     result = papacc_bind_selection_validate(selection);
     if (result != PAPACC_RESULT_OK) {
         return result;
     }
-    if (entries == NULL && entry_count != 0) {
+    if (snapshot == NULL ||
+        (snapshot->interfaces == NULL && snapshot->interface_count != 0) ||
+        (snapshot->addresses == NULL && snapshot->address_count != 0)) {
         return PAPACC_RESULT_INVALID_ARGUMENT;
     }
     if (selection->mode == PAPACC_BIND_SELECTION_ALL_INTERFACES) {
@@ -75,15 +75,16 @@ PAPACC_RESULT papacc_bind_selection_validate_snapshot(
     for (selected_index = 0;
          selected_index < selection->interface_instance_count;
          ++selected_index) {
-        found = PAPACC_FALSE;
-        for (entry_index = 0; entry_index < entry_count; ++entry_index) {
+        PAPACC_SIZE match_count = 0;
+        for (interface_index = 0;
+             interface_index < snapshot->interface_count;
+             ++interface_index) {
             if (selection->interface_instance_ids[selected_index] ==
-                entries[entry_index].interface_instance_id) {
-                found = PAPACC_TRUE;
-                break;
+                snapshot->interfaces[interface_index].interface_instance_id) {
+                ++match_count;
             }
         }
-        if (found == PAPACC_FALSE) {
+        if (match_count != 1) {
             return PAPACC_RESULT_INVALID_STATE;
         }
     }
