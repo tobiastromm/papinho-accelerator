@@ -211,6 +211,30 @@ if(WIN32)
 
     papacc_enable_warnings(papacc_server_cli_interfaces)
 
+    add_library(papacc_server_network STATIC
+        apps/server/server_network.c
+    )
+
+    target_include_directories(papacc_server_network
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+    )
+
+    target_link_libraries(
+        papacc_server_network
+        PUBLIC papacc_server_config papacc_network_win32 papacc_tcp_win32)
+
+    set_target_properties(papacc_server_network PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_server_network)
+
     target_include_directories(papacc_server
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
@@ -334,6 +358,33 @@ if(BUILD_TESTING)
         add_test(
             NAME papacc.server.cli_interfaces
             COMMAND papacc_server_cli_interfaces_test)
+
+        add_executable(papacc_server_network_test
+            tests/server_network_test.c
+        )
+
+        target_include_directories(papacc_server_network_test
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+        )
+
+        target_link_libraries(
+            papacc_server_network_test PRIVATE papacc_server_network)
+
+        set_target_properties(papacc_server_network_test PROPERTIES
+            C_STANDARD 99
+            C_STANDARD_REQUIRED YES
+            C_EXTENSIONS NO
+        )
+
+        papacc_enable_warnings(papacc_server_network_test)
+
+        add_test(
+            NAME papacc.server.network
+            COMMAND papacc_server_network_test)
     endif()
 
     add_executable(papacc_ip_address_test
