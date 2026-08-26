@@ -189,6 +189,37 @@ set_target_properties(papacc_server_cli PROPERTIES
 
 papacc_enable_warnings(papacc_server_cli)
 
+if(WIN32)
+    add_library(papacc_server_cli_interfaces STATIC
+        apps/server/server_cli_interfaces.c
+    )
+
+    target_include_directories(papacc_server_cli_interfaces
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+    )
+
+    target_link_libraries(
+        papacc_server_cli_interfaces PUBLIC papacc_network_win32)
+
+    set_target_properties(papacc_server_cli_interfaces PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_server_cli_interfaces)
+
+    target_include_directories(papacc_server
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+    )
+    target_link_libraries(
+        papacc_server PRIVATE papacc_server_cli papacc_server_cli_interfaces)
+endif()
+
 set_target_properties(papacc_server PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED YES
@@ -276,6 +307,34 @@ if(BUILD_TESTING)
     papacc_enable_warnings(papacc_server_cli_test)
 
     add_test(NAME papacc.server.cli COMMAND papacc_server_cli_test)
+
+    if(WIN32)
+        add_executable(papacc_server_cli_interfaces_test
+            tests/server_cli_interfaces_test.c
+        )
+
+        target_include_directories(papacc_server_cli_interfaces_test
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+        )
+
+        target_link_libraries(
+            papacc_server_cli_interfaces_test
+            PRIVATE papacc_server_cli_interfaces)
+
+        set_target_properties(papacc_server_cli_interfaces_test PROPERTIES
+            C_STANDARD 99
+            C_STANDARD_REQUIRED YES
+            C_EXTENSIONS NO
+        )
+
+        papacc_enable_warnings(papacc_server_cli_interfaces_test)
+
+        add_test(
+            NAME papacc.server.cli_interfaces
+            COMMAND papacc_server_cli_interfaces_test)
+    endif()
 
     add_executable(papacc_ip_address_test
         tests/ip_address_test.c

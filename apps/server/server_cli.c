@@ -181,3 +181,47 @@ PAPACC_RESULT papacc_server_cli_parse(
     *out_required_ids = required;
     return PAPACC_RESULT_OK;
 }
+
+PAPACC_RESULT papacc_server_cli_request_parse(
+    int argc,
+    const char *const *argv,
+    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID *id_storage,
+    PAPACC_SIZE id_capacity,
+    PAPACC_SERVER_CLI_REQUEST *out_request,
+    PAPACC_SIZE *out_required_ids)
+{
+    PAPACC_SERVER_CLI_REQUEST request =
+        PAPACC_SERVER_CLI_REQUEST_INITIALIZER;
+    PAPACC_SIZE index;
+    PAPACC_RESULT result;
+
+    if (out_request == NULL || out_required_ids == NULL) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    *out_request = request;
+    *out_required_ids = 0;
+    if (argc < 1 || argv == NULL || argv[0] == NULL) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    for (index = 1; index < (PAPACC_SIZE)argc; ++index) {
+        if (argv[index] == NULL) {
+            return PAPACC_RESULT_INVALID_ARGUMENT;
+        }
+        if (strcmp(argv[index], "--list-interfaces") == 0) {
+            if (argc != 2 || index != 1) {
+                return PAPACC_RESULT_INVALID_ARGUMENT;
+            }
+            request.action = PAPACC_SERVER_CLI_ACTION_LIST_INTERFACES;
+            *out_request = request;
+            return PAPACC_RESULT_OK;
+        }
+    }
+    result = papacc_server_cli_parse(
+        argc, argv, id_storage, id_capacity, &request.config,
+        out_required_ids);
+    if (result != PAPACC_RESULT_OK) {
+        return result;
+    }
+    *out_request = request;
+    return PAPACC_RESULT_OK;
+}

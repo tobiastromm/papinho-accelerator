@@ -3,6 +3,19 @@
 
 #include "server_config.h"
 
+typedef enum PAPACC_SERVER_CLI_ACTION {
+    PAPACC_SERVER_CLI_ACTION_RUN_SERVER = 0,
+    PAPACC_SERVER_CLI_ACTION_LIST_INTERFACES = 1
+} PAPACC_SERVER_CLI_ACTION;
+
+typedef struct PAPACC_SERVER_CLI_REQUEST {
+    PAPACC_SERVER_CLI_ACTION action;
+    PAPACC_SERVER_CONFIG config;
+} PAPACC_SERVER_CLI_REQUEST;
+
+#define PAPACC_SERVER_CLI_REQUEST_INITIALIZER \
+    { PAPACC_SERVER_CLI_ACTION_RUN_SERVER, PAPACC_SERVER_CONFIG_INITIALIZER }
+
 /*
  * argv[0] is ignored as the executable name. The parser owns no storage and
  * produces only PAPACC_SERVER_CONFIG. For SELECTED_INTERFACES, the resulting
@@ -17,6 +30,14 @@ PAPACC_RESULT papacc_server_cli_parse(
     PAPACC_NETWORK_INTERFACE_PERSISTENT_ID *id_storage,
     PAPACC_SIZE id_capacity,
     PAPACC_SERVER_CONFIG *out_config,
+    PAPACC_SIZE *out_required_ids);
+
+PAPACC_RESULT papacc_server_cli_request_parse(
+    int argc,
+    const char *const *argv,
+    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID *id_storage,
+    PAPACC_SIZE id_capacity,
+    PAPACC_SERVER_CLI_REQUEST *out_request,
     PAPACC_SIZE *out_required_ids);
 
 #endif

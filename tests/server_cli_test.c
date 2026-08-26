@@ -231,6 +231,42 @@ static int test_sizing(void)
     return 0;
 }
 
+static int test_request_actions(void)
+{
+    const char *list[] = { "x", "--list-interfaces" };
+    const char *conflicts[][5] = {
+        { "x", "--list-interfaces", "--port", "4433" },
+        { "x", "--list-interfaces", "--all-interfaces" },
+        { "x", "--list-interfaces", "--interface-id", "10" },
+        { "x", "--list-interfaces", "--allow-network-egress" },
+        { "x", "--list-interfaces", "--list-interfaces" }
+    };
+    const int counts[] = { 4, 3, 4, 3, 3 };
+    PAPACC_SERVER_CLI_REQUEST request =
+        PAPACC_SERVER_CLI_REQUEST_INITIALIZER;
+    PAPACC_SIZE required = 99;
+    PAPACC_SIZE index;
+
+    if (papacc_server_cli_request_parse(
+            2, list, NULL, 0, &request, &required) != PAPACC_RESULT_OK ||
+        request.action != PAPACC_SERVER_CLI_ACTION_LIST_INTERFACES ||
+        !config_is_initializer(&request.config) || required != 0) {
+        return 1;
+    }
+    for (index = 0; index < sizeof(counts) / sizeof(counts[0]); ++index) {
+        request.action = PAPACC_SERVER_CLI_ACTION_LIST_INTERFACES;
+        required = 99;
+        if (papacc_server_cli_request_parse(
+                counts[index], conflicts[index], NULL, 0, &request,
+                &required) != PAPACC_RESULT_INVALID_ARGUMENT ||
+            request.action != PAPACC_SERVER_CLI_ACTION_RUN_SERVER ||
+            !config_is_initializer(&request.config) || required != 0) {
+            return 2;
+        }
+    }
+    return 0;
+}
+
 int main(void)
 {
     int result = test_empty_and_all();
@@ -244,5 +280,7 @@ int main(void)
     result = test_conflicts_and_arguments();
     if (result != 0) return 50 + result;
     result = test_sizing();
-    return (result == 0) ? 0 : 60 + result;
+    if (result != 0) return 60 + result;
+    result = test_request_actions();
+    return (result == 0) ? 0 : 70 + result;
 }
