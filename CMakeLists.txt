@@ -156,9 +156,10 @@ add_library(papacc_server_config STATIC
 target_include_directories(papacc_server_config
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/network
 )
 
-target_link_libraries(papacc_server_config PUBLIC papacc_core)
+target_link_libraries(papacc_server_config PUBLIC papacc_network)
 
 set_target_properties(papacc_server_config PROPERTIES
     C_STANDARD 99
@@ -216,6 +217,7 @@ if(BUILD_TESTING)
     target_include_directories(papacc_server_config_test
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
     )
 
     target_link_libraries(
