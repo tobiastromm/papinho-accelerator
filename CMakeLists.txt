@@ -284,6 +284,38 @@ if(WIN32)
 
     papacc_enable_warnings(papacc_server_network)
 
+    add_library(papacc_server_acceptor_win32 STATIC
+        apps/server/server_acceptor_win32.c
+    )
+
+    target_include_directories(papacc_server_acceptor_win32
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp
+    )
+
+    target_link_libraries(
+        papacc_server_acceptor_win32
+        PUBLIC
+            papacc_server_network
+            papacc_connection
+            papacc_tcp_win32
+            papacc_tcp_connection_win32
+    )
+
+    set_target_properties(papacc_server_acceptor_win32 PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_server_acceptor_win32)
+
     add_library(papacc_server_console_win32 STATIC
         apps/server/server_console_win32.c
     )
@@ -483,6 +515,38 @@ if(BUILD_TESTING)
         add_test(
             NAME papacc.server.network
             COMMAND papacc_server_network_test)
+
+        add_executable(papacc_server_acceptor_win32_test
+            tests/server_acceptor_win32_test.c
+        )
+
+        target_include_directories(papacc_server_acceptor_win32_test
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp
+        )
+
+        target_link_libraries(
+            papacc_server_acceptor_win32_test
+            PRIVATE papacc_server_acceptor_win32
+        )
+
+        set_target_properties(papacc_server_acceptor_win32_test PROPERTIES
+            C_STANDARD 99
+            C_STANDARD_REQUIRED YES
+            C_EXTENSIONS NO
+        )
+
+        papacc_enable_warnings(papacc_server_acceptor_win32_test)
+
+        add_test(
+            NAME papacc.server.acceptor.win32
+            COMMAND papacc_server_acceptor_win32_test
+        )
 
         add_executable(papacc_server_console_win32_test
             tests/server_console_win32_test.c
