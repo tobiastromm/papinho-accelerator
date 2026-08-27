@@ -53,6 +53,29 @@ set_target_properties(papacc_network PROPERTIES
 
 papacc_enable_warnings(papacc_network)
 
+add_library(papacc_connection STATIC
+    src/runtime/connection.c
+    src/transports/transport_connection.c
+)
+
+target_include_directories(papacc_connection
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+)
+
+target_link_libraries(papacc_connection PUBLIC papacc_network)
+
+set_target_properties(papacc_connection PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS NO
+)
+
+papacc_enable_warnings(papacc_connection)
+
 if(WIN32)
     add_library(papacc_tcp_win32 STATIC
         src/platform/win32/tcp_accept_win32.c
@@ -80,6 +103,32 @@ if(WIN32)
     )
 
     papacc_enable_warnings(papacc_tcp_win32)
+
+    add_library(papacc_tcp_connection_win32 STATIC
+        src/platform/win32/tcp_connection_transport_win32.c
+    )
+
+    target_include_directories(papacc_tcp_connection_win32
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp
+    )
+
+    target_link_libraries(
+        papacc_tcp_connection_win32
+        PUBLIC papacc_connection papacc_tcp_win32
+        PRIVATE ws2_32
+    )
+
+    set_target_properties(papacc_tcp_connection_win32 PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_tcp_connection_win32)
 
     add_library(papacc_network_win32 STATIC
         src/platform/win32/network_interfaces_win32.c
@@ -279,6 +328,29 @@ if(WIN32)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(papacc_connection_test
+        tests/connection_test.c
+    )
+
+    target_include_directories(papacc_connection_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+    )
+
+    target_link_libraries(papacc_connection_test PRIVATE papacc_connection)
+
+    set_target_properties(papacc_connection_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_connection_test)
+
+    add_test(NAME papacc.connection.lifecycle COMMAND papacc_connection_test)
+
     add_executable(papacc_version_test
         tests/version_test.c
     )
@@ -653,6 +725,38 @@ if(BUILD_TESTING)
         add_test(
             NAME papacc.transport.tcp_accept.win32
             COMMAND papacc_tcp_accept_win32_test
+        )
+
+        add_executable(papacc_tcp_connection_transport_win32_test
+            tests/tcp_connection_transport_win32_test.c
+        )
+
+        target_include_directories(papacc_tcp_connection_transport_win32_test
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp
+        )
+
+        target_link_libraries(
+            papacc_tcp_connection_transport_win32_test
+            PRIVATE papacc_tcp_connection_win32
+        )
+
+        set_target_properties(
+            papacc_tcp_connection_transport_win32_test PROPERTIES
+            C_STANDARD 99
+            C_STANDARD_REQUIRED YES
+            C_EXTENSIONS NO
+        )
+
+        papacc_enable_warnings(papacc_tcp_connection_transport_win32_test)
+
+        add_test(
+            NAME papacc.connection.transport.win32
+            COMMAND papacc_tcp_connection_transport_win32_test
         )
 
         add_executable(papacc_tcp_listener_set_win32_test
