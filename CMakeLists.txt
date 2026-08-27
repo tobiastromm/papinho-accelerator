@@ -76,6 +76,25 @@ set_target_properties(papacc_connection PROPERTIES
 
 papacc_enable_warnings(papacc_connection)
 
+add_library(papacc_session STATIC
+    src/runtime/session.c
+)
+
+target_include_directories(papacc_session
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+)
+
+target_link_libraries(papacc_session PUBLIC papacc_core)
+
+set_target_properties(papacc_session PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS NO
+)
+
+papacc_enable_warnings(papacc_session)
+
 if(WIN32)
     add_library(papacc_tcp_win32 STATIC
         src/platform/win32/tcp_accept_win32.c
@@ -392,6 +411,27 @@ if(WIN32)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(papacc_session_test
+        tests/session_test.c
+    )
+
+    target_include_directories(papacc_session_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+    )
+
+    target_link_libraries(papacc_session_test PRIVATE papacc_session)
+
+    set_target_properties(papacc_session_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_session_test)
+
+    add_test(NAME papacc.session.lifecycle COMMAND papacc_session_test)
+
     add_executable(papacc_connection_test
         tests/connection_test.c
     )

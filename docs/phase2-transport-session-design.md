@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This checkpoint defines boundaries needed to begin Phase 2. It adds no runtime behavior: there is still no `accept()`, connection I/O, Session, parser, authentication, or Transport Security implementation.
+This checkpoint defines the enduring Phase 2 boundaries. The portable Session runtime foundation now implements lifecycle and manager mechanics only; there is still no connection-to-Session association, connection I/O, parser, authentication, or Transport Security implementation.
 
 The central invariant is:
 
@@ -120,11 +120,17 @@ CLOSING
 CLOSED
 ```
 
-Names are conceptual until the Session Foundation subphase. Invalid input or failure during establishment closes the pending Connection and must not publish a partially active Session.
+The Session Foundation implements these state names. Manager publication creates an `ESTABLISHING` Session, and only an explicit runtime transition can make it `ACTIVE`. No production protocol event calls that transition yet.
 
 ### Session identity
 
-A future Session ID must be sufficiently collision-resistant within the server lifetime and suitable for correlation. This checkpoint does not select its size, representation, randomness source, encoding, or wire form. Knowledge of a Session ID is never authentication and is insufficient to associate a Data Channel or acquire authority.
+The implemented `session_instance_id` is a nonzero, manager-assigned `PAPACC_U64` used only for runtime diagnostics and management. It is not persistent, conveys no authority, and is never automatically wire-visible.
+
+```text
+session_instance_id != future Wire Session ID
+```
+
+The size, representation, randomness source, encoding, cryptographic properties, and wire form of a future protocol Session ID remain deliberately undefined. Knowledge of either identifier is never authentication and is insufficient to associate a Data Channel or acquire authority.
 
 ### Control Channel baseline
 
