@@ -1,5 +1,7 @@
 # Capabilities e configuração
 
+**Estado de implementação:** a Phase 1 não implementa negociação nem execução de capabilities. Os nomes abaixo são conceitos futuros e não possuem IDs numéricos congelados.
+
 Capabilities são unidades independentes, extensíveis, negociáveis e versionáveis. Seus IDs futuros deverão ser estáveis; esta baseline não atribui números.
 
 ```text

@@ -2,38 +2,60 @@
 
 PapinhoAccelerator é um projeto independente para transferir tarefas computacionalmente pesadas de clientes para outro dispositivo. PapinhoBrowser será o primeiro cliente oficial, mas não define nem limita o protocolo, o servidor, os transports ou os backends.
 
-Esta revisão contém somente a baseline arquitetural e documental. Ela não oferece servidor funcional, protocolo binário congelado ou processamento de mídia.
+## Estado atual
+
+A Foundation da Phase 1 possui modelos portáteis em C99 e um backend servidor Win32 operacional no nível de infraestrutura:
+
+- listeners TCP reais em um único `control_port` explícito;
+- seleção de todas as interfaces ou de interfaces por identidade persistente local;
+- catálogo de interfaces com identidade runtime, identidade persistente e nome de apresentação UTF-8;
+- configuração por CLI e comando de inspeção `--list-interfaces`;
+- composição transacional de discovery, resolução de bind, WinSock e listener set;
+- encerramento gracioso por Ctrl+C e Ctrl+Break.
+
+Ainda não estão implementados:
+
+- aceitação ou processamento de clientes;
+- Sessions, Control Channel, Data Channels ou Wire Protocol;
+- autenticação, autorização ou Transport Security;
+- capabilities de computação, incluindo `TLS_OFFLOAD`;
+- network egress, proxy ou conexões externas;
+- GUI, arquivo de configuração ou backend POSIX.
+
+Os listeners atuais apenas permanecem abertos até a solicitação de parada. Não existe `accept()`, envio, recepção ou protocolo nesta fase.
 
 ## Escopo arquitetural
 
-- Core portável em C, sem tipos ou APIs específicas de Win32/Winsock.
-- Platform Abstraction Layer (PAL), abstração de transport e abstração de Compute Backend.
-- Control Plane separado de um ou mais Data Channels.
-- Sessions, capabilities, políticas, autorização e execução local/remota como conceitos explícitos.
-- TCP como primeiro transport planejado; outros transports permanecem extensões futuras.
-- Transport Security protege os canais do próprio PapinhoAccelerator e é independente da capability conceitual `TLS_OFFLOAD`, voltada a conexões externas do cliente.
+- Core e modelos de rede portáteis sem tipos Win32/Winsock.
+- PAL, backend de discovery e backend TCP Win32 como primeira implementação de plataforma.
+- Control/Data Channels, Sessions, capabilities e Compute Backends preservados como desenho futuro, não como funcionalidade entregue.
+- Transport Security protege conceitualmente os canais do próprio PapinhoAccelerator e é independente da capability futura `TLS_OFFLOAD`, voltada a conexões externas do cliente.
+
+## Uso atual no Windows
+
+```text
+papacc_server
+papacc_server --list-interfaces
+papacc_server --port <porta> --all-interfaces
+papacc_server --port <porta> --interface-id <persistent-id>
+```
+
+Não existe porta oficial ou default. O modo RUN exige `--port` e uma decisão explícita de bind. `--allow-network-egress` registra somente policy; egress ainda não foi implementado.
 
 ## Documentação
 
-- [Arquitetura](docs/architecture.md): camadas, responsabilidades, dependências e lifecycle.
-- [Visão do protocolo](docs/protocol-overview.md): planes, framing conceitual e mensagens futuras.
-- [Capabilities](docs/capabilities.md): negociação, localização da execução e políticas.
-- [Networking](docs/networking.md): transports, canais e network egress.
-- [Modelo de mídia](docs/media-model.md): streaming assist, transcoding e remote frames.
-- [Modelo de segurança](docs/security-model.md): autenticação, autorização e requisitos de proteção.
-- [Portabilidade](docs/portability.md): plataformas-alvo e limites das abstrações.
+- [Arquitetura](docs/architecture.md)
+- [Visão do protocolo](docs/protocol-overview.md)
+- [Capabilities](docs/capabilities.md)
+- [Networking](docs/networking.md)
+- [Modelo de mídia](docs/media-model.md)
+- [Modelo de segurança](docs/security-model.md)
+- [Portabilidade](docs/portability.md)
+- [Auditoria final da Phase 1](docs/phase1-foundation-audit.md)
 
-## Princípios
+## Build
 
-Separação de responsabilidades; independência de plataforma e transport; design por capabilities; política explícita; compatibilidade retroativa; defaults seguros; nenhuma criptografia própria; degradação graciosa; e fallback local quando suportado pelo cliente.
-
-## Estado
-
-Baseline de arquitetura/especificação com esqueleto compilável da fundação. Nenhuma plataforma, transport ou capability está declarada como implementada ou suportada.
-
-## Build da fundação
-
-Requer CMake 3.16 ou posterior e uma toolchain C moderna.
+Requer CMake 3.16 ou posterior e uma toolchain C99. No Windows, o build também produz o servidor operacional Win32.
 
 ```text
 cmake -S . -B build
@@ -41,4 +63,4 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-O target `papacc_core` é uma biblioteca estática C99. `papacc_server` é somente um smoke test do bootstrap: imprime a identificação da fundação e termina, sem inicializar serviços ou abrir portas. A versão exposta é a versão do software e não define uma versão do Wire Protocol.
+A versão `0.1.0` é a versão do software e não congela nem atribui versão, IDs ou layout ao Wire Protocol.

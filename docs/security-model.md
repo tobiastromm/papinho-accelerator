@@ -2,6 +2,8 @@
 
 Esta baseline registra requisitos; não escolhe biblioteca TLS, mecanismo de credencial nem implementação criptográfica. Criptografia própria é proibida.
 
+**Estado de implementação:** a Phase 1 não implementa autenticação, Transport Security nem `TLS_OFFLOAD`. Os listeners TCP atuais são somente infraestrutura e não devem ser expostos como serviço seguro ou capaz de processar clientes.
+
 ## Transport Security e TLS Offload
 
 Transport Security é a segurança da comunicação `PapinhoAccelerator Client ↔ PapinhoAccelerator Server`. Ela pertence à infraestrutura e ao protocolo do PapinhoAccelerator e protege Control Channel, Data Channels, autenticação, comandos, payloads, credenciais e dados enviados para processamento. Não é uma capability de processamento normal.

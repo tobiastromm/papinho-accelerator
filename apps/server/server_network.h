@@ -21,6 +21,13 @@ typedef struct PAPACC_SERVER_NETWORK {
  * discovers the current snapshot, resolves persistent/runtime bind intent,
  * then acquires WinSock and starts the Listener Set. Network egress policy is
  * retained by the config but is not operationally consumed in this phase.
+ *
+ * The caller owns the aggregate. On successful start, the aggregate owns its
+ * heap-allocated listener_storage and the live sockets stored in listener_set;
+ * shutdown releases both and WinSock. The config and its persistent-ID view
+ * are borrowed only for the duration of start. Discovery/presentation storage,
+ * runtime IDs, and Bind Targets are temporary and are not retained after start.
+ * A failed start publishes no partial ownership into the aggregate.
  */
 PAPACC_RESULT papacc_server_network_start(
     PAPACC_SERVER_NETWORK *network,

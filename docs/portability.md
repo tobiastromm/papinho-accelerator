@@ -1,6 +1,14 @@
 # Portabilidade
 
-O Core será escrito em C portável e consumirá contratos abstratos. Windows/Win32 é a primeira implementação pretendida; não pode determinar tipos, lifecycle ou semântica pública do produto.
+## Estado atual
+
+- `papacc_core`, `papacc_network`, Server Config e parser CLI são portáteis e não expõem tipos Win32.
+- Win32 implementa PAL monotônica, discovery/catálogo de interfaces, WinSock, socket/bind/listen, Listener Set e o executable lifecycle.
+- `papacc_server` é atualmente um composition root Win32 e só é criado pelo CMake em builds Windows.
+- Não existe backend POSIX/Linux, transport local, GUI ou Compute Backend implementado.
+- Identidade persistente em outras plataformas permanece um contrato opcional: futuros backends poderão fornecer token próprio ou marcar `is_valid = FALSE`; nenhuma estratégia Linux foi escolhida.
+
+O Core e os modelos de rede são escritos em C portável e consomem contratos abstratos. Windows/Win32 é a primeira implementação disponível; não determina tipos, lifecycle ou semântica pública do produto.
 
 ## Possibilidades arquiteturais
 

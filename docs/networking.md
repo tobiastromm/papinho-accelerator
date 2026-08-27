@@ -1,12 +1,42 @@
 # Networking e transports
 
+## Estado implementado na Phase 1
+
+O backend Win32 já implementa discovery, bind e listeners TCP. O fluxo operacional é:
+
+```text
+CLI Persistent Selection
+          ↓
+discovery snapshot canônico
+          ↓
+persistent ID -> interface_instance_id atual
+          ↓
+PAPACC_BIND_SELECTION runtime
+          ↓
+PAPACC_BIND_TARGET(s)
+          ↓
+WinSock + Multi-Listener Set
+```
+
+Comandos disponíveis:
+
+```text
+papacc_server --list-interfaces
+papacc_server --port <porta> --all-interfaces
+papacc_server --port <porta> --interface-id <persistent-id>
+```
+
+`--list-interfaces` é inspeção e não abre listeners. `--all-interfaces` é intenção administrativa; somente a resolução de targets produz `0.0.0.0` e `::`. A seleção persistente por interface é resolvida integralmente contra um único snapshot e não usa FriendlyName como identidade. O `control_port` é obrigatório e não possui default oficial.
+
+Os listeners não aceitam clientes, não enviam ou recebem dados e não implementam Session ou protocolo.
+
 ## Abstração de transport
 
 As camadas superiores trabalham com canais abstratos e não com sockets. A arquitetura reserva:
 
 ```text
 Transport
-├─ TCP                 primeiro a ser implementado
+├─ TCP                 listener foundation implementada no Win32
 ├─ LOCAL_PCI           futuro
 ├─ LOCAL_ISA           futuro
 └─ outros              futuro

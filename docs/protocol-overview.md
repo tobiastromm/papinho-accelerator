@@ -2,6 +2,8 @@
 
 Este documento define conceitos, não bytes definitivos. O protocolo deve servir clientes diversos e operar sobre a Transport Abstraction.
 
+**Estado de implementação:** nenhum parser, framing, Session, Control Channel ou Data Channel existe na Phase 1. Os listeners TCP atuais não chamam `accept()` e não processam clientes. Todo o conteúdo abaixo permanece especificação futura e não congela IDs, números ou layout de pacotes.
+
 ## Canais e fluxo conceitual
 
 1. Um Control Channel cria uma Session.

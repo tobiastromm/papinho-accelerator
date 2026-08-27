@@ -1,8 +1,14 @@
 # Arquitetura
 
+## Estado de implementação
+
+A Phase 1 implementa a Foundation portátil e, no Windows, discovery de interfaces, resolução persistente de bind, WinSock, sockets TCP, Multi-Listener Set, configuração CLI e lifecycle Ctrl+C/Ctrl+Break. O executável abre listeners reais, mas ainda não aceita clientes.
+
+Sessions, Wire Protocol, Control/Data Channels operacionais, autenticação, Transport Security e Compute Backends permanecem desenho futuro. Os blocos conceituais abaixo descrevem a arquitetura pretendida e não devem ser interpretados como funcionalidade já entregue.
+
 ## Objetivos
 
-O sistema deve permanecer independente de cliente, sistema operacional, transport e mecanismo de computação. Windows é a primeira plataforma de implementação planejada, não a arquitetura do produto. Extensões devem preservar compatibilidade, falhar de modo seguro e permitir degradação graciosa e fallback local pelo cliente.
+O sistema deve permanecer independente de cliente, sistema operacional, transport e mecanismo de computação. Windows é a primeira plataforma implementada, não a arquitetura do produto. Extensões devem preservar compatibilidade, falhar de modo seguro e permitir degradação graciosa e fallback local pelo cliente.
 
 ## Camadas
 
@@ -78,6 +84,24 @@ CONNECTED -> NEGOTIATING -> AUTHENTICATING -> READY -> ACTIVE
 Servidores abertos podem atravessar `AUTHENTICATING` sem credencial, mantendo uma decisão explícita de modo/política. Nomes e transições ainda não estão congelados. A Session deverá futuramente possuir Session ID não previsível, timeouts, heartbeat/PING/PONG, Data Channels associados, ownership de jobs, cleanup idempotente e regras explícitas de recuperação/reconexão. Reconexão não deve implicitamente herdar autoridade.
 
 ## Dependências permitidas
+
+Na Foundation atual, a direção concreta é:
+
+```text
+papacc_core
+    ↑
+papacc_network (modelos portáteis)
+    ↑
+papacc_network_win32 / papacc_tcp_win32
+    ↑
+papacc_server_config
+    ↑
+papacc_server_cli / papacc_server_network
+    ↑
+papacc_server (composition root Win32)
+```
+
+`src/network` não depende da aplicação e nenhum modelo portátil inclui tipos Win32. `server_network` e o console são APIs privadas da aplicação Win32 nesta fase.
 
 ```text
 Aplicação/host -> Core -> interfaces Transport/Compute/PAL

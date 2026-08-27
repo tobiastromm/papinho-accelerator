@@ -143,12 +143,6 @@ if(WIN32)
     papacc_enable_warnings(papacc_runtime)
 endif()
 
-add_executable(papacc_server
-    apps/server/main.c
-)
-
-target_link_libraries(papacc_server PRIVATE papacc_core)
-
 add_library(papacc_server_config STATIC
     apps/server/server_config.c
 )
@@ -190,6 +184,10 @@ set_target_properties(papacc_server_cli PROPERTIES
 papacc_enable_warnings(papacc_server_cli)
 
 if(WIN32)
+    add_executable(papacc_server
+        apps/server/main.c
+    )
+
     add_library(papacc_server_cli_interfaces STATIC
         apps/server/server_cli_interfaces.c
     )
@@ -268,15 +266,15 @@ if(WIN32)
             papacc_server_cli_interfaces
             papacc_server_network
             papacc_server_console_win32)
+
+    set_target_properties(papacc_server PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_server)
 endif()
-
-set_target_properties(papacc_server PROPERTIES
-    C_STANDARD 99
-    C_STANDARD_REQUIRED YES
-    C_EXTENSIONS NO
-)
-
-papacc_enable_warnings(papacc_server)
 
 if(BUILD_TESTING)
     add_executable(papacc_version_test
