@@ -55,6 +55,7 @@ papacc_enable_warnings(papacc_network)
 
 if(WIN32)
     add_library(papacc_tcp_win32 STATIC
+        src/platform/win32/tcp_accept_win32.c
         src/platform/win32/tcp_platform_win32.c
         src/platform/win32/tcp_listener_set_win32.c
         src/platform/win32/tcp_socket_win32.c
@@ -68,7 +69,7 @@ if(WIN32)
 
     target_link_libraries(
         papacc_tcp_win32
-        PUBLIC papacc_core
+        PUBLIC papacc_core papacc_network
         PRIVATE ws2_32
     )
 
@@ -623,6 +624,35 @@ if(BUILD_TESTING)
         add_test(
             NAME papacc.transport.tcp_socket_bind.win32
             COMMAND papacc_tcp_socket_win32_test
+        )
+
+        add_executable(papacc_tcp_accept_win32_test
+            tests/tcp_accept_win32_test.c
+        )
+
+        target_include_directories(papacc_tcp_accept_win32_test
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp
+        )
+
+        target_link_libraries(
+            papacc_tcp_accept_win32_test
+            PRIVATE papacc_tcp_win32 papacc_network
+        )
+
+        set_target_properties(papacc_tcp_accept_win32_test PROPERTIES
+            C_STANDARD 99
+            C_STANDARD_REQUIRED YES
+            C_EXTENSIONS NO
+        )
+
+        papacc_enable_warnings(papacc_tcp_accept_win32_test)
+
+        add_test(
+            NAME papacc.transport.tcp_accept.win32
+            COMMAND papacc_tcp_accept_win32_test
         )
 
         add_executable(papacc_tcp_listener_set_win32_test
