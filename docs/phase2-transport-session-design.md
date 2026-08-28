@@ -162,7 +162,8 @@ C4 implements none of that loop or nonblocking transition.
 The first normative wire transition toward this runtime is frozen in
 [Control Establishment Protocol](control-establishment-protocol.md). It creates
 a Session/CONTROL relationship transactionally and activates only after the
-complete ACCEPT frame is written; no implementation exists in D1.
+complete ACCEPT frame is written. Its portable processor is implemented, but no
+production scheduler invokes it yet.
 
 A Connection does not create an active Session merely by connecting. The conceptual Session lifecycle baseline is:
 

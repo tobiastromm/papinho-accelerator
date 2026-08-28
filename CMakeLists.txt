@@ -184,6 +184,31 @@ set_target_properties(papacc_framed_writer PROPERTIES
 
 papacc_enable_warnings(papacc_framed_writer)
 
+add_library(papacc_control_protocol STATIC
+    src/protocol/control_protocol.c
+)
+target_include_directories(papacc_control_protocol PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol)
+target_link_libraries(papacc_control_protocol PUBLIC papacc_protocol_framing)
+set_target_properties(papacc_control_protocol PROPERTIES
+    C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+papacc_enable_warnings(papacc_control_protocol)
+
+add_library(papacc_control_processor STATIC
+    src/protocol/control_processor.c
+)
+target_include_directories(papacc_control_processor
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network)
+target_link_libraries(papacc_control_processor PUBLIC
+    papacc_control_protocol papacc_framed_reader papacc_framed_writer
+    papacc_channel papacc_session papacc_connection)
+set_target_properties(papacc_control_processor PROPERTIES
+    C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+papacc_enable_warnings(papacc_control_processor)
+
 if(WIN32)
     add_library(papacc_tcp_win32 STATIC
         src/platform/win32/tcp_accept_win32.c
@@ -500,6 +525,28 @@ if(WIN32)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(papacc_control_protocol_test tests/control_protocol_test.c)
+    target_link_libraries(papacc_control_protocol_test PRIVATE
+        papacc_control_protocol)
+    set_target_properties(papacc_control_protocol_test PROPERTIES
+        C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    papacc_enable_warnings(papacc_control_protocol_test)
+    add_test(NAME papacc.protocol.control_codec
+        COMMAND papacc_control_protocol_test)
+
+    add_executable(papacc_control_processor_test tests/control_processor_test.c)
+    target_include_directories(papacc_control_processor_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/transports)
+    target_link_libraries(papacc_control_processor_test PRIVATE
+        papacc_control_processor)
+    set_target_properties(papacc_control_processor_test PROPERTIES
+        C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    papacc_enable_warnings(papacc_control_processor_test)
+    add_test(NAME papacc.protocol.control_processor
+        COMMAND papacc_control_processor_test)
+
     add_executable(papacc_framed_writer_test
         tests/framed_writer_test.c
     )

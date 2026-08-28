@@ -221,7 +221,8 @@ Transport Security.
 
 The first protocol consuming this architecture is frozen in
 [Control Establishment Protocol](control-establishment-protocol.md). D1 adds no
-scheduler or processor implementation.
+scheduler implementation. The portable D2 processor is implemented but remains
+unwired to the executable until D3.
 
 Reader/Writer live in portable processor slots. The Win32 scheduler invokes
 bounded processor turns only for buffered/readable/writable work. Errors close

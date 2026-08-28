@@ -2,9 +2,10 @@
 
 ## Status and layering
 
-This Phase 2.D1 document normatively freezes the first message family. It
-implements no codec, processor, scheduler, security, authentication, Session
-wire identity, or DATA association.
+This document normatively freezes the first message family. Phase 2.D2 now
+implements its portable codecs and server-side establishment processor.
+Scheduler/executable integration, security, authentication, Session wire
+identity, and DATA association remain absent.
 
 ```text
 Transport -> Framing -> Control Establishment Messages -> runtime lifecycle
