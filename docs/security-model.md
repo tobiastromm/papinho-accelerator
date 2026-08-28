@@ -2,7 +2,11 @@
 
 Esta baseline registra requisitos; não escolhe biblioteca TLS, mecanismo de credencial nem implementação criptográfica. Criptografia própria é proibida.
 
-**Estado de implementação:** não existem autenticação, Transport Security nem `TLS_OFFLOAD`. O servidor já pode aceitar Connections TCP, mas elas permanecem `PENDING` e nenhum payload/protocolo é processado. O serviço não deve ser apresentado como seguro nesta fase.
+**Estado de implementação:** não existem autenticação, Transport Security nem
+`TLS_OFFLOAD`. O servidor processa Control establishment; E1 apenas congela um
+ticket opaco one-time para futura associação estrutural DATA. Esse ticket não é
+credencial, autenticação nem autorização segura. O serviço não deve ser
+apresentado como seguro nesta fase.
 
 ## Transport Security e TLS Offload
 
@@ -43,7 +47,12 @@ Transport Security deverá fornecer essas propriedades por mecanismo futuro, sem
 
 ## Data Channels e Sessions
 
-Um Data Channel não deve ser aceito apenas por apresentar um Session ID. O desenho futuro deverá provar posse/autorização, vincular identidade e parâmetros negociados, limitar validade temporal e impedir vínculo cruzado entre Sessions. Perda/reconexão deve revogar ou revalidar autoridade; cleanup precisa invalidar associações.
+Um Data Channel não deve ser aceito apenas por apresentar um Session ID. E1
+deliberadamente não cria Wire Session ID: usa ticket temporário estrutural que
+expira monotonicamente e é invalidado com CONTROL/Session. Isso ainda não prova
+identidade ou autorização. Phase 3 deverá inserir validação autenticada e
+autorizada entre ticket resolution e lifecycle/bind, limitar replay e impedir
+vínculo cruzado entre Sessions.
 
 ## Fail-safe defaults
 

@@ -202,7 +202,10 @@ The initial baseline is exactly one primary Control Channel per established Sess
 
 A Session may later have zero or more Data Channels. No fixed count is chosen; server/session policy and resource limits will bound them.
 
-A new Connection remains pending until it presents future protocol information sufficient to classify it. A Data Channel must prove authorized association using something beyond Session ID. Possible future inputs include an authenticated token, nonce, channel binding, or Transport-Security-derived secret, but no mechanism is selected here.
+A new Connection remains PENDING until a Framed Reader classifier observes
+`CONTROL_OPEN` or `DATA_ATTACH`. E1 freezes a one-time opaque 16-byte ticket for
+structural DATA association, not a stable Wire Session ID or final secure
+authorization. Phase 3 must add authenticated/authorized binding.
 
 The implemented DATA bind API is an internal structural operation requiring an
 ACTIVE Session and an existing bound CONTROL Channel:
@@ -210,6 +213,11 @@ ACTIVE Session and an existing bound CONTROL Channel:
 ```text
 internal structural DATA binding != secure remote Data Channel association
 ```
+
+The normative ticket lifecycle, DATA vectors, classifier boundary, and
+CONTROL/DATA failure semantics are in
+[Data Association Protocol](data-association-protocol.md). Ticket state belongs
+to a separate fixed-capacity association layer, not `PAPACC_SESSION`.
 
 Knowledge of `session_instance_id`, `channel_instance_id`, or any future wire
 identifier grants no authority to attach a remote Data Channel. No wire

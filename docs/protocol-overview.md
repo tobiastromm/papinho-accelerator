@@ -1,20 +1,22 @@
 # Visão geral do protocolo
 
 Phase 2.D3B integra `CONTROL_OPEN` -> `CONTROL_ACCEPT` ao RUN mode Win32 real.
-Depois do estabelecimento, o processor permanece `ESTABLISHED` e não consome
-novas mensagens. DATA association, autenticação, Transport Security,
-capabilities e o dispatcher Control geral continuam não implementados.
+Phase 2.E1 congela, sem implementar, associação estrutural DATA por ticket
+opaco one-time. Autenticação, Transport Security, capabilities e protocolo de
+payload DATA continuam não implementados.
 
-Este documento define a visão conceitual das futuras mensagens. O envelope comum de bytes foi congelado separadamente em [Protocol Framing](protocol-framing.md), sem atribuir tipos numéricos de mensagens ou payloads.
+Este documento resume a visão conceitual. O envelope comum está em [Protocol
+Framing](protocol-framing.md); os únicos tipos numéricos atribuídos são o
+registry normativo `0x0001`..`0x0006`.
 
 **Estado de implementação:** existem foundations runtime de Connection, Session
 e Channel, encoder/parser, Framed Reader e Framed Writer portáteis. O executable
 processa apenas as duas mensagens de estabelecimento pelo I/O Loop Win32
 combinado. A arquitetura normativa está em
 [Connection I/O Scheduling](connection-io-scheduling.md).
-Os nomes de mensagens abaixo continuam não congelados, exceto pelos primeiros
-tipos normativos `CONTROL_OPEN` (`0x0001`) e `CONTROL_ACCEPT` (`0x0002`),
-definidos em [Control Establishment Protocol](control-establishment-protocol.md).
+Os IDs normativos `0x0001`..`0x0006` estão definidos em
+[Control Establishment Protocol](control-establishment-protocol.md) e
+[Data Association Protocol](data-association-protocol.md).
 
 ## Canais e fluxo conceitual
 
@@ -31,21 +33,20 @@ Mensagens de controle não devem ficar indefinidamente bloqueadas atrás de gran
 
 Envelope 1.0 possui header fixo de 16 bytes, magic `PACC`, versão de envelope 1.0, Header Length, Message Type U16, Flags U16 e Payload Length U32, com inteiros multi-byte big-endian. IDs de Session, Channel, Connection e correlação não pertencem ao header universal; metadata futura pertence à semântica de mensagens específicas.
 
-O contrato normativo completo, exemplos golden e integrações portáteis de
-stream estão em [Protocol Framing](protocol-framing.md). Nenhum Message Type
-real é atribuído por este overview.
+O contrato normativo do envelope e das integrações portáteis de stream está em
+[Protocol Framing](protocol-framing.md). Este overview não atribui IDs extras.
 
 ## Vocabulário de mensagens não congelado
 
-`CONTROL_OPEN` e `CONTROL_ACCEPT` não fazem parte da lista especulativa abaixo;
-seus IDs, direções e payloads 1.0 já estão congelados no documento normativo.
+`CONTROL_OPEN`, `CONTROL_ACCEPT`, `DATA_TICKET_REQUEST`, `DATA_TICKET`,
+`DATA_ATTACH` e `DATA_ACCEPT` não fazem parte da lista especulativa abaixo;
+seus IDs, direções e payloads estão congelados nos documentos normativos.
 
 ```text
 HELLO / WELCOME
 AUTH / AUTH_RESULT
 CAPABILITIES / CAPABILITY_CONFIG
 PING / PONG
-DATA_CHANNEL_REQUEST / DATA_CHANNEL_ACCEPT
 REQUEST / RESPONSE / PROGRESS / CANCEL / COMPLETE
 ERROR / DISCONNECT
 ```

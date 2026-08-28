@@ -5,8 +5,9 @@
 This document normatively freezes the first message family. Phase 2.D2 now
 implements its portable codecs and server-side establishment processor. D3B
 integrates that processor into the real Win32 RUN mode. Security,
-authentication, Session wire identity, DATA association, and a general
-post-establishment Control dispatcher remain absent. Phase 2 `ACTIVE` records
+authentication, Session wire identity, DATA association implementation, and a
+general post-establishment Control dispatcher remain absent. E1 freezes the
+DATA association wire design only. Phase 2 `ACTIVE` records
 only completed Control establishment, not trust or protection.
 
 ```text
@@ -23,10 +24,14 @@ does not know wire messages; Channel Manager remains relationship authority.
 | `0x0000` | RESERVED / INVALID | none |
 | `0x0001` | `CONTROL_OPEN` | client -> accelerator only |
 | `0x0002` | `CONTROL_ACCEPT` | accelerator -> client only |
+| `0x0003` | `DATA_TICKET_REQUEST` | client -> accelerator, established CONTROL |
+| `0x0004` | `DATA_TICKET` | accelerator -> client, established CONTROL |
+| `0x0005` | `DATA_ATTACH` | client -> accelerator, new PENDING Connection |
+| `0x0006` | `DATA_ACCEPT` | accelerator -> client, new DATA Connection |
 
-No other ID is assigned. Earlier test use of `0x0001` was syntactic; it now
-normatively means `CONTROL_OPEN`. Wrong-direction receipt is a protocol-state
-violation, not a framing error.
+No other ID is assigned. E1 messages are normatively defined in
+[Data Association Protocol](data-association-protocol.md). Wrong-direction
+receipt is a protocol-state violation, not a framing error.
 
 ## Independent version
 
@@ -93,9 +98,11 @@ UNINITIALIZED
 terminal: CLOSED / ERROR
 ```
 
-For a `PENDING` Connection, the first semantically processed frame MUST be
-`CONTROL_OPEN`. Any other nonzero type remains framing-valid but violates the
-current protocol state and closes the Connection. A second `CONTROL_OPEN` on
+During the Phase 2.D Control-only baseline, the first PENDING frame had to be
+`CONTROL_OPEN`. Phase 2.E broadens classification: a new PENDING Connection may
+start with `CONTROL_OPEN` or `DATA_ATTACH`; a classifier selects the distinct
+processor. Once classified as CONTROL, any other current-state type violates
+protocol state and closes the Connection. A second `CONTROL_OPEN` on
 the same Connection is likewise invalid and never creates another Session.
 Receiving `CONTROL_ACCEPT` at the server, or `CONTROL_OPEN` at the client, is a
 direction/state violation.
@@ -162,11 +169,10 @@ No duration is frozen; it remains server policy.
 
 `connection_instance_id`, `session_instance_id`, and `channel_instance_id`
 remain runtime-only, non-authoritative, and never serialized. Control
-establishment needs no remote Session reference. Phase 2.E must design the
-reference/association mechanism for a second Connection becoming DATA.
-Knowledge of that future reference alone MUST NOT become final authorization;
-Phase 3 must add secure authentication/binding. No insecure placeholder or
-random-looking unauthenticated token is defined.
+establishment needs no remote Session reference. Phase 2.E1 freezes a one-time
+opaque 16-byte association ticket rather than a stable Wire Session ID.
+Knowledge of that ticket is structural correlation, not final authorization;
+Phase 3 must add secure authentication/binding.
 
 ## Implementation boundaries
 
@@ -186,9 +192,9 @@ golden ACCEPT bytes, partial/blocked writes, activation only at completion,
 EOF/failures, manager exhaustion, rollback, deadline lifecycle, and
 per-Connection isolation.
 
-Still deferred: DATA protocol, Wire Session identity, authentication,
-Transport Security, capabilities, credentials, client metadata, egress,
-compression/encryption negotiation, rejection/error messages, and all other
-Message Type IDs.
+Still deferred: DATA application protocol, Wire Session identity,
+authentication, Transport Security, capabilities, credentials, client
+metadata, egress, compression/encryption negotiation, rejection/error
+messages, and all Message Type IDs beyond `0x0006`.
 
 **Checkpoint result: `CONTROL ESTABLISHMENT DESIGN READY`.**

@@ -300,8 +300,8 @@ higher-layer metadata. Conceptual alignment is not a native ABI.
 
 ## Explicitly deferred
 
-- actual Message Type assignments and a number registry;
-- CONTROL establishment and DATA association payloads;
+- Message Type assignments beyond the `0x0001`..`0x0006` registry;
+- DATA application payloads after association;
 - Wire Session ID and Wire Channel ID, if ever needed;
 - authentication, capability, error, and heartbeat messages;
 - job IDs and request/response correlation;
@@ -311,7 +311,8 @@ higher-layer metadata. Conceptual alignment is not a native ABI.
 Names such as HELLO, generic CONTROL/DATA, AUTH, ERROR, PING, and CAPABILITIES
 remain unassigned messages.
 
-The first registry now exists in
-[Control Establishment Protocol](control-establishment-protocol.md) and assigns
-only `CONTROL_OPEN` (`0x0001`) and `CONTROL_ACCEPT` (`0x0002`). Framing itself
-still accepts unknown nonzero types and does not interpret Control semantics.
+The registry is defined across
+[Control Establishment Protocol](control-establishment-protocol.md) and
+[Data Association Protocol](data-association-protocol.md), assigning only
+`0x0001` through `0x0006`. Framing itself still accepts unknown nonzero types
+and does not interpret Control or DATA association semantics.

@@ -229,17 +229,21 @@ Transport Security.
 The first protocol consuming this architecture is frozen in
 [Control Establishment Protocol](control-establishment-protocol.md). D1 adds no
 scheduler implementation. D3B now wires the portable processor to real Win32
-RUN mode; post-establishment dispatch remains deferred.
+RUN mode. E1 now freezes a future handoff to a distinct post-establishment
+Control processor plus Framed Reader-based CONTROL_OPEN/DATA_ATTACH
+classification; neither is implemented yet.
 
 Reader/Writer live in portable processor slots. The Win32 scheduler invokes
 bounded processor turns only for buffered/readable/writable work. Errors close
 their Connection scope. Establishment uses PAL-monotonic deadlines. Fairness is
 bounded work plus round-robin traversal.
 
-Still deferred: Message Type IDs, Control/Data payloads, Wire Session ID,
-authentication, Transport Security mechanism, capability negotiation, general
-send queues, workers, IOCP, POSIX poll/epoll/kqueue, and dynamic `FD_SETSIZE`
-scaling.
+Still deferred: Message Type IDs beyond `0x0006`, DATA application payloads,
+stable Wire Session ID, authentication, Transport Security mechanism,
+capability negotiation, general send queues, workers, IOCP, POSIX
+poll/epoll/kqueue, and dynamic `FD_SETSIZE` scaling. The initial DATA
+association scheduling requirements are frozen in
+[Data Association Protocol](data-association-protocol.md).
 
 **Checkpoint result: `CONNECTION I/O ARCHITECTURE READY`.** Scheduling,
 ownership, fairness, errors, timeout, portability, and shutdown boundaries are
