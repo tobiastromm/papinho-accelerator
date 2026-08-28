@@ -211,6 +211,12 @@ Writer reset/shutdown discards only local state. If any header or payload byte
 has already reached the stream, it cannot undo or resynchronize those bytes;
 normal production recovery is to abandon the affected transport.
 
+Production scheduling is frozen separately in
+[Connection I/O Scheduling](connection-io-scheduling.md): a portable processor
+will own Reader/Writer state while a Win32 readiness loop schedules bounded
+turns. This is architectural only; no production Connection currently invokes
+Reader or Writer.
+
 ## Deliberately absent fields
 
 The base header has no runtime or wire Session ID, Channel ID, Connection ID,

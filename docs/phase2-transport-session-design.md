@@ -146,11 +146,16 @@ Ownership transitions must be explicit:
 
 ## Blocking and threading baseline
 
-The first primitives should be conventional blocking transport operations because they are easy to specify, test, and support on the historical Windows baseline. This does not choose one thread per Connection as the server architecture.
+Transport primitives remain individually capable of blocking. Initial
+production Connection processing is now architecturally frozen as one
+application-owned Win32 I/O thread using a unified `select()` loop for
+listeners and nonblocking accepted Connections. Work is bounded and
+round-robin; write readiness is monitored only for pending output.
 
-For the first server acceptor, the recommended baseline is one application-owned acceptor execution context using readiness multiplexing such as WinSock `select()` across the active listener sockets, followed by explicit handoff of accepted Connections. This works with old WinSock environments, handles multiple listeners without a thread per listener, and avoids committing the portable layers to IOCP or modern Windows APIs.
-
-No thread is implemented by this checkpoint. Exact stop wakeup, accepted-connection execution, worker pooling, and the transition to nonblocking/event-driven I/O must be designed with the acceptor subphase. The long-term recommendation is hybrid/event-driven infrastructure with bounded workers where computation demands it, rather than unbounded one-thread-per-Connection. Transport abstraction must allow a future PCI/ISA backend to use a different readiness mechanism.
+Thread-per-Connection, IOCP, `WSAPoll`, and worker pools are not the initial
+baseline. The normative readiness, ownership, fairness, timeout, failure, and
+shutdown contract is [Connection I/O Scheduling](connection-io-scheduling.md).
+C4 implements none of that loop or nonblocking transition.
 
 ## Session contract
 
@@ -214,9 +219,15 @@ TCP is a byte stream:
 recv() boundary != message boundary
 ```
 
-The future framing layer must support partial headers, partial payloads, multiple frames in one read, incremental parsing, bounded lengths, overflow-safe arithmetic, version-aware unknown-message handling, and deterministic malformed-input cleanup. No frame layout is defined here.
+The implemented framing layer supports partial headers and payloads, multiple
+frames per read, incremental parsing, bounded lengths, overflow-safe
+arithmetic, version validation, and deterministic malformed-input cleanup. Its
+normative layout remains defined only by the framing document.
 
-Writes must also be incremental. `send()` may accept fewer bytes than requested or apply backpressure. Future send queues and producers must be bounded, cancellation-aware, and owned by an explicit Connection/channel layer. No queue is implemented or sized by this checkpoint.
+Writes are incremental through the Framed Writer. `send()` may accept fewer
+bytes than requested or apply backpressure. Future queues/producers must be
+bounded, cancellation-aware, and explicitly owned; no queue is implemented or
+sized by this checkpoint.
 
 ## Timeouts and resource policy
 
@@ -240,7 +251,10 @@ shutdown listeners
 WinSock cleanup
 ```
 
-Phase 1 currently owns only the final listener/WinSock portion. The future acceptor must stop and transfer/release all Connection ownership before `papacc_server_network_shutdown()` runs. Shutdown must remain idempotent and must not perform competing cleanup from the console handler.
+Protocol processors and their Readers/Writers must shut down before their
+Connection transports. Detailed ordering is frozen in
+[Connection I/O Scheduling](connection-io-scheduling.md). Shutdown remains
+idempotent and the console handler must not perform competing cleanup.
 
 ## Security, authentication, and capabilities
 
@@ -287,7 +301,9 @@ Tests must avoid topology-specific addresses and arbitrary race-masking sleeps. 
 11. Framing and backpressure sit above transport stream I/O.
 12. All lifecycle timeouts use monotonic time.
 13. Server Network remains listening infrastructure only.
-14. Initial primitives may block; the first acceptor should multiplex listeners in one application-owned execution context without committing to thread-per-Connection.
+14. Initial production I/O uses one application-owned Win32 `select()` loop,
+    nonblocking accepted Connections, bounded round-robin turns, and no
+    thread-per-Connection.
 15. Transport Security can be inserted between raw transport and framing.
 
 ## Recommended implementation sequence
@@ -303,17 +319,18 @@ Tests must avoid topology-specific addresses and arbitrary race-masking sleeps. 
 
 ## Deferred decisions
 
-This checkpoint deliberately does not choose:
+This checkpoint still deliberately does not choose:
 
-- magic bytes, header size, message numbers, layout, frame endianness, or version fields;
+- real message numbers or message payload layouts beyond the already frozen
+  common Envelope 1.0;
 - Session ID type, size, generator, encoding, or wire representation;
 - authentication messages, credentials, Data Channel association proof, or cryptographic mechanism;
 - TLS library or Transport Security configuration;
 - capability numeric IDs;
 - maximum Connections, Sessions, channels, queue sizes, or timeout values;
 - universal endpoint representation for non-IP transports;
-- exact opaque transport ABI;
-- worker count, Connection I/O scheduler, IOCP use, or long-term event loop implementation;
+- worker count, IOCP use, or long-term replacement for the frozen initial
+  `select()` event loop;
 - UDP;
 - Session resumption, multiple/replacement Control Channels, or survival after control loss.
 

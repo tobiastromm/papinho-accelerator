@@ -2,7 +2,13 @@
 
 Este documento define a visão conceitual das futuras mensagens. O envelope comum de bytes foi congelado separadamente em [Protocol Framing](protocol-framing.md), sem atribuir tipos numéricos de mensagens ou payloads.
 
-**Estado de implementação:** existem foundations runtime de Connection, Session e Channel, mas nenhum parser, encoder, mensagem, autenticação ou processamento protocolar. O executable aceita Connections como `PENDING` sem ler payload. Os nomes de mensagens abaixo continuam não congelados.
+**Estado de implementação:** existem foundations runtime de Connection, Session
+e Channel, encoder/parser, Framed Reader e Framed Writer portáteis. Ainda não
+existem mensagens, autenticação ou processamento protocolar no executable, que
+aceita Connections como `PENDING` sem ler/escrever payload. A arquitetura de
+readiness está congelada em
+[Connection I/O Scheduling](connection-io-scheduling.md), mas não implementada.
+Os nomes de mensagens abaixo continuam não congelados.
 
 ## Canais e fluxo conceitual
 
@@ -19,7 +25,9 @@ Mensagens de controle não devem ficar indefinidamente bloqueadas atrás de gran
 
 Envelope 1.0 possui header fixo de 16 bytes, magic `PACC`, versão de envelope 1.0, Header Length, Message Type U16, Flags U16 e Payload Length U32, com inteiros multi-byte big-endian. IDs de Session, Channel, Connection e correlação não pertencem ao header universal; metadata futura pertence à semântica de mensagens específicas.
 
-O contrato normativo completo, exemplos golden e matriz obrigatória da futura Phase 2.C2 estão em [Protocol Framing](protocol-framing.md). Nenhum Message Type real é atribuído por este overview.
+O contrato normativo completo, exemplos golden e integrações portáteis de
+stream estão em [Protocol Framing](protocol-framing.md). Nenhum Message Type
+real é atribuído por este overview.
 
 ## Vocabulário de mensagens não congelado
 
