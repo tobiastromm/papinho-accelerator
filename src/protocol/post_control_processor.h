@@ -53,6 +53,15 @@ PAPACC_RESULT papacc_post_control_processor_init(
     PAPACC_U64 session_instance_id,
     PAPACC_U64 control_channel_instance_id,
     PAPACC_U8 *read_scratch, PAPACC_SIZE read_scratch_capacity);
+PAPACC_RESULT papacc_post_control_processor_init_from_reader(
+    PAPACC_POST_CONTROL_PROCESSOR *processor,
+    PAPACC_CONNECTION_MANAGER *connection_manager,
+    PAPACC_SESSION_MANAGER *session_manager,
+    PAPACC_CHANNEL_MANAGER *channel_manager,
+    PAPACC_DATA_ASSOCIATION_MANAGER *association_manager,
+    PAPACC_U64 session_instance_id,
+    PAPACC_U64 control_channel_instance_id,
+    PAPACC_FRAMED_READER *reader);
 PAPACC_BOOL papacc_post_control_processor_wants_read(
     const PAPACC_POST_CONTROL_PROCESSOR *processor);
 PAPACC_BOOL papacc_post_control_processor_wants_write(

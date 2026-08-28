@@ -88,6 +88,67 @@ PAPACC_RESULT papacc_post_control_processor_init(
     return PAPACC_RESULT_OK;
 }
 
+PAPACC_RESULT papacc_post_control_processor_init_from_reader(
+    PAPACC_POST_CONTROL_PROCESSOR *processor,
+    PAPACC_CONNECTION_MANAGER *connection_manager,
+    PAPACC_SESSION_MANAGER *session_manager,
+    PAPACC_CHANNEL_MANAGER *channel_manager,
+    PAPACC_DATA_ASSOCIATION_MANAGER *association_manager,
+    PAPACC_U64 session_instance_id,
+    PAPACC_U64 control_channel_instance_id,
+    PAPACC_FRAMED_READER *reader)
+{
+    PAPACC_SESSION *session;
+    PAPACC_CHANNEL *channel;
+    PAPACC_CONNECTION *connection;
+    PAPACC_RESULT result;
+    if (processor == NULL || connection_manager == NULL ||
+        session_manager == NULL || channel_manager == NULL ||
+        association_manager == NULL || reader == NULL ||
+        session_instance_id == 0 || control_channel_instance_id == 0)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (processor->state != PAPACC_POST_CONTROL_PROCESSOR_STATE_UNINITIALIZED ||
+        reader->state != PAPACC_FRAMED_READER_STATE_READY ||
+        channel_manager->initialized != PAPACC_TRUE ||
+        channel_manager->connection_manager != connection_manager ||
+        channel_manager->session_manager != session_manager ||
+        association_manager->initialized != PAPACC_TRUE ||
+        association_manager->session_manager != session_manager ||
+        association_manager->channel_manager != channel_manager)
+        return PAPACC_RESULT_INVALID_STATE;
+    session = papacc_session_manager_find(session_manager, session_instance_id);
+    channel = papacc_channel_manager_find(
+        channel_manager, control_channel_instance_id);
+    if (session == NULL || session->state != PAPACC_SESSION_STATE_ACTIVE ||
+        channel == NULL || channel->state != PAPACC_CHANNEL_STATE_BOUND ||
+        channel->role != PAPACC_CHANNEL_ROLE_CONTROL ||
+        channel->session_instance_id != session_instance_id)
+        return PAPACC_RESULT_INVALID_STATE;
+    connection = papacc_connection_manager_find(
+        connection_manager, channel->connection_instance_id);
+    if (connection == NULL || connection->state !=
+            PAPACC_CONNECTION_STATE_ASSOCIATED ||
+        papacc_framed_reader_transport(reader) != &connection->transport)
+        return PAPACC_RESULT_INVALID_STATE;
+    result = papacc_framed_writer_init(&processor->writer,
+        &connection->transport);
+    if (result != PAPACC_RESULT_OK) return result;
+    result = papacc_framed_reader_move(&processor->reader, reader);
+    if (result != PAPACC_RESULT_OK) {
+        papacc_framed_writer_shutdown(&processor->writer);
+        return result;
+    }
+    processor->connection_manager = connection_manager;
+    processor->session_manager = session_manager;
+    processor->channel_manager = channel_manager;
+    processor->association_manager = association_manager;
+    processor->connection = connection;
+    processor->session_instance_id = session_instance_id;
+    processor->control_channel_instance_id = control_channel_instance_id;
+    processor->state = PAPACC_POST_CONTROL_PROCESSOR_STATE_READY;
+    return PAPACC_RESULT_OK;
+}
+
 PAPACC_BOOL papacc_post_control_processor_wants_read(
     const PAPACC_POST_CONTROL_PROCESSOR *processor)
 {

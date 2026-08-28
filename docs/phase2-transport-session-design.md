@@ -223,6 +223,9 @@ classifier, Framed processor, platform generator, or server integration.
 E2B1 adds only the Framed post-Control ticket request/response processor. It
 does not consume tickets, bind DATA Channels, classify Connections, or integrate
 with the Win32 scheduler.
+E2B2A makes Framed Reader stream state movable between protocol owners and adds
+first-header classification for PENDING Connections. Classifier handoff and
+Control-to-post-Control handoff preserve buffered bytes and parser position.
 
 Knowledge of `session_instance_id`, `channel_instance_id`, or any future wire
 identifier grants no authority to attach a remote Data Channel. No wire

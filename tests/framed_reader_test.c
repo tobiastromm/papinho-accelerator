@@ -346,11 +346,57 @@ static int papacc_test_failures(void)
     return 0;
 }
 
+static int papacc_test_move(void)
+{
+    PAPACC_U8 bytes[36], scratch[36]; PAPACC_U8 payload[4] = {1,2,3,4};
+    PAPACC_TEST_STREAM stream = { bytes, 20, 0, NULL, 0, 0, 0, 0,
+        PAPACC_FALSE, PAPACC_FALSE };
+    PAPACC_TRANSPORT_CONNECTION transport = papacc_test_transport(&stream);
+    PAPACC_FRAMED_READER source = PAPACC_FRAMED_READER_INITIALIZER;
+    PAPACC_FRAMED_READER destination = PAPACC_FRAMED_READER_INITIALIZER;
+    PAPACC_FRAMED_READER_STATUS status; PAPACC_FRAME_PARSER_EVENT event;
+    papacc_test_frame(bytes, 7, payload, 4);
+    stream.length = 20;
+    if (papacc_framed_reader_init(&source, &transport, scratch, 5, 16) !=
+            PAPACC_RESULT_OK ||
+        papacc_framed_reader_next(&source, &status, &event) != PAPACC_RESULT_OK ||
+        source.parser.header_bytes_received != 5 ||
+        papacc_framed_reader_move(&destination, &source) != PAPACC_RESULT_OK)
+        return 39;
+    while (event.type != PAPACC_FRAME_PARSER_EVENT_HEADER_READY)
+        if (papacc_framed_reader_next(&destination, &status, &event) !=
+            PAPACC_RESULT_OK) return 39;
+    if (event.header.message_type != 7) return 39;
+    papacc_framed_reader_shutdown(&destination);
+    stream.offset = 0; stream.read_count = 0;
+    source = (PAPACC_FRAMED_READER)PAPACC_FRAMED_READER_INITIALIZER;
+    destination = (PAPACC_FRAMED_READER)PAPACC_FRAMED_READER_INITIALIZER;
+    if (papacc_framed_reader_init(&source, &transport, scratch, sizeof(scratch),
+            16) != PAPACC_RESULT_OK ||
+        papacc_framed_reader_next(&source, &status, &event) != PAPACC_RESULT_OK ||
+        event.type != PAPACC_FRAME_PARSER_EVENT_HEADER_READY ||
+        stream.read_count != 1 || source.buffered_length != 4 ||
+        papacc_framed_reader_move(&destination, &source) != PAPACC_RESULT_OK ||
+        source.state != PAPACC_FRAMED_READER_STATE_UNINITIALIZED ||
+        papacc_framed_reader_next(&destination, &status, &event) !=
+            PAPACC_RESULT_OK || event.type != PAPACC_FRAME_PARSER_EVENT_FRAME_COMPLETE ||
+        event.payload_length != 4 || memcmp(event.payload, payload, 4) != 0 ||
+        stream.read_count != 1) return 40;
+    if (papacc_framed_reader_move(&source, &source) !=
+            PAPACC_RESULT_INVALID_ARGUMENT ||
+        papacc_framed_reader_move(&source, &source) !=
+            PAPACC_RESULT_INVALID_ARGUMENT ||
+        papacc_framed_reader_move(&destination, &source) !=
+            PAPACC_RESULT_INVALID_STATE) return 41;
+    return 0;
+}
+
 int main(void)
 {
     int result = papacc_test_partial_and_one_byte();
     if (result == 0) result = papacc_test_multiple_frames_and_eof();
     if (result == 0) result = papacc_test_would_block_reset_and_shutdown();
     if (result == 0) result = papacc_test_failures();
+    if (result == 0) result = papacc_test_move();
     return result;
 }

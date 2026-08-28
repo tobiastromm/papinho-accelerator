@@ -119,6 +119,87 @@ PAPACC_RESULT papacc_control_processor_init(
     return PAPACC_RESULT_OK;
 }
 
+PAPACC_RESULT papacc_control_processor_init_from_reader(
+    PAPACC_CONTROL_PROCESSOR *processor,
+    PAPACC_CONNECTION_MANAGER *connection_manager,
+    PAPACC_SESSION_MANAGER *session_manager,
+    PAPACC_CHANNEL_MANAGER *channel_manager,
+    PAPACC_U64 connection_instance_id,
+    const PAPACC_FRAME_HEADER *first_header,
+    PAPACC_FRAMED_READER *reader,
+    PAPACC_U64 establishment_deadline_ns)
+{
+    PAPACC_CONNECTION *connection;
+    PAPACC_RESULT result;
+    if (processor == NULL || connection_manager == NULL ||
+        session_manager == NULL || channel_manager == NULL ||
+        first_header == NULL || reader == NULL || connection_instance_id == 0)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (processor->state != PAPACC_CONTROL_PROCESSOR_STATE_UNINITIALIZED ||
+        reader->state != PAPACC_FRAMED_READER_STATE_READY)
+        return PAPACC_RESULT_INVALID_STATE;
+    if (channel_manager->initialized != PAPACC_TRUE ||
+        channel_manager->connection_manager != connection_manager ||
+        channel_manager->session_manager != session_manager)
+        return PAPACC_RESULT_INVALID_STATE;
+    connection = papacc_connection_manager_find(
+        connection_manager, connection_instance_id);
+    if (connection == NULL || connection->state != PAPACC_CONNECTION_STATE_PENDING ||
+        papacc_framed_reader_transport(reader) != &connection->transport ||
+        first_header->message_type != PAPACC_MESSAGE_TYPE_CONTROL_OPEN ||
+        first_header->payload_length != 4 ||
+        reader->parser.state != PAPACC_FRAME_PARSER_STATE_READING_PAYLOAD ||
+        reader->parser.header.message_type != first_header->message_type ||
+        reader->parser.header.payload_length != first_header->payload_length)
+        return PAPACC_RESULT_INVALID_STATE;
+    result = papacc_framed_writer_init(&processor->writer, &connection->transport);
+    if (result != PAPACC_RESULT_OK) return result;
+    result = papacc_framed_reader_move(&processor->reader, reader);
+    if (result != PAPACC_RESULT_OK) {
+        papacc_framed_writer_shutdown(&processor->writer);
+        return result;
+    }
+    processor->connection_manager = connection_manager;
+    processor->session_manager = session_manager;
+    processor->channel_manager = channel_manager;
+    processor->connection = connection;
+    processor->establishment_deadline_ns = establishment_deadline_ns;
+    processor->open_payload_received = 0;
+    processor->state = PAPACC_CONTROL_PROCESSOR_STATE_READING_CONTROL_OPEN;
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_control_processor_handoff_reader(
+    PAPACC_CONTROL_PROCESSOR *processor, PAPACC_FRAMED_READER *out_reader)
+{
+    PAPACC_SESSION *session;
+    PAPACC_CHANNEL *channel;
+    PAPACC_RESULT result;
+    if (processor == NULL || out_reader == NULL)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (processor->state != PAPACC_CONTROL_PROCESSOR_STATE_ESTABLISHED ||
+        out_reader->state != PAPACC_FRAMED_READER_STATE_UNINITIALIZED ||
+        processor->writer.state != PAPACC_FRAMED_WRITER_STATE_IDLE)
+        return PAPACC_RESULT_INVALID_STATE;
+    session = papacc_session_manager_find(
+        processor->session_manager, processor->session_instance_id);
+    channel = papacc_channel_manager_find(
+        processor->channel_manager, processor->control_channel_instance_id);
+    if (session == NULL || session->state != PAPACC_SESSION_STATE_ACTIVE ||
+        channel == NULL || channel->state != PAPACC_CHANNEL_STATE_BOUND ||
+        channel->role != PAPACC_CHANNEL_ROLE_CONTROL ||
+        channel->session_instance_id != processor->session_instance_id ||
+        channel->connection_instance_id !=
+            processor->connection->connection_instance_id ||
+        processor->connection->state != PAPACC_CONNECTION_STATE_ASSOCIATED)
+        return PAPACC_RESULT_INVALID_STATE;
+    result = papacc_framed_reader_move(out_reader, &processor->reader);
+    if (result != PAPACC_RESULT_OK) return result;
+    papacc_framed_writer_shutdown(&processor->writer);
+    *processor = (PAPACC_CONTROL_PROCESSOR)PAPACC_CONTROL_PROCESSOR_INITIALIZER;
+    return PAPACC_RESULT_OK;
+}
+
 PAPACC_BOOL papacc_control_processor_wants_read(
     const PAPACC_CONTROL_PROCESSOR *processor)
 {

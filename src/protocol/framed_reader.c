@@ -161,6 +161,26 @@ PAPACC_RESULT papacc_framed_reader_reset(PAPACC_FRAMED_READER *reader)
     return PAPACC_RESULT_OK;
 }
 
+PAPACC_RESULT papacc_framed_reader_move(
+    PAPACC_FRAMED_READER *destination, PAPACC_FRAMED_READER *source)
+{
+    if (destination == NULL || source == NULL || destination == source)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (destination->state != PAPACC_FRAMED_READER_STATE_UNINITIALIZED ||
+        source->state != PAPACC_FRAMED_READER_STATE_READY)
+        return PAPACC_RESULT_INVALID_STATE;
+    *destination = *source;
+    *source = (PAPACC_FRAMED_READER)PAPACC_FRAMED_READER_INITIALIZER;
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_TRANSPORT_CONNECTION *papacc_framed_reader_transport(
+    const PAPACC_FRAMED_READER *reader)
+{
+    return reader != NULL && reader->state == PAPACC_FRAMED_READER_STATE_READY
+        ? reader->transport : NULL;
+}
+
 void papacc_framed_reader_shutdown(PAPACC_FRAMED_READER *reader)
 {
     if (reader == NULL) {

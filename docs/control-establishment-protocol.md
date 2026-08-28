@@ -10,6 +10,11 @@ general post-establishment Control dispatcher remain absent. E1 freezes the
 DATA association wire design only. Phase 2 `ACTIVE` records
 only completed Control establishment, not trust or protection.
 
+Phase 2.E2B2A adds an optional classifier-to-Control initialization path and an
+explicit established-Control Reader handoff to the post-Control processor.
+Both moves preserve parser position and buffered bytes; the original direct
+Control initialization path remains supported.
+
 ```text
 Transport -> Framing -> Control Establishment Messages -> runtime lifecycle
 ```

@@ -224,6 +224,11 @@ Transport -> future Transport Security -> Framing -> Protocol messages
 Scheduling observes transport readiness but cannot bypass or weaken required
 Transport Security.
 
+Phase 2.E2B2A adds a portable first-frame classifier ahead of specialized
+processors. Its Framed Reader is moved, never reset, during handoff, preserving
+all buffered bytes already removed from the transport. Win32 scheduler
+integration of this classifier remains unimplemented.
+
 ## Phase 2.D boundary
 
 The first protocol consuming this architecture is frozen in

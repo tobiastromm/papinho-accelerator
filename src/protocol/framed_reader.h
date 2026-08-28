@@ -53,6 +53,12 @@ PAPACC_RESULT papacc_framed_reader_next(
 /* Discards buffered/parser state but never reopens or resynchronizes a stream. */
 PAPACC_RESULT papacc_framed_reader_reset(PAPACC_FRAMED_READER *reader);
 
+/* Moves operational stream/parser metadata without I/O or scratch copying. */
+PAPACC_RESULT papacc_framed_reader_move(
+    PAPACC_FRAMED_READER *destination, PAPACC_FRAMED_READER *source);
+PAPACC_TRANSPORT_CONNECTION *papacc_framed_reader_transport(
+    const PAPACC_FRAMED_READER *reader);
+
 /* Releases no resources and does not close the non-owned transport. */
 void papacc_framed_reader_shutdown(PAPACC_FRAMED_READER *reader);
 

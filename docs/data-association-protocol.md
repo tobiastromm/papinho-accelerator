@@ -15,6 +15,14 @@ there are no general request correlation IDs or outbound queue, and each
 Session may have only one outstanding DATA ticket. The ticket remains structural
 association material only; it is not authentication or authorization.
 
+Phase 2.E2B2A adds portable first-header classification for PENDING Connections
+and movable Framed Reader ownership. CONTROL_OPEN is classified as CONTROL and
+DATA_ATTACH as DATA, with exact payload lengths. DATA classification does not
+consume a ticket or bind a Channel; its specialized processor remains future.
+
+**Invariant:** no protocol-layer handoff may discard bytes already read from
+the transport.
+
 DATA association uses a one-time 16-byte ticket obtained over an established
 CONTROL Channel. The ticket is opaque correlation material, not an
 authentication token, credential, identity, or final authorization. Phase 2
