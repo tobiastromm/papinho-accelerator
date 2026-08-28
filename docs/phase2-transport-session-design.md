@@ -2,7 +2,10 @@
 
 ## Status and scope
 
-This checkpoint defines the enduring Phase 2 boundaries. The portable Session runtime foundation now implements lifecycle and manager mechanics only; there is still no connection-to-Session association, connection I/O, parser, authentication, or Transport Security implementation.
+This checkpoint defines the enduring Phase 2 boundaries. Portable Session and
+Channel foundations now implement lifecycle and internal structural
+relationships only; there is still no wire-driven association, connection I/O,
+parser, authentication, or Transport Security implementation.
 
 The central invariant is:
 
@@ -168,6 +171,11 @@ identifier grants no authority to attach a remote Data Channel. No wire
 Session/Channel identifier or association proof is defined by this foundation.
 
 ## Protocol stream requirements
+
+The Envelope 1.0 byte layout and incremental parser/encoder requirements are
+now frozen in [Protocol Framing](protocol-framing.md). That specification
+defines only the common envelope; actual message types and payloads remain
+unassigned.
 
 TCP is a byte stream:
 

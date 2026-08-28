@@ -2,7 +2,7 @@
 
 Esta baseline registra requisitos; não escolhe biblioteca TLS, mecanismo de credencial nem implementação criptográfica. Criptografia própria é proibida.
 
-**Estado de implementação:** a Phase 1 não implementa autenticação, Transport Security nem `TLS_OFFLOAD`. Os listeners TCP atuais são somente infraestrutura e não devem ser expostos como serviço seguro ou capaz de processar clientes.
+**Estado de implementação:** não existem autenticação, Transport Security nem `TLS_OFFLOAD`. O servidor já pode aceitar Connections TCP, mas elas permanecem `PENDING` e nenhum payload/protocolo é processado. O serviço não deve ser apresentado como seguro nesta fase.
 
 ## Transport Security e TLS Offload
 

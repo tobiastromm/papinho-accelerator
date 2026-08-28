@@ -1,8 +1,8 @@
 # Visão geral do protocolo
 
-Este documento define conceitos, não bytes definitivos. O protocolo deve servir clientes diversos e operar sobre a Transport Abstraction.
+Este documento define a visão conceitual das futuras mensagens. O envelope comum de bytes foi congelado separadamente em [Protocol Framing](protocol-framing.md), sem atribuir tipos numéricos de mensagens ou payloads.
 
-**Estado de implementação:** nenhum parser, framing, Session, Control Channel ou Data Channel existe na Phase 1. Os listeners TCP atuais não chamam `accept()` e não processam clientes. Todo o conteúdo abaixo permanece especificação futura e não congela IDs, números ou layout de pacotes.
+**Estado de implementação:** existem foundations runtime de Connection, Session e Channel, mas nenhum parser, encoder, mensagem, autenticação ou processamento protocolar. O executable aceita Connections como `PENDING` sem ler payload. Os nomes de mensagens abaixo continuam não congelados.
 
 ## Canais e fluxo conceitual
 
@@ -15,11 +15,11 @@ Este documento define conceitos, não bytes definitivos. O protocolo deve servir
 
 Mensagens de controle não devem ficar indefinidamente bloqueadas atrás de grandes payloads. Backpressure, limites e cancelamento devem valer por canal/job.
 
-## Envelope futuro
+## Envelope comum congelado
 
-O Wire Protocol deverá definir, no mínimo: Magic Number; Protocol Version; Message Type; Message Length; Session ID; Request/Job ID quando aplicável; Error Code; payload; tamanhos máximos; endianness única e explícita; e regras de compatibilidade entre versões.
+Envelope 1.0 possui header fixo de 16 bytes, magic `PACC`, versão de envelope 1.0, Header Length, Message Type U16, Flags U16 e Payload Length U32, com inteiros multi-byte big-endian. IDs de Session, Channel, Connection e correlação não pertencem ao header universal; metadata futura pertence à semântica de mensagens específicas.
 
-Parsers deverão validar comprimentos antes de alocar ou ler payloads, rejeitar overflow, campos impossíveis e mensagens inválidas para o estado atual. Campos desconhecidos só podem ser ignorados quando a versão declarar isso seguro. IDs numéricos e layout binário não são definidos aqui.
+O contrato normativo completo, exemplos golden e matriz obrigatória da futura Phase 2.C2 estão em [Protocol Framing](protocol-framing.md). Nenhum Message Type real é atribuído por este overview.
 
 ## Vocabulário de mensagens não congelado
 
