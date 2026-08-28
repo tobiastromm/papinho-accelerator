@@ -8,8 +8,9 @@ The Transport Connection now exposes portable partial byte-stream read/write,
 and framing has a portable incremental parser. A standalone portable Framed
 Reader now provides caller-driven receive integration for those abstractions,
 but production Connections do not own or run it. There is still no outbound
-framed writing, wire-driven association, authentication, or Transport Security
-implementation.
+production processing, wire-driven association, authentication, or Transport
+Security implementation. A standalone Framed Writer now provides caller-driven
+outbound integration without attaching itself to a Connection.
 
 The central invariant is:
 
@@ -79,6 +80,13 @@ without changing the portable `PAPACC_SIZE` contract. Existing accepted
 sockets remain blocking. The standalone Framed Reader may therefore block when
 it needs a transport read; no Connection readiness or Server Runner integration
 is introduced.
+
+The Framed Writer encodes one semantic header into fixed local storage and
+streams payload spans owned by its caller. Each step performs at most one
+transport write and never retains a payload pointer. Partial writes and
+`WOULD_BLOCK` require the caller to resubmit the unconsumed suffix. No outbound
+queue, write-all behavior, readiness integration, or production protocol
+processing is defined.
 
 ## Connection contract
 

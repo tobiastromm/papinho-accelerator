@@ -9,7 +9,8 @@ Phase 2.C2 implements the portable semantic header model, exact 16-byte
 encoder/decoder, and allocation-free incremental parser. Transport I/O and
 higher-layer production integration remain deliberately absent. Phase 2.C3B1
 adds a portable receive-only Framed Reader that joins abstract transport reads
-to the parser; outbound framed writing is not implemented.
+to the parser. Phase 2.C3B2 adds its portable outbound sibling, the Framed
+Writer. Production Connection protocol processing remains unintegrated.
 
 ## Ordered byte-stream contract
 
@@ -198,6 +199,17 @@ publishes at most one framing event per call. Buffered bytes are processed
 before another read. Payload event pointers refer into the scratch buffer and
 remain valid until the next Reader `next`, reset, or shutdown operation.
 `next` may block when it needs a blocking transport read.
+
+The Framed Writer stores one encoded 16-byte header and tracks at most one
+in-flight frame. It streams caller-provided payload spans through at most one
+transport write per step, retains no payload pointer, and reports partial
+progress, payload demand, would-block, frame completion, and end-of-stream
+explicitly. A step may block on the current blocking transport. There is no
+write-all loop, outbound queue, scheduling, or backpressure policy.
+
+Writer reset/shutdown discards only local state. If any header or payload byte
+has already reached the stream, it cannot undo or resynchronize those bytes;
+normal production recovery is to abandon the affected transport.
 
 ## Deliberately absent fields
 

@@ -1,5 +1,6 @@
 #include "connection.h"
 #include "framed_reader.h"
+#include "framed_writer.h"
 #include "tcp_connection_transport_win32.h"
 
 #include <ws2tcpip.h>
@@ -37,6 +38,21 @@ static SOCKET papacc_test_connect(PAPACC_U16 port)
     return client;
 }
 
+static PAPACC_RESULT papacc_test_receive_exact(
+    SOCKET socket_value, PAPACC_U8 *buffer, PAPACC_SIZE length)
+{
+    PAPACC_SIZE offset = 0;
+    while (offset < length) {
+        int received = recv(
+            socket_value, (char *)&buffer[offset], (int)(length - offset), 0);
+        if (received <= 0) {
+            return PAPACC_RESULT_INTERNAL_ERROR;
+        }
+        offset += (PAPACC_SIZE)received;
+    }
+    return PAPACC_RESULT_OK;
+}
+
 int main(void)
 {
     PAPACC_TCP_PLATFORM platform = PAPACC_TCP_PLATFORM_INITIALIZER;
@@ -60,6 +76,7 @@ int main(void)
     PAPACC_U8 read_buffer[4] = { 0 };
     PAPACC_U8 framed_scratch[16] = { 0 };
     PAPACC_U8 framed_bytes[19];
+    PAPACC_U8 writer_received[19] = { 0 };
     const PAPACC_U8 client_bytes[4] = { 0xAA, 0xBB, 0xCC, 0xDD };
     const PAPACC_U8 server_bytes[3] = { 0x10, 0x20, 0x30 };
     char client_read_buffer[3] = { 0 };
@@ -74,6 +91,11 @@ int main(void)
     PAPACC_FRAME_HEADER frame_header = {
         1, 0, 16, 0x1234, 0, 3
     };
+    PAPACC_FRAMED_WRITER writer = PAPACC_FRAMED_WRITER_INITIALIZER;
+    PAPACC_FRAMED_WRITER_STATUS writer_status =
+        PAPACC_FRAMED_WRITER_STATUS_UNSPECIFIED;
+    PAPACC_SIZE payload_consumed = 0;
+    PAPACC_SIZE payload_offset = 0;
     int result = 0;
 
     if (papacc_tcp_platform_init(&platform) != PAPACC_RESULT_OK ||
@@ -153,6 +175,33 @@ int main(void)
         goto cleanup;
     }
     papacc_framed_reader_shutdown(&reader);
+    if (papacc_framed_writer_init(&writer, &transport) != PAPACC_RESULT_OK ||
+        papacc_framed_writer_begin_frame(&writer, &frame_header) !=
+            PAPACC_RESULT_OK) {
+        result = 7;
+        goto cleanup;
+    }
+    while (writer_status != PAPACC_FRAMED_WRITER_STATUS_FRAME_COMPLETE) {
+        if (papacc_framed_writer_step(
+                &writer, &framed_bytes[16 + payload_offset],
+                3 - payload_offset, &payload_consumed, &writer_status) !=
+                PAPACC_RESULT_OK ||
+            writer_status == PAPACC_FRAMED_WRITER_STATUS_WOULD_BLOCK ||
+            writer_status == PAPACC_FRAMED_WRITER_STATUS_END_OF_STREAM) {
+            result = 8;
+            goto cleanup;
+        }
+        payload_offset += payload_consumed;
+    }
+    if (payload_offset != 3 ||
+        papacc_test_receive_exact(
+            client, writer_received, sizeof(writer_received)) !=
+            PAPACC_RESULT_OK ||
+        memcmp(writer_received, framed_bytes, sizeof(framed_bytes)) != 0) {
+        result = 9;
+        goto cleanup;
+    }
+    papacc_framed_writer_shutdown(&writer);
     if (send(client, (const char *)client_bytes,
              (int)sizeof(client_bytes), 0) != (int)sizeof(client_bytes) ||
         papacc_transport_connection_read(
@@ -161,7 +210,7 @@ int main(void)
         transferred != sizeof(client_bytes) ||
         io_status != PAPACC_TRANSPORT_IO_STATUS_PROGRESS ||
         memcmp(read_buffer, client_bytes, sizeof(client_bytes)) != 0) {
-        result = 7;
+        result = 10;
         goto cleanup;
     }
     if (papacc_transport_connection_write(
@@ -173,7 +222,7 @@ int main(void)
              (int)sizeof(client_read_buffer), 0) !=
             (int)sizeof(client_read_buffer) ||
         memcmp(client_read_buffer, server_bytes, sizeof(server_bytes)) != 0) {
-        result = 8;
+        result = 11;
         goto cleanup;
     }
     frame_header.payload_length = 2;
@@ -194,7 +243,7 @@ int main(void)
         papacc_framed_reader_next(&reader, &reader_status, &frame_event) !=
             PAPACC_RESULT_PROTOCOL_ERROR ||
         reader.state != PAPACC_FRAMED_READER_STATE_ERROR) {
-        result = 9;
+        result = 12;
         goto cleanup;
     }
     papacc_framed_reader_shutdown(&reader);
@@ -203,7 +252,7 @@ int main(void)
             &transferred, &io_status) != PAPACC_RESULT_OK ||
         transferred != 0 ||
         io_status != PAPACC_TRANSPORT_IO_STATUS_END_OF_STREAM) {
-        result = 10;
+        result = 13;
         goto cleanup;
     }
     if (
@@ -216,7 +265,7 @@ int main(void)
             &connection->local_endpoint, &local_endpoint) != PAPACC_TRUE ||
         papacc_network_endpoint_equal(
             &connection->remote_endpoint, &remote_endpoint) != PAPACC_TRUE) {
-        result = 11;
+        result = 14;
         goto cleanup;
     }
     (void)closesocket(client);
@@ -225,7 +274,7 @@ int main(void)
             &manager, connection->connection_instance_id) != PAPACC_RESULT_OK ||
         context.owns_socket != PAPACC_FALSE ||
         listener.is_listening != PAPACC_TRUE) {
-        result = 12;
+        result = 15;
         goto cleanup;
     }
     client = papacc_test_connect(port);
@@ -233,10 +282,11 @@ int main(void)
         papacc_tcp_socket_win32_accept(&listener, &accepted) !=
             PAPACC_RESULT_OK ||
         listener.is_listening != PAPACC_TRUE) {
-        result = 13;
+        result = 16;
     }
 
 cleanup:
+    papacc_framed_writer_shutdown(&writer);
     papacc_framed_reader_shutdown(&reader);
     papacc_connection_manager_shutdown(&manager);
     papacc_transport_connection_close(&transport);
