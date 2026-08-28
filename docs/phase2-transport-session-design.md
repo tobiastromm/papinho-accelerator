@@ -165,6 +165,8 @@ The first normative wire transition toward this runtime is frozen in
 a Session/CONTROL relationship transactionally and activates only after the
 complete ACCEPT frame is written. The Win32 Server I/O Loop now invokes its
 portable processor in production RUN mode.
+Dedicated integration tests also validate bounded-capacity rollback,
+`FD_SETSIZE` safety, readiness interest, and processor round-robin ordering.
 
 A Connection does not create an active Session merely by connecting. The conceptual Session lifecycle baseline is:
 

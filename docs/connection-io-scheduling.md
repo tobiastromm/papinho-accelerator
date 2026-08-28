@@ -7,6 +7,10 @@ loop. Listener readiness creates a fixed-slot Control Processor; Connection
 read/write readiness drives bounded processor actions, and PAL-monotonic
 deadlines reclaim stalled establishment attempts.
 
+The dedicated D3B validation matrix covers processor, Session, and Channel
+capacity isolation, the pre-`FD_SET` backend guard, state-derived write
+interest, and rotating processor scan order.
+
 Calling `papacc_framed_reader_next()` sequentially on blocking Connections is
 incorrect: an idle peer can block in `recv()` and starve every other client.
 Production Reader/Writer calls therefore require readiness scheduling.

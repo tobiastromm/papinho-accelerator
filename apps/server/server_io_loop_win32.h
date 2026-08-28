@@ -51,6 +51,14 @@ PAPACC_RESULT papacc_server_io_loop_win32_poll_once(
     PAPACC_SERVER_IO_LOOP_WIN32 *loop,
     PAPACC_U32 timeout_ms);
 
+/* Deterministic Win32 scheduler introspection; performs no I/O. */
+PAPACC_RESULT papacc_server_io_loop_win32_processor_interest(
+    const PAPACC_SERVER_IO_LOOP_WIN32 *loop, PAPACC_SIZE processor_index,
+    PAPACC_BOOL *out_read_interest, PAPACC_BOOL *out_write_interest);
+PAPACC_RESULT papacc_server_io_loop_win32_processor_scan_index(
+    const PAPACC_SERVER_IO_LOOP_WIN32 *loop, PAPACC_SIZE scan_offset,
+    PAPACC_SIZE *out_processor_index);
+
 void papacc_server_io_loop_win32_shutdown(
     PAPACC_SERVER_IO_LOOP_WIN32 *loop);
 

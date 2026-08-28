@@ -101,6 +101,39 @@ static PAPACC_BOOL papacc_server_io_loop_is_peer_failure(PAPACC_RESULT result)
         ? PAPACC_TRUE : PAPACC_FALSE;
 }
 
+PAPACC_RESULT papacc_server_io_loop_win32_processor_interest(
+    const PAPACC_SERVER_IO_LOOP_WIN32 *loop, PAPACC_SIZE processor_index,
+    PAPACC_BOOL *out_read_interest, PAPACC_BOOL *out_write_interest)
+{
+    const PAPACC_SERVER_CONTROL_PROCESSOR_SLOT_WIN32 *slot;
+    if (loop == NULL || out_read_interest == NULL ||
+        out_write_interest == NULL) return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (loop->initialized != PAPACC_TRUE ||
+        processor_index >= loop->processor_capacity)
+        return PAPACC_RESULT_INVALID_STATE;
+    slot = &loop->processor_slots[processor_index];
+    if (slot->in_use != PAPACC_TRUE) return PAPACC_RESULT_INVALID_STATE;
+    *out_read_interest =
+        papacc_control_processor_wants_read(&slot->processor);
+    *out_write_interest =
+        papacc_control_processor_wants_write(&slot->processor);
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_server_io_loop_win32_processor_scan_index(
+    const PAPACC_SERVER_IO_LOOP_WIN32 *loop, PAPACC_SIZE scan_offset,
+    PAPACC_SIZE *out_processor_index)
+{
+    if (loop == NULL || out_processor_index == NULL)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (loop->initialized != PAPACC_TRUE || loop->processor_capacity == 0 ||
+        scan_offset >= loop->processor_capacity)
+        return PAPACC_RESULT_INVALID_STATE;
+    *out_processor_index =
+        (loop->next_processor_index + scan_offset) % loop->processor_capacity;
+    return PAPACC_RESULT_OK;
+}
+
 PAPACC_RESULT papacc_server_io_loop_win32_init(
     PAPACC_SERVER_IO_LOOP_WIN32 *loop, PAPACC_SERVER_NETWORK *network,
     PAPACC_SERVER_ACCEPTOR_WIN32 *acceptor,
@@ -248,7 +281,9 @@ PAPACC_RESULT papacc_server_io_loop_win32_poll_once(
         PAPACC_CONTROL_PROCESSOR_STEP_STATUS status;
         PAPACC_SERVER_CONTROL_PROCESSOR_SLOT_WIN32 *slot;
         SOCKET native_socket;
-        index = (loop->next_processor_index + offset) % loop->processor_capacity;
+        result = papacc_server_io_loop_win32_processor_scan_index(
+            loop, offset, &index);
+        if (result != PAPACC_RESULT_OK) return result;
         slot = &loop->processor_slots[index];
         if (slot->in_use != PAPACC_TRUE ||
             papacc_tcp_connection_transport_win32_get_native_socket(
