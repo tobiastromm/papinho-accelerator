@@ -13,6 +13,10 @@ Phase 2.E2B1 adiciona o processador CONTROL pós-estabelecimento portátil para 
 troca sequencial `DATA_TICKET_REQUEST` -> `DATA_TICKET`. DATA_ATTACH, classifier
 e integração Win32 do servidor continuam não implementados.
 
+Phase 2.E2B2B completa o caminho portátil estrutural de DATA_ATTACH: consumo
+one-time do ticket, bind DATA pelo Channel Manager e emissão de DATA_ACCEPT.
+Integração Win32 e protocolo de aplicação pós-DATA permanecem ausentes.
+
 Este documento resume a visão conceitual. O envelope comum está em [Protocol
 Framing](protocol-framing.md); os únicos tipos numéricos atribuídos são o
 registry normativo `0x0001`..`0x0006`.

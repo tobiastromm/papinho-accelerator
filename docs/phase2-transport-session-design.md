@@ -226,6 +226,10 @@ with the Win32 scheduler.
 E2B2A makes Framed Reader stream state movable between protocol owners and adds
 first-header classification for PENDING Connections. Classifier handoff and
 Control-to-post-Control handoff preserve buffered bytes and parser position.
+E2B2B completes the portable structural association path: a classified DATA
+candidate consumes its one-time ticket, binds through Channel Manager, and
+receives DATA_ACCEPT. This does not establish authentication, authorization,
+Transport Security, trust, capabilities, or an application DATA protocol.
 
 Knowledge of `session_instance_id`, `channel_instance_id`, or any future wire
 identifier grants no authority to attach a remote Data Channel. No wire

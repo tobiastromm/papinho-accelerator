@@ -260,6 +260,21 @@ set_target_properties(papacc_connection_classifier PROPERTIES
     C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 papacc_enable_warnings(papacc_connection_classifier)
 
+add_library(papacc_data_attach_processor STATIC
+    src/protocol/data_attach_processor.c)
+target_include_directories(papacc_data_attach_processor PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports)
+target_link_libraries(papacc_data_attach_processor PUBLIC
+    papacc_data_association papacc_data_association_protocol
+    papacc_framed_reader papacc_framed_writer papacc_connection
+    papacc_channel papacc_session)
+set_target_properties(papacc_data_attach_processor PROPERTIES
+    C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+papacc_enable_warnings(papacc_data_attach_processor)
+
 if(WIN32)
     add_library(papacc_tcp_win32 STATIC
         src/platform/win32/tcp_accept_win32.c
@@ -649,6 +664,20 @@ if(BUILD_TESTING)
     papacc_enable_warnings(papacc_connection_classifier_test)
     add_test(NAME papacc.protocol.connection_classifier
         COMMAND papacc_connection_classifier_test)
+
+    add_executable(papacc_data_attach_processor_test
+        tests/data_attach_processor_test.c)
+    target_include_directories(papacc_data_attach_processor_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/transports)
+    target_link_libraries(papacc_data_attach_processor_test PRIVATE
+        papacc_data_attach_processor papacc_connection_classifier)
+    set_target_properties(papacc_data_attach_processor_test PROPERTIES
+        C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    papacc_enable_warnings(papacc_data_attach_processor_test)
+    add_test(NAME papacc.protocol.data_attach
+        COMMAND papacc_data_attach_processor_test)
 
     add_executable(papacc_control_protocol_test tests/control_protocol_test.c)
     target_link_libraries(papacc_control_protocol_test PRIVATE

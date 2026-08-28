@@ -23,6 +23,13 @@ consume a ticket or bind a Channel; its specialized processor remains future.
 **Invariant:** no protocol-layer handoff may discard bytes already read from
 the transport.
 
+Phase 2.E2B2B implements the portable DATA Attach Processor. It adopts a
+classified DATA Reader, decodes and consumes the one-time ticket, binds the
+candidate as a DATA Channel through the runtime relationship manager, and
+writes DATA_ACCEPT. Ticket consumption is irreversible even if the later bind
+or response fails. Win32 integration and a post-DATA application protocol are
+still absent.
+
 DATA association uses a one-time 16-byte ticket obtained over an established
 CONTROL Channel. The ticket is opaque correlation material, not an
 authentication token, credential, identity, or final authorization. Phase 2
