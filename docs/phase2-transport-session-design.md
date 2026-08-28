@@ -3,9 +3,11 @@
 ## Status and scope
 
 This checkpoint defines the enduring Phase 2 boundaries. Portable Session and
-Channel foundations now implement lifecycle and internal structural
-relationships only; there is still no wire-driven association, connection I/O,
-parser, authentication, or Transport Security implementation.
+Channel foundations implement lifecycle and internal structural relationships.
+The Transport Connection now exposes portable partial byte-stream read/write,
+and framing has a portable incremental parser, but those two layers are not yet
+integrated. There is still no wire-driven association, authentication, or
+Transport Security implementation.
 
 The central invariant is:
 
@@ -56,6 +58,23 @@ only that a higher logical layer has claimed it through a Channel; it does not
 mean authenticated, secure, negotiated, or application-ready.
 
 Initially the implemented transport will be TCP. Session and protocol layers must never depend on `SOCKET`; future local transports may have different endpoint and I/O semantics.
+
+### Transport stream I/O
+
+`PAPACC_TRANSPORT_CONNECTION` is an owned ordered byte stream with abstract
+read, write, and close callbacks. A successful read or write may make partial
+progress. Normal stream conditions are explicit and separate from API errors:
+`PROGRESS` transfers one or more bytes, `WOULD_BLOCK` transfers none, and
+`END_OF_STREAM` transfers none. Zero-length operations are valid
+`OK + UNSPECIFIED` no-ops and do not invoke the backend.
+
+Each wrapper invokes its backend at most once. It has no receive buffer, send
+queue, or write-all loop. The caller owns all buffers, must retain an unsent
+suffix after partial write, and may retry later according to future readiness
+and backpressure policy. The Win32 TCP adapter maps `recv() == 0` to clean EOF,
+maps `WSAEWOULDBLOCK` explicitly, and limits one native span to `INT_MAX`
+without changing the portable `PAPACC_SIZE` contract. Existing accepted
+sockets remain blocking; no readiness or parser integration is introduced.
 
 ## Connection contract
 

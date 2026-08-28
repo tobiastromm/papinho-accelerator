@@ -13,6 +13,30 @@ static void papacc_test_transport_close(void *opaque_context)
     context->owned = PAPACC_FALSE;
 }
 
+static PAPACC_RESULT papacc_test_transport_read(
+    void *opaque_context, PAPACC_U8 *buffer, PAPACC_SIZE capacity,
+    PAPACC_SIZE *out_transferred, PAPACC_TRANSPORT_IO_STATUS *out_status)
+{
+    (void)opaque_context;
+    (void)buffer;
+    (void)capacity;
+    *out_transferred = 0;
+    *out_status = PAPACC_TRANSPORT_IO_STATUS_WOULD_BLOCK;
+    return PAPACC_RESULT_OK;
+}
+
+static PAPACC_RESULT papacc_test_transport_write(
+    void *opaque_context, const PAPACC_U8 *buffer, PAPACC_SIZE length,
+    PAPACC_SIZE *out_transferred, PAPACC_TRANSPORT_IO_STATUS *out_status)
+{
+    (void)opaque_context;
+    (void)buffer;
+    (void)length;
+    *out_transferred = 0;
+    *out_status = PAPACC_TRANSPORT_IO_STATUS_WOULD_BLOCK;
+    return PAPACC_RESULT_OK;
+}
+
 static PAPACC_TRANSPORT_CONNECTION papacc_test_transport(
     PAPACC_TEST_TRANSPORT_CONTEXT *context)
 {
@@ -20,6 +44,8 @@ static PAPACC_TRANSPORT_CONNECTION papacc_test_transport(
         PAPACC_TRANSPORT_CONNECTION_INITIALIZER;
     context->owned = PAPACC_TRUE;
     transport.context = context;
+    transport.read_fn = papacc_test_transport_read;
+    transport.write_fn = papacc_test_transport_write;
     transport.close_fn = papacc_test_transport_close;
     return transport;
 }
@@ -50,7 +76,8 @@ static int papacc_test_transport_lifecycle(void)
     papacc_transport_connection_close(&transport);
     papacc_transport_connection_close(&transport);
     if (context.close_count != 1 || context.owned != PAPACC_FALSE ||
-        transport.context != NULL || transport.close_fn != NULL) {
+        transport.context != NULL || transport.read_fn != NULL ||
+        transport.write_fn != NULL || transport.close_fn != NULL) {
         return 2;
     }
     return 0;

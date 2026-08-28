@@ -454,6 +454,30 @@ if(WIN32)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(papacc_transport_connection_test
+        tests/transport_connection_test.c
+    )
+
+    target_include_directories(papacc_transport_connection_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+    )
+
+    target_link_libraries(
+        papacc_transport_connection_test PRIVATE papacc_connection)
+
+    set_target_properties(papacc_transport_connection_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_transport_connection_test)
+
+    add_test(
+        NAME papacc.transport.connection
+        COMMAND papacc_transport_connection_test)
+
     add_executable(papacc_frame_test
         tests/frame_test.c
     )

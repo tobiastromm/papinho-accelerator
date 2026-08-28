@@ -23,6 +23,30 @@ static void papacc_test_transport_close(void *opaque_context)
     ++context->close_count;
 }
 
+static PAPACC_RESULT papacc_test_transport_read(
+    void *opaque_context, PAPACC_U8 *buffer, PAPACC_SIZE capacity,
+    PAPACC_SIZE *out_transferred, PAPACC_TRANSPORT_IO_STATUS *out_status)
+{
+    (void)opaque_context;
+    (void)buffer;
+    (void)capacity;
+    *out_transferred = 0;
+    *out_status = PAPACC_TRANSPORT_IO_STATUS_WOULD_BLOCK;
+    return PAPACC_RESULT_OK;
+}
+
+static PAPACC_RESULT papacc_test_transport_write(
+    void *opaque_context, const PAPACC_U8 *buffer, PAPACC_SIZE length,
+    PAPACC_SIZE *out_transferred, PAPACC_TRANSPORT_IO_STATUS *out_status)
+{
+    (void)opaque_context;
+    (void)buffer;
+    (void)length;
+    *out_transferred = 0;
+    *out_status = PAPACC_TRANSPORT_IO_STATUS_WOULD_BLOCK;
+    return PAPACC_RESULT_OK;
+}
+
 static PAPACC_RESULT papacc_test_fixture_init(
     PAPACC_TEST_FIXTURE *fixture,
     PAPACC_SIZE channel_capacity)
@@ -79,6 +103,8 @@ static PAPACC_RESULT papacc_test_publish_connection(
     local_endpoint.port = (PAPACC_U16)(40000U + context_index);
     remote_endpoint.port = (PAPACC_U16)(41000U + context_index);
     transport.context = &fixture->contexts[context_index];
+    transport.read_fn = papacc_test_transport_read;
+    transport.write_fn = papacc_test_transport_write;
     transport.close_fn = papacc_test_transport_close;
     return papacc_connection_manager_publish(
         &fixture->connections, &transport, &local_endpoint, &remote_endpoint,

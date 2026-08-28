@@ -2,6 +2,7 @@
 #include "tcp_connection_transport_win32.h"
 
 #include <ws2tcpip.h>
+#include <string.h>
 
 static PAPACC_RESULT papacc_test_listener_port(
     const PAPACC_TCP_SOCKET_WIN32 *listener,
@@ -55,6 +56,13 @@ int main(void)
     PAPACC_U16 port = 0;
     SOCKET client = INVALID_SOCKET;
     SOCKET accepted_socket;
+    PAPACC_U8 read_buffer[4] = { 0 };
+    const PAPACC_U8 client_bytes[4] = { 0xAA, 0xBB, 0xCC, 0xDD };
+    const PAPACC_U8 server_bytes[3] = { 0x10, 0x20, 0x30 };
+    char client_read_buffer[3] = { 0 };
+    PAPACC_SIZE transferred = 0;
+    PAPACC_TRANSPORT_IO_STATUS io_status =
+        PAPACC_TRANSPORT_IO_STATUS_UNSPECIFIED;
     int result = 0;
 
     if (papacc_tcp_platform_init(&platform) != PAPACC_RESULT_OK ||
@@ -95,6 +103,43 @@ int main(void)
         accepted.is_open != PAPACC_FALSE ||
         accepted.native_socket != INVALID_SOCKET ||
         context.owns_socket != PAPACC_TRUE ||
+        papacc_transport_connection_is_valid(&transport) != PAPACC_TRUE) {
+        result = 4;
+        goto cleanup;
+    }
+    if (send(client, (const char *)client_bytes,
+             (int)sizeof(client_bytes), 0) != (int)sizeof(client_bytes) ||
+        papacc_transport_connection_read(
+            &transport, read_buffer, sizeof(read_buffer),
+            &transferred, &io_status) != PAPACC_RESULT_OK ||
+        transferred != sizeof(client_bytes) ||
+        io_status != PAPACC_TRANSPORT_IO_STATUS_PROGRESS ||
+        memcmp(read_buffer, client_bytes, sizeof(client_bytes)) != 0) {
+        result = 5;
+        goto cleanup;
+    }
+    if (papacc_transport_connection_write(
+            &transport, server_bytes, sizeof(server_bytes),
+            &transferred, &io_status) != PAPACC_RESULT_OK ||
+        transferred != sizeof(server_bytes) ||
+        io_status != PAPACC_TRANSPORT_IO_STATUS_PROGRESS ||
+        recv(client, client_read_buffer,
+             (int)sizeof(client_read_buffer), 0) !=
+            (int)sizeof(client_read_buffer) ||
+        memcmp(client_read_buffer, server_bytes, sizeof(server_bytes)) != 0) {
+        result = 6;
+        goto cleanup;
+    }
+    if (shutdown(client, SD_SEND) == SOCKET_ERROR ||
+        papacc_transport_connection_read(
+            &transport, read_buffer, sizeof(read_buffer),
+            &transferred, &io_status) != PAPACC_RESULT_OK ||
+        transferred != 0 ||
+        io_status != PAPACC_TRANSPORT_IO_STATUS_END_OF_STREAM) {
+        result = 7;
+        goto cleanup;
+    }
+    if (
         papacc_connection_manager_publish(
             &manager, &transport, &local_endpoint, &remote_endpoint,
             &connection) != PAPACC_RESULT_OK ||
@@ -104,7 +149,7 @@ int main(void)
             &connection->local_endpoint, &local_endpoint) != PAPACC_TRUE ||
         papacc_network_endpoint_equal(
             &connection->remote_endpoint, &remote_endpoint) != PAPACC_TRUE) {
-        result = 4;
+        result = 8;
         goto cleanup;
     }
     (void)closesocket(client);
@@ -113,7 +158,7 @@ int main(void)
             &manager, connection->connection_instance_id) != PAPACC_RESULT_OK ||
         context.owns_socket != PAPACC_FALSE ||
         listener.is_listening != PAPACC_TRUE) {
-        result = 5;
+        result = 9;
         goto cleanup;
     }
     client = papacc_test_connect(port);
@@ -121,7 +166,7 @@ int main(void)
         papacc_tcp_socket_win32_accept(&listener, &accepted) !=
             PAPACC_RESULT_OK ||
         listener.is_listening != PAPACC_TRUE) {
-        result = 6;
+        result = 10;
     }
 
 cleanup:

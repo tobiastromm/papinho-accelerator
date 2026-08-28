@@ -185,8 +185,9 @@ frame parser  != transport reader
 
 Encoder does not call `send()`/`WSASend()`; parser does not call
 `recv()`/`WSARecv()`. Framing does not assume one frame equals one successful
-write. Future transport integration owns partial writes, pending bytes,
-backpressure, cancellation, and bounded queues.
+write. The Transport Connection can now represent partial byte-stream I/O, but
+is not wired to framing. Future integration owns pending bytes, backpressure,
+cancellation, and bounded queues.
 
 ## Deliberately absent fields
 
