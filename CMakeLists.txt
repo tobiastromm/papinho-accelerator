@@ -118,6 +118,26 @@ set_target_properties(papacc_channel PROPERTIES
 
 papacc_enable_warnings(papacc_channel)
 
+add_library(papacc_protocol_framing STATIC
+    src/protocol/frame.c
+    src/protocol/frame_parser.c
+)
+
+target_include_directories(papacc_protocol_framing
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+)
+
+target_link_libraries(papacc_protocol_framing PUBLIC papacc_core)
+
+set_target_properties(papacc_protocol_framing PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS NO
+)
+
+papacc_enable_warnings(papacc_protocol_framing)
+
 if(WIN32)
     add_library(papacc_tcp_win32 STATIC
         src/platform/win32/tcp_accept_win32.c
@@ -434,6 +454,40 @@ if(WIN32)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(papacc_frame_test
+        tests/frame_test.c
+    )
+
+    target_link_libraries(
+        papacc_frame_test PRIVATE papacc_protocol_framing)
+
+    set_target_properties(papacc_frame_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_frame_test)
+
+    add_test(NAME papacc.protocol.frame COMMAND papacc_frame_test)
+
+    add_executable(papacc_frame_parser_test
+        tests/frame_parser_test.c
+    )
+
+    target_link_libraries(
+        papacc_frame_parser_test PRIVATE papacc_protocol_framing)
+
+    set_target_properties(papacc_frame_parser_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_frame_parser_test)
+
+    add_test(NAME papacc.protocol.frame_parser COMMAND papacc_frame_parser_test)
+
     add_executable(papacc_channel_test
         tests/channel_test.c
     )

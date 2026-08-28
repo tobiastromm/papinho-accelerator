@@ -5,7 +5,9 @@
 This document normatively freezes wire Envelope 1.0. It defines framing only:
 no message family or numeric assignment, payload schema, Wire Session/Channel
 ID, authentication, capability negotiation, or Transport Security mechanism.
-Phase 2.C1 implements no parser, encoder, allocation, or transport I/O.
+Phase 2.C2 implements the portable semantic header model, exact 16-byte
+encoder/decoder, and allocation-free incremental parser. Transport I/O and
+higher-layer integration remain deliberately absent.
 
 ## Ordered byte-stream contract
 
@@ -107,7 +109,7 @@ or allocation limit. The future parser MUST accept a caller/policy maximum and
 reject a declared length above it with `LIMIT_EXCEEDED` before allocation,
 combined-size arithmetic, or accumulation. No official limit is selected.
 
-## Incremental parser requirements for C2
+## Incremental parser contract
 
 The parser MUST NOT require allocating Payload Length bytes. It owns only small
 state; callers own input/output storage. Preferred flow:
@@ -116,9 +118,18 @@ state; callers own input/output storage. Preferred flow:
 input spans -> header metadata -> payload chunks -> frame complete
 ```
 
-It must conceptually represent `READING_HEADER`, `READING_PAYLOAD`,
-`FRAME_COMPLETE`, and terminal `ERROR` (exact C names are deferred), report
-bytes consumed, and permit processing remaining input without needless copies.
+The implementation exposes `PAPACC_FRAME_PARSER_STATE_READING_HEADER`,
+`READING_PAYLOAD`, and terminal `ERROR`. Each feed reports its exact byte count
+and at most one event: `NONE`, `HEADER_READY`, `PAYLOAD_CHUNK`, or
+`FRAME_COMPLETE`. The caller can feed the unconsumed suffix again without a
+copy.
+
+`HEADER_READY` carries validated semantic header metadata. Payload events point
+directly into the caller-owned input span and the pointer remains valid only as
+long as that input storage does. `FRAME_COMPLETE` may carry the final nonempty
+payload chunk; callers must process that chunk as part of the frame. A
+zero-length frame produces `FRAME_COMPLETE` immediately after its header.
+After completion the parser is already ready for the next header.
 
 - Header and payload may arrive one byte at a time or in any chunk sizes.
 - Payload length 1000 split as 7 + 200 + 793 is equivalent to one span.
@@ -132,6 +143,10 @@ a truncated frame and protocol error. Malformed/truncated input puts the parser
 in terminal error for that stream. It never searches for another `PACC`; reset
 is meaningful only after the caller abandons the affected connection.
 
+`papacc_frame_parser_finish()` represents EOF. `papacc_frame_parser_reset()`
+clears partial/error state while preserving the caller's payload limit. The
+parser retains no payload pointer and performs no heap allocation.
+
 ### Representation and arithmetic safety
 
 Parser and encoder MUST process fields byte-by-byte. They MUST NOT cast a byte
@@ -143,10 +158,9 @@ Calculations such as `header_length + payload_length` MUST use sufficient width
 and explicit overflow checks. Allocation/accumulation can occur only after
 field validation, caller-limit validation, and safe combined arithmetic.
 
-## Recommended C2 error taxonomy
+## Implemented C2 error taxonomy
 
-Phase 2.C2 should confirm whether the result enum needs
-`PAPACC_RESULT_PROTOCOL_ERROR`; C1 does not modify it.
+Phase 2.C2 adds `PAPACC_RESULT_PROTOCOL_ERROR` to the portable result enum.
 
 | Condition | Recommended result |
 |---|---|

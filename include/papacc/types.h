@@ -28,7 +28,9 @@ typedef enum PAPACC_RESULT {
     PAPACC_RESULT_NOT_SUPPORTED = 3,
     PAPACC_RESULT_INVALID_STATE = 4,
     PAPACC_RESULT_LIMIT_EXCEEDED = 5,
-    PAPACC_RESULT_INTERNAL_ERROR = 6
+    PAPACC_RESULT_INTERNAL_ERROR = 6,
+    /* Syntactically malformed/invalid decoded protocol data from a peer. */
+    PAPACC_RESULT_PROTOCOL_ERROR = 7
 } PAPACC_RESULT;
 
 /*
