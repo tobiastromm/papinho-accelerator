@@ -2,9 +2,11 @@
 
 ## Status, scope, and security boundary
 
-Phase 2.E1 freezes the wire design only. It implements no codec, ticket
-manager, classifier, processor, scheduler integration, authentication,
-Transport Security, capability, or DATA application protocol.
+Phase 2.E1 freezes the wire design. Phase 2.E2A now implements the portable
+message registry/codecs, 16-byte Ticket Value Object, and caller-owned fixed
+Association Manager. Generation remains an injected dependency. Classifier,
+processors, scheduler integration, authentication, Transport Security,
+capability, and DATA application protocol remain unimplemented.
 
 DATA association uses a one-time 16-byte ticket obtained over an established
 CONTROL Channel. The ticket is opaque correlation material, not an

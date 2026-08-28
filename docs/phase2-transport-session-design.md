@@ -218,6 +218,8 @@ The normative ticket lifecycle, DATA vectors, classifier boundary, and
 CONTROL/DATA failure semantics are in
 [Data Association Protocol](data-association-protocol.md). Ticket state belongs
 to a separate fixed-capacity association layer, not `PAPACC_SESSION`.
+E2A implements that portable ticket state and its wire codecs without adding a
+classifier, Framed processor, platform generator, or server integration.
 
 Knowledge of `session_instance_id`, `channel_instance_id`, or any future wire
 identifier grants no authority to attach a remote Data Channel. No wire

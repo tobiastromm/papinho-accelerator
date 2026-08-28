@@ -5,6 +5,10 @@ Phase 2.E1 congela, sem implementar, associação estrutural DATA por ticket
 opaco one-time. Autenticação, Transport Security, capabilities e protocolo de
 payload DATA continuam não implementados.
 
+Phase 2.E2A implementa apenas registry/codecs, Ticket Value Object e Association
+Manager portáteis. O generator continua injetado; post-Control processor, DATA
+Attach Processor, classifier e integração do servidor permanecem para E2B/E3.
+
 Este documento resume a visão conceitual. O envelope comum está em [Protocol
 Framing](protocol-framing.md); os únicos tipos numéricos atribuídos são o
 registry normativo `0x0001`..`0x0006`.
