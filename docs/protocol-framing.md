@@ -7,7 +7,9 @@ no message family or numeric assignment, payload schema, Wire Session/Channel
 ID, authentication, capability negotiation, or Transport Security mechanism.
 Phase 2.C2 implements the portable semantic header model, exact 16-byte
 encoder/decoder, and allocation-free incremental parser. Transport I/O and
-higher-layer integration remain deliberately absent.
+higher-layer production integration remain deliberately absent. Phase 2.C3B1
+adds a portable receive-only Framed Reader that joins abstract transport reads
+to the parser; outbound framed writing is not implemented.
 
 ## Ordered byte-stream contract
 
@@ -186,8 +188,16 @@ frame parser  != transport reader
 Encoder does not call `send()`/`WSASend()`; parser does not call
 `recv()`/`WSARecv()`. Framing does not assume one frame equals one successful
 write. The Transport Connection can now represent partial byte-stream I/O, but
-is not wired to framing. Future integration owns pending bytes, backpressure,
-cancellation, and bounded queues.
+only the standalone Framed Reader is wired to framing for caller-driven reads.
+Production Connections do not own or run a Reader. Future outbound integration
+owns pending bytes, backpressure, cancellation, and bounded queues.
+
+The Framed Reader owns parser/cursor state but not its Transport Connection or
+caller-provided scratch buffer. It performs at most one transport read and
+publishes at most one framing event per call. Buffered bytes are processed
+before another read. Payload event pointers refer into the scratch buffer and
+remain valid until the next Reader `next`, reset, or shutdown operation.
+`next` may block when it needs a blocking transport read.
 
 ## Deliberately absent fields
 

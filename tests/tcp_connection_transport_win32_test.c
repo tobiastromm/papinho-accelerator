@@ -1,4 +1,5 @@
 #include "connection.h"
+#include "framed_reader.h"
 #include "tcp_connection_transport_win32.h"
 
 #include <ws2tcpip.h>
@@ -57,12 +58,22 @@ int main(void)
     SOCKET client = INVALID_SOCKET;
     SOCKET accepted_socket;
     PAPACC_U8 read_buffer[4] = { 0 };
+    PAPACC_U8 framed_scratch[16] = { 0 };
+    PAPACC_U8 framed_bytes[19];
     const PAPACC_U8 client_bytes[4] = { 0xAA, 0xBB, 0xCC, 0xDD };
     const PAPACC_U8 server_bytes[3] = { 0x10, 0x20, 0x30 };
     char client_read_buffer[3] = { 0 };
     PAPACC_SIZE transferred = 0;
     PAPACC_TRANSPORT_IO_STATUS io_status =
         PAPACC_TRANSPORT_IO_STATUS_UNSPECIFIED;
+    PAPACC_FRAMED_READER reader = PAPACC_FRAMED_READER_INITIALIZER;
+    PAPACC_FRAMED_READER_STATUS reader_status =
+        PAPACC_FRAMED_READER_STATUS_UNSPECIFIED;
+    PAPACC_FRAME_PARSER_EVENT frame_event =
+        PAPACC_FRAME_PARSER_EVENT_INITIALIZER;
+    PAPACC_FRAME_HEADER frame_header = {
+        1, 0, 16, 0x1234, 0, 3
+    };
     int result = 0;
 
     if (papacc_tcp_platform_init(&platform) != PAPACC_RESULT_OK ||
@@ -107,6 +118,41 @@ int main(void)
         result = 4;
         goto cleanup;
     }
+    if (papacc_frame_header_encode(
+            &frame_header, framed_bytes, 16, &transferred) != PAPACC_RESULT_OK) {
+        result = 5;
+        goto cleanup;
+    }
+    framed_bytes[16] = 0xA1;
+    framed_bytes[17] = 0xB2;
+    framed_bytes[18] = 0xC3;
+    if (papacc_framed_reader_init(
+            &reader, &transport, framed_scratch, sizeof(framed_scratch), 3) !=
+            PAPACC_RESULT_OK ||
+        send(client, (const char *)framed_bytes, 5, 0) != 5 ||
+        papacc_framed_reader_next(&reader, &reader_status, &frame_event) !=
+            PAPACC_RESULT_OK ||
+        reader_status != PAPACC_FRAMED_READER_STATUS_NEED_MORE_DATA ||
+        send(client, (const char *)&framed_bytes[5], 12, 0) != 12 ||
+        papacc_framed_reader_next(&reader, &reader_status, &frame_event) !=
+            PAPACC_RESULT_OK ||
+        reader_status != PAPACC_FRAMED_READER_STATUS_EVENT ||
+        frame_event.type != PAPACC_FRAME_PARSER_EVENT_HEADER_READY ||
+        frame_event.header.message_type != 0x1234 ||
+        papacc_framed_reader_next(&reader, &reader_status, &frame_event) !=
+            PAPACC_RESULT_OK ||
+        frame_event.type != PAPACC_FRAME_PARSER_EVENT_PAYLOAD_CHUNK ||
+        frame_event.payload_length != 1 || frame_event.payload[0] != 0xA1 ||
+        send(client, (const char *)&framed_bytes[17], 2, 0) != 2 ||
+        papacc_framed_reader_next(&reader, &reader_status, &frame_event) !=
+            PAPACC_RESULT_OK ||
+        frame_event.type != PAPACC_FRAME_PARSER_EVENT_FRAME_COMPLETE ||
+        frame_event.payload_length != 2 || frame_event.payload[0] != 0xB2 ||
+        frame_event.payload[1] != 0xC3) {
+        result = 6;
+        goto cleanup;
+    }
+    papacc_framed_reader_shutdown(&reader);
     if (send(client, (const char *)client_bytes,
              (int)sizeof(client_bytes), 0) != (int)sizeof(client_bytes) ||
         papacc_transport_connection_read(
@@ -115,7 +161,7 @@ int main(void)
         transferred != sizeof(client_bytes) ||
         io_status != PAPACC_TRANSPORT_IO_STATUS_PROGRESS ||
         memcmp(read_buffer, client_bytes, sizeof(client_bytes)) != 0) {
-        result = 5;
+        result = 7;
         goto cleanup;
     }
     if (papacc_transport_connection_write(
@@ -127,16 +173,37 @@ int main(void)
              (int)sizeof(client_read_buffer), 0) !=
             (int)sizeof(client_read_buffer) ||
         memcmp(client_read_buffer, server_bytes, sizeof(server_bytes)) != 0) {
-        result = 6;
+        result = 8;
         goto cleanup;
     }
-    if (shutdown(client, SD_SEND) == SOCKET_ERROR ||
-        papacc_transport_connection_read(
+    frame_header.payload_length = 2;
+    if (papacc_frame_header_encode(
+            &frame_header, framed_bytes, 16, &transferred) != PAPACC_RESULT_OK ||
+        papacc_framed_reader_init(
+            &reader, &transport, framed_scratch, sizeof(framed_scratch), 3) !=
+            PAPACC_RESULT_OK ||
+        send(client, (const char *)framed_bytes, 16, 0) != 16 ||
+        papacc_framed_reader_next(&reader, &reader_status, &frame_event) !=
+            PAPACC_RESULT_OK ||
+        frame_event.type != PAPACC_FRAME_PARSER_EVENT_HEADER_READY ||
+        send(client, (const char *)&framed_bytes[16], 1, 0) != 1 ||
+        papacc_framed_reader_next(&reader, &reader_status, &frame_event) !=
+            PAPACC_RESULT_OK ||
+        frame_event.type != PAPACC_FRAME_PARSER_EVENT_PAYLOAD_CHUNK ||
+        shutdown(client, SD_SEND) == SOCKET_ERROR ||
+        papacc_framed_reader_next(&reader, &reader_status, &frame_event) !=
+            PAPACC_RESULT_PROTOCOL_ERROR ||
+        reader.state != PAPACC_FRAMED_READER_STATE_ERROR) {
+        result = 9;
+        goto cleanup;
+    }
+    papacc_framed_reader_shutdown(&reader);
+    if (papacc_transport_connection_read(
             &transport, read_buffer, sizeof(read_buffer),
             &transferred, &io_status) != PAPACC_RESULT_OK ||
         transferred != 0 ||
         io_status != PAPACC_TRANSPORT_IO_STATUS_END_OF_STREAM) {
-        result = 7;
+        result = 10;
         goto cleanup;
     }
     if (
@@ -149,7 +216,7 @@ int main(void)
             &connection->local_endpoint, &local_endpoint) != PAPACC_TRUE ||
         papacc_network_endpoint_equal(
             &connection->remote_endpoint, &remote_endpoint) != PAPACC_TRUE) {
-        result = 8;
+        result = 11;
         goto cleanup;
     }
     (void)closesocket(client);
@@ -158,7 +225,7 @@ int main(void)
             &manager, connection->connection_instance_id) != PAPACC_RESULT_OK ||
         context.owns_socket != PAPACC_FALSE ||
         listener.is_listening != PAPACC_TRUE) {
-        result = 9;
+        result = 12;
         goto cleanup;
     }
     client = papacc_test_connect(port);
@@ -166,10 +233,11 @@ int main(void)
         papacc_tcp_socket_win32_accept(&listener, &accepted) !=
             PAPACC_RESULT_OK ||
         listener.is_listening != PAPACC_TRUE) {
-        result = 10;
+        result = 13;
     }
 
 cleanup:
+    papacc_framed_reader_shutdown(&reader);
     papacc_connection_manager_shutdown(&manager);
     papacc_transport_connection_close(&transport);
     papacc_tcp_accepted_socket_win32_close(&accepted);

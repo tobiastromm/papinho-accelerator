@@ -138,6 +138,29 @@ set_target_properties(papacc_protocol_framing PROPERTIES
 
 papacc_enable_warnings(papacc_protocol_framing)
 
+add_library(papacc_framed_reader STATIC
+    src/protocol/framed_reader.c
+)
+
+target_include_directories(papacc_framed_reader
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+)
+
+target_link_libraries(
+    papacc_framed_reader
+    PUBLIC papacc_protocol_framing papacc_connection)
+
+set_target_properties(papacc_framed_reader PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS NO
+)
+
+papacc_enable_warnings(papacc_framed_reader)
+
 if(WIN32)
     add_library(papacc_tcp_win32 STATIC
         src/platform/win32/tcp_accept_win32.c
@@ -454,6 +477,30 @@ if(WIN32)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(papacc_framed_reader_test
+        tests/framed_reader_test.c
+    )
+
+    target_include_directories(papacc_framed_reader_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+    )
+
+    target_link_libraries(
+        papacc_framed_reader_test PRIVATE papacc_framed_reader)
+
+    set_target_properties(papacc_framed_reader_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_framed_reader_test)
+
+    add_test(
+        NAME papacc.protocol.framed_reader
+        COMMAND papacc_framed_reader_test)
+
     add_executable(papacc_transport_connection_test
         tests/transport_connection_test.c
     )
@@ -1034,7 +1081,7 @@ if(BUILD_TESTING)
 
         target_link_libraries(
             papacc_tcp_connection_transport_win32_test
-            PRIVATE papacc_tcp_connection_win32
+            PRIVATE papacc_tcp_connection_win32 papacc_framed_reader
         )
 
         set_target_properties(

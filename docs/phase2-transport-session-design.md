@@ -5,9 +5,11 @@
 This checkpoint defines the enduring Phase 2 boundaries. Portable Session and
 Channel foundations implement lifecycle and internal structural relationships.
 The Transport Connection now exposes portable partial byte-stream read/write,
-and framing has a portable incremental parser, but those two layers are not yet
-integrated. There is still no wire-driven association, authentication, or
-Transport Security implementation.
+and framing has a portable incremental parser. A standalone portable Framed
+Reader now provides caller-driven receive integration for those abstractions,
+but production Connections do not own or run it. There is still no outbound
+framed writing, wire-driven association, authentication, or Transport Security
+implementation.
 
 The central invariant is:
 
@@ -74,7 +76,9 @@ suffix after partial write, and may retry later according to future readiness
 and backpressure policy. The Win32 TCP adapter maps `recv() == 0` to clean EOF,
 maps `WSAEWOULDBLOCK` explicitly, and limits one native span to `INT_MAX`
 without changing the portable `PAPACC_SIZE` contract. Existing accepted
-sockets remain blocking; no readiness or parser integration is introduced.
+sockets remain blocking. The standalone Framed Reader may therefore block when
+it needs a transport read; no Connection readiness or Server Runner integration
+is introduced.
 
 ## Connection contract
 
