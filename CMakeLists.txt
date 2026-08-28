@@ -95,6 +95,29 @@ set_target_properties(papacc_session PROPERTIES
 
 papacc_enable_warnings(papacc_session)
 
+add_library(papacc_channel STATIC
+    src/runtime/channel.c
+)
+
+target_include_directories(papacc_channel
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+)
+
+target_link_libraries(
+    papacc_channel PUBLIC papacc_core papacc_connection papacc_session)
+
+set_target_properties(papacc_channel PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED YES
+    C_EXTENSIONS NO
+)
+
+papacc_enable_warnings(papacc_channel)
+
 if(WIN32)
     add_library(papacc_tcp_win32 STATIC
         src/platform/win32/tcp_accept_win32.c
@@ -411,6 +434,29 @@ if(WIN32)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(papacc_channel_test
+        tests/channel_test.c
+    )
+
+    target_include_directories(papacc_channel_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+    )
+
+    target_link_libraries(papacc_channel_test PRIVATE papacc_channel)
+
+    set_target_properties(papacc_channel_test PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED YES
+        C_EXTENSIONS NO
+    )
+
+    papacc_enable_warnings(papacc_channel_test)
+
+    add_test(NAME papacc.channel.relationship COMMAND papacc_channel_test)
+
     add_executable(papacc_session_test
         tests/session_test.c
     )

@@ -7,8 +7,9 @@
 typedef enum PAPACC_CONNECTION_STATE {
     PAPACC_CONNECTION_STATE_UNINITIALIZED = 0,
     PAPACC_CONNECTION_STATE_PENDING = 1,
-    PAPACC_CONNECTION_STATE_CLOSING = 2,
-    PAPACC_CONNECTION_STATE_CLOSED = 3
+    PAPACC_CONNECTION_STATE_ASSOCIATED = 2,
+    PAPACC_CONNECTION_STATE_CLOSING = 3,
+    PAPACC_CONNECTION_STATE_CLOSED = 4
 } PAPACC_CONNECTION_STATE;
 
 /*
@@ -31,6 +32,10 @@ typedef struct PAPACC_CONNECTION {
 
 /* Keeps published identity/endpoints for diagnostics and enters CLOSED. */
 void papacc_connection_close(PAPACC_CONNECTION *connection);
+
+/* Higher relationship layer claim only: PENDING -> ASSOCIATED. */
+PAPACC_RESULT papacc_connection_mark_associated(
+    PAPACC_CONNECTION *connection);
 
 typedef struct PAPACC_CONNECTION_MANAGER {
     PAPACC_CONNECTION *storage;

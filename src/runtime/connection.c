@@ -64,6 +64,22 @@ void papacc_connection_close(PAPACC_CONNECTION *connection)
     connection->state = PAPACC_CONNECTION_STATE_CLOSED;
 }
 
+PAPACC_RESULT papacc_connection_mark_associated(
+    PAPACC_CONNECTION *connection)
+{
+    if (connection == NULL) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    if (connection->state != PAPACC_CONNECTION_STATE_PENDING ||
+        connection->connection_instance_id == 0 ||
+        papacc_transport_connection_is_valid(&connection->transport) !=
+            PAPACC_TRUE) {
+        return PAPACC_RESULT_INVALID_STATE;
+    }
+    connection->state = PAPACC_CONNECTION_STATE_ASSOCIATED;
+    return PAPACC_RESULT_OK;
+}
+
 PAPACC_RESULT papacc_connection_manager_init(
     PAPACC_CONNECTION_MANAGER *manager,
     PAPACC_CONNECTION *storage,

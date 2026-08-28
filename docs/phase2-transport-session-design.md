@@ -38,6 +38,20 @@ Responsibilities are separated as follows:
 - **Control Channel:** the primary Session channel for setup, negotiation, commands, status, heartbeat, errors, and shutdown coordination.
 - **Data Channel:** an additional Session-associated channel for large payloads, media, framebuffer, or job data.
 
+The portable Channel relationship foundation now represents CONTROL and DATA
+bindings through runtime IDs. A bound Channel relates exactly one published
+Connection to one published Session without taking ownership of either entity.
+The Channel Manager is the sole relationship table; Connection and Session do
+not contain reverse Channel pointers or collections.
+
+`channel_instance_id` is a nonzero, manager-assigned `PAPACC_U64` for runtime
+diagnostics and management only. It is not persistent, grants no authority,
+is not automatically wire-visible, and is not a future Wire Channel ID.
+
+After binding, a Connection moves from `PENDING` to `ASSOCIATED`. This means
+only that a higher logical layer has claimed it through a Channel; it does not
+mean authenticated, secure, negotiated, or application-ready.
+
 Initially the implemented transport will be TCP. Session and protocol layers must never depend on `SOCKET`; future local transports may have different endpoint and I/O semantics.
 
 ## Connection contract
@@ -141,6 +155,17 @@ The initial baseline is exactly one primary Control Channel per established Sess
 A Session may later have zero or more Data Channels. No fixed count is chosen; server/session policy and resource limits will bound them.
 
 A new Connection remains pending until it presents future protocol information sufficient to classify it. A Data Channel must prove authorized association using something beyond Session ID. Possible future inputs include an authenticated token, nonce, channel binding, or Transport-Security-derived secret, but no mechanism is selected here.
+
+The implemented DATA bind API is an internal structural operation requiring an
+ACTIVE Session and an existing bound CONTROL Channel:
+
+```text
+internal structural DATA binding != secure remote Data Channel association
+```
+
+Knowledge of `session_instance_id`, `channel_instance_id`, or any future wire
+identifier grants no authority to attach a remote Data Channel. No wire
+Session/Channel identifier or association proof is defined by this foundation.
 
 ## Protocol stream requirements
 

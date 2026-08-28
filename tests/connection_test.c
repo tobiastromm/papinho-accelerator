@@ -97,6 +97,12 @@ static int papacc_test_publication_and_ids(void)
         return 11;
     }
     first_id = first->connection_instance_id;
+    if (papacc_connection_mark_associated(first) != PAPACC_RESULT_OK ||
+        first->state != PAPACC_CONNECTION_STATE_ASSOCIATED ||
+        papacc_connection_mark_associated(first) !=
+            PAPACC_RESULT_INVALID_STATE) {
+        return 12;
+    }
     second_transport = papacc_test_transport(&contexts[1]);
     if (papacc_connection_manager_publish(
             &manager, &second_transport, &local_endpoint, &remote_endpoint,
@@ -106,27 +112,27 @@ static int papacc_test_publication_and_ids(void)
         papacc_connection_manager_find(&manager, first_id) != first ||
         papacc_connection_manager_find(&manager, 0) != NULL ||
         papacc_connection_manager_find(&manager, 42) != NULL) {
-        return 12;
+        return 13;
     }
     papacc_connection_close(first);
     papacc_connection_close(first);
     if (first->state != PAPACC_CONNECTION_STATE_CLOSED ||
         first->connection_instance_id != first_id ||
         contexts[0].close_count != 1 || manager.count != 2) {
-        return 13;
+        return 14;
     }
     if (papacc_connection_manager_remove(&manager, first_id) !=
             PAPACC_RESULT_OK ||
         storage[0].state != PAPACC_CONNECTION_STATE_UNINITIALIZED ||
         manager.count != 1 || contexts[0].close_count != 1) {
-        return 14;
+        return 15;
     }
     papacc_connection_manager_shutdown(&manager);
     papacc_connection_manager_shutdown(&manager);
     if (contexts[1].close_count != 1 || manager.initialized != PAPACC_FALSE ||
         manager.count != 0 ||
         storage[1].state != PAPACC_CONNECTION_STATE_UNINITIALIZED) {
-        return 15;
+        return 16;
     }
     return 0;
 }
