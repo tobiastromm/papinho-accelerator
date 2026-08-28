@@ -43,6 +43,16 @@ PAPACC_RESULT papacc_server_acceptor_win32_poll_once(
     PAPACC_U32 timeout_ms,
     PAPACC_CONNECTION **out_connection);
 
+/* Accepts and publishes at most one connection from an already-ready entry. */
+PAPACC_RESULT papacc_server_acceptor_win32_accept_ready(
+    PAPACC_SERVER_ACCEPTOR_WIN32 *acceptor,
+    PAPACC_SIZE listener_index,
+    PAPACC_CONNECTION **out_connection);
+
+/* Non-owning access, available only during the initialized lifetime. */
+PAPACC_CONNECTION_MANAGER *papacc_server_acceptor_win32_connection_manager(
+    PAPACC_SERVER_ACCEPTOR_WIN32 *acceptor);
+
 /* Closes Connections/contexts but never shuts down the borrowed network. */
 void papacc_server_acceptor_win32_shutdown(
     PAPACC_SERVER_ACCEPTOR_WIN32 *acceptor);

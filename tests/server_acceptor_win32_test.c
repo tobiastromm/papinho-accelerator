@@ -121,7 +121,13 @@ static int papacc_test_init_timeout_and_guards(
 
     papacc_server_acceptor_win32_shutdown(NULL);
     papacc_server_acceptor_win32_shutdown(&acceptor);
-    if (papacc_server_acceptor_win32_init(
+    if (papacc_server_acceptor_win32_connection_manager(NULL) != NULL ||
+        papacc_server_acceptor_win32_connection_manager(&acceptor) != NULL ||
+        papacc_server_acceptor_win32_accept_ready(
+            NULL, 0, &connection) != PAPACC_RESULT_INVALID_ARGUMENT ||
+        papacc_server_acceptor_win32_accept_ready(
+            &acceptor, 0, NULL) != PAPACC_RESULT_INVALID_ARGUMENT ||
+        papacc_server_acceptor_win32_init(
             NULL, &fixture->network, storage, 1, contexts, 1) !=
             PAPACC_RESULT_INVALID_ARGUMENT ||
         papacc_server_acceptor_win32_init(
@@ -146,6 +152,11 @@ static int papacc_test_init_timeout_and_guards(
             PAPACC_RESULT_OK ||
         acceptor.initialized != PAPACC_TRUE ||
         acceptor.connection_manager.count != 0 ||
+        papacc_server_acceptor_win32_connection_manager(&acceptor) !=
+            &acceptor.connection_manager ||
+        papacc_server_acceptor_win32_accept_ready(
+            &acceptor, PAPACC_TEST_LISTENER_COUNT, &connection) !=
+            PAPACC_RESULT_INVALID_ARGUMENT ||
         papacc_server_acceptor_win32_init(
             &acceptor, &fixture->network, storage, 1, contexts, 1) !=
             PAPACC_RESULT_INVALID_STATE) {
@@ -177,6 +188,9 @@ static int papacc_test_init_timeout_and_guards(
     }
     fixture->network.is_active = PAPACC_TRUE;
     papacc_server_acceptor_win32_shutdown(&acceptor);
+    if (papacc_server_acceptor_win32_connection_manager(&acceptor) != NULL) {
+        return 6;
+    }
     if (papacc_server_acceptor_win32_init(
             &acceptor, &fixture->network, NULL, 0, NULL, 0) !=
             PAPACC_RESULT_OK) {
@@ -199,6 +213,11 @@ static int papacc_test_round_robin_and_shutdown(
     PAPACC_NETWORK_ENDPOINT client_endpoints[2];
     PAPACC_CONNECTION *connections[2] = { NULL, NULL };
     SOCKET clients[2] = { INVALID_SOCKET, INVALID_SOCKET };
+    SOCKET native_socket = INVALID_SOCKET;
+    PAPACC_U8 byte = 0;
+    PAPACC_SIZE transferred = 1;
+    PAPACC_TRANSPORT_IO_STATUS io_status =
+        PAPACC_TRANSPORT_IO_STATUS_PROGRESS;
     int result = 0;
 
     if (papacc_server_acceptor_win32_init(
@@ -239,6 +258,22 @@ static int papacc_test_round_robin_and_shutdown(
         result = 12;
         goto cleanup;
     }
+    if (papacc_tcp_connection_transport_win32_get_native_socket(
+            &connections[0]->transport, &native_socket) != PAPACC_RESULT_OK ||
+        native_socket == INVALID_SOCKET ||
+        papacc_transport_connection_read(
+            &connections[0]->transport, &byte, 1, &transferred,
+            &io_status) != PAPACC_RESULT_OK || transferred != 0 ||
+        io_status != PAPACC_TRANSPORT_IO_STATUS_WOULD_BLOCK ||
+        send(clients[0], "x", 1, 0) != 1 ||
+        papacc_transport_connection_read(
+            &connections[0]->transport, &byte, 1, &transferred,
+            &io_status) != PAPACC_RESULT_OK || transferred != 1 ||
+        byte != (PAPACC_U8)'x' ||
+        io_status != PAPACC_TRANSPORT_IO_STATUS_PROGRESS) {
+        result = 14;
+        goto cleanup;
+    }
     papacc_server_acceptor_win32_shutdown(&acceptor);
     if (acceptor.initialized != PAPACC_FALSE ||
         contexts[0].owns_socket != PAPACC_FALSE ||
@@ -259,6 +294,59 @@ cleanup:
     }
     if (clients[1] != INVALID_SOCKET) {
         (void)closesocket(clients[1]);
+    }
+    return result;
+}
+
+static int papacc_test_accept_ready_and_eof(
+    PAPACC_TEST_NETWORK_FIXTURE *fixture)
+{
+    PAPACC_SERVER_ACCEPTOR_WIN32 acceptor =
+        PAPACC_SERVER_ACCEPTOR_WIN32_INITIALIZER;
+    PAPACC_CONNECTION storage[1];
+    PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT contexts[1] = {
+        PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT_INITIALIZER
+    };
+    PAPACC_NETWORK_ENDPOINT endpoint;
+    PAPACC_CONNECTION *connection = NULL;
+    PAPACC_U8 byte = 0;
+    PAPACC_SIZE transferred = 1;
+    PAPACC_TRANSPORT_IO_STATUS status = PAPACC_TRANSPORT_IO_STATUS_PROGRESS;
+    SOCKET client = INVALID_SOCKET;
+    SOCKET native_socket = INVALID_SOCKET;
+    int result = 0;
+
+    if (papacc_server_acceptor_win32_init(
+            &acceptor, &fixture->network, storage, 1, contexts, 1) !=
+        PAPACC_RESULT_OK) {
+        return 25;
+    }
+    client = papacc_test_connect(fixture->ports[0], &endpoint);
+    if (client == INVALID_SOCKET ||
+        papacc_server_acceptor_win32_accept_ready(
+            &acceptor, 0, &connection) != PAPACC_RESULT_OK ||
+        connection == NULL ||
+        papacc_tcp_connection_transport_win32_get_native_socket(
+            &connection->transport, &native_socket) != PAPACC_RESULT_OK ||
+        native_socket == INVALID_SOCKET || shutdown(client, SD_SEND) != 0 ||
+        papacc_transport_connection_read(
+            &connection->transport, &byte, 1, &transferred, &status) !=
+            PAPACC_RESULT_OK || transferred != 0 ||
+        status != PAPACC_TRANSPORT_IO_STATUS_END_OF_STREAM) {
+        result = 26;
+        goto cleanup;
+    }
+    papacc_connection_close(connection);
+    if (papacc_tcp_connection_transport_win32_get_native_socket(
+            &connection->transport, &native_socket) !=
+        PAPACC_RESULT_INVALID_STATE) {
+        result = 27;
+    }
+
+cleanup:
+    papacc_server_acceptor_win32_shutdown(&acceptor);
+    if (client != INVALID_SOCKET) {
+        (void)closesocket(client);
     }
     return result;
 }
@@ -296,8 +384,8 @@ static int papacc_test_capacity_recovery(
     client = papacc_test_connect(fixture->ports[0], &client_endpoint);
     connection = (PAPACC_CONNECTION *)storage;
     if (client == INVALID_SOCKET ||
-        papacc_server_acceptor_win32_poll_once(
-            &acceptor, 100, &connection) != PAPACC_RESULT_LIMIT_EXCEEDED ||
+        papacc_server_acceptor_win32_accept_ready(
+            &acceptor, 0, &connection) != PAPACC_RESULT_LIMIT_EXCEEDED ||
         connection != NULL || acceptor.connection_manager.count != 1 ||
         storage[0].connection_instance_id != first_id ||
         storage[0].state != PAPACC_CONNECTION_STATE_PENDING) {
@@ -344,6 +432,9 @@ int main(void)
     }
     if (result == 0) {
         result = papacc_test_capacity_recovery(&fixture);
+    }
+    if (result == 0) {
+        result = papacc_test_accept_ready_and_eof(&fixture);
     }
     papacc_test_fixture_shutdown(&fixture);
     return result;

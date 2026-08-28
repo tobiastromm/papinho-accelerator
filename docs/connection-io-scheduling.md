@@ -2,9 +2,10 @@
 
 ## Status and problem
 
-Phase 2.C4 freezes architecture only. It implements no scheduler,
-nonblocking transition, processor, timeout, thread, message, or production
-protocol I/O. Connections remain blocking, `PENDING`, and idle.
+Phase 2.D3A implements the transport-side readiness prerequisite, not the
+combined scheduler. Every Connection published by the Win32 Server Acceptor is
+nonblocking and remains `PENDING` and idle. It implements no processor,
+timeout, thread, message, or production protocol I/O.
 
 Calling `papacc_framed_reader_next()` sequentially on blocking Connections is
 incorrect: an idle peer can block in `recv()` and starve every other client.
@@ -28,7 +29,7 @@ not initial choices. A future readiness backend may replace `select()` without
 changing portable protocol processing.
 
 Readiness reduces `WOULD_BLOCK` but cannot replace nonblocking mode: readiness
-may change before I/O. The Win32 transport/composition boundary will apply
+may change before I/O. The Win32 transport/composition boundary applies
 `ioctlsocket(FIONBIO)` after accept and before publication/processing. Failure
 closes the accepted socket and publishes neither Connection nor processor.
 Listeners may remain blocking because exactly one `accept()` follows observed
@@ -49,9 +50,11 @@ Win32 Server I/O Loop (scheduling owner)
 Two independent blocking selects (Alternative A) would require coordination or
 wakeups, duplicate policy, and complicate fairness/shutdown. The unified loop
 must reuse existing accept/publication and rollback logic, never duplicate
-`papacc_tcp_socket_win32_accept()` or manager publication. The Acceptor should
-evolve to expose accept-one-ready-listener while preserving its round-robin and
-failure atomicity. `PAPACC_SERVER_NETWORK` remains passive infrastructure.
+`papacc_tcp_socket_win32_accept()` or manager publication. The Acceptor exposes
+`papacc_server_acceptor_win32_accept_ready()` for one already-ready listener,
+preserving failure atomicity. Compatibility `poll_once()` retains `select()`
+and round-robin selection, then delegates to that operation.
+`PAPACC_SERVER_NETWORK` remains passive infrastructure.
 
 Normal errors are determined by read/write/EOF results; the design does not
 depend on WinSock `exceptfds`.

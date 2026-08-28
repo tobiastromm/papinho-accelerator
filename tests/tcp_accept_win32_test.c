@@ -143,7 +143,13 @@ static int papacc_test_invalid_states(const PAPACC_TCP_PLATFORM *platform)
 
     papacc_tcp_accepted_socket_win32_close(NULL);
     papacc_tcp_accepted_socket_win32_close(&accepted);
-    if (papacc_tcp_socket_win32_accept(NULL, &accepted) !=
+    if (papacc_tcp_accepted_socket_win32_set_nonblocking(NULL, PAPACC_TRUE) !=
+            PAPACC_RESULT_INVALID_ARGUMENT ||
+        papacc_tcp_accepted_socket_win32_set_nonblocking(
+            &accepted, (PAPACC_BOOL)2) != PAPACC_RESULT_INVALID_ARGUMENT ||
+        papacc_tcp_accepted_socket_win32_set_nonblocking(
+            &accepted, PAPACC_TRUE) != PAPACC_RESULT_INVALID_STATE ||
+        papacc_tcp_socket_win32_accept(NULL, &accepted) !=
             PAPACC_RESULT_INVALID_ARGUMENT ||
         papacc_tcp_socket_win32_accept(&listener, NULL) !=
             PAPACC_RESULT_INVALID_ARGUMENT ||
@@ -205,7 +211,11 @@ static int papacc_test_ipv4_reaccept(const PAPACC_TCP_PLATFORM *platform)
         papacc_test_client_endpoint(client, &expected_remote) !=
             PAPACC_RESULT_OK ||
         papacc_tcp_socket_win32_accept(&listener, &accepted) !=
-            PAPACC_RESULT_OK) {
+            PAPACC_RESULT_OK ||
+        papacc_tcp_accepted_socket_win32_set_nonblocking(
+            &accepted, PAPACC_TRUE) != PAPACC_RESULT_OK ||
+        papacc_tcp_accepted_socket_win32_set_nonblocking(
+            &accepted, PAPACC_FALSE) != PAPACC_RESULT_OK) {
         result = 11;
         goto cleanup;
     }

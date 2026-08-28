@@ -110,3 +110,28 @@ PAPACC_RESULT papacc_tcp_connection_transport_win32_move(
     *out_transport = transport;
     return PAPACC_RESULT_OK;
 }
+
+PAPACC_RESULT papacc_tcp_connection_transport_win32_get_native_socket(
+    const PAPACC_TRANSPORT_CONNECTION *transport,
+    SOCKET *out_native_socket)
+{
+    const PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *context;
+
+    if (transport == NULL || out_native_socket == NULL) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    if (transport->context == NULL ||
+        transport->read_fn != papacc_tcp_connection_transport_win32_read ||
+        transport->write_fn != papacc_tcp_connection_transport_win32_write ||
+        transport->close_fn != papacc_tcp_connection_transport_win32_close) {
+        return PAPACC_RESULT_INVALID_STATE;
+    }
+    context = (const PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *)
+        transport->context;
+    if (context->owns_socket != PAPACC_TRUE ||
+        context->native_socket == INVALID_SOCKET) {
+        return PAPACC_RESULT_INVALID_STATE;
+    }
+    *out_native_socket = context->native_socket;
+    return PAPACC_RESULT_OK;
+}

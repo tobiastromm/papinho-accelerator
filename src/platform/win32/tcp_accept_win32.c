@@ -158,6 +158,30 @@ failure:
     return result;
 }
 
+PAPACC_RESULT papacc_tcp_accepted_socket_win32_set_nonblocking(
+    PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *accepted,
+    PAPACC_BOOL enabled)
+{
+    u_long native_mode;
+
+    if (accepted == NULL ||
+        (enabled != PAPACC_FALSE && enabled != PAPACC_TRUE)) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    if (accepted->is_open != PAPACC_TRUE ||
+        accepted->native_socket == INVALID_SOCKET ||
+        (accepted->family != PAPACC_IP_FAMILY_IPV4 &&
+         accepted->family != PAPACC_IP_FAMILY_IPV6)) {
+        return PAPACC_RESULT_INVALID_STATE;
+    }
+    native_mode = enabled == PAPACC_TRUE ? 1UL : 0UL;
+    if (ioctlsocket(accepted->native_socket, FIONBIO, &native_mode) ==
+        SOCKET_ERROR) {
+        return PAPACC_RESULT_INTERNAL_ERROR;
+    }
+    return PAPACC_RESULT_OK;
+}
+
 void papacc_tcp_accepted_socket_win32_close(
     PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *accepted)
 {

@@ -76,10 +76,10 @@ queue, or write-all loop. The caller owns all buffers, must retain an unsent
 suffix after partial write, and may retry later according to future readiness
 and backpressure policy. The Win32 TCP adapter maps `recv() == 0` to clean EOF,
 maps `WSAEWOULDBLOCK` explicitly, and limits one native span to `INT_MAX`
-without changing the portable `PAPACC_SIZE` contract. Existing accepted
-sockets remain blocking. The standalone Framed Reader may therefore block when
-it needs a transport read; no Connection readiness or Server Runner integration
-is introduced.
+without changing the portable `PAPACC_SIZE` contract. The Win32 Acceptor sets
+accepted sockets nonblocking before publication; transition failure closes
+only the new socket. The standalone Framed Reader still has no Server Runner
+or combined readiness-loop integration.
 
 The Framed Writer encodes one semantic header into fixed local storage and
 streams payload spans owned by its caller. Each step performs at most one
@@ -155,7 +155,8 @@ round-robin; write readiness is monitored only for pending output.
 Thread-per-Connection, IOCP, `WSAPoll`, and worker pools are not the initial
 baseline. The normative readiness, ownership, fairness, timeout, failure, and
 shutdown contract is [Connection I/O Scheduling](connection-io-scheduling.md).
-C4 implements none of that loop or nonblocking transition.
+D3A implements the accepted-socket nonblocking transition and an accept-ready
+composition seam, but none of the combined scheduling loop.
 
 ## Session contract
 

@@ -30,6 +30,11 @@ PAPACC_RESULT papacc_tcp_socket_win32_accept(
     const PAPACC_TCP_SOCKET_WIN32 *listener,
     PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *out_accepted);
 
+/* Changes only the accepted socket's blocking mode; ownership is unchanged. */
+PAPACC_RESULT papacc_tcp_accepted_socket_win32_set_nonblocking(
+    PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *accepted,
+    PAPACC_BOOL enabled);
+
 /* Closes only the published accepted socket and restores the initializer. */
 void papacc_tcp_accepted_socket_win32_close(
     PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *accepted);

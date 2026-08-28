@@ -25,4 +25,9 @@ PAPACC_RESULT papacc_tcp_connection_transport_win32_move(
     PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *context,
     PAPACC_TRANSPORT_CONNECTION *out_transport);
 
+/* Borrows the native handle from an open transport of this exact adapter. */
+PAPACC_RESULT papacc_tcp_connection_transport_win32_get_native_socket(
+    const PAPACC_TRANSPORT_CONNECTION *transport,
+    SOCKET *out_native_socket);
+
 #endif

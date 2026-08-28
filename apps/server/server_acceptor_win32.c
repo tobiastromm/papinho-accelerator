@@ -59,6 +59,16 @@ static PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT
     return NULL;
 }
 
+PAPACC_CONNECTION_MANAGER *papacc_server_acceptor_win32_connection_manager(
+    PAPACC_SERVER_ACCEPTOR_WIN32 *acceptor)
+{
+    if (acceptor == NULL || acceptor->initialized != PAPACC_TRUE ||
+        acceptor->connection_manager.initialized != PAPACC_TRUE) {
+        return NULL;
+    }
+    return &acceptor->connection_manager;
+}
+
 PAPACC_RESULT papacc_server_acceptor_win32_init(
     PAPACC_SERVER_ACCEPTOR_WIN32 *acceptor,
     PAPACC_SERVER_NETWORK *server_network,
@@ -110,15 +120,7 @@ PAPACC_RESULT papacc_server_acceptor_win32_poll_once(
     PAPACC_U32 timeout_ms,
     PAPACC_CONNECTION **out_connection)
 {
-    PAPACC_TCP_ACCEPTED_SOCKET_WIN32 accepted =
-        PAPACC_TCP_ACCEPTED_SOCKET_WIN32_INITIALIZER;
-    PAPACC_TRANSPORT_CONNECTION transport =
-        PAPACC_TRANSPORT_CONNECTION_INITIALIZER;
-    PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *context;
-    PAPACC_NETWORK_ENDPOINT local_endpoint;
-    PAPACC_NETWORK_ENDPOINT remote_endpoint;
     PAPACC_TCP_LISTENER_SET_WIN32 *listener_set;
-    PAPACC_TCP_SOCKET_WIN32 *selected_listener = NULL;
     struct timeval timeout;
     fd_set read_set;
     PAPACC_SIZE offset;
@@ -164,17 +166,61 @@ PAPACC_RESULT papacc_server_acceptor_win32_poll_once(
         SOCKET native_socket = listener_set->entries[index].socket.native_socket;
         if (FD_ISSET(native_socket, &read_set)) {
             selected_index = index;
-            selected_listener = &listener_set->entries[index].socket;
             break;
         }
     }
-    if (selected_listener == NULL) {
+    if (offset == listener_set->count) {
         return PAPACC_RESULT_INTERNAL_ERROR;
     }
     acceptor->next_listener_index =
         (selected_index + 1U) % listener_set->count;
-    result = papacc_tcp_socket_win32_accept(selected_listener, &accepted);
+    return papacc_server_acceptor_win32_accept_ready(
+        acceptor, selected_index, out_connection);
+}
+
+PAPACC_RESULT papacc_server_acceptor_win32_accept_ready(
+    PAPACC_SERVER_ACCEPTOR_WIN32 *acceptor,
+    PAPACC_SIZE listener_index,
+    PAPACC_CONNECTION **out_connection)
+{
+    PAPACC_TCP_ACCEPTED_SOCKET_WIN32 accepted =
+        PAPACC_TCP_ACCEPTED_SOCKET_WIN32_INITIALIZER;
+    PAPACC_TRANSPORT_CONNECTION transport =
+        PAPACC_TRANSPORT_CONNECTION_INITIALIZER;
+    PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *context;
+    PAPACC_NETWORK_ENDPOINT local_endpoint;
+    PAPACC_NETWORK_ENDPOINT remote_endpoint;
+    PAPACC_TCP_LISTENER_SET_WIN32 *listener_set;
+    PAPACC_RESULT result;
+
+    if (out_connection != NULL) {
+        *out_connection = NULL;
+    }
+    if (acceptor == NULL || out_connection == NULL) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    if (acceptor->initialized != PAPACC_TRUE ||
+        acceptor->connection_manager.initialized != PAPACC_TRUE) {
+        return PAPACC_RESULT_INVALID_STATE;
+    }
+    result = papacc_server_acceptor_win32_validate_network(
+        acceptor->server_network);
     if (result != PAPACC_RESULT_OK) {
+        return result;
+    }
+    listener_set = &acceptor->server_network->listener_set;
+    if (listener_index >= listener_set->count) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    result = papacc_tcp_socket_win32_accept(
+        &listener_set->entries[listener_index].socket, &accepted);
+    if (result != PAPACC_RESULT_OK) {
+        return result;
+    }
+    result = papacc_tcp_accepted_socket_win32_set_nonblocking(
+        &accepted, PAPACC_TRUE);
+    if (result != PAPACC_RESULT_OK) {
+        papacc_tcp_accepted_socket_win32_close(&accepted);
         return result;
     }
     local_endpoint = accepted.local_endpoint;
