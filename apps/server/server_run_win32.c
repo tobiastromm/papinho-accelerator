@@ -43,54 +43,6 @@ static PAPACC_RESULT papacc_server_print_listeners(
     return PAPACC_RESULT_OK;
 }
 
-static PAPACC_RESULT papacc_server_print_endpoint(
-    FILE *output,
-    const char *label,
-    const PAPACC_NETWORK_ENDPOINT *endpoint)
-{
-    char address_text[40];
-    PAPACC_RESULT result = papacc_ip_address_format(
-        &endpoint->address, address_text, sizeof(address_text));
-
-    if (result != PAPACC_RESULT_OK) {
-        return result;
-    }
-    if (endpoint->address.family == PAPACC_IP_FAMILY_IPV6) {
-        fprintf(output, "  %s: [%s]:%u", label, address_text,
-                (unsigned int)endpoint->port);
-        if (endpoint->scope_id != 0) {
-            fprintf(output, "  Scope ID: %lu",
-                    (unsigned long)endpoint->scope_id);
-        }
-        fputc('\n', output);
-    } else {
-        fprintf(output, "  %s: %s:%u\n", label, address_text,
-                (unsigned int)endpoint->port);
-    }
-    return PAPACC_RESULT_OK;
-}
-
-static PAPACC_RESULT papacc_server_print_connection(
-    FILE *output,
-    const PAPACC_CONNECTION *connection)
-{
-    PAPACC_RESULT result;
-
-    fprintf(output, "Connection ID: %llu\n",
-            (unsigned long long)connection->connection_instance_id);
-    result = papacc_server_print_endpoint(
-        output, "Remote", &connection->remote_endpoint);
-    if (result == PAPACC_RESULT_OK) {
-        result = papacc_server_print_endpoint(
-            output, "Local", &connection->local_endpoint);
-    }
-    if (result == PAPACC_RESULT_OK) {
-        fputs("  State: PENDING\n", output);
-        (void)fflush(output);
-    }
-    return result;
-}
-
 PAPACC_RESULT papacc_server_run_win32(
     PAPACC_SERVER_NETWORK *server_network,
     FILE *output,
@@ -100,8 +52,13 @@ PAPACC_RESULT papacc_server_run_win32(
         (PAPACC_SIZE)PAPACC_SERVER_INITIAL_CONNECTION_CAPACITY;
     PAPACC_SERVER_ACCEPTOR_WIN32 acceptor =
         PAPACC_SERVER_ACCEPTOR_WIN32_INITIALIZER;
+    PAPACC_SERVER_IO_LOOP_WIN32 io_loop =
+        PAPACC_SERVER_IO_LOOP_WIN32_INITIALIZER;
     PAPACC_CONNECTION *connection_storage = NULL;
     PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *context_storage = NULL;
+    PAPACC_SESSION *session_storage = NULL;
+    PAPACC_CHANNEL *channel_storage = NULL;
+    PAPACC_SERVER_CONTROL_PROCESSOR_SLOT_WIN32 *processor_storage = NULL;
     PAPACC_RESULT result = PAPACC_RESULT_OK;
     PAPACC_SIZE index;
 
@@ -109,7 +66,10 @@ PAPACC_RESULT papacc_server_run_win32(
         return PAPACC_RESULT_INVALID_ARGUMENT;
     }
     if (capacity > SIZE_MAX / sizeof(*connection_storage) ||
-        capacity > SIZE_MAX / sizeof(*context_storage)) {
+        capacity > SIZE_MAX / sizeof(*context_storage) ||
+        capacity > SIZE_MAX / sizeof(*session_storage) ||
+        capacity > SIZE_MAX / sizeof(*channel_storage) ||
+        capacity > SIZE_MAX / sizeof(*processor_storage)) {
         return PAPACC_RESULT_LIMIT_EXCEEDED;
     }
     connection_storage = (PAPACC_CONNECTION *)malloc(
@@ -117,7 +77,15 @@ PAPACC_RESULT papacc_server_run_win32(
     context_storage =
         (PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *)malloc(
             capacity * sizeof(*context_storage));
-    if (connection_storage == NULL || context_storage == NULL) {
+    session_storage = (PAPACC_SESSION *)malloc(
+        capacity * sizeof(*session_storage));
+    channel_storage = (PAPACC_CHANNEL *)malloc(
+        capacity * sizeof(*channel_storage));
+    processor_storage = (PAPACC_SERVER_CONTROL_PROCESSOR_SLOT_WIN32 *)malloc(
+        capacity * sizeof(*processor_storage));
+    if (connection_storage == NULL || context_storage == NULL ||
+        session_storage == NULL || channel_storage == NULL ||
+        processor_storage == NULL) {
         result = PAPACC_RESULT_OUT_OF_MEMORY;
         goto cleanup;
     }
@@ -132,44 +100,34 @@ PAPACC_RESULT papacc_server_run_win32(
     if (result != PAPACC_RESULT_OK) {
         goto cleanup;
     }
+    result = papacc_server_io_loop_win32_init(
+        &io_loop, server_network, &acceptor, session_storage, capacity,
+        channel_storage, capacity, processor_storage, capacity,
+        (PAPACC_U64)PAPACC_SERVER_ESTABLISHMENT_TIMEOUT_NS);
+    if (result != PAPACC_RESULT_OK) goto cleanup;
     result = papacc_server_print_listeners(output, server_network);
     if (result != PAPACC_RESULT_OK) {
         goto cleanup;
     }
-    fputs("Accepting transport connections.\n"
-          "Protocol processing is not yet enabled.\n",
+    fputs("Accepting Control establishment connections.\n",
           output);
     (void)fflush(output);
     while (papacc_server_console_win32_stop_requested() == PAPACC_FALSE) {
-        PAPACC_CONNECTION *new_connection = NULL;
-        result = papacc_server_acceptor_win32_poll_once(
-            &acceptor, PAPACC_SERVER_ACCEPTOR_POLL_TIMEOUT_MS,
-            &new_connection);
-        if (result == PAPACC_RESULT_LIMIT_EXCEEDED) {
-            fputs("Connection rejected: connection capacity reached.\n",
-                  error_output);
-            (void)fflush(error_output);
-            result = PAPACC_RESULT_OK;
-            continue;
-        }
+        result = papacc_server_io_loop_win32_poll_once(
+            &io_loop, PAPACC_SERVER_IO_LOOP_POLL_TIMEOUT_MS);
         if (result != PAPACC_RESULT_OK) {
-            fprintf(error_output, "Acceptor poll failed: %d\n", (int)result);
+            fprintf(error_output, "Server I/O Loop failed: %d\n", (int)result);
             (void)fflush(error_output);
             break;
-        }
-        if (new_connection != NULL) {
-            result = papacc_server_print_connection(output, new_connection);
-            if (result != PAPACC_RESULT_OK) {
-                fprintf(error_output,
-                        "Connection presentation failed: %d\n", (int)result);
-                (void)fflush(error_output);
-                break;
-            }
         }
     }
 
 cleanup:
+    papacc_server_io_loop_win32_shutdown(&io_loop);
     papacc_server_acceptor_win32_shutdown(&acceptor);
+    free(processor_storage);
+    free(channel_storage);
+    free(session_storage);
     free(context_storage);
     free(connection_storage);
     return result;

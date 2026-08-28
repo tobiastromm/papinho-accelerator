@@ -2,10 +2,10 @@
 
 ## Status and problem
 
-Phase 2.D3A implements the transport-side readiness prerequisite, not the
-combined scheduler. Every Connection published by the Win32 Server Acceptor is
-nonblocking and remains `PENDING` and idle. It implements no processor,
-timeout, thread, message, or production protocol I/O.
+Phase 2.D3B implements the initial single-threaded Win32 combined `select()`
+loop. Listener readiness creates a fixed-slot Control Processor; Connection
+read/write readiness drives bounded processor actions, and PAL-monotonic
+deadlines reclaim stalled establishment attempts.
 
 Calling `papacc_framed_reader_next()` sequentially on blocking Connections is
 incorrect: an idle peer can block in `recv()` and starve every other client.
@@ -172,7 +172,7 @@ Protocol Processor storage  owns Reader/Writer/protocol slots
 Win32 Server I/O Loop       owns readiness/scheduling
 ```
 
-Conceptual loop only:
+Implemented initial loop:
 
 ```text
 while (!stop_requested) {
@@ -224,8 +224,8 @@ Transport Security.
 
 The first protocol consuming this architecture is frozen in
 [Control Establishment Protocol](control-establishment-protocol.md). D1 adds no
-scheduler implementation. The portable D2 processor is implemented but remains
-unwired to the executable until D3.
+scheduler implementation. D3B now wires the portable processor to real Win32
+RUN mode; post-establishment dispatch remains deferred.
 
 Reader/Writer live in portable processor slots. The Win32 scheduler invokes
 bounded processor turns only for buffered/readable/writable work. Errors close

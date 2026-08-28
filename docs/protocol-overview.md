@@ -1,13 +1,17 @@
 # Visão geral do protocolo
 
+Phase 2.D3B integra `CONTROL_OPEN` -> `CONTROL_ACCEPT` ao RUN mode Win32 real.
+Depois do estabelecimento, o processor permanece `ESTABLISHED` e não consome
+novas mensagens. DATA association, autenticação, Transport Security,
+capabilities e o dispatcher Control geral continuam não implementados.
+
 Este documento define a visão conceitual das futuras mensagens. O envelope comum de bytes foi congelado separadamente em [Protocol Framing](protocol-framing.md), sem atribuir tipos numéricos de mensagens ou payloads.
 
 **Estado de implementação:** existem foundations runtime de Connection, Session
-e Channel, encoder/parser, Framed Reader e Framed Writer portáteis. Ainda não
-existem mensagens, autenticação ou processamento protocolar no executable, que
-aceita Connections como `PENDING` sem ler/escrever payload. A arquitetura de
-readiness está congelada em
-[Connection I/O Scheduling](connection-io-scheduling.md), mas não implementada.
+e Channel, encoder/parser, Framed Reader e Framed Writer portáteis. O executable
+processa apenas as duas mensagens de estabelecimento pelo I/O Loop Win32
+combinado. A arquitetura normativa está em
+[Connection I/O Scheduling](connection-io-scheduling.md).
 Os nomes de mensagens abaixo continuam não congelados, exceto pelos primeiros
 tipos normativos `CONTROL_OPEN` (`0x0001`) e `CONTROL_ACCEPT` (`0x0002`),
 definidos em [Control Establishment Protocol](control-establishment-protocol.md).

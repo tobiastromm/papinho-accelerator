@@ -100,6 +100,16 @@ int main(void)
     HANDLE thread = NULL;
     FILE *output = NULL;
     SOCKET client = INVALID_SOCKET;
+    static const unsigned char control_open[20] = {
+        0x50, 0x41, 0x43, 0x43, 0x01, 0x00, 0x00, 0x10,
+        0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x01, 0x00, 0x00
+    };
+    static const unsigned char control_accept[20] = {
+        0x50, 0x41, 0x43, 0x43, 0x01, 0x00, 0x00, 0x10,
+        0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x01, 0x00, 0x00
+    };
     char captured[4096];
     DWORD captured_size = 0;
     int output_fd = -1;
@@ -141,7 +151,7 @@ int main(void)
     }
     {
         ULONGLONG deadline = GetTickCount64() + 3000U;
-        while (strstr(captured, "PENDING") == NULL &&
+        while (strstr(captured, "Accepting Control establishment") == NULL &&
                GetTickCount64() < deadline) {
             DWORD available = 0;
             if (PeekNamedPipe(
@@ -166,12 +176,26 @@ int main(void)
             }
         }
     }
-    if (result == 0 &&
-        (strstr(captured, "Connection ID:") == NULL ||
-         strstr(captured, "Remote: 127.0.0.1:") == NULL ||
-         strstr(captured, "Local: 127.0.0.1:") == NULL ||
-         strstr(captured, "State: PENDING") == NULL)) {
+    if (result == 0 && strstr(captured,
+            "Accepting Control establishment connections.") == NULL) {
         result = 8;
+    }
+    if (result == 0) {
+        unsigned char received[20];
+        int total = 0;
+        if (send(client, (const char *)control_open,
+                 (int)sizeof(control_open), 0) != (int)sizeof(control_open)) {
+            result = 14;
+        }
+        while (result == 0 && total < (int)sizeof(received)) {
+            int count = recv(client, (char *)&received[total],
+                             (int)sizeof(received) - total, 0);
+            if (count <= 0) result = 15;
+            else total += count;
+        }
+        if (result == 0 && memcmp(
+                received, control_accept, sizeof(control_accept)) != 0)
+            result = 16;
     }
     papacc_server_console_win32_request_stop();
     if (thread != NULL && WaitForSingleObject(thread, 3000) != WAIT_OBJECT_0) {

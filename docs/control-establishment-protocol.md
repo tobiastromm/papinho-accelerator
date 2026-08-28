@@ -3,9 +3,11 @@
 ## Status and layering
 
 This document normatively freezes the first message family. Phase 2.D2 now
-implements its portable codecs and server-side establishment processor.
-Scheduler/executable integration, security, authentication, Session wire
-identity, and DATA association remain absent.
+implements its portable codecs and server-side establishment processor. D3B
+integrates that processor into the real Win32 RUN mode. Security,
+authentication, Session wire identity, DATA association, and a general
+post-establishment Control dispatcher remain absent. Phase 2 `ACTIVE` records
+only completed Control establishment, not trust or protection.
 
 ```text
 Transport -> Framing -> Control Establishment Messages -> runtime lifecycle
