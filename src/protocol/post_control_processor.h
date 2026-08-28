@@ -1,0 +1,69 @@
+#ifndef PAPACC_POST_CONTROL_PROCESSOR_H
+#define PAPACC_POST_CONTROL_PROCESSOR_H
+
+#include "connection.h"
+#include "data_association.h"
+#include "framed_reader.h"
+#include "framed_writer.h"
+
+typedef enum PAPACC_POST_CONTROL_PROCESSOR_STATE {
+    PAPACC_POST_CONTROL_PROCESSOR_STATE_UNINITIALIZED = 0,
+    PAPACC_POST_CONTROL_PROCESSOR_STATE_READY = 1,
+    PAPACC_POST_CONTROL_PROCESSOR_STATE_WRITING_TICKET = 2,
+    PAPACC_POST_CONTROL_PROCESSOR_STATE_CLOSED = 3,
+    PAPACC_POST_CONTROL_PROCESSOR_STATE_ERROR = 4
+} PAPACC_POST_CONTROL_PROCESSOR_STATE;
+
+typedef enum PAPACC_POST_CONTROL_STEP_STATUS {
+    PAPACC_POST_CONTROL_STEP_STATUS_UNSPECIFIED = 0,
+    PAPACC_POST_CONTROL_STEP_STATUS_PROGRESS = 1,
+    PAPACC_POST_CONTROL_STEP_STATUS_WOULD_BLOCK = 2,
+    PAPACC_POST_CONTROL_STEP_STATUS_RESPONSE_COMPLETE = 3,
+    PAPACC_POST_CONTROL_STEP_STATUS_CLOSED = 4
+} PAPACC_POST_CONTROL_STEP_STATUS;
+
+typedef struct PAPACC_POST_CONTROL_PROCESSOR {
+    PAPACC_CONNECTION_MANAGER *connection_manager;
+    PAPACC_SESSION_MANAGER *session_manager;
+    PAPACC_CHANNEL_MANAGER *channel_manager;
+    PAPACC_DATA_ASSOCIATION_MANAGER *association_manager;
+    PAPACC_CONNECTION *connection;
+    PAPACC_FRAMED_READER reader;
+    PAPACC_FRAMED_WRITER writer;
+    PAPACC_DATA_ASSOCIATION_TICKET pending_ticket;
+    PAPACC_U8 ticket_payload[PAPACC_DATA_ASSOCIATION_TICKET_SIZE];
+    PAPACC_SIZE ticket_payload_offset;
+    PAPACC_U64 session_instance_id;
+    PAPACC_U64 control_channel_instance_id;
+    PAPACC_POST_CONTROL_PROCESSOR_STATE state;
+} PAPACC_POST_CONTROL_PROCESSOR;
+
+#define PAPACC_POST_CONTROL_PROCESSOR_INITIALIZER \
+    { NULL, NULL, NULL, NULL, NULL, PAPACC_FRAMED_READER_INITIALIZER, \
+      PAPACC_FRAMED_WRITER_INITIALIZER, \
+      PAPACC_DATA_ASSOCIATION_TICKET_INITIALIZER, { 0 }, 0, 0, 0, \
+      PAPACC_POST_CONTROL_PROCESSOR_STATE_UNINITIALIZED }
+
+PAPACC_RESULT papacc_post_control_processor_init(
+    PAPACC_POST_CONTROL_PROCESSOR *processor,
+    PAPACC_CONNECTION_MANAGER *connection_manager,
+    PAPACC_SESSION_MANAGER *session_manager,
+    PAPACC_CHANNEL_MANAGER *channel_manager,
+    PAPACC_DATA_ASSOCIATION_MANAGER *association_manager,
+    PAPACC_U64 session_instance_id,
+    PAPACC_U64 control_channel_instance_id,
+    PAPACC_U8 *read_scratch, PAPACC_SIZE read_scratch_capacity);
+PAPACC_BOOL papacc_post_control_processor_wants_read(
+    const PAPACC_POST_CONTROL_PROCESSOR *processor);
+PAPACC_BOOL papacc_post_control_processor_wants_write(
+    const PAPACC_POST_CONTROL_PROCESSOR *processor);
+PAPACC_RESULT papacc_post_control_processor_read_once(
+    PAPACC_POST_CONTROL_PROCESSOR *processor, PAPACC_U64 now_ns,
+    PAPACC_POST_CONTROL_STEP_STATUS *out_status);
+PAPACC_RESULT papacc_post_control_processor_write_once(
+    PAPACC_POST_CONTROL_PROCESSOR *processor,
+    PAPACC_POST_CONTROL_STEP_STATUS *out_status);
+void papacc_post_control_processor_shutdown(
+    PAPACC_POST_CONTROL_PROCESSOR *processor);
+
+#endif

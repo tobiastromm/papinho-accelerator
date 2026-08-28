@@ -9,6 +9,10 @@ Phase 2.E2A implementa apenas registry/codecs, Ticket Value Object e Association
 Manager portáteis. O generator continua injetado; post-Control processor, DATA
 Attach Processor, classifier e integração do servidor permanecem para E2B/E3.
 
+Phase 2.E2B1 adiciona o processador CONTROL pós-estabelecimento portátil para a
+troca sequencial `DATA_TICKET_REQUEST` -> `DATA_TICKET`. DATA_ATTACH, classifier
+e integração Win32 do servidor continuam não implementados.
+
 Este documento resume a visão conceitual. O envelope comum está em [Protocol
 Framing](protocol-framing.md); os únicos tipos numéricos atribuídos são o
 registry normativo `0x0001`..`0x0006`.

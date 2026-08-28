@@ -4,9 +4,16 @@
 
 Phase 2.E1 freezes the wire design. Phase 2.E2A now implements the portable
 message registry/codecs, 16-byte Ticket Value Object, and caller-owned fixed
-Association Manager. Generation remains an injected dependency. Classifier,
-processors, scheduler integration, authentication, Transport Security,
-capability, and DATA application protocol remain unimplemented.
+Association Manager. Phase 2.E2B1 implements the portable post-establishment
+CONTROL processor for sequential `DATA_TICKET_REQUEST` -> `DATA_TICKET`
+exchange. Generation remains an injected dependency. The DATA_ATTACH processor,
+Connection classifier, server scheduler integration, authentication, Transport
+Security, capability, and DATA application protocol remain unimplemented.
+
+The processor deliberately permits only one request followed by one response:
+there are no general request correlation IDs or outbound queue, and each
+Session may have only one outstanding DATA ticket. The ticket remains structural
+association material only; it is not authentication or authorization.
 
 DATA association uses a one-time 16-byte ticket obtained over an established
 CONTROL Channel. The ticket is opaque correlation material, not an

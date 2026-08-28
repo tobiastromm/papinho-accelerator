@@ -220,6 +220,9 @@ CONTROL/DATA failure semantics are in
 to a separate fixed-capacity association layer, not `PAPACC_SESSION`.
 E2A implements that portable ticket state and its wire codecs without adding a
 classifier, Framed processor, platform generator, or server integration.
+E2B1 adds only the Framed post-Control ticket request/response processor. It
+does not consume tickets, bind DATA Channels, classify Connections, or integrate
+with the Win32 scheduler.
 
 Knowledge of `session_instance_id`, `channel_instance_id`, or any future wire
 identifier grants no authority to attach a remote Data Channel. No wire
