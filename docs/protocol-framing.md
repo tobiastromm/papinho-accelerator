@@ -257,7 +257,9 @@ Three-byte payload; type `0x1234` is illustrative only and NOT assigned:
 AA BB CC
 ```
 
-Zero-byte payload; type `0x0001` is illustrative only and NOT assigned:
+Zero-byte payload; this is now only an encoder/framing test vector. Type
+`0x0001` is assigned to `CONTROL_OPEN`, whose message layer requires a 4-byte
+payload, so the zero-payload frame is semantically invalid as Control:
 
 ```text
 50 41 43 43  01 00  00 10  00 01  00 00  00 00 00 00
@@ -306,5 +308,10 @@ higher-layer metadata. Conceptual alignment is not a native ABI.
 - Transport Security handshake, mechanism, and library;
 - official payload/queue limits.
 
-Names such as HELLO, CONTROL, DATA, AUTH, ERROR, PING, and CAPABILITIES are not
-assigned messages. The first real message family will create its own registry.
+Names such as HELLO, generic CONTROL/DATA, AUTH, ERROR, PING, and CAPABILITIES
+remain unassigned messages.
+
+The first registry now exists in
+[Control Establishment Protocol](control-establishment-protocol.md) and assigns
+only `CONTROL_OPEN` (`0x0001`) and `CONTROL_ACCEPT` (`0x0002`). Framing itself
+still accepts unknown nonzero types and does not interpret Control semantics.

@@ -8,7 +8,9 @@ existem mensagens, autenticação ou processamento protocolar no executable, que
 aceita Connections como `PENDING` sem ler/escrever payload. A arquitetura de
 readiness está congelada em
 [Connection I/O Scheduling](connection-io-scheduling.md), mas não implementada.
-Os nomes de mensagens abaixo continuam não congelados.
+Os nomes de mensagens abaixo continuam não congelados, exceto pelos primeiros
+tipos normativos `CONTROL_OPEN` (`0x0001`) e `CONTROL_ACCEPT` (`0x0002`),
+definidos em [Control Establishment Protocol](control-establishment-protocol.md).
 
 ## Canais e fluxo conceitual
 
@@ -30,6 +32,9 @@ stream estão em [Protocol Framing](protocol-framing.md). Nenhum Message Type
 real é atribuído por este overview.
 
 ## Vocabulário de mensagens não congelado
+
+`CONTROL_OPEN` e `CONTROL_ACCEPT` não fazem parte da lista especulativa abaixo;
+seus IDs, direções e payloads 1.0 já estão congelados no documento normativo.
 
 ```text
 HELLO / WELCOME

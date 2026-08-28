@@ -219,6 +219,10 @@ Transport Security.
 
 ## Phase 2.D boundary
 
+The first protocol consuming this architecture is frozen in
+[Control Establishment Protocol](control-establishment-protocol.md). D1 adds no
+scheduler or processor implementation.
+
 Reader/Writer live in portable processor slots. The Win32 scheduler invokes
 bounded processor turns only for buffered/readable/writable work. Errors close
 their Connection scope. Establishment uses PAL-monotonic deadlines. Fairness is
