@@ -15,7 +15,12 @@ e integração Win32 do servidor continuam não implementados.
 
 Phase 2.E2B2B completa o caminho portátil estrutural de DATA_ATTACH: consumo
 one-time do ticket, bind DATA pelo Channel Manager e emissão de DATA_ACCEPT.
-Integração Win32 e protocolo de aplicação pós-DATA permanecem ausentes.
+Na conclusão portátil de E2B2B, integração Win32 e protocolo de aplicação
+pós-DATA ainda permaneciam ausentes.
+
+Phase 2.E3 integra o fluxo estrutural completo no servidor real: classificação,
+CONTROL, solicitação de ticket, DATA_ATTACH e DATA_ACCEPT. Não há protocolo de
+aplicação pós-DATA nem monitoramento improvisado de EOF para DATA estabelecido.
 
 Este documento resume a visão conceitual. O envelope comum está em [Protocol
 Framing](protocol-framing.md); os únicos tipos numéricos atribuídos são o

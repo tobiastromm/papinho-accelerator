@@ -25,6 +25,12 @@ Essa combinação é válida. Desabilitar `TLS_OFFLOAD`, ou qualquer outra capab
 
 O mecanismo concreto de Transport Security e sua biblioteca permanecem indefinidos nesta fase.
 
+O provider de tickets da Phase 2.E3 é apenas um contador opaco determinístico.
+Ele não é RNG, credencial, autenticação ou autorização e não oferece segredo ou
+imprevisibilidade. Phase 3 poderá substituir o provider, adicionar autorização
+de associação e inserir Transport Security sem derivar tickets de IPs ou IDs
+runtime e sem mudar o campo opaco de 16 bytes, salvo revisão protocolar futura.
+
 ## Modos, autenticação e autorização
 
 Um servidor poderá operar como `OPEN` ou `AUTHENTICATED`. “Open” significa ausência de autenticação de cliente exigida, não ausência de política, validação ou limites. Métodos futuros podem incluir usuário/senha, tokens e allowlists.

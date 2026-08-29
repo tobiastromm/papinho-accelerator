@@ -1,0 +1,5 @@
+#include "server_data_ticket_generator.h"
+#include <string.h>
+PAPACC_RESULT papacc_server_data_ticket_generator_init(PAPACC_SERVER_DATA_TICKET_GENERATOR *g){if(g==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;if(g->initialized)return PAPACC_RESULT_INVALID_STATE;memset(g->counter,0,sizeof(g->counter));g->initialized=PAPACC_TRUE;return PAPACC_RESULT_OK;}
+PAPACC_RESULT papacc_server_data_ticket_generator_generate(void *context,PAPACC_DATA_ASSOCIATION_TICKET *out){PAPACC_SERVER_DATA_TICKET_GENERATOR*g=(PAPACC_SERVER_DATA_TICKET_GENERATOR*)context;PAPACC_SIZE i;if(g==NULL||out==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;if(!g->initialized)return PAPACC_RESULT_INVALID_STATE;do{for(i=16;i>0;--i){++g->counter[i-1];if(g->counter[i-1]!=0)break;}}while(memcmp(g->counter,(PAPACC_U8[16]){0},16)==0);memcpy(out->bytes,g->counter,16);return PAPACC_RESULT_OK;}
+void papacc_server_data_ticket_generator_shutdown(PAPACC_SERVER_DATA_TICKET_GENERATOR*g){if(g!=NULL)*g=(PAPACC_SERVER_DATA_TICKET_GENERATOR)PAPACC_SERVER_DATA_TICKET_GENERATOR_INITIALIZER;}

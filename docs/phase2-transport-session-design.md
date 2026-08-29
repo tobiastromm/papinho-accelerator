@@ -230,6 +230,10 @@ E2B2B completes the portable structural association path: a classified DATA
 candidate consumes its one-time ticket, binds through Channel Manager, and
 receives DATA_ACCEPT. This does not establish authentication, authorization,
 Transport Security, trust, capabilities, or an application DATA protocol.
+E3 composes the portable Phase 2.E components into the real Win32 server with
+fixed-capacity Protocol Slots and Association entries. CONTROL loss still
+cascades to its Session and DATA Channels; closing a DATA Channel preserves its
+Session and CONTROL relationship.
 
 Knowledge of `session_instance_id`, `channel_instance_id`, or any future wire
 identifier grants no authority to attach a remote Data Channel. No wire

@@ -15,6 +15,10 @@ static const PAPACC_U8 papacc_test_accept[20] = {
     0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
     0x00, 0x01, 0x00, 0x00
 };
+static const PAPACC_U8 papacc_test_ticket_request[16] = {
+    0x50,0x41,0x43,0x43,1,0,0,16,0,3,0,0,0,0,0,0 };
+static const PAPACC_U8 papacc_test_data_accept[16] = {
+    0x50,0x41,0x43,0x43,1,0,0,16,0,6,0,0,0,0,0,0 };
 
 static SOCKET papacc_test_connect(PAPACC_U16 port)
 {
@@ -57,6 +61,7 @@ int main(void)
         contexts[PAPACC_TEST_CAPACITY];
     PAPACC_SESSION sessions[PAPACC_TEST_CAPACITY];
     PAPACC_CHANNEL channels[PAPACC_TEST_CAPACITY];
+    PAPACC_DATA_ASSOCIATION_ENTRY associations[PAPACC_TEST_CAPACITY];
     PAPACC_SERVER_CONTROL_PROCESSOR_SLOT_WIN32
         processors[PAPACC_TEST_CAPACITY];
     struct sockaddr_in native_address;
@@ -68,6 +73,7 @@ int main(void)
     SOCKET truncated = INVALID_SOCKET;
     SOCKET rejected = INVALID_SOCKET;
     SOCKET established = INVALID_SOCKET;
+    SOCKET data_client = INVALID_SOCKET;
     SOCKET session_fail = INVALID_SOCKET;
     SOCKET channel_fail = INVALID_SOCKET;
     SOCKET round_robin_a = INVALID_SOCKET;
@@ -106,7 +112,8 @@ int main(void)
             contexts, PAPACC_TEST_CAPACITY) != PAPACC_RESULT_OK ||
         papacc_server_io_loop_win32_init(
             &loop, &network, &acceptor, sessions, PAPACC_TEST_CAPACITY,
-            channels, PAPACC_TEST_CAPACITY, processors,
+            channels, PAPACC_TEST_CAPACITY, associations, PAPACC_TEST_CAPACITY,
+            processors,
             PAPACC_TEST_CAPACITY, 1000000000ULL) != PAPACC_RESULT_OK) {
         result = 2;
         goto cleanup;
@@ -130,7 +137,7 @@ int main(void)
         result = 11;
         goto cleanup;
     }
-    processors[0].processor.establishment_deadline_ns = 0;
+    processors[0].classifier.establishment_deadline_ns = 0;
     if (papacc_test_drive(&loop, 1) != PAPACC_RESULT_OK ||
         loop.connection_manager->count != 0 ||
         processors[0].in_use != PAPACC_FALSE) {
@@ -148,7 +155,7 @@ int main(void)
         result = 13;
         goto cleanup;
     }
-    for (index = 0; index < 8 && processors[0].processor.state !=
+    for (index = 0; index < 8 && processors[0].control_processor.state !=
             PAPACC_CONTROL_PROCESSOR_STATE_WRITING_CONTROL_ACCEPT; ++index) {
         if (papacc_test_drive(&loop, 1) != PAPACC_RESULT_OK) {
             result = 14;
@@ -163,11 +170,53 @@ int main(void)
         memcmp(received, papacc_test_accept, 20) != 0 ||
         papacc_server_io_loop_win32_processor_interest(
             &loop, 0, &read_interest, &write_interest) != PAPACC_RESULT_OK ||
-        read_interest != PAPACC_FALSE || write_interest != PAPACC_FALSE) {
+        read_interest != PAPACC_TRUE || write_interest != PAPACC_FALSE) {
         result = 15;
         goto cleanup;
     }
     loop.processor_capacity = PAPACC_TEST_CAPACITY;
+
+    /* Real post-Control ticket request and second-Connection DATA attach. */
+    {
+        PAPACC_U8 ticket_frame[32];
+        PAPACC_U8 attach_frame[32] = {
+            0x50,0x41,0x43,0x43,1,0,0,16,0,5,0,0,0,0,0,16 };
+        PAPACC_CHANNEL *data_channel;
+        if (send(established, (const char *)papacc_test_ticket_request, 16, 0) != 16 ||
+            papacc_test_drive(&loop, 8) != PAPACC_RESULT_OK ||
+            recv(established, (char *)ticket_frame, 32, MSG_WAITALL) != 32 ||
+            ticket_frame[8] != 0 || ticket_frame[9] != 4 ||
+            ticket_frame[15] != 16) {
+            result = 24;
+            goto cleanup;
+        }
+        memcpy(&attach_frame[16], &ticket_frame[16], 16);
+        data_client = papacc_test_connect(port);
+        if (data_client == INVALID_SOCKET || papacc_test_drive(&loop, 2) !=
+                PAPACC_RESULT_OK ||
+            send(data_client, (const char *)attach_frame, 32, 0) != 32 ||
+            papacc_test_drive(&loop, 8) != PAPACC_RESULT_OK ||
+            recv(data_client, (char *)received, 16, MSG_WAITALL) != 16 ||
+            memcmp(received, papacc_test_data_accept, 16) != 0 ||
+            loop.session_manager.count != 1 || loop.channel_manager.count != 2 ||
+            loop.connection_manager->count != 2) {
+            result = 25;
+            goto cleanup;
+        }
+        data_channel = papacc_channel_manager_find_by_connection(
+            &loop.channel_manager, processors[1].connection_instance_id);
+        if (data_channel == NULL || data_channel->role != PAPACC_CHANNEL_ROLE_DATA ||
+            papacc_channel_manager_close(&loop.channel_manager,
+                data_channel->channel_instance_id) != PAPACC_RESULT_OK ||
+            papacc_test_drive(&loop, 2) != PAPACC_RESULT_OK ||
+            loop.session_manager.count != 1 || loop.channel_manager.count != 1 ||
+            loop.connection_manager->count != 1) {
+            result = 26;
+            goto cleanup;
+        }
+        (void)closesocket(data_client);
+        data_client = INVALID_SOCKET;
+    }
 
     /* Dedicated Session capacity isolation through the real loop. */
     loop.session_manager.capacity = 1;
@@ -230,8 +279,8 @@ int main(void)
     for (index = 0; index < PAPACC_TEST_CAPACITY; ++index) {
         if (processors[index].in_use == PAPACC_TRUE &&
             papacc_control_processor_is_established(
-                &processors[index].processor) != PAPACC_TRUE)
-            processors[index].processor.establishment_deadline_ns = 0;
+                &processors[index].control_processor) != PAPACC_TRUE)
+            processors[index].classifier.establishment_deadline_ns = 0;
     }
     if (papacc_test_drive(&loop, 1) != PAPACC_RESULT_OK ||
         loop.connection_manager->count != 2) {
@@ -272,7 +321,7 @@ int main(void)
                 goto cleanup;
             }
             if (papacc_control_processor_is_established(
-                    &processors[first_order[index]].processor) != PAPACC_TRUE) {
+                    &processors[first_order[index]].control_processor) != PAPACC_TRUE) {
                 if (first_ready_position == PAPACC_TEST_CAPACITY)
                     first_ready_position = index;
                 else if (second_ready_position == PAPACC_TEST_CAPACITY)
@@ -329,6 +378,7 @@ cleanup:
     if (channel_fail != INVALID_SOCKET) (void)closesocket(channel_fail);
     if (session_fail != INVALID_SOCKET) (void)closesocket(session_fail);
     if (established != INVALID_SOCKET) (void)closesocket(established);
+    if (data_client != INVALID_SOCKET) (void)closesocket(data_client);
     if (rejected != INVALID_SOCKET) (void)closesocket(rejected);
     if (truncated != INVALID_SOCKET) (void)closesocket(truncated);
     if (malformed != INVALID_SOCKET) (void)closesocket(malformed);

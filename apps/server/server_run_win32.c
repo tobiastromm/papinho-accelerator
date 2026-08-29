@@ -58,7 +58,8 @@ PAPACC_RESULT papacc_server_run_win32(
     PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *context_storage = NULL;
     PAPACC_SESSION *session_storage = NULL;
     PAPACC_CHANNEL *channel_storage = NULL;
-    PAPACC_SERVER_CONTROL_PROCESSOR_SLOT_WIN32 *processor_storage = NULL;
+    PAPACC_DATA_ASSOCIATION_ENTRY *association_storage = NULL;
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *processor_storage = NULL;
     PAPACC_RESULT result = PAPACC_RESULT_OK;
     PAPACC_SIZE index;
 
@@ -69,6 +70,7 @@ PAPACC_RESULT papacc_server_run_win32(
         capacity > SIZE_MAX / sizeof(*context_storage) ||
         capacity > SIZE_MAX / sizeof(*session_storage) ||
         capacity > SIZE_MAX / sizeof(*channel_storage) ||
+        capacity > SIZE_MAX / sizeof(*association_storage) ||
         capacity > SIZE_MAX / sizeof(*processor_storage)) {
         return PAPACC_RESULT_LIMIT_EXCEEDED;
     }
@@ -81,11 +83,13 @@ PAPACC_RESULT papacc_server_run_win32(
         capacity * sizeof(*session_storage));
     channel_storage = (PAPACC_CHANNEL *)malloc(
         capacity * sizeof(*channel_storage));
-    processor_storage = (PAPACC_SERVER_CONTROL_PROCESSOR_SLOT_WIN32 *)malloc(
+    association_storage = (PAPACC_DATA_ASSOCIATION_ENTRY *)malloc(
+        capacity * sizeof(*association_storage));
+    processor_storage = (PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *)malloc(
         capacity * sizeof(*processor_storage));
     if (connection_storage == NULL || context_storage == NULL ||
         session_storage == NULL || channel_storage == NULL ||
-        processor_storage == NULL) {
+        association_storage == NULL || processor_storage == NULL) {
         result = PAPACC_RESULT_OUT_OF_MEMORY;
         goto cleanup;
     }
@@ -102,7 +106,8 @@ PAPACC_RESULT papacc_server_run_win32(
     }
     result = papacc_server_io_loop_win32_init(
         &io_loop, server_network, &acceptor, session_storage, capacity,
-        channel_storage, capacity, processor_storage, capacity,
+        channel_storage, capacity, association_storage, capacity,
+        processor_storage, capacity,
         (PAPACC_U64)PAPACC_SERVER_ESTABLISHMENT_TIMEOUT_NS);
     if (result != PAPACC_RESULT_OK) goto cleanup;
     result = papacc_server_print_listeners(output, server_network);
@@ -126,6 +131,7 @@ cleanup:
     papacc_server_io_loop_win32_shutdown(&io_loop);
     papacc_server_acceptor_win32_shutdown(&acceptor);
     free(processor_storage);
+    free(association_storage);
     free(channel_storage);
     free(session_storage);
     free(context_storage);

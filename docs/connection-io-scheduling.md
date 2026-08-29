@@ -226,8 +226,14 @@ Transport Security.
 
 Phase 2.E2B2A adds a portable first-frame classifier ahead of specialized
 processors. Its Framed Reader is moved, never reset, during handoff, preserving
-all buffered bytes already removed from the transport. Win32 scheduler
-integration of this classifier remains unimplemented.
+all buffered bytes already removed from the transport. Its Win32 scheduler
+integration is supplied by Phase 2.E3 below.
+
+Phase 2.E3 replaces the Control-only scheduler slot with a fixed Protocol Slot
+covering classifier, Control establishment, post-Control, and DATA attach. All
+kinds share the same `select()`, rotating scan, one-action budget, FD_SETSIZE
+guard, and caller-owned 64-byte scratch. Established DATA has no read/write
+interest because peer EOF monitoring is deferred until a post-DATA protocol.
 
 ## Phase 2.D boundary
 

@@ -30,6 +30,14 @@ writes DATA_ACCEPT. Ticket consumption is irreversible even if the later bind
 or response fails. Win32 integration and a post-DATA application protocol are
 still absent.
 
+Phase 2.E3 integrates this complete structural flow into the single-threaded
+Win32 server loop. New Connections are classified before specialization; the
+real server can issue tickets and accept multiple sequential DATA Channels.
+The application-private provider is a deterministic 128-bit byte counter and
+makes no unpredictability, authentication, authorization, or secrecy claim.
+Tickets expire after an implementation-private 30 seconds; Connection
+classification/attachment retains its separate 15-second deadline.
+
 DATA association uses a one-time 16-byte ticket obtained over an established
 CONTROL Channel. The ticket is opaque correlation material, not an
 authentication token, credential, identity, or final authorization. Phase 2

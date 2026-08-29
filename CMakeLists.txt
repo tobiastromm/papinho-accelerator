@@ -517,6 +517,7 @@ if(WIN32)
 
     add_library(papacc_server_io_loop_win32 STATIC
         apps/server/server_io_loop_win32.c
+        apps/server/server_data_ticket_generator.c
     )
     target_include_directories(papacc_server_io_loop_win32
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
@@ -530,7 +531,9 @@ if(WIN32)
             ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp
     )
     target_link_libraries(papacc_server_io_loop_win32 PUBLIC
-        papacc_server_acceptor_win32 papacc_control_processor papacc_pal)
+        papacc_server_acceptor_win32 papacc_connection_classifier
+        papacc_control_processor papacc_post_control_processor
+        papacc_data_attach_processor papacc_pal)
     set_target_properties(papacc_server_io_loop_win32 PROPERTIES
         C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
     papacc_enable_warnings(papacc_server_io_loop_win32)
@@ -1057,6 +1060,22 @@ if(BUILD_TESTING)
         papacc_enable_warnings(papacc_server_io_loop_win32_test)
         add_test(NAME papacc.server.io_loop.win32
             COMMAND papacc_server_io_loop_win32_test)
+
+        add_executable(papacc_server_data_ticket_generator_test
+            tests/server_data_ticket_generator_test.c)
+        target_include_directories(papacc_server_data_ticket_generator_test PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports)
+        target_link_libraries(papacc_server_data_ticket_generator_test PRIVATE
+            papacc_server_io_loop_win32)
+        set_target_properties(papacc_server_data_ticket_generator_test PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_server_data_ticket_generator_test)
+        add_test(NAME papacc.server.data_ticket_generator
+            COMMAND papacc_server_data_ticket_generator_test)
 
         add_executable(papacc_server_run_win32_test
             tests/server_run_win32_test.c
