@@ -1,5 +1,9 @@
 # Modelo de segurança
 
+O checkpoint autoritativo da Phase 3.A1 é [Phase 3 Security Architecture and
+Threat Model](phase3-security-architecture.md). Este resumo permanece alinhado
+com ele; detalhes de ameaças, fluxos, gates e decisões pendentes estão lá.
+
 Esta baseline registra requisitos; não escolhe biblioteca TLS, mecanismo de credencial nem implementação criptográfica. Criptografia própria é proibida.
 
 **Estado de implementação:** não existem autenticação, Transport Security nem
@@ -23,7 +27,9 @@ TLS_OFFLOAD capability                = DISABLED
 
 Essa combinação é válida. Desabilitar `TLS_OFFLOAD`, ou qualquer outra capability, nunca pode implicitamente desabilitar Transport Security. Capability Negotiation não pode enfraquecer propriedades de segurança exigidas para a Session. Quando política ou configuração exigir canal seguro, downgrade silencioso para transporte inseguro é proibido.
 
-O mecanismo concreto de Transport Security e sua biblioteca permanecem indefinidos nesta fase.
+O mecanismo concreto de Transport Security, sua versão e sua biblioteca
+permanecem indefinidos nesta fase. PapinhoAccelerator não deve inventar um
+protocolo criptográfico próprio.
 
 O provider de tickets da Phase 2.E3 é apenas um contador opaco determinístico.
 Ele não é RNG, credencial, autenticação ou autorização e não oferece segredo ou

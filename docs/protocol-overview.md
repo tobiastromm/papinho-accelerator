@@ -1,5 +1,9 @@
 # Visão geral do protocolo
 
+A arquitetura de segurança que futuramente envolverá estes bytes está congelada
+em [Phase 3 Security Architecture and Threat Model](phase3-security-architecture.md).
+A Phase 3.A1 não altera o registry nem implementa segurança.
+
 Phase 2.D3B integra `CONTROL_OPEN` -> `CONTROL_ACCEPT` ao RUN mode Win32 real.
 Phase 2.E1 congela, sem implementar, associação estrutural DATA por ticket
 opaco one-time. Autenticação, Transport Security, capabilities e protocolo de
@@ -39,9 +43,9 @@ Os IDs normativos `0x0001`..`0x0006` estão definidos em
 ## Canais e fluxo conceitual
 
 1. Um Control Channel cria uma Session.
-2. As partes negociam versões, identidade/autenticação quando exigida e capabilities.
+2. Após Transport Security exigida, as partes estabelecem identidade/autenticação e negociam versões e capabilities sem permitir downgrade.
 3. O servidor aplica autorização e política e retorna a configuração efetiva.
-4. A Session entra em `READY`/`ACTIVE`; jobs usam controle no Control Plane e cargas grandes no Data Plane.
+4. Na direção recomendada para a Phase 3, a Session só entra em estado utilizável/`ACTIVE` após os gates exigidos de autenticação e autorização; jobs usam controle no Control Plane e cargas grandes no Data Plane.
 5. Data Channels adicionais são associados de forma segura à Session antes de transportar payload.
 6. Erro, timeout ou encerramento conduzem a cleanup determinístico.
 

@@ -1,5 +1,9 @@
 # Arquitetura
 
+Para a inserção de Transport Security, contextos de identidade e gates de
+autorização sobre esta arquitetura, consulte o checkpoint autoritativo
+[Phase 3 Security Architecture and Threat Model](phase3-security-architecture.md).
+
 ## Estado de implementação
 
 As Phases 1 e 2 implementam a Foundation portátil e, no Windows, discovery de interfaces, resolução persistente de bind, WinSock, listeners, aceitação não bloqueante, Sessions, Control/Data Channels estruturais, framing e os fluxos de estabelecimento CONTROL e associação DATA por ticket one-time. O executável integra esses componentes em um único loop `select()` e encerra de forma graciosa por Ctrl+C/Ctrl+Break.
@@ -70,6 +74,12 @@ O Control Plane estabelece e governa a Session: identificação, autenticação,
 Em TCP, uma Session usará conceitualmente um Control Channel e zero ou mais Data Channels. A associação Data Channel–Session deve ser autenticada, íntegra, resistente a associação indevida/replay quando aplicável e submetida aos mesmos limites e políticas. O mecanismo não está definido nesta fase.
 
 Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. Seu mecanismo concreto continua indefinido.
+
+Cada conexão TCP CONTROL ou DATA deverá estabelecer proteção própria. Como
+Transport Security fica abaixo de Framing, a composição futura será `accept ->
+security establishment -> classifier -> framing`; contextos criptográficos
+ficarão separados das entidades portáteis `PAPACC_CONNECTION` e
+`PAPACC_SESSION`.
 
 ## Session
 
