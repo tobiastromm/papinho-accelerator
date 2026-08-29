@@ -46,7 +46,8 @@ static PAPACC_RESULT papacc_server_print_listeners(
 PAPACC_RESULT papacc_server_run_win32(
     PAPACC_SERVER_NETWORK *server_network,
     FILE *output,
-    FILE *error_output)
+    FILE *error_output,
+    const PAPACC_LOGGER *logger)
 {
     const PAPACC_SIZE capacity =
         (PAPACC_SIZE)PAPACC_SERVER_INITIAL_CONNECTION_CAPACITY;
@@ -63,7 +64,8 @@ PAPACC_RESULT papacc_server_run_win32(
     PAPACC_RESULT result = PAPACC_RESULT_OK;
     PAPACC_SIZE index;
 
-    if (server_network == NULL || output == NULL || error_output == NULL) {
+    if (server_network == NULL || output == NULL || error_output == NULL ||
+        logger == NULL) {
         return PAPACC_RESULT_INVALID_ARGUMENT;
     }
     if (capacity > SIZE_MAX / sizeof(*connection_storage) ||
@@ -110,12 +112,14 @@ PAPACC_RESULT papacc_server_run_win32(
         processor_storage, capacity,
         (PAPACC_U64)PAPACC_SERVER_ESTABLISHMENT_TIMEOUT_NS);
     if (result != PAPACC_RESULT_OK) goto cleanup;
+    papacc_server_io_loop_win32_set_logger(&io_loop, logger);
     result = papacc_server_print_listeners(output, server_network);
     if (result != PAPACC_RESULT_OK) {
         goto cleanup;
     }
     fputs("Accepting Control establishment connections.\n",
           output);
+    papacc_log(logger, PAPACC_LOG_INFO, "server", "Listener started; accepting Phase 2 connections");
     (void)fflush(output);
     while (papacc_server_console_win32_stop_requested() == PAPACC_FALSE) {
         result = papacc_server_io_loop_win32_poll_once(
@@ -128,6 +132,7 @@ PAPACC_RESULT papacc_server_run_win32(
     }
 
 cleanup:
+    papacc_log(logger, PAPACC_LOG_INFO, "server", "Server stopping");
     papacc_server_io_loop_win32_shutdown(&io_loop);
     papacc_server_acceptor_win32_shutdown(&acceptor);
     free(processor_storage);

@@ -4,7 +4,7 @@
 
 static PAPACC_BOOL papacc_log_level_is_valid(PAPACC_LOG_LEVEL level)
 {
-    return (level >= PAPACC_LOG_DEBUG && level <= PAPACC_LOG_ERROR)
+    return (level >= PAPACC_LOG_DEBUG && level <= PAPACC_LOG_LEVEL_OFF)
                ? PAPACC_TRUE
                : PAPACC_FALSE;
 }
@@ -39,6 +39,8 @@ void papacc_log(
     if (logger == NULL || logger->sink == NULL || component == NULL ||
         message == NULL ||
         papacc_log_level_is_valid(level) == PAPACC_FALSE ||
+        logger->minimum_level == PAPACC_LOG_LEVEL_OFF ||
+        level == PAPACC_LOG_LEVEL_OFF ||
         level < logger->minimum_level) {
         return;
     }

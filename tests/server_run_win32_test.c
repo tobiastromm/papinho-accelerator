@@ -10,15 +10,34 @@
 typedef struct PAPACC_TEST_RUN_CONTEXT {
     PAPACC_SERVER_NETWORK *network;
     FILE *output;
+    PAPACC_LOGGER *logger;
     PAPACC_RESULT result;
 } PAPACC_TEST_RUN_CONTEXT;
+
+typedef struct PAPACC_TEST_LOG_CAPTURE {
+    char text[4096];
+    PAPACC_SIZE length;
+} PAPACC_TEST_LOG_CAPTURE;
+
+static void papacc_test_log_sink(
+    void *context, const PAPACC_LOG_RECORD *record)
+{
+    PAPACC_TEST_LOG_CAPTURE *capture = (PAPACC_TEST_LOG_CAPTURE *)context;
+    PAPACC_SIZE available = sizeof(capture->text) - capture->length;
+    int count;
+    if (available <= 1) return;
+    count = snprintf(&capture->text[capture->length], available,
+                     "%s: %s\n", record->component, record->message);
+    if (count > 0 && (PAPACC_SIZE)count < available)
+        capture->length += (PAPACC_SIZE)count;
+}
 
 static DWORD WINAPI papacc_test_run_thread(void *opaque_context)
 {
     PAPACC_TEST_RUN_CONTEXT *context =
         (PAPACC_TEST_RUN_CONTEXT *)opaque_context;
     context->result = papacc_server_run_win32(
-        context->network, context->output, context->output);
+        context->network, context->output, context->output, context->logger);
     return 0;
 }
 
@@ -93,6 +112,8 @@ int main(void)
         PAPACC_TCP_LISTENER_ENTRY_WIN32_INITIALIZER;
     PAPACC_SERVER_CONSOLE_WIN32 console =
         PAPACC_SERVER_CONSOLE_WIN32_INITIALIZER;
+    PAPACC_LOGGER logger;
+    PAPACC_TEST_LOG_CAPTURE log_capture = { { 0 }, 0 };
     PAPACC_TEST_RUN_CONTEXT run_context;
     PAPACC_U16 port = 0;
     HANDLE read_handle = NULL;
@@ -140,8 +161,14 @@ int main(void)
         goto cleanup;
     }
     output_fd = -1;
+    if (papacc_logger_init(&logger, papacc_test_log_sink, &log_capture,
+                           PAPACC_LOG_INFO) != PAPACC_RESULT_OK) {
+        result = 31;
+        goto cleanup;
+    }
     run_context.network = &network;
     run_context.output = output;
+    run_context.logger = &logger;
     run_context.result = PAPACC_RESULT_INTERNAL_ERROR;
     thread = CreateThread(
         NULL, 0, papacc_test_run_thread, &run_context, 0, NULL);
@@ -239,6 +266,17 @@ int main(void)
     if (result == 0 && run_context.result != PAPACC_RESULT_OK) {
         result = 10;
     }
+    if (result == 0 &&
+        (strstr(log_capture.text, "Listener started") == NULL ||
+         strstr(log_capture.text, "CONTROL accepted") == NULL ||
+         strstr(log_capture.text, "from 127.0.0.1:") == NULL ||
+         strstr(log_capture.text, "Session 1 CONTROL established") == NULL ||
+         strstr(log_capture.text, "Session 1 DATA ticket issued") == NULL ||
+         strstr(log_capture.text, "DATA connection accepted") == NULL ||
+         strstr(log_capture.text, "Session 1 DATA successfully attached") == NULL ||
+         strstr(log_capture.text, "Server stopping") == NULL)) {
+        result = 32;
+    }
     if (result == 0) {
         fd_set read_set;
         struct timeval timeout;
@@ -265,6 +303,17 @@ int main(void)
         (network.is_active != PAPACC_TRUE ||
          entry.socket.is_listening != PAPACC_TRUE)) {
         result = 13;
+    }
+    if (result == 0) {
+        log_capture.length = 0;
+        log_capture.text[0] = '\0';
+        if (papacc_logger_init(&logger, papacc_test_log_sink, &log_capture,
+                               PAPACC_LOG_LEVEL_OFF) != PAPACC_RESULT_OK ||
+            papacc_server_run_win32(
+                &network, output, output, &logger) != PAPACC_RESULT_OK ||
+            log_capture.length != 0 || log_capture.text[0] != '\0') {
+            result = 33;
+        }
     }
 
 cleanup:

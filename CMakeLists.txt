@@ -418,12 +418,13 @@ add_library(papacc_server_cli STATIC
 )
 
 target_include_directories(papacc_server_cli
-    PRIVATE
+    PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
         ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
 )
 
-target_link_libraries(papacc_server_cli PUBLIC papacc_server_config)
+target_link_libraries(papacc_server_cli PUBLIC papacc_server_config papacc_runtime)
 
 set_target_properties(papacc_server_cli PROPERTIES
     C_STANDARD 99
@@ -520,7 +521,9 @@ if(WIN32)
         apps/server/server_data_ticket_generator.c
     )
     target_include_directories(papacc_server_io_loop_win32
-        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src/network
             ${CMAKE_CURRENT_SOURCE_DIR}/src/platform
@@ -533,7 +536,7 @@ if(WIN32)
     target_link_libraries(papacc_server_io_loop_win32 PUBLIC
         papacc_server_acceptor_win32 papacc_connection_classifier
         papacc_control_processor papacc_post_control_processor
-        papacc_data_attach_processor papacc_pal)
+        papacc_data_attach_processor papacc_pal papacc_runtime)
     set_target_properties(papacc_server_io_loop_win32 PROPERTIES
         C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
     papacc_enable_warnings(papacc_server_io_loop_win32)

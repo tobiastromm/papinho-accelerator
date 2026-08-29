@@ -7,7 +7,8 @@ typedef enum PAPACC_LOG_LEVEL {
     PAPACC_LOG_DEBUG = 0,
     PAPACC_LOG_INFO = 1,
     PAPACC_LOG_WARNING = 2,
-    PAPACC_LOG_ERROR = 3
+    PAPACC_LOG_ERROR = 3,
+    PAPACC_LOG_LEVEL_OFF = 4
 } PAPACC_LOG_LEVEL;
 
 typedef struct PAPACC_LOG_RECORD {
@@ -32,6 +33,8 @@ typedef struct PAPACC_LOGGER {
  * The logger and sink context are supplied explicitly; no global logger is
  * used. Thread-safety and synchronization policy are intentionally undefined
  * until threading is introduced by the runtime.
+ * PAPACC_LOG_LEVEL_OFF is a runtime disabled state: papacc_log returns before
+ * timestamp acquisition or sink delivery for every message severity.
  */
 PAPACC_RESULT papacc_logger_init(
     PAPACC_LOGGER *logger,

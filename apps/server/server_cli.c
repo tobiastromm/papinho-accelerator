@@ -51,6 +51,19 @@ static PAPACC_BOOL papacc_server_cli_has_prior_interface_id(
     return PAPACC_FALSE;
 }
 
+static PAPACC_RESULT papacc_server_cli_parse_log_level(
+    const char *text, PAPACC_LOG_LEVEL *out_level)
+{
+    if (text == NULL || out_level == NULL) return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (strcmp(text, "off") == 0) *out_level = PAPACC_LOG_LEVEL_OFF;
+    else if (strcmp(text, "error") == 0) *out_level = PAPACC_LOG_ERROR;
+    else if (strcmp(text, "warn") == 0) *out_level = PAPACC_LOG_WARNING;
+    else if (strcmp(text, "info") == 0) *out_level = PAPACC_LOG_INFO;
+    else if (strcmp(text, "debug") == 0) *out_level = PAPACC_LOG_DEBUG;
+    else return PAPACC_RESULT_INVALID_ARGUMENT;
+    return PAPACC_RESULT_OK;
+}
+
 static PAPACC_RESULT papacc_server_cli_scan(
     int argc,
     const char *const *argv,
@@ -62,6 +75,7 @@ static PAPACC_RESULT papacc_server_cli_scan(
     PAPACC_BOOL has_port = PAPACC_FALSE;
     PAPACC_BOOL has_all = PAPACC_FALSE;
     PAPACC_BOOL has_egress = PAPACC_FALSE;
+    PAPACC_BOOL has_log_level = PAPACC_FALSE;
     PAPACC_SIZE id_count = 0;
     int index;
 
@@ -103,6 +117,15 @@ static PAPACC_RESULT papacc_server_cli_scan(
             }
             has_egress = PAPACC_TRUE;
             *out_allow_egress = PAPACC_TRUE;
+        } else if (strcmp(argv[index], "--log-level") == 0) {
+            PAPACC_LOG_LEVEL ignored_level;
+            if (has_log_level == PAPACC_TRUE || index + 1 >= argc ||
+                papacc_server_cli_parse_log_level(
+                    argv[index + 1], &ignored_level) != PAPACC_RESULT_OK) {
+                return PAPACC_RESULT_INVALID_ARGUMENT;
+            }
+            has_log_level = PAPACC_TRUE;
+            ++index;
         } else {
             return PAPACC_RESULT_INVALID_ARGUMENT;
         }
@@ -155,6 +178,8 @@ PAPACC_RESULT papacc_server_cli_parse(
     for (index = 1; index < argc; ++index) {
         if (strcmp(argv[index], "--port") == 0) {
             ++index;
+        } else if (strcmp(argv[index], "--log-level") == 0) {
+            ++index;
         } else if (strcmp(argv[index], "--interface-id") == 0) {
             PAPACC_U64 value;
             result = papacc_server_cli_parse_u64(
@@ -194,6 +219,7 @@ PAPACC_RESULT papacc_server_cli_request_parse(
         PAPACC_SERVER_CLI_REQUEST_INITIALIZER;
     PAPACC_SIZE index;
     PAPACC_RESULT result;
+    PAPACC_BOOL has_log_level = PAPACC_FALSE;
 
     if (out_request == NULL || out_required_ids == NULL) {
         return PAPACC_RESULT_INVALID_ARGUMENT;
@@ -214,6 +240,21 @@ PAPACC_RESULT papacc_server_cli_request_parse(
             request.action = PAPACC_SERVER_CLI_ACTION_LIST_INTERFACES;
             *out_request = request;
             return PAPACC_RESULT_OK;
+        }
+        if (strcmp(argv[index], "--help") == 0) {
+            if (argc != 2 || index != 1) return PAPACC_RESULT_INVALID_ARGUMENT;
+            request.action = PAPACC_SERVER_CLI_ACTION_HELP;
+            *out_request = request;
+            return PAPACC_RESULT_OK;
+        }
+        if (strcmp(argv[index], "--log-level") == 0) {
+            if (has_log_level == PAPACC_TRUE || index + 1 >= (PAPACC_SIZE)argc ||
+                papacc_server_cli_parse_log_level(
+                    argv[index + 1], &request.log_level) != PAPACC_RESULT_OK) {
+                return PAPACC_RESULT_INVALID_ARGUMENT;
+            }
+            has_log_level = PAPACC_TRUE;
+            ++index;
         }
     }
     result = papacc_server_cli_parse(

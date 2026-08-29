@@ -234,6 +234,16 @@ static int test_sizing(void)
 static int test_request_actions(void)
 {
     const char *list[] = { "x", "--list-interfaces" };
+    const char *help[] = { "x", "--help" };
+    const char *debug[] = {
+        "x", "--port", "4433", "--all-interfaces", "--log-level", "debug"
+    };
+    const char *off[] = {
+        "x", "--port", "4433", "--all-interfaces", "--log-level", "off"
+    };
+    const char *bad_level[] = {
+        "x", "--port", "4433", "--all-interfaces", "--log-level", "foo"
+    };
     const char *conflicts[][5] = {
         { "x", "--list-interfaces", "--port", "4433" },
         { "x", "--list-interfaces", "--all-interfaces" },
@@ -252,6 +262,21 @@ static int test_request_actions(void)
         request.action != PAPACC_SERVER_CLI_ACTION_LIST_INTERFACES ||
         !config_is_initializer(&request.config) || required != 0) {
         return 1;
+    }
+    if (request.log_level != PAPACC_LOG_INFO ||
+        papacc_server_cli_request_parse(
+            2, help, NULL, 0, &request, &required) != PAPACC_RESULT_OK ||
+        request.action != PAPACC_SERVER_CLI_ACTION_HELP ||
+        papacc_server_cli_request_parse(
+            6, debug, NULL, 0, &request, &required) != PAPACC_RESULT_OK ||
+        request.log_level != PAPACC_LOG_DEBUG ||
+        papacc_server_cli_request_parse(
+            6, off, NULL, 0, &request, &required) != PAPACC_RESULT_OK ||
+        request.log_level != PAPACC_LOG_LEVEL_OFF ||
+        papacc_server_cli_request_parse(
+            6, bad_level, NULL, 0, &request, &required) !=
+            PAPACC_RESULT_INVALID_ARGUMENT) {
+        return 3;
     }
     for (index = 0; index < sizeof(counts) / sizeof(counts[0]); ++index) {
         request.action = PAPACC_SERVER_CLI_ACTION_LIST_INTERFACES;

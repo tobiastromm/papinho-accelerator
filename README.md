@@ -39,9 +39,16 @@ papacc_server
 papacc_server --list-interfaces
 papacc_server --port <porta> --all-interfaces
 papacc_server --port <porta> --interface-id <persistent-id>
+papacc_server --port <porta> --all-interfaces --log-level info
 ```
 
 Não existe porta oficial ou default. O modo RUN exige `--port` e uma decisão explícita de bind. `--allow-network-egress` registra somente policy; egress ainda não foi implementado.
+
+`--log-level` aceita `off`, `error`, `warn`, `info` (default) e `debug`. `off` desabilita somente toda saída do `PAPACC_LOGGER`; saídas funcionais de `--help` e `--list-interfaces` permanecem disponíveis. INFO registra lifecycle estrutural de listeners, Connections, Sessions, tickets e DATA attachment. Tickets completos e payloads nunca são registrados. IDs mostrados são somente IDs runtime locais e não são serializados no Wire Protocol.
+
+## Validação com consumidor real
+
+O primeiro consumidor real foi validado: PapinhoBrowser em Windows NT 4.0 acessou por LAN TCP o PapinhoAccelerator executado em Windows moderno e concluiu `CONTROL_OPEN` → `CONTROL_ACCEPT` → solicitação de ticket → segunda conexão TCP → `DATA_ATTACH` → `DATA_ACCEPT`. PapinhoBrowser permaneceu funcional e o Accelerator permaneceu opcional. Isto valida a integração estrutural da Phase 2; não inicia Phase 3 nem implica autenticação, Transport Security ou processamento de payload DATA.
 
 ## Documentação
 
@@ -59,10 +66,14 @@ Não existe porta oficial ou default. O modo RUN exige `--port` e uma decisão e
 
 Requer CMake 3.16 ou posterior e uma toolchain C99. No Windows, o build também produz o servidor operacional Win32.
 
+Em Windows, abra o Developer PowerShell/Command Prompt do Visual Studio para disponibilizar CMake, Ninja e MSVC. A árvore canônica é `build/ninja/`, sempre out-of-source:
+
 ```text
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
+cmake -S . -B build\ninja -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build\ninja
+ctest --test-dir build\ninja --output-on-failure
 ```
+
+Árvores `build*` são artefatos locais ignorados pelo Git. Não coloque fontes ou definições de protocolo necessárias dentro delas.
 
 A versão `0.1.0` é a versão do software e não congela nem atribui versão, IDs ou layout ao Wire Protocol.

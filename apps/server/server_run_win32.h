@@ -6,6 +6,7 @@
 #include "server_acceptor_win32.h"
 #include "server_console_win32.h"
 #include "server_io_loop_win32.h"
+#include "log.h"
 
 /*
  * Application-private Phase 2 baseline. This is not a configuration or
@@ -22,6 +23,7 @@
 PAPACC_RESULT papacc_server_run_win32(
     PAPACC_SERVER_NETWORK *server_network,
     FILE *output,
-    FILE *error_output);
+    FILE *error_output,
+    const PAPACC_LOGGER *logger);
 
 #endif

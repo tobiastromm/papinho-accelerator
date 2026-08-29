@@ -106,5 +106,51 @@ int main(void)
         return 15;
     }
 
+    sink.call_count = 0;
+    if (papacc_logger_init(&logger, papacc_test_sink_callback, &sink,
+                           PAPACC_LOG_LEVEL_OFF) != PAPACC_RESULT_OK) {
+        return 16;
+    }
+    papacc_log(&logger, PAPACC_LOG_ERROR, "test", "off error");
+    papacc_log(&logger, PAPACC_LOG_WARNING, "test", "off warn");
+    papacc_log(&logger, PAPACC_LOG_INFO, "test", "off info");
+    papacc_log(&logger, PAPACC_LOG_DEBUG, "test", "off debug");
+    if (sink.call_count != 0) return 17;
+
+    if (papacc_logger_init(&logger, papacc_test_sink_callback, &sink,
+                           PAPACC_LOG_ERROR) != PAPACC_RESULT_OK) return 18;
+    papacc_log(&logger, PAPACC_LOG_DEBUG, "test", "debug");
+    papacc_log(&logger, PAPACC_LOG_INFO, "test", "info");
+    papacc_log(&logger, PAPACC_LOG_WARNING, "test", "warn");
+    papacc_log(&logger, PAPACC_LOG_ERROR, "test", "error");
+    if (sink.call_count != 1) return 19;
+
+    sink.call_count = 0;
+    if (papacc_logger_init(&logger, papacc_test_sink_callback, &sink,
+                           PAPACC_LOG_WARNING) != PAPACC_RESULT_OK) return 20;
+    papacc_log(&logger, PAPACC_LOG_DEBUG, "test", "debug");
+    papacc_log(&logger, PAPACC_LOG_INFO, "test", "info");
+    papacc_log(&logger, PAPACC_LOG_WARNING, "test", "warn");
+    papacc_log(&logger, PAPACC_LOG_ERROR, "test", "error");
+    if (sink.call_count != 2) return 21;
+
+    sink.call_count = 0;
+    if (papacc_logger_init(&logger, papacc_test_sink_callback, &sink,
+                           PAPACC_LOG_INFO) != PAPACC_RESULT_OK) return 22;
+    papacc_log(&logger, PAPACC_LOG_DEBUG, "test", "debug");
+    papacc_log(&logger, PAPACC_LOG_INFO, "test", "info");
+    papacc_log(&logger, PAPACC_LOG_WARNING, "test", "warn");
+    papacc_log(&logger, PAPACC_LOG_ERROR, "test", "error");
+    if (sink.call_count != 3) return 23;
+
+    sink.call_count = 0;
+    if (papacc_logger_init(&logger, papacc_test_sink_callback, &sink,
+                           PAPACC_LOG_DEBUG) != PAPACC_RESULT_OK) return 24;
+    papacc_log(&logger, PAPACC_LOG_DEBUG, "test", "debug");
+    papacc_log(&logger, PAPACC_LOG_INFO, "test", "info");
+    papacc_log(&logger, PAPACC_LOG_WARNING, "test", "warn");
+    papacc_log(&logger, PAPACC_LOG_ERROR, "test", "error");
+    if (sink.call_count != 4) return 25;
+
     return 0;
 }
