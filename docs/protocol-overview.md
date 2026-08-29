@@ -26,10 +26,11 @@ Este documento resume a visão conceitual. O envelope comum está em [Protocol
 Framing](protocol-framing.md); os únicos tipos numéricos atribuídos são o
 registry normativo `0x0001`..`0x0006`.
 
-**Estado de implementação:** existem foundations runtime de Connection, Session
-e Channel, encoder/parser, Framed Reader e Framed Writer portáteis. O executable
-processa apenas as duas mensagens de estabelecimento pelo I/O Loop Win32
-combinado. A arquitetura normativa está em
+**Estado de implementação:** a Phase 2 está concluída no escopo estrutural.
+Existem runtimes de Connection, Session e Channel, encoder/parser, Framed Reader
+e Framed Writer portáteis. O executable processa as seis mensagens normativas
+de estabelecimento CONTROL e associação DATA pelo I/O Loop Win32 combinado.
+Não processa protocolo de aplicação após `DATA_ACCEPT`. A arquitetura normativa está em
 [Connection I/O Scheduling](connection-io-scheduling.md).
 Os IDs normativos `0x0001`..`0x0006` estão definidos em
 [Control Establishment Protocol](control-establishment-protocol.md) e

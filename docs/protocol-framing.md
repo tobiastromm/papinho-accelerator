@@ -5,12 +5,13 @@
 This document normatively freezes wire Envelope 1.0. It defines framing only:
 no message family or numeric assignment, payload schema, Wire Session/Channel
 ID, authentication, capability negotiation, or Transport Security mechanism.
-Phase 2.C2 implements the portable semantic header model, exact 16-byte
-encoder/decoder, and allocation-free incremental parser. Transport I/O and
-higher-layer production integration remain deliberately absent. Phase 2.C3B1
-adds a portable receive-only Framed Reader that joins abstract transport reads
-to the parser. Phase 2.C3B2 adds its portable outbound sibling, the Framed
-Writer. Production Connection protocol processing remains unintegrated.
+Phase 2.C2 implemented the portable semantic header model, exact 16-byte
+encoder/decoder, and allocation-free incremental parser. Phase 2.C3B1 added a
+portable receive-only Framed Reader joining abstract transport reads to the
+parser, and Phase 2.C3B2 added the Framed Writer. Those subphases deliberately
+did not integrate production Connection processing; Phase 2.D/E now compose
+both primitives in the Win32 server for structural CONTROL establishment and
+DATA association. No post-DATA application protocol exists in Phase 2.
 
 ## Ordered byte-stream contract
 

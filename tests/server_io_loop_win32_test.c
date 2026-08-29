@@ -47,6 +47,26 @@ static PAPACC_RESULT papacc_test_drive(
     return PAPACC_RESULT_OK;
 }
 
+static int papacc_test_attach_data(
+    PAPACC_SERVER_IO_LOOP_WIN32 *loop, PAPACC_U16 port, SOCKET control,
+    SOCKET *out_data)
+{
+    PAPACC_U8 ticket[32]; PAPACC_U8 attach[32] = {
+        0x50,0x41,0x43,0x43,1,0,0,16,0,5,0,0,0,0,0,16 };
+    PAPACC_U8 accepted[16];
+    if (send(control, (const char *)papacc_test_ticket_request, 16, 0) != 16 ||
+        papacc_test_drive(loop, 8) != PAPACC_RESULT_OK ||
+        recv(control, (char *)ticket, 32, MSG_WAITALL) != 32) return 1;
+    memcpy(&attach[16], &ticket[16], 16);
+    *out_data = papacc_test_connect(port);
+    if (*out_data == INVALID_SOCKET || papacc_test_drive(loop, 2) !=
+            PAPACC_RESULT_OK || send(*out_data, (const char *)attach, 32, 0) != 32 ||
+        papacc_test_drive(loop, 8) != PAPACC_RESULT_OK ||
+        recv(*out_data, (char *)accepted, 16, MSG_WAITALL) != 16 ||
+        memcmp(accepted, papacc_test_data_accept, 16) != 0) return 1;
+    return 0;
+}
+
 int main(void)
 {
     PAPACC_SERVER_NETWORK network = PAPACC_SERVER_NETWORK_INITIALIZER;
@@ -78,6 +98,10 @@ int main(void)
     SOCKET channel_fail = INVALID_SOCKET;
     SOCKET round_robin_a = INVALID_SOCKET;
     SOCKET round_robin_b = INVALID_SOCKET;
+    SOCKET cascade_control = INVALID_SOCKET;
+    SOCKET cascade_data_a = INVALID_SOCKET;
+    SOCKET cascade_data_b = INVALID_SOCKET;
+    SOCKET recovery_control = INVALID_SOCKET;
     PAPACC_U8 received[20];
     PAPACC_SIZE index;
     int result = 0;
@@ -369,11 +393,53 @@ int main(void)
         network.listener_set.count = saved_count;
         network.listener_set.capacity = saved_capacity;
     }
+    if (result == 0) {
+        (void)shutdown(established, SD_SEND);
+        (void)shutdown(valid, SD_SEND);
+        if (papacc_test_drive(&loop, 8) != PAPACC_RESULT_OK ||
+            loop.connection_manager->count != 0 || loop.session_manager.count != 0 ||
+            loop.channel_manager.count != 0) {
+            result = 27;
+            goto cleanup;
+        }
+        cascade_control = papacc_test_connect(port);
+        if (cascade_control == INVALID_SOCKET || papacc_test_drive(&loop, 2) !=
+                PAPACC_RESULT_OK ||
+            send(cascade_control, (const char *)papacc_test_open, 20, 0) != 20 ||
+            papacc_test_drive(&loop, 8) != PAPACC_RESULT_OK ||
+            recv(cascade_control, (char *)received, 20, MSG_WAITALL) != 20 ||
+            papacc_test_attach_data(&loop, port, cascade_control,
+                &cascade_data_a) != 0 ||
+            papacc_test_attach_data(&loop, port, cascade_control,
+                &cascade_data_b) != 0 || loop.session_manager.count != 1 ||
+            loop.channel_manager.count != 3 || loop.connection_manager->count != 3) {
+            result = 28;
+            goto cleanup;
+        }
+        (void)shutdown(cascade_control, SD_SEND);
+        if (papacc_test_drive(&loop, 10) != PAPACC_RESULT_OK ||
+            loop.session_manager.count != 0 || loop.channel_manager.count != 0 ||
+            loop.connection_manager->count != 0 || loop.association_manager.count != 0) {
+            result = 29;
+            goto cleanup;
+        }
+        recovery_control = papacc_test_connect(port);
+        if (recovery_control == INVALID_SOCKET || papacc_test_drive(&loop, 2) !=
+                PAPACC_RESULT_OK ||
+            send(recovery_control, (const char *)papacc_test_open, 20, 0) != 20 ||
+            papacc_test_drive(&loop, 8) != PAPACC_RESULT_OK ||
+            recv(recovery_control, (char *)received, 20, MSG_WAITALL) != 20 ||
+            memcmp(received, papacc_test_accept, 20) != 0) result = 30;
+    }
 
 cleanup:
     papacc_server_io_loop_win32_shutdown(&loop);
     papacc_server_acceptor_win32_shutdown(&acceptor);
     if (round_robin_b != INVALID_SOCKET) (void)closesocket(round_robin_b);
+    if (recovery_control != INVALID_SOCKET) (void)closesocket(recovery_control);
+    if (cascade_data_b != INVALID_SOCKET) (void)closesocket(cascade_data_b);
+    if (cascade_data_a != INVALID_SOCKET) (void)closesocket(cascade_data_a);
+    if (cascade_control != INVALID_SOCKET) (void)closesocket(cascade_control);
     if (round_robin_a != INVALID_SOCKET) (void)closesocket(round_robin_a);
     if (channel_fail != INVALID_SOCKET) (void)closesocket(channel_fail);
     if (session_fail != INVALID_SOCKET) (void)closesocket(session_fail);

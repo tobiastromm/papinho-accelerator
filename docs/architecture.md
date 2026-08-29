@@ -2,9 +2,9 @@
 
 ## Estado de implementação
 
-A Phase 1 implementa a Foundation portátil e, no Windows, discovery de interfaces, resolução persistente de bind, WinSock, sockets TCP, Multi-Listener Set, configuração CLI e lifecycle Ctrl+C/Ctrl+Break. O executável abre listeners reais, mas ainda não aceita clientes.
+As Phases 1 e 2 implementam a Foundation portátil e, no Windows, discovery de interfaces, resolução persistente de bind, WinSock, listeners, aceitação não bloqueante, Sessions, Control/Data Channels estruturais, framing e os fluxos de estabelecimento CONTROL e associação DATA por ticket one-time. O executável integra esses componentes em um único loop `select()` e encerra de forma graciosa por Ctrl+C/Ctrl+Break.
 
-Sessions, Wire Protocol, Control/Data Channels operacionais, autenticação, Transport Security e Compute Backends permanecem desenho futuro. Os blocos conceituais abaixo descrevem a arquitetura pretendida e não devem ser interpretados como funcionalidade já entregue.
+Autenticação, autorização, Transport Security, Capability Negotiation, protocolo de aplicação pós-DATA e Compute Backends permanecem trabalho futuro. Session `ACTIVE` nesta baseline significa somente estabelecimento estrutural concluído; não significa autenticada, autorizada, confiável ou segura.
 
 ## Objetivos
 

@@ -100,6 +100,7 @@ int main(void)
     HANDLE thread = NULL;
     FILE *output = NULL;
     SOCKET client = INVALID_SOCKET;
+    SOCKET data_client = INVALID_SOCKET;
     static const unsigned char control_open[20] = {
         0x50, 0x41, 0x43, 0x43, 0x01, 0x00, 0x00, 0x10,
         0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
@@ -110,6 +111,10 @@ int main(void)
         0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
         0x00, 0x01, 0x00, 0x00
     };
+    static const unsigned char ticket_request[16] = {
+        0x50,0x41,0x43,0x43,1,0,0,16,0,3,0,0,0,0,0,0 };
+    static const unsigned char data_accept[16] = {
+        0x50,0x41,0x43,0x43,1,0,0,16,0,6,0,0,0,0,0,0 };
     char captured[4096];
     DWORD captured_size = 0;
     int output_fd = -1;
@@ -197,6 +202,36 @@ int main(void)
                 received, control_accept, sizeof(control_accept)) != 0)
             result = 16;
     }
+    if (result == 0) {
+        unsigned char ticket_frame[32];
+        unsigned char attach_frame[32] = {
+            0x50,0x41,0x43,0x43,1,0,0,16,0,5,0,0,0,0,0,16 };
+        unsigned char received_accept[16];
+        int total = 0;
+        if (send(client, (const char *)ticket_request, 16, 0) != 16)
+            result = 17;
+        while (result == 0 && total < 32) {
+            int count = recv(client, (char *)&ticket_frame[total], 32-total, 0);
+            if (count <= 0) result = 18; else total += count;
+        }
+        if (result == 0 && (ticket_frame[8] != 0 || ticket_frame[9] != 4 ||
+            ticket_frame[15] != 16)) result = 19;
+        if (result == 0) {
+            memcpy(&attach_frame[16], &ticket_frame[16], 16);
+            data_client = papacc_test_connect(port);
+            if (data_client == INVALID_SOCKET ||
+                send(data_client, (const char *)attach_frame, 32, 0) != 32)
+                result = 20;
+        }
+        total = 0;
+        while (result == 0 && total < 16) {
+            int count = recv(data_client, (char *)&received_accept[total],
+                             16-total, 0);
+            if (count <= 0) result = 21; else total += count;
+        }
+        if (result == 0 && memcmp(received_accept, data_accept, 16) != 0)
+            result = 22;
+    }
     papacc_server_console_win32_request_stop();
     if (thread != NULL && WaitForSingleObject(thread, 3000) != WAIT_OBJECT_0) {
         result = 9;
@@ -250,6 +285,9 @@ cleanup:
     }
     if (client != INVALID_SOCKET) {
         (void)closesocket(client);
+    }
+    if (data_client != INVALID_SOCKET) {
+        (void)closesocket(data_client);
     }
     papacc_test_network_shutdown(&network, &entry);
     (void)papacc_server_console_win32_uninstall(&console);
