@@ -4,10 +4,11 @@ PapinhoAccelerator é um projeto independente para transferir tarefas computacio
 
 ## Estado atual
 
-As Phases 1 e 2 estão concluídas. A Phase 3 iniciou apenas no estágio de
-arquitetura e threat model; autenticação e Transport Security continuam não
-implementadas. A baseline possui modelos portáteis em C99 e um servidor Win32
-estruturalmente operacional:
+As Phases 1 e 2 estão concluídas. A Phase 3 concluiu o threat model e congelou
+seu perfil inicial como TLS 1.3 external PSK por cliente com `psk_dhe_ke`, mas
+autenticação e Transport Security continuam não implementadas e nenhuma
+biblioteca foi escolhida. A baseline possui modelos portáteis em C99 e um
+servidor Win32 estruturalmente operacional:
 
 - listeners TCP reais em um único `control_port` explícito;
 - seleção de todas as interfaces ou de interfaces por identidade persistente local;
@@ -62,6 +63,7 @@ O primeiro consumidor real foi validado: PapinhoBrowser em Windows NT 4.0 acesso
 - [Modelo de mídia](docs/media-model.md)
 - [Modelo de segurança](docs/security-model.md)
 - [Checkpoint de arquitetura de segurança da Phase 3](docs/phase3-security-architecture.md)
+- [Perfil inicial de Transport Security e credenciais](docs/phase3-transport-security-profile.md)
 - [Portabilidade](docs/portability.md)
 - [Auditoria final da Phase 1](docs/phase1-foundation-audit.md)
 - [Auditoria final da Phase 2](docs/phase2-integration-audit.md)

@@ -3,6 +3,9 @@
 A arquitetura de segurança que futuramente envolverá estes bytes está congelada
 em [Phase 3 Security Architecture and Threat Model](phase3-security-architecture.md).
 A Phase 3.A1 não altera o registry nem implementa segurança.
+O perfil posterior da 3.A2A seleciona TLS 1.3 external PSK por cliente abaixo
+do framing, sem introduzir mensagens PACC; veja [Phase 3 Initial Transport
+Security and Credential Profile](phase3-transport-security-profile.md).
 
 Phase 2.D3B integra `CONTROL_OPEN` -> `CONTROL_ACCEPT` ao RUN mode Win32 real.
 Phase 2.E1 congela, sem implementar, associação estrutural DATA por ticket

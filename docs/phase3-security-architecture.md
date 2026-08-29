@@ -2,7 +2,9 @@
 
 Status: authoritative Phase 3.A1 architecture checkpoint. It builds on the
 validated `PHASE 2 READY` baseline; it does not change Phase 2 bytes or claim
-that security is implemented.
+that security is implemented. Its previously open mechanism questions are now
+resolved for the initial profile by [Phase 3 Initial Transport Security and
+Credential Profile](phase3-transport-security-profile.md).
 
 ## Non-negotiable rules and present baseline
 
@@ -345,4 +347,7 @@ or a future versioned application exchange remains a 3.A2/3.C decision.
 11. What handshake deadline/admission policy and certificate wall-clock model
     are required?
 
-Until those questions receive their own design freeze, no mechanism is implied.
+These questions were the handoff from 3.A1. Phase 3.A2A subsequently froze the
+initial mechanism and credential answers in
+[Phase 3 Initial Transport Security and Credential Profile](phase3-transport-security-profile.md);
+the text above is retained as the historical decision checklist.
