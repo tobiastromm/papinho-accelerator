@@ -73,7 +73,7 @@ O Control Plane estabelece e governa a Session: identificação, autenticação,
 
 Em TCP, uma Session usará conceitualmente um Control Channel e zero ou mais Data Channels. A associação Data Channel–Session deve ser autenticada, íntegra, resistente a associação indevida/replay quando aplicável e submetida aos mesmos limites e políticas. O perfil 3.A2A exige igualdade de principal mais ticket estrutural e autorização; a operação/API atômica concreta permanece para 3.D.
 
-Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil inicial é TLS 1.3 external PSK por cliente com `psk_dhe_ke`, conforme [Phase 3 Initial Transport Security and Credential Profile](phase3-transport-security-profile.md); a biblioteca/backend continua indefinida até 3.A2B.
+Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil revisado é TLS 1.3 mTLS, com CA privada/administrativa e certificado individual por dispositivo cliente, conforme [Phase 3 Transport Security and Credential Profile](phase3-transport-security-profile.md); a biblioteca/backend continua indefinida até a validação 3.A2B-R3.
 
 Cada conexão TCP CONTROL ou DATA deverá estabelecer proteção própria. Como
 Transport Security fica abaixo de Framing, a composição futura será `accept ->

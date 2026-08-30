@@ -3,7 +3,7 @@
 Status: authoritative Phase 3.A1 architecture checkpoint. It builds on the
 validated `PHASE 2 READY` baseline; it does not change Phase 2 bytes or claim
 that security is implemented. Its previously open mechanism questions are now
-resolved for the initial profile by [Phase 3 Initial Transport Security and
+resolved for the revised profile by [Phase 3 Transport Security and
 Credential Profile](phase3-transport-security-profile.md).
 
 ## Non-negotiable rules and present baseline
@@ -131,14 +131,14 @@ network protections.
 
 | Property | Required? | CONTROL? | DATA? | Mechanism selected? | Responsible phase |
 |---|---:|---:|---:|---:|---|
-| Confidentiality | Yes | Yes | Yes | No | 3.A2/3.E |
-| Cryptographic integrity/anti-tampering | Yes | Yes | Yes | No | 3.A2/3.E |
-| Server authentication | Yes | Yes | Yes | No | 3.A2/3.C/3.E |
-| Client authentication | Yes for protected production use | Yes | Yes | No | 3.A2/3.C |
+| Confidentiality | Yes | Yes | Yes | TLS 1.3 | 3.A2/3.E |
+| Cryptographic integrity/anti-tampering | Yes | Yes | Yes | TLS 1.3 AEAD | 3.A2/3.E |
+| Server authentication | Yes | Yes | Yes | mTLS server certificate/private CA | 3.A2/3.C/3.E |
+| Client authentication | Yes for protected production use | Yes | Yes | mTLS individual device certificate | 3.A2/3.C |
 | Authorization | Yes | Yes | Yes | No | 3.C/3.D |
-| Replay resistance | Yes where semantics require | Yes | Yes | No | 3.A2/3.C/3.D |
-| Downgrade resistance | Yes | Yes | Yes | No | 3.A2/3.C |
-| DATA-to-Session identity binding | Yes | N/A | Yes | No | 3.D |
+| Replay resistance | Yes where semantics require | Yes | Yes | TLS 1.3 plus message/ticket policy | 3.A2/3.C/3.D |
+| Downgrade resistance | Yes | Yes | Yes | TLS 1.3-only, no fallback | 3.A2/3.C |
+| DATA-to-Session identity binding | Yes | N/A | Yes | mTLS principal equality plus ticket and authorization | 3.D |
 | Credential non-disclosure | Yes | Yes | Yes | No | 3.A2--3.G |
 | Fail-closed operation | Yes | Yes | Yes | No | 3.B--3.G |
 
@@ -296,6 +296,13 @@ categories without leaking backend/native codes or excessive wire detail.
 | Unauthenticated CPU exhaustion | Many handshakes | Availability | Connection limits | Admission/attempt limits and amplification review | Distributed attacks |
 | CONTROL hijack | Read/modify/control stream | Session and all DATA | Lifecycle cascade only | Mutual identity requirements, integrity, replay resistance | Compromised endpoint |
 | DATA hijack | Attach/modify DATA | Payload and Session association | Structural one-time ticket | Per-DATA security and same-principal authorization | Authorized malicious client |
+| Pairing MITM / silent TOFU | Interpose on first contact | Server trust, client enrollment | None | Independent SHA-256 fingerprint verification and explicit approval | Compromised verification channel |
+| Fake-IP identity | Control/advertise an address | Server/client identity | None | Certificates and enrolled principals; IP is never identity | Compromised credential |
+| Pairing relay | Forward a valid code/session | Enrollment authority | None | Bind code to server certificate, client key and current pairing transcript | Compromised endpoint/admin |
+| Stolen client key | Extract one device key | That principal's access | None | Per-device credential, revocation and bounded authorization | Actions before revocation |
+| Stolen server key | Extract server key | Server impersonation | None | Revoke/replace credential and explicitly restore verified identity | Trust recovery cost |
+| Stolen CA key | Extract issuer key | Entire trust domain | None | Replace CA and re-enroll/retrust explicitly | Broad recovery scope |
+| Malicious enrollment | Abuse approval path | Principal admission/policy | None | Explicit approval, bound context, least privilege and audit | Malicious authorized admin |
 
 ## Future trust and CONTROL flow
 
@@ -308,8 +315,9 @@ TCP Connection
     -> atomic CONTROL_ACCEPT + Session ACTIVE/usable milestone
 ```
 
-Exact ordering of client authentication within the standard security protocol
-or a future versioned application exchange remains a 3.A2/3.C decision.
+Client authentication occurs inside the standard TLS 1.3 mTLS handshake. The
+resulting principal is then subjected to separate CONTROL/DATA authorization;
+no application authentication exchange or new PACC message is selected.
 
 ## Remaining Phase 3 sequence
 
@@ -328,9 +336,9 @@ or a future versioned application exchange remains a 3.A2/3.C decision.
 7. **3.G — Security Integration and Final Audit:** adversarial, interoperability,
    lifecycle, logging and regression validation.
 
-## Decisions required from 3.A2
+## 3.A2 decisions and remaining proof
 
-3.A2 must explicitly answer:
+The original 3.A1 handoff required 3.A2 to answer:
 
 1. Which standard Transport Security protocol and allowed versions?
 2. Which portable/client-side crypto implementation strategy?
@@ -347,7 +355,10 @@ or a future versioned application exchange remains a 3.A2/3.C decision.
 11. What handshake deadline/admission policy and certificate wall-clock model
     are required?
 
-These questions were the handoff from 3.A1. Phase 3.A2A subsequently froze the
-initial mechanism and credential answers in
-[Phase 3 Initial Transport Security and Credential Profile](phase3-transport-security-profile.md);
-the text above is retained as the historical decision checklist.
+These questions were the handoff from 3.A1. Phase 3.A2A-R1 now freezes TLS 1.3
+mTLS, private/administrator CA trust, individual device credentials, explicit
+pairing/enrollment, full independent CONTROL/DATA handshakes and fail-closed
+downgrade policy in [Phase 3 Transport Security and Credential
+Profile](phase3-transport-security-profile.md). Backend/library selection,
+legacy runtime feasibility, complete platform entropy behavior and concrete
+storage/integration remain proof obligations for 3.A2B-R3 and later phases.

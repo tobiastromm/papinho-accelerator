@@ -4,10 +4,14 @@ PapinhoAccelerator é um projeto independente para transferir tarefas computacio
 
 ## Estado atual
 
-As Phases 1 e 2 estão concluídas. A Phase 3 concluiu o threat model e congelou
-seu perfil inicial como TLS 1.3 external PSK por cliente com `psk_dhe_ke`, mas
-autenticação e Transport Security continuam não implementadas e nenhuma
-biblioteca foi escolhida. A baseline possui modelos portáteis em C99 e um
+As Phases 1 e 2 estão concluídas. A Phase 3 concluiu o threat model e a revisão
+3.A2A-R1 congelou o perfil como TLS 1.3 mTLS, com CA privada/administrativa e
+certificado individual por dispositivo cliente. Autenticação e Transport
+Security continuam não implementadas e nenhuma biblioteca foi escolhida. Os
+spikes 3.A2B/R2 produziram evidência histórica sobre external PSK e RetroZilla
+NSS, mas a prova revisada 3.A2B-R3 para mTLS/VC6/NT4, entropia, relógio e
+interoperabilidade ainda está aberta; portanto 3.A2B permanece NOT READY. A
+baseline possui modelos portáteis em C99 e um
 servidor Win32 estruturalmente operacional:
 
 - listeners TCP reais em um único `control_port` explícito;
@@ -64,6 +68,7 @@ O primeiro consumidor real foi validado: PapinhoBrowser em Windows NT 4.0 acesso
 - [Modelo de segurança](docs/security-model.md)
 - [Checkpoint de arquitetura de segurança da Phase 3](docs/phase3-security-architecture.md)
 - [Perfil inicial de Transport Security e credenciais](docs/phase3-transport-security-profile.md)
+- [Spike de backend TLS e compatibilidade legada](docs/phase3-tls-backend-spike.md)
 - [Portabilidade](docs/portability.md)
 - [Auditoria final da Phase 1](docs/phase1-foundation-audit.md)
 - [Auditoria final da Phase 2](docs/phase2-integration-audit.md)

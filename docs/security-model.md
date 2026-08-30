@@ -30,10 +30,11 @@ TLS_OFFLOAD capability                = DISABLED
 
 Essa combinação é válida. Desabilitar `TLS_OFFLOAD`, ou qualquer outra capability, nunca pode implicitamente desabilitar Transport Security. Capability Negotiation não pode enfraquecer propriedades de segurança exigidas para a Session. Quando política ou configuração exigir canal seguro, downgrade silencioso para transporte inseguro é proibido.
 
-O perfil inicial foi posteriormente congelado em [Phase 3 Initial Transport
-Security and Credential Profile](phase3-transport-security-profile.md): TLS 1.3
-external PSK por cliente, `psk_dhe_ke`, sem 0-RTT, resumption ou fallback. A
-biblioteca/backend concreto permanece deliberadamente indefinido até 3.A2B.
+O perfil revisado foi congelado em [Phase 3 Transport Security and Credential
+Profile](phase3-transport-security-profile.md): TLS 1.3 mTLS, CA
+privada/administrativa, certificado individual por dispositivo cliente, sem
+0-RTT, resumption ou fallback. A biblioteca/backend concreto permanece
+deliberadamente indefinido até a validação 3.A2B-R3.
 PapinhoAccelerator não deve inventar um protocolo criptográfico próprio.
 
 O provider de tickets da Phase 2.E3 é apenas um contador opaco determinístico.
