@@ -33,9 +33,15 @@ Essa combinação é válida. Desabilitar `TLS_OFFLOAD`, ou qualquer outra capab
 O perfil revisado foi congelado em [Phase 3 Transport Security and Credential
 Profile](phase3-transport-security-profile.md): TLS 1.3 mTLS, CA
 privada/administrativa, certificado individual por dispositivo cliente, sem
-0-RTT, resumption ou fallback. A biblioteca/backend concreto permanece
-deliberadamente indefinido até a validação 3.A2B-R3.
+0-RTT, resumption ou fallback. A validação 3.A2B-R3 comprovou RetroZilla
+NSS/NSPR como backend legado viável; ele ainda não está integrado ao produto.
 PapinhoAccelerator não deve inventar um protocolo criptográfico próprio.
+
+A decisão arquitetural posterior define os perfis futuros
+[Secure Principal e Legacy Endpoint](phase3-transport-profiles.md). Legacy
+Endpoint é plaintext, explicitamente habilitado e sem identidade criptográfica
+forte; não é um modo seguro. Não existe fallback automático do perfil seguro
+para o legado.
 
 O provider de tickets da Phase 2.E3 é apenas um contador opaco determinístico.
 Ele não é RNG, credencial, autenticação ou autorização e não oferece segredo ou

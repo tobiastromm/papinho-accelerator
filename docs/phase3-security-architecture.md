@@ -6,6 +6,14 @@ that security is implemented. Its previously open mechanism questions are now
 resolved for the revised profile by [Phase 3 Transport Security and
 Credential Profile](phase3-transport-security-profile.md).
 
+Later closeout status: 3.A2B-R3 proved RetroZilla NSS/NSPR as a viable legacy
+TLS 1.3 mTLS backend on Windows NT 4.0 SP6, including secure CryptoAPI entropy
+and fail-closed forced entropy failure. This is feasibility evidence only;
+security remains unimplemented and Phase 3.B has not started. The subsequent
+[Transport Profiles Decision](phase3-transport-profiles.md) records Secure
+Principal versus explicitly configured Legacy Endpoint without rewriting this
+3.A1 checkpoint as if that distinction had always existed.
+
 ## Non-negotiable rules and present baseline
 
 PapinhoAccelerator **MUST NOT invent a custom cryptographic protocol**. Future
@@ -359,6 +367,6 @@ These questions were the handoff from 3.A1. Phase 3.A2A-R1 now freezes TLS 1.3
 mTLS, private/administrator CA trust, individual device credentials, explicit
 pairing/enrollment, full independent CONTROL/DATA handshakes and fail-closed
 downgrade policy in [Phase 3 Transport Security and Credential
-Profile](phase3-transport-security-profile.md). Backend/library selection,
-legacy runtime feasibility, complete platform entropy behavior and concrete
-storage/integration remain proof obligations for 3.A2B-R3 and later phases.
+Profile](phase3-transport-security-profile.md). RetroZilla NSS/NSPR backend
+feasibility, NT4 runtime and its entropy behavior were later closed by
+3.A2B-R3. Concrete storage and production integration remain future work.

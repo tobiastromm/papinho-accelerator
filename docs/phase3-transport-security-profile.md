@@ -6,6 +6,13 @@ backend investigation remain historical evidence; they are not normative.
 This document selects no TLS library, adds no implementation and freezes no new
 PACC Wire Protocol messages.
 
+Closeout addendum: 3.A2B-R3 subsequently proved RetroZilla NSS/NSPR viable for
+this profile on Windows NT 4.0 SP6, including fail-closed entropy behavior.
+This does not implement the profile. A still later architectural decision
+defines [Secure Principal and Legacy Endpoint](phase3-transport-profiles.md);
+the latter is explicitly configured plaintext and does not weaken or replace
+this secure profile.
+
 Normative terms below apply to the future protected production implementation.
 
 ## Normative profile
@@ -329,11 +336,13 @@ policy:    Papinho TLS version, suites, ALPN, trust, principal and authorization
 ```
 
 Backends implement mechanism; they do not silently choose or weaken Papinho
-policy. No library is selected by this document.
+policy. This revision selected no library. The later 3.A2B-R3 closeout selected
+RetroZilla NSS/NSPR as the first technically proven legacy backend candidate
+for future `PapinhoSecureTransport` integration.
 
-## Revised Phase 3.A2B-R3 proof gates
+## Revised Phase 3.A2B-R3 proof gates (historical input)
 
-The next compatibility spike must provide concrete evidence for:
+The compatibility spike was required to provide concrete evidence for:
 
 - TLS 1.3 mTLS on the Accelerator and PapinhoBrowser legacy targets;
 - certificate-chain validation against private/admin trust anchors;
@@ -359,5 +368,9 @@ revised profile infeasible with concrete evidence, but may not silently weaken
 TLS version, mutual authentication, forward secrecy, trust validation, entropy,
 ALPN or downgrade policy.
 
+3.A2B-R3 later satisfied the NT4/VC6 mTLS and fail-closed entropy gates and is
+recorded in [the final proof report](phase3-nss-mtls-nt4-proof.md). Broader
+platform, provisioning, performance and integration work remains future work.
 No production code, dependency, CMake target, pairing flow, Wire Protocol
-message or `PapinhoSecureTransport` project is introduced by this revision.
+message or `PapinhoSecureTransport` project is introduced by this revision or
+the documentary closeout.

@@ -73,7 +73,9 @@ O Control Plane estabelece e governa a Session: identificação, autenticação,
 
 Em TCP, uma Session usará conceitualmente um Control Channel e zero ou mais Data Channels. A associação Data Channel–Session deve ser autenticada, íntegra, resistente a associação indevida/replay quando aplicável e submetida aos mesmos limites e políticas. O perfil 3.A2A exige igualdade de principal mais ticket estrutural e autorização; a operação/API atômica concreta permanece para 3.D.
 
-Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil revisado é TLS 1.3 mTLS, com CA privada/administrativa e certificado individual por dispositivo cliente, conforme [Phase 3 Transport Security and Credential Profile](phase3-transport-security-profile.md); a biblioteca/backend continua indefinida até a validação 3.A2B-R3.
+Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil revisado é TLS 1.3 mTLS, com CA privada/administrativa e certificado individual por dispositivo cliente, conforme [Phase 3 Transport Security and Credential Profile](phase3-transport-security-profile.md). O closeout 3.A2B-R3 comprovou RetroZilla NSS/NSPR como primeiro backend legado viável; integração de produção permanece futura.
+
+A direção posterior distingue [Secure Principal e Legacy Endpoint](phase3-transport-profiles.md). O primeiro exige TLS 1.3 mTLS; o segundo é plaintext explicitamente habilitado, desabilitado por padrão e sem identidade criptográfica forte. Listeners distintos são recomendados. Falha no perfil seguro nunca seleciona o perfil legado.
 
 Cada conexão TCP CONTROL ou DATA deverá estabelecer proteção própria. Como
 Transport Security fica abaixo de Framing, a composição futura será `accept ->

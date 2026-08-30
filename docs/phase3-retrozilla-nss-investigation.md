@@ -10,6 +10,13 @@ external-PSK profile remained frozen describe the state at the close of R2;
 they are preserved as investigation history, not current policy. See
 [Transport Security and Credential Profile](phase3-transport-security-profile.md).
 
+Final-closeout addendum: the later
+[3.A2B-R3 proof](phase3-nss-mtls-nt4-proof.md) completed VC6 modern-host and
+Windows NT 4.0 SP6 TLS 1.3 mTLS validation plus normal and forced-failure
+entropy proof. RetroZilla NSS/NSPR is therefore READY as a technically viable
+legacy backend candidate. Conditional/NOT READY statements below describe this
+R2 investigation checkpoint and are not the current 3.A2B status.
+
 ## Executive decision
 
 RetroZilla NSS is a credible first TLS backend for legacy VC6/NT4 software,

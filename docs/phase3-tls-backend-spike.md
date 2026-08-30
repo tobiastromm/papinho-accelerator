@@ -309,8 +309,110 @@ does not change the historical `CRYPTO/TLS BACKEND SPIKE NOT READY` result.
 
 ## RetroZilla NSS mTLS / NT4 runtime proof — 3.A2B-R3
 
-The focused [R3 proof report](phase3-nss-mtls-nt4-proof.md) records a **NOT
-READY** result. The exact RetroZilla `2.3-release` commit and distributed DLL
+### R3A modern-host continuation
+
+The R3A continuation built a complete VC6 (`_MSC_VER=1200`) Win32 x86 client
+that dynamically uses the exact RetroZilla 2.3 NSS/NSPR DLL set. On the modern
+host it proved TLS 1.3 mTLS with two trusted client certificates, normal server
+certificate validation and peer extraction, ALPN `papacc/1`, authenticated
+application I/O, ChaCha20-Poly1305/X25519, AES-128-GCM, P-256, TLS 1.2 and
+cleartext rejection, untrusted/missing credentials, and expired/not-yet-valid
+certificate rejection. OpenSSL 3.6.3 supplied the test server only and is not
+a backend selection. Disposable PKI and all executable material remain in the
+ignored spike tree.
+
+R3A is nevertheless **NOT READY**. A controlled-delay test did not obtain the
+mandatory `PR_WOULD_BLOCK_ERROR` transition: ordinary `SSL_ForceHandshake`
+still blocked inside the legacy stack, while
+`SSL_ForceHandshakeWithTimeout(..., PR_INTERVAL_NO_WAIT)` returned
+`PR_IO_TIMEOUT_ERROR`. Native-select integration, partial retry,
+nonblocking-close/truncation behavior and a zero-warning harness build are
+therefore not proven. Actual NT4 runtime and entropy fail-closed proof remain
+unstarted R3B work. The detailed matrix is in the linked R3 proof report; no
+production code, protocol or security API changed.
+
+### R3A nonblocking/readiness closeout
+
+The follow-up isolated the previous blocking result to a VC6 ABI error in the
+experimental declaration of `PRSocketOptionData`: NSPR 4.7.7 aligns its value
+union at offset 8, while the harness had written the nonblocking boolean at
+offset 4. With the exact layout, native `FIONBIO` plus
+`PR_SockOpt_Nonblocking` survives `SSL_ImportFD`, and both
+`SSL_ForceHandshake` and `PR_Read` produce the real
+`PR_WOULD_BLOCK_ERROR`.
+
+The proven readiness model is SSL-layer `PR_Poll`, which uses NSS handshake
+state to remap read/write interest. Raw Winsock `select()` remains possible on
+the still-owned socket handle but is incomplete as the sole signal because it
+cannot expose this TLS-layer remapping. The VC6 client progresses in bounded
+steps on one application thread, reconstructs delayed partial reads, handles a
+bounded slow-reader write, observes clean close-notify callbacks, and
+distinguishes raw truncation as EOF without the received-alert callback.
+
+The legacy NSS close operation is bounded but one-shot: source shows that a
+close-notify send failure is not retryable. The backend must confirm the sent
+callback or classify closure as unclean. Partial write/would-block could not be
+forced with a bounded 2 MiB slow-reader fixture and remains explicitly
+`PARTIAL`; this does not invalidate the established nonblocking retry contract.
+
+The security regressions passed for both trusted clients with TLS 1.3,
+ChaCha20-Poly1305, X25519 and `papacc/1`; representative certificate, client,
+TLS 1.2 and ALPN negatives remained fail-closed. The ignored NT4 bundle was
+refreshed with the final VC6 client. No production integration or backend
+selection was made.
+
+```text
+VC6 NSS MTLS HARNESS READY
+3.A2B-R3 remains OPEN for R3B
+```
+
+### R3B NT4 full-runtime and entropy closeout
+
+R3B is **READY**. Final manual evidence from Windows NT 4.0 SP6 with the VC6
+x86 harness proved TLS 1.3 mTLS, ChaCha20-Poly1305, X25519, ALPN `papacc/1`,
+peer/client authentication, nonblocking `PR_WOULD_BLOCK_ERROR`, SSL-layer
+`PR_Poll`, bounded handshake, authenticated payload, partial reads and clean
+close-notify shutdown.
+
+The historical environmental fallback in `win_rand.c:RNG_SystemRNG` was
+replaced by a policy-only zero return. Exact RetroZilla commit
+`2f274574d3c6ee8769914046920d649bbae9f81b` was rebuilt with VC6 in a compatible
+XP legacy toolchain; `win_rand.c -> sysrand.obj -> freebl3.dll` and `shlibsign`
+produced the matching check file. The normal variant retained NT4's secure
+CryptoAPI path and passed TLS 1.3 mTLS again.
+
+The strictly test-only forced-failure variant returned zero from
+`RNG_SystemRNG`. On NT4, `NSS_Init` failed with
+`SEC_ERROR_PKCS11_DEVICE_ERROR` before any handshake, ALPN, authentication or
+payload. The waiting OpenSSL server showed no negotiation or certificate
+evidence. This proves fail-closed behavior without a custom RNG or crypto
+change.
+
+Before the successful XP legacy-toolchain rebuild, an exact-tree rebuild was
+attempted locally without changing production sources.
+After correcting the historical NSPR directory expectation and supplying an
+explicit Win32 host triplet, the modern MSYS2 runtime could not execute VC6
+`CL.EXE` from the legacy configure process. The runtime distribution contains
+no matching import libraries for a standalone `freebl` link. No replacement
+DLL was therefore emitted or substituted, and provenance was not relaxed to
+work around the build-environment incompatibility.
+
+The detailed R3B matrix is in the linked R3 report. Historical NOT READY
+sections below remain investigation history; this closeout supersedes their
+status. Backend READY means feasibility only, not production integration.
+Phase 3.B remains not started.
+
+```text
+3.A2B-R3A READY
+3.A2B-R3B READY
+3.A2B-R3 READY
+3.A2B READY
+RETROZILLA NSS LEGACY TLS BACKEND READY
+```
+
+The original checkpoint in the focused
+[R3 proof report](phase3-nss-mtls-nt4-proof.md) records a **NOT READY** result.
+The exact RetroZilla `2.3-release` commit and distributed DLL
 lineage were preserved, and a genuine VC6 (`_MSC_VER 1200`) Win32 x86
 prerequisite probe successfully loaded and initialized NSPR/NSS on the available
 modern build host. Required SSL exports and Windows CryptoAPI calls were also
@@ -322,8 +424,9 @@ and no TLS 1.3 mTLS, ALPN, certificate-negative, nonblocking secure-I/O or
 fail-closed entropy-injection test ran. A reproducible prerequisite bundle and
 exact NT4 instructions exist only under ignored experimental storage.
 
-Therefore external PSK remains historical, the revised mTLS profile remains
-unchanged, no backend is selected, and 3.A2B stays open.
+At that historical checkpoint external PSK remained historical, the revised
+mTLS profile remained unchanged, no backend was selected, and 3.A2B stayed
+open. The R3B closeout above supersedes only that status, not the evidence.
 
 ```text
 NT4 RUNTIME EXECUTION REQUIRED
