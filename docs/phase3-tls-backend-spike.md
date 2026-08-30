@@ -306,3 +306,26 @@ nonblocking I/O and close/error distinctions; structured browser errors;
 footprint, licensing and cross-backend interoperability. The authoritative,
 complete gates are in the revised profile. This addendum selects no backend and
 does not change the historical `CRYPTO/TLS BACKEND SPIKE NOT READY` result.
+
+## RetroZilla NSS mTLS / NT4 runtime proof — 3.A2B-R3
+
+The focused [R3 proof report](phase3-nss-mtls-nt4-proof.md) records a **NOT
+READY** result. The exact RetroZilla `2.3-release` commit and distributed DLL
+lineage were preserved, and a genuine VC6 (`_MSC_VER 1200`) Win32 x86
+prerequisite probe successfully loaded and initialized NSPR/NSS on the available
+modern build host. Required SSL exports and Windows CryptoAPI calls were also
+observed there.
+
+That result is not an NT4 or mTLS proof. No actual NT4 runtime was accessible,
+the release lacks prepared standalone NSS client/server and certificate tools,
+and no TLS 1.3 mTLS, ALPN, certificate-negative, nonblocking secure-I/O or
+fail-closed entropy-injection test ran. A reproducible prerequisite bundle and
+exact NT4 instructions exist only under ignored experimental storage.
+
+Therefore external PSK remains historical, the revised mTLS profile remains
+unchanged, no backend is selected, and 3.A2B stays open.
+
+```text
+NT4 RUNTIME EXECUTION REQUIRED
+RETROZILLA NSS LEGACY TLS BACKEND NOT READY
+```
