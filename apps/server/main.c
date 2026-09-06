@@ -37,8 +37,8 @@ static void papacc_server_print_help(void)
     puts("Usage:");
     puts("  papacc_server.exe --help");
     puts("  papacc_server.exe --list-interfaces");
-    puts("  papacc_server.exe --port <port> --all-interfaces [--log-level <level>]");
-    puts("  papacc_server.exe --port <port> --interface-id <id> [--log-level <level>]");
+    puts("  papacc_server.exe --port <port> --all-interfaces [--allow-network-egress] [--log-level <level>]");
+    puts("  papacc_server.exe --port <port> --interface-id <id> [--interface-id <id> ...] [--allow-network-egress] [--log-level <level>]");
     puts("Log levels: off, error, warn, info (default), debug");
     puts("  off disables all PAPACC_LOGGER output");
     puts("Example: papacc_server.exe --port 39999 --all-interfaces --log-level info");

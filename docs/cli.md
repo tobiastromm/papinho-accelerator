@@ -232,17 +232,12 @@ arquivo, Registry, precedência entre sources ou implementação de GUI.
 ## Sincronização com `--help`
 
 O texto atual de ajuda cobre `--help`, `--list-interfaces`, `--port`,
-`--all-interfaces`, `--interface-id`, `--log-level` e todos os níveis de log
-implementados.
+`--all-interfaces`, `--interface-id`, `--allow-network-egress`, `--log-level`
+e todos os níveis de log implementados. A sintaxe resumida também informa que
+`--interface-id` pode ser repetido para selecionar múltiplas interfaces.
 
-Há gaps conhecidos entre a ajuda resumida e o parser:
-
-- **HELP OUTPUT GAP:** `--allow-network-egress` é implementado, mas não aparece
-  no texto de `--help`;
-- a ajuda mostra uma ocorrência de `--interface-id`, mas não informa que ela
-  pode ser repetida para selecionar múltiplas interfaces.
-
-Esta tarefa registra os gaps sem alterar o executável.
+Não há `HELP OUTPUT GAP` conhecido entre as opções implementadas pelo parser e
+o texto atual de `--help`.
 
 ## Documentos relacionados
 
