@@ -103,6 +103,49 @@ e fair do ADR-0004.
 
 `TLS_OFFLOAD` trata separadamente de auxílio TLS para conexões do cliente com sites/serviços externos. Sua negociação não governa a proteção dos canais do PapinhoAccelerator.
 
+## Compatibilidade com clientes extremamente antigos
+
+O [ADR-0001](adr/ADR-0001-secure-principal-e-legacy-endpoint.md) preserva o
+Legacy Endpoint como possibilidade futura para clientes incapazes de cumprir o
+perfil Secure Principal. Um sistema da geração Windows 3.11 é um exemplo
+concreto dessa classe de cliente extremamente antigo. Isso é somente um caso de
+uso arquitetural: não declara suporte atual, compromisso de implementação nem
+associa obrigatoriamente qualquer versão do Windows a um transport profile.
+Windows 95/98 ou Windows NT 4.0, por exemplo, não são classificados
+automaticamente como Legacy Endpoint, e toolchain não determina o profile.
+
+```text
+cliente extremamente antigo
+        ↓
+Legacy Endpoint
+PACC plaintext em LAN/rede administrativamente isolada
+        ↓
+PapinhoAccelerator
+        ↓
+capabilities/protocolos modernos permitidos por policy
+```
+
+A finalidade é permitir que uma máquina muito antiga possa futuramente usar o
+Accelerator como ponte para capacidades modernas sem precisar executar toda a
+stack moderna localmente. Isso não torna seguro o hop entre o cliente legado e
+o Accelerator: PACC permanece plaintext nesse trecho e pode ser observado ou
+alterado por um atacante com acesso adequado à rede. Isolamento por listener,
+porta, interface, rede ou VLAN reduz exposição operacional, mas não cria
+confidencialidade, integridade ou identidade criptográfica.
+
+O mesmo PACC é usado nos dois transport profiles; não existem variantes “PACC
+seguro” e “PACC inseguro”. A arquitetura escolhe explicitamente entre Secure
+Principal TLS 1.3-only e Legacy Endpoint reconhecidamente plaintext, em vez de
+uma cadeia oportunista `TLS 1.3 → TLS 1.2 → plaintext`. Essa regra não afirma
+que TLS 1.2 seja genericamente inseguro: apenas registra que ele não é fallback
+do perfil Secure Principal definido para o PapinhoAccelerator.
+
+Legacy Endpoint não concede Internet ou egress pelo Accelerator. Caso um fluxo
+futuro precise de conexão externa, `NETWORK_EGRESS` continuará sendo autoridade
+separada, dependente de configuração, autorização e policy. Compute remoto
+também não concede egress, e nenhum desses comportamentos está implementado na
+baseline atual.
+
 ## Compute offload versus network egress
 
 Processamento no Accelerator e origem de conexões externas são decisões independentes:
