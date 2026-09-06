@@ -34,6 +34,34 @@ não iniciada.
 
 O sistema deve permanecer independente de cliente, sistema operacional, transport e mecanismo de computação. Windows é a primeira plataforma implementada, não a arquitetura do produto. Extensões devem preservar compatibilidade, falhar de modo seguro e permitir degradação graciosa e fallback local pelo cliente.
 
+PapinhoBrowser é um consumidor inicial e importante, mas não define sozinho a
+identidade arquitetural do servidor ou do protocolo:
+
+```text
+PapinhoAccelerator
+        ↓
+public/client integration boundary futura
+        ↓
+consumers
+        ├── PapinhoBrowser
+        ├── outros clientes Papinho futuros
+        ├── aplicações especializadas futuras
+        └── futura client library / SDK
+```
+
+```text
+PapinhoBrowser é um consumidor
+        !=
+PapinhoAccelerator é Browser-specific
+```
+
+Essa fronteira pública ainda não está implementada ou congelada e não declara
+integração disponível para terceiros nem suporte a browsers externos. Algumas
+capabilities poderão ser mais genéricas, como processamento de mídia, compute,
+network egress e `TLS_OFFLOAD`; outras poderão exigir integração mais profunda,
+como HTML/CSS/layout, display commands, framebuffer ou futura renderização web
+remota. Esses exemplos não constituem uma matriz de suporte implementado.
+
 ## Camadas
 
 Para o Secure Principal, a composição planejada é:

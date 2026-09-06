@@ -81,6 +81,60 @@ Desligar `TLS_OFFLOAD` significa apenas não delegar TLS de conexões externas. 
 
 Local de execução é diferente de implementação: `VIDEO_DECODE` remoto pode usar CPU, GPU, biblioteca, decoder físico, FPGA ou ASIC sem mudar a identidade conceitual da capability. Também é diferente de network egress: computar remotamente não concede uso do IP do servidor.
 
+## Dimensões ortogonais de uma solicitação
+
+Uma futura solicitação ou configuração pode combinar quatro dimensões
+conceitualmente independentes:
+
+| Dimensão | Pergunta respondida |
+|---|---|
+| Capability | O QUE deve ser feito |
+| Execution Location | ONDE o processamento ocorre |
+| Network Origin / Egress Authority | QUEM abre e possui a conexão externa, quando houver |
+| Output Profile | EM QUE representação ou formato o resultado deve ser entregue |
+
+```text
+Capability
+        !=
+Execution Location
+        !=
+Network Egress Authority
+        !=
+Output Profile
+```
+
+`Network Origin` só é relevante quando o fluxo possui conexão externa.
+`Output Profile` pode não se aplicar a determinada capability. Execution
+Location permanece independente do backend concreto que executa o trabalho.
+Essas dimensões são um modelo conceitual: não definem campos, enums, IDs ou
+encoding do Wire Protocol.
+
+Exemplos conceituais, sem declarar suporte:
+
+```text
+Capability:      VIDEO_TRANSCODE
+Execution:       ACCELERATOR
+Network Origin:  CLIENT
+Output Profile:  WIN95_BASE
+
+Capability:      IMAGE_DECODE
+Execution:       ACCELERATOR
+Network Origin:  CLIENT
+Output Profile:  ORIGINAL / compatible result
+```
+
+As quatro dimensões não substituem negociação, policy ou autorização. O
+resultado continua sujeito à interseção do ADR-0005:
+
+```text
+SERVER_SUPPORTED
+        ∩ SERVER_ENABLED
+        ∩ USER_ALLOWED
+        ∩ CLIENT_SUPPORTED
+        ∩ CLIENT_PREFERENCE
+        = EFFECTIVE_CONFIGURATION
+```
+
 ## Política e quotas
 
 Autorização deve ser granular (por exemplo, permitir `IMAGE_DECODE` e negar network egress). Futuras políticas podem limitar Sessions, CPU, RAM, banda, streams simultâneos, jobs e parâmetros por capability. Reserva e consumo deverão ser contabilizados e liberados no cleanup; ultrapassar limites deve falhar de modo controlado.

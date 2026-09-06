@@ -62,10 +62,42 @@ future external-TLS processing path
 Capability, backend availability, policy e configuração efetiva seguem o
 ADR-0005.
 
-### Duas conexões e relações de segurança independentes
+### Modelos conceituais de ownership do transport externo
 
-No cenário futuro em que o Accelerator seja autorizado a abrir uma conexão
-externa e `TLS_OFFLOAD` esteja efetivo, existem duas conexões independentes:
+Existem pelo menos dois modelos possíveis para uma implementação futura. Esta
+baseline não escolhe entre eles.
+
+#### Modelo A — client-owned external transport
+
+```text
+external service
+      ↕
+external transport originado e possuído pelo cliente
+      ↕
+cliente Papinho
+      ↕ fluxo seguro / processamento TLS assistido
+PapinhoAccelerator
+```
+
+Nesse modelo conceitual, o destino externo continua vendo a origem de rede do
+cliente enquanto o Accelerator auxilia ou realiza parte do processamento
+seguro. `client-owned external transport` ainda precisa ser desenhado. Não se
+presume viabilidade com API ou wire atuais, retransmissão de TLS records,
+ownership de socket específico, suporte do PST ou qualquer outro mecanismo.
+
+#### Modelo B — Accelerator-owned external transport
+
+```text
+cliente Papinho
+      ↓ solicitação autorizada
+PapinhoAccelerator
+      ↓ conexão externa originada pelo Accelerator
+external service
+```
+
+Esse modelo exige autoridade e policy de `NETWORK_EGRESS_ACCELERATOR` e pode
+também usar `TLS_OFFLOAD` ou outro processamento seguro externo. Quando ambos
+forem efetivos, existem duas conexões e relações de segurança independentes:
 
 ```text
 CONEXÃO 1 — Transport Security do PapinhoAccelerator
@@ -101,8 +133,15 @@ possível conexão segura externa pelo Accelerator no futuro
 
 Cada autoridade deve ser concedida e avaliada separadamente. `TLS_OFFLOAD` não
 permite que o Accelerator abra conexões externas, e a permissão de egress não
-habilita processamento TLS. A composição acima também depende da policy da
-Session, do destino e do protocolo, além de implementação futura.
+habilita processamento TLS. Portanto, são possibilidades futuras distintas:
+
+```text
+A. TLS_OFFLOAD + client-owned external transport
+B. TLS_OFFLOAD + Accelerator-owned external transport
+```
+
+No modelo B, a composição também depende da policy da Session, do destino e do
+protocolo, além de implementação futura.
 
 Essa composição não enfraquece o primeiro hop. Se o Secure Principal não puder
 atender ao perfil de Transport Security vigente, ele permanece indisponível ou
@@ -148,7 +187,8 @@ Status geral: `concept`.
 | Nome conceitual | concept | `TLS_OFFLOAD`; nome/ID definitivo não congelado |
 | Capability Negotiation | not-implemented | Framework e wire ainda ausentes |
 | Processamento TLS externo | not-implemented | Nenhum fluxo externo implementado |
-| Network egress | not-implemented | Autoridade separada; composição conceitual documentada |
+| External transport ownership | concept | Modelos client-owned e Accelerator-owned ainda não escolhidos |
+| Network egress | not-implemented | Autoridade separada; exigida para o modelo Accelerator-owned |
 | Policy/autorização específica | not-implemented | Regras específicas pendentes |
 | Backend | not-implemented | Nenhuma biblioteca selecionada para esta capability |
 | Fallback | unknown | Sem decisão específica além de não enfraquecer segurança |
@@ -193,6 +233,7 @@ Nenhum target declara suporte implementado ou testado para esta capability.
 ## Pendências
 
 - [ ] Definir o contrato funcional da capability.
+- [ ] Escolher e definir modelo(s) de ownership do transport externo.
 - [ ] Definir contrato concreto de composição com network egress.
 - [ ] Definir policy, autorização, quotas e destination handling.
 - [ ] Definir fallback sem downgrade de segurança.
@@ -209,9 +250,11 @@ Essas ideias não são decisões nem suporte atual.
 
 ## Questões em aberto
 
-- Quem abre e possui a conexão externa?
+- Quais modelos de ownership serão suportados e quem possui cada conexão?
 - Quais dados atravessam CONTROL/DATA?
 - Quais destinos, protocolos e redirects são permitidos?
+- Como DNS, proxy semantics, cancellation e quotas se compõem em cada modelo?
+- PST ou outro backend poderá participar do modelo client-owned e por qual contrato?
 - Existe fallback local e em quais condições?
 - Quais backends e perfis externos serão suportados?
 
@@ -245,3 +288,4 @@ ausência de implementação no source tree sustentam o status `concept`.
 |---|---|
 | 2026-09-06 | Criação inicial do Capability Document após a migração das decisões arquiteturais para ADRs. |
 | 2026-09-06 | Registrado o racional de ponte temporal, as duas relações de segurança independentes e a separação de autoridade entre TLS offload e network egress. |
+| 2026-09-06 | Preservados, sem escolha arquitetural, os modelos conceituais client-owned e Accelerator-owned para o transport externo. |
