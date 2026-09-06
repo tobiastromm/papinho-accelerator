@@ -62,7 +62,7 @@ O protocolo entregue na Phase 2 é somente a base estrutural de transporte, fram
 ## Uso atual no Windows
 
 ```text
-papacc_server
+papacc_server.exe --help
 papacc_server --list-interfaces
 papacc_server --port <porta> --all-interfaces
 papacc_server --port <porta> --interface-id <persistent-id>
@@ -73,12 +73,17 @@ Não existe porta oficial ou default. O modo RUN exige `--port` e uma decisão e
 
 `--log-level` aceita `off`, `error`, `warn`, `info` (default) e `debug`. `off` desabilita somente toda saída do `PAPACC_LOGGER`; saídas funcionais de `--help` e `--list-interfaces` permanecem disponíveis. INFO registra lifecycle estrutural de listeners, Connections, Sessions, tickets e DATA attachment. Tickets completos e payloads nunca são registrados. IDs mostrados são somente IDs runtime locais e não são serializados no Wire Protocol.
 
+Consulte a [CLI Reference](docs/cli.md) para todas as opções implementadas,
+regras de combinação, formato de inspeção e exemplos. Os valores usados nos
+exemplos não são defaults oficiais.
+
 ## Validação com consumidor real
 
 O primeiro consumidor real foi validado: PapinhoBrowser em Windows NT 4.0 acessou por LAN TCP o PapinhoAccelerator executado em Windows moderno e concluiu `CONTROL_OPEN` → `CONTROL_ACCEPT` → solicitação de ticket → segunda conexão TCP → `DATA_ATTACH` → `DATA_ACCEPT`. PapinhoBrowser permaneceu funcional e o Accelerator permaneceu opcional. Isto valida a integração estrutural da Phase 2; não inicia Phase 3 nem implica autenticação, Transport Security ou processamento de payload DATA.
 
 ## Documentação
 
+- [CLI Reference](docs/cli.md)
 - [Arquitetura](docs/architecture.md)
 - [Visão do protocolo](docs/protocol-overview.md)
 - [Capabilities](docs/capabilities.md)
