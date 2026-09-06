@@ -11,6 +11,10 @@ formalized in:
 Those ADRs are the later canonical architectural authorities. This checkpoint
 continues to preserve its original threat analysis, conclusions and evidence.
 
+Later state note: PapinhoSecureTransport was subsequently implemented as the
+independent library selected for future Accelerator integration. Statements
+below describing a future abstraction remain accurate for this checkpoint.
+
 Status: authoritative Phase 3.A1 architecture checkpoint. It builds on the
 validated `PHASE 2 READY` baseline; it does not change Phase 2 bytes or claim
 that security is implemented. Its previously open mechanism questions are now

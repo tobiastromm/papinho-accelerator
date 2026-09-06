@@ -5,6 +5,11 @@ closeout da Phase 3. A decisão arquitetural canônica foi formalizada
 posteriormente em
 [`ADR-0001 — Secure Principal e Legacy Endpoint`](adr/ADR-0001-secure-principal-e-legacy-endpoint.md).
 
+Nota retrospectiva de estado: PapinhoSecureTransport foi posteriormente criado
+como biblioteca independente e passou a ser a implementação escolhida da
+fronteira Secure Transport para futura integração do Secure Principal. As
+afirmações históricas abaixo sobre ele ainda ser futuro permanecem preservadas.
+
 Status: architectural decision recorded after the successful 3.A2B-R3 backend
 closeout. This document defines direction only. Neither profile, listener,
 security runtime nor `PapinhoSecureTransport` is implemented here, and Phase

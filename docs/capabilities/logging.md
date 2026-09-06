@@ -145,7 +145,8 @@ A PAL/sink determina onde e como o evento aparece; nível e semântica pertencem
 
 ## Integração com PapinhoSecureTransport
 
-PST não cria um segundo sistema visual de logging:
+PST já existe como biblioteca independente, mas ainda não está integrado ao
+Accelerator. A integração futura não cria um segundo sistema visual de logging:
 
 ```c
 logging.callback = accelerator_on_pst_log;
@@ -207,7 +208,7 @@ O logger ainda é parcial diante da gramática transversal completa.
 | nível global | implemented | Um `log_level` por execução do servidor |
 | GUI | planned | Futura GUI |
 | PAL/sinks | partial | Timestamp usa PAL; console sink pertence à aplicação |
-| PST adapter | not-implemented | PapinhoSecureTransport ainda não está integrado |
+| PST adapter | not-implemented | PST existe; falta o adapter PST → logger do Accelerator |
 | local+remote endpoint | partial | `remote` existe; `local` ainda não é registrado |
 
 ## Pendências

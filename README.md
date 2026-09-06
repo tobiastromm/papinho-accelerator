@@ -19,8 +19,15 @@ o closeout 3.A2B. O perfil normal é TLS 1.3 mTLS, com CA
 privada/administrativa e certificado individual por dispositivo cliente. O
 RetroZilla NSS/NSPR foi comprovado como backend TLS legado em VC6/Windows NT
 4.0 SP6, inclusive com entropia segura normal e falha de entropia fail-closed.
-Isso é viabilidade de backend, não integração: autenticação e Transport
-Security continuam não implementadas. Phase 3.B não foi iniciada. A
+PapinhoSecureTransport (PST) foi posteriormente implementado como biblioteca
+independente e está pronto para ser consumido pelo Accelerator através de sua
+API pública. A futura integração do Secure Principal usará PST; o Accelerator
+não integrará NSS/NSPR diretamente. NSS/NSPR permanece um provider legado do
+PST, não uma dependência direta do Core.
+
+PST pronto não significa Transport Security integrada: autenticação,
+autorização e Transport Security continuam não implementadas no Accelerator.
+Phase 3.B não foi iniciada. A
 baseline possui modelos portáteis em C99 e um
 servidor Win32 estruturalmente operacional:
 
@@ -49,6 +56,8 @@ O protocolo entregue na Phase 2 é somente a base estrutural de transporte, fram
 - PAL, backend de discovery e backend TCP Win32 como primeira implementação de plataforma.
 - Control/Data Channels e Sessions estruturais entregues; capabilities e Compute Backends permanecem desenho futuro.
 - Transport Security protege conceitualmente os canais do próprio PapinhoAccelerator e é independente da capability futura `TLS_OFFLOAD`, voltada a conexões externas do cliente.
+- Secure Principal consumirá PapinhoSecureTransport; Legacy Endpoint permanece
+  plaintext explicitamente configurado e não passa pelo PST.
 
 ## Uso atual no Windows
 

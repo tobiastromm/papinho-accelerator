@@ -12,10 +12,12 @@ Este resumo permanece alinhado com ele; detalhes de ameaças, fluxos, gates e
 decisões então pendentes estão lá. As autoridades arquiteturais canônicas
 posteriores são os ADRs listados acima.
 
-Este documento originalmente registrou requisitos sem escolher mecanismo. A
-3.A2A agora seleciona o perfil e o modelo de credencial iniciais, mas ainda não
-escolhe biblioteca TLS, backend nem implementação criptográfica. Criptografia
-própria é proibida.
+Este documento originalmente registrou requisitos sem escolher mecanismo. O
+ADR-0006 define o profile/policy do Accelerator. PapinhoSecureTransport (PST)
+foi posteriormente implementado como biblioteca independente e é a abstração
+Secure Transport pronta para consumo. Providers concretos permanecem
+selecionáveis por target; nenhum provider é universalmente obrigatório.
+Criptografia própria é proibida.
 
 **Estado de implementação:** não existem autenticação, Transport Security nem
 `TLS_OFFLOAD`. O servidor processa Control establishment; E1 apenas congela um
@@ -42,8 +44,23 @@ O perfil revisado foi congelado em [Phase 3 Transport Security and Credential
 Profile](phase3-transport-security-profile.md): TLS 1.3 mTLS, CA
 privada/administrativa, certificado individual por dispositivo cliente, sem
 0-RTT, resumption ou fallback. A validação 3.A2B-R3 comprovou RetroZilla
-NSS/NSPR como backend legado viável; ele ainda não está integrado ao produto.
+NSS/NSPR como backend legado viável. Esse backend hoje pertence ao PST; o
+Accelerator não integra NSS/NSPR diretamente e ainda não integrou PST.
 PapinhoAccelerator não deve inventar um protocolo criptográfico próprio.
+
+```text
+PROFILE / POLICY
+    → ADR-0006 e policy do Accelerator
+
+SECURE TRANSPORT ABSTRACTION
+    → PapinhoSecureTransport, existente e pronto para consumo
+
+CONCRETE PST PROVIDER PER TARGET
+    → selecionável/substituível; nenhum provider universal obrigatório
+
+INTEGRATION INTO ACCELERATOR
+    → ainda não implementada
+```
 
 A decisão arquitetural posterior define os perfis futuros
 [Secure Principal e Legacy Endpoint](phase3-transport-profiles.md). Legacy
@@ -85,7 +102,13 @@ Autenticação estabelece uma identidade; autorização decide o que essa identi
 - Cleanup seguro, cancelamento e isolamento de falhas entre Sessions.
 - Erros e logs que sejam úteis sem vazar credenciais, tokens ou dados sensíveis.
 
-Transport Security deverá fornecer essas propriedades por mecanismo futuro, sem biblioteca fixada nesta baseline. Sua configuração é independente da negociação de `TLS_OFFLOAD`.
+Transport Security deverá fornecer essas propriedades no Accelerator por meio
+do PST. A policy específica continua pertencendo ao Accelerator e sua
+configuração permanece independente da negociação de `TLS_OFFLOAD`.
+
+Secure Principal usa PST. Legacy Endpoint permanece Transport/PACC plaintext
+explicitamente configurado, não passa pelo PST e não é representado como
+`PST_BACKEND_NONE`, `PST_TLS_OFF` ou outro pseudo-provider.
 
 ## Data Channels e Sessions
 

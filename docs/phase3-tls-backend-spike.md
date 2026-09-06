@@ -6,6 +6,10 @@ was later formalized in
 This report preserves its original alternatives, evidence and NOT READY
 checkpoint; the ADR does not retroactively change those results.
 
+Later state note: PapinhoSecureTransport was subsequently implemented as the
+independent library selected for future Accelerator integration. Statements
+below describing it as future remain part of this historical report.
+
 Status: authoritative compatibility report, 2026-08-29. Result: **NOT READY**.
 The frozen [Transport Security profile](phase3-transport-security-profile.md)
 was not weakened. This spike added no production integration, dependency or

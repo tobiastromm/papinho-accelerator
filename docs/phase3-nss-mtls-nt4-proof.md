@@ -6,6 +6,10 @@ later formalized in
 The ADR is the canonical architectural authority; all proof results and
 historical checkpoints below remain preserved.
 
+Later state note: PapinhoSecureTransport was subsequently implemented as the
+independent library selected for future Accelerator integration. RetroZilla
+NSS/NSPR is encapsulated as a PST provider, not integrated directly here.
+
 Status: final backend closeout, 2026-08-30: **READY**. Earlier NOT READY
 checkpoints remain below as explicitly historical investigation records.
 No production source, CMake target, PACC message, credential, TLS integration,

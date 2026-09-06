@@ -75,9 +75,31 @@ Quando política ou configuração exigir canal seguro, todos os canais relevant
 
 O perfil concreto do `Secure Principal` é TLS 1.3 mTLS, conforme o
 [ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
-Nenhum backend TLS universal foi escolhido. RetroZilla NSS/NSPR foi comprovado
-tecnicamente como candidato de backend legado; essa prova não o transforma em
-backend universal nem em implementação integrada ao produto.
+PapinhoSecureTransport (PST) já existe e será a implementação da fronteira
+Secure Transport consumida pelo Accelerator. Nenhum provider PST é universal:
+o provider pode variar por target. RetroZilla NSS/NSPR foi comprovado
+tecnicamente como provider legado, mas permanece encapsulado pelo PST e não é
+integrado diretamente ao Core do Accelerator.
+
+```text
+Transport
+    ↓
+PST public API
+    ↓
+provider-specific secure transport
+    ↓
+decrypted/authenticated stream for Accelerator processing
+```
+
+O Transport genérico continua separado: Legacy Endpoint segue diretamente por
+Transport/PACC plaintext explicitamente configurado e não usa PST, backend
+plaintext, `PST_BACKEND_NONE` ou `PST_TLS_OFF`.
+
+O scheduler do Accelerator deve integrar o contrato de readiness do PST em vez
+de presumir equivalência com readiness do socket. No provider NSS, a evidência
+comprovou `PR_Poll` sobre o descriptor SSL; outros providers podem usar seu
+próprio mecanismo. A composição preservará os invariantes nonblocking, bounded
+e fair do ADR-0004.
 
 `TLS_OFFLOAD` trata separadamente de auxílio TLS para conexões do cliente com sites/serviços externos. Sua negociação não governa a proteção dos canais do PapinhoAccelerator.
 

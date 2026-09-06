@@ -22,13 +22,41 @@ As decisões arquiteturais canônicas posteriores permanecem nos ADRs acima.
 
 As Phases 1 e 2 implementam a Foundation portátil e, no Windows, discovery de interfaces, resolução persistente de bind, WinSock, listeners, aceitação não bloqueante, Sessions, Control/Data Channels estruturais, framing e os fluxos de estabelecimento CONTROL e associação DATA por ticket one-time. O executável integra esses componentes em um único loop `select()` e encerra de forma graciosa por Ctrl+C/Ctrl+Break.
 
-Autenticação, autorização, Transport Security, Capability Negotiation, protocolo de aplicação pós-DATA e Compute Backends permanecem trabalho futuro. Session `ACTIVE` nesta baseline significa somente estabelecimento estrutural concluído; não significa autenticada, autorizada, confiável ou segura.
+PapinhoSecureTransport (PST) já existe como biblioteca independente e está
+pronto para consumo. Sua integração, assim como autenticação, autorização,
+Transport Security no Accelerator, Capability Negotiation, protocolo de
+aplicação pós-DATA e Compute Backends, permanece trabalho futuro. Session
+`ACTIVE` nesta baseline significa somente estabelecimento estrutural concluído;
+não significa autenticada, autorizada, confiável ou segura. Phase 3.B permanece
+não iniciada.
 
 ## Objetivos
 
 O sistema deve permanecer independente de cliente, sistema operacional, transport e mecanismo de computação. Windows é a primeira plataforma implementada, não a arquitetura do produto. Extensões devem preservar compatibilidade, falhar de modo seguro e permitir degradação graciosa e fallback local pelo cliente.
 
 ## Camadas
+
+Para o Secure Principal, a composição planejada é:
+
+```text
+Transport
+    ↓
+PapinhoSecureTransport (PST)
+    ↓ TLS 1.3 mTLS configurado pela policy do Accelerator
+authenticated peer result
+    ↓
+Accelerator Principal mapping / authorization
+    ↓
+PACC Framing
+    ↓
+CONTROL / DATA
+```
+
+PST implementa a fronteira Secure Transport consumida pelo Accelerator. O
+Accelerator depende da API pública do PST, não diretamente de NSS/NSPR,
+Schannel, OpenSSL ou tipos de provider. Providers permanecem substituíveis e
+privados ao PST. Em sentido inverso, PST não conhece PACC, CONTROL, DATA,
+Session, capabilities ou policy de produto do Accelerator.
 
 ```text
 Clientes independentes (PapinhoBrowser é apenas o primeiro)
@@ -87,15 +115,41 @@ O Control Plane estabelece e governa a Session: identificação, autenticação,
 
 Em TCP, uma Session usará conceitualmente um Control Channel e zero ou mais Data Channels. A associação Data Channel–Session deve ser autenticada, íntegra, resistente a associação indevida/replay quando aplicável e submetida aos mesmos limites e políticas. O perfil 3.A2A exige igualdade de principal mais ticket estrutural e autorização; a operação/API atômica concreta permanece para 3.D.
 
-Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil revisado é TLS 1.3 mTLS, com CA privada/administrativa e certificado individual por dispositivo cliente, conforme [Phase 3 Transport Security and Credential Profile](phase3-transport-security-profile.md). O closeout 3.A2B-R3 comprovou RetroZilla NSS/NSPR como primeiro backend legado viável; integração de produção permanece futura.
+Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil revisado é TLS 1.3 mTLS, com CA privada/administrativa e certificado individual por dispositivo cliente, conforme [Phase 3 Transport Security and Credential Profile](phase3-transport-security-profile.md). O closeout 3.A2B-R3 comprovou RetroZilla NSS/NSPR como backend legado viável. PST foi posteriormente implementado e é a biblioteca escolhida para materializar a fronteira Secure Transport; integração no Accelerator permanece futura.
 
 A direção posterior distingue [Secure Principal e Legacy Endpoint](phase3-transport-profiles.md). O primeiro exige TLS 1.3 mTLS; o segundo é plaintext explicitamente habilitado, desabilitado por padrão e sem identidade criptográfica forte. Listeners distintos são recomendados. Falha no perfil seguro nunca seleciona o perfil legado.
 
 Cada conexão TCP CONTROL ou DATA deverá estabelecer proteção própria. Como
 Transport Security fica abaixo de Framing, a composição futura será `accept ->
-security establishment -> classifier -> framing`; contextos criptográficos
-ficarão separados das entidades portáteis `PAPACC_CONNECTION` e
-`PAPACC_SESSION`.
+PST security establishment -> authenticated peer result -> Accelerator
+Principal/authorization -> classifier -> framing`; contextos do PST ficarão
+separados das entidades portáteis `PAPACC_CONNECTION` e `PAPACC_SESSION`.
+
+Readiness de secure transport não é presumida equivalente à readiness do
+socket nativo. O scheduler consumirá o contrato público de readiness do PST,
+que delega ao provider o mecanismo apropriado. A evidência NSS demonstrou
+`PR_Poll` sobre o descriptor SSL como a representação correta de interesse TLS,
+enquanto `select()` nativo observa somente o transporte. A integração deve
+preservar nonblocking I/O, bounded work, fairness e `WOULD_BLOCK` normal do
+ADR-0004.
+
+Legacy Endpoint não usa PST, não é backend plaintext/none/off do PST e nunca é
+selecionado após falha do Secure Principal.
+
+## Plano de integração e validação
+
+Esta sequência é plano de integração, não ADR nem definição de subfases:
+
+1. PST standalone → PASS, concluído no projeto PST.
+2. PapinhoAccelerator + PST → Secure Principal TLS 1.3 mTLS → PASS.
+3. PapinhoBrowser ↔ PapinhoAccelerator → Secure Principal CONTROL/DATA → PASS.
+4. PapinhoBrowser + PST → HTTPS real → PASS.
+
+Quando a Phase 3.B for retomada, ela deve consumir a API pública pronta do PST
+e concentrar-se em composição, policy do Secure Principal, readiness,
+ownership/lifecycle, Principal mapping, autorização, logging por adapter e
+preservação dos lifecycles CONTROL/DATA. Ela não deve reprojetar Secure
+Transport nem criar um wrapper TLS próprio do Accelerator.
 
 ## Session
 

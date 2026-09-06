@@ -9,6 +9,10 @@ document were later formalized in:
 
 The historical conclusions and evidence below remain preserved.
 
+Later state note: PapinhoSecureTransport was subsequently implemented as an
+independent library and selected for future Accelerator integration. Historical
+statements below that it did not yet exist remain true for this checkpoint.
+
 Status: authoritative Phase 3.A2A-R1 security-profile revision. It supersedes
 the initial external-PSK choice made by Phase 3.A2A. The earlier choice and its
 backend investigation remain historical evidence; they are not normative.

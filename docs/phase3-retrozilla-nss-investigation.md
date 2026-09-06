@@ -5,6 +5,10 @@ investigation was later formalized in
 [ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
 The investigation evidence and its historical conclusions remain unchanged.
 
+Later state note: PapinhoSecureTransport was subsequently implemented and
+selected for future Accelerator integration. References below to a future or
+not-yet-created component remain accurate for this historical checkpoint.
+
 Status: authoritative investigation result, 2026-08-29. The investigation is
 **READY**; Phase 3.A2B remains **NOT READY**. No production code, build file,
 wire definition, credential or security profile was changed.

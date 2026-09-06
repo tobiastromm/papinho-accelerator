@@ -5,13 +5,20 @@ estão registradas nos [ADRs locais](adr/). As specifications referenciadas
 neste documento continuam sendo a autoridade normativa para bytes, frames,
 mensagens e comportamento wire.
 
-A arquitetura de segurança que futuramente envolverá estes bytes está congelada
-em [Phase 3 Security Architecture and Threat Model](phase3-security-architecture.md).
-A Phase 3.A1 não altera o registry nem implementa segurança.
+A arquitetura e o perfil de segurança que protegerão estes bytes estão
+decididos nos ADRs locais e detalhados em [Phase 3 Security Architecture and
+Threat Model](phase3-security-architecture.md). A Phase 3.A1 não alterou o
+registry nem implementou segurança.
 O perfil revisado da 3.A2A-R1 seleciona TLS 1.3 mTLS com CA
 privada/administrativa e certificado individual por dispositivo cliente abaixo
 do framing, sem introduzir mensagens PACC; veja [Phase 3 Transport Security and
 Credential Profile](phase3-transport-security-profile.md).
+
+PapinhoSecureTransport (PST) já existe como biblioteca independente e será
+consumido abaixo do framing para o Secure Principal. Essa disponibilidade não
+altera os bytes PACC nem significa integração concluída: Transport Security e
+autenticação continuam não implementadas no Accelerator, e Phase 3.B ainda não
+foi iniciada. Legacy Endpoint não passa pelo PST.
 
 Phase 2.D3B integra `CONTROL_OPEN` -> `CONTROL_ACCEPT` ao RUN mode Win32 real.
 Phase 2.E1 congela, sem implementar, associação estrutural DATA por ticket
