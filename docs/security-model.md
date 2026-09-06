@@ -90,6 +90,14 @@ decididos por este documento.
 
 Autenticação estabelece uma identidade; autorização decide o que essa identidade pode fazer. São etapas independentes. Uma identidade pode, por exemplo, usar decode e framebuffer, mas não transcoding ou network egress. A autorização deve considerar capability, parâmetros, local de execução, egress e quotas.
 
+A experiência futura de first-use trust e enrollment está registrada no
+[Capability Document de Client Pairing](capabilities/client-pairing.md). Ele
+traduz o perfil canônico do ADR-0006 para UX conceitual sem definir mensagens
+PACC, GUI ou implementação. Código de pairing, nome e IP não são identidade do
+servidor; private keys de cliente permanecem no cliente; enrollment aprovado
+resulta em credencial/Principal submetido a policy, não em autorização
+irrestrita.
+
 ## Propriedades obrigatórias
 
 - Confidencialidade e integridade para controle e dados quando o cenário exigir transport seguro.

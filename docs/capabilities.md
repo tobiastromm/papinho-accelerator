@@ -13,7 +13,8 @@ Capability Documents disponíveis:
 
 - [Logging e diagnóstico operacional](capabilities/logging.md);
 - [TLS Offload para conexões externas](capabilities/tls-offload.md);
-- [Network Egress](capabilities/network-egress.md).
+- [Network Egress](capabilities/network-egress.md);
+- [Client Pairing e Enrollment](capabilities/client-pairing.md).
 
 Capabilities são unidades independentes, extensíveis, negociáveis e versionáveis. Seus IDs futuros deverão ser estáveis; esta baseline não atribui números.
 
