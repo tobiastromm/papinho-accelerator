@@ -98,7 +98,7 @@ Status geral: `concept`.
 | Configuration Model | partial | `allow_network_egress` existe e é validado/copiado |
 | CLI source | partial | opção existente compõe o campo de configuração |
 | Policy por Principal/Session | not-implemented | autenticação/autorização ainda ausentes |
-| External connection | not-implemented | servidor não abre conexões externas |
+| External connection | experimental-proof | harness isolado abre somente google.com:443; servidor não abre conexões externas |
 | Destination validation | not-implemented | sem regras concretas |
 | DNS/redirect handling | not-implemented | sem resolver/seguir destinos |
 | Quotas/observabilidade | not-implemented | sem consumo de egress |
@@ -108,6 +108,8 @@ Status geral: `concept`.
 - campo portátil `allow_network_egress` no Server Configuration Model;
 - initializer, validation/copy e parsing CLI associados;
 - testes da composição/configuração desse campo.
+- harness opt-in isolado de DNS/TCP para `google.com:443`, usado somente pela
+  prova PST/TLS 1.3.
 
 Esses itens implementam configuração parcial, não a capability de egress.
 
@@ -117,7 +119,7 @@ Esses itens implementam configuração parcial, não a capability de egress.
 
 ## Não implementado
 
-- conexão externa;
+- conexão externa no servidor/caminho de produção;
 - proxy;
 - policy por Principal/Session;
 - autorização de destino;
@@ -137,8 +139,9 @@ conforme a governança transversal de configuração.
 
 ## Compatibilidade
 
-Nenhum target declara network egress funcional. O campo de configuração é
-portátil; não há backend de egress suportado ou testado.
+Nenhum target declara network egress funcional. O harness foi testado no host
+do target PST `win32-x64-msvc-19.51-openssl3`; isso não constitui backend de
+egress nem suporte da capability.
 
 ## Limitações conhecidas
 
@@ -187,6 +190,7 @@ Essas possibilidades não estão decididas.
 - `apps/server/server_config.h`
 - `apps/server/server_config.c`
 - `apps/server/server_cli.c`
+- `tests/pst_tls13_outbound_proof.c` — prova isolada, fora do servidor.
 
 ## Testes / evidências
 
@@ -195,6 +199,8 @@ Essas possibilidades não estão decididas.
 - `tests/server_network_test.c` — composição aceita a configuração sem implementar egress.
 
 Code/Tests evidenciam somente a configuração parcial descrita acima.
+O harness opt-in evidenciou DNS e TCP para o destino fixo `google.com:443`,
+sem aceitar destino do cliente, sem proxy e sem integrar o CTest regular.
 
 ## Documentos relacionados
 
@@ -208,3 +214,4 @@ Code/Tests evidenciam somente a configuração parcial descrita acima.
 | Data | Descrição |
 |---|---|
 | 2026-09-06 | Criação inicial do Capability Document com estado factual de configuração parcial e egress não implementado. |
+| 2026-09-06 | Registrada prova outbound isolada para destino fixo, sem promover network egress de produção a implementado. |

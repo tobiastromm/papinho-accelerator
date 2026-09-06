@@ -186,21 +186,25 @@ Status geral: `concept`.
 |---|---|---|
 | Nome conceitual | concept | `TLS_OFFLOAD`; nome/ID definitivo não congelado |
 | Capability Negotiation | not-implemented | Framework e wire ainda ausentes |
-| Processamento TLS externo | not-implemented | Nenhum fluxo externo implementado |
+| Processamento TLS externo | experimental-proof | Harness isolado comprova Accelerator → PST → google.com:443; sem fluxo de produção |
 | External transport ownership | concept | Modelos client-owned e Accelerator-owned ainda não escolhidos |
-| Network egress | not-implemented | Autoridade separada; exigida para o modelo Accelerator-owned |
+| Network egress | experimental-proof | Somente harness explícito; autoridade e fluxo de produção continuam ausentes |
 | Policy/autorização específica | not-implemented | Regras específicas pendentes |
-| Backend | not-implemented | Nenhuma biblioteca selecionada para esta capability |
+| Backend | experimental-proof | PST v0.4.0/OpenSSL 3 no target validado; sem seleção de backend da capability de produção |
 | Fallback | unknown | Sem decisão específica além de não enfraquecer segurança |
 
 ## Implementado
 
 - somente a separação documental e arquitetural entre `TLS_OFFLOAD` e
-  Transport Security.
+  Transport Security;
+- pin e aquisição reproduzível da release PST `v0.4.0`;
+- prova vertical opt-in e isolada de TLS 1.3 outbound para `google.com:443`,
+  com validação de cadeia, hostname e resposta HTTPS.
 
 ## Parcialmente implementado
 
-- nenhuma execução parcial da capability;
+- a prova exercita somente a mecânica PST/TLS outbound e não constitui a
+  capability negociável nem um caminho servido ao cliente;
 - a infraestrutura de configuração possui conceitos gerais de policy/egress,
   mas não configura `TLS_OFFLOAD`.
 
@@ -208,8 +212,8 @@ Status geral: `concept`.
 
 - negociação;
 - wire IDs/messages;
-- TLS de conexões externas;
-- backend;
+- TLS de conexões externas no servidor/caminho de produção;
+- seleção e lifecycle do backend da capability de produção;
 - proxy/network flow;
 - policy e quotas específicas;
 - fallback local ou remoto específico.
@@ -222,11 +226,12 @@ Security por efeito colateral.
 
 ## Compatibilidade
 
-Nenhum target declara suporte implementado ou testado para esta capability.
+O target factual `win32-x64-msvc-19.51-openssl3` da release PST `v0.4.0` foi
+testado no harness. Isso não declara suporte implementado à capability geral.
 
 ## Limitações conhecidas
 
-- conceito sem implementação;
+- conceito sem implementação de produção, com prova vertical experimental;
 - composição concreta, ownership e lifecycle dos fluxos externos ainda não definidos;
 - nenhum protocolo, API, backend, armazenamento ou UI congelado.
 
@@ -267,12 +272,24 @@ Essas ideias não são decisões nem suporte atual.
 
 ## Código relevante
 
-Nenhum código implementa `TLS_OFFLOAD` atualmente.
+- `dependencies/papinho-secure-transport.txt`
+- `tools/acquire-pst-release.ps1`
+- `tests/pst_tls13_outbound_proof.c`
+- `CMakeLists.txt` — targets opt-in de aquisição, build e provas reais.
 
 ## Testes / evidências
 
-Não existem testes funcionais da capability. As auditorias documentais e a
-ausência de implementação no source tree sustentam o status `concept`.
+Em 2026-09-06, o harness opt-in comprovou com a API pública PST:
+
+- DNS e TCP para `google.com:443`;
+- TLS 1.3 (`PST_TLS_VERSION_1_3`, wire `0x0304`);
+- certificado presente, cadeia do servidor e hostname validados;
+- resposta HTTPS `HTTP/1.1 301 Moved Permanently` recebida;
+- rejeição de `wrong-hostname.invalid` como `hostname mismatch`;
+- zero tentativas de porta plaintext nos dois cenários.
+
+O harness não pertence ao CTest regular porque depende de Internet e trust
+store do host. A regressão offline permaneceu em 41/41 testes.
 
 ## Documentos relacionados
 
@@ -289,3 +306,4 @@ ausência de implementação no source tree sustentam o status `concept`.
 | 2026-09-06 | Criação inicial do Capability Document após a migração das decisões arquiteturais para ADRs. |
 | 2026-09-06 | Registrado o racional de ponte temporal, as duas relações de segurança independentes e a separação de autoridade entre TLS offload e network egress. |
 | 2026-09-06 | Preservados, sem escolha arquitetural, os modelos conceituais client-owned e Accelerator-owned para o transport externo. |
+| 2026-09-06 | Registrada a prova vertical experimental PST v0.4.0/TLS 1.3 outbound, sem promover a capability geral a implementada. |

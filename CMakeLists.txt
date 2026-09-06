@@ -4,6 +4,9 @@ project(PapinhoAccelerator VERSION 0.1.0 LANGUAGES C)
 
 include(CTest)
 
+option(PAPACC_ENABLE_PST_OUTBOUND_PROOF
+    "Build the opt-in PST TLS 1.3 Internet proof harness" OFF)
+
 function(papacc_enable_warnings target)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4)
@@ -435,6 +438,17 @@ set_target_properties(papacc_server_cli PROPERTIES
 papacc_enable_warnings(papacc_server_cli)
 
 if(WIN32)
+    find_program(PAPACC_POWERSHELL_EXECUTABLE powershell REQUIRED)
+
+    add_custom_target(papacc_acquire_pst
+        COMMAND ${PAPACC_POWERSHELL_EXECUTABLE}
+            -NoProfile -ExecutionPolicy Bypass
+            -File ${CMAKE_CURRENT_SOURCE_DIR}/tools/acquire-pst-release.ps1
+            -OutputRoot
+            ${CMAKE_BINARY_DIR}/dependencies/papinho-secure-transport
+        COMMENT "Acquire and verify the pinned PapinhoSecureTransport release"
+        VERBATIM)
+
     add_executable(papacc_server
         apps/server/main.c
     )
@@ -615,6 +629,81 @@ if(WIN32)
     )
 
     papacc_enable_warnings(papacc_server)
+
+    if(PAPACC_ENABLE_PST_OUTBOUND_PROOF)
+        set(PAPACC_PST_PIN_FILE
+            "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/papinho-secure-transport.txt")
+        file(STRINGS "${PAPACC_PST_PIN_FILE}" PAPACC_PST_RELEASE_LINE
+            REGEX "^release_tag=")
+        file(STRINGS "${PAPACC_PST_PIN_FILE}" PAPACC_PST_TARGET_LINE
+            REGEX "^target=")
+        list(LENGTH PAPACC_PST_RELEASE_LINE PAPACC_PST_RELEASE_COUNT)
+        list(LENGTH PAPACC_PST_TARGET_LINE PAPACC_PST_TARGET_COUNT)
+        if(NOT PAPACC_PST_RELEASE_COUNT EQUAL 1 OR
+           NOT PAPACC_PST_TARGET_COUNT EQUAL 1)
+            message(FATAL_ERROR
+                "The PST pin must contain exactly one release_tag and target")
+        endif()
+        string(REGEX REPLACE "^release_tag=" ""
+            PAPACC_PST_RELEASE_TAG "${PAPACC_PST_RELEASE_LINE}")
+        string(REGEX REPLACE "^target=" ""
+            PAPACC_PST_TARGET "${PAPACC_PST_TARGET_LINE}")
+        set(PAPACC_PST_SDK_ROOT
+            "${CMAKE_BINARY_DIR}/dependencies/papinho-secure-transport/${PAPACC_PST_RELEASE_TAG}/${PAPACC_PST_TARGET}"
+            CACHE PATH "Verified root of the pinned PST SDK")
+        set(PAPACC_PST_LIB_DIR
+            "${PAPACC_PST_SDK_ROOT}/lib/${PAPACC_PST_TARGET}")
+        set(PAPACC_PST_RUNTIME_DIR
+            "${PAPACC_PST_SDK_ROOT}/runtime/${PAPACC_PST_TARGET}")
+        set(PAPACC_PST_REQUIRED_FILES
+            "${PAPACC_PST_SDK_ROOT}/include/papinho_secure_transport.h"
+            "${PAPACC_PST_SDK_ROOT}/include/papinho_secure_transport_win32.h"
+            "${PAPACC_PST_LIB_DIR}/papinho_secure_transport.lib"
+            "${PAPACC_PST_LIB_DIR}/libssl.lib"
+            "${PAPACC_PST_LIB_DIR}/libcrypto.lib"
+            "${PAPACC_PST_RUNTIME_DIR}/libssl-3-x64.dll"
+            "${PAPACC_PST_RUNTIME_DIR}/libcrypto-3-x64.dll")
+        foreach(PAPACC_PST_REQUIRED_FILE IN LISTS PAPACC_PST_REQUIRED_FILES)
+            if(NOT EXISTS "${PAPACC_PST_REQUIRED_FILE}")
+                message(FATAL_ERROR
+                    "Pinned PST SDK is missing or incomplete. Run the "
+                    "papacc_acquire_pst target before enabling the proof: "
+                    "${PAPACC_PST_REQUIRED_FILE}")
+            endif()
+        endforeach()
+
+        add_executable(papacc_pst_tls13_outbound_proof
+            tests/pst_tls13_outbound_proof.c)
+        target_include_directories(papacc_pst_tls13_outbound_proof PRIVATE
+            "${PAPACC_PST_SDK_ROOT}/include")
+        target_link_libraries(papacc_pst_tls13_outbound_proof PRIVATE
+            "${PAPACC_PST_LIB_DIR}/papinho_secure_transport.lib"
+            "${PAPACC_PST_LIB_DIR}/libssl.lib"
+            "${PAPACC_PST_LIB_DIR}/libcrypto.lib"
+            ws2_32 crypt32)
+        set_target_properties(papacc_pst_tls13_outbound_proof PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_pst_tls13_outbound_proof)
+        add_custom_command(TARGET papacc_pst_tls13_outbound_proof POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${PAPACC_PST_RUNTIME_DIR}/libssl-3-x64.dll"
+                "$<TARGET_FILE_DIR:papacc_pst_tls13_outbound_proof>"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${PAPACC_PST_RUNTIME_DIR}/libcrypto-3-x64.dll"
+                "$<TARGET_FILE_DIR:papacc_pst_tls13_outbound_proof>"
+            VERBATIM)
+        add_custom_target(papacc_pst_tls13_google
+            COMMAND $<TARGET_FILE:papacc_pst_tls13_outbound_proof>
+            DEPENDS papacc_pst_tls13_outbound_proof
+            COMMENT "Run opt-in PST TLS 1.3 proof against google.com:443"
+            VERBATIM)
+        add_custom_target(papacc_pst_tls13_google_wrong_hostname
+            COMMAND $<TARGET_FILE:papacc_pst_tls13_outbound_proof>
+                --wrong-hostname
+            DEPENDS papacc_pst_tls13_outbound_proof
+            COMMENT "Run opt-in PST wrong-hostname negative proof"
+            VERBATIM)
+    endif()
 endif()
 
 if(BUILD_TESTING)

@@ -11,6 +11,7 @@ PapinhoAccelerator é um projeto independente para transferir tarefas computacio
 - [ADR-0005 — Negociação de capabilities, disponibilidade de backend e autoridade de policy](docs/adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md)
 - [ADR-0006 — Perfil de Transport Security e credenciais do Secure Principal](docs/adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md)
 - [ADR-0007 — Identidade persistente de interface e resolução runtime de bind](docs/adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md)
+- [ADR-0008 — Fixação de dependências Papinho por release](docs/adr/ADR-0008-fixacao-de-dependencias-papinho-por-release.md)
 
 ## Estado atual
 
@@ -27,9 +28,21 @@ PST, não uma dependência direta do Core.
 
 PST pronto não significa Transport Security integrada: autenticação,
 autorização e Transport Security continuam não implementadas no Accelerator.
-Phase 3.B não foi iniciada. A
+O Accelerator fixa e valida a release PST `v0.4.0` por manifesto de dependência
+e possui uma prova opt-in isolada de TLS 1.3 outbound para `google.com:443`.
+Essa prova não implementa a capability geral `TLS_OFFLOAD`, network egress de
+produção, proxy ou integração com Browser. Phase 3.B não foi iniciada. A
 baseline possui modelos portáteis em C99 e um
 servidor Win32 estruturalmente operacional:
+
+| Marco | Estado |
+|---|---|
+| PST release integration | ✅ |
+| Accelerator → PST → TLS 1.3 Internet proof | ✅ |
+| `TLS_OFFLOAD` general capability | 🟨 incompleta; veja o Capability Document |
+| Network Egress production | ⬜ não implementado |
+| Transport Security Browser ↔ Accelerator | ⬜ não implementado |
+| Secure Principal | ⬜ não implementado |
 
 - listeners TCP reais em um único `control_port` explícito;
 - seleção de todas as interfaces ou de interfaces por identidade persistente local;
@@ -110,6 +123,19 @@ cmake -S . -B build\ninja -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build\ninja
 ctest --test-dir build\ninja --output-on-failure
 ```
+
+A aquisição reproduzível do SDK PST e a prova real, ambas opt-in, usam:
+
+```text
+cmake --build build\ninja --target papacc_acquire_pst
+cmake -S . -B build\ninja -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPAPACC_ENABLE_PST_OUTBOUND_PROOF=ON
+cmake --build build\ninja
+cmake --build build\ninja --target papacc_pst_tls13_google
+cmake --build build\ninja --target papacc_pst_tls13_google_wrong_hostname
+```
+
+O pin canônico está em `dependencies/papinho-secure-transport.txt`. A prova
+acessa a Internet e, deliberadamente, não integra o CTest regular.
 
 Árvores `build*` são artefatos locais ignorados pelo Git. Não coloque fontes ou definições de protocolo necessárias dentro delas.
 
