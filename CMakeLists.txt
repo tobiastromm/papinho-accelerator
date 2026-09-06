@@ -438,10 +438,10 @@ set_target_properties(papacc_server_cli PROPERTIES
 papacc_enable_warnings(papacc_server_cli)
 
 if(WIN32)
-    find_program(PAPACC_POWERSHELL_EXECUTABLE powershell REQUIRED)
+    unset(PAPACC_POWERSHELL_EXECUTABLE CACHE)
 
     add_custom_target(papacc_acquire_pst
-        COMMAND ${PAPACC_POWERSHELL_EXECUTABLE}
+        COMMAND powershell
             -NoProfile -ExecutionPolicy Bypass
             -File ${CMAKE_CURRENT_SOURCE_DIR}/tools/acquire-pst-release.ps1
             -OutputRoot
@@ -648,9 +648,9 @@ if(WIN32)
             PAPACC_PST_RELEASE_TAG "${PAPACC_PST_RELEASE_LINE}")
         string(REGEX REPLACE "^target=" ""
             PAPACC_PST_TARGET "${PAPACC_PST_TARGET_LINE}")
+        unset(PAPACC_PST_SDK_ROOT CACHE)
         set(PAPACC_PST_SDK_ROOT
-            "${CMAKE_BINARY_DIR}/dependencies/papinho-secure-transport/${PAPACC_PST_RELEASE_TAG}/${PAPACC_PST_TARGET}"
-            CACHE PATH "Verified root of the pinned PST SDK")
+            "${CMAKE_BINARY_DIR}/dependencies/papinho-secure-transport/${PAPACC_PST_RELEASE_TAG}/${PAPACC_PST_TARGET}")
         set(PAPACC_PST_LIB_DIR
             "${PAPACC_PST_SDK_ROOT}/lib/${PAPACC_PST_TARGET}")
         set(PAPACC_PST_RUNTIME_DIR
