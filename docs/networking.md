@@ -34,6 +34,158 @@ papacc_server --port <porta> --interface-id <persistent-id>
 
 `--list-interfaces` é inspeção e não abre listeners. `--all-interfaces` é intenção administrativa; somente a resolução de targets produz `0.0.0.0` e `::`. A seleção persistente por interface é resolvida integralmente contra um único snapshot e não usa FriendlyName como identidade. O `control_port` é obrigatório e não possui default oficial.
 
+## Future GUI — Listener Interface Selection
+
+A futura GUI deve expressar a mesma intenção administrativa do Shared Server
+Configuration Model. Ela não está implementada, e este exemplo é apenas uma
+possível apresentação: valores, labels, porta e layout não estão congelados.
+
+```text
+┌──────────────────────────────────────────────┐
+│ PapinhoAccelerator Server                    │
+│                                              │
+│ Porta:                                       │
+│ [ 4433 ]                                     │
+│                                              │
+│ Escutar em:                                  │
+│                                              │
+│ ( ) Todas as interfaces                     │
+│     IPv4 wildcard: 0.0.0.0                  │
+│     IPv6 wildcard: ::                       │
+│                                              │
+│ (*) Interfaces selecionadas                 │
+│                                              │
+│ [x] Ethernet                                │
+│     192.168.1.120                            │
+│     fe80::...                                │
+│                                              │
+│ [x] Wi-Fi                                   │
+│     192.168.0.15                             │
+│                                              │
+│ [ ] VPN                                     │
+│     10.8.0.2                                 │
+│                                              │
+│ [ ] Loopback                                │
+│     127.0.0.1                                │
+│     ::1                                      │
+│                                              │
+│ [ Iniciar servidor ]                        │
+└──────────────────────────────────────────────┘
+```
+
+### Intenção explícita e fail-safe default
+
+`ALL_INTERFACES` não é o default implícito. O modelo inicializa em:
+
+```text
+UNSPECIFIED
+```
+
+Nesse estado, nenhuma interface foi escolhida, nenhum wildcard é presumido e
+nenhum listener deve ser aberto apenas por default de configuração. A
+configuração ainda não está operacionalmente completa para listening. O
+operador deve escolher explicitamente `ALL_INTERFACES` ou
+`SELECTED_INTERFACES`, pois escutar em todas as interfaces amplia a superfície
+de exposição do serviço.
+
+`ALL_INTERFACES` também não significa uma interface chamada `0.0.0.0`:
+
+```text
+ALL_INTERFACES                    intenção administrativa
+        ↓ bind resolution
+0.0.0.0 e ::                     wildcard targets runtime, quando aplicáveis
+```
+
+Wildcards não substituem nem identificam a intenção persistida de selecionar
+todas as interfaces.
+
+### Interfaces agrupam seus endereços
+
+A GUI deve apresentar o catálogo por interface, não como lista plana de IPs:
+
+```text
+Interface
+    ├── presentation name
+    ├── status UP/DOWN, quando disponível
+    ├── loopback metadata
+    └── current addresses
+         ├── IPv4
+         └── IPv6
+```
+
+O usuário seleciona semanticamente interfaces; os endereços são fatos atuais
+associados a elas. `SELECTED_INTERFACES` pode conter uma ou várias interfaces,
+como Ethernet + Wi-Fi ou Ethernet + VPN. Selecionar uma interface considera os
+endereços bindáveis IPv4/IPv6 atuais dela conforme o contrato vigente, e a
+resolução produz todos os Bind Targets aplicáveis. Uma seleção explicitamente
+configurada continua all-or-nothing quando não puder ser resolvida pelas regras
+existentes; não há resultado parcial silencioso.
+
+Discovery não escolhe a “melhor” interface:
+
+```text
+Discovery                       fornece fatos
+Selection Policy / Config       expressa intenção do operador
+Bind Resolution                 converte intenção em targets runtime
+```
+
+Não há heurística para preferir Ethernet ou Wi-Fi, ignorar VPN/loopback,
+escolher o primeiro IP ou decidir um “melhor endereço”. Interfaces DOWN,
+loopback, VPN, virtuais, IPv6-only ou com múltiplos endereços não devem ser
+ocultadas automaticamente pelo discovery/catalog. A GUI poderá mostrar status,
+riscos ou impossibilidade técnica e desabilitar escolhas inviáveis, mas essa UX
+final ainda não está definida e não pode substituir silenciosamente a intenção
+administrativa.
+
+### Identidade e apresentação
+
+```text
+Persistent ID                    configuração/persistência
+interface_instance_id            agrupamento no snapshot runtime
+interface index                  dado técnico runtime
+presentation/friendly name       apresentação para GUI/humano
+IP addresses                     estado atual
+```
+
+O presentation name já existe no catálogo atual como metadata UTF-8 quando
+disponível. A GUI poderá exibi-lo, mas a seleção persistível usa a identidade
+persistente conforme o ADR-0007, nunca FriendlyName, endereço IP,
+`interface_instance_id` ou índice runtime como identidade canônica.
+
+### Fontes convergem para o mesmo modelo
+
+Conforme `PapinhoEngineering/ADR-0004`, frontend e source não criam semânticas
+paralelas:
+
+```text
+CLI parser ----------------┐
+GUI futura ----------------┼──> Shared Server Configuration Model
+Persisted source futura ---┘
+                                  ↓
+                              Validation
+                                  ↓
+                         Interface resolution
+                                  ↓
+                            Bind Targets
+                                  ↓
+                         Server composition
+```
+
+Não existem “GUI Server” e “CLI Server” distintos. A GUI não deve ter como
+arquitetura principal montar uma command line e iniciar outra instância; cada
+frontend adapta sua entrada ao mesmo modelo compartilhado. Depois da
+normalização:
+
+```text
+CLI selection == GUI selection == future persisted selection
+```
+
+Hoje, a CLI expressa as escolhas por `--all-interfaces` ou uma ou mais
+ocorrências de `--interface-id`; nenhuma sintaxe adicional é definida aqui.
+Uma future Persisted Configuration Source poderá carregar/salvar a mesma
+semântica, mas formato, extensão, path, Registry, precedência e auto-save não
+estão decididos.
+
 `PAPACC_SERVER_NETWORK` e o Listener Set permanecem infraestrutura de
 listening: não possuem Sessions, processors de protocolo ou ownership das
 Connections aceitas. Na composição atual do servidor, as camadas superiores
