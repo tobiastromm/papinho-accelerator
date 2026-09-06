@@ -207,12 +207,46 @@ Transport nem criar um wrapper TLS próprio do Accelerator.
 `PAPACC_SESSION` é a entidade interna que representa uma conexão lógica de cliente; “client” fica reservado para uma futura biblioteca cliente.
 
 ```text
-CONNECTED -> NEGOTIATING -> AUTHENTICATING -> READY -> ACTIVE
-                                                       |
-                      CLOSED <- CLOSING <---------------+
+UNINITIALIZED
+    ↓
+ESTABLISHING
+    ↓
+ACTIVE
+    ↓
+CLOSING
+    ↓
+CLOSED
 ```
 
-Servidores abertos podem atravessar `AUTHENTICATING` sem credencial, mantendo uma decisão explícita de modo/política. Nomes e transições ainda não estão congelados. A Session deverá futuramente possuir Session ID não previsível, timeouts, heartbeat/PING/PONG, Data Channels associados, ownership de jobs, cleanup idempotente e regras explícitas de recuperação/reconexão. Reconexão não deve implicitamente herdar autoridade.
+Publicação ou estabelecimento estrutural inicial não torna a Session
+automaticamente `ACTIVE`. A ativação ocorre somente depois dos gates exigidos
+pelo protocolo, pelo transport profile e pela policy aplicável.
+
+Durante `ESTABLISHING`, podem existir etapas internas que não são estados
+canônicos congelados da Session:
+
+```text
+ESTABLISHING
+    ├── internal security / peer-authentication gates
+    ├── internal Principal mapping and authorization gates
+    ├── internal protocol establishment
+    └── internal capability / policy gates futuros
+        ↓
+ACTIVE somente quando todos os gates aplicáveis forem satisfeitos
+```
+
+No Secure Principal, esses gates incluem PST/TLS 1.3 mTLS, Principal
+autenticado, autorização e estabelecimento aplicável. O Legacy Endpoint é um
+transport profile plaintext explicitamente habilitado, desabilitado por padrão,
+sem strong cryptographic identity, sujeito à própria policy e nunca escolhido
+como fallback automático. Ele não implica autorização irrestrita e usa o mesmo
+lifecycle conceitual da Session, com os gates aplicáveis ao seu profile/policy.
+
+A decomposição interna pode evoluir sem criar uma segunda state machine
+concorrente ao ADR-0003. A Session deverá futuramente possuir Session ID não
+previsível, timeouts, heartbeat/PING/PONG, Data Channels associados, ownership
+de jobs, cleanup idempotente e regras explícitas de recuperação/reconexão.
+Reconexão não deve implicitamente herdar autoridade.
 
 ## Dependências permitidas
 
