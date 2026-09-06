@@ -1,5 +1,11 @@
 # Networking e transports
 
+Decisões arquiteturais canônicas relacionadas:
+
+- [ADR-0002 — Core portável entre deployments e backends substituíveis](adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md);
+- [ADR-0005 — Negociação de capabilities, disponibilidade de backend e autoridade de policy](adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md);
+- [ADR-0007 — Identidade persistente de interface e resolução runtime de bind](adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md).
+
 ## Estado implementado na Phase 1
 
 O backend Win32 já implementa discovery, bind e listeners TCP. O fluxo operacional é:
@@ -28,7 +34,12 @@ papacc_server --port <porta> --interface-id <persistent-id>
 
 `--list-interfaces` é inspeção e não abre listeners. `--all-interfaces` é intenção administrativa; somente a resolução de targets produz `0.0.0.0` e `::`. A seleção persistente por interface é resolvida integralmente contra um único snapshot e não usa FriendlyName como identidade. O `control_port` é obrigatório e não possui default oficial.
 
-Os listeners não aceitam clientes, não enviam ou recebem dados e não implementam Session ou protocolo.
+`PAPACC_SERVER_NETWORK` e o Listener Set permanecem infraestrutura de
+listening: não possuem Sessions, processors de protocolo ou ownership das
+Connections aceitas. Na composição atual do servidor, as camadas superiores
+já aceitam Connections a partir desses listeners e processam os fluxos
+estruturais CONTROL e DATA por meio do acceptor, I/O loop, processors e
+managers apropriados.
 
 ## Abstração de transport
 
@@ -60,7 +71,13 @@ O Control Channel conduz negociação e lifecycle; Data Channels carregam volume
 
 Transport Security é a segurança da comunicação `PapinhoAccelerator Client ↔ PapinhoAccelerator Server`. Pertence à infraestrutura e ao protocolo de comunicação, protegendo Control Channel, Data Channels, autenticação, comandos, payloads, credenciais e dados enviados para processamento. Não é uma capability comum.
 
-Quando política ou configuração exigir canal seguro, todos os canais relevantes da Session devem preservar esse requisito. Desabilitar qualquer capability — inclusive `TLS_OFFLOAD` — não pode desabilitar Transport Security, e downgrade silencioso para transporte inseguro é proibido. O mecanismo concreto e a biblioteca permanecem indefinidos.
+Quando política ou configuração exigir canal seguro, todos os canais relevantes da Session devem preservar esse requisito. Desabilitar qualquer capability — inclusive `TLS_OFFLOAD` — não pode desabilitar Transport Security, e downgrade silencioso para transporte inseguro é proibido.
+
+O perfil concreto do `Secure Principal` é TLS 1.3 mTLS, conforme o
+[ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
+Nenhum backend TLS universal foi escolhido. RetroZilla NSS/NSPR foi comprovado
+tecnicamente como candidato de backend legado; essa prova não o transforma em
+backend universal nem em implementação integrada ao produto.
 
 `TLS_OFFLOAD` trata separadamente de auxílio TLS para conexões do cliente com sites/serviços externos. Sua negociação não governa a proteção dos canais do PapinhoAccelerator.
 

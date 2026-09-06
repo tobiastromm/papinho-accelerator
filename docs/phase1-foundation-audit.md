@@ -1,5 +1,11 @@
 # Phase 1 Final Foundation Audit
 
+Historical note: architectural decisions evidenced by this Phase 1 audit were
+later formalized in
+[ADR-0002](adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md)
+and [ADR-0007](adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md).
+This note does not alter the original audit results or checkpoint.
+
 ## Resultado
 
 **PHASE 1 READY.** A Foundation está coerente para iniciar o design checkpoint da Phase 2. A auditoria não encontrou vazamento de recursos conhecido, ciclo de dependência, quebra de failure atomicity ou funcionalidade prematura de protocolo. Dois problemas objetivos foram corrigidos: documentação que ainda descrevia o servidor como mero esqueleto e criação incondicional do executable Win32 em builds não-Windows.

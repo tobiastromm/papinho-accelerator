@@ -1,5 +1,11 @@
 # Phase 3.A2B-R3 RetroZilla NSS mTLS / NT4 Runtime Proof
 
+Historical note: this proof supplies feasibility evidence for the profile
+later formalized in
+[ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
+The ADR is the canonical architectural authority; all proof results and
+historical checkpoints below remain preserved.
+
 Status: final backend closeout, 2026-08-30: **READY**. Earlier NOT READY
 checkpoints remain below as explicitly historical investigation records.
 No production source, CMake target, PACC message, credential, TLS integration,

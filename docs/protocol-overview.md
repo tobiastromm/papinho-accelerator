@@ -1,5 +1,10 @@
 # Visão geral do protocolo
 
+As decisões arquiteturais de runtime, scheduling, capabilities e segurança
+estão registradas nos [ADRs locais](adr/). As specifications referenciadas
+neste documento continuam sendo a autoridade normativa para bytes, frames,
+mensagens e comportamento wire.
+
 A arquitetura de segurança que futuramente envolverá estes bytes está congelada
 em [Phase 3 Security Architecture and Threat Model](phase3-security-architecture.md).
 A Phase 3.A1 não altera o registry nem implementa segurança.
@@ -38,8 +43,11 @@ registry normativo `0x0001`..`0x0006`.
 Existem runtimes de Connection, Session e Channel, encoder/parser, Framed Reader
 e Framed Writer portáteis. O executable processa as seis mensagens normativas
 de estabelecimento CONTROL e associação DATA pelo I/O Loop Win32 combinado.
-Não processa protocolo de aplicação após `DATA_ACCEPT`. A arquitetura normativa está em
-[Connection I/O Scheduling](connection-io-scheduling.md).
+Não processa protocolo de aplicação após `DATA_ACCEPT`. A decisão arquitetural
+canônica de scheduling está no
+[ADR-0004](adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md),
+enquanto [Connection I/O Scheduling](connection-io-scheduling.md) preserva a
+explicação técnica detalhada.
 Os IDs normativos `0x0001`..`0x0006` estão definidos em
 [Control Establishment Protocol](control-establishment-protocol.md) e
 [Data Association Protocol](data-association-protocol.md).

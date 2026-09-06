@@ -1,6 +1,19 @@
 # Capabilities e configuração
 
-**Estado de implementação:** a Phase 1 não implementa negociação nem execução de capabilities. Os nomes abaixo são conceitos futuros e não possuem IDs numéricos congelados.
+O [ADR-0005](adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md)
+é a autoridade arquitetural canônica para a separação entre capability,
+disponibilidade de backend, policy e configuração efetiva. Este documento
+permanece como índice e visão geral viva.
+
+**Estado de implementação:** Capability Negotiation e execução de capabilities
+de processamento ainda não estão implementadas na baseline atual. Os nomes
+abaixo são conceitos futuros e não possuem IDs numéricos congelados.
+
+Capability Documents disponíveis:
+
+- [Logging e diagnóstico operacional](capabilities/logging.md);
+- [TLS Offload para conexões externas](capabilities/tls-offload.md);
+- [Network Egress](capabilities/network-egress.md).
 
 Capabilities são unidades independentes, extensíveis, negociáveis e versionáveis. Seus IDs futuros deverão ser estáveis; esta baseline não atribui números.
 
@@ -18,6 +31,11 @@ DISPLAY_COMMANDS        FRAMEBUFFER
 Os nomes são iniciais. Anunciar uma capability não implica que todas as opções, formatos ou versões dela sejam aceitos.
 
 `TLS_OFFLOAD` é o nome conceitual, ainda não congelado, da capability que poderá auxiliar ou executar operações TLS para conexões do cliente com sites e serviços externos. Ela pertence ao Capability Framework e não representa a segurança da conexão PapinhoAccelerator Client–Server.
+
+Os [ADR-0001](adr/ADR-0001-secure-principal-e-legacy-endpoint.md) e
+[ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md)
+são as autoridades canônicas para os transport profiles e para o perfil de
+Transport Security do Secure Principal.
 
 ```text
 Transport Security != TLS Offload

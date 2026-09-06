@@ -1,5 +1,11 @@
 # Phase 2 Integration Audit
 
+Historical note: architectural decisions evidenced by this Phase 2 audit were
+later formalized in
+[ADR-0003](adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md)
+and [ADR-0004](adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md).
+The original audit evidence and conclusions remain unchanged.
+
 ## Scope and conclusion
 
 This is the authoritative closure audit for Phase 2 — Transport Layer & Session

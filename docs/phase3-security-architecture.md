@@ -1,5 +1,16 @@
 # Phase 3 Security Architecture and Threat Model
 
+Historical note: this document remains the Phase 3.A1 threat model and
+architecture checkpoint. Architectural decisions in this document were later
+formalized in:
+
+- [ADR-0001 — Secure Principal e Legacy Endpoint](adr/ADR-0001-secure-principal-e-legacy-endpoint.md);
+- [ADR-0005 — Negociação de capabilities, disponibilidade de backend e autoridade de policy](adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md);
+- [ADR-0006 — Perfil de Transport Security e credenciais do Secure Principal](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
+
+Those ADRs are the later canonical architectural authorities. This checkpoint
+continues to preserve its original threat analysis, conclusions and evidence.
+
 Status: authoritative Phase 3.A1 architecture checkpoint. It builds on the
 validated `PHASE 2 READY` baseline; it does not change Phase 2 bytes or claim
 that security is implemented. Its previously open mechanism questions are now

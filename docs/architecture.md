@@ -1,8 +1,22 @@
 # Arquitetura
 
-Para a inserção de Transport Security, contextos de identidade e gates de
-autorização sobre esta arquitetura, consulte o checkpoint autoritativo
-[Phase 3 Security Architecture and Threat Model](phase3-security-architecture.md).
+## Decisões arquiteturais canônicas
+
+Este documento oferece a visão corrente da arquitetura sem duplicar o contexto
+e a justificativa preservados nos ADRs locais:
+
+- [ADR-0001 — Secure Principal e Legacy Endpoint](adr/ADR-0001-secure-principal-e-legacy-endpoint.md);
+- [ADR-0002 — Core portável entre deployments e backends substituíveis](adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md);
+- [ADR-0003 — Connection, Session e Channel — ownership e lifecycle](adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md);
+- [ADR-0004 — Escalonamento de I/O não bloqueante, limitado e justo](adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md);
+- [ADR-0005 — Negociação de capabilities, disponibilidade de backend e autoridade de policy](adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md);
+- [ADR-0006 — Perfil de Transport Security e credenciais do Secure Principal](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md);
+- [ADR-0007 — Identidade persistente de interface e resolução runtime de bind](adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md).
+
+Para o threat model e o contexto histórico da inserção de Transport Security,
+identidade e gates de autorização, consulte o checkpoint autoritativo de
+Phase 3.A1 [Phase 3 Security Architecture and Threat Model](phase3-security-architecture.md).
+As decisões arquiteturais canônicas posteriores permanecem nos ADRs acima.
 
 ## Estado de implementação
 

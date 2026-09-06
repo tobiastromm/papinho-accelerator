@@ -1,5 +1,12 @@
 # Phase 2 Consumer Validation Closeout
 
+Historical note: runtime and scheduling decisions evidenced by this closeout
+were later formalized in
+[ADR-0003](adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md)
+and [ADR-0004](adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md).
+Build-target naming remains governed transversally by
+`PapinhoEngineering/ADR-0002`. The validation results below are unchanged.
+
 ## Build directory audit and policy
 
 The original closeout audit found no Git-tracked build artifact. `.gitignore` uses `/build*/`,

@@ -1,5 +1,14 @@
 # Phase 3 Transport Security and Credential Profile
 
+Historical note: this document preserves the Phase 3.A2A-R1 profile revision
+and its detailed technical context. The architectural decisions in this
+document were later formalized in:
+
+- [ADR-0006 — Perfil de Transport Security e credenciais do Secure Principal](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md), the canonical architectural authority for the Secure Principal Transport Security and credential profile;
+- [ADR-0001 — Secure Principal e Legacy Endpoint](adr/ADR-0001-secure-principal-e-legacy-endpoint.md), the canonical architectural authority for the distinction between Secure Principal and Legacy Endpoint.
+
+The historical conclusions and evidence below remain preserved.
+
 Status: authoritative Phase 3.A2A-R1 security-profile revision. It supersedes
 the initial external-PSK choice made by Phase 3.A2A. The earlier choice and its
 backend investigation remain historical evidence; they are not normative.

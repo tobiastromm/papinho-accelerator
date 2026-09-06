@@ -1,8 +1,16 @@
 # Modelo de segurança
 
-O checkpoint autoritativo da Phase 3.A1 é [Phase 3 Security Architecture and
-Threat Model](phase3-security-architecture.md). Este resumo permanece alinhado
-com ele; detalhes de ameaças, fluxos, gates e decisões pendentes estão lá.
+As decisões arquiteturais canônicas vigentes estão registradas em:
+
+- [ADR-0001 — Secure Principal e Legacy Endpoint](adr/ADR-0001-secure-principal-e-legacy-endpoint.md);
+- [ADR-0005 — Negociação de capabilities, disponibilidade de backend e autoridade de policy](adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md);
+- [ADR-0006 — Perfil de Transport Security e credenciais do Secure Principal](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
+
+O checkpoint histórico autoritativo para o threat model da Phase 3.A1 é
+[Phase 3 Security Architecture and Threat Model](phase3-security-architecture.md).
+Este resumo permanece alinhado com ele; detalhes de ameaças, fluxos, gates e
+decisões então pendentes estão lá. As autoridades arquiteturais canônicas
+posteriores são os ADRs listados acima.
 
 Este documento originalmente registrou requisitos sem escolher mecanismo. A
 3.A2A agora seleciona o perfil e o modelo de credencial iniciais, mas ainda não
@@ -51,7 +59,17 @@ runtime e sem mudar o campo opaco de 16 bytes, salvo revisão protocolar futura.
 
 ## Modos, autenticação e autorização
 
-Um servidor poderá operar como `OPEN` ou `AUTHENTICATED`. “Open” significa ausência de autenticação de cliente exigida, não ausência de política, validação ou limites. Métodos futuros podem incluir usuário/senha, tokens e allowlists.
+Os termos históricos `OPEN` e `AUTHENTICATED` descreviam possibilidades de
+autenticação antes da formalização dos transport profiles. Eles não são
+transport profiles concorrentes e não substituem `Secure Principal` ou
+`Legacy Endpoint`, cuja semântica canônica pertence ao ADR-0001.
+
+Na terminologia histórica, “open” significava somente ausência de autenticação
+de cliente exigida, não ausência de política, validação ou limites. Essa
+descrição não concede segurança ao canal, não caracteriza um Secure Principal
+e não autoriza fallback para Legacy Endpoint. Possíveis mecanismos adicionais,
+como usuário/senha, tokens ou allowlists, continuam trabalho futuro e não foram
+decididos por este documento.
 
 Autenticação estabelece uma identidade; autorização decide o que essa identidade pode fazer. São etapas independentes. Uma identidade pode, por exemplo, usar decode e framebuffer, mas não transcoding ou network egress. A autorização deve considerar capability, parâmetros, local de execução, egress e quotas.
 

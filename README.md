@@ -2,6 +2,16 @@
 
 PapinhoAccelerator é um projeto independente para transferir tarefas computacionalmente pesadas de clientes para outro dispositivo. PapinhoBrowser será o primeiro cliente oficial, mas não define nem limita o protocolo, o servidor, os transports ou os backends.
 
+## Decisões arquiteturais locais
+
+- [ADR-0001 — Secure Principal e Legacy Endpoint](docs/adr/ADR-0001-secure-principal-e-legacy-endpoint.md)
+- [ADR-0002 — Core portável entre deployments e backends substituíveis](docs/adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md)
+- [ADR-0003 — Connection, Session e Channel — ownership e lifecycle](docs/adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md)
+- [ADR-0004 — Escalonamento de I/O não bloqueante, limitado e justo](docs/adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md)
+- [ADR-0005 — Negociação de capabilities, disponibilidade de backend e autoridade de policy](docs/adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md)
+- [ADR-0006 — Perfil de Transport Security e credenciais do Secure Principal](docs/adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md)
+- [ADR-0007 — Identidade persistente de interface e resolução runtime de bind](docs/adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md)
+
 ## Estado atual
 
 As Phases 1 e 2 estão concluídas. A Phase 3 concluiu 3.A1, o perfil 3.A2A-R1 e

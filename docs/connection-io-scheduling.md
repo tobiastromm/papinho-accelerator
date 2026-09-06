@@ -1,5 +1,13 @@
 # Connection I/O Scheduling Architecture
 
+Historical note: the architectural decisions in this technical document were
+later formalized in:
+
+- [ADR-0004 — Escalonamento de I/O não bloqueante, limitado e justo](adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md), the canonical scheduling authority;
+- [ADR-0003 — Connection, Session e Channel — ownership e lifecycle](adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md), for related ownership and lifecycle rules.
+
+The detailed Phase 2 technical rationale below remains preserved.
+
 ## Status and problem
 
 Phase 2.D3B implements the initial single-threaded Win32 combined `select()`

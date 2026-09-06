@@ -1,5 +1,10 @@
 # Phase 3.A2B-R2 — RetroZilla NSS TLS 1.3 investigation
 
+Historical note: the Secure Principal profile decision informed by this
+investigation was later formalized in
+[ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
+The investigation evidence and its historical conclusions remain unchanged.
+
 Status: authoritative investigation result, 2026-08-29. The investigation is
 **READY**; Phase 3.A2B remains **NOT READY**. No production code, build file,
 wire definition, credential or security profile was changed.

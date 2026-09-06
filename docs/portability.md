@@ -1,5 +1,10 @@
 # Portabilidade
 
+Esta visão corrente especializa e referencia, sem duplicá-las, as decisões:
+
+- [PapinhoAccelerator/ADR-0002 — Core portável entre deployments e backends substituíveis](adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md);
+- `PapinhoEngineering/ADR-0007` — Fronteiras portáveis entre core, plataforma e backends substituíveis.
+
 ## Estado atual
 
 - `papacc_core`, `papacc_network`, Server Config e parser CLI são portáteis e não expõem tipos Win32.

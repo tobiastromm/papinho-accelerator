@@ -1,5 +1,12 @@
 # Data Association Protocol 1.0
 
+This specification remains the normative authority for DATA association
+message bytes, ticket behavior and wire-level processing. Runtime
+ownership/lifecycle is canonical in
+[ADR-0003](adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md),
+and future authenticated DATA binding is governed by
+[ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
+
 ## Status, scope, and security boundary
 
 Phase 2.E1 freezes the wire design. Phase 2.E2A now implements the portable

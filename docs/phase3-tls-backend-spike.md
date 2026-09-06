@@ -1,5 +1,11 @@
 # Phase 3.A2B Crypto/TLS Backend and Legacy Compatibility Spike
 
+Historical note: the Secure Principal profile decision informed by this spike
+was later formalized in
+[ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
+This report preserves its original alternatives, evidence and NOT READY
+checkpoint; the ADR does not retroactively change those results.
+
 Status: authoritative compatibility report, 2026-08-29. Result: **NOT READY**.
 The frozen [Transport Security profile](phase3-transport-security-profile.md)
 was not weakened. This spike added no production integration, dependency or

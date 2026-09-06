@@ -1,5 +1,11 @@
 # Phase 2 Transport & Session Architecture Checkpoint
 
+Historical note: architectural decisions in this checkpoint were later
+formalized in
+[ADR-0003](adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md)
+and [ADR-0004](adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md).
+This document preserves the original Phase 2 design context and conclusions.
+
 ## Status and scope
 
 This checkpoint defines the enduring Phase 2 boundaries. Portable Session and

@@ -1,5 +1,11 @@
 # Control Establishment Protocol 1.0
 
+This specification remains the normative authority for CONTROL message bytes
+and wire behavior. Runtime ownership/lifecycle is canonical in
+[ADR-0003](adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md),
+and future Secure Principal gates are governed by
+[ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
+
 ## Status and layering
 
 This document normatively freezes the first message family. Phase 2.D2 now

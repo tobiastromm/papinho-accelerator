@@ -1,5 +1,9 @@
 # Modelo de mídia
 
+Este documento permanece como overview agregado das capabilities de mídia e
+rendering. A separação entre capability, backend e policy é governada pelo
+[ADR-0005](adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md).
+
 “Aceleração de vídeo” não é uma operação única. A negociação deve distinguir os três modelos abaixo e seus custos de rede/cliente.
 
 ## Streaming Assist

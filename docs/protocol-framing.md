@@ -1,5 +1,11 @@
 # PapinhoAccelerator Protocol Framing
 
+This specification remains the normative authority for the envelope bytes,
+frame validation and incremental parsing behavior defined below. Related
+portable-boundary and bounded-I/O architectural decisions are canonical in
+[ADR-0002](adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md)
+and [ADR-0004](adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md).
+
 ## Status and scope
 
 This document normatively freezes wire Envelope 1.0. It defines framing only:
