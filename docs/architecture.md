@@ -136,6 +136,29 @@ ADR-0004.
 Legacy Endpoint não usa PST, não é backend plaintext/none/off do PST e nunca é
 selecionado após falha do Secure Principal.
 
+### Ponte temporal
+
+Uma direção futura do produto é permitir que clientes históricos aproveitem
+capacidades e protocolos atuais por intermédio do Accelerator, sem precisar
+implementar localmente toda a evolução do ecossistema externo:
+
+```text
+historical client
+        ↓ Transport Security aplicável e policy do Secure Principal
+Accelerator
+        ↓ capabilities e conexões explicitamente autorizadas
+serviços e protocolos externos atuais
+```
+
+Quando `TLS_OFFLOAD` e `NETWORK_EGRESS_ACCELERATOR` forem futuramente compostos,
+o primeiro e o segundo hop serão conexões e relações de segurança independentes;
+não uma TLS Session fim a fim nem tradução direta entre versões de TLS. A
+evolução externa não autoriza downgrade do primeiro hop, fallback automático
+para Legacy Endpoint ou criptografia própria. Este é um racional arquitetural
+de longevidade, não promessa de compatibilidade eterna, suporte atual ou desenho
+de protocolo. Os limites conceituais estão no [Capability Document de TLS
+Offload](capabilities/tls-offload.md).
+
 ## Plano de integração e validação
 
 Esta sequência é plano de integração, não ADR nem definição de subfases:

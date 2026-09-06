@@ -21,7 +21,7 @@ externos.
 - TLS associado ao fluxo externo cliente → site/service;
 - possível execução ou auxílio pelo Accelerator;
 - futura negociação, autorização, policy, limites e seleção de backend;
-- relação futura, ainda não desenhada, com network egress.
+- composição futura com network egress, mantendo permissões independentes.
 
 ### Não inclui
 
@@ -60,8 +60,70 @@ future external-TLS processing path
 ```
 
 Capability, backend availability, policy e configuração efetiva seguem o
-ADR-0005. A relação entre essa capability e quem abre a conexão externa ainda
-precisa de desenho explícito: TLS offload não concede network egress.
+ADR-0005.
+
+### Duas conexões e relações de segurança independentes
+
+No cenário futuro em que o Accelerator seja autorizado a abrir uma conexão
+externa e `TLS_OFFLOAD` esteja efetivo, existem duas conexões independentes:
+
+```text
+CONEXÃO 1 — Transport Security do PapinhoAccelerator
+client -> Secure Principal / Transport Security aplicável -> Accelerator
+
+CONEXÃO 2 — protocolo seguro externo
+Accelerator -> protocolo seguro exigido pelo serviço -> external service
+```
+
+Não existe uma única TLS Session contínua atravessando
+client → Accelerator → external service. O Accelerator termina a primeira
+relação de segurança e, quando autorizado, estabelece outra conexão e outra
+relação de segurança com o serviço externo. Isso não é tradução direta de TLS
+antigo para TLS novo.
+
+O protocolo e o perfil da segunda conexão podem evoluir independentemente do
+primeiro hop. Uma versão futura de TLS ou um protocolo seguro sucessor é apenas
+uma possibilidade ilustrativa, não uma versão declarada, requisito ou suporte
+atual.
+
+### Composição com Network Egress
+
+```text
+TLS_OFFLOAD != permissão de NETWORK_EGRESS
+NETWORK_EGRESS_ACCELERATOR != TLS_OFFLOAD habilitado
+
+NETWORK_EGRESS_ACCELERATOR autorizado
+        +
+TLS_OFFLOAD efetivo
+        ↓
+possível conexão segura externa pelo Accelerator no futuro
+```
+
+Cada autoridade deve ser concedida e avaliada separadamente. `TLS_OFFLOAD` não
+permite que o Accelerator abra conexões externas, e a permissão de egress não
+habilita processamento TLS. A composição acima também depende da policy da
+Session, do destino e do protocolo, além de implementação futura.
+
+Essa composição não enfraquece o primeiro hop. Se o Secure Principal não puder
+atender ao perfil de Transport Security vigente, ele permanece indisponível ou
+falha explicitamente até que uma decisão futura altere o perfil ou a seleção de
+provider. Não há downgrade silencioso, uso continuado de protocolo quebrado por
+estar em uma LAN nem fallback automático para Legacy Endpoint.
+
+PST permanece a API provider-neutral de Secure Transport. NSS/NSPR é um
+provider substituível, não a identidade de PST, e a policy do Secure Principal
+continua pertencendo ao Accelerator.
+
+### Racional de ponte temporal
+
+Esta capability pode futuramente ajudar clientes históricos a acessar
+capacidades e protocolos atuais sem implementar localmente toda a evolução do
+ecossistema externo. O Accelerator funciona, nesse sentido, como uma ponte
+temporal entre capacidades distintas dos dois lados.
+
+Esse racional de longevidade não promete compatibilidade eterna, não declara
+suporte a uma plataforma histórica específica e não torna disponível hoje
+qualquer fluxo externo.
 
 ## Exemplos de uso / configuração
 
@@ -86,7 +148,7 @@ Status geral: `concept`.
 | Nome conceitual | concept | `TLS_OFFLOAD`; nome/ID definitivo não congelado |
 | Capability Negotiation | not-implemented | Framework e wire ainda ausentes |
 | Processamento TLS externo | not-implemented | Nenhum fluxo externo implementado |
-| Network egress | not-implemented | Relação ainda precisa de desenho |
+| Network egress | not-implemented | Autoridade separada; composição conceitual documentada |
 | Policy/autorização específica | not-implemented | Regras específicas pendentes |
 | Backend | not-implemented | Nenhuma biblioteca selecionada para esta capability |
 | Fallback | unknown | Sem decisão específica além de não enfraquecer segurança |
@@ -125,13 +187,13 @@ Nenhum target declara suporte implementado ou testado para esta capability.
 ## Limitações conhecidas
 
 - conceito sem implementação;
-- dependência funcional de fluxos externos ainda não definida;
+- composição concreta, ownership e lifecycle dos fluxos externos ainda não definidos;
 - nenhum protocolo, API, backend, armazenamento ou UI congelado.
 
 ## Pendências
 
 - [ ] Definir o contrato funcional da capability.
-- [ ] Definir relação explícita com network egress.
+- [ ] Definir contrato concreto de composição com network egress.
 - [ ] Definir policy, autorização, quotas e destination handling.
 - [ ] Definir fallback sem downgrade de segurança.
 - [ ] Definir IDs/wire somente em uma fase de protocolo apropriada.
@@ -182,3 +244,4 @@ ausência de implementação no source tree sustentam o status `concept`.
 | Data | Descrição |
 |---|---|
 | 2026-09-06 | Criação inicial do Capability Document após a migração das decisões arquiteturais para ADRs. |
+| 2026-09-06 | Registrado o racional de ponte temporal, as duas relações de segurança independentes e a separação de autoridade entre TLS offload e network egress. |
