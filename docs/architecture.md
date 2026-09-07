@@ -11,7 +11,8 @@ e a justificativa preservados nos ADRs locais:
 - [ADR-0004 — Escalonamento de I/O não bloqueante, limitado e justo](adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md);
 - [ADR-0005 — Negociação de capabilities, disponibilidade de backend e autoridade de policy](adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md);
 - [ADR-0006 — Perfil de Transport Security e credenciais do Secure Principal](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md);
-- [ADR-0007 — Identidade persistente de interface e resolução runtime de bind](adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md).
+- [ADR-0007 — Identidade persistente de interface e resolução runtime de bind](adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md);
+- [ADR-0008 — Fixação de dependências Papinho por release](adr/ADR-0008-fixacao-de-dependencias-papinho-por-release.md).
 
 Para o threat model e o contexto histórico da inserção de Transport Security,
 identidade e gates de autorização, consulte o checkpoint autoritativo de
@@ -22,13 +23,29 @@ As decisões arquiteturais canônicas posteriores permanecem nos ADRs acima.
 
 As Phases 1 e 2 implementam a Foundation portátil e, no Windows, discovery de interfaces, resolução persistente de bind, WinSock, listeners, aceitação não bloqueante, Sessions, Control/Data Channels estruturais, framing e os fluxos de estabelecimento CONTROL e associação DATA por ticket one-time. O executável integra esses componentes em um único loop `select()` e encerra de forma graciosa por Ctrl+C/Ctrl+Break.
 
-PapinhoSecureTransport (PST) já existe como biblioteca independente e está
-pronto para consumo. Sua integração, assim como autenticação, autorização,
-Transport Security no Accelerator, Capability Negotiation, protocolo de
-aplicação pós-DATA e Compute Backends, permanece trabalho futuro. Session
+PapinhoSecureTransport (PST) já existe como biblioteca independente. O pin,
+a aquisição validada e uma boundary CMake privada centralizam seu contrato de
+consumo por futuros componentes e pelo proof existente. A composição runtime,
+assim como autenticação, autorização, Transport Security no Accelerator,
+Capability Negotiation, protocolo de aplicação pós-DATA e Compute Backends,
+permanece trabalho futuro. Session
 `ACTIVE` nesta baseline significa somente estabelecimento estrutural concluído;
-não significa autenticada, autorizada, confiável ou segura. Phase 3.B permanece
-não iniciada.
+não significa autenticada, autorizada, confiável ou segura.
+
+Estado da integração PST:
+
+| Camada | Estado |
+|---|---|
+| Release pin, aquisição e validação do SDK | implementado |
+| Boundary privada de includes/link/runtime files | implementado |
+| Production security runtime composition | não implementado |
+| PST logging adapter | não implementado |
+| Readiness/scheduler integration | não implementado |
+| Transport Security no `papacc_server` | não implementado |
+
+`papacc_pst_consumer` é somente um target privado de build. Ele não constitui
+API pública do Accelerator, não cria objetos PST e não deve ser ligado ao core
+portátil ou às entidades Connection, Session e Channel.
 
 ## Objetivos
 

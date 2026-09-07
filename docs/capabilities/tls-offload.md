@@ -2,7 +2,7 @@
 capability: tls-offload
 title: TLS Offload para conexões externas
 status: concept
-last-updated: 2026-09-06
+last-updated: 2026-09-07
 scope: project
 ---
 
@@ -198,6 +198,7 @@ Status geral: `concept`.
 - somente a separação documental e arquitetural entre `TLS_OFFLOAD` e
   Transport Security;
 - pin e aquisição reproduzível da release PST `v0.4.0`;
+- boundary privada e reutilizável do contrato de consumo do SDK PST no build;
 - prova vertical opt-in e isolada de TLS 1.3 outbound para `google.com:443`,
   com validação de cadeia, hostname e resposta HTTPS.
 
@@ -307,3 +308,4 @@ store do host. A regressão offline permaneceu em 41/41 testes.
 | 2026-09-06 | Registrado o racional de ponte temporal, as duas relações de segurança independentes e a separação de autoridade entre TLS offload e network egress. |
 | 2026-09-06 | Preservados, sem escolha arquitetural, os modelos conceituais client-owned e Accelerator-owned para o transport externo. |
 | 2026-09-06 | Registrada a prova vertical experimental PST v0.4.0/TLS 1.3 outbound, sem promover a capability geral a implementada. |
+| 2026-09-07 | Centralizado o contrato privado de consumo do SDK PST, sem composição runtime ou promoção da capability. |

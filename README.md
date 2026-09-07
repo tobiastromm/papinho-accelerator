@@ -26,18 +26,21 @@ API pública. A futura integração do Secure Principal usará PST; o Accelerato
 não integrará NSS/NSPR diretamente. NSS/NSPR permanece um provider legado do
 PST, não uma dependência direta do Core.
 
-PST pronto não significa Transport Security integrada: autenticação,
+PST pronto e sua boundary privada de consumo no build não significam Transport Security integrada: autenticação,
 autorização e Transport Security continuam não implementadas no Accelerator.
 O Accelerator fixa e valida a release PST `v0.4.0` por manifesto de dependência
 e possui uma prova opt-in isolada de TLS 1.3 outbound para `google.com:443`.
-Essa prova não implementa a capability geral `TLS_OFFLOAD`, network egress de
-produção, proxy ou integração com Browser. Phase 3.B não foi iniciada. A
+Essa prova reutiliza a mesma boundary CMake privada reservada às futuras
+unidades de segurança, mas não implementa a capability geral `TLS_OFFLOAD`,
+network egress de produção, proxy ou integração com Browser. A Phase 3.B
+iniciou somente sua fronteira de build; lifecycle, logging adapter, readiness e
+integração TLS no servidor permanecem não implementados. A
 baseline possui modelos portáteis em C99 e um
 servidor Win32 estruturalmente operacional:
 
 | Marco | Estado |
 |---|---|
-| PST release integration | ✅ |
+| PST release integration + private consumer build boundary | ✅ |
 | Accelerator → PST → TLS 1.3 Internet proof | ✅ |
 | `TLS_OFFLOAD` general capability | 🟨 incompleta; veja o Capability Document |
 | Network Egress production | ⬜ não implementado |
@@ -136,6 +139,10 @@ cmake --build build\ninja --target papacc_pst_tls13_google_wrong_hostname
 
 O pin canônico está em `dependencies/papinho-secure-transport.txt`. A prova
 acessa a Internet e, deliberadamente, não integra o CTest regular.
+O contrato de includes, link e runtime DLLs fica centralizado no target CMake
+privado `papacc_pst_consumer`; consumidores não devem repetir paths ou listas
+de bibliotecas. A boundary apenas descreve consumo do SDK staged e não cria
+runtime PST nem adiciona TLS ao `papacc_server`.
 
 Árvores `build*` são artefatos locais ignorados pelo Git. Não coloque fontes ou definições de protocolo necessárias dentro delas.
 
