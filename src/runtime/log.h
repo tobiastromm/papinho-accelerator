@@ -3,24 +3,95 @@
 
 #include "papacc/types.h"
 
+#define PAPACC_LOG_ENDPOINT_TEXT_CAPACITY 64U
+
 typedef enum PAPACC_LOG_LEVEL {
-    PAPACC_LOG_DEBUG = 0,
-    PAPACC_LOG_INFO = 1,
+    /* Local process contract; these values are not a cross-project or wire ABI. */
+    PAPACC_LOG_LEVEL_OFF = 0,
+    PAPACC_LOG_ERROR = 1,
     PAPACC_LOG_WARNING = 2,
-    PAPACC_LOG_ERROR = 3,
-    PAPACC_LOG_LEVEL_OFF = 4
+    PAPACC_LOG_INFO = 3,
+    PAPACC_LOG_DEBUG = 4,
+    PAPACC_LOG_TRACE = 5
 } PAPACC_LOG_LEVEL;
+
+typedef enum PAPACC_LOG_EVENT_ID {
+    PAPACC_LOG_EVENT_UNSPECIFIED = 0,
+    PAPACC_LOG_EVENT_RUNTIME_STARTED,
+    PAPACC_LOG_EVENT_RUNTIME_STOPPED,
+    PAPACC_LOG_EVENT_SERVER_STARTED,
+    PAPACC_LOG_EVENT_SERVER_STOPPING,
+    PAPACC_LOG_EVENT_CONNECTION_ACCEPTED,
+    PAPACC_LOG_EVENT_CONNECTION_REJECTED,
+    PAPACC_LOG_EVENT_CONTROL_ESTABLISHED,
+    PAPACC_LOG_EVENT_DATA_CONNECTION_ACCEPTED,
+    PAPACC_LOG_EVENT_DATA_TICKET_ISSUED,
+    PAPACC_LOG_EVENT_DATA_ATTACHED,
+    PAPACC_LOG_EVENT_CHANNEL_CLOSED,
+    PAPACC_LOG_EVENT_SESSION_CLEANUP,
+    PAPACC_LOG_EVENT_PROTOCOL_REJECTED,
+    PAPACC_LOG_EVENT_DATA_TICKETS_EXPIRED
+} PAPACC_LOG_EVENT_ID;
+
+typedef enum PAPACC_LOG_CATEGORY {
+    PAPACC_LOG_CATEGORY_UNSPECIFIED = 0,
+    PAPACC_LOG_CATEGORY_RUNTIME,
+    PAPACC_LOG_CATEGORY_NETWORK,
+    PAPACC_LOG_CATEGORY_PROTOCOL,
+    PAPACC_LOG_CATEGORY_SESSION
+} PAPACC_LOG_CATEGORY;
+
+typedef enum PAPACC_LOG_COMPONENT_ID {
+    PAPACC_LOG_COMPONENT_UNSPECIFIED = 0,
+    PAPACC_LOG_COMPONENT_RUNTIME,
+    PAPACC_LOG_COMPONENT_SERVER,
+    PAPACC_LOG_COMPONENT_SERVER_IO_LOOP
+} PAPACC_LOG_COMPONENT_ID;
+
+typedef enum PAPACC_LOG_OPERATION {
+    PAPACC_LOG_OPERATION_UNSPECIFIED = 0,
+    PAPACC_LOG_OPERATION_STARTUP,
+    PAPACC_LOG_OPERATION_SHUTDOWN,
+    PAPACC_LOG_OPERATION_ACCEPT,
+    PAPACC_LOG_OPERATION_ESTABLISH,
+    PAPACC_LOG_OPERATION_ATTACH,
+    PAPACC_LOG_OPERATION_ISSUE,
+    PAPACC_LOG_OPERATION_CLEANUP,
+    PAPACC_LOG_OPERATION_EXPIRE
+} PAPACC_LOG_OPERATION;
+
+#define PAPACC_LOG_CONTEXT_CONNECTION_ID 0x00000001UL
+#define PAPACC_LOG_CONTEXT_SESSION_ID 0x00000002UL
+#define PAPACC_LOG_CONTEXT_CHANNEL_ID 0x00000004UL
+#define PAPACC_LOG_CONTEXT_LOCAL_ENDPOINT 0x00000008UL
+#define PAPACC_LOG_CONTEXT_REMOTE_ENDPOINT 0x00000010UL
+
+typedef struct PAPACC_LOG_CONTEXT {
+    PAPACC_U32 fields;
+    PAPACC_U64 connection_instance_id;
+    PAPACC_U64 session_instance_id;
+    PAPACC_U64 channel_instance_id;
+    char local_endpoint[PAPACC_LOG_ENDPOINT_TEXT_CAPACITY];
+    char remote_endpoint[PAPACC_LOG_ENDPOINT_TEXT_CAPACITY];
+} PAPACC_LOG_CONTEXT;
+
+#define PAPACC_LOG_CONTEXT_INITIALIZER { 0, 0, 0, 0, {0}, {0} }
 
 typedef struct PAPACC_LOG_RECORD {
     PAPACC_LOG_LEVEL level;
-    const char *component;
+    PAPACC_LOG_EVENT_ID event_id;
+    PAPACC_LOG_CATEGORY category;
+    PAPACC_LOG_COMPONENT_ID component_id;
+    PAPACC_LOG_OPERATION operation;
+    PAPACC_RESULT result;
+    PAPACC_BOOL result_valid;
     const char *message;
+    PAPACC_LOG_CONTEXT context;
     PAPACC_U64 monotonic_timestamp_ns;
     PAPACC_BOOL monotonic_timestamp_valid;
 } PAPACC_LOG_RECORD;
 
-typedef void (*PAPACC_LOG_SINK_FN)(
-    void *context,
+typedef void (*PAPACC_LOG_SINK_FN)(void *context,
     const PAPACC_LOG_RECORD *record);
 
 typedef struct PAPACC_LOGGER {
@@ -29,32 +100,20 @@ typedef struct PAPACC_LOGGER {
     PAPACC_LOG_LEVEL minimum_level;
 } PAPACC_LOGGER;
 
-/*
- * The logger and sink context are supplied explicitly; no global logger is
- * used. Thread-safety and synchronization policy are intentionally undefined
- * until threading is introduced by the runtime.
- * PAPACC_LOG_LEVEL_OFF is a runtime disabled state: papacc_log returns before
- * timestamp acquisition or sink delivery for every message severity.
- */
-PAPACC_RESULT papacc_logger_init(
-    PAPACC_LOGGER *logger,
-    PAPACC_LOG_SINK_FN sink,
-    void *sink_context,
+PAPACC_RESULT papacc_logger_init(PAPACC_LOGGER *logger,
+    PAPACC_LOG_SINK_FN sink, void *sink_context,
     PAPACC_LOG_LEVEL minimum_level);
 
 /*
- * Logging is best-effort and never replaces the caller's original result.
- * Invalid arguments are ignored. If monotonic time cannot be read, the record
- * is still delivered with timestamp 0 and monotonic_timestamp_valid false.
- *
- * component and message are borrowed, read-only strings. Their validity is
- * guaranteed only for the duration of the sink callback. Neither logger nor
- * sink owns or frees them; a sink that retains text must make its own copy.
+ * Delivery is synchronous. The record and message are borrowed and valid only
+ * during the callback; a retaining consumer must copy them before returning.
+ * Context is bounded and copied by value. Suppression happens before timestamp
+ * acquisition and record construction. Logging never replaces caller results.
  */
-void papacc_log(
-    const PAPACC_LOGGER *logger,
-    PAPACC_LOG_LEVEL level,
-    const char *component,
-    const char *message);
+void papacc_log_event(const PAPACC_LOGGER *logger, PAPACC_LOG_LEVEL level,
+    PAPACC_LOG_EVENT_ID event_id, PAPACC_LOG_CATEGORY category,
+    PAPACC_LOG_COMPONENT_ID component_id, PAPACC_LOG_OPERATION operation,
+    PAPACC_BOOL result_valid, PAPACC_RESULT result,
+    const PAPACC_LOG_CONTEXT *context, const char *message);
 
 #endif

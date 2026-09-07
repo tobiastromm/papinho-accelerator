@@ -119,7 +119,10 @@ PAPACC_RESULT papacc_server_run_win32(
     }
     fputs("Accepting Control establishment connections.\n",
           output);
-    papacc_log(logger, PAPACC_LOG_INFO, "server", "Listener started; accepting Phase 2 connections");
+    papacc_log_event(logger, PAPACC_LOG_INFO, PAPACC_LOG_EVENT_SERVER_STARTED,
+        PAPACC_LOG_CATEGORY_NETWORK, PAPACC_LOG_COMPONENT_SERVER,
+        PAPACC_LOG_OPERATION_STARTUP, PAPACC_TRUE, PAPACC_RESULT_OK, NULL,
+        "Listener started; accepting Phase 2 connections");
     (void)fflush(output);
     while (papacc_server_console_win32_stop_requested() == PAPACC_FALSE) {
         result = papacc_server_io_loop_win32_poll_once(
@@ -132,7 +135,10 @@ PAPACC_RESULT papacc_server_run_win32(
     }
 
 cleanup:
-    papacc_log(logger, PAPACC_LOG_INFO, "server", "Server stopping");
+    papacc_log_event(logger, PAPACC_LOG_INFO, PAPACC_LOG_EVENT_SERVER_STOPPING,
+        PAPACC_LOG_CATEGORY_RUNTIME, PAPACC_LOG_COMPONENT_SERVER,
+        PAPACC_LOG_OPERATION_SHUTDOWN, PAPACC_TRUE, result, NULL,
+        "Server stopping");
     papacc_server_io_loop_win32_shutdown(&io_loop);
     papacc_server_acceptor_win32_shutdown(&acceptor);
     free(processor_storage);

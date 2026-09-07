@@ -4,7 +4,8 @@
 
 typedef struct PAPACC_RUNTIME_TEST_SINK {
     PAPACC_SIZE call_count;
-    const char *last_component;
+    PAPACC_LOG_COMPONENT_ID last_component;
+    PAPACC_LOG_EVENT_ID last_event;
     const char *last_message;
 } PAPACC_RUNTIME_TEST_SINK;
 
@@ -16,7 +17,8 @@ static void papacc_runtime_test_sink(
         (PAPACC_RUNTIME_TEST_SINK *)context;
 
     ++sink->call_count;
-    sink->last_component = record->component;
+    sink->last_component = record->component_id;
+    sink->last_event = record->event_id;
     sink->last_message = record->message;
 }
 
@@ -47,7 +49,8 @@ int main(void)
         return 4;
     }
     if (sink.call_count != (PAPACC_SIZE)1 ||
-        strcmp(sink.last_component, "runtime") != 0 ||
+        sink.last_component != PAPACC_LOG_COMPONENT_RUNTIME ||
+        sink.last_event != PAPACC_LOG_EVENT_RUNTIME_STARTED ||
         strcmp(sink.last_message, "Runtime initialized") != 0) {
         return 5;
     }
@@ -66,6 +69,7 @@ int main(void)
         return 8;
     }
     if (sink.call_count != (PAPACC_SIZE)2 ||
+        sink.last_event != PAPACC_LOG_EVENT_RUNTIME_STOPPED ||
         strcmp(sink.last_message, "Runtime shutdown") != 0) {
         return 9;
     }

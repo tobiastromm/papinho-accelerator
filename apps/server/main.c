@@ -12,6 +12,7 @@
 static const char *papacc_server_log_level_name(PAPACC_LOG_LEVEL level)
 {
     switch (level) {
+    case PAPACC_LOG_TRACE: return "TRACE";
     case PAPACC_LOG_DEBUG: return "DEBUG";
     case PAPACC_LOG_INFO: return "INFO";
     case PAPACC_LOG_WARNING: return "WARN";
@@ -21,13 +22,30 @@ static const char *papacc_server_log_level_name(PAPACC_LOG_LEVEL level)
     }
 }
 
+static const char *papacc_server_log_component_name(
+    PAPACC_LOG_COMPONENT_ID component)
+{
+    switch (component) {
+    case PAPACC_LOG_COMPONENT_RUNTIME: return "runtime";
+    case PAPACC_LOG_COMPONENT_SERVER: return "server";
+    case PAPACC_LOG_COMPONENT_SERVER_IO_LOOP: return "server-io-loop";
+    default: return "unspecified";
+    }
+}
+
 static void papacc_server_console_log_sink(
     void *context, const PAPACC_LOG_RECORD *record)
 {
     FILE *output = (FILE *)context;
-    fprintf(output, "[%s] %s: %s\n",
+    fprintf(output, "[%s] %s: %s",
             papacc_server_log_level_name(record->level),
-            record->component, record->message);
+            papacc_server_log_component_name(record->component_id),
+            record->message);
+    if ((record->context.fields & PAPACC_LOG_CONTEXT_LOCAL_ENDPOINT) != 0)
+        fprintf(output, " local=%s", record->context.local_endpoint);
+    if ((record->context.fields & PAPACC_LOG_CONTEXT_REMOTE_ENDPOINT) != 0)
+        fprintf(output, " remote=%s", record->context.remote_endpoint);
+    fputc('\n', output);
     (void)fflush(output);
 }
 
@@ -39,7 +57,7 @@ static void papacc_server_print_help(void)
     puts("  papacc_server.exe --list-interfaces");
     puts("  papacc_server.exe --port <port> --all-interfaces [--allow-network-egress] [--log-level <level>]");
     puts("  papacc_server.exe --port <port> --interface-id <id> [--interface-id <id> ...] [--allow-network-egress] [--log-level <level>]");
-    puts("Log levels: off, error, warn, info (default), debug");
+    puts("Log levels: off, error, warn, info (default), debug, trace");
     puts("  off disables all PAPACC_LOGGER output");
     puts("Example: papacc_server.exe --port 39999 --all-interfaces --log-level info");
 }

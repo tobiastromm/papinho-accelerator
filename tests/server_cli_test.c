@@ -241,6 +241,9 @@ static int test_request_actions(void)
     const char *off[] = {
         "x", "--port", "4433", "--all-interfaces", "--log-level", "off"
     };
+    const char *trace[] = {
+        "x", "--port", "4433", "--all-interfaces", "--log-level", "trace"
+    };
     const char *bad_level[] = {
         "x", "--port", "4433", "--all-interfaces", "--log-level", "foo"
     };
@@ -273,6 +276,9 @@ static int test_request_actions(void)
         papacc_server_cli_request_parse(
             6, off, NULL, 0, &request, &required) != PAPACC_RESULT_OK ||
         request.log_level != PAPACC_LOG_LEVEL_OFF ||
+        papacc_server_cli_request_parse(
+            6, trace, NULL, 0, &request, &required) != PAPACC_RESULT_OK ||
+        request.log_level != PAPACC_LOG_TRACE ||
         papacc_server_cli_request_parse(
             6, bad_level, NULL, 0, &request, &required) !=
             PAPACC_RESULT_INVALID_ARGUMENT) {

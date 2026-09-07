@@ -84,7 +84,7 @@ papacc_server --port <porta> --all-interfaces --log-level info
 
 Não existe porta oficial ou default. O modo RUN exige `--port` e uma decisão explícita de bind. `--allow-network-egress` registra somente policy; egress ainda não foi implementado.
 
-`--log-level` aceita `off`, `error`, `warn`, `info` (default) e `debug`. `off` desabilita somente toda saída do `PAPACC_LOGGER`; saídas funcionais de `--help` e `--list-interfaces` permanecem disponíveis. INFO registra lifecycle estrutural de listeners, Connections, Sessions, tickets e DATA attachment. Tickets completos e payloads nunca são registrados. IDs mostrados são somente IDs runtime locais e não são serializados no Wire Protocol.
+`--log-level` aceita `off`, `error`, `warn`, `info` (default), `debug` e `trace`. `off` desabilita somente toda saída do `PAPACC_LOGGER`; saídas funcionais de `--help` e `--list-interfaces` permanecem disponíveis. INFO registra lifecycle estrutural de listeners, Connections, Sessions, tickets e DATA attachment. Eventos possuem identificador estável, categoria, componente, operação, resultado normalizado e contexto seguro limitado. Tickets completos e payloads nunca são registrados, inclusive em TRACE. IDs mostrados são somente IDs runtime locais e não são serializados no Wire Protocol.
 
 Consulte a [CLI Reference](docs/cli.md) para todas as opções implementadas,
 regras de combinação, formato de inspeção e exemplos. Os valores usados nos

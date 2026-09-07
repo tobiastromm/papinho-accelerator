@@ -60,6 +60,7 @@ static PAPACC_RESULT papacc_server_cli_parse_log_level(
     else if (strcmp(text, "warn") == 0) *out_level = PAPACC_LOG_WARNING;
     else if (strcmp(text, "info") == 0) *out_level = PAPACC_LOG_INFO;
     else if (strcmp(text, "debug") == 0) *out_level = PAPACC_LOG_DEBUG;
+    else if (strcmp(text, "trace") == 0) *out_level = PAPACC_LOG_TRACE;
     else return PAPACC_RESULT_INVALID_ARGUMENT;
     return PAPACC_RESULT_OK;
 }

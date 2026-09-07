@@ -18,11 +18,10 @@ PAPACC_RESULT papacc_runtime_init(
     *runtime = initialized;
 
     if (runtime->logger != NULL) {
-        papacc_log(
-            runtime->logger,
-            PAPACC_LOG_INFO,
-            "runtime",
-            "Runtime initialized");
+        papacc_log_event(runtime->logger, PAPACC_LOG_INFO,
+            PAPACC_LOG_EVENT_RUNTIME_STARTED, PAPACC_LOG_CATEGORY_RUNTIME,
+            PAPACC_LOG_COMPONENT_RUNTIME, PAPACC_LOG_OPERATION_STARTUP,
+            PAPACC_TRUE, PAPACC_RESULT_OK, NULL, "Runtime initialized");
     }
 
     return PAPACC_RESULT_OK;
@@ -35,11 +34,10 @@ void papacc_runtime_shutdown(PAPACC_RUNTIME *runtime)
     }
 
     if (runtime->state == PAPACC_RUNTIME_READY && runtime->logger != NULL) {
-        papacc_log(
-            runtime->logger,
-            PAPACC_LOG_INFO,
-            "runtime",
-            "Runtime shutdown");
+        papacc_log_event(runtime->logger, PAPACC_LOG_INFO,
+            PAPACC_LOG_EVENT_RUNTIME_STOPPED, PAPACC_LOG_CATEGORY_RUNTIME,
+            PAPACC_LOG_COMPONENT_RUNTIME, PAPACC_LOG_OPERATION_SHUTDOWN,
+            PAPACC_TRUE, PAPACC_RESULT_OK, NULL, "Runtime shutdown");
     }
 
     runtime->logger = NULL;

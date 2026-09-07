@@ -17,6 +17,8 @@ typedef struct PAPACC_TEST_RUN_CONTEXT {
 typedef struct PAPACC_TEST_LOG_CAPTURE {
     char text[4096];
     PAPACC_SIZE length;
+    PAPACC_BOOL accepted_has_local_endpoint;
+    PAPACC_BOOL accepted_has_remote_endpoint;
 } PAPACC_TEST_LOG_CAPTURE;
 
 static void papacc_test_log_sink(
@@ -26,8 +28,17 @@ static void papacc_test_log_sink(
     PAPACC_SIZE available = sizeof(capture->text) - capture->length;
     int count;
     if (available <= 1) return;
+    if (record->event_id == PAPACC_LOG_EVENT_CONNECTION_ACCEPTED) {
+        if ((record->context.fields & PAPACC_LOG_CONTEXT_LOCAL_ENDPOINT) != 0)
+            capture->accepted_has_local_endpoint = PAPACC_TRUE;
+        if ((record->context.fields & PAPACC_LOG_CONTEXT_REMOTE_ENDPOINT) != 0)
+            capture->accepted_has_remote_endpoint = PAPACC_TRUE;
+    }
     count = snprintf(&capture->text[capture->length], available,
-                     "%s: %s\n", record->component, record->message);
+                     "%u: %s local=%s remote=%s\n",
+                     (unsigned)record->component_id, record->message,
+                     record->context.local_endpoint,
+                     record->context.remote_endpoint);
     if (count > 0 && (PAPACC_SIZE)count < available)
         capture->length += (PAPACC_SIZE)count;
 }
@@ -113,7 +124,8 @@ int main(void)
     PAPACC_SERVER_CONSOLE_WIN32 console =
         PAPACC_SERVER_CONSOLE_WIN32_INITIALIZER;
     PAPACC_LOGGER logger;
-    PAPACC_TEST_LOG_CAPTURE log_capture = { { 0 }, 0 };
+    PAPACC_TEST_LOG_CAPTURE log_capture = { { 0 }, 0, PAPACC_FALSE,
+        PAPACC_FALSE };
     PAPACC_TEST_RUN_CONTEXT run_context;
     PAPACC_U16 port = 0;
     HANDLE read_handle = NULL;
@@ -268,13 +280,15 @@ int main(void)
     }
     if (result == 0 &&
         (strstr(log_capture.text, "Listener started") == NULL ||
-         strstr(log_capture.text, "CONTROL accepted") == NULL ||
-         strstr(log_capture.text, "from 127.0.0.1:") == NULL ||
-         strstr(log_capture.text, "Session 1 CONTROL established") == NULL ||
-         strstr(log_capture.text, "Session 1 DATA ticket issued") == NULL ||
-         strstr(log_capture.text, "DATA connection accepted") == NULL ||
-         strstr(log_capture.text, "Session 1 DATA successfully attached") == NULL ||
-         strstr(log_capture.text, "Server stopping") == NULL)) {
+         strstr(log_capture.text, "CONTROL connection classified") == NULL ||
+         strstr(log_capture.text, "127.0.0.1:") == NULL ||
+         strstr(log_capture.text, "CONTROL established") == NULL ||
+         strstr(log_capture.text, "DATA ticket issued") == NULL ||
+         strstr(log_capture.text, "DATA connection classified") == NULL ||
+         strstr(log_capture.text, "DATA successfully attached") == NULL ||
+         strstr(log_capture.text, "Server stopping") == NULL ||
+         log_capture.accepted_has_local_endpoint != PAPACC_TRUE ||
+         log_capture.accepted_has_remote_endpoint != PAPACC_TRUE)) {
         result = 32;
     }
     if (result == 0) {

@@ -2,7 +2,7 @@
 capability: logging
 title: Logging e diagnóstico operacional
 status: partial
-last-updated: 2026-09-06
+last-updated: 2026-09-07
 scope: project
 ---
 
@@ -178,6 +178,23 @@ local=192.168.1.10:39999
 
 Isso permite saber não apenas quem conectou, mas por qual endereço/interface local a conexão entrou.
 
+## Record estruturado e lifetime
+
+`PAPACC_LOG_RECORD` transporta separadamente `level`, `event_id`, `category`,
+`component_id`, `operation`, `result` normalizado (com indicador de validade),
+`message`, timestamp monotônico e contexto estruturado seguro. `message` é
+apresentação humana e pode mudar sem alterar `event_id`.
+
+O contexto é limitado e copiado por valor. Atualmente pode transportar IDs
+runtime de Connection, Session e Channel e os endpoints local/remoto em buffers
+fixos. Não é armazenamento geral de objetos.
+
+A entrega ao sink é síncrona e efêmera. O record e a mensagem emprestada são
+válidos somente durante o callback; um consumidor que queira retê-los deve
+copiá-los antes de retornar. O sink e seu contexto pertencem ao consumidor e
+não existe sink global obrigatório. Eventos suprimidos pelo threshold não
+chegam ao sink e são descartados antes da aquisição do timestamp.
+
 ## Segurança
 
 Mesmo em `TRACE`, não registrar automaticamente senhas, private keys, tokens completos, credential material, segredos de autenticação, payload arbitrário, material privado de certificados/tickets ou dumps indiscriminados.
@@ -186,10 +203,8 @@ Preferir IDs diagnósticos, resultados normalizados e metadados seguros.
 
 ## Estado atual
 
-Status geral: `partial`.
-
-A auditoria factual de 2026-09-06 confirmou a implementação atual abaixo.
-O logger ainda é parcial diante da gramática transversal completa.
+Status geral: `partial` porque o adaptador PST permanece futuro. O contrato
+local do Accelerator está conforme à gramática transversal aplicável.
 
 | Área | Estado | Observação |
 |---|---|---|
@@ -198,27 +213,22 @@ O logger ainda é parcial diante da gramática transversal completa.
 | callback + contexto explícito | validated | Sink e contexto fornecidos ao logger |
 | ausência de logger global obrigatório | validated | Logger é passado explicitamente |
 | eventos efêmeros síncronos | validated | Callback imediato; strings emprestadas durante a chamada |
-| OFF, ERROR, WARN, INFO e DEBUG | validated | Enum, parser CLI, help e testes |
-| TRACE | not-implemented | Não existe no enum nem na CLI |
-| threshold cumulativo | validated | Testado em cada threshold implementado |
+| OFF, ERROR, WARN, INFO, DEBUG e TRACE | validated | Enum, parser CLI, help e testes |
+| threshold cumulativo | validated | Testado nos seis thresholds |
 | default INFO | validated | Initializer da request CLI |
-| CLI `off|error|warn|info|debug` | validated | Parser rejeita valores desconhecidos |
-| structured events | partial | Level, component, message e timestamp existem |
-| `EVENT_ID`, `CATEGORY`, `RESULT`, `OPERATION` | not-implemented | Campos ainda ausentes do record |
+| CLI `off|error|warn|info|debug|trace` | validated | Parser rejeita valores desconhecidos |
+| structured events | validated | Nível, event ID, categoria, component ID, operação, resultado normalizado, mensagem, timestamp e contexto limitado |
+| identidade do evento | validated | `EVENT_ID` estável e independente do texto humano |
 | nível global | implemented | Um `log_level` por execução do servidor |
 | GUI | planned | Futura GUI |
 | PAL/sinks | partial | Timestamp usa PAL; console sink pertence à aplicação |
 | PST adapter | not-implemented | PST existe; falta o adapter PST → logger do Accelerator |
-| local+remote endpoint | partial | `remote` existe; `local` ainda não é registrado |
+| local+remote endpoint | validated | Ambos são derivados dos endpoints factuais da conexão aceita |
 
 ## Pendências
 
-- [ ] Adicionar `TRACE` ao contrato, configuração, sinks e testes.
-- [ ] Evoluir o record com `EVENT_ID`, `CATEGORY`, `RESULT` e `OPERATION`.
 - [ ] Implementar integração PST por callback/adaptador quando o componente for integrado.
-- [ ] Registrar `local=` e `remote=` nos eventos apropriados.
 - [ ] Revisar INFO para evitar debug disfarçado.
-- [ ] Validar ausência de segredos em DEBUG/TRACE.
 - [ ] Integrar futura GUI ao mesmo Configuration Model da CLI.
 
 ## Ideias futuras
@@ -262,3 +272,4 @@ Não são automaticamente decisões ou implementações atuais.
 |---|---|
 | 2026-09-06 | Documento inicial consolidando decisões e estado conhecido do logging do PapinhoAccelerator. |
 | 2026-09-06 | Auditoria factual sincronizou níveis, threshold, OFF, callback, CLI, sinks, testes e pendências estruturadas. |
+| 2026-09-07 | Conformidade com ADR-0003: TRACE, gramática estruturada, identidade estável, resultado normalizado, contexto limitado, endpoints local/remoto e testes. |

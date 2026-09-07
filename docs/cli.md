@@ -168,10 +168,11 @@ error
 warn
 info
 debug
+trace
 ```
 
 O default do RUN mode é `info`. A opção pode aparecer uma única vez e os nomes
-são aceitos exatamente em minúsculas. `trace` ainda não está implementado.
+são aceitos exatamente em minúsculas.
 
 `--log-level off` desliga todos os eventos do `PAPACC_LOGGER`; não desliga
 saída funcional nem a operação do servidor. Consulte [Logging e diagnóstico
