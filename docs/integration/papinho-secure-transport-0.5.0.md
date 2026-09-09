@@ -134,3 +134,16 @@ The current dependency pin remains historical until Phase 3.B2 performs and
 validates the consumer migration. That phase must update the pin to an exact
 0.5.0 release asset and SHA-256 under ADR-0008; it must not use `latest`, a PST
 checkout, or an unverified local build.
+
+## Accelerator Phase 3.B2 adoption
+
+Phase 3.B2 completed that consumer migration. The dependency pin now names the
+exact published 0.5.0 target asset and SHA-256. The outbound proof uses an
+explicit CLIENT role, while the private `papacc_security_composition` owns the
+runtime, local credentials, peer trust and exact SERVER provider/profile for
+the Secure Principal. Construction is failure-atomic and release is
+idempotent.
+
+This adoption does not attach PST to accepted sockets and does not implement
+handshake/I/O scheduling, the PST logging adapter, Principal mapping,
+authorization, secure DATA association, Browser integration or `TLS_OFFLOAD`.

@@ -12,6 +12,9 @@ The historical conclusions and evidence below remain preserved.
 Later state note: PapinhoSecureTransport was subsequently implemented as an
 independent library and selected for future Accelerator integration. Historical
 statements below that it did not yet exist remain true for this checkpoint.
+Phase 3.B2 later pinned PST 0.5.0/API 2.0/SPI 3.0 and implemented the private,
+failure-atomic SERVER security-composition lifecycle. Listener attachment,
+handshake, secure I/O, Principal mapping and authorization remain future work.
 
 Status: authoritative Phase 3.A2A-R1 security-profile revision. It supersedes
 the initial external-PSK choice made by Phase 3.A2A. The earlier choice and its

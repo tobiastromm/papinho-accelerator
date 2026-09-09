@@ -145,8 +145,9 @@ A PAL/sink determina onde e como o evento aparece; nível e semântica pertencem
 
 ## Integração com PapinhoSecureTransport
 
-PST já existe como biblioteca independente, mas ainda não está integrado ao
-Accelerator. A integração futura não cria um segundo sistema visual de logging:
+PST 0.5.0 já é consumido pela composição privada e opt-in de segurança do
+Accelerator. Essa composição ainda não instala o adapter de logging, reservado
+para uma etapa posterior. O adapter não criará um segundo sistema visual:
 
 ```c
 logging.callback = accelerator_on_pst_log;

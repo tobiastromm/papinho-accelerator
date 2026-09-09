@@ -22,7 +22,6 @@ typedef struct PAPACC_PROOF_CONTEXT {
     SOCKET socket_value;
     pst_runtime *runtime;
     pst_trust *trust;
-    pst_config *config;
     pst_connection *connection;
     pst_transport *transport;
     char provider_id[32];
@@ -66,7 +65,6 @@ static void papacc_proof_cleanup(PAPACC_PROOF_CONTEXT *context)
         pst_transport_release(context->transport);
     else if (context->socket_value != INVALID_SOCKET)
         closesocket(context->socket_value);
-    if (context->config != NULL) pst_config_release(context->config);
     if (context->trust != NULL) pst_trust_release(context->trust);
     if (context->runtime != NULL) pst_runtime_release(context->runtime);
     if (context->winsock_started) WSACleanup();
@@ -271,9 +269,9 @@ static int papacc_proof_run(int wrong_hostname)
     PAPACC_PROOF_CONTEXT context;
     PST_RUNTIME_OPTIONS options;
     PST_RUNTIME_INFO runtime_info;
+    PST_PROVIDER_INFO provider_info;
     PST_TRUST_SOURCE trust_source;
-    PST_IDENTITY_CONFIG identity;
-    PST_TLS_POLICY tls_policy;
+    PST_CONNECTION_CONFIG connection_config;
     PST_LOG_CONFIG log_config;
     PST_DIAGNOSTIC_INFO diagnostic;
     PST_PEER_INFO_SUMMARY peer_summary;
@@ -299,10 +297,6 @@ static int papacc_proof_run(int wrong_hostname)
     memset(&options, 0, sizeof(options));
     options.struct_size = (pst_u32)sizeof(options);
     options.api_version = PST_API_VERSION;
-    options.selection = PST_BACKEND_SELECTION_AUTOMATIC;
-    options.required_capabilities = PST_CAP_TLS_1_3 | PST_CAP_SYSTEM_TRUST |
-        PST_CAP_HOSTNAME_VERIFY | PST_CAP_PEER_INFO | PST_CAP_NONBLOCKING |
-        PST_CAP_BACKEND_WAIT;
     pst_log_config_init(&log_config);
     log_config.level = PST_LOG_LEVEL_INFO;
     log_config.callback = papacc_proof_pst_log;
@@ -314,11 +308,10 @@ static int papacc_proof_run(int wrong_hostname)
     runtime_info.struct_size = (pst_u32)sizeof(runtime_info);
     runtime_info.api_version = PST_API_VERSION;
     result = pst_runtime_get_info(context.runtime, &runtime_info);
-    if (result != PST_RESULT_OK || runtime_info.backend_id == NULL)
+    if (result != PST_RESULT_OK || runtime_info.provider_count == 0U)
         goto pst_failure;
-    strncpy_s(context.provider_id, sizeof(context.provider_id),
-        runtime_info.backend_id, _TRUNCATE);
-    printf("PST_RUNTIME_RESULT=PASS provider=%s\n", context.provider_id);
+    printf("PST_RUNTIME_RESULT=PASS providers=%llu\n",
+        (unsigned long long)runtime_info.provider_count);
 
     memset(&trust_source, 0, sizeof(trust_source));
     trust_source.struct_size = (pst_u32)sizeof(trust_source);
@@ -326,35 +319,57 @@ static int papacc_proof_run(int wrong_hostname)
     trust_source.kind = PST_TRUST_SOURCE_SYSTEM;
     result = pst_trust_create(&trust_source, &context.trust);
     if (result != PST_RESULT_OK) goto pst_failure;
-    result = pst_config_create(&context.config);
-    if (result != PST_RESULT_OK) goto pst_failure;
-    memset(&identity, 0, sizeof(identity));
-    identity.struct_size = (pst_u32)sizeof(identity);
-    identity.api_version = PST_API_VERSION;
-    identity.trust = context.trust;
-    identity.expected_hostname = wrong_hostname ?
+    memset(&connection_config, 0, sizeof(connection_config));
+    connection_config.struct_size = (pst_u32)sizeof(connection_config);
+    connection_config.api_version = PST_API_VERSION;
+    connection_config.role = PST_CONNECTION_ROLE_CLIENT;
+    connection_config.provider_selection.struct_size =
+        (pst_u32)sizeof(connection_config.provider_selection);
+    connection_config.provider_selection.api_version = PST_API_VERSION;
+    connection_config.provider_selection.mode = PST_BACKEND_SELECTION_EXACT;
+    connection_config.provider_selection.exact_provider_id = "openssl";
+    connection_config.provider_selection.required_capabilities =
+        PST_CAP_TLS_1_3 | PST_CAP_ROLE_CLIENT | PST_CAP_PEER_CERT_AUTH |
+        PST_CAP_SYSTEM_TRUST | PST_CAP_PEER_NAME_VERIFY | PST_CAP_PEER_INFO |
+        PST_CAP_NONBLOCKING | PST_CAP_BACKEND_WAIT;
+    connection_config.local_identity.struct_size =
+        (pst_u32)sizeof(connection_config.local_identity);
+    connection_config.local_identity.api_version = PST_API_VERSION;
+    connection_config.peer_authentication.struct_size =
+        (pst_u32)sizeof(connection_config.peer_authentication);
+    connection_config.peer_authentication.api_version = PST_API_VERSION;
+    connection_config.peer_authentication.certificate_mode =
+        PST_PEER_CERTIFICATE_REQUIRED;
+    connection_config.peer_authentication.trust = context.trust;
+    connection_config.peer_authentication.expected_peer_name = wrong_hostname ?
         PAPACC_PROOF_WRONG_HOST : PAPACC_PROOF_HOST;
-    identity.expected_hostname_size = strlen(identity.expected_hostname);
-    identity.require_peer_authentication = PST_REQUIREMENT_REQUIRED;
-    identity.require_client_authentication = PST_REQUIREMENT_DISABLED;
-    result = pst_config_set_identity(context.config, &identity);
-    if (result != PST_RESULT_OK) goto pst_failure;
-    memset(&tls_policy, 0, sizeof(tls_policy));
-    tls_policy.struct_size = (pst_u32)sizeof(tls_policy);
-    tls_policy.api_version = PST_API_VERSION;
-    tls_policy.minimum_version = PST_TLS_VERSION_1_3;
-    tls_policy.maximum_version = PST_TLS_VERSION_1_3;
-    tls_policy.alpn_requirement = PST_FEATURE_DISABLED;
-    tls_policy.resumption = PST_FEATURE_DISABLED;
-    tls_policy.early_data = PST_FEATURE_DISABLED;
-    tls_policy.require_graceful_shutdown = PST_REQUIREMENT_DISABLED;
-    result = pst_config_set_tls_policy(context.config, &tls_policy);
-    if (result != PST_RESULT_OK) goto pst_failure;
-    result = pst_config_freeze(context.config);
-    if (result != PST_RESULT_OK) goto pst_failure;
-    result = pst_connection_create_ex(context.runtime, context.config,
+    connection_config.peer_authentication.expected_peer_name_size = strlen(
+        connection_config.peer_authentication.expected_peer_name);
+    connection_config.tls.struct_size =
+        (pst_u32)sizeof(connection_config.tls);
+    connection_config.tls.api_version = PST_API_VERSION;
+    connection_config.tls.minimum_version = PST_TLS_VERSION_1_3;
+    connection_config.tls.maximum_version = PST_TLS_VERSION_1_3;
+    connection_config.tls.resumption = PST_FEATURE_DISABLED;
+    connection_config.tls.early_data = PST_FEATURE_DISABLED;
+    connection_config.tls.require_graceful_shutdown = PST_FEATURE_DISABLED;
+    connection_config.alpn.struct_size =
+        (pst_u32)sizeof(connection_config.alpn);
+    connection_config.alpn.api_version = PST_API_VERSION;
+    connection_config.alpn.mode = PST_FEATURE_DISABLED;
+    result = pst_connection_create_ex(context.runtime, &connection_config,
         &context.connection, &diagnostic);
     if (result != PST_RESULT_OK) goto pst_failure;
+    memset(&provider_info, 0, sizeof(provider_info));
+    provider_info.struct_size = (pst_u32)sizeof(provider_info);
+    provider_info.api_version = PST_API_VERSION;
+    result = pst_connection_get_provider_info(context.connection,
+        &provider_info);
+    if (result != PST_RESULT_OK) goto pst_failure;
+    strncpy_s(context.provider_id, sizeof(context.provider_id),
+        provider_info.provider_id, _TRUNCATE);
+    printf("PST_PROVIDER_SELECTION=PASS role=CLIENT provider=%s\n",
+        context.provider_id);
     result = pst_win32_socket_transport_create(
         (pst_size)context.socket_value, &context.transport);
     if (result != PST_RESULT_OK) goto pst_failure;
@@ -374,7 +389,7 @@ static int papacc_proof_run(int wrong_hostname)
     deadline = papacc_proof_now_ms() + PAPACC_PROOF_DEADLINE_MS;
     result = papacc_proof_handshake(context.connection, deadline);
     if (wrong_hostname) {
-        if (result == PST_RESULT_HOSTNAME_MISMATCH ||
+        if (result == PST_RESULT_PEER_NAME_MISMATCH ||
             result == PST_RESULT_AUTH_FAILURE) {
             printf("WRONG_HOSTNAME_RESULT=PASS result=%s\n",
                 pst_result_string(result));
@@ -405,13 +420,13 @@ static int papacc_proof_run(int wrong_hostname)
     printf("CHAIN_VALIDATED=%s\n",
         peer_summary.chain_validated == PST_KNOWN_TRUE ? "PASS" : "FAIL");
     printf("HOSTNAME_VALIDATED=%s\n",
-        peer_summary.hostname_validated == PST_KNOWN_TRUE ? "PASS" : "FAIL");
+        peer_summary.peer_name_validated == PST_KNOWN_TRUE ? "PASS" : "FAIL");
     printf("PEER_AUTHENTICATED=%s\n",
         peer_summary.peer_authenticated == PST_KNOWN_TRUE ? "PASS" : "FAIL");
     if (peer_summary.tls_version != PST_TLS_VERSION_1_3 ||
         peer_summary.certificate_present != PST_KNOWN_TRUE ||
         peer_summary.chain_validated != PST_KNOWN_TRUE ||
-        peer_summary.hostname_validated != PST_KNOWN_TRUE ||
+        peer_summary.peer_name_validated != PST_KNOWN_TRUE ||
         peer_summary.peer_authenticated != PST_KNOWN_TRUE) goto cleanup;
     pst_peer_info_release(peer_info);
     peer_info = NULL;

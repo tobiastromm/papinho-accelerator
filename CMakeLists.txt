@@ -6,7 +6,7 @@ include(CTest)
 include(cmake/PapaccPstConsumer.cmake)
 
 option(PAPACC_ENABLE_PST_OUTBOUND_PROOF
-    "Build the opt-in PST TLS 1.3 Internet proof harness" OFF)
+    "Build opt-in PST consumers, tests, and TLS 1.3 Internet proof" OFF)
 
 function(papacc_enable_warnings target)
     if(MSVC)
@@ -633,6 +633,31 @@ if(WIN32)
 
     if(PAPACC_ENABLE_PST_OUTBOUND_PROOF)
         papacc_define_pst_consumer_boundary()
+
+        add_library(papacc_security_composition STATIC
+            src/security/security_composition.c
+            src/security/platform/win32/pst_provider_bootstrap_win32.c)
+        target_include_directories(papacc_security_composition
+            PUBLIC
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/security
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/security/platform/win32)
+        target_link_libraries(papacc_security_composition
+            PUBLIC papacc_core
+            PRIVATE papacc_pst_consumer)
+        set_target_properties(papacc_security_composition PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_security_composition)
+
+        add_executable(papacc_security_composition_test
+            tests/security_composition_test.c)
+        target_link_libraries(papacc_security_composition_test PRIVATE
+            papacc_security_composition papacc_pst_consumer)
+        set_target_properties(papacc_security_composition_test PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_security_composition_test)
+        papacc_stage_pst_runtime(papacc_security_composition_test)
+        add_test(NAME papacc_security_composition_test
+            COMMAND papacc_security_composition_test)
 
         add_executable(papacc_pst_tls13_outbound_proof
             tests/pst_tls13_outbound_proof.c)

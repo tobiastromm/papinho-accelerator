@@ -19,8 +19,9 @@ Secure Transport pronta para consumo. Providers concretos permanecem
 selecionáveis por target; nenhum provider é universalmente obrigatório.
 Criptografia própria é proibida.
 
-**Estado de implementação:** não existem autenticação, Transport Security nem
-`TLS_OFFLOAD`. O servidor processa Control establishment; E1 apenas congela um
+**Estado de implementação:** a composição privada PST do perfil Secure
+Principal SERVER existe, mas não está ligada ao servidor. Não existem ainda
+autenticação, Transport Security operacional nem `TLS_OFFLOAD`. O servidor processa Control establishment; E1 apenas congela um
 ticket opaco one-time para futura associação estrutural DATA. Esse ticket não é
 credencial, autenticação nem autorização segura. O serviço não deve ser
 apresentado como seguro nesta fase.
@@ -45,7 +46,9 @@ Profile](phase3-transport-security-profile.md): TLS 1.3 mTLS, CA
 privada/administrativa, certificado individual por dispositivo cliente, sem
 0-RTT, resumption ou fallback. A validação 3.A2B-R3 comprovou RetroZilla
 NSS/NSPR como backend legado viável. Esse backend hoje pertence ao PST; o
-Accelerator não integra NSS/NSPR diretamente e ainda não integrou PST.
+Accelerator não integra NSS/NSPR diretamente. A Phase 3.B2 integrou PST 0.5.0
+(API 2.0/SPI 3.0) somente na composição privada e opt-in do lifecycle de
+segurança.
 PapinhoAccelerator não deve inventar um protocolo criptográfico próprio.
 
 ```text
@@ -59,7 +62,7 @@ CONCRETE PST PROVIDER PER TARGET
     → selecionável/substituível; nenhum provider universal obrigatório
 
 INTEGRATION INTO ACCELERATOR
-    → ainda não implementada
+    → composição de lifecycle implementada; wiring no servidor ainda ausente
 ```
 
 A decisão arquitetural posterior define os perfis futuros

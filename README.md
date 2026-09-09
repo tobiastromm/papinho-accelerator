@@ -28,13 +28,15 @@ PST, não uma dependência direta do Core.
 
 PST pronto e sua boundary privada de consumo no build não significam Transport Security integrada: autenticação,
 autorização e Transport Security continuam não implementadas no Accelerator.
-O Accelerator fixa e valida a release PST `v0.4.0` por manifesto de dependência
-e possui uma prova opt-in isolada de TLS 1.3 outbound para `google.com:443`.
+O Accelerator fixa e valida a release PST `v0.5.0` (API 2.0/SPI 3.0) por
+manifesto de dependência e possui uma prova opt-in isolada de TLS 1.3 outbound
+para `google.com:443`, migrada para role CLIENT explícito.
 Essa prova reutiliza a mesma boundary CMake privada reservada às futuras
 unidades de segurança, mas não implementa a capability geral `TLS_OFFLOAD`,
 network egress de produção, proxy ou integração com Browser. A Phase 3.B
-iniciou somente sua fronteira de build; lifecycle, logging adapter, readiness e
-integração TLS no servidor permanecem não implementados. A
+implementou a composition privada e failure-atomic de runtime, credencial,
+trust e perfil Secure Principal SERVER. Logging adapter, readiness e integração
+TLS no servidor permanecem não implementados. A
 baseline possui modelos portáteis em C99 e um
 servidor Win32 estruturalmente operacional:
 
@@ -42,6 +44,7 @@ servidor Win32 estruturalmente operacional:
 |---|---|
 | PST release integration + private consumer build boundary | ✅ |
 | Accelerator → PST → TLS 1.3 Internet proof | ✅ |
+| Security Composition Lifecycle | ✅; ainda não ligada ao servidor |
 | `TLS_OFFLOAD` general capability | 🟨 incompleta; veja o Capability Document |
 | Network Egress production | ⬜ não implementado |
 | Transport Security Browser ↔ Accelerator | ⬜ não implementado |
@@ -142,7 +145,9 @@ acessa a Internet e, deliberadamente, não integra o CTest regular.
 O contrato de includes, link e runtime DLLs fica centralizado no target CMake
 privado `papacc_pst_consumer`; consumidores não devem repetir paths ou listas
 de bibliotecas. A boundary apenas descreve consumo do SDK staged e não cria
-runtime PST nem adiciona TLS ao `papacc_server`.
+runtime PST nem adiciona TLS ao `papacc_server`. A composition PST-backed e seu
+teste também permanecem opt-in; o build baseline não adquire dependências pela
+rede.
 
 Árvores `build*` são artefatos locais ignorados pelo Git. Não coloque fontes ou definições de protocolo necessárias dentro delas.
 

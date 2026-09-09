@@ -23,10 +23,11 @@ As decisões arquiteturais canônicas posteriores permanecem nos ADRs acima.
 
 As Phases 1 e 2 implementam a Foundation portátil e, no Windows, discovery de interfaces, resolução persistente de bind, WinSock, listeners, aceitação não bloqueante, Sessions, Control/Data Channels estruturais, framing e os fluxos de estabelecimento CONTROL e associação DATA por ticket one-time. O executável integra esses componentes em um único loop `select()` e encerra de forma graciosa por Ctrl+C/Ctrl+Break.
 
-PapinhoSecureTransport (PST) já existe como biblioteca independente. O pin,
-a aquisição validada e uma boundary CMake privada centralizam seu contrato de
-consumo por futuros componentes e pelo proof existente. A composição runtime,
-assim como autenticação, autorização, Transport Security no Accelerator,
+PapinhoSecureTransport (PST) já existe como biblioteca independente. O pin
+`v0.5.0`, a aquisição validada e uma boundary CMake privada centralizam seu
+contrato de consumo. A composição privada de runtime, credenciais, trust e
+perfil Secure Principal SERVER já existe de forma opt-in e failure-atomic.
+Autenticação, autorização, Transport Security no Accelerator,
 Capability Negotiation, protocolo de aplicação pós-DATA e Compute Backends,
 permanece trabalho futuro. Session
 `ACTIVE` nesta baseline significa somente estabelecimento estrutural concluído;
@@ -38,7 +39,7 @@ Estado da integração PST:
 |---|---|
 | Release pin, aquisição e validação do SDK | implementado |
 | Boundary privada de includes/link/runtime files | implementado |
-| Production security runtime composition | não implementado |
+| Private security runtime composition | implementado; opt-in e não ligado ao servidor |
 | PST logging adapter | não implementado |
 | Readiness/scheduler integration | não implementado |
 | Transport Security no `papacc_server` | não implementado |
@@ -46,6 +47,13 @@ Estado da integração PST:
 `papacc_pst_consumer` é somente um target privado de build. Ele não constitui
 API pública do Accelerator, não cria objetos PST e não deve ser ligado ao core
 portátil ou às entidades Connection, Session e Channel.
+
+`papacc_security_composition` é uma unidade privada consumidora do PST. Ela
+possui o runtime, a credencial local, o trust dos peers, a seleção exata do
+provider e a configuração TLS 1.3 mTLS SERVER do Secure Principal. Só publica
+estado `READY` depois da composição completa; falhas liberam recursos parciais.
+Ela ainda não aceita transports, não executa handshake ou I/O e não está ligada
+ao `papacc_server`.
 
 ## Objetivos
 
@@ -160,12 +168,12 @@ O Control Plane estabelece e governa a Session: identificação, autenticação,
 
 Em TCP, uma Session usará conceitualmente um Control Channel e zero ou mais Data Channels. A associação Data Channel–Session deve ser autenticada, íntegra, resistente a associação indevida/replay quando aplicável e submetida aos mesmos limites e políticas. O perfil 3.A2A exige igualdade de principal mais ticket estrutural e autorização; a operação/API atômica concreta permanece para 3.D.
 
-Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil revisado é TLS 1.3 mTLS, com CA privada/administrativa e certificado individual por dispositivo cliente, conforme [Phase 3 Transport Security and Credential Profile](phase3-transport-security-profile.md). O closeout 3.A2B-R3 comprovou RetroZilla NSS/NSPR como backend legado viável. PST foi posteriormente implementado e é a biblioteca escolhida para materializar a fronteira Secure Transport; integração no Accelerator permanece futura.
+Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil revisado é TLS 1.3 mTLS, com CA privada/administrativa e certificado individual por dispositivo cliente, conforme [Phase 3 Transport Security and Credential Profile](phase3-transport-security-profile.md). O closeout 3.A2B-R3 comprovou RetroZilla NSS/NSPR como backend legado viável. PST foi posteriormente implementado e é a biblioteca escolhida para materializar a fronteira Secure Transport. A composição privada do perfil existe; conexão ao listener, handshake, I/O seguro e integração com Principal/Session permanecem futuros.
 
 A direção posterior distingue [Secure Principal e Legacy Endpoint](phase3-transport-profiles.md). O primeiro exige TLS 1.3 mTLS; o segundo é plaintext explicitamente habilitado, desabilitado por padrão e sem identidade criptográfica forte. Listeners distintos são recomendados. Falha no perfil seguro nunca seleciona o perfil legado.
 
 Cada conexão TCP CONTROL ou DATA deverá estabelecer proteção própria. Como
-Transport Security fica abaixo de Framing, a composição futura será `accept ->
+Transport Security fica abaixo de Framing. O pipeline futuro será `accept ->
 PST security establishment -> authenticated peer result -> Accelerator
 Principal/authorization -> classifier -> framing`; contextos do PST ficarão
 separados das entidades portáteis `PAPACC_CONNECTION` e `PAPACC_SESSION`.
