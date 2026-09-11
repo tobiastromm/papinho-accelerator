@@ -5,6 +5,20 @@
 
 #define CHECK(condition, code) do { if (!(condition)) return (code); } while (0)
 
+typedef struct TEST_LOG_SINK {
+    PAPACC_SIZE count;
+    PAPACC_LOG_RECORD record;
+} TEST_LOG_SINK;
+static PAPACC_LOGGER *test_logger;
+
+static void test_log_sink(void *context, const PAPACC_LOG_RECORD *record)
+{
+    TEST_LOG_SINK *sink = (TEST_LOG_SINK *)context;
+    (void)record;
+    ++sink->count;
+    sink->record = *record;
+}
+
 static PAPACC_RESULT failing_bootstrap(void *context)
 {
     (void)context;
@@ -35,6 +49,7 @@ static void initialize_inputs(PAPACC_SECURITY_COMPOSITION_INPUTS *inputs,
         PAPACC_SECURITY_ALPN_PAPACC_1_SIZE;
     inputs->provider_id = "openssl";
     inputs->provider_bootstrap = papacc_pst_provider_bootstrap_win32;
+    inputs->logger = test_logger;
 }
 
 int main(void)
@@ -51,6 +66,12 @@ int main(void)
     PAPACC_U32 required;
     pst_size index;
     int openssl_found = 0;
+    TEST_LOG_SINK sink = { 0U };
+    PAPACC_LOGGER logger;
+
+    CHECK(papacc_logger_init(&logger, test_log_sink, &sink,
+        PAPACC_LOG_INFO) == PAPACC_RESULT_OK, 34);
+    test_logger = &logger;
 
     CHECK(!papacc_security_composition_is_ready(&composition), 1);
     CHECK(papacc_security_composition_init(NULL, NULL) ==
@@ -97,8 +118,12 @@ int main(void)
         composition.peer_trust == NULL, 9);
 
     initialize_inputs(&inputs, &certificate, &trust_anchor, private_key);
+    sink.count = 0U;
     CHECK(papacc_security_composition_init(&composition, &inputs) ==
         PAPACC_RESULT_OK, 10);
+    CHECK(sink.count != 0U && sink.record.event_id ==
+        PAPACC_LOG_EVENT_SECURE_TRANSPORT_RUNTIME_READY &&
+        sink.record.level == PAPACC_LOG_INFO, 35);
     CHECK(papacc_security_composition_is_ready(&composition), 11);
     CHECK(papacc_security_composition_init(&composition, &inputs) ==
         PAPACC_RESULT_INVALID_STATE, 12);
@@ -165,9 +190,13 @@ int main(void)
 
     composition = (PAPACC_SECURITY_COMPOSITION)
         PAPACC_SECURITY_COMPOSITION_INITIALIZER;
+    CHECK(papacc_logger_init(&logger, test_log_sink, &sink,
+        PAPACC_LOG_LEVEL_OFF) == PAPACC_RESULT_OK, 36);
+    sink.count = 0U;
     initialize_inputs(&inputs, &certificate, &trust_anchor, private_key);
     CHECK(papacc_security_composition_init(&composition, &inputs) ==
         PAPACC_RESULT_OK, 32);
+    CHECK(sink.count == 0U, 37);
     papacc_security_composition_release(&composition);
     CHECK(composition.state == PAPACC_SECURITY_COMPOSITION_CLOSED, 33);
     return 0;

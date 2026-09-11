@@ -28,15 +28,18 @@ PST, não uma dependência direta do Core.
 
 PST pronto e sua boundary privada de consumo no build não significam Transport Security integrada: autenticação,
 autorização e Transport Security continuam não implementadas no Accelerator.
-O Accelerator fixa e valida a release PST `v0.5.0` (API 2.0/SPI 3.0) por
+O Accelerator fixa e valida a release PST `v0.6.0` (API 2.1/SPI 3.0) por
 manifesto de dependência e possui uma prova opt-in isolada de TLS 1.3 outbound
 para `google.com:443`, migrada para role CLIENT explícito.
 Essa prova reutiliza a mesma boundary CMake privada reservada às futuras
 unidades de segurança, mas não implementa a capability geral `TLS_OFFLOAD`,
 network egress de produção, proxy ou integração com Browser. A Phase 3.B
 implementou a composition privada e failure-atomic de runtime, credencial,
-trust e perfil Secure Principal SERVER. Logging adapter, readiness e integração
-TLS no servidor permanecem não implementados. A
+trust e perfil Secure Principal SERVER. O adapter privado de logging PST também
+está implementado. A boundary privada de scheduling usa o wait-set PST para
+multiplexar conexões seguras, sources nativas borrowed, timeout e wake, com
+trabalho limitado e fairness controlados pelo Accelerator; ela ainda não está
+ligada ao servidor. A integração TLS no servidor permanece não implementada. A
 baseline possui modelos portáteis em C99 e um
 servidor Win32 estruturalmente operacional:
 
@@ -45,6 +48,8 @@ servidor Win32 estruturalmente operacional:
 | PST release integration + private consumer build boundary | ✅ |
 | Accelerator → PST → TLS 1.3 Internet proof | ✅ |
 | Security Composition Lifecycle | ✅; ainda não ligada ao servidor |
+| PST Logging Adapter | ✅; privado, síncrono e consumer-owned |
+| PST readiness/scheduler integration | ✅; privada, opt-in e não ligada ao servidor |
 | `TLS_OFFLOAD` general capability | 🟨 incompleta; veja o Capability Document |
 | Network Egress production | ⬜ não implementado |
 | Transport Security Browser ↔ Accelerator | ⬜ não implementado |

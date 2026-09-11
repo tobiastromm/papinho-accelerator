@@ -46,9 +46,13 @@ Profile](phase3-transport-security-profile.md): TLS 1.3 mTLS, CA
 privada/administrativa, certificado individual por dispositivo cliente, sem
 0-RTT, resumption ou fallback. A validação 3.A2B-R3 comprovou RetroZilla
 NSS/NSPR como backend legado viável. Esse backend hoje pertence ao PST; o
-Accelerator não integra NSS/NSPR diretamente. A Phase 3.B2 integrou PST 0.5.0
-(API 2.0/SPI 3.0) somente na composição privada e opt-in do lifecycle de
-segurança.
+Accelerator não integra NSS/NSPR diretamente. A Phase 3.B2 integrou PST; o pin
+atual é PST 0.6.0 (API 2.1/SPI 3.0), somente na composição privada e opt-in do lifecycle de
+segurança. A Phase 3.B3 adicionou somente a adaptação estruturada e secret-safe
+dos eventos públicos PST para o logger do Accelerator; isso não torna o servidor
+seguro. A Phase 3.B4 adicionou wait-set/readiness multiplexada privada,
+incremental e limitada, também sem ligar PST ao accept loop real. Isso não torna o servidor
+TLS-enabled.
 PapinhoAccelerator não deve inventar um protocolo criptográfico próprio.
 
 ```text

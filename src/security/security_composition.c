@@ -1,4 +1,5 @@
 #include "security_composition.h"
+#include "pst_log_adapter.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -74,6 +75,7 @@ PAPACC_RESULT papacc_security_composition_init(
     PST_RUNTIME_OPTIONS runtime_options;
     PST_CREDENTIAL_SOURCE credential_source;
     PST_TRUST_SOURCE trust_source;
+    PST_LOG_CONFIG log_config;
     PST_DER_ITEM *certificate_chain = NULL;
     PST_DER_ITEM *trust_anchors = NULL;
     PST_RESULT pst_result;
@@ -98,7 +100,7 @@ PAPACC_RESULT papacc_security_composition_init(
             PAPACC_SECURITY_ALPN_PAPACC_1,
             PAPACC_SECURITY_ALPN_PAPACC_1_SIZE) != 0 ||
         inputs->provider_id == NULL || inputs->provider_id[0] == '\0' ||
-        inputs->provider_bootstrap == NULL)
+        inputs->provider_bootstrap == NULL || inputs->logger == NULL)
         return PAPACC_RESULT_INVALID_ARGUMENT;
     provider_id_size = strlen(inputs->provider_id);
     if (provider_id_size >= PAPACC_SECURITY_PROVIDER_ID_CAPACITY)
@@ -112,10 +114,29 @@ PAPACC_RESULT papacc_security_composition_init(
     result = inputs->provider_bootstrap(inputs->provider_bootstrap_context);
     if (result != PAPACC_RESULT_OK) return result;
 
+    pending.log_adapter = (PAPACC_PST_LOG_ADAPTER *)calloc(
+        1U, sizeof(*pending.log_adapter));
+    if (pending.log_adapter == NULL) return PAPACC_RESULT_OUT_OF_MEMORY;
+    *pending.log_adapter = (PAPACC_PST_LOG_ADAPTER)
+        PAPACC_PST_LOG_ADAPTER_INITIALIZER;
+    result = papacc_pst_log_adapter_init(pending.log_adapter, inputs->logger);
+    if (result != PAPACC_RESULT_OK) {
+        free(pending.log_adapter);
+        return result;
+    }
+    result = papacc_pst_log_adapter_make_config(pending.log_adapter,
+        &log_config);
+    if (result != PAPACC_RESULT_OK) {
+        papacc_pst_log_adapter_release(pending.log_adapter);
+        free(pending.log_adapter);
+        return result;
+    }
+
     memset(&runtime_options, 0, sizeof(runtime_options));
     runtime_options.struct_size = (pst_u32)sizeof(runtime_options);
     runtime_options.api_version = PST_API_VERSION;
-    pst_result = pst_runtime_create(&runtime_options, &pending.runtime);
+    pst_result = pst_runtime_create_with_logging(&runtime_options, &log_config,
+        &pending.runtime, NULL);
     if (pst_result != PST_RESULT_OK) goto fail;
 
     certificate_chain = (PST_DER_ITEM *)calloc(
@@ -184,6 +205,10 @@ fail:
     if (pending.local_credentials != NULL)
         pst_credentials_release(pending.local_credentials);
     if (pending.runtime != NULL) pst_runtime_release(pending.runtime);
+    if (pending.log_adapter != NULL) {
+        papacc_pst_log_adapter_release(pending.log_adapter);
+        free(pending.log_adapter);
+    }
     return papacc_security_map_pst_result(pst_result);
 }
 
@@ -198,9 +223,14 @@ void papacc_security_composition_release(
     if (composition->local_credentials != NULL)
         pst_credentials_release(composition->local_credentials);
     if (composition->runtime != NULL) pst_runtime_release(composition->runtime);
+    if (composition->log_adapter != NULL) {
+        papacc_pst_log_adapter_release(composition->log_adapter);
+        free(composition->log_adapter);
+    }
     composition->runtime = NULL;
     composition->local_credentials = NULL;
     composition->peer_trust = NULL;
+    composition->log_adapter = NULL;
     memset(composition->provider_id, 0, sizeof(composition->provider_id));
     memset(composition->secure_principal_alpn, 0,
         sizeof(composition->secure_principal_alpn));

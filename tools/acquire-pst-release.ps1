@@ -75,15 +75,15 @@ foreach ($name in @('manifest.ini', 'VERSION', 'consumer-link.ini', 'SHA256SUMS.
 $manifest = Read-KeyValueFile (Join-Path $temporaryRoot 'manifest.ini')
 $version = Read-KeyValueFile (Join-Path $temporaryRoot 'VERSION')
 $link = Read-KeyValueFile (Join-Path $temporaryRoot 'consumer-link.ini')
-Require-Exact $manifest 'package_version' '0.5.0' 'manifest.ini'
-Require-Exact $manifest 'library_version' '0.5.0' 'manifest.ini'
-Require-Exact $manifest 'api_version' '2.0.0' 'manifest.ini'
+Require-Exact $manifest 'package_version' '0.6.0' 'manifest.ini'
+Require-Exact $manifest 'library_version' '0.6.0' 'manifest.ini'
+Require-Exact $manifest 'api_version' '2.1.0' 'manifest.ini'
 Require-Exact $manifest 'spi_version' '3.0' 'manifest.ini'
 Require-Exact $manifest 'target_id' $pin['target'] 'manifest.ini'
 Require-Exact $manifest 'linkage' 'static' 'manifest.ini'
-Require-Exact $version 'package_version' '0.5.0' 'VERSION'
-Require-Exact $version 'library_version' '0.5.0' 'VERSION'
-Require-Exact $version 'api_version' '2.0.0' 'VERSION'
+Require-Exact $version 'package_version' '0.6.0' 'VERSION'
+Require-Exact $version 'library_version' '0.6.0' 'VERSION'
+Require-Exact $version 'api_version' '2.1.0' 'VERSION'
 Require-Exact $version 'spi_version' '3.0' 'VERSION'
 Require-Exact $link 'target_id' $pin['target'] 'consumer-link.ini'
 Require-Exact $link 'link_libraries' 'papinho_secure_transport.lib,libssl.lib,libcrypto.lib,ws2_32.lib,crypt32.lib' 'consumer-link.ini'

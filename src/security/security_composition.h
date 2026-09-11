@@ -2,6 +2,7 @@
 #define PAPACC_SECURITY_COMPOSITION_H
 
 #include "papacc/types.h"
+#include "log.h"
 #include "papinho_secure_transport.h"
 
 #define PAPACC_SECURITY_PROVIDER_ID_CAPACITY 32U
@@ -20,6 +21,7 @@ typedef struct PAPACC_SECURITY_DER_ITEM {
 } PAPACC_SECURITY_DER_ITEM;
 
 typedef PAPACC_RESULT (*PAPACC_SECURITY_PROVIDER_BOOTSTRAP_FN)(void *context);
+typedef struct PAPACC_PST_LOG_ADAPTER PAPACC_PST_LOG_ADAPTER;
 
 typedef struct PAPACC_SECURITY_COMPOSITION_INPUTS {
     const PAPACC_SECURITY_DER_ITEM *local_certificate_chain;
@@ -33,6 +35,7 @@ typedef struct PAPACC_SECURITY_COMPOSITION_INPUTS {
     const char *provider_id;
     PAPACC_SECURITY_PROVIDER_BOOTSTRAP_FN provider_bootstrap;
     void *provider_bootstrap_context;
+    const PAPACC_LOGGER *logger;
 } PAPACC_SECURITY_COMPOSITION_INPUTS;
 
 typedef struct PAPACC_SECURITY_COMPOSITION {
@@ -43,11 +46,12 @@ typedef struct PAPACC_SECURITY_COMPOSITION {
     char provider_id[PAPACC_SECURITY_PROVIDER_ID_CAPACITY];
     pst_u8 secure_principal_alpn[PAPACC_SECURITY_ALPN_PAPACC_1_SIZE];
     PST_ALPN_PROTOCOL secure_principal_alpn_protocol;
+    PAPACC_PST_LOG_ADAPTER *log_adapter;
 } PAPACC_SECURITY_COMPOSITION;
 
 #define PAPACC_SECURITY_COMPOSITION_INITIALIZER \
     { PAPACC_SECURITY_COMPOSITION_UNINITIALIZED, NULL, NULL, NULL, \
-      { 0 }, { 0 }, { NULL, 0U } }
+      { 0 }, { 0 }, { NULL, 0U }, NULL }
 
 PAPACC_RESULT papacc_security_composition_init(
     PAPACC_SECURITY_COMPOSITION *composition,

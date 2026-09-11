@@ -2,7 +2,7 @@
 capability: logging
 title: Logging e diagnóstico operacional
 status: partial
-last-updated: 2026-09-07
+last-updated: 2026-09-09
 scope: project
 ---
 
@@ -145,9 +145,9 @@ A PAL/sink determina onde e como o evento aparece; nível e semântica pertencem
 
 ## Integração com PapinhoSecureTransport
 
-PST 0.5.0 já é consumido pela composição privada e opt-in de segurança do
-Accelerator. Essa composição ainda não instala o adapter de logging, reservado
-para uma etapa posterior. O adapter não criará um segundo sistema visual:
+PST 0.6.0/API 2.1 é consumido pela composição privada e opt-in de segurança do
+Accelerator. Essa composição instala um adapter privado; ele não cria um
+segundo sistema visual de logging:
 
 ```c
 logging.callback = accelerator_on_pst_log;
@@ -167,6 +167,17 @@ logger Accelerator
  ├── arquivo
  └── console/PAL sink
 ```
+
+O mesmo nível global do `PAPACC_LOGGER` é convertido explicitamente para o
+nível PST, sem cast numérico e sem `--pst-log-level`. O callback é síncrono e o
+`PST_LOG_EVENT` é efêmero. O adapter copia por valor somente fatos públicos e
+limitados: role, provider ID, peer-auth fact, policy fact e resultado PST
+normalizado. Ele não retém ponteiros PST nem depende de parsing de `message`.
+
+O estado do adapter permanece válido durante todo o lifetime do `pst_runtime`.
+No teardown, o runtime é liberado antes do adapter, impedindo callback posterior
+contra contexto destruído. Mensagens locais são estáticas, curtas e não contêm
+DER, keys, CA, payload, handles ou native error text.
 
 ## Endpoints de conexão
 
@@ -204,8 +215,8 @@ Preferir IDs diagnósticos, resultados normalizados e metadados seguros.
 
 ## Estado atual
 
-Status geral: `partial` porque o adaptador PST permanece futuro. O contrato
-local do Accelerator está conforme à gramática transversal aplicável.
+Status geral: `partial` porque GUI e sinks adicionais permanecem futuros. O
+contrato local e o adapter PST estão conforme à gramática transversal aplicável.
 
 | Área | Estado | Observação |
 |---|---|---|
@@ -223,12 +234,11 @@ local do Accelerator está conforme à gramática transversal aplicável.
 | nível global | implemented | Um `log_level` por execução do servidor |
 | GUI | planned | Futura GUI |
 | PAL/sinks | partial | Timestamp usa PAL; console sink pertence à aplicação |
-| PST adapter | not-implemented | PST existe; falta o adapter PST → logger do Accelerator |
+| PST adapter | validated | Mapeamento semântico PST → Accelerator; fatos copiados, OFF/threshold e lifetime testados |
 | local+remote endpoint | validated | Ambos são derivados dos endpoints factuais da conexão aceita |
 
 ## Pendências
 
-- [ ] Implementar integração PST por callback/adaptador quando o componente for integrado.
 - [ ] Revisar INFO para evitar debug disfarçado.
 - [ ] Integrar futura GUI ao mesmo Configuration Model da CLI.
 
@@ -252,6 +262,9 @@ Não são automaticamente decisões ou implementações atuais.
 - `src/runtime/log.h`
 - `src/runtime/log.c`
 - `src/runtime/runtime.c`
+- `src/security/pst_log_adapter.h`
+- `src/security/pst_log_adapter.c`
+- `src/security/security_composition.c`
 - `apps/server/server_cli.h`
 - `apps/server/server_cli.c`
 - `apps/server/main.c`
@@ -261,6 +274,8 @@ Não são automaticamente decisões ou implementações atuais.
 ## Testes / evidências
 
 - `tests/log_test.c` — callback/contexto, timestamp, argumentos, thresholds e OFF.
+- `tests/pst_log_adapter_test.c` — mappings, fatos, valores futuros, cópia limitada, resultados e OFF.
+- `tests/security_composition_test.c` — runtime real com adapter, lifecycle e OFF.
 - `tests/server_cli_test.c` — default INFO, DEBUG, OFF e rejeição de nível inválido.
 - `tests/runtime_test.c` — logger opcional e lifecycle do runtime.
 - `tests/server_run_win32_test.c` — eventos operacionais e execução sem eventos em OFF.
@@ -274,3 +289,4 @@ Não são automaticamente decisões ou implementações atuais.
 | 2026-09-06 | Documento inicial consolidando decisões e estado conhecido do logging do PapinhoAccelerator. |
 | 2026-09-06 | Auditoria factual sincronizou níveis, threshold, OFF, callback, CLI, sinks, testes e pendências estruturadas. |
 | 2026-09-07 | Conformidade com ADR-0003: TRACE, gramática estruturada, identidade estável, resultado normalizado, contexto limitado, endpoints local/remoto e testes. |
+| 2026-09-09 | Implementado o adapter privado PST → logger Accelerator, com nível global, fatos estruturados, lifetime explícito e secret-safety; revalidado sem mudança semântica com PST 0.6.0/API 2.1. |

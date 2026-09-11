@@ -147,3 +147,15 @@ idempotent.
 This adoption does not attach PST to accepted sockets and does not implement
 handshake/I/O scheduling, the PST logging adapter, Principal mapping,
 authorization, secure DATA association, Browser integration or `TLS_OFFLOAD`.
+
+## Accelerator Phase 3.B3 adoption
+
+Phase 3.B3 added the private synchronous adapter from public `PST_LOG_EVENT`
+facts to the consumer-owned `PAPACC_LOGGER`. Security Composition now creates
+its runtime with `pst_runtime_create_with_logging()`, using the same effective
+global level. The adapter context outlives the runtime, copies bounded public
+facts by value and is released only after `pst_runtime_release()`.
+
+This does not implement PST readiness/scheduler integration, accepted-socket
+TLS, Principal mapping, authorization, secure DATA association or Browser
+integration.

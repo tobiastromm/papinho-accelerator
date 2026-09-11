@@ -24,7 +24,7 @@ As decisões arquiteturais canônicas posteriores permanecem nos ADRs acima.
 As Phases 1 e 2 implementam a Foundation portátil e, no Windows, discovery de interfaces, resolução persistente de bind, WinSock, listeners, aceitação não bloqueante, Sessions, Control/Data Channels estruturais, framing e os fluxos de estabelecimento CONTROL e associação DATA por ticket one-time. O executável integra esses componentes em um único loop `select()` e encerra de forma graciosa por Ctrl+C/Ctrl+Break.
 
 PapinhoSecureTransport (PST) já existe como biblioteca independente. O pin
-`v0.5.0`, a aquisição validada e uma boundary CMake privada centralizam seu
+`v0.6.0` (API 2.1/SPI 3.0), a aquisição validada e uma boundary CMake privada centralizam seu
 contrato de consumo. A composição privada de runtime, credenciais, trust e
 perfil Secure Principal SERVER já existe de forma opt-in e failure-atomic.
 Autenticação, autorização, Transport Security no Accelerator,
@@ -40,8 +40,8 @@ Estado da integração PST:
 | Release pin, aquisição e validação do SDK | implementado |
 | Boundary privada de includes/link/runtime files | implementado |
 | Private security runtime composition | implementado; opt-in e não ligado ao servidor |
-| PST logging adapter | não implementado |
-| Readiness/scheduler integration | não implementado |
+| PST logging adapter | implementado; privado, síncrono e opt-in |
+| Readiness/scheduler integration | implementado; boundary privada opt-in, ainda não ligada ao servidor |
 | Transport Security no `papacc_server` | não implementado |
 
 `papacc_pst_consumer` é somente um target privado de build. Ele não constitui
@@ -54,6 +54,20 @@ provider e a configuração TLS 1.3 mTLS SERVER do Secure Principal. Só publica
 estado `READY` depois da composição completa; falhas liberam recursos parciais.
 Ela ainda não aceita transports, não executa handshake ou I/O e não está ligada
 ao `papacc_server`.
+
+O runtime dessa composição é criado com o canal público de logging do PST. Um
+adapter privado traduz semanticamente `PST_LOG_EVENT` para
+`PAPACC_LOG_RECORD`, preserva role/provider/fatos em contexto limitado e entrega
+ao mesmo logger/sink controlado pelo consumidor. O contexto do callback vive
+até depois de `pst_runtime_release()`; não existe logger ou sink global PST.
+
+A boundary privada de secure scheduling possui o `pst_wait_set`, registra
+conexões e external sources com tokens estáveis, recebe eventos em buffer de
+capacidade fornecida pelo caller e oferece wake de shutdown. PST determina
+readiness; a ordem de dispatch gira por slot e cada membro recebe no máximo uma
+oportunidade por passagem. O listener permanece pertencente ao Accelerator.
+Essa infraestrutura não altera `PAPACC_CONNECTION`, Session ou Channel e não
+coloca TLS no caminho de produção.
 
 ## Objetivos
 
