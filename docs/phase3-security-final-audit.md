@@ -25,7 +25,7 @@ default executable. Legacy Endpoint also has no complete production surface.
 | Nonblocking bounded fair scheduling | `pst_secure_scheduler` and controller dispatch | scheduler fairness and server integration tests | ADR-0004, I/O scheduling | PASS |
 | Capability/policy authority | AuthZ gates remain separate; Transport Security is not negotiated | AuthN/AuthZ and Secure DATA tests | ADR-0005, capability documents | PASS |
 | TLS 1.3 mTLS profile | `security_composition` exact PST policy | composition, real mTLS and process client tests | ADR-0006, security model | PASS |
-| Release-pinned PST | pin, acquisition script and `papacc_pst_consumer` | package/manifest/hash audit and security build | ADR-0008, PST 0.6.1 handoff | PASS |
+| Release-pinned PST | pin, acquisition script and `papacc_pst_consumer` | package/manifest/hash audit and security build | ADR-0008, live PST integration contract | PASS |
 | Immutable profile per listener | normalized listener model | listener configuration and secure server tests | ADR-0009 | PASS |
 | Opaque security reference resolved before RUN | server security resolver/composition boundary | resolver failure and lifecycle tests | ADR-0010 | PASS |
 
@@ -114,6 +114,7 @@ and publishes stopped only after teardown/reap completes.
 - Pin: PST `0.6.1`, API `2.1.0`, SPI `3.0`.
 - Target: `win32-x64-msvc-19.51-openssl3`.
 - External SHA-256: `e9965fbcaf6aaa0a96a71bbc38d0b37ca447459641a09a03f1c957a88d764e53`.
+- Current live consumer contract: `docs/integration/papinho-secure-transport.md`.
 - Package manifest, consumer link contract and every internal hash: PASS.
 - Only public PST API and public Win32 helpers are consumed.
 - No direct OpenSSL, NSS, NSPR or Schannel API dependency exists.
