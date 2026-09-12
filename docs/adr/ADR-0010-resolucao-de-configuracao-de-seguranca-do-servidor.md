@@ -4,7 +4,7 @@ title: Referência opaca e resolução de configuração de segurança do servid
 status: accepted
 decision-date: 2026-09-12
 last-revised: 2026-09-12
-revision: 1
+revision: 2
 scope: project
 decision-makers:
   - Tobias Tromm
@@ -187,10 +187,11 @@ Nenhuma: Transport Security não é capability negociável.
 
 - `docs/security-model.md`
 - `docs/phase3-authentication-authorization.md`
-- `docs/integration/papinho-secure-transport-0.6.1.md`
+- `docs/integration/papinho-secure-transport.md`
 
 ## Histórico de revisões
 
 | Revisão | Data | Descrição |
 |---:|---|---|
 | 1 | 2026-09-12 | Aprovação da referência opaca e do resolver de configuração de segurança controlado pela aplicação. |
+| 2 | 2026-09-12 | Substitui referência ao handoff PST 0.6.1 consumido pela documentação viva consolidada de integração PST, sem alterar a decisão técnica. |
