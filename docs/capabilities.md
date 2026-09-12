@@ -5,9 +5,11 @@ O [ADR-0005](adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-
 disponibilidade de backend, policy e configuração efetiva. Este documento
 permanece como índice e visão geral viva.
 
-**Estado de implementação:** Capability Negotiation e execução de capabilities
-de processamento ainda não estão implementadas na baseline atual. Os nomes
-abaixo são conceitos futuros e não possuem IDs numéricos congelados.
+**Estado de implementação:** o framework portátil da Phase 4 está implementado:
+Capability Key, registry/sets bounded, interseção fail-closed, snapshot de
+Session e enforcement contextual. Negociação wire e execução de workloads não
+estão implementadas. Os nomes abaixo continuam conceitos futuros e não recebem
+IDs concretos nesta fase.
 
 Capability Documents disponíveis:
 
@@ -16,7 +18,9 @@ Capability Documents disponíveis:
 - [Network Egress](capabilities/network-egress.md);
 - [Client Pairing e Enrollment](capabilities/client-pairing.md).
 
-Capabilities são unidades independentes, extensíveis, negociáveis e versionáveis. Seus IDs futuros deverão ser estáveis; esta baseline não atribui números.
+Capabilities são unidades independentes, extensíveis, negociáveis e
+versionáveis. O ADR-0011 fixa a forma da identidade como ID numérico estável +
+major version, mas esta baseline não atribui números às capabilities futuras.
 
 ```text
 NETWORK                 TLS_OFFLOAD
@@ -55,7 +59,11 @@ SERVER_SUPPORTED
         = EFFECTIVE_CONFIGURATION
 ```
 
-Cada interseção é avaliada por capability e por seus parâmetros compatíveis. Ausência, versão incompatível ou decisão ambígua resulta em não habilitação. O servidor devolve o resultado efetivo; o cliente não deve inferir concessão pelo que pediu. Mudanças durante uma Session exigirão regra/versionamento futuro.
+Cada interseção é avaliada por capability. Ausência, versão incompatível ou
+decisão ambígua resulta em não habilitação. O snapshot publicado é um upper
+bound imutável: policy atual pode negar/reabilitar uma capability já presente,
+mas não adicionar outra silenciosamente. Expansão exige nova Session ou futura
+renegociação explícita, ainda sem wire definido.
 
 `SERVER_SUPPORTED` vem dos backends presentes; `SERVER_ENABLED`, da configuração administrativa; `USER_ALLOWED`, da autorização; `CLIENT_SUPPORTED`, das habilidades do cliente; e `CLIENT_PREFERENCE`, da escolha solicitada.
 

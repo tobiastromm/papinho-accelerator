@@ -165,6 +165,11 @@ vínculo cruzado entre Sessions.
 
 Capability, egress, destino, parâmetro ou versão desconhecidos são negados por padrão. Erros devem limitar o menor escopo seguro, mas encerrar a Session quando integridade, framing ou estado não puderem ser confiados. Degradação graciosa não permite enfraquecer autenticação, confidencialidade ou autorização.
 
+O framework da Phase 4 adiciona autorização granular sem substituir AuthN/AuthZ.
+Seu snapshot de Session é somente upper bound: membership não basta para uma
+operação, e disable/revocation contextual pode negar imediatamente. Policy não
+pode expandir silenciosamente o snapshot nem afetar Transport Security.
+
 ## Threat Model futuro
 
 Antes de implementação pública, um Threat Model deverá cobrir peers maliciosos, mensagens fragmentadas/malformadas, exaustão de recursos, replay/hijacking, downgrade, abuso de egress/SSRF, resolução DNS e redirects, backends não confiáveis, isolamento de jobs, supply chain e exposição de dados. As fronteiras entre cliente, transport, parser, Session, Policy Engine e backend devem ser analisadas explicitamente.

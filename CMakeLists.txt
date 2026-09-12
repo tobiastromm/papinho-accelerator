@@ -33,6 +33,25 @@ set_target_properties(papacc_core PROPERTIES
 
 papacc_enable_warnings(papacc_core)
 
+add_library(papacc_capability STATIC
+    src/capability/capability.c
+)
+target_include_directories(papacc_capability PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/capability)
+target_link_libraries(papacc_capability PUBLIC papacc_core)
+set_target_properties(papacc_capability PROPERTIES
+    C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+papacc_enable_warnings(papacc_capability)
+
+if(BUILD_TESTING)
+    add_executable(papacc_capability_test tests/capability_test.c)
+    target_link_libraries(papacc_capability_test PRIVATE papacc_capability)
+    set_target_properties(papacc_capability_test PROPERTIES
+        C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    papacc_enable_warnings(papacc_capability_test)
+    add_test(NAME papacc.capability.framework COMMAND papacc_capability_test)
+endif()
+
 add_library(papacc_network STATIC
     src/network/bind_selection.c
     src/network/bind_target.c

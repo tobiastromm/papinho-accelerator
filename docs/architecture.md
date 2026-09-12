@@ -15,6 +15,8 @@ e a justificativa preservados nos ADRs locais:
 - [ADR-0008 — Fixação de dependências Papinho por release](adr/ADR-0008-fixacao-de-dependencias-papinho-por-release.md);
 - [ADR-0009 — Perfil de transporte explícito por listener](adr/ADR-0009-perfil-de-transporte-explicito-por-listener.md);
 - [ADR-0010 — Resolução de configuração de segurança do servidor](adr/ADR-0010-resolucao-de-configuracao-de-seguranca-do-servidor.md).
+- [ADR-0011 — Identidade de capability e modelo portátil limitado](adr/ADR-0011-identidade-de-capability-e-modelo-portatil-limitado.md);
+- [ADR-0012 — Snapshot de capabilities e enforcement contextual](adr/ADR-0012-snapshot-de-capabilities-e-enforcement-contextual.md).
 
 Para o threat model e o contexto histórico da inserção de Transport Security,
 identidade e gates de autorização, consulte o checkpoint autoritativo de
@@ -191,6 +193,13 @@ Descobre e executa operações oferecidas por implementações de computação. 
 ### Capability Framework e Policy Engine
 
 O framework mantém IDs/versionamento e ofertas independentes. O Policy Engine cruza suporte, configuração administrativa, autorização do usuário e pedido do cliente. Políticas são explícitas, com negação como default quando permissão ou compatibilidade estiver ausente.
+
+A Phase 4 implementa a key `(numeric ID, major)`, registry e sets bounded em
+storage do caller, avaliação dos cinco inputs e snapshot separado de Session.
+O snapshot é upper bound imutável; enforcement contextual pode retirar acesso
+imediatamente e reabilitar somente uma key já presente. Nova concessão exige
+nova Session ou futura renegociação explícita. Nenhum wire ou workload foi
+adicionado.
 
 Transport Security não pertence ao catálogo comum de capabilities: é uma propriedade da infraestrutura e do protocolo que protege a comunicação entre PapinhoAccelerator Client e PapinhoAccelerator Server. `TLS_OFFLOAD`, por outro lado, é uma capability conceitual de processamento para auxiliar TLS em conexões do cliente com serviços externos. Portanto:
 

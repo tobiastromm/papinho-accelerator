@@ -61,6 +61,7 @@ servidor Win32 estruturalmente operacional:
 | Network Egress production | ⬜ não implementado |
 | Transport Security server integration | ✅; listener real e harness mTLS, ainda opt-in |
 | Secure Principal | ✅ Phase 3 READY; server e reference-client interoperability auditados |
+| Capability Framework & Policy Engine | ✅ Phase 4 READY; framework portátil, sem wire/workloads |
 
 - listeners TCP reais em um único `control_port` explícito;
 - seleção de todas as interfaces ou de interfaces por identidade persistente local;
@@ -123,6 +124,7 @@ O primeiro consumidor real foi validado: PapinhoBrowser em Windows NT 4.0 acesso
 - [Modelo de segurança](docs/security-model.md)
 - [Checkpoint de arquitetura de segurança da Phase 3](docs/phase3-security-architecture.md)
 - [Closeout final de segurança da Phase 3](docs/phase3-security-final-audit.md)
+- [Capability Framework & Policy Engine da Phase 4](docs/phase4-capability-framework-policy-engine.md)
 - [Perfil inicial de Transport Security e credenciais](docs/phase3-transport-security-profile.md)
 - [Spike de backend TLS e compatibilidade legada](docs/phase3-tls-backend-spike.md)
 - [Prova final RetroZilla NSS mTLS/NT4](docs/phase3-nss-mtls-nt4-proof.md)
