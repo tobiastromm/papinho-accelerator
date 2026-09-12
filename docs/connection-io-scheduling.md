@@ -50,12 +50,13 @@ readability. No listener semantic change is required.
 ## Unified readiness and Acceptor evolution
 
 A Phase 3.B4 implementa, de forma privada e opt-in, a fonte unificada de
-readiness para Secure Transport usando o wait-set público PST 0.6.0. Ela cobre
+readiness para Secure Transport usando o wait-set público PST 0.6.1/API 2.1. Ela cobre
 múltiplas conexões PST, listener/socket nativo por external source borrowed,
 timeout finito ou zero e wake cross-thread. A integração mantém no Accelerator
 o cursor rotativo e limita o dispatch a uma oportunidade por membro por
-passagem. Não existe quantum periódico de polling e o loop de produção abaixo
-continua inalterado até a Phase 3.E.
+passagem. Não existe quantum periódico de polling. A Phase 3.E passou a usar
+essa boundary no controller Win32 opt-in, mantendo accept, handshake, secure
+I/O, maintenance e shutdown incrementais no mesmo thread de aplicação.
 
 Alternative B is selected: a future Server I/O Loop owns one readiness choice
 covering listeners and Connections.

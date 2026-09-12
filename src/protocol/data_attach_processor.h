@@ -23,6 +23,11 @@ typedef enum PAPACC_DATA_ATTACH_PROCESSOR_STEP_STATUS {
     PAPACC_DATA_ATTACH_PROCESSOR_STEP_STATUS_CLOSED = 4
 } PAPACC_DATA_ATTACH_PROCESSOR_STEP_STATUS;
 
+typedef PAPACC_RESULT (*PAPACC_DATA_ATTACH_COMMIT_FN)(void *context,
+    const PAPACC_DATA_ASSOCIATION_TICKET *ticket, PAPACC_U64 now_ns,
+    PAPACC_U64 connection_instance_id, PAPACC_U64 *out_session_instance_id,
+    PAPACC_U64 *out_channel_instance_id);
+
 typedef struct PAPACC_DATA_ATTACH_PROCESSOR {
     PAPACC_CONNECTION_MANAGER *connection_manager;
     PAPACC_SESSION_MANAGER *session_manager;
@@ -38,13 +43,15 @@ typedef struct PAPACC_DATA_ATTACH_PROCESSOR {
     PAPACC_U64 session_instance_id;
     PAPACC_U64 data_channel_instance_id;
     PAPACC_U64 establishment_deadline_ns;
+    PAPACC_DATA_ATTACH_COMMIT_FN commit_fn;
+    void *commit_context;
     PAPACC_DATA_ATTACH_PROCESSOR_STATE state;
 } PAPACC_DATA_ATTACH_PROCESSOR;
 
 #define PAPACC_DATA_ATTACH_PROCESSOR_INITIALIZER \
     { NULL, NULL, NULL, NULL, NULL, PAPACC_FRAMED_READER_INITIALIZER, \
       PAPACC_FRAMED_WRITER_INITIALIZER, { 0 }, 0, \
-      PAPACC_DATA_ASSOCIATION_TICKET_INITIALIZER, 0, 0, 0, 0, \
+      PAPACC_DATA_ASSOCIATION_TICKET_INITIALIZER, 0, 0, 0, 0, NULL, NULL, \
       PAPACC_DATA_ATTACH_PROCESSOR_STATE_UNINITIALIZED }
 
 PAPACC_RESULT papacc_data_attach_processor_init_from_reader(
@@ -57,6 +64,9 @@ PAPACC_RESULT papacc_data_attach_processor_init_from_reader(
     const PAPACC_FRAME_HEADER *first_header,
     PAPACC_FRAMED_READER *reader,
     PAPACC_U64 establishment_deadline_ns);
+PAPACC_RESULT papacc_data_attach_processor_set_commit_gate(
+    PAPACC_DATA_ATTACH_PROCESSOR *processor,
+    PAPACC_DATA_ATTACH_COMMIT_FN commit_fn, void *commit_context);
 PAPACC_BOOL papacc_data_attach_processor_wants_read(
     const PAPACC_DATA_ATTACH_PROCESSOR *processor);
 PAPACC_BOOL papacc_data_attach_processor_wants_write(

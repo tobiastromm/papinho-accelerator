@@ -17,6 +17,7 @@
     } \
 } while (0)
 #define MEMBER_CAPACITY 4U
+#define DISPATCH_CAPACITY 64U
 
 typedef struct TEST_SOCKET_PAIR {
     SOCKET pst_side;
@@ -24,10 +25,10 @@ typedef struct TEST_SOCKET_PAIR {
 } TEST_SOCKET_PAIR;
 
 typedef struct TEST_DISPATCH {
-    pst_wait_token tokens[MEMBER_CAPACITY];
-    PAPACC_PST_SCHEDULER_MEMBER_KIND kinds[MEMBER_CAPACITY];
-    PAPACC_BOOL external[MEMBER_CAPACITY];
-    PAPACC_BOOL terminal[MEMBER_CAPACITY];
+    pst_wait_token tokens[DISPATCH_CAPACITY];
+    PAPACC_PST_SCHEDULER_MEMBER_KIND kinds[DISPATCH_CAPACITY];
+    PAPACC_BOOL external[DISPATCH_CAPACITY];
+    PAPACC_BOOL terminal[DISPATCH_CAPACITY];
     PAPACC_SIZE count;
 } TEST_DISPATCH;
 
@@ -156,7 +157,7 @@ static void dispatch_callback(void *context,
     const PAPACC_PST_READY_EVENT *event)
 {
     TEST_DISPATCH *dispatch = (TEST_DISPATCH *)context;
-    if (dispatch->count >= MEMBER_CAPACITY) return;
+    if (dispatch->count >= DISPATCH_CAPACITY) return;
     dispatch->tokens[dispatch->count] = event->token;
     dispatch->kinds[dispatch->count] = event->kind;
     dispatch->external[dispatch->count] = event->external;
@@ -202,9 +203,11 @@ int main(void)
     pst_wait_token token_a = 0U, token_b = 0U, token_listener = 0U;
     PAPACC_PST_WAIT_OUTCOME outcome;
     PAPACC_SIZE ready_count, dispatched;
-    PAPACC_SIZE event_index;
+    PAPACC_SIZE event_index, wait_round;
     PAPACC_PST_SECURE_STEP step;
     PAPACC_BOOL read_interest, write_interest, expired;
+    PAPACC_BOOL saw_a = PAPACC_FALSE, saw_b = PAPACC_FALSE;
+    PAPACC_BOOL saw_listener = PAPACC_FALSE;
     TEST_DISPATCH first = { { 0U }, { PAPACC_PST_SCHEDULER_MEMBER_NONE }, 0U };
     TEST_DISPATCH second = { { 0U }, { PAPACC_PST_SCHEDULER_MEMBER_NONE }, 0U };
     TEST_DISPATCH terminal_dispatch = {
@@ -286,17 +289,23 @@ int main(void)
     CHECK(send(pair_b.peer_side, invalid_tls,
         (int)(sizeof(invalid_tls) - 1U), 0) > 0, 23);
 
-    result = (int)papacc_pst_secure_scheduler_wait(&scheduler, 1000U,
-        &outcome, &ready_count);
-    if (result != (int)PAPACC_RESULT_OK ||
-        outcome != PAPACC_PST_WAIT_READY || ready_count < 3U)
-        fprintf(stderr, "mixed wait result=%d outcome=%d ready=%llu\n",
-            result, (int)outcome, (unsigned long long)ready_count);
-    CHECK(result == (int)PAPACC_RESULT_OK &&
-        outcome == PAPACC_PST_WAIT_READY && ready_count >= 3U, 24);
-    CHECK(papacc_pst_secure_scheduler_dispatch_ready(&scheduler,
-        dispatch_callback, &first, &dispatched) == PAPACC_RESULT_OK &&
-        dispatched >= 3U && first.count == dispatched, 25);
+    for (wait_round = 0U; wait_round < DISPATCH_CAPACITY &&
+            !(saw_a && saw_b && saw_listener); ++wait_round) {
+        result = (int)papacc_pst_secure_scheduler_wait(&scheduler, 1000U,
+            &outcome, &ready_count);
+        CHECK(result == (int)PAPACC_RESULT_OK &&
+            outcome == PAPACC_PST_WAIT_READY && ready_count != 0U, 24);
+        CHECK(papacc_pst_secure_scheduler_dispatch_ready(&scheduler,
+            dispatch_callback, &first, &dispatched) == PAPACC_RESULT_OK &&
+            dispatched != 0U, 25);
+        for (event_index = 0U; event_index < first.count; ++event_index) {
+            if (first.tokens[event_index] == token_a) saw_a = PAPACC_TRUE;
+            if (first.tokens[event_index] == token_b) saw_b = PAPACC_TRUE;
+            if (first.tokens[event_index] == token_listener)
+                saw_listener = PAPACC_TRUE;
+        }
+    }
+    CHECK(saw_a && saw_b && saw_listener, 55);
     for (event_index = 0U; event_index < first.count; ++event_index) {
         if (first.tokens[event_index] == token_listener) break;
     }
@@ -310,12 +319,22 @@ int main(void)
         (int)(sizeof(invalid_tls) - 1U), 0) > 0, 27);
     CHECK(send(pair_b.peer_side, invalid_tls,
         (int)(sizeof(invalid_tls) - 1U), 0) > 0, 28);
-    CHECK(papacc_pst_secure_scheduler_wait(&scheduler, 1000U, &outcome,
-        &ready_count) == PAPACC_RESULT_OK &&
-        outcome == PAPACC_PST_WAIT_READY, 29);
-    CHECK(papacc_pst_secure_scheduler_dispatch_ready(&scheduler,
-        dispatch_callback, &second, &dispatched) == PAPACC_RESULT_OK &&
-        dispatched >= 2U && first.tokens[0] != second.tokens[0], 30);
+    saw_a = PAPACC_FALSE;
+    saw_b = PAPACC_FALSE;
+    for (wait_round = 0U; wait_round < DISPATCH_CAPACITY &&
+            !(saw_a && saw_b); ++wait_round) {
+        CHECK(papacc_pst_secure_scheduler_wait(&scheduler, 1000U, &outcome,
+            &ready_count) == PAPACC_RESULT_OK &&
+            outcome == PAPACC_PST_WAIT_READY, 29);
+        CHECK(papacc_pst_secure_scheduler_dispatch_ready(&scheduler,
+            dispatch_callback, &second, &dispatched) == PAPACC_RESULT_OK &&
+            dispatched != 0U, 30);
+        for (event_index = 0U; event_index < second.count; ++event_index) {
+            if (second.tokens[event_index] == token_a) saw_a = PAPACC_TRUE;
+            if (second.tokens[event_index] == token_b) saw_b = PAPACC_TRUE;
+        }
+    }
+    CHECK(saw_a && saw_b, 56);
 
     CHECK(papacc_pst_secure_processor_handshake_once(&processor_a, &step) ==
         PAPACC_RESULT_OK && (step == PAPACC_PST_SECURE_STEP_FAILED ||

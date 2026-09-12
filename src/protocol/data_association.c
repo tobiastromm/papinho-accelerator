@@ -164,8 +164,28 @@ PAPACC_RESULT papacc_data_association_manager_consume(
     const PAPACC_DATA_ASSOCIATION_TICKET *ticket, PAPACC_U64 now_ns,
     PAPACC_U64 *out_session_instance_id)
 {
+    PAPACC_U64 session_id = 0;
+    PAPACC_RESULT result;
+    if (out_session_instance_id != NULL) *out_session_instance_id = 0;
+    if (manager == NULL || ticket == NULL || out_session_instance_id == NULL ||
+        papacc_data_association_ticket_is_valid(ticket) != PAPACC_TRUE)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    result = papacc_data_association_manager_inspect(
+        manager, ticket, now_ns, &session_id);
+    if (result != PAPACC_RESULT_OK) return result;
+    result = papacc_data_association_manager_commit(
+        manager, ticket, session_id, now_ns);
+    if (result != PAPACC_RESULT_OK) return result;
+    *out_session_instance_id = session_id;
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_data_association_manager_inspect(
+    PAPACC_DATA_ASSOCIATION_MANAGER *manager,
+    const PAPACC_DATA_ASSOCIATION_TICKET *ticket, PAPACC_U64 now_ns,
+    PAPACC_U64 *out_session_instance_id)
+{
     PAPACC_DATA_ASSOCIATION_ENTRY *entry;
-    PAPACC_U64 session_id;
     if (out_session_instance_id != NULL) *out_session_instance_id = 0;
     if (manager == NULL || ticket == NULL || out_session_instance_id == NULL ||
         papacc_data_association_ticket_is_valid(ticket) != PAPACC_TRUE)
@@ -174,15 +194,38 @@ PAPACC_RESULT papacc_data_association_manager_consume(
         return PAPACC_RESULT_INVALID_STATE;
     entry = papacc_data_association_find_ticket(manager, ticket);
     if (entry == NULL) return PAPACC_RESULT_INVALID_STATE;
-    session_id = entry->session_instance_id;
     if (now_ns >= entry->deadline_ns ||
-        papacc_data_association_lifecycle_valid(manager, session_id) !=
-            PAPACC_TRUE) {
+        papacc_data_association_lifecycle_valid(
+            manager, entry->session_instance_id) != PAPACC_TRUE) {
+        papacc_data_association_clear(manager, entry);
+        return PAPACC_RESULT_INVALID_STATE;
+    }
+    *out_session_instance_id = entry->session_instance_id;
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_data_association_manager_commit(
+    PAPACC_DATA_ASSOCIATION_MANAGER *manager,
+    const PAPACC_DATA_ASSOCIATION_TICKET *ticket,
+    PAPACC_U64 expected_session_instance_id, PAPACC_U64 now_ns)
+{
+    PAPACC_DATA_ASSOCIATION_ENTRY *entry;
+    if (manager == NULL || ticket == NULL || expected_session_instance_id == 0 ||
+        papacc_data_association_ticket_is_valid(ticket) != PAPACC_TRUE)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (papacc_data_association_manager_valid(manager) != PAPACC_TRUE)
+        return PAPACC_RESULT_INVALID_STATE;
+    entry = papacc_data_association_find_ticket(manager, ticket);
+    if (entry == NULL ||
+        entry->session_instance_id != expected_session_instance_id)
+        return PAPACC_RESULT_INVALID_STATE;
+    if (now_ns >= entry->deadline_ns ||
+        papacc_data_association_lifecycle_valid(
+            manager, expected_session_instance_id) != PAPACC_TRUE) {
         papacc_data_association_clear(manager, entry);
         return PAPACC_RESULT_INVALID_STATE;
     }
     papacc_data_association_clear(manager, entry);
-    *out_session_instance_id = session_id;
     return PAPACC_RESULT_OK;
 }
 

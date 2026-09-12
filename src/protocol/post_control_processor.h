@@ -22,6 +22,10 @@ typedef enum PAPACC_POST_CONTROL_STEP_STATUS {
     PAPACC_POST_CONTROL_STEP_STATUS_CLOSED = 4
 } PAPACC_POST_CONTROL_STEP_STATUS;
 
+typedef PAPACC_RESULT (*PAPACC_DATA_TICKET_ISSUE_GATE_FN)(void *context,
+    PAPACC_U64 session_instance_id, PAPACC_U64 now_ns,
+    PAPACC_DATA_ASSOCIATION_TICKET *out_ticket, PAPACC_U64 *out_deadline_ns);
+
 typedef struct PAPACC_POST_CONTROL_PROCESSOR {
     PAPACC_CONNECTION_MANAGER *connection_manager;
     PAPACC_SESSION_MANAGER *session_manager;
@@ -35,13 +39,15 @@ typedef struct PAPACC_POST_CONTROL_PROCESSOR {
     PAPACC_SIZE ticket_payload_offset;
     PAPACC_U64 session_instance_id;
     PAPACC_U64 control_channel_instance_id;
+    PAPACC_DATA_TICKET_ISSUE_GATE_FN issue_gate_fn;
+    void *issue_gate_context;
     PAPACC_POST_CONTROL_PROCESSOR_STATE state;
 } PAPACC_POST_CONTROL_PROCESSOR;
 
 #define PAPACC_POST_CONTROL_PROCESSOR_INITIALIZER \
     { NULL, NULL, NULL, NULL, NULL, PAPACC_FRAMED_READER_INITIALIZER, \
       PAPACC_FRAMED_WRITER_INITIALIZER, \
-      PAPACC_DATA_ASSOCIATION_TICKET_INITIALIZER, { 0 }, 0, 0, 0, \
+      PAPACC_DATA_ASSOCIATION_TICKET_INITIALIZER, { 0 }, 0, 0, 0, NULL, NULL, \
       PAPACC_POST_CONTROL_PROCESSOR_STATE_UNINITIALIZED }
 
 PAPACC_RESULT papacc_post_control_processor_init(
@@ -62,6 +68,9 @@ PAPACC_RESULT papacc_post_control_processor_init_from_reader(
     PAPACC_U64 session_instance_id,
     PAPACC_U64 control_channel_instance_id,
     PAPACC_FRAMED_READER *reader);
+PAPACC_RESULT papacc_post_control_processor_set_ticket_issue_gate(
+    PAPACC_POST_CONTROL_PROCESSOR *processor,
+    PAPACC_DATA_TICKET_ISSUE_GATE_FN issue_gate_fn, void *issue_gate_context);
 PAPACC_BOOL papacc_post_control_processor_wants_read(
     const PAPACC_POST_CONTROL_PROCESSOR *processor);
 PAPACC_BOOL papacc_post_control_processor_wants_write(

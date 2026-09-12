@@ -233,12 +233,20 @@ static PAPACC_RESULT papacc_channel_validate_bound_connection(
     const PAPACC_CHANNEL *channel,
     PAPACC_CONNECTION **out_connection)
 {
-    PAPACC_CONNECTION *connection = papacc_connection_manager_find(
-        manager->connection_manager, channel->connection_instance_id);
-    if (connection == NULL ||
-        connection->state != PAPACC_CONNECTION_STATE_ASSOCIATED) {
-        return PAPACC_RESULT_INVALID_STATE;
+    PAPACC_CONNECTION *connection = NULL;
+    PAPACC_SIZE index;
+    for (index = 0; index < manager->connection_manager->capacity; ++index) {
+        PAPACC_CONNECTION *candidate =
+            &manager->connection_manager->storage[index];
+        if (candidate->connection_instance_id ==
+                channel->connection_instance_id &&
+            (candidate->state == PAPACC_CONNECTION_STATE_ASSOCIATED ||
+             candidate->state == PAPACC_CONNECTION_STATE_CLOSED)) {
+            connection = candidate;
+            break;
+        }
     }
+    if (connection == NULL) return PAPACC_RESULT_INVALID_STATE;
     *out_connection = connection;
     return PAPACC_RESULT_OK;
 }

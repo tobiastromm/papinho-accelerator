@@ -249,8 +249,8 @@ Status geral: `concept`.
 | First-use trust | concept | Requisitos governados pelo ADR-0006 |
 | Enrollment | not-implemented | Sem issuer ou fluxo operacional |
 | Device credential | not-implemented | Sem provisionamento ou armazenamento |
-| Principal/policy mapping | not-implemented | Sem integração runtime |
-| Reconexão mTLS | not-implemented | Transport Security ainda não integrado |
+| Principal/policy mapping | partial | Runtime AuthN/AuthZ existe; enrollment e storage não |
+| Reconexão mTLS | not-implemented | Transport Security server-side existe; Browser/enrollment não |
 | Enterprise enrollment | concept | Modelo e frontend futuros |
 | Wire/API | not-implemented | Nenhuma mensagem, ID, payload ou API definida |
 

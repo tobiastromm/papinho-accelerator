@@ -461,6 +461,11 @@ int main(void)
         PAPACC_U8 invalid_attach[32] = {
             0x50,0x41,0x43,0x43,1,0,0,16,0,5,0,0,0,0,0,16 };
         PAPACC_U64 data_a = 0, data_b = 0;
+        PAPACC_U64 maintenance_connection_id = 0;
+        PAPACC_SIZE connections_before_maintenance;
+        PAPACC_SIZE channels_before_maintenance;
+        PAPACC_SIZE connections_after_maintenance;
+        PAPACC_SIZE channels_after_maintenance;
         PAPACC_SIZE index2;
         memset(invalid_ticket, 0xa5, sizeof(invalid_ticket));
         second_control = papacc_test_connect(port);
@@ -510,11 +515,61 @@ int main(void)
             PAPACC_CHANNEL *channel = &loop.channel_manager.storage[index2];
             if (channel->state == PAPACC_CHANNEL_STATE_BOUND &&
                 channel->role == PAPACC_CHANNEL_ROLE_DATA) {
+                if (maintenance_connection_id == 0)
+                    maintenance_connection_id = channel->connection_instance_id;
                 if (data_a == 0) data_a = channel->session_instance_id;
                 else data_b = channel->session_instance_id;
             }
         }
-        if (data_a == 0 || data_b == 0 || data_a == data_b) result = 35;
+        if (data_a == 0 || data_b == 0 || data_a == data_b ||
+            maintenance_connection_id == 0) result = 35;
+        if (result == 0) {
+            PAPACC_CONNECTION *maintenance_connection;
+            connections_before_maintenance = loop.connection_manager->count;
+            channels_before_maintenance = loop.channel_manager.count;
+            if (papacc_server_io_loop_win32_maintenance(&loop, 1) !=
+                    PAPACC_RESULT_OK ||
+                loop.connection_manager->count !=
+                    connections_before_maintenance ||
+                loop.channel_manager.count != channels_before_maintenance) {
+                result = 36;
+                goto cleanup;
+            }
+            maintenance_connection = papacc_connection_manager_find(
+                loop.connection_manager, maintenance_connection_id);
+            if (maintenance_connection == NULL) {
+                result = 37;
+                goto cleanup;
+            }
+            papacc_connection_close(maintenance_connection);
+            if (papacc_server_io_loop_win32_maintenance(&loop, 2) !=
+                    PAPACC_RESULT_OK) {
+                result = 38;
+                goto cleanup;
+            }
+            if (loop.connection_manager->count !=
+                    connections_before_maintenance - 1U) {
+                result = 40;
+                goto cleanup;
+            }
+            if (loop.channel_manager.count >= channels_before_maintenance) {
+                result = 41;
+                goto cleanup;
+            }
+            if (papacc_server_io_loop_win32_find_connection_slot(
+                    &loop, maintenance_connection_id) != NULL) {
+                result = 42;
+                goto cleanup;
+            }
+            connections_after_maintenance = loop.connection_manager->count;
+            channels_after_maintenance = loop.channel_manager.count;
+            if (papacc_server_io_loop_win32_maintenance(&loop, 3) !=
+                    PAPACC_RESULT_OK ||
+                loop.connection_manager->count !=
+                    connections_after_maintenance ||
+                loop.channel_manager.count != channels_after_maintenance)
+                result = 39;
+        }
     }
 
 cleanup:

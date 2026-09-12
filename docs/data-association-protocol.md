@@ -7,6 +7,15 @@ ownership/lifecycle is canonical in
 and future authenticated DATA binding is governed by
 [ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md).
 
+Phase 3.D does not change any wire bytes in this specification. Its private
+Secure Principal path orders processing as `inspect ticket -> security-context
+lookup -> Principal equality -> DATA authorization -> revalidated exact commit
+-> Channel bind`. Principal mismatch, authorization denial/error, and missing
+security contexts do not consume a still-valid ticket. Expired tickets and an
+invalid Session/CONTROL lifecycle may be cleared normally. Production server
+integration was subsequently supplied by Phase 3.E without changing these wire
+bytes.
+
 ## Status, scope, and security boundary
 
 Phase 2.E1 freezes the wire design. Phase 2.E2A now implements the portable
@@ -14,8 +23,9 @@ message registry/codecs, 16-byte Ticket Value Object, and caller-owned fixed
 Association Manager. Phase 2.E2B1 implements the portable post-establishment
 CONTROL processor for sequential `DATA_TICKET_REQUEST` -> `DATA_TICKET`
 exchange. Generation remains an injected dependency. The DATA_ATTACH processor,
-Connection classifier, server scheduler integration, authentication, Transport
-Security, capability, and DATA application protocol remain unimplemented.
+Connection classifier and server scheduler were completed in Phase 2; Phase 3
+added opt-in authentication and Transport Security without changing this wire.
+Capability negotiation and a DATA application protocol remain unimplemented.
 
 The processor deliberately permits only one request followed by one response:
 there are no general request correlation IDs or outbound queue, and each
@@ -24,8 +34,9 @@ association material only; it is not authentication or authorization.
 
 Phase 2.E2B2A adds portable first-header classification for PENDING Connections
 and movable Framed Reader ownership. CONTROL_OPEN is classified as CONTROL and
-DATA_ATTACH as DATA, with exact payload lengths. DATA classification does not
-consume a ticket or bind a Channel; its specialized processor remains future.
+DATA_ATTACH as DATA, with exact payload lengths. DATA classification itself
+does not consume a ticket or bind a Channel; the specialized processor performs
+those later steps.
 
 **Invariant:** no protocol-layer handoff may discard bytes already read from
 the transport.

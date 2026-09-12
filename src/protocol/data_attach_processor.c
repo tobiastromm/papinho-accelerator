@@ -109,22 +109,46 @@ static PAPACC_RESULT papacc_data_attach_commit(
         &processor->ticket);
     if (result != PAPACC_RESULT_OK)
         return papacc_data_attach_fail(processor, result);
-    result = papacc_data_association_manager_consume(
-        processor->association_manager, &processor->ticket, now_ns,
-        &processor->session_instance_id);
-    if (result != PAPACC_RESULT_OK)
-        return papacc_data_attach_fail(processor, result);
-    result = papacc_channel_manager_bind(processor->channel_manager,
-        processor->session_instance_id, processor->connection_instance_id,
-        PAPACC_CHANNEL_ROLE_DATA, &channel);
-    if (result != PAPACC_RESULT_OK)
-        return papacc_data_attach_fail(processor, result);
-    processor->data_channel_instance_id = channel->channel_instance_id;
+    if (processor->commit_fn != NULL) {
+        result = processor->commit_fn(processor->commit_context,
+            &processor->ticket, now_ns, processor->connection_instance_id,
+            &processor->session_instance_id,
+            &processor->data_channel_instance_id);
+        if (result != PAPACC_RESULT_OK)
+            return papacc_data_attach_fail(processor, result);
+    } else {
+        result = papacc_data_association_manager_consume(
+            processor->association_manager, &processor->ticket, now_ns,
+            &processor->session_instance_id);
+        if (result != PAPACC_RESULT_OK)
+            return papacc_data_attach_fail(processor, result);
+        result = papacc_channel_manager_bind(processor->channel_manager,
+            processor->session_instance_id, processor->connection_instance_id,
+            PAPACC_CHANNEL_ROLE_DATA, &channel);
+        if (result != PAPACC_RESULT_OK)
+            return papacc_data_attach_fail(processor, result);
+        processor->data_channel_instance_id = channel->channel_instance_id;
+    }
     accept_header = papacc_data_accept_frame_header();
     result = papacc_framed_writer_begin_frame(&processor->writer, &accept_header);
     if (result != PAPACC_RESULT_OK)
         return papacc_data_attach_fail(processor, result);
     processor->state = PAPACC_DATA_ATTACH_PROCESSOR_STATE_WRITING_DATA_ACCEPT;
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_data_attach_processor_set_commit_gate(
+    PAPACC_DATA_ATTACH_PROCESSOR *processor,
+    PAPACC_DATA_ATTACH_COMMIT_FN commit_fn, void *commit_context)
+{
+    if (processor == NULL || commit_fn == NULL)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (processor->state !=
+        PAPACC_DATA_ATTACH_PROCESSOR_STATE_READING_DATA_ATTACH ||
+        processor->attach_payload_received != 0 || processor->commit_fn != NULL)
+        return PAPACC_RESULT_INVALID_STATE;
+    processor->commit_fn = commit_fn;
+    processor->commit_context = commit_context;
     return PAPACC_RESULT_OK;
 }
 

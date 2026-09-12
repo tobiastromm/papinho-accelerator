@@ -50,6 +50,16 @@ PAPACC_RESULT papacc_data_association_manager_consume(
     PAPACC_DATA_ASSOCIATION_MANAGER *manager,
     const PAPACC_DATA_ASSOCIATION_TICKET *ticket, PAPACC_U64 now_ns,
     PAPACC_U64 *out_session_instance_id);
+/* Resolves a live structural ticket without consuming it. */
+PAPACC_RESULT papacc_data_association_manager_inspect(
+    PAPACC_DATA_ASSOCIATION_MANAGER *manager,
+    const PAPACC_DATA_ASSOCIATION_TICKET *ticket, PAPACC_U64 now_ns,
+    PAPACC_U64 *out_session_instance_id);
+/* Revalidates and consumes exactly ticket for the expected live Session. */
+PAPACC_RESULT papacc_data_association_manager_commit(
+    PAPACC_DATA_ASSOCIATION_MANAGER *manager,
+    const PAPACC_DATA_ASSOCIATION_TICKET *ticket,
+    PAPACC_U64 expected_session_instance_id, PAPACC_U64 now_ns);
 PAPACC_RESULT papacc_data_association_manager_invalidate_session(
     PAPACC_DATA_ASSOCIATION_MANAGER *manager, PAPACC_U64 session_instance_id);
 PAPACC_RESULT papacc_data_association_manager_expire(

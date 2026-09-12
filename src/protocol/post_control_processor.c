@@ -171,9 +171,15 @@ static PAPACC_RESULT papacc_post_control_prepare_ticket(
     PAPACC_FRAME_HEADER header;
     PAPACC_SIZE written = 0;
     PAPACC_U64 deadline_ns = 0;
-    PAPACC_RESULT result = papacc_data_association_manager_issue(
-        processor->association_manager, processor->session_instance_id,
-        now_ns, &processor->pending_ticket, &deadline_ns);
+    PAPACC_RESULT result;
+    if (processor->issue_gate_fn != NULL)
+        result = processor->issue_gate_fn(processor->issue_gate_context,
+            processor->session_instance_id, now_ns,
+            &processor->pending_ticket, &deadline_ns);
+    else
+        result = papacc_data_association_manager_issue(
+            processor->association_manager, processor->session_instance_id,
+            now_ns, &processor->pending_ticket, &deadline_ns);
     if (result != PAPACC_RESULT_OK)
         return papacc_post_control_fail(processor, result);
     result = papacc_data_ticket_encode(
@@ -189,6 +195,20 @@ static PAPACC_RESULT papacc_post_control_prepare_ticket(
         return papacc_post_control_fail(processor, result);
     processor->ticket_payload_offset = 0;
     processor->state = PAPACC_POST_CONTROL_PROCESSOR_STATE_WRITING_TICKET;
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_post_control_processor_set_ticket_issue_gate(
+    PAPACC_POST_CONTROL_PROCESSOR *processor,
+    PAPACC_DATA_TICKET_ISSUE_GATE_FN issue_gate_fn, void *issue_gate_context)
+{
+    if (processor == NULL || issue_gate_fn == NULL)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (processor->state != PAPACC_POST_CONTROL_PROCESSOR_STATE_READY ||
+        processor->issue_gate_fn != NULL)
+        return PAPACC_RESULT_INVALID_STATE;
+    processor->issue_gate_fn = issue_gate_fn;
+    processor->issue_gate_context = issue_gate_context;
     return PAPACC_RESULT_OK;
 }
 

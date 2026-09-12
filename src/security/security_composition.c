@@ -63,7 +63,8 @@ PAPACC_U32 papacc_security_secure_principal_required_capabilities(void)
     return PST_CAP_TLS_1_3 | PST_CAP_ROLE_SERVER |
         PST_CAP_LOCAL_IDENTITY | PST_CAP_PEER_CERT_AUTH |
         PST_CAP_ALPN_SERVER | PST_CAP_CUSTOM_TRUST | PST_CAP_PEER_INFO |
-        PST_CAP_NONBLOCKING | PST_CAP_BACKEND_WAIT;
+        PST_CAP_NONBLOCKING | PST_CAP_BACKEND_WAIT |
+        PST_CAP_GRACEFUL_SHUTDOWN;
 }
 
 PAPACC_RESULT papacc_security_composition_init(

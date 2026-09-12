@@ -19,12 +19,11 @@ Secure Transport pronta para consumo. Providers concretos permanecem
 selecionáveis por target; nenhum provider é universalmente obrigatório.
 Criptografia própria é proibida.
 
-**Estado de implementação:** a composição privada PST do perfil Secure
-Principal SERVER existe, mas não está ligada ao servidor. Não existem ainda
-autenticação, Transport Security operacional nem `TLS_OFFLOAD`. O servidor processa Control establishment; E1 apenas congela um
-ticket opaco one-time para futura associação estrutural DATA. Esse ticket não é
-credencial, autenticação nem autorização segura. O serviço não deve ser
-apresentado como seguro nesta fase.
+**Estado de implementação:** o controller Win32 seguro opt-in integra PST,
+TLS 1.3 mTLS, AuthN/AuthZ, CONTROL e DATA. A prova 3.F usa um cliente de
+referência em processo separado. O executável padrão ainda não possui fonte
+operacional de credenciais/listener Secure, e `TLS_OFFLOAD` não foi
+implementado. O serviço padrão não deve ser apresentado como seguro.
 
 ## Transport Security e TLS Offload
 
@@ -47,13 +46,41 @@ privada/administrativa, certificado individual por dispositivo cliente, sem
 0-RTT, resumption ou fallback. A validação 3.A2B-R3 comprovou RetroZilla
 NSS/NSPR como backend legado viável. Esse backend hoje pertence ao PST; o
 Accelerator não integra NSS/NSPR diretamente. A Phase 3.B2 integrou PST; o pin
-atual é PST 0.6.0 (API 2.1/SPI 3.0), somente na composição privada e opt-in do lifecycle de
+atual é PST 0.6.1 (API 2.1/SPI 3.0), na composição privada e opt-in do lifecycle de
 segurança. A Phase 3.B3 adicionou somente a adaptação estruturada e secret-safe
 dos eventos públicos PST para o logger do Accelerator; isso não torna o servidor
 seguro. A Phase 3.B4 adicionou wait-set/readiness multiplexada privada,
 incremental e limitada, também sem ligar PST ao accept loop real. Isso não torna o servidor
 TLS-enabled.
 PapinhoAccelerator não deve inventar um protocolo criptográfico próprio.
+
+A Phase 3.C implementa somente a foundation privada: evidência PST copiada,
+Principal opaco não persistido, resolver e authorization provider injetados e
+contexts separados para conexão/Session. Fingerprint é chave de lookup, nunca
+Principal. A 3.E integra essa foundation ao controller seguro opt-in e a 3.D
+fornece o binding DATA autenticado/autorizado.
+Essa foundation foi validada com TLS 1.3 mTLS real e ALPN `papacc/1` em
+loopback. O Secure Principal mantém graceful shutdown como REQUIRED e, com PST
+0.6.1, exige também `PST_CAP_GRACEFUL_SHUTDOWN` antes do binding. Os casos
+NOT_ENROLLED, DENY e DISABLED não publicam Principal nem contexto autorizado.
+
+A Phase 3.D adiciona a gate privada de Secure DATA. O ticket continua sendo
+correlação estrutural, nunca identidade ou autorização bearer. Emissão exige
+Session Security Context publicado e autorização DATA. Attach exige contexto
+DATA autorizado, Session Security Context do target, igualdade pela primitive
+de Principal e autorização DATA antes do commit one-time. Falhas de identidade
+ou policy preservam um ticket estrutural ainda válido.
+
+A Phase 3.E conecta essas boundaries ao accept e ao caminho CONTROL/DATA real
+por meio de um controller Win32 opt-in. TLS 1.3 mTLS e ALPN `papacc/1`
+terminam antes da publicação da Connection e antes do classifier. Falhas TLS,
+de identidade, policy ou protocolo fecham somente o candidato; o listener não
+muda de perfil e não existe fallback plaintext.
+
+A Phase 3.F valida essa fronteira externamente com um processo cliente separado,
+usando somente a API pública PST CLIENT e os bytes PACC já especificados. A
+prova cobre CONTROL, DATA em TLS independente, replay, credential estrangeira,
+negativos client-facing e close seguro, sem expor Principal interno no wire.
 
 ```text
 PROFILE / POLICY
@@ -66,7 +93,7 @@ CONCRETE PST PROVIDER PER TARGET
     → selecionável/substituível; nenhum provider universal obrigatório
 
 INTEGRATION INTO ACCELERATOR
-    → composição de lifecycle implementada; wiring no servidor ainda ausente
+    → controller Win32 seguro opt-in implementado; wiring operacional ausente
 ```
 
 A decisão arquitetural posterior define os perfis futuros

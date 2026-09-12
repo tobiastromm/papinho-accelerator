@@ -145,7 +145,7 @@ A PAL/sink determina onde e como o evento aparece; nível e semântica pertencem
 
 ## Integração com PapinhoSecureTransport
 
-PST 0.6.0/API 2.1 é consumido pela composição privada e opt-in de segurança do
+PST 0.6.1/API 2.1 é consumido pela composição privada e opt-in de segurança do
 Accelerator. Essa composição instala um adapter privado; ele não cria um
 segundo sistema visual de logging:
 
@@ -289,4 +289,4 @@ Não são automaticamente decisões ou implementações atuais.
 | 2026-09-06 | Documento inicial consolidando decisões e estado conhecido do logging do PapinhoAccelerator. |
 | 2026-09-06 | Auditoria factual sincronizou níveis, threshold, OFF, callback, CLI, sinks, testes e pendências estruturadas. |
 | 2026-09-07 | Conformidade com ADR-0003: TRACE, gramática estruturada, identidade estável, resultado normalizado, contexto limitado, endpoints local/remoto e testes. |
-| 2026-09-09 | Implementado o adapter privado PST → logger Accelerator, com nível global, fatos estruturados, lifetime explícito e secret-safety; revalidado sem mudança semântica com PST 0.6.0/API 2.1. |
+| 2026-09-09 | Implementado o adapter privado PST → logger Accelerator, com nível global, fatos estruturados, lifetime explícito e secret-safety; revalidado com PST 0.6.1/API 2.1. |

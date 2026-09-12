@@ -12,7 +12,9 @@ e a justificativa preservados nos ADRs locais:
 - [ADR-0005 — Negociação de capabilities, disponibilidade de backend e autoridade de policy](adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md);
 - [ADR-0006 — Perfil de Transport Security e credenciais do Secure Principal](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md);
 - [ADR-0007 — Identidade persistente de interface e resolução runtime de bind](adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md);
-- [ADR-0008 — Fixação de dependências Papinho por release](adr/ADR-0008-fixacao-de-dependencias-papinho-por-release.md).
+- [ADR-0008 — Fixação de dependências Papinho por release](adr/ADR-0008-fixacao-de-dependencias-papinho-por-release.md);
+- [ADR-0009 — Perfil de transporte explícito por listener](adr/ADR-0009-perfil-de-transporte-explicito-por-listener.md);
+- [ADR-0010 — Resolução de configuração de segurança do servidor](adr/ADR-0010-resolucao-de-configuracao-de-seguranca-do-servidor.md).
 
 Para o threat model e o contexto histórico da inserção de Transport Security,
 identidade e gates de autorização, consulte o checkpoint autoritativo de
@@ -24,10 +26,10 @@ As decisões arquiteturais canônicas posteriores permanecem nos ADRs acima.
 As Phases 1 e 2 implementam a Foundation portátil e, no Windows, discovery de interfaces, resolução persistente de bind, WinSock, listeners, aceitação não bloqueante, Sessions, Control/Data Channels estruturais, framing e os fluxos de estabelecimento CONTROL e associação DATA por ticket one-time. O executável integra esses componentes em um único loop `select()` e encerra de forma graciosa por Ctrl+C/Ctrl+Break.
 
 PapinhoSecureTransport (PST) já existe como biblioteca independente. O pin
-`v0.6.0` (API 2.1/SPI 3.0), a aquisição validada e uma boundary CMake privada centralizam seu
+`v0.6.1` (API 2.1/SPI 3.0), a aquisição validada e uma boundary CMake privada centralizam seu
 contrato de consumo. A composição privada de runtime, credenciais, trust e
 perfil Secure Principal SERVER já existe de forma opt-in e failure-atomic.
-Autenticação, autorização, Transport Security no Accelerator,
+Exposição operacional de Transport Security no executável,
 Capability Negotiation, protocolo de aplicação pós-DATA e Compute Backends,
 permanece trabalho futuro. Session
 `ACTIVE` nesta baseline significa somente estabelecimento estrutural concluído;
@@ -39,10 +41,13 @@ Estado da integração PST:
 |---|---|
 | Release pin, aquisição e validação do SDK | implementado |
 | Boundary privada de includes/link/runtime files | implementado |
-| Private security runtime composition | implementado; opt-in e não ligado ao servidor |
+| Private security runtime composition | implementado; usada pelo controller seguro opt-in |
 | PST logging adapter | implementado; privado, síncrono e opt-in |
-| Readiness/scheduler integration | implementado; boundary privada opt-in, ainda não ligada ao servidor |
-| Transport Security no `papacc_server` | não implementado |
+| Readiness/scheduler integration | implementado; usada pelo controller seguro opt-in |
+| Authentication/Authorization foundation | implementado; Principal/resolver/policy e contexts privados, com prova mTLS real em loopback |
+| Secure DATA association binding | implementado; integrada ao caminho DATA seguro opt-in |
+| Transport Security no servidor | implementado na boundary Win32 opt-in da 3.E; wiring operacional/CLI permanece futuro |
+| Secure reference client | prova externa process-isolated concluída na 3.F; não é SDK/produto |
 
 `papacc_pst_consumer` é somente um target privado de build. Ele não constitui
 API pública do Accelerator, não cria objetos PST e não deve ser ligado ao core
@@ -52,8 +57,10 @@ portátil ou às entidades Connection, Session e Channel.
 possui o runtime, a credencial local, o trust dos peers, a seleção exata do
 provider e a configuração TLS 1.3 mTLS SERVER do Secure Principal. Só publica
 estado `READY` depois da composição completa; falhas liberam recursos parciais.
-Ela ainda não aceita transports, não executa handshake ou I/O e não está ligada
-ao `papacc_server`.
+O objeto de composição não aceita transports nem executa handshake ou I/O por
+si próprio; o controller seguro opt-in consome sua configuração e runtime para
+essas operações. O executável `papacc_server` ainda não expõe configuração
+operacional de credenciais/listener Secure.
 
 O runtime dessa composição é criado com o canal público de logging do PST. Um
 adapter privado traduz semanticamente `PST_LOG_EVENT` para
@@ -66,8 +73,25 @@ conexões e external sources com tokens estáveis, recebe eventos em buffer de
 capacidade fornecida pelo caller e oferece wake de shutdown. PST determina
 readiness; a ordem de dispatch gira por slot e cada membro recebe no máximo uma
 oportunidade por passagem. O listener permanece pertencente ao Accelerator.
-Essa infraestrutura não altera `PAPACC_CONNECTION`, Session ou Channel e não
-coloca TLS no caminho de produção.
+Essa infraestrutura não altera `PAPACC_CONNECTION`, Session ou Channel e é
+usada pelo controller seguro opt-in, sem tornar o executável padrão TLS-enabled.
+
+A foundation privada de Authentication/Authorization copia evidência
+normalizada do peer PST, resolve uma credencial para um Principal opaco e
+estável e consulta policy separada para acesso/CONTROL. Contexts de conexão e
+Session são objetos auxiliares copy-by-value; não alteram as entidades runtime,
+wire ou storage. Ausência, desconhecimento, disable, DENY ou erro falham fechado.
+O harness autônomo da 3.C usa PST 0.6.1 CLIENT/SERVER sobre TCP loopback e
+prova credencial enrolled/ALLOW, TLS-valid/NOT_ENROLLED, policy DENY,
+certificate rotation para o mesmo Principal e credential DISABLED. A 3.E
+posteriormente ligou essa foundation ao controller seguro opt-in.
+
+A boundary privada da 3.D resolve o ticket sem consumi-lo, consulta os
+Security Contexts separados, compara Principals, aplica autorização DATA e só
+então revalida e consome o ticket exato antes do bind de Channel. Mismatch,
+DENY, erro de policy e contexts ausentes não consomem ticket válido. Hooks
+opt-in nos processors preservam o caminho Phase 2 e são usados pelo controller
+seguro opt-in da 3.E.
 
 ## Objetivos
 
@@ -180,20 +204,20 @@ Capability Negotiation não pode remover nem enfraquecer propriedades de Transpo
 
 O Control Plane estabelece e governa a Session: identificação, autenticação, versão, capabilities, configuração, comandos, status, heartbeat, PING/PONG, erros e encerramento. O Data Plane transfere imagens, áudio, vídeo, framebuffer e dados grandes de jobs.
 
-Em TCP, uma Session usará conceitualmente um Control Channel e zero ou mais Data Channels. A associação Data Channel–Session deve ser autenticada, íntegra, resistente a associação indevida/replay quando aplicável e submetida aos mesmos limites e políticas. O perfil 3.A2A exige igualdade de principal mais ticket estrutural e autorização; a operação/API atômica concreta permanece para 3.D.
+Em TCP, uma Session usa conceitualmente um Control Channel e zero ou mais Data Channels. A associação Data Channel–Session deve ser autenticada, íntegra, resistente a associação indevida/replay quando aplicável e submetida aos mesmos limites e políticas. O perfil 3.A2A exige igualdade de principal mais ticket estrutural e autorização; a 3.D implementou a gate privada com commit revalidado.
 
-Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil revisado é TLS 1.3 mTLS, com CA privada/administrativa e certificado individual por dispositivo cliente, conforme [Phase 3 Transport Security and Credential Profile](phase3-transport-security-profile.md). O closeout 3.A2B-R3 comprovou RetroZilla NSS/NSPR como backend legado viável. PST foi posteriormente implementado e é a biblioteca escolhida para materializar a fronteira Secure Transport. A composição privada do perfil existe; conexão ao listener, handshake, I/O seguro e integração com Principal/Session permanecem futuros.
+Transport Security deve abranger tanto o Control Channel quanto todos os Data Channels quando a política/configuração da Session exigir canal seguro. O perfil revisado é TLS 1.3 mTLS, com CA privada/administrativa e certificado individual por dispositivo cliente, conforme [Phase 3 Transport Security and Credential Profile](phase3-transport-security-profile.md). O closeout 3.A2B-R3 comprovou RetroZilla NSS/NSPR como backend legado viável. PST foi posteriormente implementado e é a biblioteca escolhida para materializar a fronteira Secure Transport. A composição privada, conexão ao listener, handshake, I/O seguro e integração com Principal/Session estão implementados no controller Win32 opt-in da 3.E.
 
 A direção posterior distingue [Secure Principal e Legacy Endpoint](phase3-transport-profiles.md). O primeiro exige TLS 1.3 mTLS; o segundo é plaintext explicitamente habilitado, desabilitado por padrão e sem identidade criptográfica forte. Listeners distintos são recomendados. Falha no perfil seguro nunca seleciona o perfil legado.
 
-Cada conexão TCP CONTROL ou DATA deverá estabelecer proteção própria. Como
-Transport Security fica abaixo de Framing. O pipeline futuro será `accept ->
+Cada conexão TCP CONTROL ou DATA estabelece proteção própria no controller
+seguro opt-in. Como Transport Security fica abaixo de Framing, o pipeline é `accept ->
 PST security establishment -> authenticated peer result -> Accelerator
-Principal/authorization -> classifier -> framing`; contextos do PST ficarão
+Principal/authorization -> classifier -> framing`; contextos do PST ficam
 separados das entidades portáteis `PAPACC_CONNECTION` e `PAPACC_SESSION`.
 
 Readiness de secure transport não é presumida equivalente à readiness do
-socket nativo. O scheduler consumirá o contrato público de readiness do PST,
+socket nativo. O scheduler consome o contrato público de readiness do PST,
 que delega ao provider o mecanismo apropriado. A evidência NSS demonstrou
 `PR_Poll` sobre o descriptor SSL como a representação correta de interesse TLS,
 enquanto `select()` nativo observa somente o transporte. A integração deve
@@ -226,20 +250,20 @@ de longevidade, não promessa de compatibilidade eterna, suporte atual ou desenh
 de protocolo. Os limites conceituais estão no [Capability Document de TLS
 Offload](capabilities/tls-offload.md).
 
-## Plano de integração e validação
+## Integração e validação concluídas
 
 Esta sequência é plano de integração, não ADR nem definição de subfases:
 
 1. PST standalone → PASS, concluído no projeto PST.
 2. PapinhoAccelerator + PST → Secure Principal TLS 1.3 mTLS → PASS.
-3. PapinhoBrowser ↔ PapinhoAccelerator → Secure Principal CONTROL/DATA → PASS.
-4. PapinhoBrowser + PST → HTTPS real → PASS.
+3. Secure reference client ↔ PapinhoAccelerator → Secure Principal CONTROL/DATA → PASS.
+4. PapinhoBrowser integration → future work; not started by Phase 3.
 
-Quando a Phase 3.B for retomada, ela deve consumir a API pública pronta do PST
-e concentrar-se em composição, policy do Secure Principal, readiness,
-ownership/lifecycle, Principal mapping, autorização, logging por adapter e
-preservação dos lifecycles CONTROL/DATA. Ela não deve reprojetar Secure
-Transport nem criar um wrapper TLS próprio do Accelerator.
+As Phases 3.B–3.G consumiram a API pública PST e concluíram composição, policy
+do Secure Principal, readiness, ownership/lifecycle, Principal mapping,
+autorização, logging por adapter e os lifecycles CONTROL/DATA no controller
+seguro opt-in. O [closeout 3.G](phase3-security-final-audit.md) contém a matriz
+final e os limites factuais.
 
 ## Session
 

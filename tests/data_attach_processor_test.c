@@ -14,6 +14,21 @@ typedef struct FIXTURE {
     PAPACC_DATA_ASSOCIATION_MANAGER associations;
     PAPACC_DATA_ASSOCIATION_ENTRY entries[2]; TEST_IO io[4]; PAPACC_U8 seed;
 } FIXTURE;
+typedef struct COMMIT_GATE { FIXTURE *fixture; PAPACC_U32 calls; } COMMIT_GATE;
+static PAPACC_RESULT commit_gate(void *context,
+    const PAPACC_DATA_ASSOCIATION_TICKET *ticket, PAPACC_U64 now_ns,
+    PAPACC_U64 connection_id, PAPACC_U64 *out_session_id,
+    PAPACC_U64 *out_channel_id)
+{
+    COMMIT_GATE *gate=(COMMIT_GATE*)context;PAPACC_CHANNEL *channel=NULL;
+    PAPACC_RESULT result;++gate->calls;
+    result=papacc_data_association_manager_consume(&gate->fixture->associations,
+        ticket,now_ns,out_session_id);if(result!=PAPACC_RESULT_OK)return result;
+    result=papacc_channel_manager_bind(&gate->fixture->channels,*out_session_id,
+        connection_id,PAPACC_CHANNEL_ROLE_DATA,&channel);
+    if(result==PAPACC_RESULT_OK)*out_channel_id=channel->channel_instance_id;
+    return result;
+}
 static PAPACC_RESULT rd(void *x,PAPACC_U8*b,PAPACC_SIZE c,PAPACC_SIZE*n,
     PAPACC_TRANSPORT_IO_STATUS*s){TEST_IO*i=(TEST_IO*)x;PAPACC_SIZE a;++i->reads;
     if(i->offset==i->length){*n=0;*s=PAPACC_TRANSPORT_IO_STATUS_END_OF_STREAM;return PAPACC_RESULT_OK;}
@@ -63,12 +78,12 @@ static int finish(PAPACC_DATA_ATTACH_PROCESSOR*p){PAPACC_DATA_ATTACH_PROCESSOR_S
 static int success_replay(void){static const PAPACC_U8 accept[16]={0x50,0x41,0x43,0x43,1,0,0,16,0,6,0,0,0,0,0,0};
     FIXTURE f;PAPACC_SESSION*s;PAPACC_CHANNEL*ctl;PAPACC_CONNECTION*c,*replay;PAPACC_DATA_ASSOCIATION_TICKET t;PAPACC_U64 dl;
     PAPACC_DATA_ATTACH_PROCESSOR p=PAPACC_DATA_ATTACH_PROCESSOR_INITIALIZER,q=PAPACC_DATA_ATTACH_PROCESSOR_INITIALIZER;
-    PAPACC_DATA_ATTACH_PROCESSOR_STEP_STATUS st;PAPACC_U8 a[64],b[64];if(init(&f)||active(&f,&s,&ctl))return 1;
+    PAPACC_DATA_ATTACH_PROCESSOR_STEP_STATUS st;PAPACC_U8 a[64],b[64];COMMIT_GATE gate;if(init(&f)||active(&f,&s,&ctl))return 1;gate.fixture=&f;gate.calls=0;
     if(papacc_data_association_manager_issue(&f.associations,s->session_instance_id,0,&t,&dl)!=PAPACC_RESULT_OK)return 2;
     c=pub(&f,1);attach_frame(&f.io[1],&t);f.io[1].write_limit=5;
-    if(adopt(&f,1,c,&p,a,200)||papacc_data_attach_processor_read_once(&p,1,&st)!=PAPACC_RESULT_OK||
+    if(adopt(&f,1,c,&p,a,200)||papacc_data_attach_processor_set_commit_gate(&p,commit_gate,&gate)!=PAPACC_RESULT_OK||papacc_data_attach_processor_read_once(&p,1,&st)!=PAPACC_RESULT_OK||
       f.io[1].reads!=1||p.state!=PAPACC_DATA_ATTACH_PROCESSOR_STATE_WRITING_DATA_ACCEPT||f.associations.count!=0||
-      c->state!=PAPACC_CONNECTION_STATE_ASSOCIATED||finish(&p)||memcmp(f.io[1].output,accept,16)||s->state!=PAPACC_SESSION_STATE_ACTIVE||ctl->state!=PAPACC_CHANNEL_STATE_BOUND)return 3;
+      c->state!=PAPACC_CONNECTION_STATE_ASSOCIATED||gate.calls!=1||finish(&p)||memcmp(f.io[1].output,accept,16)||s->state!=PAPACC_SESSION_STATE_ACTIVE||ctl->state!=PAPACC_CHANNEL_STATE_BOUND)return 3;
     replay=pub(&f,2);attach_frame(&f.io[2],&t);if(adopt(&f,2,replay,&q,b,200)||
       papacc_data_attach_processor_read_once(&q,2,&st)!=PAPACC_RESULT_INVALID_STATE||replay->state!=PAPACC_CONNECTION_STATE_CLOSED||
       p.data_channel_instance_id==0||papacc_channel_manager_find(&f.channels,p.data_channel_instance_id)->state!=PAPACC_CHANNEL_STATE_BOUND)return 4;

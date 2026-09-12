@@ -12,23 +12,28 @@ PapinhoAccelerator é um projeto independente para transferir tarefas computacio
 - [ADR-0006 — Perfil de Transport Security e credenciais do Secure Principal](docs/adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md)
 - [ADR-0007 — Identidade persistente de interface e resolução runtime de bind](docs/adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md)
 - [ADR-0008 — Fixação de dependências Papinho por release](docs/adr/ADR-0008-fixacao-de-dependencias-papinho-por-release.md)
+- [ADR-0009 — Perfil de transporte explícito por listener](docs/adr/ADR-0009-perfil-de-transporte-explicito-por-listener.md)
+- [ADR-0010 — Resolução de configuração de segurança do servidor](docs/adr/ADR-0010-resolucao-de-configuracao-de-seguranca-do-servidor.md)
 
 ## Estado atual
 
-As Phases 1 e 2 estão concluídas. A Phase 3 concluiu 3.A1, o perfil 3.A2A-R1 e
-o closeout 3.A2B. O perfil normal é TLS 1.3 mTLS, com CA
+As Phases 1 e 2 estão concluídas. A Phase 3 concluiu as etapas 3.A–3.G e está
+READY. O perfil normal é TLS 1.3 mTLS, com CA
 privada/administrativa e certificado individual por dispositivo cliente. O
 RetroZilla NSS/NSPR foi comprovado como backend TLS legado em VC6/Windows NT
 4.0 SP6, inclusive com entropia segura normal e falha de entropia fail-closed.
 PapinhoSecureTransport (PST) foi posteriormente implementado como biblioteca
-independente e está pronto para ser consumido pelo Accelerator através de sua
-API pública. A futura integração do Secure Principal usará PST; o Accelerator
-não integrará NSS/NSPR diretamente. NSS/NSPR permanece um provider legado do
-PST, não uma dependência direta do Core.
+independente e é consumido pelo Accelerator através de sua API pública. A
+integração Secure Principal usa PST; o Accelerator não integra NSS/NSPR
+diretamente. NSS/NSPR permanece um provider legado do PST, não uma dependência
+direta do Core.
 
-PST pronto e sua boundary privada de consumo no build não significam Transport Security integrada: autenticação,
-autorização e Transport Security continuam não implementadas no Accelerator.
-O Accelerator fixa e valida a release PST `v0.6.0` (API 2.1/SPI 3.0) por
+PST e sua boundary privada de consumo não bastavam, por si sós, para integrar
+Transport Security. As Phases 3.C–3.E agora fornecem AuthN/AuthZ, Secure DATA e
+o controller de servidor seguro opt-in. A 3.F também concluiu a prova de
+interoperabilidade com cliente de referência em processo separado; exposição
+operacional no executável permanece futura.
+O Accelerator fixa e valida a release PST `v0.6.1` (API 2.1/SPI 3.0) por
 manifesto de dependência e possui uma prova opt-in isolada de TLS 1.3 outbound
 para `google.com:443`, migrada para role CLIENT explícito.
 Essa prova reutiliza a mesma boundary CMake privada reservada às futuras
@@ -38,8 +43,8 @@ implementou a composition privada e failure-atomic de runtime, credencial,
 trust e perfil Secure Principal SERVER. O adapter privado de logging PST também
 está implementado. A boundary privada de scheduling usa o wait-set PST para
 multiplexar conexões seguras, sources nativas borrowed, timeout e wake, com
-trabalho limitado e fairness controlados pelo Accelerator; ela ainda não está
-ligada ao servidor. A integração TLS no servidor permanece não implementada. A
+trabalho limitado e fairness controlados pelo Accelerator e está integrada ao
+controller seguro opt-in da 3.E. A
 baseline possui modelos portáteis em C99 e um
 servidor Win32 estruturalmente operacional:
 
@@ -47,13 +52,15 @@ servidor Win32 estruturalmente operacional:
 |---|---|
 | PST release integration + private consumer build boundary | ✅ |
 | Accelerator → PST → TLS 1.3 Internet proof | ✅ |
-| Security Composition Lifecycle | ✅; ainda não ligada ao servidor |
+| Security Composition Lifecycle | ✅; usada pelo controller seguro opt-in |
 | PST Logging Adapter | ✅; privado, síncrono e consumer-owned |
-| PST readiness/scheduler integration | ✅; privada, opt-in e não ligada ao servidor |
+| PST readiness/scheduler integration | ✅; privada e integrada ao controller seguro opt-in |
+| Authentication/Authorization foundation | ✅; unidade, TLS 1.3 mTLS real e integração no controller seguro |
+| Secure DATA association binding | ✅; integrada ao caminho DATA do controller seguro opt-in |
 | `TLS_OFFLOAD` general capability | 🟨 incompleta; veja o Capability Document |
 | Network Egress production | ⬜ não implementado |
-| Transport Security Browser ↔ Accelerator | ⬜ não implementado |
-| Secure Principal | ⬜ não implementado |
+| Transport Security server integration | ✅; listener real e harness mTLS, ainda opt-in |
+| Secure Principal | ✅ Phase 3 READY; server e reference-client interoperability auditados |
 
 - listeners TCP reais em um único `control_port` explícito;
 - seleção de todas as interfaces ou de interfaces por identidade persistente local;
@@ -66,7 +73,7 @@ servidor Win32 estruturalmente operacional:
 
 Ainda não estão implementados:
 
-- autenticação, autorização ou Transport Security;
+- exposição operacional/CLI do listener Secure Principal;
 - capabilities de computação, incluindo `TLS_OFFLOAD`;
 - protocolo de aplicação ou processamento de payload após `DATA_ACCEPT`;
 - network egress, proxy ou conexões externas;
@@ -115,6 +122,7 @@ O primeiro consumidor real foi validado: PapinhoBrowser em Windows NT 4.0 acesso
 - [Modelo de mídia](docs/media-model.md)
 - [Modelo de segurança](docs/security-model.md)
 - [Checkpoint de arquitetura de segurança da Phase 3](docs/phase3-security-architecture.md)
+- [Closeout final de segurança da Phase 3](docs/phase3-security-final-audit.md)
 - [Perfil inicial de Transport Security e credenciais](docs/phase3-transport-security-profile.md)
 - [Spike de backend TLS e compatibilidade legada](docs/phase3-tls-backend-spike.md)
 - [Prova final RetroZilla NSS mTLS/NT4](docs/phase3-nss-mtls-nt4-proof.md)

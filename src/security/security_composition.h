@@ -4,6 +4,7 @@
 #include "papacc/types.h"
 #include "log.h"
 #include "papinho_secure_transport.h"
+#include "pst_log_adapter.h"
 
 #define PAPACC_SECURITY_PROVIDER_ID_CAPACITY 32U
 #define PAPACC_SECURITY_ALPN_PAPACC_1 "papacc/1"
@@ -21,8 +22,6 @@ typedef struct PAPACC_SECURITY_DER_ITEM {
 } PAPACC_SECURITY_DER_ITEM;
 
 typedef PAPACC_RESULT (*PAPACC_SECURITY_PROVIDER_BOOTSTRAP_FN)(void *context);
-typedef struct PAPACC_PST_LOG_ADAPTER PAPACC_PST_LOG_ADAPTER;
-
 typedef struct PAPACC_SECURITY_COMPOSITION_INPUTS {
     const PAPACC_SECURITY_DER_ITEM *local_certificate_chain;
     PAPACC_SIZE local_certificate_count;

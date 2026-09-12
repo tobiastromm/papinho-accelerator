@@ -1,5 +1,14 @@
 # Phase 3 Security Architecture and Threat Model
 
+> Later-state note (2026-09-11): Phase 3.C added a private, opt-in
+> peer-evidence/Principal-resolution/authorization foundation. This historical
+> checkpoint is unchanged; production server and wire integration remain future.
+>
+> Later-state note (2026-09-12): Phase 3.D added the private Secure DATA
+> inspect/security/commit boundary. Principal or policy rejection precedes
+> ticket consumption. Phase 3.E later implemented the opt-in secure server
+> boundary; this historical checkpoint text is not its current status.
+
 Historical note: this document remains the Phase 3.A1 threat model and
 architecture checkpoint. Architectural decisions in this document were later
 formalized in:

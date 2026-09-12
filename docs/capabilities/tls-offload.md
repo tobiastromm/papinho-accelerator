@@ -190,14 +190,14 @@ Status geral: `concept`.
 | External transport ownership | concept | Modelos client-owned e Accelerator-owned ainda não escolhidos |
 | Network egress | experimental-proof | Somente harness explícito; autoridade e fluxo de produção continuam ausentes |
 | Policy/autorização específica | not-implemented | Regras específicas pendentes |
-| Backend | experimental-proof | PST v0.6.0/API 2.1/OpenSSL 3 no target validado; sem seleção de backend da capability de produção |
+| Backend | experimental-proof | PST v0.6.1/API 2.1/OpenSSL 3 no target validado; sem seleção de backend da capability de produção |
 | Fallback | unknown | Sem decisão específica além de não enfraquecer segurança |
 
 ## Implementado
 
 - somente a separação documental e arquitetural entre `TLS_OFFLOAD` e
   Transport Security;
-- pin e aquisição reproduzível da release PST `v0.6.0`;
+- pin e aquisição reproduzível da release PST `v0.6.1`;
 - boundary privada e reutilizável do contrato de consumo do SDK PST no build;
 - prova vertical opt-in e isolada de TLS 1.3 outbound para `google.com:443`,
   com validação de cadeia, hostname e resposta HTTPS.
@@ -227,7 +227,7 @@ Security por efeito colateral.
 
 ## Compatibilidade
 
-O target factual `win32-x64-msvc-19.51-openssl3` da release PST `v0.6.0` foi
+O target factual `win32-x64-msvc-19.51-openssl3` da release PST `v0.6.1` foi
 testado no harness. Isso não declara suporte implementado à capability geral.
 
 ## Limitações conhecidas

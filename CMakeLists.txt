@@ -635,19 +635,28 @@ if(WIN32)
         papacc_define_pst_consumer_boundary()
 
         add_library(papacc_security_composition STATIC
+            src/security/authentication_authorization.c
             src/security/security_composition.c
             src/security/pst_log_adapter.c
+            src/security/pst_peer_evidence.c
             src/security/pst_secure_processor.c
             src/security/pst_secure_scheduler.c
+            src/security/pst_secure_transport_adapter.c
+            src/security/server_listener_configuration.c
+            src/security/server_security_configuration.c
+            src/security/secure_data_association.c
             src/security/platform/win32/pst_external_source_win32.c
             src/security/platform/win32/pst_provider_bootstrap_win32.c)
         target_include_directories(papacc_security_composition
             PUBLIC
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/security
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/security/platform/win32
-                ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime)
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol)
         target_link_libraries(papacc_security_composition
-            PUBLIC papacc_core papacc_runtime
+            PUBLIC papacc_core papacc_runtime papacc_data_association papacc_channel
             PRIVATE papacc_pst_consumer)
         set_target_properties(papacc_security_composition PROPERTIES
             C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -685,6 +694,145 @@ if(WIN32)
         papacc_stage_pst_runtime(papacc_pst_secure_scheduler_test)
         add_test(NAME papacc_pst_secure_scheduler_test
             COMMAND papacc_pst_secure_scheduler_test)
+
+        add_executable(papacc_authentication_authorization_test
+            tests/authentication_authorization_test.c)
+        target_link_libraries(papacc_authentication_authorization_test PRIVATE
+            papacc_security_composition papacc_pst_consumer)
+        set_target_properties(papacc_authentication_authorization_test PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_authentication_authorization_test)
+        papacc_stage_pst_runtime(papacc_authentication_authorization_test)
+        add_test(NAME papacc_authentication_authorization_test
+            COMMAND papacc_authentication_authorization_test)
+
+        add_executable(papacc_authentication_authorization_real_mtls_test
+            tests/authentication_authorization_real_mtls_test.c)
+        target_compile_definitions(papacc_authentication_authorization_real_mtls_test PRIVATE
+            PAPACC_TEST_PKI_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security")
+        target_link_libraries(papacc_authentication_authorization_real_mtls_test PRIVATE
+            papacc_security_composition papacc_pst_consumer
+            papacc_security_test_support ws2_32 crypt32)
+        set_target_properties(papacc_authentication_authorization_real_mtls_test PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_authentication_authorization_real_mtls_test)
+        papacc_stage_pst_runtime(papacc_authentication_authorization_real_mtls_test)
+        add_test(NAME papacc_authentication_authorization_real_mtls_test
+            COMMAND papacc_authentication_authorization_real_mtls_test)
+
+        add_library(papacc_security_test_support STATIC
+            tests/security_test_support.c)
+        target_include_directories(papacc_security_test_support PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests
+            ${CMAKE_CURRENT_SOURCE_DIR}/include)
+        target_compile_definitions(papacc_security_test_support PRIVATE
+            PAPACC_TEST_PKI_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security")
+        target_link_libraries(papacc_security_test_support PUBLIC
+            papacc_pst_consumer crypt32)
+        set_target_properties(papacc_security_test_support PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_security_test_support)
+
+        add_executable(papacc_secure_reference_client
+            tests/reference_client/secure_reference_client.c)
+        target_link_libraries(papacc_secure_reference_client PRIVATE
+            papacc_security_test_support papacc_pst_consumer ws2_32)
+        set_target_properties(papacc_secure_reference_client PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_secure_reference_client)
+        papacc_stage_pst_runtime(papacc_secure_reference_client)
+
+        add_executable(papacc_secure_data_association_test
+            tests/secure_data_association_test.c)
+        target_link_libraries(papacc_secure_data_association_test PRIVATE
+            papacc_security_composition papacc_connection)
+        set_target_properties(papacc_secure_data_association_test PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_secure_data_association_test)
+        papacc_stage_pst_runtime(papacc_secure_data_association_test)
+        add_test(NAME papacc_secure_data_association_test
+            COMMAND papacc_secure_data_association_test)
+
+        add_executable(papacc_server_security_configuration_test
+            tests/server_security_configuration_test.c)
+        target_link_libraries(papacc_server_security_configuration_test PRIVATE
+            papacc_security_composition papacc_network papacc_pst_consumer)
+        set_target_properties(papacc_server_security_configuration_test PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_server_security_configuration_test)
+        papacc_stage_pst_runtime(papacc_server_security_configuration_test)
+        add_test(NAME papacc_server_security_configuration_test
+            COMMAND papacc_server_security_configuration_test)
+
+        add_library(papacc_server_secure_io_win32 STATIC
+            apps/server/server_secure_io_win32.c)
+        target_include_directories(papacc_server_secure_io_win32
+            PUBLIC
+                ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/security
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/security/platform/win32
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp)
+        target_link_libraries(papacc_server_secure_io_win32
+            PUBLIC papacc_server_io_loop_win32 papacc_security_composition
+            PRIVATE papacc_pst_consumer papacc_tcp_win32 ws2_32)
+        set_target_properties(papacc_server_secure_io_win32 PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_server_secure_io_win32)
+
+        add_executable(papacc_server_secure_io_win32_test
+            tests/server_secure_io_win32_test.c)
+        target_include_directories(papacc_server_secure_io_win32_test PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/security
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp)
+        target_link_libraries(papacc_server_secure_io_win32_test PRIVATE
+            papacc_server_secure_io_win32 papacc_pst_consumer)
+        set_target_properties(papacc_server_secure_io_win32_test PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_server_secure_io_win32_test)
+        papacc_stage_pst_runtime(papacc_server_secure_io_win32_test)
+        add_test(NAME papacc_server_secure_io_win32_test
+            COMMAND papacc_server_secure_io_win32_test)
+
+        add_executable(papacc_server_secure_io_win32_integration_test
+            tests/server_secure_io_win32_integration_test.c)
+        target_include_directories(
+            papacc_server_secure_io_win32_integration_test PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/win32
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/security
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/security/platform/win32
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/transports/tcp)
+        target_link_libraries(
+            papacc_server_secure_io_win32_integration_test PRIVATE
+            papacc_server_secure_io_win32 papacc_security_test_support ws2_32)
+        set_target_properties(
+            papacc_server_secure_io_win32_integration_test PROPERTIES
+            C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+        papacc_enable_warnings(papacc_server_secure_io_win32_integration_test)
+        papacc_stage_pst_runtime(
+            papacc_server_secure_io_win32_integration_test)
+        add_dependencies(papacc_server_secure_io_win32_integration_test
+            papacc_secure_reference_client)
+        add_test(NAME papacc_server_secure_io_win32_integration_test
+            COMMAND papacc_server_secure_io_win32_integration_test)
+        add_test(NAME papacc_secure_reference_client_interop
+            COMMAND papacc_server_secure_io_win32_integration_test)
 
         add_executable(papacc_pst_tls13_outbound_proof
             tests/pst_tls13_outbound_proof.c)
@@ -732,6 +880,20 @@ if(BUILD_TESTING)
     papacc_enable_warnings(papacc_data_association_test)
     add_test(NAME papacc.runtime.data_association
         COMMAND papacc_data_association_test)
+
+    add_executable(papacc_data_association_transaction_test
+        tests/data_association_transaction_test.c)
+    target_include_directories(papacc_data_association_transaction_test PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/network
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/transports)
+    target_link_libraries(papacc_data_association_transaction_test PRIVATE
+        papacc_data_association papacc_connection)
+    set_target_properties(papacc_data_association_transaction_test PROPERTIES
+        C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    papacc_enable_warnings(papacc_data_association_transaction_test)
+    add_test(NAME papacc.runtime.data_association_transaction
+        COMMAND papacc_data_association_transaction_test)
 
     add_executable(papacc_post_control_processor_test
         tests/post_control_processor_test.c)

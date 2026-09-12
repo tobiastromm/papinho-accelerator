@@ -14,11 +14,11 @@ privada/administrativa e certificado individual por dispositivo cliente abaixo
 do framing, sem introduzir mensagens PACC; veja [Phase 3 Transport Security and
 Credential Profile](phase3-transport-security-profile.md).
 
-PapinhoSecureTransport (PST) já existe como biblioteca independente e será
-consumido abaixo do framing para o Secure Principal. Essa disponibilidade não
-altera os bytes PACC nem significa integração concluída: Transport Security e
-autenticação continuam não implementadas no Accelerator, e Phase 3.B ainda não
-foi iniciada. Legacy Endpoint não passa pelo PST.
+PapinhoSecureTransport (PST) é consumido abaixo do framing pelo controller
+Secure Principal opt-in. As Phases 3.B–3.F integraram Transport Security,
+AuthN/AuthZ e CONTROL/DATA seguros sem alterar os bytes PACC. A configuração
+operacional no executável padrão permanece futura. Legacy Endpoint não passa
+pelo PST.
 
 Phase 2.D3B integra `CONTROL_OPEN` -> `CONTROL_ACCEPT` ao RUN mode Win32 real.
 Phase 2.E1 congela, sem implementar, associação estrutural DATA por ticket

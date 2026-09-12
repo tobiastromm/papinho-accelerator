@@ -30,6 +30,17 @@ PAPACC_RESULT papacc_server_io_loop_win32_init(PAPACC_SERVER_IO_LOOP_WIN32*,PAPA
 PAPACC_RESULT papacc_server_io_loop_win32_poll_once(PAPACC_SERVER_IO_LOOP_WIN32*,PAPACC_U32);
 PAPACC_RESULT papacc_server_io_loop_win32_processor_interest(const PAPACC_SERVER_IO_LOOP_WIN32*,PAPACC_SIZE,PAPACC_BOOL*,PAPACC_BOOL*);
 PAPACC_RESULT papacc_server_io_loop_win32_processor_scan_index(const PAPACC_SERVER_IO_LOOP_WIN32*,PAPACC_SIZE,PAPACC_SIZE*);
+/* Secure composition entry points; native readiness remains outside. */
+PAPACC_RESULT papacc_server_io_loop_win32_attach_connection(
+    PAPACC_SERVER_IO_LOOP_WIN32*, PAPACC_U64, PAPACC_U64);
+PAPACC_RESULT papacc_server_io_loop_win32_process_connection_once(
+    PAPACC_SERVER_IO_LOOP_WIN32*, PAPACC_U64, PAPACC_BOOL, PAPACC_BOOL,
+    PAPACC_U64);
+PAPACC_RESULT papacc_server_io_loop_win32_maintenance(
+    PAPACC_SERVER_IO_LOOP_WIN32*, PAPACC_U64);
+PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *
+papacc_server_io_loop_win32_find_connection_slot(
+    PAPACC_SERVER_IO_LOOP_WIN32*, PAPACC_U64);
 void papacc_server_io_loop_win32_set_logger(PAPACC_SERVER_IO_LOOP_WIN32*,const PAPACC_LOGGER*);
 void papacc_server_io_loop_win32_shutdown(PAPACC_SERVER_IO_LOOP_WIN32*);
 #endif

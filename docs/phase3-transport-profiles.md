@@ -10,6 +10,10 @@ como biblioteca independente e passou a ser a implementação escolhida da
 fronteira Secure Transport para futura integração do Secure Principal. As
 afirmações históricas abaixo sobre ele ainda ser futuro permanecem preservadas.
 
+Nota de implementação: a Phase 3.E posteriormente integrou o perfil
+`SECURE_PRINCIPAL` ao controller Win32 real, de forma privada e opt-in. Este
+documento permanece como registro da decisão de perfis, não como status atual.
+
 Status: architectural decision recorded after the successful 3.A2B-R3 backend
 closeout. This document defines direction only. Neither profile, listener,
 security runtime nor `PapinhoSecureTransport` is implemented here, and Phase

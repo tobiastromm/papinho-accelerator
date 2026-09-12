@@ -23,6 +23,15 @@ typedef struct TEST_FIXTURE {
     PAPACC_CHANNEL channel_storage[2]; PAPACC_DATA_ASSOCIATION_ENTRY entries[2];
     TEST_IO io[2]; TEST_GENERATOR generator;
 } TEST_FIXTURE;
+typedef struct ISSUE_GATE { TEST_FIXTURE *fixture; PAPACC_U32 calls; } ISSUE_GATE;
+static PAPACC_RESULT issue_gate(void *context,PAPACC_U64 session_id,
+    PAPACC_U64 now_ns,PAPACC_DATA_ASSOCIATION_TICKET *ticket,
+    PAPACC_U64 *deadline)
+{
+    ISSUE_GATE *gate=(ISSUE_GATE*)context;++gate->calls;
+    return papacc_data_association_manager_issue(&gate->fixture->associations,
+        session_id,now_ns,ticket,deadline);
+}
 
 static PAPACC_RESULT test_read(void *context, PAPACC_U8 *buffer,
     PAPACC_SIZE capacity, PAPACC_SIZE *out_count,
@@ -148,18 +157,20 @@ static int test_success_reissue_expiry(void)
         0,4,0,0,0,0,0,16,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
     TEST_FIXTURE f; PAPACC_SESSION *s; PAPACC_CHANNEL *c;
     PAPACC_POST_CONTROL_PROCESSOR p = PAPACC_POST_CONTROL_PROCESSOR_INITIALIZER;
-    PAPACC_U8 scratch[3]; PAPACC_U64 deadline; int read_result;
+    PAPACC_U8 scratch[3]; PAPACC_U64 deadline; int read_result; ISSUE_GATE gate;
     if (fixture_init(&f, 2) || fixture_publish(&f, 0, &s, &c)) return 1;
+    gate.fixture=&f;gate.calls=0;
     set_request(&f.io[0], PAPACC_MESSAGE_TYPE_DATA_TICKET_REQUEST, 0);
     f.io[0].read_limit = 1; f.io[0].write_limit = 2;
     if (papacc_post_control_processor_init(&p, &f.connections, &f.sessions,
         &f.channels, &f.associations, s->session_instance_id,
         c->channel_instance_id, scratch, sizeof(scratch)) != PAPACC_RESULT_OK ||
+        papacc_post_control_processor_set_ticket_issue_gate(&p,issue_gate,&gate)!=PAPACC_RESULT_OK ||
         !papacc_post_control_processor_wants_read(&p) ||
         papacc_post_control_processor_wants_write(&p))
         return 2;
     read_result = run_until_write(&p, 10); if (read_result) return read_result;
-    if (f.associations.count != 1 || f.generator.calls != 1) return 6;
+    if (f.associations.count != 1 || f.generator.calls != 1 || gate.calls != 1) return 6;
     if (p.ticket_payload_offset != 0) return 7;
     if (finish_write(&p)) return 8;
     if (memcmp(f.io[0].output, golden, 32) != 0) return 9;
