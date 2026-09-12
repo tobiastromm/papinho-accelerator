@@ -14,6 +14,10 @@ PapinhoAccelerator é um projeto independente para transferir tarefas computacio
 - [ADR-0008 — Fixação de dependências Papinho por release](docs/adr/ADR-0008-fixacao-de-dependencias-papinho-por-release.md)
 - [ADR-0009 — Perfil de transporte explícito por listener](docs/adr/ADR-0009-perfil-de-transporte-explicito-por-listener.md)
 - [ADR-0010 — Resolução de configuração de segurança do servidor](docs/adr/ADR-0010-resolucao-de-configuracao-de-seguranca-do-servidor.md)
+- [ADR-0011 — Identidade de capability e modelo portátil limitado](docs/adr/ADR-0011-identidade-de-capability-e-modelo-portatil-limitado.md)
+- [ADR-0012 — Snapshot de capabilities e enforcement contextual](docs/adr/ADR-0012-snapshot-de-capabilities-e-enforcement-contextual.md)
+- [ADR-0013 — Lifecycle de Job, ownership de Session e cancelamento cooperativo](docs/adr/ADR-0013-lifecycle-de-job-ownership-de-session-e-cancelamento-cooperativo.md)
+- [ADR-0014 — Contrato portátil incremental de Compute Backend](docs/adr/ADR-0014-contrato-portatil-incremental-de-compute-backend.md)
 
 ## Estado atual
 
@@ -62,6 +66,7 @@ servidor Win32 estruturalmente operacional:
 | Transport Security server integration | ✅; listener real e harness mTLS, ainda opt-in |
 | Secure Principal | ✅ Phase 3 READY; server e reference-client interoperability auditados |
 | Capability Framework & Policy Engine | ✅ Phase 4 READY; framework portátil, sem wire/workloads |
+| Compute Offload Framework | ✅ Phase 5 READY; Jobs bounded e backend portátil, sem workload/wire |
 
 - listeners TCP reais em um único `control_port` explícito;
 - seleção de todas as interfaces ou de interfaces por identidade persistente local;
@@ -75,7 +80,7 @@ servidor Win32 estruturalmente operacional:
 Ainda não estão implementados:
 
 - exposição operacional/CLI do listener Secure Principal;
-- capabilities de computação, incluindo `TLS_OFFLOAD`;
+- workloads concretos de computação, incluindo `TLS_OFFLOAD`;
 - protocolo de aplicação ou processamento de payload após `DATA_ACCEPT`;
 - network egress, proxy ou conexões externas;
 - GUI, arquivo de configuração ou backend POSIX.
@@ -86,7 +91,7 @@ O protocolo entregue na Phase 2 é somente a base estrutural de transporte, fram
 
 - Core e modelos de rede portáteis sem tipos Win32/Winsock.
 - PAL, backend de discovery e backend TCP Win32 como primeira implementação de plataforma.
-- Control/Data Channels e Sessions estruturais entregues; capabilities e Compute Backends permanecem desenho futuro.
+- Control/Data Channels, Sessions, Capability Framework e Compute Offload Framework genérico entregues; workloads concretos permanecem futuros.
 - Transport Security protege conceitualmente os canais do próprio PapinhoAccelerator e é independente da capability futura `TLS_OFFLOAD`, voltada a conexões externas do cliente.
 - Secure Principal consumirá PapinhoSecureTransport; Legacy Endpoint permanece
   plaintext explicitamente configurado e não passa pelo PST.
@@ -125,6 +130,7 @@ O primeiro consumidor real foi validado: PapinhoBrowser em Windows NT 4.0 acesso
 - [Checkpoint de arquitetura de segurança da Phase 3](docs/phase3-security-architecture.md)
 - [Closeout final de segurança da Phase 3](docs/phase3-security-final-audit.md)
 - [Capability Framework & Policy Engine da Phase 4](docs/phase4-capability-framework-policy-engine.md)
+- [Compute Offload Framework da Phase 5](docs/phase5-compute-offload-framework.md)
 - [Perfil inicial de Transport Security e credenciais](docs/phase3-transport-security-profile.md)
 - [Spike de backend TLS e compatibilidade legada](docs/phase3-tls-backend-spike.md)
 - [Prova final RetroZilla NSS mTLS/NT4](docs/phase3-nss-mtls-nt4-proof.md)

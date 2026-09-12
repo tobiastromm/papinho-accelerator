@@ -118,6 +118,28 @@ set_target_properties(papacc_session PROPERTIES
 
 papacc_enable_warnings(papacc_session)
 
+add_library(papacc_compute STATIC
+    src/compute/job.c
+)
+target_include_directories(papacc_compute PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compute
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/capability
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime)
+target_link_libraries(papacc_compute PUBLIC
+    papacc_core papacc_capability papacc_session)
+set_target_properties(papacc_compute PROPERTIES
+    C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+papacc_enable_warnings(papacc_compute)
+
+if(BUILD_TESTING)
+    add_executable(papacc_job_test tests/job_test.c)
+    target_link_libraries(papacc_job_test PRIVATE papacc_compute)
+    set_target_properties(papacc_job_test PROPERTIES
+        C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+    papacc_enable_warnings(papacc_job_test)
+    add_test(NAME papacc.compute.job_framework COMMAND papacc_job_test)
+endif()
+
 add_library(papacc_channel STATIC
     src/runtime/channel.c
 )

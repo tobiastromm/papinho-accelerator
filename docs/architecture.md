@@ -17,6 +17,8 @@ e a justificativa preservados nos ADRs locais:
 - [ADR-0010 — Resolução de configuração de segurança do servidor](adr/ADR-0010-resolucao-de-configuracao-de-seguranca-do-servidor.md).
 - [ADR-0011 — Identidade de capability e modelo portátil limitado](adr/ADR-0011-identidade-de-capability-e-modelo-portatil-limitado.md);
 - [ADR-0012 — Snapshot de capabilities e enforcement contextual](adr/ADR-0012-snapshot-de-capabilities-e-enforcement-contextual.md).
+- [ADR-0013 — Lifecycle de Job, ownership de Session e cancelamento cooperativo](adr/ADR-0013-lifecycle-de-job-ownership-de-session-e-cancelamento-cooperativo.md);
+- [ADR-0014 — Contrato portátil incremental de Compute Backend](adr/ADR-0014-contrato-portatil-incremental-de-compute-backend.md).
 
 Para o threat model e o contexto histórico da inserção de Transport Security,
 identidade e gates de autorização, consulte o checkpoint autoritativo de
@@ -189,6 +191,12 @@ Oferece criação/aceitação abstrata de canais, envio/recepção, fechamento, 
 ### Compute Backend
 
 Descobre e executa operações oferecidas por implementações de computação. Uma capability descreve o que pode ser feito, não como: CPU, GPU, biblioteca de mídia, decoder físico, FPGA, ASIC ou outro dispositivo podem ser backends. Backend não concede autorização e não escolhe network egress.
+
+A Phase 5 implementa o Job Manager bounded e o contrato incremental de Compute
+Backend. Cada Job pertence semanticamente a uma Session, possui deadline
+monotônico e progride por oportunidades bounded com fairness Session-aware.
+Estado e payload específicos permanecem pertencentes ao backend/workload. Não
+há thread model obrigatório, fallback automático de backend ou wire de Job.
 
 ### Capability Framework e Policy Engine
 

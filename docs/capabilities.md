@@ -11,6 +11,11 @@ Session e enforcement contextual. Negociação wire e execução de workloads n�
 estão implementadas. Os nomes abaixo continuam conceitos futuros e não recebem
 IDs concretos nesta fase.
 
+O framework genérico de Jobs da Phase 5 também está implementado. A admissão
+exige membership no snapshot e enforcement contextual atual antes de publicar
+qualquer Job. Isso fornece execução bounded e backend substituível, mas não
+atribui IDs às capabilities conceituais nem implementa workload concreto.
+
 Capability Documents disponíveis:
 
 - [Logging e diagnóstico operacional](capabilities/logging.md);
