@@ -1,0 +1,9 @@
+# Exact independent checkpoint validation slice
+
+Owner clarification confirms there is no approved backup/fencing mechanism and authorizes independent components with recovery denied. Existing accepted technical profile2.4/3.5-3.6 and issuer/C2 P6 remain controlling; no new normative authority or persistent encoding is introduced.
+
+Four exact files: issuer_codec.h adds a private version1 in-memory data assessment/report; issuer_codec.c reuses existing version1 image validation and compares immutable origin and full retained event prefix, revision/high-water; CMake adds a Windows-only SHA256 test, common library remains platform independent; test uses synthetic CA/records/DER marker and native hash only. No key/sign/generation APIs, backend selection, registry, allocation, worker or runtime owner call is added.
+
+The durable checkpoint DATA remains the existing version1 image inside same-root ROOT06, not a second journal. Descriptor is not serialized; CURRENT/A/P are explicitly not reconstructed from bytes. Data-valid outcome returns DENIED, never OK and never proof bits. Missing floor, invalid history/hash, rollback and fork have explicit dispositions. Stop parameter is a serialized caller fact, not a new concurrent Stop mechanism. Caller retains immutable input leases and separate output. This routine must not be installed into an active owner event loop on an assumption of bounded native hash latency.
+
+Existing root storage/publication/Session code is unchanged. Durable CURRENT/A checkpoint linkage, external latest-state proof and cross-restored-instance fencing remain unimplemented/denied; no complete task claim. Prior native tests do not qualify these missing gates. Scope has no new product storage or slots; report and validator stack sizes will be measured. Same-root adapter hookup requires future proof source, lifetime and storage review, never a raw boolean/config flag.

@@ -1,0 +1,433 @@
+--- a/src/provisioning/enrollment.h
++++ b/src/provisioning/enrollment.h
+@@ -0,0 +1,74 @@
++#ifndef PAPACC_ENROLLMENT_H
++#define PAPACC_ENROLLMENT_H
++#include <papacc/types.h>
++/* Private offline DATA components. No Session, registry, root authority,
++ * signature, credential installation or productive listener registration.
++ * Caller owner serializes operations and holds immutable disjoint buffers.
++ * DATA_ONLY never means trusted, approved, CURRENT, RESOLVED or admitted. */
++#define EP_HEADER 16U
++#define EP_BODY_MAX 16384U
++#define EP_FRAME_MAX 16400U
++#define EP_UNKNOWN_BYTES ((PAPACC_SIZE)-1)
++typedef enum EP_RESULT { EP_DATA_ONLY=1,EP_MORE=2,EP_INVALID=-1,
++ EP_DENIED=-2,EP_LIMIT=-3,EP_STOPPED=-4,EP_EXPIRED=-5,EP_REPLAY=-6 } EP_RESULT;
++typedef struct EP_SLICE { const PAPACC_U8 *data; PAPACC_SIZE size; } EP_SLICE;
++typedef struct EP_FRAME { unsigned kind,sequence; EP_SLICE payload; } EP_FRAME;
++enum { EP_C2S=0,EP_S2C=1 };
++EP_RESULT ep_frame_decode(const PAPACC_U8 *,PAPACC_SIZE,unsigned,EP_FRAME *);
++EP_RESULT ep_frame_encode(unsigned,unsigned,unsigned,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *);
++/* One frame per reader. Returned slice borrows caller RX; do not reset/reuse
++ * any storage while a downstream borrower exists, including retained work. */
++typedef struct EP_READER {
++ PAPACC_U8 *rx;PAPACC_SIZE capacity,have,want;
++ PAPACC_U64 first,last;unsigned started,failed,ready,stopped;
++} EP_READER;
++EP_RESULT ep_reader_push(EP_READER *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U64,unsigned,PAPACC_SIZE *,EP_FRAME *);
++/* Trace validates DATA order/correlation only. A received APPROVED is not an
++ * authority source. Own CSR copy avoids pointers into recycled RX. Native
++ * approval/policy/CURRENT/CSR-to-issuer binding remains UNBOUND and DENIED. */
++typedef struct EP_TRACE {
++ unsigned sequence[2],phase,access,approval,wait_seen,pending,terminal,stopped;
++ PAPACC_SIZE bytes[2],csr_size;
++ PAPACC_U8 client_nonce[32],server_nonce[32],server_fingerprint[32],request[16],csr[4096];
++} EP_TRACE;
++EP_RESULT ep_trace_observe(EP_TRACE *,const EP_FRAME *,unsigned);
++void ep_trace_stop(EP_TRACE *);
++/* Pure code formatting; random7 must come from qualified entropy. Not a RNG. */
++EP_RESULT ep_code_format(const PAPACC_U8[7],PAPACC_U8[10]);
++EP_RESULT ep_code_parse_local(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8[10]);
++typedef struct EP_PAIR {
++ PAPACC_U8 code[10],request[16],server_nonce[32],client_nonce[32];
++ PAPACC_U64 connection,generation,start,last,deadline;
++ unsigned initialized,submitted,claimed,invalid,stopped;
++} EP_PAIR;
++/* Pure owned DATA preparation from random55 = code7 + id16 + nonce32.
++ * Collision rejects; never retry/fallback. Existing owner must hold live[0..2]
++ * immutable, including invalid-but-retained pairs. No caller boolean is auth. */
++EP_RESULT ep_pair_prepare_data(EP_PAIR *,const PAPACC_U8[55],const PAPACC_U8[32],PAPACC_U64,PAPACC_U64,PAPACC_U64,const EP_PAIR *,PAPACC_SIZE);
++EP_RESULT ep_pair_claim_data(EP_PAIR *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U64,PAPACC_U64,PAPACC_U64);
++void ep_pair_stop(EP_PAIR *);
++/* Native Windows adapter generates public pairing secret only; no keys/CA.
++ * It is not registered at startup or connected to root/CLI. */
++#ifdef _WIN32
++EP_RESULT ep_pair_generate_windows(EP_PAIR *,const PAPACC_U8[32],PAPACC_U64,PAPACC_U64,PAPACC_U64,const EP_PAIR *,PAPACC_SIZE);
++#endif
++typedef struct EP_ORIGIN { unsigned family; PAPACC_U8 address[16];PAPACC_U32 scope; } EP_ORIGIN;
++typedef struct EP_ORIGIN_SLOT {
++ EP_ORIGIN origin;PAPACC_U64 stamps[3];unsigned count,used,holds;
++} EP_ORIGIN_SLOT;
++typedef struct EP_TICKET { PAPACC_U64 generation;unsigned slot; } EP_TICKET;
++typedef struct EP_LIMITER {
++ EP_ORIGIN_SLOT origins[16];PAPACC_U64 global[6],last,next,held[2];
++ unsigned count,started,stopped,held_slot[2];
++} EP_LIMITER;
++/* Origin must come from PAL socket endpoint; never remote headers. DATA
++ * ledger is subordinate to the existing owner, not credits/identity registry.
++ * Release is local accounting only and is called exclusively AFTER factual
++ * native closure by future owner integration. Stop never releases a ticket. */
++EP_RESULT ep_origin_set(EP_ORIGIN *,unsigned,const PAPACC_U8 *,PAPACC_U32);
++EP_RESULT ep_limiter_admit(EP_LIMITER *,const EP_ORIGIN *,PAPACC_U64,EP_TICKET *);
++EP_RESULT ep_limiter_release_data(EP_LIMITER *,EP_TICKET);
++void ep_limiter_stop(EP_LIMITER *);
++/* Checked quote: no allocation/reservation/host or provider qualification. */
++EP_RESULT ep_enrollment_quote(PAPACC_SIZE,PAPACC_SIZE,PAPACC_SIZE,PAPACC_SIZE *);
++#endif
+--- a/src/provisioning/enrollment.c
++++ b/src/provisioning/enrollment.c
+@@ -0,0 +1,127 @@
++#include "enrollment.h"
++#include "../core/ed11_process_profile.h"
++#include <string.h>
++/* Existing reviewed OpenBSD comparator; no C2 token/owner/protocol reuse. */
++int papacc_c2_compare(const void *,const void *,size_t);
++static const char alphabet[]="0123456789ABCDEFGHJKMNPQRSTVWXYZ";
++static unsigned get16(const PAPACC_U8 *p){return ((unsigned)p[0]<<8)|p[1];}
++static PAPACC_U32 get32(const PAPACC_U8 *p){return ((PAPACC_U32)p[0]<<24)|((PAPACC_U32)p[1]<<16)|((PAPACC_U32)p[2]<<8)|p[3];}
++static void put32(PAPACC_U8 *p,PAPACC_U32 n){p[0]=(PAPACC_U8)(n>>24);p[1]=(PAPACC_U8)(n>>16);p[2]=(PAPACC_U8)(n>>8);p[3]=(PAPACC_U8)n;}
++static int span(const void *p,PAPACC_SIZE n){return p&&n&&n-1<=(PAPACC_SIZE)-1-(PAPACC_SIZE)p;}
++static int cross(const void *p,PAPACC_SIZE n,const void *q,PAPACC_SIZE m){PAPACC_SIZE a=(PAPACC_SIZE)p,b=(PAPACC_SIZE)q;return n&&m&&(a<=b?b-a<n:a-b<m);}
++static int chars(const PAPACC_U8 *p,PAPACC_SIZE n){PAPACC_SIZE i;for(i=0;i<n;i++)if(!p[i]||!strchr(alphabet,p[i]))return 0;return 1;}
++static int utf8(const PAPACC_U8 *p,PAPACC_SIZE n){
++ PAPACC_SIZE i=0;PAPACC_U32 c;unsigned more,j;
++ while(i<n){c=p[i++];if(c<128U){if(c<32U||c==127U)return 0;continue;}
++ if(c>=194U&&c<=223U){more=1;c&=31U;}else if(c>=224U&&c<=239U){more=2;c&=15U;}else if(c>=240U&&c<=244U){more=3;c&=7U;}else return 0;
++ if(more>n-i)return 0;for(j=0;j<more;j++){if((p[i]&192U)!=128U)return 0;c=(c<<6)|(p[i++]&63U);}
++ if((more==1&&c<128U)||(more==2&&c<2048U)||(more==3&&c<65536U)||c>1114111U||(c>=55296U&&c<=57343U)||c==65279U)return 0;
++ }return 1;
++}
++static int payload(unsigned k,const PAPACC_U8 *p,PAPACC_SIZE n){
++ unsigned a,b;PAPACC_SIZE i;
++ switch(k){
++ case 1:if(n<67U)return 0;a=get16(p+64);if(a<1U||a>253U||n!=66U+a)return 0;for(i=66;i<n;i++)if(p[i]<33U||p[i]>126U)return 0;return 1;
++ case 2:return n==120U&&p[112]<=1U&&p[113]<=1U&&!p[114]&&!p[115]&&get32(p+116)>0U&&get32(p+116)<=300000U;
++ case 3:if(n<62U||!chars(p+48,10))return 0;a=get16(p+58);b=get16(p+60);return a<=128U&&b<=128U&&n==62U+a+b&&utf8(p+62,a)&&utf8(p+62+a,b);
++ case 4:return n==20U&&p[16]>=1U&&p[16]<=3U&&!p[17]&&!p[18]&&!p[19];
++ case 5:return n>=53U&&get32(p+48)>=1U&&get32(p+48)<=4096U&&n==52U+get32(p+48);
++ case 6:if(n<26U)return 0;return get32(p+16)>=1U&&get32(p+16)<=4096U&&get32(p+20)>=1U&&get32(p+20)<=4096U&&n==24U+get32(p+16)+get32(p+20);
++ case 7:return n==48U;
++ case 8:return n==20U&&get16(p+16)>=1U&&get16(p+16)<=7U&&!p[18]&&!p[19];
++ default:return 0;
++ }
++}
++static int direction(unsigned k,unsigned d){return d<=1U&&((d==EP_C2S&&(k==1U||k==3U||k==5U||k==7U))||(d==EP_S2C&&(k==2U||k==4U||k==6U||k==8U)));}
++static EP_RESULT header(const PAPACC_U8 *p,unsigned d,PAPACC_SIZE *want){
++ PAPACC_U32 n=get32(p+8),seq=get32(p+12);
++ if(memcmp(p,"PAE1",4)||p[4]!=1U||p[5]||p[7]||!direction(p[6],d)||!seq||seq>8U||!n||n>EP_BODY_MAX)return EP_INVALID;
++ *want=16U+n;return EP_DATA_ONLY;
++}
++EP_RESULT ep_frame_decode(const PAPACC_U8 *p,PAPACC_SIZE n,unsigned d,EP_FRAME *out){
++ PAPACC_SIZE want;EP_FRAME f;if(!span(p,n)||!out||cross(p,n,out,sizeof(*out)))return EP_INVALID;
++ if(n<16U)return EP_MORE;if(header(p,d,&want)!=EP_DATA_ONLY)return EP_INVALID;
++ if(n<want)return EP_MORE;if(n!=want||!payload(p[6],p+16,n-16U))return EP_INVALID;
++ f.kind=p[6];f.sequence=get32(p+12);f.payload.data=p+16;f.payload.size=n-16U;*out=f;return EP_DATA_ONLY;
++}
++EP_RESULT ep_frame_encode(unsigned k,unsigned seq,unsigned d,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used){
++ if(!span(p,n)||!span(out,cap)||!used||n>EP_BODY_MAX||!seq||seq>8U||!direction(k,d)||!payload(k,p,n)||cross(p,n,out,cap)||cross(used,sizeof(*used),out,cap)||cross(used,sizeof(*used),p,n))return EP_INVALID;
++ if(cap<16U+n)return EP_LIMIT;memcpy(out,"PAE1",4);out[4]=1;out[5]=0;out[6]=(PAPACC_U8)k;out[7]=0;put32(out+8,(PAPACC_U32)n);put32(out+12,seq);memcpy(out+16,p,n);*used=16U+n;return EP_DATA_ONLY;
++}
++EP_RESULT ep_reader_push(EP_READER *r,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U64 now,unsigned d,PAPACC_SIZE *used,EP_FRAME *out){
++ PAPACC_SIZE take;EP_RESULT result;
++ if(!r||!used||!out||!span(r->rx,r->capacity)||r->capacity>EP_FRAME_MAX||r->capacity<16U||r->have>r->capacity||r->want>r->capacity||(r->want&&r->have>r->want)||(n&&!span(p,n))||cross(r,sizeof(*r),r->rx,r->capacity)||cross(p,n,r->rx,r->capacity)||cross(p,n,r,sizeof(*r))||cross(out,sizeof(*out),r->rx,r->capacity)||cross(used,sizeof(*used),r->rx,r->capacity)||cross(out,sizeof(*out),r,sizeof(*r))||cross(used,sizeof(*used),r,sizeof(*r))||cross(out,sizeof(*out),used,sizeof(*used))||cross(p,n,out,sizeof(*out))||cross(p,n,used,sizeof(*used)))return EP_INVALID;
++ *used=0;if(r->failed||r->ready)return EP_DENIED;if(r->stopped){r->failed=1;return EP_STOPPED;}
++ if(r->started&&(now<r->last||now-r->first>=5000U)){r->failed=1;return EP_EXPIRED;}
++ if(n&&!r->started){r->started=1;r->first=now;r->want=16;}r->last=now;
++ while(n&&r->have<r->want){take=r->want-r->have;if(take>n)take=n;memcpy(r->rx+r->have,p,take);r->have+=take;*used+=take;p+=take;n-=take;
++ if(r->have==16U&&r->want==16U){result=header(r->rx,d,&r->want);if(result!=EP_DATA_ONLY||r->want>r->capacity){r->failed=1;return EP_INVALID;}}
++ }
++ if(!r->started||r->have<r->want)return EP_MORE;result=ep_frame_decode(r->rx,r->have,d,out);if(result==EP_DATA_ONLY)r->ready=1;else r->failed=1;return result;
++}
++EP_RESULT ep_trace_observe(EP_TRACE *t,const EP_FRAME *f,unsigned d){
++ unsigned k,s;PAPACC_SIZE n;const PAPACC_U8 *p;
++ if(!t||!f||!span(f->payload.data,f->payload.size)||d>1U||cross(t,sizeof(*t),f,sizeof(*f))||cross(t,sizeof(*t),f->payload.data,f->payload.size))return EP_INVALID;
++ if(t->stopped)return EP_STOPPED;if(t->terminal)return EP_DENIED;k=f->kind;p=f->payload.data;n=f->payload.size;
++ if(!direction(k,d)||!payload(k,p,n)||f->sequence!=t->sequence[d]+1U||f->sequence>8U||t->bytes[d]>32768U||16U+n>32768U-t->bytes[d])goto bad;
++ if(k==8U){PAPACC_U8 zero[16]={0};if(!t->phase||memcmp(p,t->phase>=2U?t->request:zero,16))goto bad;t->terminal=1;}
++ else if(k==7U){if(t->phase<2U||memcmp(p,t->request,16)||memcmp(p+16,t->server_nonce,32))goto bad;t->terminal=1;}
++ else if(t->phase==0U&&k==1U){memcpy(t->client_nonce,p,32);memcpy(t->server_fingerprint,p+32,32);t->phase=1;}
++ else if(t->phase==1U&&k==2U){if(memcmp(p+16,t->client_nonce,32)||memcmp(p+80,t->server_fingerprint,32))goto bad;memcpy(t->request,p,16);memcpy(t->server_nonce,p+48,32);t->access=p[112];t->approval=p[113];t->phase=2;}
++ else if(t->phase==2U&&k==3U){if(memcmp(p,t->request,16)||memcmp(p+16,t->server_nonce,32))goto bad;if(t->access?(!get16(p+58)||!get16(p+60)):(get16(p+58)||get16(p+60)))goto bad;t->phase=3;}
++ else if(k==4U&&t->phase>=3U){if(memcmp(p,t->request,16))goto bad;s=p[16];if(s==1U&&t->phase==3U&&!t->wait_seen)t->wait_seen=1;else if(s==2U&&t->phase==3U)t->phase=4;else if(s==3U&&t->phase==5U&&!t->pending)t->pending=1;else goto bad;}
++ else if(k==5U&&t->phase==4U){if(memcmp(p,t->request,16)||memcmp(p+16,t->server_nonce,32))goto bad;t->csr_size=get32(p+48);memcpy(t->csr,p+52,t->csr_size);t->phase=5;}
++ else if(k==6U&&t->phase==5U&&!t->pending){if(memcmp(p,t->request,16))goto bad;t->terminal=1;}
++ else goto bad;
++ t->sequence[d]=f->sequence;t->bytes[d]+=16U+n;return EP_DATA_ONLY;
++ bad:t->terminal=1;return EP_DENIED;
++}
++void ep_trace_stop(EP_TRACE *t){if(t){t->stopped=1;t->terminal=1;}}
++EP_RESULT ep_code_format(const PAPACC_U8 r[7],PAPACC_U8 out[10]){
++ unsigned i,j,v;if(!r||!out||cross(r,7,out,10))return EP_INVALID;
++ for(i=0;i<10;i++){v=0;for(j=0;j<5;j++)v=(v<<1)|((r[(5U*i+j)/8U]>>(7U-(5U*i+j)%8U))&1U);out[i]=(PAPACC_U8)alphabet[v];}return EP_DATA_ONLY;
++}
++EP_RESULT ep_code_parse_local(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 out[10]){
++ PAPACC_U8 code[10];unsigned i;if(!p||!out||cross(p,n,out,10)||(n!=10U&&n!=11U))return EP_INVALID;
++ if(n==11U&&p[5]!='-')return EP_INVALID;for(i=0;i<10;i++)code[i]=p[i+(n==11U&&i>=5U?1U:0U)];if(!chars(code,10))return EP_INVALID;memcpy(out,code,10);return EP_DATA_ONLY;
++}
++EP_RESULT ep_pair_prepare_data(EP_PAIR *p,const PAPACC_U8 random[55],const PAPACC_U8 client[32],PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now,const EP_PAIR *live,PAPACC_SIZE count){
++ PAPACC_SIZE i;
++ if(!p||!random||!client||!connection||!generation||count>2U||(count&&!live)||p->initialized||p->stopped||cross(p,sizeof(*p),random,55)||cross(p,sizeof(*p),client,32)||cross(p,sizeof(*p),live,count*sizeof(*live)))return EP_INVALID;
++ if(now>(PAPACC_U64)-1-300000U)return EP_LIMIT;
++ if(!memcmp(random+23,client,32))return EP_DENIED;
++ for(i=0;i<count;i++)if(live[i].initialized&&(!memcmp(random+7,live[i].request,16)||!memcmp(random+23,live[i].server_nonce,32)||!memcmp(random+23,live[i].client_nonce,32)||!memcmp(client,live[i].client_nonce,32)||!memcmp(client,live[i].server_nonce,32)))return EP_DENIED;
++ memset(p,0,sizeof(*p));(void)ep_code_format(random,p->code);memcpy(p->request,random+7,16);memcpy(p->server_nonce,random+23,32);memcpy(p->client_nonce,client,32);p->connection=connection;p->generation=generation;p->start=now;p->last=now;p->deadline=now+300000U;p->initialized=1;return EP_DATA_ONLY;
++}
++EP_RESULT ep_pair_claim_data(EP_PAIR *p,const PAPACC_U8 *code,PAPACC_SIZE n,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now){
++ if(!p||!p->initialized)return EP_INVALID;if(p->stopped)return EP_STOPPED;if(p->submitted||p->invalid)return EP_REPLAY;
++ p->submitted=1;if(now<p->last||now>=p->deadline){p->invalid=1;return EP_EXPIRED;}p->last=now;
++ if(connection!=p->connection||generation!=p->generation||!code||n!=10U||!chars(code,10)||papacc_c2_compare(code,p->code,10)){p->invalid=1;return EP_DENIED;}p->claimed=1;return EP_DATA_ONLY;
++}
++void ep_pair_stop(EP_PAIR *p){if(p){p->stopped=1;p->invalid=1;}}
++EP_RESULT ep_origin_set(EP_ORIGIN *o,unsigned family,const PAPACC_U8 *a,PAPACC_U32 scope){
++ static const PAPACC_U8 mapped[12]={0,0,0,0,0,0,0,0,0,0,255,255};EP_ORIGIN n;
++ if(!o||!a||(family!=4U&&family!=6U)||cross(o,sizeof(*o),a,family==4U?4U:16U))return EP_INVALID;
++ memset(&n,0,sizeof(n));if(family==6U&&!memcmp(a,mapped,12)){family=4;a+=12;scope=0;}n.family=family;n.scope=family==6U?scope:0;memcpy(n.address,a,family==4U?4U:16U);*o=n;return EP_DATA_ONLY;
++}
++static unsigned prune(PAPACC_U64 *p,unsigned n,PAPACC_U64 now){unsigned a,b=0;for(a=0;a<n;a++)if(now-p[a]<60000U)p[b++]=p[a];return b;}
++static int origin_equal(const EP_ORIGIN *a,const EP_ORIGIN *b){return a->family==b->family&&a->scope==b->scope&&!memcmp(a->address,b->address,16);}
++EP_RESULT ep_limiter_admit(EP_LIMITER *l,const EP_ORIGIN *o,PAPACC_U64 now,EP_TICKET *out){
++ unsigned i,slot=16U,free_slot=16U,holder=2U;EP_ORIGIN_SLOT *s;
++ if(!l||!o||!out||cross(l,sizeof(*l),o,sizeof(*o))||cross(l,sizeof(*l),out,sizeof(*out))||(o->family!=4U&&o->family!=6U))return EP_INVALID;
++ if(l->stopped)return EP_STOPPED;if(l->started&&now<l->last){l->stopped=1;return EP_EXPIRED;}l->started=1;l->last=now;
++ if(l->count>6U)return EP_INVALID;l->count=prune(l->global,l->count,now);if(l->count==6U||l->next==(PAPACC_U64)-1)return EP_LIMIT;
++ for(i=0;i<2;i++)if(!l->held[i]&&holder==2U)holder=i;if(holder==2U)return EP_LIMIT;
++ for(i=0;i<16;i++){s=&l->origins[i];if(s->count>3U)return EP_INVALID;s->count=prune(s->stamps,s->count,now);if(s->used&&origin_equal(&s->origin,o))slot=i;else if((!s->used||(!s->count&&!s->holds))&&free_slot==16U)free_slot=i;}
++ if(slot==16U){slot=free_slot;if(slot==16U)return EP_LIMIT;s=&l->origins[slot];memset(s,0,sizeof(*s));s->origin=*o;s->used=1;}s=&l->origins[slot];if(s->count==3U)return EP_LIMIT;
++ s->stamps[s->count++]=now;s->holds++;l->global[l->count++]=now;l->held[holder]=++l->next;l->held_slot[holder]=slot;out->slot=slot;out->generation=l->next;return EP_DATA_ONLY;
++}
++EP_RESULT ep_limiter_release_data(EP_LIMITER *l,EP_TICKET ticket){
++ unsigned i;if(!l||ticket.slot>=16U||!ticket.generation)return EP_INVALID;
++ for(i=0;i<2;i++)if(l->held[i]==ticket.generation&&l->held_slot[i]==ticket.slot){if(!l->origins[ticket.slot].holds)return EP_INVALID;l->origins[ticket.slot].holds--;l->held[i]=0;return EP_DATA_ONLY;}return EP_REPLAY;
++}
++void ep_limiter_stop(EP_LIMITER *l){if(l)l->stopped=1;}
++EP_RESULT ep_enrollment_quote(PAPACC_SIZE other,PAPACC_SIZE local,PAPACC_SIZE provider,PAPACC_SIZE *out){
++ PAPACC_SIZE total;if(!out||other==EP_UNKNOWN_BYTES||provider==EP_UNKNOWN_BYTES||local>262144U||provider>262144U-local)return EP_LIMIT;
++ total=local+provider;if(other>PAPACC_ED11_PROCESS_LIMIT||total>PAPACC_ED11_PROCESS_LIMIT-other)return EP_LIMIT;*out=other+total;return EP_DATA_ONLY;
++}
+--- a/src/provisioning/enrollment_windows.c
++++ b/src/provisioning/enrollment_windows.c
+@@ -0,0 +1,10 @@
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include <bcrypt.h>
++#include "enrollment.h"
++EP_RESULT ep_pair_generate_windows(EP_PAIR *p,const PAPACC_U8 client[32],PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now,const EP_PAIR *live,PAPACC_SIZE count){
++ PAPACC_U8 random[55];EP_RESULT result;
++ if(!p||!client||p->initialized||p->stopped||!connection||!generation||count>2U||(count&&!live))return EP_INVALID;
++ if(BCryptGenRandom(NULL,random,sizeof(random),BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0){SecureZeroMemory(random,sizeof(random));return EP_DENIED;}
++ result=ep_pair_prepare_data(p,random,client,connection,generation,now,live,count);SecureZeroMemory(random,sizeof(random));return result;
++}
+--- a/src/provisioning/enrollment_pst.h
++++ b/src/provisioning/enrollment_pst.h
+@@ -0,0 +1,15 @@
++#ifndef PAPACC_ENROLLMENT_PST_H
++#define PAPACC_ENROLLMENT_PST_H
++#include "enrollment.h"
++#include "papinho_secure_transport.h"
++/* Owned candidate metadata only, no PST handles acquired. Existing credential
++ * owner keeps its lease and runtime alive through prepare/use/retention.
++ * No root/model/codec factory can publish this profile yet: native listener
++ * integration remains DENY. Not an alias of SECURE_PRINCIPAL/Site TLS. */
++typedef struct EP_TLS_PROFILE {
++ char provider[32];PAPACC_U8 alpn[15];PST_ALPN_PROTOCOL protocol;
++ PST_CONNECTION_CONFIG config;unsigned initialized;
++} EP_TLS_PROFILE;
++EP_RESULT ep_tls_profile_prepare(EP_TLS_PROFILE *,pst_credentials *,const char *,PAPACC_SIZE);
++EP_RESULT ep_tls_selected_data(const PAPACC_U8 *,PAPACC_SIZE,pst_u32);
++#endif
+--- a/src/provisioning/enrollment_pst.c
++++ b/src/provisioning/enrollment_pst.c
+@@ -0,0 +1,20 @@
++#include "enrollment_pst.h"
++#include <string.h>
++EP_RESULT ep_tls_profile_prepare(EP_TLS_PROFILE *p,pst_credentials *credential,const char *provider,PAPACC_SIZE n){
++ PST_CONNECTION_CONFIG *c;PAPACC_SIZE i,a=(PAPACC_SIZE)p,b=(PAPACC_SIZE)provider;
++ if(!p||p->initialized||!credential||!provider||!n||n>=sizeof(p->provider)||n>(PAPACC_SIZE)-1-b)return EP_INVALID;
++ if(a<=b?b-a<sizeof(*p):a-b<n)return EP_INVALID;
++ for(i=0;i<n;i++)if(provider[i]<33||provider[i]>126)return EP_INVALID;
++ memset(p,0,sizeof(*p));memcpy(p->provider,provider,n);memcpy(p->alpn,"papacc-enroll/1",15);p->protocol.data=p->alpn;p->protocol.size=15;c=&p->config;
++ c->struct_size=(pst_u32)sizeof(*c);c->api_version=PST_API_VERSION;c->role=PST_CONNECTION_ROLE_SERVER;
++ c->provider_selection.struct_size=(pst_u32)sizeof(c->provider_selection);c->provider_selection.api_version=PST_API_VERSION;c->provider_selection.mode=PST_BACKEND_SELECTION_EXACT;c->provider_selection.exact_provider_id=p->provider;
++ c->provider_selection.required_capabilities=PST_CAP_ROLE_SERVER|PST_CAP_TLS_1_3|PST_CAP_LOCAL_IDENTITY|PST_CAP_ALPN_SERVER|PST_CAP_NONBLOCKING|PST_CAP_BACKEND_WAIT|PST_CAP_GRACEFUL_SHUTDOWN;
++ c->local_identity.struct_size=(pst_u32)sizeof(c->local_identity);c->local_identity.api_version=PST_API_VERSION;c->local_identity.credentials=credential;
++ c->peer_authentication.struct_size=(pst_u32)sizeof(c->peer_authentication);c->peer_authentication.api_version=PST_API_VERSION;c->peer_authentication.certificate_mode=PST_PEER_CERTIFICATE_DISABLED;
++ c->tls.struct_size=(pst_u32)sizeof(c->tls);c->tls.api_version=PST_API_VERSION;c->tls.minimum_version=PST_TLS_VERSION_1_3;c->tls.maximum_version=PST_TLS_VERSION_1_3;c->tls.resumption=PST_FEATURE_DISABLED;c->tls.early_data=PST_FEATURE_DISABLED;c->tls.require_graceful_shutdown=PST_FEATURE_REQUIRED;
++ c->alpn.struct_size=(pst_u32)sizeof(c->alpn);c->alpn.api_version=PST_API_VERSION;c->alpn.mode=PST_FEATURE_REQUIRED;c->alpn.protocols=&p->protocol;c->alpn.protocol_count=1;p->initialized=1;return EP_DATA_ONLY;
++}
++EP_RESULT ep_tls_selected_data(const PAPACC_U8 *p,PAPACC_SIZE n,pst_u32 version){
++ if(!p||n!=15U||version!=PST_TLS_VERSION_1_3||memcmp(p,"papacc-enroll/1",15))return EP_DENIED;
++ return EP_DATA_ONLY; /* only ALPN/version data, NOT a handshake/trust fact */
++}
+--- a/tests/enrollment_test.c
++++ b/tests/enrollment_test.c
+@@ -0,0 +1,97 @@
++/* DATA and synthetic control tests; no CURRENT/policy/approval authority. */
++#include "enrollment.h"
++#include "../src/core/ed11_process_profile.h"
++#include <stdio.h>
++#include <string.h>
++static unsigned checks;
++#define CHECK(x) do {checks++;if(!(x)){printf("FAIL line=%u checks=%u\n",(unsigned)__LINE__,checks);return 1;}} while(0)
++static PAPACC_U8 body[16384],wire[16400],rx[16400];
++static void be16(PAPACC_U8 *p,unsigned n){p[0]=(PAPACC_U8)(n>>8);p[1]=(PAPACC_U8)n;}
++static void be32(PAPACC_U8 *p,unsigned n){p[0]=(PAPACC_U8)(n>>24);p[1]=(PAPACC_U8)(n>>16);p[2]=(PAPACC_U8)(n>>8);p[3]=(PAPACC_U8)n;}
++static PAPACC_SIZE make(unsigned k){
++ memset(body,0,sizeof(body));
++ if(k==1){memset(body,1,32);memset(body+32,2,32);be16(body+64,1);body[66]='a';return 67;}
++ if(k==2){memset(body,3,16);memset(body+16,1,32);memset(body+48,4,32);memset(body+80,2,32);be32(body+116,300000);return 120;}
++ memset(body,3,16);if(k==3||k==5||k==7)memset(body+16,4,32);
++ if(k==3){memcpy(body+48,"0000000000",10);return 62;}
++ if(k==4){body[16]=1;return 20;}
++ if(k==5){be32(body+48,1);body[52]=0x30;return 53;}
++ if(k==6){be32(body+16,1);be32(body+20,1);body[24]=body[25]=0x30;return 26;}
++ if(k==7)return 48;be16(body+16,1);return 20;
++}
++static int framing(void){
++ EP_FRAME f;EP_READER reader;PAPACC_SIZE n,used,i,taken,offset,step;unsigned k,d;
++ for(k=1;k<=8;k++){
++ n=make(k);d=(k==1||k==3||k==5||k==7)?EP_C2S:EP_S2C;used=0;
++ CHECK(ep_frame_encode(k,1,d,body,n,wire,sizeof(wire),&used)==EP_DATA_ONLY&&used==16U+n);
++ CHECK(ep_frame_decode(wire,used,d,&f)==EP_DATA_ONLY&&f.kind==k&&f.sequence==1&&f.payload.size==n);
++ for(i=1;i<used;i++)CHECK(ep_frame_decode(wire,i,d,&f)==EP_MORE);
++ CHECK(ep_frame_decode(wire,used,1U-d,&f)==EP_INVALID);
++ wire[used]=0;CHECK(ep_frame_decode(wire,used+1,d,&f)==EP_INVALID);
++ for(i=4;i<8;i++){PAPACC_U8 saved=wire[i];wire[i]=255;CHECK(ep_frame_decode(wire,used,d,&f)==EP_INVALID);wire[i]=saved;}
++ be32(wire+8,16385);CHECK(ep_frame_decode(wire,used,d,&f)==EP_INVALID);be32(wire+8,(unsigned)n);
++ be32(wire+12,9);CHECK(ep_frame_decode(wire,used,d,&f)==EP_INVALID);be32(wire+12,1);
++ CHECK(ep_frame_encode(k,1,d,body,n,body,sizeof(body),&used)==EP_INVALID);
++ }
++ n=make(1);CHECK(ep_frame_encode(1,1,EP_C2S,body,n,wire,sizeof(wire),&used)==EP_DATA_ONLY);
++ for(step=1;step<=17;step++){
++ memset(&reader,0,sizeof(reader));reader.rx=rx;reader.capacity=sizeof(rx);offset=0;
++ while(offset<used){i=used-offset;if(i>step)i=step;taken=0;CHECK(ep_reader_push(&reader,wire+offset,i,100+offset,EP_C2S,&taken,&f)==(offset+i==used?EP_DATA_ONLY:EP_MORE));CHECK(taken==i);offset+=taken;}
++ CHECK(reader.ready&&f.kind==1&&f.payload.size==67);
++ CHECK(ep_reader_push(&reader,wire,1,200,EP_C2S,&taken,&f)==EP_DENIED);
++ }
++ memset(&reader,0,sizeof(reader));reader.rx=rx;reader.capacity=sizeof(rx);CHECK(ep_reader_push(&reader,wire,1,100,EP_C2S,&taken,&f)==EP_MORE);
++ CHECK(ep_reader_push(&reader,NULL,0,5100,EP_C2S,&taken,&f)==EP_EXPIRED&&reader.have==1);
++ memset(&reader,0,sizeof(reader));reader.rx=rx;reader.capacity=sizeof(rx);reader.stopped=1;CHECK(ep_reader_push(&reader,wire,1,0,EP_C2S,&taken,&f)==EP_STOPPED&&reader.have==0);
++ n=make(3);be16(body+58,1);be16(body+60,1);body[62]='u';body[63]='p';CHECK(ep_frame_encode(3,1,EP_C2S,body,64,wire,sizeof(wire),&used)==EP_DATA_ONLY);
++ body[62]=0xc0;CHECK(ep_frame_encode(3,1,EP_C2S,body,64,wire,sizeof(wire),&used)==EP_INVALID);body[62]=0;CHECK(ep_frame_encode(3,1,EP_C2S,body,64,wire,sizeof(wire),&used)==EP_INVALID);
++ (void)make(5);be32(body+48,4096);memset(body+52,0x30,4096);CHECK(ep_frame_encode(5,8,EP_C2S,body,4148,wire,sizeof(wire),&used)==EP_DATA_ONLY);
++ (void)make(6);be32(body+16,4096);be32(body+20,4096);CHECK(ep_frame_encode(6,8,EP_S2C,body,8216,wire,sizeof(wire),&used)==EP_DATA_ONLY);
++ CHECK(ep_frame_decode(wire,used,EP_S2C,&f)==EP_DATA_ONLY);CHECK(ep_frame_encode(6,8,EP_S2C,body,8217,wire,sizeof(wire),&used)==EP_INVALID);
++ return 0;
++}
++static int trace(void){
++ EP_TRACE t,saved;EP_FRAME f;PAPACC_SIZE n;unsigned mode,approval;
++ for(mode=0;mode<2;mode++)for(approval=0;approval<2;approval++){
++ memset(&t,0,sizeof(t));f.kind=1;f.sequence=1;f.payload.data=body;f.payload.size=make(1);CHECK(ep_trace_observe(&t,&f,EP_C2S)==EP_DATA_ONLY);
++ f.kind=2;f.payload.size=make(2);body[112]=(PAPACC_U8)mode;body[113]=(PAPACC_U8)approval;CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_DATA_ONLY);
++ f.kind=3;f.sequence=2;n=make(3);if(mode){be16(body+58,1);be16(body+60,1);body[62]='u';body[63]='p';n=64;}f.payload.size=n;CHECK(ep_trace_observe(&t,&f,EP_C2S)==EP_DATA_ONLY);
++ saved=t;CHECK(ep_trace_observe(&saved,&f,EP_C2S)==EP_DENIED&&saved.terminal);
++ saved=t;f.kind=5;f.sequence=3;f.payload.size=make(5);CHECK(ep_trace_observe(&saved,&f,EP_C2S)==EP_DENIED); /* CSR before declared approval */
++ f.kind=4;f.sequence=2;f.payload.size=make(4);CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_DATA_ONLY);body[16]=2;f.sequence=3;CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_DATA_ONLY);
++ f.kind=5;f.sequence=3;f.payload.size=make(5);CHECK(ep_trace_observe(&t,&f,EP_C2S)==EP_DATA_ONLY&&t.csr_size==1&&t.csr[0]==0x30);body[52]=0;CHECK(t.csr[0]==0x30);
++ saved=t;f.kind=4;f.sequence=4;f.payload.size=make(4);body[16]=3;CHECK(ep_trace_observe(&saved,&f,EP_S2C)==EP_DATA_ONLY);f.kind=6;f.sequence=5;f.payload.size=make(6);CHECK(ep_trace_observe(&saved,&f,EP_S2C)==EP_DENIED);
++ f.kind=6;f.sequence=4;f.payload.size=make(6);CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_DATA_ONLY&&t.terminal);CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_DENIED);ep_trace_stop(&t);CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_STOPPED&&t.csr[0]==0x30);
++ }
++ memset(&t,0,sizeof(t));f.kind=1;f.sequence=1;f.payload.size=make(1);CHECK(ep_trace_observe(&t,&f,EP_C2S)==EP_DATA_ONLY);f.kind=2;f.payload.size=make(2);body[16]^=1;CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_DENIED);
++ memset(&t,0,sizeof(t));t.bytes[0]=32768;f.kind=1;f.payload.size=make(1);CHECK(ep_trace_observe(&t,&f,EP_C2S)==EP_DENIED);
++ return 0;
++}
++static int pairing(void){
++ EP_PAIR p,copy,live;PAPACC_U8 random[55],client[32],code[10];unsigned i;
++ memset(random,0,sizeof(random));memset(client,7,sizeof(client));for(i=7;i<55;i++)random[i]=(PAPACC_U8)i;
++ CHECK(ep_code_format(random,code)==EP_DATA_ONLY&&!memcmp(code,"0000000000",10));memset(random,255,7);CHECK(ep_code_format(random,code)==EP_DATA_ONLY&&!memcmp(code,"ZZZZZZZZZZ",10));
++ CHECK(ep_code_parse_local((const PAPACC_U8 *)"01234-56789",11,code)==EP_DATA_ONLY&&!memcmp(code,"0123456789",10));CHECK(ep_code_parse_local((const PAPACC_U8 *)"01234-5678I",11,code)==EP_INVALID);CHECK(ep_code_parse_local((const PAPACC_U8 *)"012345678z",10,code)==EP_INVALID);
++ memset(&p,0,sizeof(p));CHECK(ep_pair_prepare_data(&p,random,client,11,12,100,NULL,0)==EP_DATA_ONLY);copy=p;live=p;
++ CHECK(ep_pair_claim_data(&p,p.code,10,11,12,299999)==EP_DATA_ONLY&&p.claimed&&p.submitted);CHECK(ep_pair_claim_data(&p,p.code,10,11,12,300000)==EP_REPLAY);
++ p=copy;CHECK(ep_pair_claim_data(&p,p.code,10,11,12,300100)==EP_EXPIRED);p=copy;CHECK(ep_pair_claim_data(&p,p.code,10,11,13,101)==EP_DENIED);CHECK(ep_pair_claim_data(&p,p.code,10,11,12,102)==EP_REPLAY);
++ p=copy;CHECK(ep_pair_claim_data(&p,(const PAPACC_U8 *)"0000000000",10,11,12,101)==EP_DENIED);p=copy;CHECK(ep_pair_claim_data(&p,p.code,10,11,12,99)==EP_EXPIRED);
++ p=copy;ep_pair_stop(&p);CHECK(ep_pair_claim_data(&p,p.code,10,11,12,101)==EP_STOPPED&&!memcmp(p.code,copy.code,10));
++ memset(&p,0,sizeof(p));CHECK(ep_pair_prepare_data(&p,random,client,11,12,100,&live,1)==EP_DENIED&&!p.initialized);CHECK(ep_pair_prepare_data(&p,random,client,11,12,(PAPACC_U64)-1,NULL,0)==EP_LIMIT);
++#ifdef _WIN32
++ memset(&p,0,sizeof(p));CHECK(ep_pair_generate_windows(&p,client,11,12,100,NULL,0)==EP_DATA_ONLY);CHECK(ep_pair_claim_data(&p,p.code,10,11,12,101)==EP_DATA_ONLY);CHECK(ep_pair_generate_windows(&p,client,11,12,102,NULL,0)==EP_INVALID);
++#endif
++ return 0;
++}
++static int limits(void){
++ EP_LIMITER l;EP_ORIGIN o,other;EP_TICKET a,b;PAPACC_U8 ip[16]={10,1,2,3},mapped[16]={0,0,0,0,0,0,0,0,0,0,255,255,10,1,2,3};PAPACC_SIZE q=0;unsigned i;
++ memset(&l,0,sizeof(l));CHECK(ep_origin_set(&o,4,ip,0)==EP_DATA_ONLY);CHECK(ep_origin_set(&other,6,mapped,0)==EP_DATA_ONLY&&!memcmp(&o,&other,sizeof(o)));
++ CHECK(ep_limiter_admit(&l,&o,0,&a)==EP_DATA_ONLY);CHECK(ep_limiter_admit(&l,&o,1,&b)==EP_DATA_ONLY);CHECK(ep_limiter_admit(&l,&o,2,&b)==EP_LIMIT);
++ CHECK(ep_limiter_release_data(&l,a)==EP_DATA_ONLY);CHECK(ep_limiter_release_data(&l,a)==EP_REPLAY);CHECK(ep_limiter_admit(&l,&o,2,&a)==EP_DATA_ONLY);CHECK(ep_limiter_release_data(&l,a)==EP_DATA_ONLY);CHECK(ep_limiter_admit(&l,&o,3,&a)==EP_LIMIT);
++ CHECK(ep_limiter_admit(&l,&o,60000,&a)==EP_DATA_ONLY);ep_limiter_stop(&l);CHECK(ep_limiter_admit(&l,&o,120001,&a)==EP_STOPPED);CHECK(l.held[0]||l.held[1]);
++ memset(&l,0,sizeof(l));for(i=0;i<6;i++){ip[3]=(PAPACC_U8)i;CHECK(ep_origin_set(&o,4,ip,0)==EP_DATA_ONLY);CHECK(ep_limiter_admit(&l,&o,100+i,&a)==EP_DATA_ONLY);CHECK(ep_limiter_release_data(&l,a)==EP_DATA_ONLY);}CHECK(ep_limiter_admit(&l,&o,107,&a)==EP_LIMIT);CHECK(ep_limiter_admit(&l,&o,99,&a)==EP_EXPIRED);
++ CHECK(ep_enrollment_quote(0,262144,0,&q)==EP_DATA_ONLY&&q==262144);CHECK(ep_enrollment_quote(0,262145,0,&q)==EP_LIMIT);CHECK(ep_enrollment_quote(0,100,EP_UNKNOWN_BYTES,&q)==EP_LIMIT);CHECK(ep_enrollment_quote(PAPACC_ED11_PROCESS_LIMIT,1,0,&q)==EP_LIMIT);
++ CHECK(ep_enrollment_quote(2103847,262144,0,&q)==(PAPACC_ED11_PROCESS_LIMIT==3145728U?EP_DATA_ONLY:EP_LIMIT));
++ return 0;
++}
++int main(void){if(framing()||trace()||pairing()||limits())return 1;printf("PASS %u DATA_MODEL assertions; native_BCrypt_CSPRNG_pairing_secret_only; NO_CURRENT_APPROVAL_SIGNATURE_TLS_NETWORK\n",checks);printf("SIZES reader=%zu trace=%zu pair=%zu limiter=%zu RX_TX_two=%u process_limit=%u\n",sizeof(EP_READER),sizeof(EP_TRACE),sizeof(EP_PAIR),sizeof(EP_LIMITER),65600U,(unsigned)PAPACC_ED11_PROCESS_LIMIT);return 0;}
+--- a/tests/enrollment_pst_test.c
++++ b/tests/enrollment_pst_test.c
+@@ -0,0 +1,24 @@
++/* Config projection only; no PST create/attach/handshake or socket. */
++#include "enrollment_pst.h"
++#include "security_composition.h"
++#include <stdio.h>
++#include <string.h>
++static unsigned checks;
++#define CHECK(x) do{checks++;if(!(x)){printf("FAIL line=%u\n",(unsigned)__LINE__);return 1;}}while(0)
++int main(void){
++ EP_TLS_PROFILE p;PAPACC_SECURITY_COMPOSITION op;PST_CONNECTION_CONFIG c;unsigned char sentinel;
++ memset(&p,0,sizeof(p));memset(&op,0,sizeof(op));
++ CHECK(ep_tls_profile_prepare(&p,NULL,"openssl",7)==EP_INVALID&&!p.initialized);
++ CHECK(ep_tls_profile_prepare(&p,(pst_credentials *)&sentinel,"openssl",7)==EP_DATA_ONLY);
++ CHECK(p.config.role==PST_CONNECTION_ROLE_SERVER&&p.config.peer_authentication.certificate_mode==PST_PEER_CERTIFICATE_DISABLED&&p.config.peer_authentication.trust==NULL);
++ CHECK(p.config.tls.minimum_version==PST_TLS_VERSION_1_3&&p.config.tls.maximum_version==PST_TLS_VERSION_1_3&&p.config.tls.early_data==PST_FEATURE_DISABLED&&p.config.tls.resumption==PST_FEATURE_DISABLED);
++ CHECK(p.config.alpn.mode==PST_FEATURE_REQUIRED&&p.config.alpn.protocol_count==1&&p.protocol.data==p.alpn&&p.protocol.size==15&&!memcmp(p.alpn,"papacc-enroll/1",15));
++ CHECK(ep_tls_profile_prepare(&p,(pst_credentials *)&sentinel,"openssl",7)==EP_INVALID);
++ CHECK(ep_tls_selected_data(p.alpn,15,PST_TLS_VERSION_1_3)==EP_DATA_ONLY);CHECK(ep_tls_selected_data((const PAPACC_U8 *)"papacc/1",8,PST_TLS_VERSION_1_3)==EP_DENIED);CHECK(ep_tls_selected_data(p.alpn,15,PST_TLS_VERSION_1_2)==EP_DENIED);
++ op.state=PAPACC_SECURITY_COMPOSITION_READY;op.local_credentials=(pst_credentials *)&sentinel;memcpy(op.provider_id,"openssl",8);memcpy(op.secure_principal_alpn,"papacc/1",8);op.secure_principal_alpn_protocol.data=op.secure_principal_alpn;op.secure_principal_alpn_protocol.size=8;
++ CHECK(papacc_security_composition_build_secure_principal_config(&op,&c)==PAPACC_RESULT_OK);
++ CHECK(c.peer_authentication.certificate_mode==PST_PEER_CERTIFICATE_REQUIRED&&c.tls.minimum_version==PST_TLS_VERSION_1_3&&c.tls.maximum_version==PST_TLS_VERSION_1_3);
++ CHECK(c.alpn.protocol_count==1&&c.alpn.protocols->size==8&&!memcmp(c.alpn.protocols->data,"papacc/1",8));
++ CHECK(c.provider_selection.required_capabilities&PST_CAP_PEER_CERT_AUTH);
++ printf("PASS %u PROFILE_DATA assertions size=%zu; fake opaque credential is never dereferenced; no native TLS proof\n",checks,sizeof(p));return 0;
++}
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2923,3 +2923,42 @@
+   add_test(NAME papacc.ed11.credit_${profile} COMMAND papacc_ed11_credit_${profile}_test)
+  endforeach()
+ endif()
++
++
++# Accepted enrollment DATA components. No sockets/registration/authority.
++option(PAPACC_ENABLE_OFFLINE_ENROLLMENT "Build private offline enrollment components only" OFF)
++if(PAPACC_ENABLE_OFFLINE_ENROLLMENT)
++ add_library(papacc_enrollment STATIC src/provisioning/enrollment.c src/protocol/c2_token_compare.c)
++ target_include_directories(papacc_enrollment PUBLIC src/provisioning include)
++ set_target_properties(papacc_enrollment PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++ papacc_enable_warnings(papacc_enrollment)
++ if(WIN32)
++  add_library(papacc_enrollment_windows STATIC src/provisioning/enrollment_windows.c)
++  target_link_libraries(papacc_enrollment_windows PUBLIC papacc_enrollment bcrypt)
++  papacc_enable_warnings(papacc_enrollment_windows)
++ endif()
++ if(BUILD_TESTING)
++  add_executable(papacc_enrollment_test tests/enrollment_test.c)
++  target_link_libraries(papacc_enrollment_test PRIVATE papacc_enrollment)
++  if(WIN32)
++   target_link_libraries(papacc_enrollment_test PRIVATE papacc_enrollment_windows)
++  endif()
++  papacc_enable_warnings(papacc_enrollment_test)
++  add_test(NAME papacc.enrollment.data_offline COMMAND papacc_enrollment_test)
++ endif()
++ if(TARGET papacc_security_composition)
++  add_library(papacc_enrollment_pst STATIC src/provisioning/enrollment_pst.c)
++  target_link_libraries(papacc_enrollment_pst PUBLIC papacc_enrollment papacc_pst_consumer)
++  papacc_enable_warnings(papacc_enrollment_pst)
++  if(BUILD_TESTING)
++   add_executable(papacc_enrollment_pst_test tests/enrollment_pst_test.c)
++   target_link_libraries(papacc_enrollment_pst_test PRIVATE papacc_enrollment_pst papacc_security_composition papacc_pst_consumer)
++   papacc_enable_warnings(papacc_enrollment_pst_test)
++   papacc_stage_pst_runtime(papacc_enrollment_pst_test)
++   add_test(NAME papacc.enrollment.pst_profile_data COMMAND papacc_enrollment_pst_test)
++  endif()
++ endif()
++ set_source_files_properties(src/provisioning/enrollment.c src/provisioning/enrollment_windows.c
++  src/provisioning/enrollment_pst.c tests/enrollment_test.c tests/enrollment_pst_test.c PROPERTIES OBJECT_DEPENDS
++  "${CMAKE_CURRENT_SOURCE_DIR}/src/provisioning/enrollment.h;${CMAKE_CURRENT_SOURCE_DIR}/src/provisioning/enrollment_pst.h;${CMAKE_CURRENT_SOURCE_DIR}/src/core/ed11_process_profile.h")
++endif()

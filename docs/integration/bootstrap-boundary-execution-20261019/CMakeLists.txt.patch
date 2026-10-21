@@ -1,0 +1,22 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2775,3 +2775,19 @@
+     target_link_libraries(papacc_server PRIVATE papacc_config_source)
+     target_compile_definitions(papacc_server PRIVATE PAPACC_ENABLE_CONFIG_ADMIN_CLI=1)
+ endif()
++
++# Same-worker native namespace primitive regression, isolated diagnostic token bypass.
++if(PAPACC_ENABLE_OFFLINE_D3_WORKER)
++ target_link_libraries(papacc_configuration_commit PUBLIC advapi32)
++ target_link_libraries(papacc_d3_worker_test PRIVATE advapi32)
++ target_link_libraries(papacc_issuer_root_store_test PRIVATE advapi32)
++ add_executable(papacc_bootstrap_namespace_test tests/bootstrap_namespace_win32_test.c
++  apps/server/server_configuration_commit_win32.c apps/server/server_config_root8_data_win32.c)
++ target_include_directories(papacc_bootstrap_namespace_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} src/config apps/server)
++ target_compile_definitions(papacc_bootstrap_namespace_test PRIVATE PAPACC_OFFLINE_D3_WORKER=1
++  PAPACC_ISSUER_STORAGE_COMPONENT_TEST=1 PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST=1)
++ target_link_libraries(papacc_bootstrap_namespace_test PRIVATE papacc_config_root8 papacc_server_config papacc_issuer bcrypt ktmw32 advapi32)
++ target_compile_options(papacc_bootstrap_namespace_test PRIVATE /W4 /WX)
++ set_property(SOURCE apps/server/server_configuration_commit_win32.c APPEND PROPERTY OBJECT_DEPENDS
++  "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_bootstrap_win32.inc")
++endif()

@@ -1,0 +1,34 @@
+--- tests/issuer_cng_x509_test.c
++++ tests/issuer_cng_x509_test.c
+@@ -114,12 +114,12 @@
+  CHECK(!initialize(public_key));record.request.purpose=PAPACC_ISSUER_SERVER;
+  CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+  z=sizeof(storage);CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,tbs,n,0,NULL,storage,&z));
+- CHECK(info->cExtension==6&&info->dwVersion==CERT_V3);usage=0;
++ CHECK(info->cExtension==6&&info->dwVersion==CERT_V3);CHECK(info->Subject.cbData==2&&info->Subject.pbData[0]==0x30&&info->Subject.pbData[1]==0);usage=0;
+  CHECK(CertGetIntendedKeyUsage(X509_ASN_ENCODING,info,&usage,1)&&usage==CERT_DIGITAL_SIGNATURE_KEY_USAGE);
+  extension=CertFindExtension(szOID_ENHANCED_KEY_USAGE,info->cExtension,info->rgExtension);CHECK(extension&&!extension->fCritical);z=sizeof(decoded);
+  CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_ENHANCED_KEY_USAGE,extension->Value.pbData,extension->Value.cbData,0,NULL,decoded.bytes,&z));
+  eku=(CERT_ENHKEY_USAGE *)decoded.bytes;CHECK(eku->cUsageIdentifier==1&&!strcmp(eku->rgpszUsageIdentifier[0],szOID_PKIX_KP_SERVER_AUTH));
+- extension=CertFindExtension(szOID_SUBJECT_ALT_NAME2,info->cExtension,info->rgExtension);CHECK(extension!=NULL);z=sizeof(decoded);
++ extension=CertFindExtension(szOID_SUBJECT_ALT_NAME2,info->cExtension,info->rgExtension);CHECK(extension&&extension->fCritical);z=sizeof(decoded);
+  CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_ALTERNATE_NAME,extension->Value.pbData,extension->Value.cbData,0,NULL,decoded.bytes,&z));
+  alt=(CERT_ALT_NAME_INFO *)decoded.bytes;CHECK(alt->cAltEntry==1&&alt->rgAltEntry[0].dwAltNameChoice==CERT_ALT_NAME_DNS_NAME&&!wcscmp(alt->rgAltEntry[0].pwszDNSName,L"accel.example"));
+  memset(&signed_cert,0,sizeof(signed_cert));signed_cert.ToBeSigned.pbData=tbs;signed_cert.ToBeSigned.cbData=n;
+@@ -131,14 +131,14 @@
+  bad_signature=1;CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);bad_signature=0;
+  CHECK(papacc_issuer_windows_verify_request(&backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_OK);
+  bad_signature=1;CHECK(papacc_issuer_windows_verify_request(&backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_INVALID);bad_signature=0;
+- /* Independently corrupt role fields while retaining a CN matching the name.
++ /* Independently corrupt role fields without adding a CN fallback.
+   * Synthetic outer signatures never stand in for a native private operation. */
+  for(i=0;i<4;i++){
+   CERT_ENHKEY_USAGE wrong_eku;LPSTR wrong_oid=(LPSTR)szOID_PKIX_KP_CLIENT_AUTH;BYTE wrong_usage=0xa0;
+   CRYPT_BIT_BLOB bits;CERT_BASIC_CONSTRAINTS2_INFO wrong_bc={TRUE,FALSE,0};DWORD changed;
+   CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+   changed=sizeof(storage);CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,tbs,n,0,NULL,storage,&changed));
+-  if(i==0)info->cExtension=5; /* Remove SAN; leave matching CN. */
++  if(i==0)info->cExtension=5; /* Remove the only identity-bearing extension. */
+   else{
+    extension=CertFindExtension(i==1?szOID_KEY_USAGE:(i==2?szOID_ENHANCED_KEY_USAGE:szOID_BASIC_CONSTRAINTS2),info->cExtension,info->rgExtension);CHECK(extension!=NULL);changed=sizeof(decoded);
+    if(i==1){bits.pbData=&wrong_usage;bits.cbData=1;bits.cUnusedBits=5;CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_KEY_USAGE,&bits,0,NULL,decoded.bytes,&changed));}

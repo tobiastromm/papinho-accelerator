@@ -1,0 +1,662 @@
+{
+  "task": "PACC-PHASE6-ISSUER-AUTHORITATIVE-CHECKPOINT-FENCING-1",
+  "completed": false,
+  "independent_slice": "DATA_ONLY_CHECKPOINT_VALIDATION",
+  "head": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+  "official_executor_review": "FOUR_FILE_SOURCE_OPERATION_AND_LIVE_DOCUMENT_APPEND_APPROVED",
+  "authoritative_recovery": "DENY",
+  "complete_durable_current_a_p_checkpoint": "NOT_IMPLEMENTED",
+  "fencing": "NO_APPROVED_MECHANISM",
+  "admission": "DENY",
+  "builds": "DEBUG_RELEASE_PASS",
+  "warnings": 0,
+  "tests": {
+    "Debug": [
+      {
+        "target": "canonical-root",
+        "case": "catalog-live",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-conflict",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-conflict.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-unknown",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-unknown.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-stop",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-stop.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-late-stop",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-late-stop.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-proof-change",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-proof-change.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-issuer06",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-issuer06.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-fail",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-fail.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "abort",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-abort.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--pending-success",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-pending-success.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--pending-stop",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-pending-stop.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--pending-conflict",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-pending-conflict.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--pending-unknown",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-pending-unknown.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--native-stop",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-native-stop.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--native-snapshots",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-native-snapshots.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--native-history",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-native-history.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--codec-only",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-codec-only.log"
+      },
+      {
+        "target": "papacc_issuer_offline_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_issuer_offline_test-offline.log"
+      },
+      {
+        "target": "papacc_issuer_production_gate_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_issuer_production_gate_test-offline.log"
+      },
+      {
+        "target": "papacc_site_tls_catalog_offline_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_site_tls_catalog_offline_test-offline.log"
+      },
+      {
+        "target": "papacc_canonical_root_layout_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_canonical_root_layout_test-offline.log"
+      },
+      {
+        "target": "normal-guard",
+        "case": "native",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-normal-guard-native.log"
+      },
+      {
+        "target": "papacc_issuer_checkpoint_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_issuer_checkpoint_test-offline.log"
+      }
+    ],
+    "Release": [
+      {
+        "target": "canonical-root",
+        "case": "catalog-live",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-conflict",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-conflict.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-unknown",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-unknown.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-stop",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-stop.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-late-stop",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-late-stop.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-live-proof-change",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-proof-change.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-issuer06",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-issuer06.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "catalog-fail",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-fail.log"
+      },
+      {
+        "target": "canonical-root",
+        "case": "abort",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-abort.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--pending-success",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-pending-success.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--pending-stop",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-pending-stop.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--pending-conflict",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-pending-conflict.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--pending-unknown",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-pending-unknown.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--native-stop",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-native-stop.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--native-snapshots",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-native-snapshots.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--native-history",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-native-history.log"
+      },
+      {
+        "target": "root-store",
+        "case": "--codec-only",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-codec-only.log"
+      },
+      {
+        "target": "papacc_issuer_offline_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_issuer_offline_test-offline.log"
+      },
+      {
+        "target": "papacc_issuer_production_gate_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_issuer_production_gate_test-offline.log"
+      },
+      {
+        "target": "papacc_site_tls_catalog_offline_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_site_tls_catalog_offline_test-offline.log"
+      },
+      {
+        "target": "papacc_canonical_root_layout_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_canonical_root_layout_test-offline.log"
+      },
+      {
+        "target": "normal-guard",
+        "case": "native",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-normal-guard-native.log"
+      },
+      {
+        "target": "papacc_issuer_checkpoint_test",
+        "case": "offline",
+        "exit": 0,
+        "log": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_issuer_checkpoint_test-offline.log"
+      }
+    ]
+  },
+  "invocations": 48,
+  "managed": 1790912,
+  "previous_checked_combined": 1962035,
+  "product_storage_delta": 0,
+  "report_bytes": 192,
+  "new_product_invocations": 0,
+  "provider_kernel": "UNKNOWN",
+  "unchanged_prior_entries": [
+    "apps/server/server_admission_preflight_win32.inc",
+    "apps/server/server_c2_owner_win32.c",
+    "apps/server/server_c2_owner_win32.h",
+    "apps/server/server_c2_root_binding_win32.inc",
+    "apps/server/server_configuration_commit_win32.h",
+    "apps/server/server_configuration_issuer06_win32.inc",
+    "apps/server/server_configuration_root_transaction_win32.inc",
+    "apps/server/server_launcher_owner_win32.c",
+    "apps/server/server_launcher_owner_win32.h",
+    "apps/server/server_listener_composition_win32.inc",
+    "tests/canonical_root_transaction_test.c",
+    "apps/server/server_configuration_attachment_win32.inc",
+    "docs/portability.md",
+    "build/issuer-session-live-publication-20261019/Debug/papacc_canonical_root_layout_test.exe",
+    "build/issuer-session-live-publication-20261019/Debug/papacc_canonical_root_transaction_test.exe",
+    "build/issuer-session-live-publication-20261019/Debug/papacc_issuer_offline_test.exe",
+    "build/issuer-session-live-publication-20261019/Debug/papacc_issuer_production_gate_test.exe",
+    "build/issuer-session-live-publication-20261019/Debug/papacc_issuer_root_guard_test.exe",
+    "build/issuer-session-live-publication-20261019/Debug/papacc_issuer_root_store_test.exe",
+    "build/issuer-session-live-publication-20261019/Debug/papacc_server.exe",
+    "build/issuer-session-live-publication-20261019/Debug/papacc_site_tls_catalog_offline_test.exe",
+    "build/issuer-session-live-publication-20261019/Release/papacc_canonical_root_layout_test.exe",
+    "build/issuer-session-live-publication-20261019/Release/papacc_canonical_root_transaction_test.exe",
+    "build/issuer-session-live-publication-20261019/Release/papacc_issuer_offline_test.exe",
+    "build/issuer-session-live-publication-20261019/Release/papacc_issuer_production_gate_test.exe",
+    "build/issuer-session-live-publication-20261019/Release/papacc_issuer_root_guard_test.exe",
+    "build/issuer-session-live-publication-20261019/Release/papacc_issuer_root_store_test.exe",
+    "build/issuer-session-live-publication-20261019/Release/papacc_server.exe",
+    "build/issuer-session-live-publication-20261019/Release/papacc_site_tls_catalog_offline_test.exe"
+  ],
+  "wip_baseline_entries_preserved": 1705,
+  "network": "NOT_RUN",
+  "real_CA": false,
+  "files": [
+    {
+      "path": "src/issuer/issuer_codec.h",
+      "before": "fd92500b8d74e8e11b86868bab2ca55dd246ae553e375fb1bbb7619579bcd62b",
+      "after": "f73aa0e46748c5fb30a8118c89cff1950af6c43928c26153e906cfa72e9016e7",
+      "candidate": "docs\\integration\\issuer-authoritative-checkpoint-fencing-20261019\\proposed\\src__issuer__issuer_codec.h"
+    },
+    {
+      "path": "src/issuer/issuer_codec.c",
+      "before": "682049a173486ed7de8bc51f92e96dadc1171b30e901be71c5aa70f6b71c0330",
+      "after": "4f379c9f543c95a0fd26d7d4c1a78d82db808fc1ca3bf50cf3e31bbe6f604a10",
+      "candidate": "docs\\integration\\issuer-authoritative-checkpoint-fencing-20261019\\proposed\\src__issuer__issuer_codec.c"
+    },
+    {
+      "path": "CMakeLists.txt",
+      "before": "2367da11f1239e754b6a782d1c92e15ff2c7307e669eb3119de05a59600be180",
+      "after": "9dad4bee27cdd33da586e585952e57fce33c6829b1a4692d1e6d0e9f0286c7e0",
+      "candidate": "docs\\integration\\issuer-authoritative-checkpoint-fencing-20261019\\proposed\\CMakeLists.txt"
+    },
+    {
+      "path": "tests/issuer_checkpoint_test.c",
+      "before": null,
+      "after": "3742bfde1222136e57b267b27a3979d9dd358d52cdfbc2f8a949f8521d08a0a9",
+      "candidate": "docs\\integration\\issuer-authoritative-checkpoint-fencing-20261019\\proposed\\tests__issuer_checkpoint_test.c"
+    },
+    {
+      "path": "docs/capabilities/client-pairing.md",
+      "before": "67e77fd5e403a9c998594848c06a6cb9913bacec87d1dd734a2baa7febb5db88",
+      "after": "d0aae91bb65b4e084eda9f51b3c95a65e9e2d1545b83fed0fcbb5ea823687b73",
+      "candidate": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/proposed/docs__capabilities__client-pairing.md"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/backup-fencing-handoff.md",
+      "sha256": "491d647d4170fd7b1fd58ba9a938d9fb20edaf28bb26421c3a8b57b2d49a34ca"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/build-Debug.cmd",
+      "sha256": "272530044f5ad9baa7983409c75acb3b90908beb0ea9b3c614c18bf88b8bd02b"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/build-Release.cmd",
+      "sha256": "d74594312c10d0257b49f46caf20e092cf6a49506e91f3c42d645c762bd1a29d"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/closeout.md",
+      "sha256": "3437e2d5f2783467622c44304741106f878a212517fe563f5c34f3e285c077b8"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-build1.log",
+      "sha256": "06f9d962244d2c0380bbbc7cb69c3c379b560018b54becc15fb85cb60a741155"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-abort.log",
+      "sha256": "8f9d72398efee584f53877a4e15e13621048d49d642913c3429e7a704bd42dcb"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-fail.log",
+      "sha256": "3cb92583a42b69c773ea0c01d595d2325f85a290a0f96f9390584842a532711d"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-issuer06.log",
+      "sha256": "d0d4ecee4da705f24236afeb79591c5bb986515c7e82cf73de7f8b71d6568042"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-conflict.log",
+      "sha256": "4ed53ec448f390e90b0b29f3a69b595194de8d763594944e014c332c8c51fcf5"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-late-stop.log",
+      "sha256": "57415dec07f920dace30d61a581148055c14a11880bae6bd5862ea4dd05dbf6d"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-proof-change.log",
+      "sha256": "09f71d4ff3235b9190c2154b3bac3ee0c1ea031c827ec4d0d7042ac68e9496e2"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-stop.log",
+      "sha256": "a8ec55aa00f1de7fc4abcb96f909528d06c29ab386bc8e9e98de5b19fe0ef9d0"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live-unknown.log",
+      "sha256": "925fa7300a7618eb195c9fd379a0e4f1cd92093b4322452d64ce8837ba605783"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog-live.log",
+      "sha256": "dfa9559a9cf055652fdb9ca364e01282b03b76570b43604a9dc57ffc7dea0ef3"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-canonical-root-catalog.log",
+      "sha256": "02ed4747fa74043e67e090209baf6a2121dde0bed397fc9c8c42be265a18cf36"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-normal-guard-native.log",
+      "sha256": "5da99ff35c7b39ed5e8ae86f9b65d6b23eaa06567dd61f11d6b9ffa870b4887e"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_canonical_root_layout_test-offline.log",
+      "sha256": "7119063fe4c80951995b526392b74dea142ecb5320af565593a8b224e11b63bd"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_issuer_checkpoint_test-offline.log",
+      "sha256": "8e90c2ca209117efdb10b49b1c3d331fc211ed80bce0db8b6dc14cdcbb45a6ec"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_issuer_offline_test-offline.log",
+      "sha256": "2272d81c1d2b23083185bed73a183a7b50ee8d2358c81eb042ea12b57a35c0b3"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_issuer_production_gate_test-offline.log",
+      "sha256": "d0831ace1b08ebb5cdcc814c3a3743f0bbfd38a6ed12ebc0e0d77fafc0d7c88e"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-papacc_site_tls_catalog_offline_test-offline.log",
+      "sha256": "c1a35aba8c49258b5df004c1b9b32bf04254763a30666ae855f9810d6bf04334"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-codec-only.log",
+      "sha256": "2df512878fdcd954f6be8d806ffc4b89307d814e7bc42fe3a4fdf1d11446f1a1"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-native-history.log",
+      "sha256": "4001e9dab7800d867d3236d7ec24260bf7cfc4f512bf797a76044a8342c4e75c"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-native-snapshots.log",
+      "sha256": "063bd1d175e13b86857ba3ddbdfde9b6e6b5e3c8e389b860811a27ad51093406"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-native-stop.log",
+      "sha256": "6da0fbf0b1b0c6a5d4a58348a2e896006b99244916bcd6f56ecb7ffbeee702ac"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-pending-conflict.log",
+      "sha256": "a7808572bb69a387b3ba9e9ae898f83dab0c321a4606470da23ee876effc643d"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-pending-stop.log",
+      "sha256": "b49de8cf5b9646887072810c2a924f98a41b23ffe170fca5c3e7f76735748071"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-pending-success.log",
+      "sha256": "27112621e4e9f95af1af8908339f9e4226feffa1c2d661bf6c8352046d57d9d9"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-root-store-pending-unknown.log",
+      "sha256": "a571179071f275be1e1a0a7fef21e324da37da994f7645b2dac4bff0204fa591"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Debug-test-results.json",
+      "sha256": "b03468baed726c3fee6cca78e1ef901e066b1920eacb6aa847314701d1acab67"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/doc-operation.json",
+      "sha256": "09de30908fb7cdddfc69450658c22063ce070769389932c3946f0595433ac669"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/operation.json",
+      "sha256": "c6c095e4bd9b8f0380656a0b4351f6e03a2a148c12309d6550695fd80e2101a6"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/preimages/CMakeLists.txt",
+      "sha256": "2367da11f1239e754b6a782d1c92e15ff2c7307e669eb3119de05a59600be180"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/preimages/docs__capabilities__client-pairing.md",
+      "sha256": "67e77fd5e403a9c998594848c06a6cb9913bacec87d1dd734a2baa7febb5db88"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/preimages/src__issuer__issuer_codec.c",
+      "sha256": "682049a173486ed7de8bc51f92e96dadc1171b30e901be71c5aa70f6b71c0330"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/preimages/src__issuer__issuer_codec.h",
+      "sha256": "fd92500b8d74e8e11b86868bab2ca55dd246ae553e375fb1bbb7619579bcd62b"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/proposed/CMakeLists.txt",
+      "sha256": "9dad4bee27cdd33da586e585952e57fce33c6829b1a4692d1e6d0e9f0286c7e0"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/proposed/docs__capabilities__client-pairing.md",
+      "sha256": "d0aae91bb65b4e084eda9f51b3c95a65e9e2d1545b83fed0fcbb5ea823687b73"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/proposed/src__issuer__issuer_codec.c",
+      "sha256": "4f379c9f543c95a0fd26d7d4c1a78d82db808fc1ca3bf50cf3e31bbe6f604a10"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/proposed/src__issuer__issuer_codec.h",
+      "sha256": "f73aa0e46748c5fb30a8118c89cff1950af6c43928c26153e906cfa72e9016e7"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/proposed/tests__issuer_checkpoint_test.c",
+      "sha256": "3742bfde1222136e57b267b27a3979d9dd358d52cdfbc2f8a949f8521d08a0a9"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/proposed.patch",
+      "sha256": "1d83ebc69028932b35a98d19fbe4fd9b60e57bc3f7c23b1e3b05ce411d6249e0"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-build1.log",
+      "sha256": "2a06800990cee0c7df776b4573ac87a0dae2122a24e7e689d87de207a2cda3de"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-abort.log",
+      "sha256": "8f9d72398efee584f53877a4e15e13621048d49d642913c3429e7a704bd42dcb"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-fail.log",
+      "sha256": "3cb92583a42b69c773ea0c01d595d2325f85a290a0f96f9390584842a532711d"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-issuer06.log",
+      "sha256": "a48bfaa019cf61ea727890c16f64bf2416b7858afb22b6c4b232aa311f54dff5"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-conflict.log",
+      "sha256": "4ed53ec448f390e90b0b29f3a69b595194de8d763594944e014c332c8c51fcf5"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-late-stop.log",
+      "sha256": "5a8a1a3806b11ac16ddb01d7650f1f1da3404d2215cdf3cb154ed2810f598c03"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-proof-change.log",
+      "sha256": "09f71d4ff3235b9190c2154b3bac3ee0c1ea031c827ec4d0d7042ac68e9496e2"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-stop.log",
+      "sha256": "a8ec55aa00f1de7fc4abcb96f909528d06c29ab386bc8e9e98de5b19fe0ef9d0"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live-unknown.log",
+      "sha256": "925fa7300a7618eb195c9fd379a0e4f1cd92093b4322452d64ce8837ba605783"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog-live.log",
+      "sha256": "dfa9559a9cf055652fdb9ca364e01282b03b76570b43604a9dc57ffc7dea0ef3"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-canonical-root-catalog.log",
+      "sha256": "02ed4747fa74043e67e090209baf6a2121dde0bed397fc9c8c42be265a18cf36"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-normal-guard-native.log",
+      "sha256": "5da99ff35c7b39ed5e8ae86f9b65d6b23eaa06567dd61f11d6b9ffa870b4887e"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_canonical_root_layout_test-offline.log",
+      "sha256": "7119063fe4c80951995b526392b74dea142ecb5320af565593a8b224e11b63bd"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_issuer_checkpoint_test-offline.log",
+      "sha256": "8e90c2ca209117efdb10b49b1c3d331fc211ed80bce0db8b6dc14cdcbb45a6ec"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_issuer_offline_test-offline.log",
+      "sha256": "2272d81c1d2b23083185bed73a183a7b50ee8d2358c81eb042ea12b57a35c0b3"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_issuer_production_gate_test-offline.log",
+      "sha256": "d0831ace1b08ebb5cdcc814c3a3743f0bbfd38a6ed12ebc0e0d77fafc0d7c88e"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-papacc_site_tls_catalog_offline_test-offline.log",
+      "sha256": "c1a35aba8c49258b5df004c1b9b32bf04254763a30666ae855f9810d6bf04334"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-codec-only.log",
+      "sha256": "2df512878fdcd954f6be8d806ffc4b89307d814e7bc42fe3a4fdf1d11446f1a1"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-native-history.log",
+      "sha256": "4001e9dab7800d867d3236d7ec24260bf7cfc4f512bf797a76044a8342c4e75c"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-native-snapshots.log",
+      "sha256": "063bd1d175e13b86857ba3ddbdfde9b6e6b5e3c8e389b860811a27ad51093406"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-native-stop.log",
+      "sha256": "6da0fbf0b1b0c6a5d4a58348a2e896006b99244916bcd6f56ecb7ffbeee702ac"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-pending-conflict.log",
+      "sha256": "a7808572bb69a387b3ba9e9ae898f83dab0c321a4606470da23ee876effc643d"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-pending-stop.log",
+      "sha256": "9eb2c43f1445c79044103f7fec8e79e4ff4bf12a7add2a89352b7873e490572c"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-pending-success.log",
+      "sha256": "4376adde8ebae65e87326898c65c15dc1cbac7abcebb25df378dc1b67f56ff36"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-root-store-pending-unknown.log",
+      "sha256": "a571179071f275be1e1a0a7fef21e324da37da994f7645b2dac4bff0204fa591"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/Release-test-results.json",
+      "sha256": "a7e820114cbaa87011224171884fa83339180b9715b0a0c6e5b17e4e9d0113d2"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/scope-and-safety.md",
+      "sha256": "121bd152160816653505a864de566a5bb3843fb5aef5c65ee32386ab0c752fc9"
+    },
+    {
+      "path": "docs/integration/issuer-authoritative-checkpoint-fencing-20261019/wip-before.json",
+      "sha256": "46381e4dbb00e0438a874b5fdfceb883665d5e7868c5fcdeb038e413096ff2f3"
+    }
+  ]
+}

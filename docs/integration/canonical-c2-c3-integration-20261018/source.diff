@@ -1,0 +1,118 @@
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-c2-c3-integration-20261018\\CMakeLists.txt.preimage" "b/C:\\Projetos\\PapinhoAccelerator\\CMakeLists.txt"
+index 59a0741..7c74ace 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-c2-c3-integration-20261018\\CMakeLists.txt.preimage"
++++ "b/C:\\Projetos\\PapinhoAccelerator\\CMakeLists.txt"
+@@ -16,6 +16,12 @@ option(PAPACC_ENABLE_PST_OUTBOUND_PROOF
+ option(PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+     "Build private owner-terminal observer/injection hooks for tests" OFF)
+ 
++option(PAPACC_ENABLE_CANONICAL_API3_CANDIDATE
++    "Isolated normal API3 SDK candidate; production pin and owner unchanged" OFF)
++if(PAPACC_ENABLE_CANONICAL_API3_CANDIDATE)
++    set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
++endif()
++
+ function(papacc_enable_warnings target)
+     if(MSVC)
+         target_compile_options(${target} PRIVATE /W4)
+@@ -2322,3 +2328,20 @@ if(BUILD_TESTING)
+         add_test(NAME papacc.runtime.lifecycle COMMAND papacc_runtime_test)
+     endif()
+ endif()
++
++# Pure SDK ABI probe: never creates PST runtime, Connection, wait-set or socket.
++if(PAPACC_ENABLE_CANONICAL_API3_CANDIDATE)
++    if(NOT BUILD_TESTING OR NOT MSVC OR NOT WIN32 OR
++       NOT PAPACC_ENABLE_PST_OUTBOUND_PROOF OR NOT TARGET papacc_pst_consumer)
++        message(FATAL_ERROR "API3 candidate requires isolated MSVC/Win32 testing and PST proof composition")
++    endif()
++    add_executable(papacc_pst_api3_offline_contract
++        tests/pst_api3_offline_contract_test.c)
++    target_link_libraries(papacc_pst_api3_offline_contract PRIVATE papacc_pst_consumer)
++    target_compile_options(papacc_pst_api3_offline_contract PRIVATE /W4 /WX)
++    set_target_properties(papacc_pst_api3_offline_contract PROPERTIES
++        C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++    papacc_stage_pst_runtime(papacc_pst_api3_offline_contract)
++    add_test(NAME papacc.pst.api3_offline_contract
++        COMMAND papacc_pst_api3_offline_contract)
++endif()
+\ No newline at end of file
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-c2-c3-integration-20261018\\PapaccPstConsumer.cmake.preimage" "b/C:\\Projetos\\PapinhoAccelerator\\cmake\\PapaccPstConsumer.cmake"
+index b923a4a..b563988 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-c2-c3-integration-20261018\\PapaccPstConsumer.cmake.preimage"
++++ "b/C:\\Projetos\\PapinhoAccelerator\\cmake\\PapaccPstConsumer.cmake"
+@@ -47,6 +47,28 @@ function(papacc_define_pst_consumer_boundary)
+         "Extracted governed PST 0.6.5 normal SDK for isolated qualification")
+     set(PAPACC_PST_QUALIFICATION_SDK_ARCHIVE "" CACHE FILEPATH
+         "Governed PST 0.6.5 normal SDK archive for provenance verification")
++    # Explicit API3 candidate has its own build directory and immutable normal SDK.
++    # Default/production and the older API2 qualification path remain unchanged.
++    set(PAPACC_EXPECTED_ARCHIVE "0c134e0fc842e22e80dd6b35f6e7f207a7859f097f0be5b7d0be9c08d9d05c67")
++    set(PAPACC_EXPECTED_MANIFEST "969e6048dabd9000990a9c386e78dec9aa4caab3d8148e26ae7ba8d6d7cc5d5e")
++    set(PAPACC_EXPECTED_HEADER "e3c682c97c98a67ef228bcebe3b8ee3d39607a51dbe0b40587667ed7e0cc0dc6")
++    set(PAPACC_EXPECTED_LIBRARY "dca90f3ae869b19738ee259bcB0e620af8f31c9842c9ec15a47bbb04ba4038e1")
++    set(PAPACC_EXPECTED_API "api_version=2.2.0")
++    set(PAPACC_EXPECTED_SPI "spi_version=3.0")
++    if(PAPACC_ENABLE_CANONICAL_API3_CANDIDATE)
++        if(NOT BUILD_TESTING OR NOT PAPACC_PST_QUALIFICATION_SDK_ROOT OR
++           NOT PAPACC_PST_QUALIFICATION_SDK_ARCHIVE OR
++           PAPACC_PST_TEST_ONLY_SDK_ROOT OR PAPACC_PST_TEST_ONLY_SDK_ARCHIVE OR
++           PAPACC_PST_TEST_ONLY_DIAGNOSTIC_LIBRARY)
++            message(FATAL_ERROR "API3 candidate requires normal qualification SDK only; no TEST_ONLY mixing")
++        endif()
++        set(PAPACC_EXPECTED_ARCHIVE "79e53a2d47ad6d509ec893bd1c6d9b8c26b98c5a8a9ecd75e4adb33a240b132f")
++        set(PAPACC_EXPECTED_MANIFEST "03130f62c40b0742b83a8af636112349a51cf1b1d949f6f8eb18ef2bad1877cb")
++        set(PAPACC_EXPECTED_HEADER "8f2255d53d0e59ea5d9da7c999a536a9b0392eb25efe20ca63e0c1a784c5ce8c")
++        set(PAPACC_EXPECTED_LIBRARY "ad27c1f36861f96b48e496391ba1589de42377d930aa735ac7297044a2fbc37f")
++        set(PAPACC_EXPECTED_API "api_version=3.0.0")
++        set(PAPACC_EXPECTED_SPI "spi_version=4.0")
++    endif()
+     if(PAPACC_PST_QUALIFICATION_SDK_ROOT OR
+        PAPACC_PST_QUALIFICATION_SDK_ARCHIVE)
+         if(NOT BUILD_TESTING)
+@@ -62,7 +84,7 @@ function(papacc_define_pst_consumer_boundary)
+         set(PAPACC_PST_QUALIFICATION_ACTIVE TRUE)
+         papacc_require_pst_file_sha256(
+             "${PAPACC_PST_QUALIFICATION_SDK_ARCHIVE}"
+-            "0c134e0fc842e22e80dd6b35f6e7f207a7859f097f0be5b7d0be9c08d9d05c67"
++            ${PAPACC_EXPECTED_ARCHIVE}
+             "Governed PST 0.6.5 normal SDK archive")
+     else()
+         set(PAPACC_PST_SDK_ROOT
+@@ -99,15 +121,15 @@ function(papacc_define_pst_consumer_boundary)
+         endif()
+         papacc_require_pst_file_sha256(
+             "${PAPACC_PST_SDK_ROOT}/manifest.ini"
+-            "969e6048dabd9000990a9c386e78dec9aa4caab3d8148e26ae7ba8d6d7cc5d5e"
++            ${PAPACC_EXPECTED_MANIFEST}
+             "PST 0.6.5 normal manifest")
+         file(STRINGS "${PAPACC_PST_SDK_ROOT}/manifest.ini"
+             PAPACC_PST_QUALIFICATION_MANIFEST_LINES)
+         foreach(PAPACC_PST_EXPECTED_MANIFEST_LINE IN ITEMS
+                 "package_version=0.6.5"
+                 "library_version=0.6.5"
+-                "api_version=2.2.0"
+-                "spi_version=3.0"
++                "${PAPACC_EXPECTED_API}"
++                "${PAPACC_EXPECTED_SPI}"
+                 "target_id=win32-x64-msvc-19.51-openssl3"
+                 "crt=dynamic-/MD"
+                 "linkage=static"
+@@ -123,7 +145,7 @@ function(papacc_define_pst_consumer_boundary)
+         endforeach()
+         papacc_require_pst_file_sha256(
+             "${PAPACC_PST_SDK_ROOT}/include/papinho_secure_transport.h"
+-            "e3c682c97c98a67ef228bcebe3b8ee3d39607a51dbe0b40587667ed7e0cc0dc6"
++            ${PAPACC_EXPECTED_HEADER}
+             "PST 0.6.5 public header")
+         papacc_require_pst_file_sha256(
+             "${PAPACC_PST_SDK_ROOT}/include/papinho_secure_transport_win32.h"
+@@ -131,7 +153,7 @@ function(papacc_define_pst_consumer_boundary)
+             "PST 0.6.5 Win32 header")
+         papacc_require_pst_file_sha256(
+             "${PAPACC_PST_LIB_DIR}/papinho_secure_transport.lib"
+-            "dca90f3ae869b19738ee259bcB0e620af8f31c9842c9ec15a47bbb04ba4038e1"
++            ${PAPACC_EXPECTED_LIBRARY}
+             "PST 0.6.5 normal library")
+         papacc_require_pst_file_sha256(
+             "${PAPACC_PST_LIB_DIR}/libssl.lib"

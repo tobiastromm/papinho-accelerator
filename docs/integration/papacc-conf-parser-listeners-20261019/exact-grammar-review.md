@@ -1,0 +1,9 @@
+# Revisão focal — aprovação lexical e delimitadores
+
+Owner aprovou a gramática proposta, codec pendente. Nova mensagem inclui “blocos semânticos por indentação”; grammar-proposed.md §Léxico e estrutura determina “Bloco começa por tipo + id e termina por end sozinho. Sem nesting.” Exemplos distribuídos usam end explícito e espaços apenas visuais. São regras diferentes, não se pode registrar ambas como a mesma gramática sem decisão. Pergunta específica ao owner permanece pendente; nenhum registro accepted dependente ou patch funcional aplicado.
+
+Demais escolhas já aprovadas pelo owner: UTF8, aspas e escapes, comentários # e ; inicial desativado, rejeição fail-closed; precisam registro normativo exato e revisão oficial antes de código. Explicitar escapes sem ambiguidade tipográfica: barra seguida de barra produz uma barra; barra seguida de aspas duplas produz aspas; qualquer outro escape falha. Codec binário novo permanece PROPOSED, sem roundtrip/corrupção alegados ou alteração BODY0.5. SOURCE não CURRENT; parsing não resolve identidade factual de autoridade.
+
+A alternativa end mantém gramática e exemplos preparados. A alternativa indentação necessita contrato focal de tabs/espaços, profundidade, dedent, delimitadores, influência de linhas desativadas e compatibilidade. Não inferir esses detalhes. Nenhuma alternativa modifica ADR0009, I/R/A/P, CAS, Model E, Stop, snapshots/pins, retenção ou gates. Coleção offline não corrige automaticamente CLI produtiva singular.
+
+Preimagens de CMake/modelo/policy/gramática preservadas. Compilação seguirá toolchain MSVC real documentada pelo projeto, em saídas exclusivas no canônico, sem clean nem binários históricos sobrescritos. Parser/modelo devem ser testados separadamente da integração runtime; cardinalidade do target explícita. Nenhum produto/browser/PST/wire modificado até aqui.

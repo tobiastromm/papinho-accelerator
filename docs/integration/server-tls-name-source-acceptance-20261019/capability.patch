@@ -1,0 +1,11 @@
+--- docs\capabilities\client-pairing.md
++++ docs\capabilities\client-pairing.md
+@@ -482,3 +482,8 @@
+ ### Perfil servidor X509 offline e readiness do issuer — 2026-10-19
+ 
+ Preparação pública SERVER implementada com subject vazio, SAN DNS crítico explícito e serverAuth exclusivo; identidade candidata não é autoridade. Signer continua recusando SERVER e não foi ativado. Cliente/pacote preservados; seis suítes Debug/Release passam, com504 verificações do modelo e zero warnings de compilação. Nenhuma chave, CA, certificado real, assinatura privada, CURRENT ou rede. Base runtime2084039 inalterada; censo completo de ativação e origem administrativa do ExpectedServerName permanecem gates. Cenário ilustrativo com frames adicionais excederia o limite em44 bytes antes de CA/backing/nativo; não há autorização de reutilização da reserva de stack. ED11 PARTIAL, provider/kernel UNKNOWN, admissão e recuperação DENY; box/ISA/NT4 não qualificadas. Ver [prova e handoff focal](../integration/issuer-native-readiness-20261019/readiness-proof-and-handoff.md).
++
++
++### Fonte administrativa do nome TLS do servidor — 2026-10-19
++
++O contrato da fonte ExpectedServerName foi aceito como atributo público da configuração de segurança da mesma root, com associação explícita listener/security_ref/perfil TLS e issuer. É decisão normativa, sem implementação de fonte, hostname aprovado ou binding operacional. Layout persistente versionado, lifetime e ED11 continuam gates específicos; LST1/D3/BODY0.5/ROOT06 e fontes funcionais permanecem inalterados. Assinatura, CURRENT, recuperação e admissão continuam DENY. Ver [decisão delimitada](../adr/DECISION-server-tls-expected-name-source-20261019.md) e [conformidade](../integration/server-tls-name-source-acceptance-20261019/conformance-matrix.md).

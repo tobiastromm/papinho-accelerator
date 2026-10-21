@@ -1,0 +1,37 @@
+--- tests/config_root8_test.c
++++ tests/config_root8_test.c
+@@ -11,6 +11,8 @@
+ static PC_ROOT8_MODEL model,decoded,original;
+ static PC_LST1_MODEL lst;
+ static PAPACC_U8 bytes[PC_ROOT8_MAX+1U],base[PC_ROOT8_MAX+1U],saved[PC_ROOT8_MAX+1U];
++static PAPACC_U8 bounded_fields[PC_ROOT8_NO_ISSUER_FIELDS];
++static PAPACC_U8 bounded_output[PC_ROOT8_NO_ISSUER_MAX];
+ static PAPACC_SIZE used,base_used;static unsigned checks;
+ #define CHECK(x) do{++checks;if(!(x)){printf("FAIL line=%u %s\n",(unsigned)__LINE__,#x);return 1;}}while(0)
+ static void w16(PAPACC_U8 *p,unsigned v){p[0]=(PAPACC_U8)v;p[1]=(PAPACC_U8)(v>>8);}
+@@ -140,6 +142,25 @@
+  /* CP-only fixture leaves exact commit prefix unchanged, W changes. */
+  CHECK(setup(1,0));oldused=used;memcpy(saved,bytes,used);Q=r32(model.fields+56);CHECK(synthetic_checkpoint());
+  CHECK(used==oldused&&!memcmp(bytes,saved,Q)&&memcmp(bytes+used-32U,saved+used-32U,32));
++ /* Independent caller-owned buffers, no sharing/retirement or quota release.
++  * All count pairs retain full listener capacity and exact encoded bytes. */
++ for(B=1;B<=4U;++B){CHECK(setup(B,0));CHECK(synthetic_checkpoint());base_used=used;memcpy(base,bytes,used);
++  for(N=1;N<=4U;++N){CHECK(setup(N,1));memcpy(bounded_fields,model.fields,sizeof(bounded_fields));
++   oldused=99;CHECK(pc_root8_encode_no_issuer(bounded_fields,sizeof(bounded_fields),bounded_output,sizeof(bounded_output),&oldused,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,NULL)==PC_ROOT8_OK);
++   CHECK(oldused==used&&!memcmp(bounded_output,bytes,used));}}
++ CHECK(used==PC_ROOT8_NO_ISSUER_MAX);
++ memcpy(saved,bounded_output,used);oldused=99;
++ CHECK(pc_root8_encode_no_issuer(bounded_fields,sizeof(bounded_fields)-1U,bounded_output,sizeof(bounded_output),&oldused,NULL,NULL,NULL,NULL)==PC_ROOT8_INVALID&&oldused==99);
++ CHECK(!memcmp(saved,bounded_output,used));
++ CHECK(pc_root8_encode_no_issuer(bounded_fields,sizeof(bounded_fields),bounded_fields,sizeof(bounded_fields),&oldused,NULL,NULL,NULL,NULL)==PC_ROOT8_INVALID);
++ oldused=99;CHECK(pc_root8_encode_no_issuer(bounded_fields,sizeof(bounded_fields),bounded_output,sizeof(bounded_output),&oldused,fail_hash,NULL,papacc_root8_body05_data,NULL)==PC_ROOT8_HASH_FAILED&&!oldused);
++ CHECK(!memcmp(saved,bounded_output,used));
++ bounded_fields[512]^=1;oldused=99;
++ CHECK(pc_root8_encode_no_issuer(bounded_fields,sizeof(bounded_fields),bounded_output,sizeof(bounded_output),&oldused,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,NULL)==PC_ROOT8_INVALID&&!oldused);
++ memcpy(bounded_fields,model.fields,sizeof(bounded_fields));w32(bounded_fields+16,3);oldused=99;
++ CHECK(pc_root8_encode_no_issuer(bounded_fields,sizeof(bounded_fields),bounded_output,sizeof(bounded_output),&oldused,NULL,NULL,NULL,NULL)==PC_ROOT8_UNSUPPORTED&&!oldused);
++ CHECK(!memcmp(saved,bounded_output,used));
++ printf("BOUNDED_CENSUS fields=%Iu output=%Iu total=%Iu savings=32768 NO_ALIAS_NO_RELEASE_NO_AUTHORITY\n",sizeof(bounded_fields),sizeof(bounded_output),sizeof(bounded_fields)+sizeof(bounded_output));
+  /* Maximum25792-byte layout reaches separate issuer adapter gate, not success. */
+  CHECK(setup(4,0));CHECK(synthetic_checkpoint());base_used=used;memcpy(base,bytes,used);CHECK(setup(4,1));
+  Q=r32(model.fields+56)+16384U;w32(model.fields+16,3);w64(model.fields+120,1);w32(model.fields+128,31);

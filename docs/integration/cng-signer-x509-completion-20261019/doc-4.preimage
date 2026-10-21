@@ -1,0 +1,100 @@
+# Portabilidade
+
+Esta visão corrente especializa e referencia, sem duplicá-las, as decisões:
+
+- [PapinhoAccelerator/ADR-0002 — Core portável entre deployments e backends substituíveis](adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md);
+- `PapinhoEngineering/ADR-0007` — Fronteiras portáveis entre core, plataforma e backends substituíveis.
+
+## Estado atual
+
+- `papacc_core`, `papacc_network`, Server Config e parser CLI são portáteis e não expõem tipos Win32.
+- Win32 implementa PAL monotônica, discovery/catálogo de interfaces, WinSock, socket/bind/listen, Listener Set e o executable lifecycle.
+- `papacc_server` é atualmente um composition root Win32 e só é criado pelo CMake em builds Windows.
+- Não existe backend POSIX/Linux, transport local, GUI ou Compute Backend implementado.
+- Identidade persistente em outras plataformas permanece um contrato opcional: futuros backends poderão fornecer token próprio ou marcar `is_valid = FALSE`; nenhuma estratégia Linux foi escolhida.
+
+O Core e os modelos de rede são escritos em C portável e consomem contratos abstratos. Windows/Win32 é a primeira implementação disponível; não determina tipos, lifecycle ou semântica pública do produto.
+
+## Possibilidades arquiteturais
+
+```text
+Windows / Win32
+Linux / POSIX
+Raspberry Pi
+Embedded
+Dedicated Hardware
+PCI / PCIe
+ISA
+```
+
+Esta lista não afirma suporte atual, compromisso de entrega nem implementação uniforme. Algumas plataformas poderão hospedar o servidor completo; outras poderão ser apenas Compute Backends; outras poderão usar transports locais. PCI/PCIe e ISA são possibilidades preservadas, sem protocolo elétrico, driver, DMA, memória compartilhada ou outro detalhe inventado nesta fase.
+
+## Fronteiras portáveis
+
+- APIs do Core usam tipos C de largura/semântica definida e handles opacos próprios.
+- Endianness e serialização pertencem ao Wire Protocol, nunca à representação nativa de structs.
+- Tamanho de ponteiro, alinhamento, packing, path, newline e encoding não podem atravessar a fronteira implicitamente.
+- Tempo de protocolo deve distinguir duração monotônica de horário civil.
+- Erros de plataforma são traduzidos para categorias portáveis sem perder diagnóstico local.
+- Ownership, lifetime, cancelamento e cleanup são definidos no contrato, não inferidos da API do OS.
+
+Tipos como `HWND`, `HANDLE`, `SOCKET` e `CRITICAL_SECTION` podem existir apenas dentro da implementação Windows apropriada. Equivalentes POSIX ou embarcados obedecem à mesma regra.
+
+## Adaptações
+
+A PAL encapsulará primitivas de plataforma; transports encapsularão canais; Compute Backends encapsularão mecanismos de execução. O build futuro deverá permitir selecionar implementações sem condicionais de plataforma espalhadas pelo Core. Capabilities serão descobertas em runtime/build e negociadas, portanto backend ausente causa redução explícita de funcionalidade, não falha arquitetural.
+
+## Portabilidade não é equivalência
+
+Uma plataforma limitada pode oferecer apenas um subconjunto, com quotas e desempenho diferentes. Compatibilidade significa negociar corretamente esse subconjunto, preservar segurança e produzir erros definidos. Fallback local pertence ao cliente e só é usado quando ele declara suporte; nenhuma capability remota é presumida.
+
+## Diagnóstico CA e fronteira portável — 2026-10-19
+
+O backend CNG parcial permanece privado em `apps/server/server_ca_key_win32.*`,
+sem dependência dos contratos comuns. A variante diagnóstica de leitura exclui
+por compilação criação, setters e finalização; não exige CNG na box ou ISA.
+Emissão, assinatura, serial, status/revogação, custódia e persistência seguem as
+decisões accepted de issuer/perfil técnico; a API comum de issuer completo ainda
+não está implementada. Não confundir esse componente Windows com o contrato
+comum futuro. O smoke atual comprova isolamento de headers no MSVC x64, sem
+qualificar outro target. Ver [matriz e evidências](integration/cng-diagnostic-safety-portability-20261019/safety-identity-portability-handoff.md).
+## Núcleo portável de issuer — 2026-10-19
+
+`src/issuer/issuer_core.h/.c` e o target `papacc_issuer` implementam agora os
+contratos privados e a máquina de estados comum: identidade/geração/SPKI,
+serial/reserva CAS, emissão/consulta, revogação, renovação e recuperação.
+Não dependem de CNG/Win32. O backend sintético só integra o target de teste;
+a biblioteca normal o rejeita. Box/ISA continuam NOT_QUALIFIED.
+O vínculo à mesma autoridade root existe como porta; o adaptador durável real,
+o codec versionado e a publicação live permanecem pendentes/negados. Não há
+registro paralelo nem integração CNG operacional. Ver [handoff e censo](integration/portable-issuer-core-20261019/implementation-and-root-handoff.md).
+## Persistência issuer na root — 2026-10-19
+
+src/issuer/issuer_codec.h/.c implementam codec comum sem Win32/CNG. O adaptador Windows usa o mesmo owner e arquivo da root. Commit de metadados e recuperação observacional foram validados offline; CURRENT/EPOCH, recuperação autoritativa e publicação live continuam pendentes. Ver [evidências e limites](integration/issuer-root-persistence-20261019/closeout.md). Box/ISA não qualificadas.
+
+### Gerações issuer protegidas — 2026-10-19
+
+O adaptador da mesma root mantém três imagens issuer imutáveis associadas aos slots/pins já existentes. A cópia protegida não consulta Win32 nem concede autoridade. Coexistência de bytes foi validada offline; continuidade operacional de Sessions e recuperação com checkpoint/fencing continuam pendentes. Ver [prova focal](integration/issuer-live-root-recovery-20261019/lifetime-and-recovery-proof.md).
+
+### Persistência issuer pendente — 2026-10-19
+
+A mesma root possui agora um pacote de I/O e um worker Windows sem autoridade operacional. Begin/poll não esperam pela persistência; Stop preserva buffers e handles até conclusão factual. CAS conflitante ou incerto não publica CURRENT nem reutiliza autoridade antiga. O contrato comum de resultados não inclui Win32/CNG e compila em C estrito. Debug/Release e regressões offline passaram; publicação live/Session, recuperação autoritativa, CNG e box/ISA continuam pendentes. Admissão permanece DENY. Ver [prova e handoff](integration/issuer-live-transaction-safety-20261019/safety-proof-and-handoff.md).
+
+### Session e publicação administrativa issuer — 2026-10-19
+
+A integração canônica vincula cada Session à revisão admitida por pin e mantém R/I/A/P distintos. A publicação de metadados issuer usa o worker pendente existente, confirma commit, revalida a projeção operacional e publica CURRENT/A sem alterar P em issuer-only. O reaper preserva quiescência e retenção. Debug/Release e 46 regressões offline passaram; metadados de Sessions nos testes são REVOKED sintéticos, sem autenticação ou tráfego real. Censo com ABI outbound correto: 1.790.912 bytes fixos; reserva base 1.957.939, attachment fechado 1.962.035. Recuperação autoritativa, CNG e credenciais reais continuam pendentes; admissão DENY, box/ISA não qualificadas. Os parágrafos anteriores registram slices históricos. Ver [prova, limites e handoff](integration/issuer-session-live-publication-20261019/integration-proof-and-handoff.md).
+
+
+## Issuer publication checkpoint linkage - 2026-10-19
+
+The common issuer codec validates a version1 historical R/A/P checkpoint over existing root/issuer bytes with platform-independent types and supplied hash adapter. Native file identity, TxF CAS, Stop and handle disposal stay in the Windows root adapter. No new root/journal/registry or mandatory CNG/filesystem dependency in the common contract. Debug/Release offline validation is Windows evidence; box/ISA are not qualified. Recovery and fencing remain DENY/not established. See [scoped evidence](integration/issuer-same-root-checkpoint-linkage-20261019/closeout.md).
+
+
+### Validação pública Windows do issuer — 2026-10-19
+
+O adaptador possui agora validação pública de CSR compatível com a porta verify_request, usando Crypt32 e scratch do caller, sem operações privadas CNG. O núcleo portável e os registros da mesma root não mudam. Não há registro produtivo do backend, construção completa CSR/X509 ou qualificação de assinatura/recuperação. Instanciar novo scratch na composição ALL excederia a margem; ativação DENY até prova ED11 de coexistência. Provider/kernel UNKNOWN; admissão fechada. Ver [prova e handoff](integration/internal-ca-windows-backend-continuation-20261019/implementation-proof-and-handoff.md).
+
+
+### Reconciliação ED11 Phase 6 — 2026-10-19
+
+O validador D3 no-issuer somente leitura remove uma cópia temporária redundante de 9376 bytes em caminhos transacionais serializados, preservando decode owned, formatos, guards, pins e retenção. Cenário conhecido conservador: 2084039/2097152, margem 13113; não é o pico completo futuro de signer/X509. Custos adicionais conhecidos CNG/core/CSR: 4896, antes de inputs/outputs/stacks/retidos ainda sem bound; ativação continua DENY. Provider/kernel UNKNOWN, ED11 total PARTIAL, sem rede ou liberação PST0.6.5. Ver [censo e prova](integration/phase6-ed11-full-composition-20261019/composition-lifetime-proof-and-handoff.md).

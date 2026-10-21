@@ -1,0 +1,103 @@
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-minimal-pair-receipt-20261018\\preimages\\CMakeLists.txt" b/CMakeLists.txt
+index f7adfcb..1cefc6f 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-minimal-pair-receipt-20261018\\preimages\\CMakeLists.txt"
++++ b/CMakeLists.txt
+@@ -2521,7 +2521,7 @@ if(PAPACC_ENABLE_CANONICAL_C8_ROOT)
+     target_include_directories(papacc_c8_target_evidence PUBLIC ${PAPACC_GRAPH_INCLUDE_DIRS})
+     target_link_libraries(papacc_c8_target_evidence PUBLIC papacc_pst_consumer papacc_pal psapi)
+     target_compile_options(papacc_c8_target_evidence PRIVATE /W4 /WX)
+-    target_sources(papacc_server_run_win32 PRIVATE apps/server/server_launcher_owner_win32.c)
++    target_sources(papacc_server_run_win32 PRIVATE apps/server/server_launcher_owner_win32.c apps/server/server_c2_pair_receipt.c)
+     target_link_libraries(papacc_server_run_win32 PRIVATE papacc_c2_root_owner papacc_c8_target_evidence)
+ endif()
+ 
+@@ -2555,3 +2555,11 @@ if(PAPACC_ENABLE_CANONICAL_C8_ROOT AND BUILD_TESTING)
+  target_link_libraries(papacc_site_tls_catalog_offline_test PRIVATE papacc_configuration_commit)
+  target_compile_options(papacc_site_tls_catalog_offline_test PRIVATE /W4 /WX)
+ endif()
++
++if(PAPACC_ENABLE_CANONICAL_C8_ROOT AND BUILD_TESTING)
++ add_executable(papacc_pair_receipt_offline_test tests/pair_receipt_offline_test.c)
++ target_include_directories(papacc_pair_receipt_offline_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS})
++ target_link_libraries(papacc_pair_receipt_offline_test PRIVATE papacc_server_run_win32)
++ target_compile_options(papacc_pair_receipt_offline_test PRIVATE /W4 /WX)
++ papacc_stage_pst_runtime(papacc_pair_receipt_offline_test)
++endif()
+\ No newline at end of file
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-minimal-pair-receipt-20261018\\preimages\\apps__server__server_c2_owner_win32.h" b/apps/server/server_c2_owner_win32.h
+index a1b6fbf..8d2bd4c 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-minimal-pair-receipt-20261018\\preimages\\apps__server__server_c2_owner_win32.h"
++++ b/apps/server/server_c2_owner_win32.h
+@@ -97,6 +97,14 @@ typedef struct PAPACC_C2_E10_PUBLICATION_FACT {
+ typedef struct PAPACC_C2_E10_INTERVAL {
+  PAPACC_U64 first_sequence,last_sequence,count,bytes,prefix_first,prefix_last;
+ } PAPACC_C2_E10_INTERVAL;
++/* Minimal public OPEN_RESULT receipt; no role tokens, payload or authority.
++ * Exactly two fixed mirrors in the existing collector, charged by sizeof(owner). */
++typedef struct PAPACC_C2_PAIR_OPEN_RECEIPT {
++ PAPACC_U32 version,present;
++ PAPACC_U64 request,operation,generation,epoch,sequence;
++ PAPACC_U32 attempt_generation,resolution_generation;
++} PAPACC_C2_PAIR_OPEN_RECEIPT;
++PAPACC_RESULT papacc_c2_pair_open_receipt(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U64,PAPACC_C2_PAIR_OPEN_RECEIPT *);
+ typedef struct PAPACC_C2_E10_COLLECTOR {
+  PAPACC_C2_PUBLICATION_EVENT events[PAPACC_C2_E10_EVENT_CAPACITY];
+  PAPACC_C2_E10_INTERVAL intervals[PAPACC_C2_E10_EVENT_CAPACITY];
+@@ -107,6 +115,7 @@ typedef struct PAPACC_C2_E10_COLLECTOR {
+  PAPACC_U64 observations,aggregated_inputs,dropped_inputs;
+  PAPACC_SIZE reserved_owner_bytes;
+  PAPACC_C2_E10_PUBLICATION_FACT tls_ready_fact[2],final_fact[2];
++ PAPACC_C2_PAIR_OPEN_RECEIPT pair_open[2];
+ } PAPACC_C2_E10_COLLECTOR;
+ typedef void (*PAPACC_C2_PUBLICATION_OBSERVER)(void*,const PAPACC_C2_PUBLICATION_EVENT*);
+ typedef struct PAPACC_C2_OWNER_WRITE {
+@@ -169,6 +178,7 @@ PAPACC_BOOL papacc_server_c2_owner_win32_take_opportunity(PAPACC_SERVER_C2_OWNER
+ PAPACC_RESULT papacc_server_c2_e10_enable_reserved(PAPACC_SERVER_C2_OWNER_WIN32*,PAPACC_U64,PAPACC_SIZE);
+ PAPACC_RESULT papacc_server_c2_e10_seal(PAPACC_SERVER_C2_OWNER_WIN32*);
+ PAPACC_RESULT papacc_server_c2_e10_copy(const PAPACC_SERVER_C2_OWNER_WIN32*,PAPACC_SIZE,PAPACC_C2_PUBLICATION_EVENT*);
++PAPACC_RESULT papacc_server_c2_pair_copy(const PAPACC_SERVER_C2_OWNER_WIN32*,PAPACC_SIZE,PAPACC_C2_PAIR_OPEN_RECEIPT*);
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ /* SAME owner, administrative apply only: initialized stays FALSE; no IO. */
+ PAPACC_RESULT papacc_server_c2_configuration_apply(PAPACC_SERVER_C2_OWNER_WIN32*,
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-minimal-pair-receipt-20261018\\preimages\\apps__server__server_c2_owner_win32.c" b/apps/server/server_c2_owner_win32.c
+index d86632d..0e151e8 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-minimal-pair-receipt-20261018\\preimages\\apps__server__server_c2_owner_win32.c"
++++ b/apps/server/server_c2_owner_win32.c
+@@ -37,6 +37,17 @@ static void observe(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_C2_OWNER_WRITE*w,PAPAC
+  }
+  e10_snapshot(o,&event);if(event.e10_snapshot_valid){
+  e10_store(o,&event);
++ /* Only the existing factual full-write boundary creates this public receipt.
++  * Reuse cannot silently replace a lifetime; capture loss is diagnostic only. */
++ if(kind==PAPACC_C2_PUBLICATION_FRAME_COMPLETE&&w->type==17U&&w->record!=NULL){
++  int ix=index_of(o,w->record);
++  if(ix>=0&&ix<2){PAPACC_C2_PAIR_OPEN_RECEIPT *f=&o->e10.pair_open[ix];
++   if(f->present&&(f->operation!=w->operation||f->generation!=w->generation))o->e10.overflow=PAPACC_TRUE;
++   else if(!f->present&&!o->e10.overflow&&
++    papacc_c2_pair_open_receipt(w->bytes+16U,w->length>=16U?w->length-16U:0U,event.sequence,f)!=PAPACC_RESULT_OK)
++    o->e10.overflow=PAPACC_TRUE;
++  }
++ }
+  /* Fixed public fact mirrors are independent of event capacity. This is the
+   * actual completion observation, not authority or proof of a complete capture.
+   * Overflow stays incomplete; no observer failure may gate harness progress. */
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-minimal-pair-receipt-20261018\\preimages\\apps__server__server_c2_e10_observe.inc" b/apps/server/server_c2_e10_observe.inc
+index 05d8ad1..b429ad4 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-minimal-pair-receipt-20261018\\preimages\\apps__server__server_c2_e10_observe.inc"
++++ b/apps/server/server_c2_e10_observe.inc
+@@ -154,3 +154,14 @@ static void s1_finish(PAPACC_SERVER_C2_OWNER_WIN32*o,const PAPACC_C2_S1_FACT*f,
+    if(r->session)e.session=r->session->incarnation;break;}}
+  e10_snapshot(o,&e);e10_store(o,&e);
+ }
++
++/* Post-seal copy only; cannot grant authority, export I/O or refund quota. */
++PAPACC_RESULT papacc_server_c2_pair_copy(const PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_SIZE index,PAPACC_C2_PAIR_OPEN_RECEIPT*out){
++ ULONG_PTR a=(ULONG_PTR)o,b=(ULONG_PTR)out;
++ if(!o||!out||index>=2U||(b>=a&&b-a<sizeof(*o)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(b<a&&a-b<sizeof(*out))return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(!o->initialized||!o->manager||!o->secure||o->manager->owner!=(PAPACC_U32)GetCurrentThreadId()||
++    o->secure->dispatch_active||!o->e10.enabled||!o->e10.sealed||o->e10.busy||
++    o->e10.overflow||o->e10.reentrant||!o->e10.pair_open[index].present)return PAPACC_RESULT_INVALID_STATE;
++ *out=o->e10.pair_open[index];return PAPACC_RESULT_OK;
++}
+\ No newline at end of file

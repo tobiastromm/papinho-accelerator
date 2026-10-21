@@ -2,18 +2,9 @@
 #define PAPACC_CAPABILITY_H
 
 #include <papacc/types.h>
+#include <papacc/pacc/capability_wire.h>
 
 #define PAPACC_CAPABILITY_NAME_CAPACITY 48U
-
-typedef PAPACC_U32 PAPACC_CAPABILITY_ID;
-typedef PAPACC_U16 PAPACC_CAPABILITY_VERSION;
-
-typedef struct PAPACC_CAPABILITY_KEY {
-    PAPACC_CAPABILITY_ID id;
-    PAPACC_CAPABILITY_VERSION major;
-} PAPACC_CAPABILITY_KEY;
-
-#define PAPACC_CAPABILITY_KEY_INITIALIZER { 0U, 0U }
 
 typedef struct PAPACC_CAPABILITY_DESCRIPTOR {
     PAPACC_CAPABILITY_KEY key;
@@ -28,15 +19,6 @@ typedef struct PAPACC_CAPABILITY_REGISTRY {
 } PAPACC_CAPABILITY_REGISTRY;
 
 #define PAPACC_CAPABILITY_REGISTRY_INITIALIZER { NULL, 0U, 0U, PAPACC_FALSE }
-
-typedef struct PAPACC_CAPABILITY_SET {
-    PAPACC_CAPABILITY_KEY *storage;
-    PAPACC_SIZE capacity;
-    PAPACC_SIZE count;
-    PAPACC_BOOL initialized;
-} PAPACC_CAPABILITY_SET;
-
-#define PAPACC_CAPABILITY_SET_INITIALIZER { NULL, 0U, 0U, PAPACC_FALSE }
 
 typedef enum PAPACC_CAPABILITY_POLICY_DECISION {
     PAPACC_CAPABILITY_POLICY_DENY = 0,
@@ -66,12 +48,6 @@ typedef struct PAPACC_SESSION_CAPABILITY_SNAPSHOT {
 #define PAPACC_SESSION_CAPABILITY_SNAPSHOT_INITIALIZER \
     { 0U, PAPACC_CAPABILITY_SET_INITIALIZER, PAPACC_FALSE }
 
-PAPACC_BOOL papacc_capability_key_valid(const PAPACC_CAPABILITY_KEY *key);
-int papacc_capability_key_compare(const PAPACC_CAPABILITY_KEY *a,
-    const PAPACC_CAPABILITY_KEY *b);
-PAPACC_BOOL papacc_capability_key_equal(const PAPACC_CAPABILITY_KEY *a,
-    const PAPACC_CAPABILITY_KEY *b);
-
 PAPACC_RESULT papacc_capability_registry_init(PAPACC_CAPABILITY_REGISTRY *registry,
     PAPACC_CAPABILITY_DESCRIPTOR *storage, PAPACC_SIZE capacity);
 PAPACC_RESULT papacc_capability_registry_register(PAPACC_CAPABILITY_REGISTRY *registry,
@@ -80,14 +56,6 @@ PAPACC_RESULT papacc_capability_registry_find(const PAPACC_CAPABILITY_REGISTRY *
     const PAPACC_CAPABILITY_KEY *key,
     const PAPACC_CAPABILITY_DESCRIPTOR **out_descriptor);
 void papacc_capability_registry_release(PAPACC_CAPABILITY_REGISTRY *registry);
-
-PAPACC_RESULT papacc_capability_set_init(PAPACC_CAPABILITY_SET *set,
-    PAPACC_CAPABILITY_KEY *storage, PAPACC_SIZE capacity);
-PAPACC_RESULT papacc_capability_set_insert(PAPACC_CAPABILITY_SET *set,
-    const PAPACC_CAPABILITY_KEY *key);
-PAPACC_BOOL papacc_capability_set_contains(const PAPACC_CAPABILITY_SET *set,
-    const PAPACC_CAPABILITY_KEY *key);
-void papacc_capability_set_release(PAPACC_CAPABILITY_SET *set);
 
 PAPACC_RESULT papacc_capability_evaluate(
     const PAPACC_CAPABILITY_EVALUATION_INPUTS *inputs,

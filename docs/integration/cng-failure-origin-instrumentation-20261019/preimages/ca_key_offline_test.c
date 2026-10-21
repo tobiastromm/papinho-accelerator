@@ -1,0 +1,56 @@
+#include "server_ca_key_win32.h"
+#include <stdio.h>
+#include <string.h>
+#include <bcrypt.h>
+/* Opt-in native key fixture: no certificate, root, registry or network.
+ * LocalService SID is a real identity but not impersonated by this test. */
+static int native_key(void) {
+ static PAPACC_CA_KEY o,opened;
+ BYTE token_data[sizeof(TOKEN_USER)+SECURITY_MAX_SID_SIZE];
+ BYTE service[SECURITY_MAX_SID_SIZE],a[16],g[16],private_blob[2048];
+ DWORD size=sizeof(service),got=0;HANDLE token=NULL;PSID admin;
+ SECURITY_STATUS s;NCRYPT_PROV_HANDLE cleanup_provider=0;NCRYPT_KEY_HANDLE cleanup_key=0;
+ if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))return 10;
+ if(!GetTokenInformation(token,TokenUser,token_data,sizeof(token_data),&got))return 11;
+ admin=((PTOKEN_USER)token_data)->User.Sid;
+ if(!CloseHandle(token))return 12;
+ if(!CreateWellKnownSid(WinLocalServiceSid,NULL,service,&size))return 13;
+ if(BCryptGenRandom(NULL,a,sizeof(a),BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0||
+    BCryptGenRandom(NULL,g,sizeof(g),BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0)return 14;
+ memset(&o,0,sizeof(o));memset(&opened,0,sizeof(opened));
+ s=papacc_ca_key_create(&o,a,g,admin,service);
+ printf("native_create_status=0x%08lx; state=%d; created=%d\n",(unsigned long)s,(int)o.state,o.created);
+ if(s!=ERROR_SUCCESS){wprintf(L"fixture_key_name=%s\n",o.name);return 20;}
+ if(papacc_ca_key_validate(&o)!=ERROR_SUCCESS)return 21;
+ s=NCryptExportKey(o.key,0,BCRYPT_RSAPRIVATE_BLOB,NULL,private_blob,sizeof(private_blob),&got,0);
+ SecureZeroMemory(private_blob,sizeof(private_blob));
+ if(s==ERROR_SUCCESS)return 22;
+ printf("native_private_export_denied=YES; status=0x%08lx\n",(unsigned long)s);
+ if(papacc_ca_key_close(&o)!=ERROR_SUCCESS||!o.close_confirmed)return 23;
+ if(papacc_ca_key_open(&opened,a,g,admin,service)!=ERROR_SUCCESS)return 24;
+ if(papacc_ca_key_validate(&opened)!=ERROR_SUCCESS)return 25;
+ if(papacc_ca_key_close(&opened)!=ERROR_SUCCESS)return 26;
+ /* Exact fixture only, checked one-time native deletion. Uncertainty retains
+  * the owning process receipt, never retries or claims destruction. */
+ s=NCryptOpenStorageProvider(&cleanup_provider,MS_KEY_STORAGE_PROVIDER,0);if(s!=ERROR_SUCCESS)return 27;
+ s=NCryptOpenKey(cleanup_provider,&cleanup_key,o.name,0,NCRYPT_MACHINE_KEY_FLAG|NCRYPT_SILENT_FLAG);
+ if(s!=ERROR_SUCCESS)return 28;
+ s=NCryptDeleteKey(cleanup_key,NCRYPT_SILENT_FLAG);if(s!=ERROR_SUCCESS)return 29;
+ cleanup_key=0;
+ s=NCryptFreeObject(cleanup_provider);if(s!=ERROR_SUCCESS)return 30;
+ printf("native_fixture_deleted=YES; native_acl_readback=PASS; service_token_open=NOT_RUN; real_ca=NO\n");
+ return 0;
+}
+int main(int argc,char **argv) {
+ PAPACC_CA_KEY o;BYTE a[16]={0},g[16]={0};unsigned passed=0;
+ if(argc==2&&strcmp(argv[1],"--native-key")==0)return native_key();
+ memset(&o,0,sizeof(o));
+ if(papacc_ca_key_create(NULL,a,g,NULL,NULL)==NTE_INVALID_PARAMETER)passed++;
+ if(papacc_ca_key_create(&o,a,g,NULL,NULL)==NTE_INVALID_PARAMETER)passed++;
+ if(papacc_ca_key_open(&o,a,g,NULL,NULL)==NTE_INVALID_PARAMETER)passed++;
+ if(papacc_ca_key_validate(NULL)==NTE_BAD_KEY_STATE)passed++;
+ if(papacc_ca_key_close(NULL)==NTE_BAD_KEY_STATE)passed++;
+ if(o.state==PAPACC_CA_KEY_EMPTY&&!o.provider&&!o.key)passed++;
+ printf("invalid_argument_checks=%u/6; native_key_creation=NOT_RUN; owner_bytes=%zu\n",passed,sizeof(o));
+ return passed==6?0:1;
+}

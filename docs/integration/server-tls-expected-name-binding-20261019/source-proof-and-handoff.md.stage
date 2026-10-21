@@ -1,0 +1,44 @@
+# ExpectedServerName administrative binding — source gate and focused handoff
+
+Task PACC-PHASE6-SERVER-TLS-EXPECTED-NAME-BINDING-1. 2026-10-19. main / c50b8fb9a7e3293b5e6355fc08459bf85b56857a.
+
+## STOP condition
+
+The examined canonical channel/listener/security/root and issuer path does not provide a governed approved ExpectedServerName with revision, CURRENT, lifetime and issuer association. This triggers task §9: fonte administrativa inexistente / autoridade presumida. Dependent implementation stops BEFORE any functional patch. No official functional patch was submitted or rejected. This is an implementation/source gap, not conflicting accepted decisions. No claim is made about absence of every possible external administrative record; no such record is supplied or integrated in this canonical path.
+
+## Exact evidence matrix
+
+| Source | Factual content | Missing proof |
+|---|---|---|
+| src/config/config_source.c:33–38 | field(kind3/channel_tls) accepts ONLY security_ref; listener has channel_tls_ref | No approved server-name directive/model/source. Adding a name silently would change the approved configuration contract. |
+| src/config/config_binding.h:10–20 | Bound listener owns id/profile/admission/port/security_ref/policy identity/targets. Whole binding has root/revision/A/P/I. | R/A/P and a security reference do not establish a name or associate it with a selected certificate/issuer. |
+| src/security/server_security_configuration.h:31 | Normalized resolved snapshot has composition inputs, client Principal resolver, authorization callback, release callback/context and valid flag. | No ExpectedServerName, name-source revision, issuer/generation association or proof of name approval. valid is not this authority. |
+| src/security/security_composition.h:28 | Local certificate chain/key, client trust anchors, ALPN/provider/bootstrap/logger | Certificate SAN is a statement in material, not the independent approved name for issuing that material. Inferring the intended name from SAN is circular. No name-source authority is represented. |
+| apps/server/server_security_source_win32.h:6–14 | Existing environment source explicitly LAB-ONLY; reads certificate/private-key/client-CA paths and enrolled client fingerprint | Paths/environment/fixture material and client enrollment cannot authorize a server hostname or supply productive issuer association. No secrets were read. |
+| apps/server/server_config_source_binding_win32.c:15–43 | Update resolver checks actual owner CURRENT pin, expected revision, thread, source state/reference and revalidates before marking a value binding RESOLVED | These checks protect the EXISTING source/model data; they cannot invent an absent name or extend a pin to unowned external data. A successful old resolver result is not name resolution. |
+| apps/server/server_c2_owner_win32.c:497–516 | owner_activate fills expected_peer_name and SNI from the authorized OPEN destination for Site TLS outbound | This is origin/destination identity. It is not the Browser–Accelerator channel server identity. It must not be reused as an issuer name source. |
+| src/issuer/issuer_core.h:33–44 | Immutable request/record binds ids, device, CSR/SPKI digest, purpose, interval, authority/generation/policy/serial/epochs | No hostname or digest of an approved administrative name association. CSR digest binds a request, but CSR names/extensions are not administrative authority. |
+| src/config/config_lst1.h and config_root8.h; BODY05/ROOT06 contracts | Accepted offline byte layouts; LST1 is fragment, root metadata/checkpoints are not authority by themselves | No approved free/reserved field may be repurposed to store name approval. No codec change is performed. |
+| apps/server/server_issuer_cng_backend_win32.c:auth | Only CLIENT/PACKAGE supported; SERVER rejected before native signature | This denial remains byte-identical. A candidate public preparation API is not an operational name resolver. |
+
+Accepted technical profile §1.3 requires “SAN dNSName exact approved ExpectedServerName”, no CN-only fallback, distinct serverAuth and clientAuth. CSR names/extensions must be checked/replaced against approved administrative identity policy. §1.5 separately requires explicit internal-CA channel binding for profile1. ADR-0009 preserves collection/profile/security reference; ADR-0010 specifies the existing application-owned resolver and explicit lifetime. None supplies the missing administrative hostname value/revision/approval merely by specifying these interfaces. Existing papacc.conf and LST1/D3 decisions do not authorize arbitrary additional fields. No accepted authority was revised.
+
+## Per-property result
+
+Identity: security_configuration_ref identifies configuration, not an approved hostname. Revision/CURRENT: existing root pin mechanism is present, but no named attribute is bound to that revision. Lifetime: existing source transaction has borrow/unborrow and retain/finish, but there is no name payload under its custody; CURRENT alone cannot protect invented/external storage. TLS profile: SECURE_PRINCIPAL and papacc/1 are represented, but no server hostname authority follows. Issuer association: request authority/generation exists separately; no factual bridge joins it to the channel identity. SAN: offline candidate comparison is implemented and model-tested in issuer-native-readiness; no approved-name SAN success can be claimed here.
+
+## Smallest implementable handoff, contingent on a focal source decision
+
+Reuse the same ADR-0010 security_configuration_ref, existing normalized Local Identity and its source transaction; preserve listeners[] and the existing root participant. Do not create a catalog, registry or second owner. Candidate policy text is in SOURCE-DECISION-PROPOSED.md, NOT ACCEPTED.
+
+First establish an explicit administrative public name attribute and its source/revision in that same security configuration, with authorization of the exact name, listener association, channel role, selected server SPKI/certificate and issuer authority/generation. Decide where its approved persistent representation lives in the SAME root-owned history, through a reviewed versioned contract. Existing BODY0.5/ROOT06/LST1/D3 and issuer codec cannot be patched by inference. A mutable environment string or certificate-derived name is not a substitute. This decision does not require a new user provider or general identity system.
+
+Then resolve by the existing owner: acquire factual CURRENT and source borrow, check exact security reference/listener/role/revision, validate exact approved name versus candidate SAN and CSR/SPKI request, bind reservation correlation and issuer generation, retain the same immutable name/cert/source backing during all uses, revalidate at consumption. The initial/bootstrap case must use its explicit authorized source path; never synthesize CURRENT. Missing listener/profile/name, stale CURRENT/revision, divergent name/SAN/certificate/issuer, Stop, revoked approval or invalid borrow denies before effects. Uncertain or pending consumers retain source, buffers, pins and credit; final release follows factual quiescence. Do not emit or sign because the binding succeeded.
+
+Required later regressions: approved-name source fixture vs native administrative evidence; missing/divergent name; SAN missing/divergent/client EKU; absent listener/security profile; mismatched issuer/generation/SPKI/CSR; no CURRENT/stale revision; wrong borrower/lost lifetime; Stop and retained consumer; CAS conflict/UNKNOWN without fallback; historical decoder compatibility; full ED11. Synthetic fixtures can test rejection and lifecycle but do not qualify an approved native name source.
+
+## Preservation, validation and ED11
+
+No source patch, build, test or network run in this stopped task. The preceding85-hash issuer-native-readiness manifest verifies unchanged; its six suites/504 model assertions are HISTORICAL evidence, not new tests or approved-name binding proof. All46 hashes of the existing normal PST SDK verified. HEAD/branch unchanged. Baseline records3719 existing files including WIP before these new documents; final verification confirms no changes to them. Browser/PST/wire/pin0.6.4 and accepted decisions are unchanged.
+
+Runtime managed delta0; known base2084039/2097152 remains unchanged, not a complete activation peak. No added buffers, strings, snapshots or pins exist. A future approved source payload, copy, its retained generations and CSR/certificate coexistence must be priced before integration; previous conditional stack calculation and activation denial remain applicable. No use of remaining margin is authorized. Provider/kernel UNKNOWN, full ED11 PARTIAL. Authoritative recovery, signature, CURRENT publication and all admission remain denied. No key/CA/certificate/private signature/ACL operation occurred.

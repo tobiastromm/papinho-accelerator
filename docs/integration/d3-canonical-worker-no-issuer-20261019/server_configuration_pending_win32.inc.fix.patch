@@ -1,0 +1,15 @@
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -192,10 +192,10 @@
+     pending_overlap(o,sizeof(*o),image,n)||pending_overlap(o,sizeof(*o),pin,sizeof(*pin)))return PAPACC_RESULT_INVALID_ARGUMENT;
+  EnterCriticalSection(&o->lock);p=&o->pending_commit;
+  if(o->store02!=8||!o->published||o->prepared||o->committed_pending||o->stopped||o->unresolved||
+-    o->recovery_selected||pending_blocks(o)||p->thread||
++    o->recovery_selected||o->recovery_guard||!path_ok(o->path)||pending_blocks(o)||p->thread||
+     p->transaction||p->close_error||p->result!=PAPACC_COMMIT_IDLE||o->issuer_stage_prepared||
+     pin->index!=o->current||o->committed_bytes<PC_ROOT8_MIN||o->committed_bytes>PC_ROOT8_NO_ISSUER_MAX)goto done;
+- for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i])goto done;
++ for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i]||o->slots[i].issuer_revision)goto done;
+  if(papacc_configuration_pin_read(o,pin,&view,&A,&P)!=PAPACC_RESULT_OK||
+     papacc_configuration_current(o,&view)!=PAPACC_TRUE||
+     pc_root8_decode_no_issuer(o->committed,o->committed_bytes,fields,sizeof(fields),&complete,

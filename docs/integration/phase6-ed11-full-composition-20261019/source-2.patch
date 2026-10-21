@@ -1,0 +1,89 @@
+--- apps\server\server_configuration_pending_win32.inc
++++ apps\server\server_configuration_pending_win32.inc
+@@ -210,14 +210,15 @@
+  const PAPACC_CONFIG_PIN *pin,const PAPACC_U8 *image,PAPACC_SIZE n,HANDLE identity,PAPACC_SIZE already_reserved)
+ {
+  PAPACC_CONFIG_PENDING *p;PAPACC_CONFIG_VIEW view;PAPACC_U64 A,P;
+- PAPACC_U8 fields[PC_ROOT8_NO_ISSUER_FIELDS];BY_HANDLE_FILE_INFORMATION f;
+- unsigned i;int complete;PAPACC_SIZE q;PAPACC_RESULT result=PAPACC_RESULT_INVALID_STATE;
++ const PAPACC_U8 *fields;BY_HANDLE_FILE_INFORMATION f;
++ unsigned i;PAPACC_SIZE q;PAPACC_RESULT result=PAPACC_RESULT_INVALID_STATE;
+  if(!owner(o)||!pin||!image||n<PC_ROOT8_MIN||n>PC_ROOT8_NO_ISSUER_MAX||
+     pending_overlap(o,sizeof(*o),image,n)||pending_overlap(o,sizeof(*o),pin,sizeof(*pin)))return PAPACC_RESULT_INVALID_ARGUMENT;
+- /* Caller model may remain live: charge this entire scratch separately. */
++ /* Immutable committed bytes are validated in place. Keep view/identity
++  * locals separately priced; no caller, packet or snapshot credit is released. */
+  if(already_reserved<sizeof(*o)||already_reserved>2097152U||
+-    sizeof(fields)+sizeof(view)+sizeof(f)>2097152U-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+- EnterCriticalSection(&o->lock);p=&o->pending_commit;
++    sizeof(view)+sizeof(f)>2097152U-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ EnterCriticalSection(&o->lock);p=&o->pending_commit;fields=o->committed;
+  if(o->store02!=8||!o->published||o->prepared||o->committed_pending||o->stopped||o->unresolved||
+     o->recovery_selected||o->recovery_guard||!path_ok(o->path)||pending_blocks(o)||p->thread||
+     p->transaction||p->close_error||p->result!=PAPACC_COMMIT_IDLE||o->issuer_stage_prepared||
+@@ -225,7 +226,7 @@
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i]||o->slots[i].issuer_revision)goto done;
+  if(papacc_configuration_pin_read(o,pin,&view,&A,&P)!=PAPACC_RESULT_OK||
+     papacc_configuration_current(o,&view)!=PAPACC_TRUE||
+-    pc_root8_decode_no_issuer(o->committed,o->committed_bytes,fields,sizeof(fields),&complete,
++    pc_root8_validate_no_issuer(o->committed,o->committed_bytes,
+      papacc_configuration_issuer_hash06,o,papacc_root8_body05_data,NULL)!=PC_ROOT8_OK)goto done;
+  q=d3_u32(fields+56);
+  if(memcmp(fields+72,o->domain,32)||d3_u64(fields+104)!=view.revision||
+@@ -262,8 +263,8 @@
+  PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PAPACC_D3_COMMITTED_RECEIPT *receipt,
+  PAPACC_SIZE already_reserved)
+ {
+- PAPACC_CONFIG_PENDING *p;PAPACC_U8 fields[9376],digest[32];
+- PAPACC_SIZE n,q;unsigned i;int complete;PAPACC_RESULT result=PAPACC_RESULT_INVALID_STATE;
++ PAPACC_CONFIG_PENDING *p;const PAPACC_U8 *fields;PAPACC_U8 digest[32];
++ PAPACC_SIZE n,q;unsigned i;PAPACC_RESULT result=PAPACC_RESULT_INVALID_STATE;
+  if(!owner(o)||cap<PC_ROOT8_MIN||cap>PC_ROOT8_NO_ISSUER_MAX||!d3_output_span(out,cap)||
+     !d3_output_span(used,sizeof(*used))||!d3_output_span(receipt,sizeof(*receipt))||
+     pending_overlap(o,sizeof(*o),out,cap)||pending_overlap(o,sizeof(*o),used,sizeof(*used))||
+@@ -271,7 +272,7 @@
+     pending_overlap(out,cap,receipt,sizeof(*receipt))||pending_overlap(used,sizeof(*used),receipt,sizeof(*receipt)))return PAPACC_RESULT_INVALID_ARGUMENT;
+  *used=0;memset(receipt,0,sizeof(*receipt));
+  if(already_reserved<sizeof(*o)||already_reserved>2097152U||
+-    sizeof(fields)+sizeof(digest)>2097152U-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++    sizeof(digest)>2097152U-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  EnterCriticalSection(&o->lock);p=&o->pending_commit;
+  if(o->store02!=8||o->stopped||o->unresolved||o->recovery_selected||o->recovery_guard||
+     !o->committed_pending||!o->authority_lost||o->prepared||p->active||p->thread||
+@@ -280,8 +281,8 @@
+     !pending_d3_packet_valid(p)||o->committed_bytes!=p->previous_bytes||
+     memcmp(o->committed,p->previous,p->previous_bytes))goto done;
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i]||o->slots[i].issuer_revision)goto done;
+- n=p->next_bytes;if(cap<n)goto done;
+- if(pc_root8_decode_no_issuer(p->next,n,fields,sizeof(fields),&complete,papacc_configuration_issuer_hash06,o,
++ n=p->next_bytes;if(cap<n)goto done;fields=p->next;
++ if(pc_root8_validate_no_issuer(p->next,n,papacc_configuration_issuer_hash06,o,
+     papacc_root8_body05_data,NULL)!=PC_ROOT8_OK||memcmp(fields+72,o->domain,32)||
+     pc_root8_base_link(p->next,n,p->previous,p->previous_bytes,papacc_configuration_issuer_hash06,o,
+      papacc_root8_body05_data,NULL)!=PC_ROOT8_OK)goto done;
+@@ -383,8 +384,8 @@
+ PAPACC_RESULT papacc_configuration_bootstrap_commit_begin(PAPACC_CONFIGURATION_COMMIT *o,
+  const PAPACC_U8 *image,PAPACC_SIZE bytes,const char *leaf,PAPACC_SIZE reserved)
+ {
+- PAPACC_CONFIG_PENDING *p;BOOTSTRAP_AUTH_PROOF proof;PAPACC_U8 fields[PC_ROOT8_NO_ISSUER_FIELDS];
+- PAPACC_SIZE k;int complete,diagnostic=0;unsigned i;
++ PAPACC_CONFIG_PENDING *p;BOOTSTRAP_AUTH_PROOF proof;const PAPACC_U8 *fields=image;
++ PAPACC_SIZE k;int diagnostic=0;unsigned i;
+  if(!owner(o)||!image||!leaf)return PAPACC_RESULT_INVALID_ARGUMENT;p=&o->pending_commit;
+ #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+  diagnostic=p->checkpoint_only==91;
+@@ -394,12 +395,12 @@
+     !p->bootstrap_parent||!p->bootstrap_container||o->published||o->committed_bytes||o->issuer_stage_prepared||o->stopped||o->unresolved||
+     p->close_error||p->committed||InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i]||o->slots[i].issuer_revision)return PAPACC_RESULT_INVALID_STATE;
+- if(reserved>2097152U||10532U>2097152U-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(reserved>2097152U||1156U>2097152U-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  if(bytes<PC_ROOT8_MIN||bytes>PC_ROOT8_NO_ISSUER_MAX||pending_overlap(o,sizeof(*o),image,bytes))return PAPACC_RESULT_INVALID_ARGUMENT;
+  k=strlen(leaf);if(!k||k>64U||!strcmp(leaf,".")||!strcmp(leaf,"..")||leaf[k-1U]=='.')return PAPACC_RESULT_INVALID_ARGUMENT;
+  for(i=0;i<k;i++)if(!((leaf[i]>='a'&&leaf[i]<='z')||(leaf[i]>='A'&&leaf[i]<='Z')||
+     (leaf[i]>='0'&&leaf[i]<='9')||leaf[i]=='_'||leaf[i]=='-'||leaf[i]=='.'))return PAPACC_RESULT_INVALID_ARGUMENT;
+- if(pc_root8_decode_no_issuer(image,bytes,fields,sizeof(fields),&complete,papacc_configuration_issuer_hash06,o,
++ if(pc_root8_validate_no_issuer(image,bytes,papacc_configuration_issuer_hash06,o,
+     papacc_root8_body05_data,NULL)!=PC_ROOT8_OK||d3_u32(fields+16)||d3_u64(fields+104)!=1U||
+     d3_u64(fields+112)||memcmp(fields+72,o->domain,32U))return PAPACC_RESULT_INVALID_ARGUMENT;
+  for(i=0;i<512U;i++)if(fields[d3_u32(fields+56)+i])return PAPACC_RESULT_INVALID_ARGUMENT;

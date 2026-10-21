@@ -1,0 +1,17 @@
+# Browser producer binding — scoped handoff, PROPOSED
+Do not redo the public receipt extension. Accelerator agent has not modified Browser.
+
+Observed Browser baseline: HEAD 1eb028554f622672377953225e162ed9b6564a40; recheck before writing.
+Current src/papinho_c2_s6.inc c2_receipt_emit emits creation/image/sdk/build_ref/producer_join as null; src/papinho_c2_s6.h explicitly does not assert native creation/image provenance. tools/offline/mode_c_browser_receipt.py project accepts externally reported provenance and conservatively refuses native producer qualification. A focused search of src C/inc files found no GetProcessTimes/GetProcessMemoryInfo/GetProcessHandleCount/GlobalMemoryStatusEx implementation. Existing GetTickCount and unrelated UI profiling clocks are not a proved Mode C provenance producer.
+
+Required work, subject to Browser authorization and its toolchain contracts:
+- First locate an existing applicable process observer outside those searched files or explicitly report its absence. Do not claim binding complete by filling nulls from expected hashes or supplied fixture metadata. If implementing the missing native observation requires a new collector or incompatible APIs, stop for the specific decision.
+- Reuse candidate_c2_execute/c2_receipt_emit and the existing offline adapter. Link a receipt reference to actual emitting PID plus OS-observed creation lifetime and executable mapping/path observation, existing SDK/build manifest references and local owner/Session identity. Obtain actual image-file evidence separately from expected build hashes; report mapping/file association limits, not memory-page attestation.
+- Preserve request/operation/generation/epoch and OPEN attempt/resolution only from validated OPEN_RESULT. Keep local Session/owner/group IDs local. Browser does not acquire Accelerator internal Principal by inference.
+- Export only already factual local clock/observation values with explicit presence. GetTickCount is wrapping 32-bit time, not PAL_MONOTONIC_NS_TO_MS. Do not retrospectively timestamp old facts or create an expiry. Until an applicable approved validity source exists keep Mode C validity INCOMPLETE.
+- Keep the existing BIND full-write versus validated ACK receipt distinction, TLS_READY, prefix/fence/ACK, FINAL and per-owner local teardown/retained witnesses. No destruction inference from remote FINAL.
+- Extend the existing adapter with references to native producer evidence rather than another store/collector. Accelerator recorded_time_coherence currently recognizes its proved PAL/C8 reference only; a Browser source needs its own factual decoding, not relabelling. Do not alter receipt public protocol identity or operational gates.
+
+Offline validation required, not executed here: PID reuse, image/SDK mismatch, missing producer, request/op/generation/epoch mismatch, missing/zero/regressive/wrapped timestamps, wrong clock lifetime, absent policy, integrity failure, Stop, retained graph and FINAL without local teardown. Compare positive synthetic correlation separately from native proof. Compile VC6 normal candidate Debug/Release and account caller scratch/coexistence before reporting ED11 delta. No network or admission authorized.
+
+Companion policy: validity-policy-proposed.md. It is not accepted and provides no numeric threshold. Existing Accelerator producer exports factual idle-process observations; actual loaded Mode C pair and operation remain unexecuted.

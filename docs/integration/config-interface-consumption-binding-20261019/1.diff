@@ -1,0 +1,44 @@
+--- apps/server/server_c8_resource_root_win32.inc
++++ apps/server/server_c8_resource_root_win32.inc
+@@ -284,11 +284,32 @@
+ 
+ /* One-listener isolated profile, matching the already charged closed-attach
+  * arrays. More targets deny before effects; no implicit wider profile. */
++PAPACC_RESULT papacc_server_launcher_interface_consumption_check(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,
++ const PAPACC_ROOT_CURRENT_PIN *pin)
++{
++ PAPACC_INTERFACE_CURRENT_REPORT binding;PAPACC_RESULT result;
++ if(!preparation_owned(o)||!pin)return PAPACC_RESULT_INVALID_STATE;
++ if(o->config.bind_selection.mode!=PAPACC_BIND_SELECTION_SELECTED_INTERFACES)return PAPACC_RESULT_NOT_SUPPORTED;
++ result=papacc_server_launcher_configuration_interface_current(o,pin,&binding);
++ if(result!=PAPACC_RESULT_OK)return result;
++ /* CURRENT correlation/MODEL_BOUND alone never authorize consumption. The
++  * current producer cannot attest topology applicability, so this denies. */
++ if(binding.current_bound!=PAPACC_TRUE||binding.topology_proven!=PAPACC_TRUE||binding.resolved!=PAPACC_TRUE)
++  return PAPACC_RESULT_NOT_SUPPORTED;
++ return PAPACC_RESULT_OK;
++}
+ PAPACC_RESULT papacc_server_launcher_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+ {
+  PAPACC_C8_ACCEPT_LIFETIME *a;PAPACC_C8_RESOURCE_CONTEXT *c;
+  PAPACC_C8_TARGET_EVIDENCE *e;PAPACC_TCP_LISTENER_ENTRY_WIN32 *entry;
+  PAPACC_U64 now;PAPACC_SIZE i;PAPACC_RESULT result;
++ /* Before ANY activation reservation/allocation/native acquisition. The
++  * separate ED11/admission/READY gates below remain mandatory. */
++ if(o!=&root||!preparation_owned(o))return PAPACC_RESULT_INVALID_STATE;
++ if(o->config.bind_selection.mode==PAPACC_BIND_SELECTION_SELECTED_INTERFACES){
++  result=papacc_server_launcher_interface_consumption_check(o,&o->listener_composition.pin);
++  if(result!=PAPACC_RESULT_OK)return result;
++ }
+  if(o!=&root||!preparation_owned(o)||o->secure_io.dispatch_active||o->activation_lifetime.phase||
+     o->listener_composition.state!=PAPACC_ROOT_LISTENER_READY||root_listener_check(o)!=PAPACC_RESULT_OK||
+     o->configuration_preparation.participants.target_count!=1U||!o->config.control_port||
+@@ -326,6 +347,8 @@
+  /* Revalidate immediately before the first native socket/bind effect. */
+  if(root_listener_check(o)!=PAPACC_RESULT_OK||papacc_pal_monotonic_time_ns(&now)!=PAPACC_RESULT_OK||
+     papacc_c8_resource_check(&o->resource_admission,c,now/1000000U)!=0)goto retained;
++ if(o->config.bind_selection.mode==PAPACC_BIND_SELECTION_SELECTED_INTERFACES&&
++    papacc_server_launcher_interface_consumption_check(o,&o->listener_composition.pin)!=PAPACC_RESULT_OK)goto retained;
+  result=papacc_tcp_socket_win32_bind_owned(&o->network.tcp_platform,&entry->target,o->config.control_port,&entry->socket);
+  if(papacc_c8_resource_observe_acquisition(&o->resource_admission,c,&a->ticket,
+     entry->socket.native_socket==INVALID_SOCKET?NATIVE_SOCKET_NOT_ACQUIRED:NATIVE_SOCKET_ACQUIRED,PST_CHILD_NOT_CREATED)!=0)

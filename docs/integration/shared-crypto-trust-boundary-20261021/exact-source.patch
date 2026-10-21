@@ -1,0 +1,149 @@
+--- /dev/null
++++ b/src/provisioning/shared_structure/suite.h
+@@ -0,0 +1,26 @@
++/* Private C89 suite policy. DATA ONLY: no crypto or authority acquisition. */
++#ifndef PAPACC_SHARED_SUITE_H
++#define PAPACC_SHARED_SUITE_H
++#include "structure.h"
++#define SP_SUITE1_ITERATIONS 600000UL
++#define SP_SUITE1_KEY_BYTES 32U
++#define SP_SUITE1_SALT_BYTES 16U
++#define SP_SUITE1_NONCE_BYTES 12U
++#define SP_SUITE1_TAG_BYTES 16U
++#define SP_SUITE1_SIGNATURE_BYTES 256U
++#define SP_SUITE1_AAD_MAX 1116U
++#define SP_SUITE1_CIPHER_MAX 65536UL
++/* No normalization here: reuse sp_password_normalize first. These functions
++ * only check data/shape; they cannot authorize a backend KDF or AEAD call. */
++SP_RESULT sp_suite1_kdf_shape(SP_SLICE,SP_SLICE,unsigned long);
++SP_RESULT sp_suite1_aead_shape(size_t,size_t,size_t,size_t,size_t);
++/* Borrowed public input plan for SHA256 + RSA2048/e65537 PKCS1-v1_5.
++ * Domain includes its terminating zero. No copy of package, no DER/RSA/trust.
++ * Input immutable/disjoint from output through all borrows; domain static const.
++ * Output unchanged on rejection/Stop; caller owns every nonstatic borrow. */
++typedef struct SP_SIGNED_PARTS {
++ SP_SLICE domain,prefix,spki,signature;
++} SP_SIGNED_PARTS;
++SP_RESULT sp_suite1_signed_parts(const unsigned char *,size_t,
++ SP_SIGNED_PARTS *,SP_STOP,void *);
++#endif
+--- /dev/null
++++ b/src/provisioning/shared_structure/suite.c
+@@ -0,0 +1,35 @@
++#include "suite.h"
++static const unsigned char sp_domain[]="PAPACC-COMPLETE-MANUAL-V2";
++SP_RESULT sp_suite1_kdf_shape(SP_SLICE password,SP_SLICE salt,unsigned long rounds)
++{
++ size_t i;
++ if(!password.data || password.size!=SP_SUITE1_KEY_BYTES || !salt.data ||
++    salt.size!=SP_SUITE1_SALT_BYTES || rounds!=SP_SUITE1_ITERATIONS)return SP_INVALID;
++ for(i=0;i<password.size;++i)if(!((password.data[i]>='A' && password.data[i]<='Z') ||
++    (password.data[i]>='2' && password.data[i]<='7')))return SP_INVALID;
++ return SP_DATA_ONLY;
++}
++SP_RESULT sp_suite1_aead_shape(size_t key,size_t nonce,size_t aad,size_t cipher,size_t tag)
++{
++ if(key!=SP_SUITE1_KEY_BYTES || nonce!=SP_SUITE1_NONCE_BYTES ||
++    aad>SP_SUITE1_AAD_MAX || !cipher || cipher>SP_SUITE1_CIPHER_MAX ||
++    tag!=SP_SUITE1_TAG_BYTES)return SP_INVALID;
++ return SP_DATA_ONLY;
++}
++SP_RESULT sp_suite1_signed_parts(const unsigned char *p,size_t n,
++ SP_SIGNED_PARTS *out,SP_STOP stop,void *ctx)
++{
++ SP_ENVELOPE e;SP_SIGNED_PARTS v;SP_RESULT result;size_t a,b,limit=(size_t)-1;
++ if(!p || !out || !n || n>SP_INPUT_MAX)return SP_INVALID;
++ /* Same reviewed flat-address precondition as structure.c; no pointer order. */
++ a=(size_t)p;b=(size_t)out;
++ if(a>limit-n || b>limit-sizeof(*out) ||
++    (a<b+sizeof(*out) && b<a+n))return SP_INVALID;
++ result=sp_envelope_inspect(p,n,&e,stop,ctx);
++ if(result!=SP_DATA_ONLY)return result;
++ v.domain.data=sp_domain;v.domain.size=sizeof(sp_domain);
++ v.prefix.data=p;v.prefix.size=n-SP_SUITE1_SIGNATURE_BYTES;
++ v.spki=e.spki;v.signature=e.signature;
++ if(stop && stop(ctx))return SP_STOPPED;
++ *out=v;return SP_DATA_ONLY;
++}
+--- /dev/null
++++ b/tests/shared_crypto_boundary/suite_test.c
+@@ -0,0 +1,46 @@
++/* Public structural arrays only. No key, DER, crypto, protected fixture or trust. */
++#include "suite.h"
++#include "papinho_papacc_frame.h"
++#include <stdio.h>
++#include <string.h>
++static unsigned long checks;
++#define C(x) do { ++checks;if(!(x)){printf("FAIL %u\n",(unsigned)__LINE__);return 1;} } while(0)
++static unsigned char raw[1400],pw[32],salt[16];
++static void be32(unsigned char *p,unsigned long n){p[0]=(unsigned char)(n>>24);p[1]=(unsigned char)(n>>16);p[2]=(unsigned char)(n>>8);p[3]=(unsigned char)n;}
++static int stop(void *p){return *(int *)p;}
++int main(void)
++{
++ SP_SLICE p,s;SP_SIGNED_PARTS v,before;papinho_papacc_frame f;
++ size_t i,n=665;int halted=0;
++ memset(pw,'A',sizeof(pw));p.data=pw;p.size=32;s.data=salt;s.size=16;
++ C(sp_suite1_kdf_shape(p,s,600000UL)==SP_DATA_ONLY);
++ for(i=0;i<256;++i){pw[0]=(unsigned char)i;C((sp_suite1_kdf_shape(p,s,600000UL)==SP_DATA_ONLY)==((i>='A' && i<='Z') || (i>='2' && i<='7')));}
++ pw[0]='A';C(sp_suite1_kdf_shape(p,s,599999UL)==SP_INVALID);
++ C(sp_suite1_kdf_shape(p,s,600001UL)==SP_INVALID);p.size=31;
++ C(sp_suite1_kdf_shape(p,s,600000UL)==SP_INVALID);p.size=32;s.size=15;
++ C(sp_suite1_kdf_shape(p,s,600000UL)==SP_INVALID);
++ C(sp_suite1_aead_shape(32,12,0,1,16)==SP_DATA_ONLY);
++ C(sp_suite1_aead_shape(32,12,1116,65536UL,16)==SP_DATA_ONLY);
++ C(sp_suite1_aead_shape(31,12,0,1,16)==SP_INVALID);
++ C(sp_suite1_aead_shape(32,11,0,1,16)==SP_INVALID);
++ C(sp_suite1_aead_shape(32,12,1117,1,16)==SP_INVALID);
++ C(sp_suite1_aead_shape(32,12,0,0,16)==SP_INVALID);
++ C(sp_suite1_aead_shape(32,12,0,65537UL,16)==SP_INVALID);
++ C(sp_suite1_aead_shape(32,12,0,1,15)==SP_INVALID);
++ memset(raw,0,sizeof(raw));memcpy(raw,"PACCMP02",8);raw[9]=2;raw[11]=1;
++ be32(raw+16,(unsigned long)n);be32(raw+20,1);be32(raw+24,600000UL);be32(raw+88,300);
++ C(papinho_papacc_frame_read(raw,n,&f)==1);
++ C(sp_suite1_signed_parts(raw,n,&v,stop,&halted)==SP_DATA_ONLY);
++ C(v.prefix.data==raw && v.prefix.size==f.signature_offset);
++ C(v.spki.data==raw+f.spki_offset && v.spki.size==f.spki_length);
++ C(v.signature.data==raw+f.signature_offset && v.signature.size==256);
++ C(v.domain.size==sizeof("PAPACC-COMPLETE-MANUAL-V2"));
++ C(!memcmp(v.domain.data,"PAPACC-COMPLETE-MANUAL-V2",v.domain.size));
++ before=v;halted=1;C(sp_suite1_signed_parts(raw,n,&v,stop,&halted)==SP_STOPPED);
++ C(!memcmp(&v,&before,sizeof(v)));halted=0;
++ for(i=0;i<n;++i){C(sp_suite1_signed_parts(raw,i,&v,0,0)!=SP_DATA_ONLY);C(!memcmp(&v,&before,sizeof(v)));}
++ raw[n]=0;C(sp_suite1_signed_parts(raw,n+1,&v,0,0)==SP_INVALID);
++ raw[9]=3;C(sp_suite1_signed_parts(raw,n,&v,0,0)==SP_INVALID);raw[9]=2;
++ C(sp_suite1_signed_parts(raw,n,(SP_SIGNED_PARTS *)raw,0,0)==SP_INVALID);
++ printf("%lu public suite policy checks; DATA ONLY; plan=%u\n",checks,(unsigned)sizeof(v));return 0;
++}
+--- /dev/null
++++ b/tests/shared_crypto_boundary/CMakeLists.txt
+@@ -0,0 +1,16 @@
++cmake_minimum_required(VERSION 3.16)
++project(shared_crypto_policy_offline C)
++enable_testing()
++get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
++add_executable(shared_suite suite_test.c
++ "${ROOT}/src/provisioning/shared_structure/suite.c"
++ "${ROOT}/src/provisioning/shared_structure/structure.c"
++ "${ROOT}/tests/shared_provisioning/oracles/papinho_papacc_frame.c")
++target_include_directories(shared_suite PRIVATE "${ROOT}/src/provisioning/shared_structure" "${ROOT}/tests/shared_provisioning/oracles")
++set_target_properties(shared_suite PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++if(MSVC)
++ target_compile_options(shared_suite PRIVATE /W4 /WX)
++else()
++ target_compile_options(shared_suite PRIVATE -Wall -Wextra -Wpedantic -Werror)
++endif()
++add_test(NAME shared.crypto.suite_policy COMMAND shared_suite)
+--- /dev/null
++++ b/docs/integration/shared-crypto-trust-boundary-20261021/API-AND-GATES.md
+@@ -0,0 +1,11 @@
++# Boundary exata do slice independente
++
++TASK=PACC-PHASE6-SHARED-CRYPTO-TRUST-BOUNDARY-1. Implementação privada C89 no mesmo módulo complementar, sem nome público/ABI/release. S0–S8, M1/M2 e D3/F1–F5 preservados. Aprovação desta API DATA não aprova API de autoridade.
++
++suite.h/c centralizam constantes accepted e predicados de forma KDF/AEAD e plano emprestado do domínio assinado. signed_parts reutiliza o parser M2 existente; domain contém o NUL final, prefix termina antes da assinatura256. Não verifica RSA/DER/hash nem executa KDF/AEAD. Retorno DATA_ONLY nunca autoriza execução, confiança ou release. Não há callback de backend/trust, alocação, thread ou I/O. Stop é somente observação sem reentrada, liberação ou aquisição de borrows. Inputs/outputs disjuntos e imutáveis; views válidas somente com backing retido pelo caller. Domínio tem lifetime estático const. Falha/Stop não altera output. Usar após preflight do owner, jamais como bypass M1. Predicado AEAD admite AAD vazio estruturalmente, mas pacote M2 exige header+SPKI; signed_parts fornece correlação pública, não envelope autenticada.
++
++O slice não altera callers/backends ou CMake produtivo: evita mudar as diferentes precondições atuais por inferência. Browser migração funcional NÃO autorizada. Normalização já existe em structure.c; não duplicada novamente. Accelerator derive aceita senha a normalizar; Browser derive requer32 ASCII já normalizados. OpenSSL q+staging distintos versus Browser q privada in-place são diferenças legítimas, não uma economia presumida.
++
++M1 compartilhado e API factual de evidências dependem de revisão própria S3/F5: o header atual Accelerator inclui config_root8_v3.h e tipos privados. Não copiá-lo ao core nem substituir port nativa fixa por callback de confiança fornecido pelo caller. Ausência de aquisição factual CURRENT/pins e confirmação Browser mantém DENY. O plano de extensão em TRUST-EVIDENCE-PROPOSED.md não é ACCEPTED/API implementada.
++
++Testes novos usam somente arrays estruturais ASCII/zeros, sem DER/chave/assinatura/criptografia/pacote protegido. Reutilizam oracle Browser congelado para offsets e predicados accepted para limites. Não geram arquivos de fixture nem retomam geração rejeitada. Nenhum crédito ED11 aprovado. Código novo não ligado ao runtime, metadados plan4 slices (64bytes x64/32bytes x86), local envelope+plan (128/64bytes de payload de C), domínio static sizeof("PAPACC-COMPLETE-MANUAL-V2")=26bytes, mais frame/stack/CRT/code desconhecidos. Esses tamanhos não são pico medido nem reserva. Provider/kernel UNKNOWN; totalPARTIAL.

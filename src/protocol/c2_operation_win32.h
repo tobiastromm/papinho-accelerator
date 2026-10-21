@@ -1,0 +1,71 @@
+#ifndef PAPACC_C2_OPERATION_WIN32_H
+#define PAPACC_C2_OPERATION_WIN32_H
+#include "c2_tokens_win32.h"
+#include "authentication_authorization.h"
+#define PAPACC_C2_OPERATION_CAPACITY 2U
+#define PAPACC_C2_SESSION_CAPACITY 4U
+#define PAPACC_C2_PAYLOAD_CAPACITY 65536U
+typedef enum PAPACC_C2_OPERATION_STATE {
+ PAPACC_C2_OP_EMPTY=0,PAPACC_C2_OP_RESERVED,PAPACC_C2_OP_HANDSHAKE,
+ PAPACC_C2_OP_APPLICATION,PAPACC_C2_OP_SHUTDOWN,PAPACC_C2_OP_TERMINATING,
+ PAPACC_C2_OP_RETAINED,PAPACC_C2_OP_RELEASED
+} PAPACC_C2_OPERATION_STATE;
+typedef struct PAPACC_C2_FLOW {
+ PAPACC_U8 bytes[PAPACC_C2_PAYLOAD_CAPACITY];PAPACC_SIZE size;
+ PAPACC_U64 admitted,accepted,submitted,escaped,fence,blocked_writes;
+ PAPACC_U32 blocked_pst_operation;
+ PAPACC_BOOL paused,sealed,fence_received,fence_written,ack_written,ack_received;
+} PAPACC_C2_FLOW;
+typedef struct PAPACC_C2_OPERATION {
+ PAPACC_C2_OPERATION_STATE state;PAPACC_C2_SESSION *session;
+ PAPACC_U64 request,id,generation,epoch,deadline_ms,cleanup_deadline_ms;
+#ifdef PAPACC_ENABLE_CANONICAL_C8_ROOT
+ PAPACC_U64 policy_deadline_ms; /* absolute profile lifetime; no idle extension */
+#endif
+ PAPACC_U8 open[803],result[108];PAPACC_SIZE open_length;
+ PAPACC_C2_TOKENS tokens;PAPACC_C2_FLOW flow[4];
+ PAPACC_U16 first_cause,ownership,tls_fact;PAPACC_SIZE callbacks;
+ PAPACC_BOOL site_ready,tls_ready_written,revoked,final_queued,final_written;
+ PAPACC_BOOL resources_created,cleanup_confirmed,reciprocal_complete,child_destroyed,ordered_eof;
+ PAPACC_BOOL record_events[2],summary_unavailable;
+} PAPACC_C2_OPERATION;
+typedef struct PAPACC_C2_OPERATION_SESSION {
+ PAPACC_C2_SESSION *session;PAPACC_PRINCIPAL principal;
+ PAPACC_U64 highest_request,next_generation,failed_window_ms;
+ unsigned failed_candidates;
+} PAPACC_C2_OPERATION_SESSION;
+/* These trusted callbacks cannot create sockets/PST or cause irreversible effects. */
+typedef PAPACC_RESULT (*PAPACC_C2_OPEN_POLICY)(void*,const PAPACC_C2_SESSION*,const PAPACC_U8*,PAPACC_SIZE,PAPACC_BOOL*);
+typedef PAPACC_RESULT (*PAPACC_C2_CAPACITY_GATE)(void*,PAPACC_SIZE,PAPACC_BOOL*);
+typedef struct PAPACC_C2_OPERATION_MANAGER {
+ PAPACC_U32 owner;PAPACC_U64 next_operation;PAPACC_BOOL initialized,stopping;
+ PAPACC_C2_OPERATION_SESSION sessions[PAPACC_C2_SESSION_CAPACITY];
+ PAPACC_C2_OPERATION operations[PAPACC_C2_OPERATION_CAPACITY];
+ PAPACC_C2_OPEN_POLICY policy;PAPACC_C2_CAPACITY_GATE capacity;void *context;
+} PAPACC_C2_OPERATION_MANAGER;
+PAPACC_RESULT papacc_c2_operation_manager_init(PAPACC_C2_OPERATION_MANAGER*,PAPACC_U32,PAPACC_C2_OPEN_POLICY,PAPACC_C2_CAPACITY_GATE,void*);
+PAPACC_RESULT papacc_c2_operation_session_attach(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_SESSION*,const PAPACC_PRINCIPAL*);
+PAPACC_RESULT papacc_c2_operation_open(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_SESSION*,const PAPACC_U8*,PAPACC_SIZE,PAPACC_U8[108],PAPACC_C2_OPERATION**);
+PAPACC_RESULT papacc_c2_operation_result_written(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*);
+PAPACC_RESULT papacc_c2_operation_bind(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_SESSION*,const PAPACC_PRINCIPAL*,PAPACC_U64,const PAPACC_U8*,PAPACC_SIZE,PAPACC_C2_OPERATION**);
+PAPACC_RESULT papacc_c2_operation_ack_written(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,PAPACC_U64);
+PAPACC_RESULT papacc_c2_operation_site_ready(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,const PAPACC_U8*,PAPACC_SIZE);
+/* Public PST verification remains a prerequisite enforced by the C3 owner. */
+PAPACC_RESULT papacc_c2_operation_tls_ready_written(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*);
+PAPACC_RESULT papacc_c2_operation_data(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,PAPACC_U64,const PAPACC_U8*,PAPACC_SIZE);
+PAPACC_RESULT papacc_c2_operation_downstream(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,PAPACC_SIZE);
+PAPACC_RESULT papacc_c2_operation_cancel(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_SESSION*,const PAPACC_U8*,PAPACC_SIZE);
+PAPACC_RESULT papacc_c2_operation_revoke(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,PAPACC_U16);
+PAPACC_RESULT papacc_c2_operation_tick(PAPACC_C2_OPERATION_MANAGER*,PAPACC_U64);
+PAPACC_RESULT papacc_c2_operation_stop(PAPACC_C2_OPERATION_MANAGER*);
+PAPACC_RESULT papacc_c2_operation_release_slot(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*);
+/* Four flows: APP BA, APP AB, RECORD BA, RECORD AB. Trusted factual output
+ * source and transport prefix are supplied only by serialized real owner. */
+PAPACC_RESULT papacc_c2_operation_output(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,const PAPACC_U8*,PAPACC_SIZE);
+PAPACC_RESULT papacc_c2_operation_output_accepted(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,PAPACC_SIZE);
+PAPACC_RESULT papacc_c2_operation_fence(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,PAPACC_U64,PAPACC_U16,const PAPACC_U8*,PAPACC_SIZE);
+PAPACC_RESULT papacc_c2_operation_fence_written(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,PAPACC_BOOL);
+PAPACC_RESULT papacc_c2_operation_record_event(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,const PAPACC_U8*,PAPACC_SIZE);
+PAPACC_RESULT papacc_c2_operation_final_payload(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,PAPACC_U8[76]);
+PAPACC_BOOL papacc_c2_operation_authorized(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*);
+#endif

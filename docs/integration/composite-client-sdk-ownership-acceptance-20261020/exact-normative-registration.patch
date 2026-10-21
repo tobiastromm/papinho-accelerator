@@ -1,0 +1,98 @@
+--- /dev/null
++++ b/docs/adr/DECISION-composite-client-sdk-ownership-20261020.md
+@@ -0,0 +1,95 @@
++---
++status: accepted
++revision: 1
++decision-date: 2026-10-20
++last-revised: 2026-10-20
++scope-level: project
++scope-target: PapinhoAccelerator composite client SDK ownership
++supersedes: []
++decision-makers: [Tobias Tromm]
++---
++# SDK de cliente composto — aceitação delimitada S0–S8
++
++## Autoridade e incorporação exata
++
++Registro normativo designado para TASK=PACC-PHASE6-COMPOSITE-CLIENT-SDK-OWNERSHIP-ACCEPTANCE-1. A decisão explícita do owner adota a arquitetura composta, condicionada à conformidade e aprovação oficial. Este registro só entra em vigor após aprovação do executor para estes bytes e verificação pós-gravação. Não implementa ou autoriza migração funcional.
++
++Aceitar exclusivamente S0–S8 de [ADR-CANDIDATE-client-sdk-ownership-and-reuse.md](ADR-CANDIDATE-client-sdk-ownership-and-reuse.md), revision1, SHA256 3808a96493b5627033e6429e6ea2d17f55aecbb41f00c2c98083a496c3da6f71, intervalo de bytes UTF-8 [673,3891), comprimento3218, SHA256 das cláusulas 0e07a80bf0db0c647a7d43f3ce89f4b4f6f4beb175a0801ad206d8658602ce6d. Os mesmos bytes estão reproduzidos abaixo e em [S0-S8-frozen-clause-bytes.txt](../integration/composite-client-sdk-ownership-acceptance-20261020/S0-S8-frozen-clause-bytes.txt). Preservar quebras de linha e codificação ao conferir. Front matter, contexto, alternativas, gates preparatórios e blocos finais da proposta NÃO são aceitos por referência; a proposta original permanece intocada.
++
++## Precedência e alcance
++
++S0–S8 especializam o ownership local da provisão já prevista na Phase6. PapinhoPACC permanece protocol-only sob ADR-0025; o componente complementar compartilhado terá sua fonte canônica inicialmente no Accelerator e servirá a consumidores sem depender de Browser/root. Browser é primeiro/importante consumidor, não exclusivo; não se declara suporte qualificado a aplicações futuras. Não se cria agora repositório, nome de pacote, API/ABI, layout de pastas, provider ou distribuição.
++
++Somente o status normativo das nove cláusulas incorporadas passa a ACCEPTED. Expressões históricas como “esta proposta” e exigência de registro em S8 não anulam esta aceitação posterior; todos os gates factuais, de API/licença, implementação, revisão de patches e qualificação permanecem obrigatórios. Este registro NÃO aceita todo o relatório/inventário da auditoria como norma, nem corrige ou descarta evidências históricas.
++
++Não modifica ou supersede integralmente ADRs accepted anteriores. PEADR-0011 continua exigindo shared-owner-first; ADR-0025 continua excluindo autorização, policy, runtime e transporte do protocolo. PST mantém seus contratos de TLS/certificates/ALPN/mTLS. Adoção funcional no Browser exige autorização e revisão próprias; nenhum ADR/fonte Browser é alterado e nenhuma governança de família é reescrita por este registro local.
++
++M0–M8, D3 de primeiro contato, F1–F5/G0–G7, P0–P9/T0–T7 Revision2, perfis CA/TLS, root/C8, R/A/P/I/CAS, Model E e ED08/ED11 permanecem íntegros. O core pode validar dados/evidências, não fabricar CURRENT, Principal, grants, confiança ou autorização. Confirmação independente e autorização local pertencem ao consumidor; delegação administrativa, serial, revogação e emissão pertencem ao Accelerator. Browser não precisa conhecer codecs internos da root.
++
++## Migração aceita somente como direção
++
++1. Definir a API compartilhada e o ownership no módulo complementar, sob os limites S0–S8.
++2. Extrair código comum existente sem reescrita desnecessária ou mudança semântica.
++3. Validar equivalência funcional, preservando testes, vetores, contratos e evidências.
++4. Integrar Browser como consumidor do componente versionado, preservando seu pipeline local.
++5. Remover duplicações somente após regressões e aprovação funcional própria.
++6. Preparar distribuição versionada com proveniência, hashes, licenciamento e compatibilidade.
++
++Essa sequência não autoriza executá-la nesta tarefa. API exata, headers, abstração de evidências, extração, adapters, compilação/testes de migração e mudanças de consumidores exigem autorização posterior e patches exatos aprovados. Não antecipar SDK high-level Phase12, reconnect/pool/discovery, framework de plugins ou geral de confiança. Uma mudança de API local não muda wire. Wrappers temporários não são uma exceção para continuar novas implementações consumer-first; duplicações injustificadas não recebem dispensa permanente.
++
++## Qualificação e segurança
++
++M1 permanece STRUCTURE → SIGNATURE → TRUST → KDF → AEAD → CONTENT → RELEASE, com revalidação final aplicável. Assinatura matemática, senha, chave embutida, hash, callback ou booleano não substituem autoridade factual. Quarentena e segredos permanecem privados até validação completa e liberação governada. Manual preserva a exceção accepted de custódia; automático mantém chave privada exclusivamente no cliente.
++
++As capacidades dos adapters continuam específicas por target. C89/VC6 é requisito de compatibilidade a ser demonstrado, não prova de NT4, Windows nativo, box ou ISA qualificados. Preservar backends/licenças/notices existentes; não selecionar licença própria ou declarar conformidade jurídica por esta aceitação. Nenhuma API de provider privada passa ao core.
++
++Owner, referências e crédito permanecem durante Stop, quiescência e retenção; timeout/FINAL/saída do processo não comprovam destruição. Nenhuma reserva ED11 ou economia de buffers é aprovada: Windows Accelerator3MiB somente seleção explícita, default/Legacy e Browser inalterados, quotas individuais preservadas. Provider/kernel UNKNOWN e ED11 total PARTIAL. A composição futura precisa de censo próprio. A negativa oficial histórica de geração de fixtures no Browser continua em vigor; não há retry ou patch funcional aceito por referência.
++
++## S0–S8 — bytes normativos incorporados
++
++S0. Browser é primeiro/importante consumidor, não exclusivo. Capacidade comum não depende de HWND,BrowserProfile,abas,navegação,Registry ou estruturas privadas da root. Nenhum consumidor futuro é declarado suportado.
++
++S1. PapinhoPACC mantém única implementação wire/framing/codecs/validação,protocol-only. API e pacote evoluem independentemente de wire. Não adicionar bytes/messages/ALPN ao wire para acomodar API local. Fixes upstream,snapshot pinado imutável.
++
++S2. SDK composto com módulo complementar de provisão separado de papacc_protocol,fonte canônica inicialmente Accelerator. Extrair M2/M3/TLV/normalização/suite/pipeline comum comprovados sem reescrita semântica,após API/lifetime/target review. Nome público,pastas,númeroAPI/release/repositório não congelados. Sem plugin platform,trust service ou SDK high-level Phase12 por inferência.
++
++S3. Core comum valida dados/evidências;estados DATA,crypto,confiança,autorização e instalação distintos. Não fabrica CURRENT/Principal/grants/trust por booleano,string ou digest. APIs exatas de autoridade/evidência exigem revisão própria. M1 STRUCTURE -> SIGNATURE -> TRUST -> KDF -> AEAD -> CONTENT -> RELEASE e recheck final intactos;quarentena exclusiva até conclusão integral.
++
++S4. Backends opcionais e qualificados por target,reusando BearSSL/NSS-derived/EVP/PST com pins,licenças e testes. Não escrever primitiva ou emular capability profunda. PST mantém TLS/certificates/ALPN/mTLS;issuer/CNG privado não integra corecliente. C89/VC6 build não qualifica NT4,Windows/box/ISA por inferência.
++
++S5. Consumidor mantém confirmação administrativa independente e autorização local de instalação,UI/Profile/storage/gate/CredentialGeneration/ActiveConfiguration/leases concretos. Accelerator mantém policy/delegação/issuer/serial/revogação/CURRENT/R/A/P/I/CAS/root/worker/emissão. Root não concede confiança local. Browser não conhece codec interno root. ProvenanceBrowser não vira formato universal obrigatório.
++
++S6. Migração preserva owners factuais,Stop não bloqueante,ModelE/ED08/retenção/exactly-once/créditosED11. Não mover buffers para escapar de censo,não apagar segredo borrowed/retido. Simple/advanced mesmo pipeline;automático chave exclusivamente cliente;manual só exceção accepted. Sem segunda root/CA/truststore/registry/journal/autoridade ou fallback permissivo.
++
++S7. Distribuição fonte versionada com manifest/hash/API/wire/target/backend/licença/NOTICE separados. Sem ABIbinária entre toolchains presumida,fetch no build ou dependência de checkout Browser. Wrappers temporários precisam owner/gateequivalência e remoção antes release conjunta. Não manter parsers/M1 paralelos permanentemente sem exceção normativa explícita delimitada;esta proposta não cria exceção.
++
++S8. Owner aceita e registro oficial precede mudança dependente. Cada patch funcional exige aprovação própria. Fixture anteriormente negada continua bloqueada até revisão oficial própria;auditoria não é retry. Sem aceitar novos formatos/crypto/quotas/autoridade/release/gates por referência. Orçamento Windows Accelerator não aumenta limite Browser/outros targets;UNKNOWN mantém DENY.
++
++## Resultado e limites
++
++COMPOSITE_CLIENT_SDK=ACCEPTED
++PAPINHOPACC_SCOPE=PROTOCOL_ONLY
++SHARED_PROVISIONING_MODULE=COMPLEMENTARY_SHARED_OWNER_CANONICAL_SOURCE_ACCELERATOR
++BROWSER_FIRST_CONSUMER=YES_NOT_EXCLUSIVE
++MIGRATION_AUTHORIZED=NO
++IMPLEMENTATION_AUTHORIZED=NO
++WIRE_CHANGED=NO
++PAPACC_INSTALL=DENY
++AUTOMATIC_ENROLLMENT=DENY
++CURRENT_PUBLICATION=DENY
++SIGNATURE_AUTHORITY=DENY
++AUTHORITATIVE_RECOVERY=DENY
++CLIENT_ADMISSION=DISABLED
++SITE_TLS_ADMISSION=DENY
++ED11_ADMISSION=DENY
++ED11_TOTAL_STATUS=PARTIAL
++PRODUCTION_PIN=0.6.4
++PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
++
++Nenhuma fonte funcional, Browser, PST, PACC wire, quota ou formato .papacc é alterado; sem builds/testes/rede, chaves/certificados/pacotes, refatoração, clone/worktree, commit/push/tag/release ou publicação produtiva. WIP e quatro LAB preservados sem acesso aos materiais.
++
++## Evidências e histórico
++
++[Matriz S0–S8](../integration/composite-client-sdk-ownership-acceptance-20261020/conformance-matrix.md), [incorporação/preimagens](../integration/composite-client-sdk-ownership-acceptance-20261020/incorporation-and-preimages.json), [closeout](../integration/composite-client-sdk-ownership-acceptance-20261020/closeout.md). Propostas e auditoria anteriores permanecem historicamente PROPOSED; este registro posterior aceita somente o intervalo especificado.
++
++Revision1,2026-10-20: arquitetura composta e ownership S0–S8 registrados por decisão explícita do owner e aprovação oficial do executor, sem autorização funcional.

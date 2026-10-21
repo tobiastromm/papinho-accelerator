@@ -1,0 +1,188 @@
+--- a/apps/server/server_admission_preflight_win32.inc
++++ b/apps/server/server_admission_preflight_win32.inc
+@@ -63,7 +63,7 @@
+     c->policy.profile==(PAPACC_U32)c->listener_profile&&c->policy.listener_port==c->control_port)
+   report->checked|=PAPACC_ADMISSION_MODEL;
+  if(t->normative_committed&&t->administrative_published&&t->policy.prepared&&t->policy.from_model&&
+-    root_snapshot_held(o,pin)&&
++    papacc_server_launcher_configuration_current(o,pin)&&root_snapshot_held(o,pin)&&
+     root_snapshot_model_equal(&t->model,&pin->view)&&root_policy_model_valid(o)){
+   report->checked|=PAPACC_ADMISSION_CURRENT;report->revision=pin->view.revision;
+  }
+--- a/apps/server/server_configuration_issuer06_win32.inc
++++ b/apps/server/server_configuration_issuer06_win32.inc
+@@ -58,10 +58,18 @@
+  o->issuer_snapshot_valid[i]=0;memcpy(o->issuer_staged,image,PAPACC_ISSUER_IMAGE_BYTES);o->issuer_stage_prepared=1;o->pending=i;o->prepared=1;result=PAPACC_RESULT_OK;
+ done:LeaveCriticalSection(&o->lock);return result;
+ }
++/* Checked interval comparisons avoid address-addition overflow. */
++static int issuer06_overlap(const void *a,PAPACC_SIZE na,const void *b,PAPACC_SIZE nb)
++{
++ ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;
++ return na&&nb&&(x<=y?y-x<na:x-y<nb);
++}
+ PAPACC_RESULT papacc_configuration_issuer_snapshot06(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *p,PAPACC_U8 *out)
+ {
+  unsigned i;PAPACC_RESULT r=PAPACC_RESULT_INVALID_STATE;
+- if(!owner(o)||!p||!out||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(!owner(o)||!p||!out||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS||
++    issuer06_overlap(out,PAPACC_ISSUER_IMAGE_BYTES,o,sizeof(*o))||
++    issuer06_overlap(out,PAPACC_ISSUER_IMAGE_BYTES,p,sizeof(*p)))return PAPACC_RESULT_INVALID_ARGUMENT;
+  EnterCriticalSection(&o->lock);
+  if(o->unresolved||!p->ticket||!o->issuer_snapshot_valid[p->index]||
+     !o->slots[p->index].readers||o->slots[p->index].serial!=p->serial)goto done;
+@@ -75,7 +83,10 @@
+ PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *p,PAPACC_CONFIG_VIEW *v,PAPACC_U64 *epoch)
+ {
+  unsigned i;PAPACC_RESULT r=PAPACC_RESULT_INVALID_STATE;
+- if(!owner(o)||!p||!v||!epoch||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(!owner(o)||!p||!v||!epoch||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS||
++    issuer06_overlap(v,sizeof(*v),o,sizeof(*o))||issuer06_overlap(epoch,sizeof(*epoch),o,sizeof(*o))||
++    issuer06_overlap(v,sizeof(*v),p,sizeof(*p))||issuer06_overlap(epoch,sizeof(*epoch),p,sizeof(*p))||
++    issuer06_overlap(v,sizeof(*v),epoch,sizeof(*epoch)))return PAPACC_RESULT_INVALID_ARGUMENT;
+  EnterCriticalSection(&o->lock);
+  if(!p->ticket||!o->slots[p->index].readers||o->slots[p->index].serial!=p->serial||o->unresolved)goto done;
+  for(i=0;i<32;i++)if(o->tickets[i].ticket==p->ticket&&o->tickets[i].serial==p->serial&&o->tickets[i].index==p->index)break;
+@@ -85,6 +96,11 @@
+ }
+ PAPACC_RESULT papacc_configuration_issuer_publish06(PAPACC_CONFIGURATION_COMMIT *o)
+ {
++#ifndef PAPACC_ISSUER_STORAGE_COMPONENT_TEST
++ /* Normal component publication remains unavailable pending approval of
++  * the complete application CURRENT/epoch and actor transaction proof. */
++ (void)o;return PAPACC_RESULT_NOT_SUPPORTED;
++#else
+  PAPACC_U64 epoch;unsigned i;PAPACC_RESULT r=PAPACC_RESULT_INVALID_STATE;
+  if(!owner(o))return r;EnterCriticalSection(&o->lock);
+  if(o->store02!=6||!o->committed_pending||o->prepared||o->stopped||o->unresolved||o->recovery_selected||
+@@ -96,6 +112,7 @@
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->slots[i].context_epoch==epoch)goto done;
+  o->slots[o->pending].context_epoch=epoch;o->current=o->pending;o->committed_pending=0;o->published=1;r=PAPACC_RESULT_OK;
+ done:LeaveCriticalSection(&o->lock);return r;
++#endif
+ }
+ PAPACC_RESULT papacc_configuration_issuer_copy06(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_U8 *out)
+ {
+--- a/apps/server/server_c2_root_binding_win32.inc
++++ b/apps/server/server_c2_root_binding_win32.inc
+@@ -70,10 +70,13 @@
+ PAPACC_BOOL papacc_server_launcher_c2_session_current(const PAPACC_C2_SESSION *s)
+ {
+  PAPACC_SERVER_C2_OWNER_WIN32 *o=&configuration_c2_owner;PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *slot;
+- PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c;PAPACC_SESSION_CAPABILITY_SNAPSHOT *snapshot;unsigned i;int owned=0;
++ PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c;PAPACC_SESSION_CAPABILITY_SNAPSHOT *snapshot;PAPACC_ROOT_CURRENT_PIN *admitted=NULL;unsigned i;int owned=0;
+  if(!s||!c8_root_binding_ready())return PAPACC_FALSE;
+- for(i=0U;i<4U;++i)if(s==&o->sessions[i])owned=1;
+- if(!owned||!s->initialized||!s->root_bound||s->principal!=0U||s->assurance!=1U||
++ for(i=0U;i<4U;++i)if(s==&o->sessions[i]){owned=1;admitted=&root.session_revision_pins[i];}
++ if(!owned||!admitted||!root_snapshot_held(&root,admitted)||
++    admitted->epoch!=s->policy_epoch||admitted->view.revision!=s->root_revision||
++    memcmp(admitted->view.domain,s->root_domain,32U)||
++    !s->initialized||!s->root_bound||s->principal!=0U||s->assurance!=1U||
+     s->state!=PAPACC_C2_SESSION_ELIGIBLE||s->owner!=o->manager->owner||
+     s->root_invocation!=root.invocation||s->policy_epoch!=root.listener_composition.pin.epoch||
+     s->root_revision!=root.listener_composition.pin.view.revision||
+@@ -89,7 +92,7 @@
+ PAPACC_RESULT papacc_server_launcher_c2_adopt(PAPACC_SERVER_C2_OWNER_WIN32 *o,PAPACC_U64 connection)
+ {
+  PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *slot;PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c;
+- PAPACC_SESSION_CAPABILITY_SNAPSHOT *snapshot;PAPACC_C2_SESSION *s=NULL;PAPACC_RESULT result;unsigned i;
++ PAPACC_SESSION_CAPABILITY_SNAPSHOT *snapshot;PAPACC_C2_SESSION *s=NULL;PAPACC_ROOT_CURRENT_PIN *admitted;PAPACC_RESULT result;unsigned i;
+  if(o!=&configuration_c2_owner||!connection||!c8_root_binding_ready())return PAPACC_RESULT_INVALID_STATE;
+  slot=papacc_server_io_loop_win32_find_connection_slot(o->loop,connection);
+  if(!slot||slot->kind!=PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL||
+@@ -101,18 +104,69 @@
+   if(o->sessions[i].initialized&&o->sessions[i].incarnation==snapshot->session_instance_id)return PAPACC_RESULT_INVALID_STATE;
+   if(!o->sessions[i].initialized&&!s)s=&o->sessions[i];
+  }
+- if(!s)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(!s)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ admitted=&root.session_revision_pins[(unsigned)(s-o->sessions)];
++ if(admitted->pin.ticket)return PAPACC_RESULT_INVALID_STATE;
++ result=papacc_server_launcher_configuration_current_pin(&root,admitted);
++ if(result!=PAPACC_RESULT_OK)return result;
++ if(!papacc_server_launcher_configuration_current(&root,admitted)||
++    admitted->epoch!=root.listener_composition.pin.epoch||
++    admitted->view.revision!=root.listener_composition.pin.view.revision||
++    memcmp(admitted->view.domain,root.listener_composition.pin.view.domain,32U)){
++  if(papacc_server_launcher_configuration_current_unpin(&root,admitted)==PAPACC_RESULT_OK)memset(admitted,0,sizeof(*admitted));
++  /* Failed release retains the root-owned ticket; no Session is exposed. */
++  return PAPACC_RESULT_INVALID_STATE;
++ }
+  /* Adopt only an already published snapshot after the real full RESULT write.
+   * No local OFFER/RESULT, epoch argument, Principal ordinal or new wire grant. */
+  memset(s,0,sizeof(*s));s->owner=o->manager->owner;s->incarnation=snapshot->session_instance_id;
+- s->policy_epoch=root.listener_composition.pin.epoch;s->assurance=1U;s->tls_allowed=PAPACC_TRUE;
++ s->policy_epoch=admitted->epoch;s->assurance=1U;s->tls_allowed=PAPACC_TRUE;
+  s->c3_supported=PAPACC_TRUE;s->initialized=PAPACC_TRUE;s->state=PAPACC_C2_SESSION_ELIGIBLE;
+  s->grants[0]=PAPACC_CAPABILITY_TLS_OFFLOAD_V1;s->grants[1].id=3U;s->grants[1].major=1U;s->grant_count=2U;
+  memcpy(s->authenticated_principal,c->session_security.principal.value,16U);
+- memcpy(s->root_domain,root.listener_composition.pin.view.domain,32U);
+- s->root_invocation=root.invocation;s->root_revision=root.listener_composition.pin.view.revision;
++ memcpy(s->root_domain,admitted->view.domain,32U);
++ s->root_invocation=root.invocation;s->root_revision=admitted->view.revision;
+  s->control_connection=connection;s->control_channel=slot->post_control_processor.control_channel_instance_id;s->root_bound=PAPACC_TRUE;
+  result=papacc_c2_operation_session_attach(o->manager,s,&c->session_security.principal);
+- if(result!=PAPACC_RESULT_OK){SecureZeroMemory(s,sizeof(*s));return result;}
++ if(result!=PAPACC_RESULT_OK){
++  if(papacc_server_launcher_configuration_current_unpin(&root,admitted)!=PAPACC_RESULT_OK){s->state=PAPACC_C2_SESSION_RETAINED;return result;}
++  memset(admitted,0,sizeof(*admitted));SecureZeroMemory(s,sizeof(*s));return result;
++ }
+  slot->post_control_processor.reader.parser.max_payload_length=803U;return PAPACC_RESULT_OK;
+ }
++
++/* Destruction-only authority. No CURRENT required to release a factual old
++ * reference; every quiescence predicate is independently rechecked. */
++PAPACC_RESULT papacc_server_launcher_c2_session_unpin(PAPACC_SERVER_C2_OWNER_WIN32 *o,const PAPACC_C2_SESSION *s)
++{
++ unsigned i,j;PAPACC_ROOT_CURRENT_PIN *p;PAPACC_CONFIG_VIEW v;PAPACC_U64 epoch;PAPACC_RESULT r;
++ if(o!=&configuration_c2_owner||!preparation_owned(&root)||!s||!o->initialized||!o->manager||!o->loop||!o->secure||
++    !o->loop->initialized||!o->secure->initialized||!o->manager->initialized||!o->loop->connection_manager||o->manager->owner!=GetCurrentThreadId()||
++    o->secure->dispatch_active||o->configuration.state==PAPACC_C2_CONFIG_RETAINED||
++    o->secure->stop_state==PAPACC_SERVER_SECURE_STOP_ERROR_TERMINAL||
++    !o->loop->session_manager.initialized||!o->loop->channel_manager.initialized)return PAPACC_RESULT_INVALID_STATE;
++ for(i=0;i<4;i++)if(s==&o->sessions[i])break;
++ if(i==4||!s->initialized||s->state!=PAPACC_C2_SESSION_REVOKED||!s->incarnation||
++    papacc_session_manager_find(&o->loop->session_manager,s->incarnation))return PAPACC_RESULT_INVALID_STATE;
++ if(s->control_connection&&papacc_connection_manager_find(o->loop->connection_manager,s->control_connection))return PAPACC_RESULT_INVALID_STATE;
++ for(j=0;j<2;j++)if(o->manager->operations[j].session==s)return PAPACC_RESULT_INVALID_STATE;
++ for(j=0;j<6;j++)if(o->writes[j].denial_session==s||(o->writes[j].record&&o->writes[j].record->session==s))return PAPACC_RESULT_INVALID_STATE;
++ for(j=0;j<o->loop->channel_manager.capacity;j++)if(o->loop->channel_manager.storage[j].state!=PAPACC_CHANNEL_STATE_UNINITIALIZED&&o->loop->channel_manager.storage[j].session_instance_id==s->incarnation)return PAPACC_RESULT_INVALID_STATE;
++ for(j=0;j<o->loop->processor_capacity;j++){
++  PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *slot=&o->loop->processor_slots[j];
++  if(slot->in_use&&((s->control_connection&&slot->connection_instance_id==s->control_connection)||(slot->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL&&slot->post_control_processor.session_instance_id==s->incarnation)))return PAPACC_RESULT_INVALID_STATE;
++ }
++ for(j=0;j<o->secure->candidate_capacity;j++){
++  PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c=&o->secure->candidates[j];
++  if(c->control_close_result.session_instance_id==s->incarnation||(s->control_connection&&c->connection_instance_id==s->control_connection)){
++   if(c->state!=PAPACC_SERVER_SECURE_CANDIDATE_CLOSED||c->secure_processor.connection||c->secure_processor.state==PAPACC_PST_SECURE_PROCESSOR_RETAINED_TERMINAL||c->session_security.published||c->transport_adapter.registered||papacc_connection_manager_find(o->loop->connection_manager,c->connection_instance_id))return PAPACC_RESULT_INVALID_STATE;
++  }
++ }
++ p=&root.session_revision_pins[i];
++ if(p->invocation!=s->root_invocation||!s->root_bound||
++    papacc_configuration_pin_read(&root.configuration_commit,&p->pin,&v,&epoch)!=PAPACC_RESULT_OK||
++    !epoch||epoch!=s->policy_epoch||epoch!=p->epoch||v.revision!=s->root_revision||v.revision!=p->view.revision||
++    memcmp(v.domain,s->root_domain,32U)||memcmp(v.domain,p->view.domain,32U))return PAPACC_RESULT_INVALID_STATE;
++ r=papacc_server_launcher_configuration_current_unpin(&root,p);
++ if(r==PAPACC_RESULT_OK)memset(p,0,sizeof(*p));return r;
++}
+--- a/apps/server/server_c2_owner_win32.h
++++ b/apps/server/server_c2_owner_win32.h
+@@ -196,6 +196,7 @@
+ PAPACC_RESULT papacc_server_c2_configuration_authority_current(const PAPACC_SERVER_C2_OWNER_WIN32 *);
+ PAPACC_RESULT papacc_server_launcher_c2_adopt(PAPACC_SERVER_C2_OWNER_WIN32 *,PAPACC_U64);
+ PAPACC_BOOL papacc_server_launcher_c2_session_current(const PAPACC_C2_SESSION *);
++PAPACC_RESULT papacc_server_launcher_c2_session_unpin(PAPACC_SERVER_C2_OWNER_WIN32 *,const PAPACC_C2_SESSION *);
+ PAPACC_RESULT papacc_server_launcher_c2_capability_policy(const PAPACC_POST_CONTROL_PROCESSOR *,const PAPACC_CAPABILITY_KEY *,PAPACC_CAPABILITY_POLICY_DECISION *);
+ #endif
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+--- a/apps/server/server_c2_owner_win32.c
++++ b/apps/server/server_c2_owner_win32.c
+@@ -224,6 +224,7 @@
+    }
+   }
+   if(borrowed)continue;
++  result=papacc_server_launcher_c2_session_unpin(o,s);if(result!=PAPACC_RESULT_OK)return result;
+   for(j=0U;j<4U;++j)if(o->manager->sessions[j].session==s)
+    SecureZeroMemory(&o->manager->sessions[j],sizeof(o->manager->sessions[j]));
+   /* Native ID allocator and operation ID/generation counters are untouched.

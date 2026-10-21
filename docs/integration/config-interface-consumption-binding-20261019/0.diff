@@ -1,0 +1,14 @@
+--- apps/server/server_launcher_owner_win32.h
++++ apps/server/server_launcher_owner_win32.h
+@@ -134,6 +134,11 @@
+ struct PAPACC_SERVER_LAUNCHER_OWNER_WIN32;
+ PAPACC_RESULT papacc_server_launcher_configuration_interface_current(
+  struct PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,const PAPACC_ROOT_CURRENT_PIN *,PAPACC_INTERFACE_CURRENT_REPORT *);
++/* SELECTED-only guard at the actual activation/bind boundary. No state,
++ * socket, credit or lifecycle is changed; no topology query/worker is run.
++ * Missing CURRENT/topology proof fails closed, independent of admission. */
++PAPACC_RESULT papacc_server_launcher_interface_consumption_check(
++ struct PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,const PAPACC_ROOT_CURRENT_PIN *);
+ /* Private stage facts, not a published socket or an admission/grant ticket. */
+ typedef enum PAPACC_ROOT_LISTENER_STATE {
+  PAPACC_ROOT_LISTENER_EMPTY=0, PAPACC_ROOT_LISTENER_PREPARED,

@@ -1,0 +1,95 @@
+--- apps/server/server_configuration_pending_win32.h
++++ apps/server/server_configuration_pending_win32.h
+@@ -9,7 +9,10 @@
+ /* Additional serialized owner-side encode/hash scratch reservation. */
+ #define PAPACC_CHECKPOINT_STACK_BYTES 8192U
+ typedef struct PAPACC_CONFIG_PENDING {
+- unsigned char previous[PAPACC_ISSUER_LINKED_ROOT_BYTES],next[PAPACC_ISSUER_LINKED_ROOT_BYTES],observed[PAPACC_ISSUER_LINKED_ROOT_BYTES];
++ unsigned char previous[PAPACC_ISSUER_LINKED_ROOT_BYTES],next[PAPACC_ISSUER_LINKED_ROOT_BYTES];
++ /* Read-only comparison scratch, never exported/pinned or the CAS preimage.
++  * A synchronous read relinquishes its OS borrow before this chunk is reused. */
++ unsigned char observed[512];
+  char path[MAX_PATH];DWORD previous_bytes,next_bytes,native_error,close_error;
+  int checkpoint_only;
+  /* Explicit packet discriminator; native identity is never taken from D3 R. */
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -3,6 +3,22 @@
+ #endif
+ static int pending_overlap(const void *a,PAPACC_SIZE na,const void *b,PAPACC_SIZE nb)
+ {ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;return na&&nb&&(x<=y?y-x<na:x-y<nb);}
++/* Compare ALL expected bytes at the current file position. The transaction's
++ * exclusive handle protects the file across chunks. No retry on short/error;
++ * scratch has no consumer after each synchronous ReadFile+memcmp returns.
++ * Return1 match,0 mismatch,-1 I/O/incomplete. No owner memory is modified. */
++static int pending_compare_file(PAPACC_CONFIG_PENDING *p,const unsigned char *expected,DWORD bytes)
++{
++ DWORD offset=0,want,count;
++ if(!expected||!bytes||bytes>sizeof(p->next)||p->file==INVALID_HANDLE_VALUE)return -1;
++ while(offset<bytes){
++  want=bytes-offset;if(want>sizeof(p->observed))want=(DWORD)sizeof(p->observed);
++  if(!ReadFile(p->file,p->observed,want,&count,NULL)||count!=want)return -1;
++  if(memcmp(p->observed,expected+offset,want))return 0;
++  offset+=want;
++ }
++ return 1;
++}
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+ #include "server_configuration_bootstrap_win32.inc"
+ #endif
+@@ -12,7 +28,7 @@
+ static DWORD WINAPI pending_worker(void *arg)
+ {
+  PAPACC_CONFIG_PENDING *p=arg;DWORD n;LARGE_INTEGER size;BY_HANDLE_FILE_INFORMATION f;
+- int ok=0,conflict=0,rolled=0,verified=0;
++ int ok=0,conflict=0,rolled=0,verified=0,comparison;
+  p->result=PAPACC_COMMIT_FAILED;p->file=INVALID_HANDLE_VALUE;p->transaction=NULL;
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+  if(p->packet_format==9U){bootstrap_worker(p);return 0;}
+@@ -44,8 +60,9 @@
+      p->expected_volume!=f.dwVolumeSerialNumber)||
+     (p->packet_format==6U?get64(p->previous+112)!=(((PAPACC_U64)f.nFileIndexHigh<<32)|f.nFileIndexLow):
+      (p->expected_index_high!=f.nFileIndexHigh||p->expected_index_low!=f.nFileIndexLow))){conflict=1;goto cleanup;}
+- if(!ReadFile(p->file,p->observed,p->previous_bytes,&n,NULL)||n!=p->previous_bytes){pending_error(p);goto cleanup;}
+- if(memcmp(p->observed,p->previous,p->previous_bytes)){conflict=1;goto cleanup;}
++ comparison=pending_compare_file(p,p->previous,p->previous_bytes);
++ if(comparison<0){pending_error(p);goto cleanup;}
++ if(!comparison){conflict=1;goto cleanup;}
+  verified=1;
+  if(InterlockedCompareExchange(&p->stop,0,0))goto cleanup;
+  if(SetFilePointer(p->file,0,NULL,FILE_BEGIN)==INVALID_SET_FILE_POINTER){pending_error(p);goto cleanup;}
+--- apps/server/server_configuration_bootstrap_commit_win32.inc
++++ apps/server/server_configuration_bootstrap_commit_win32.inc
+@@ -91,7 +91,7 @@
+  if(InterlockedCompareExchange(&p->stop,0,0))goto rollback;
+  if(!WriteFile(p->file,p->next,p->next_bytes,&n,NULL)||n!=p->next_bytes||!FlushFileBuffers(p->file))goto uncertain;
+  if(SetFilePointer(p->file,0,NULL,FILE_BEGIN)==INVALID_SET_FILE_POINTER||
+-    !ReadFile(p->file,p->observed,p->next_bytes,&n,NULL)||n!=p->next_bytes||memcmp(p->next,p->observed,n))goto uncertain;
++    pending_compare_file(p,p->next,p->next_bytes)!=1)goto uncertain;
+  if(!GetFileInformationByHandle(p->file,&after)||identity.dwVolumeSerialNumber!=after.dwVolumeSerialNumber||
+     identity.nFileIndexHigh!=after.nFileIndexHigh||identity.nFileIndexLow!=after.nFileIndexLow||
+     !bootstrap_identity(p->bootstrap_container,&p->bootstrap_volume,&p->bootstrap_high,&p->bootstrap_low,0))goto uncertain;
+--- tests/d3_worker_win32_test.c
++++ tests/d3_worker_win32_test.c
+@@ -9,7 +9,7 @@
+  PAPACC_CONFIG_VIEW oldview;PAPACC_ISSUER_CAS_RESULT outcome=PAPACC_COMMIT_IDLE;
+  PAPACC_D3_COMMITTED_RECEIPT receipt;PAPACC_SIZE exported;
+  unsigned i;int stop_case,unknown_case,conflict_case;
+- CHECK(argc==3);stop_case=!strcmp(argv[1],"stop");unknown_case=!strcmp(argv[1],"unknown");conflict_case=!strcmp(argv[1],"conflict");
++ CHECK(argc==3);stop_case=!strcmp(argv[1],"stop");unknown_case=!strcmp(argv[1],"unknown");conflict_case=!strcmp(argv[1],"conflict")||!strcmp(argv[1],"conflict-last");
+  CHECK(papacc_configuration_commit_init03(&owner,argv[2])==0);
+  CHECK(setup(4,0));CHECK(synthetic_checkpoint());base_used=used;memcpy(base,bytes,used);
+  config_init(0,1);oldview=view;
+@@ -38,7 +38,11 @@
+  }
+  if(conflict_case){
+   file=CreateFileA(argv[2],GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,0,NULL);CHECK(file!=INVALID_HANDLE_VALUE);
+-  CHECK(WriteFile(file,"X",1,&written,NULL)&&written==1);CHECK(FlushFileBuffers(file));CHECK(CloseHandle(file));
++  if(!strcmp(argv[1],"conflict-last")){
++   unsigned char changed=(unsigned char)(base[base_used-1U]^1U);
++   CHECK(SetFilePointer(file,(LONG)(base_used-1U),NULL,FILE_BEGIN)!=INVALID_SET_FILE_POINTER);
++   CHECK(WriteFile(file,&changed,1,&written,NULL)&&written==1);
++  }else CHECK(WriteFile(file,"X",1,&written,NULL)&&written==1);CHECK(FlushFileBuffers(file));CHECK(CloseHandle(file));
+  }
+  if(stop_case){owner.pending_commit.test_entered=CreateEventA(NULL,TRUE,FALSE,NULL);owner.pending_commit.test_release=CreateEventA(NULL,TRUE,FALSE,NULL);CHECK(owner.pending_commit.test_entered&&owner.pending_commit.test_release);}
+  owner.pending_commit.test_unknown=unknown_case;

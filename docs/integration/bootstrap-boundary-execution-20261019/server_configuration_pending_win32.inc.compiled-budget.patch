@@ -1,0 +1,11 @@
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -298,7 +298,7 @@
+     pending_blocks(o)||o->pending_commit.thread||o->pending_commit.bootstrap_created)
+   return PAPACC_RESULT_INVALID_STATE;
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->slots[i].readers||o->slots[i].retained||o->issuer_snapshot_valid[i])return PAPACC_RESULT_INVALID_STATE;
+- if(reserved>2097152U||2048U>2097152U-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(reserved>2097152U||4096U>2097152U-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  n=strlen(parent);k=strlen(leaf);
+  if(n<3U||n>=MAX_PATH||parent[1]!=':'||parent[2]!='\\'||!k||k>64U||strstr(parent,"..")||
+     !strcmp(leaf,".")||!strcmp(leaf,"..")||leaf[k-1U]=='.')return PAPACC_RESULT_INVALID_ARGUMENT;

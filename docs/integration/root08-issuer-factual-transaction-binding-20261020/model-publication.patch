@@ -1,0 +1,11 @@
+--- tests/config_root8_v2_test.c
++++ tests/config_root8_v2_test.c
+@@ -203,7 +203,7 @@
+  CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_OK);
+  rec.state=PAPACC_ISSUER_ISSUED_UNPUBLISHED;rec.certificate_size=3;CHECK(hash(&owner,cert,3,rec.certificate_digest));
+  CHECK(papacc_issuer_image_append(image,&rec,cert,3,hash,&owner)==PAPACC_ISSUER_OK);
+- rec.state=PAPACC_ISSUER_PUBLISHED;CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ rec.state=PAPACC_ISSUER_PUBLISHED;rec.published_epoch=19;CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
+  rec.state=PAPACC_ISSUER_REVOKED;CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
+  CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK&&iv.high_water==2);
+  w64(fields+120,iv.revision);CHECK(seal());

@@ -1,0 +1,51 @@
+--- tests/canonical_root_transaction_test.c.before
++++ tests/canonical_root_transaction_test.c
+@@ -15,12 +15,13 @@
+ {
+  static PAPACC_U8 disk[16896],old[16896],bad[512];static int have_old;
+  static PAPACC_CONFIGURATION_COMMIT recovered;
+- PAPACC_ISSUER_LINK link,parsed;PAPACC_ISSUER_CHECKPOINT_REPORT report;
++ PAPACC_ISSUER_LINK link,parsed;PAPACC_ISSUER_CHECKPOINT_REPORT report;PAPACC_U8 parent[32];
+  PAPACC_ISSUER_CAS_RESULT outcome;PAPACC_RESULT result;HANDLE f;DWORD n,start;
+  PAPACC_U64 r=o->configuration_preparation.model.revision;
+  PAPACC_U64 a=o->configuration_commit.slots[o->configuration_commit.current].context_epoch;
+  PAPACC_U64 p=o->configuration_preparation.current_policy_epoch;unsigned checks=0;
+  CHECK(papacc_configuration_checkpoint_data07(&o->configuration_commit,&link)!=PAPACC_RESULT_NOT_SUPPORTED);
++ CHECK(papacc_configuration_issuer_hash06(&o->configuration_commit,o->configuration_commit.pending_commit.previous,o->configuration_commit.pending_commit.previous_bytes,parent));
+  CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)==0);
+  CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)!=0);
+  CHECK(papacc_server_launcher_configuration_current_pin(o,&o->session_revision_pins[3])!=0);
+@@ -31,6 +32,13 @@
+  CHECK(o->configuration_preparation.model.revision==r&&o->configuration_preparation.current_policy_epoch==p);
+  CHECK(papacc_configuration_checkpoint_data07(&o->configuration_commit,&link)==PAPACC_RESULT_NOT_SUPPORTED);
+  CHECK(link.revision==r&&link.predecessor==r-1&&link.administrative_epoch==a&&link.policy_epoch==p);
++ CHECK(!memcmp(link.previous_commit_digest,parent,32));
++ o->configuration_commit.slots[o->configuration_commit.current].context_epoch^=1;
++ CHECK(papacc_configuration_checkpoint_data07(&o->configuration_commit,&parsed)==PAPACC_RESULT_INVALID_STATE);
++ o->configuration_commit.slots[o->configuration_commit.current].context_epoch^=1;
++ o->configuration_commit.slots[o->configuration_commit.current].operational_epoch^=1;
++ CHECK(papacc_configuration_checkpoint_data07(&o->configuration_commit,&parsed)==PAPACC_RESULT_INVALID_STATE);
++ o->configuration_commit.slots[o->configuration_commit.current].operational_epoch^=1;
+  CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)!=0); /* no replay */
+  f=CreateFileA(path,GENERIC_READ,0,NULL,OPEN_EXISTING,0,NULL);CHECK(f!=INVALID_HANDLE_VALUE);
+  CHECK(ReadFile(f,disk,sizeof(disk),&n,NULL)&&n==sizeof(disk));CHECK(CloseHandle(f));
+@@ -248,11 +256,19 @@
+    if(conflict){DWORD n;unsigned char v=0;held=CreateFileA(path,GENERIC_WRITE,0,NULL,OPEN_EXISTING,0,NULL);CHECK(held!=INVALID_HANDLE_VALUE);CHECK(WriteFile(held,&v,1,&n,NULL)&&n==1&&FlushFileBuffers(held));CHECK(CloseHandle(held));held=INVALID_HANDLE_VALUE;}
+    if(unknown){held=CreateFileA(path,GENERIC_READ,0,NULL,OPEN_EXISTING,0,NULL);CHECK(held!=INVALID_HANDLE_VALUE);}
+    CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)==0);
++   if(!strcmp(argv[1],"catalog-live-checkpoint-late-stop")){
++    started=GetTickCount();while(WaitForSingleObject(o->configuration_commit.pending_commit.thread,0)==WAIT_TIMEOUT){Sleep(1);CHECK(GetTickCount()-started<10000U);}
++    CHECK(o->configuration_commit.pending_commit.committed);
++   }
+    if(!conflict&&!unknown)CHECK(papacc_configuration_stop(&o->configuration_commit)==0);
+    started=GetTickCount();do{result=papacc_server_launcher_configuration_checkpoint_poll(o,&outcome);if(outcome==PAPACC_COMMIT_PENDING)Sleep(1);CHECK(GetTickCount()-started<10000U);}while(outcome==PAPACC_COMMIT_PENDING);
+    CHECK(result==0&&t->model.revision==2&&older->root_revision==1&&o->session_revision_pins[0].pin.ticket);
+    if(conflict)CHECK(outcome==PAPACC_CAS_CONFLICT&&o->configuration_commit.authority_lost);
+    if(unknown){CHECK(outcome==PAPACC_CAS_UNKNOWN&&o->configuration_commit.authority_lost);CHECK(CloseHandle(held));}
++   if(!strcmp(argv[1],"catalog-live-checkpoint-late-stop")){
++    PAPACC_ISSUER_LINK persisted;CHECK(outcome==PAPACC_CAS_SUCCESS&&o->configuration_commit.stopped);
++    CHECK(papacc_configuration_checkpoint_data07(&o->configuration_commit,&persisted)==PAPACC_RESULT_NOT_SUPPORTED&&persisted.revision==2);
++   }
+    CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)!=0);
+    CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)!=0);
+    printf("PASS CHECKPOINT_FAILURE=%s outcome=%d OLD_PINS_RETAINED NO_RECOVERY\n",argv[1],(int)outcome);return 0;

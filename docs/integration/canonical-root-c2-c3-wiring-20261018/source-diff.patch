@@ -1,0 +1,652 @@
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_acceptor_win32.c.api3.inc.preimage" b/apps/server/server_acceptor_win32.c.api3.inc
+index b078d53..2f485a4 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_acceptor_win32.c.api3.inc.preimage"
++++ b/apps/server/server_acceptor_win32.c.api3.inc
+@@ -1,4 +1,8 @@
+ #include "server_acceptor_win32.h"
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++struct PAPACC_SERVER_IO_LOOP_WIN32;
++PAPACC_BOOL papacc_server_launcher_generic_io_is_c8(const PAPACC_SERVER_NETWORK *,const PAPACC_SERVER_ACCEPTOR_WIN32 *,const struct PAPACC_SERVER_IO_LOOP_WIN32 *);
++#endif
+ static void retain_accepted_close(PAPACC_SERVER_ACCEPTOR_WIN32 *owner,PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *socket_value)
+ {
+  if(papacc_tcp_accepted_socket_win32_try_close(socket_value)!=PAPACC_RESULT_OK){
+@@ -98,6 +102,9 @@ PAPACC_RESULT papacc_server_acceptor_win32_init(
+     if (acceptor->native_retained || acceptor->initialized == PAPACC_TRUE) {
+         return PAPACC_RESULT_INVALID_STATE;
+     }
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++    if(papacc_server_launcher_generic_io_is_c8(acceptor->server_network,acceptor,NULL))return PAPACC_RESULT_INVALID_STATE;
++#endif
+     result = papacc_server_acceptor_win32_validate_network(server_network);
+     if (result != PAPACC_RESULT_OK) {
+         return result;
+@@ -145,6 +152,9 @@ PAPACC_RESULT papacc_server_acceptor_win32_poll_once(
+         acceptor->connection_manager.initialized != PAPACC_TRUE) {
+         return PAPACC_RESULT_INVALID_STATE;
+     }
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++    if(papacc_server_launcher_generic_io_is_c8(acceptor->server_network,acceptor,NULL))return PAPACC_RESULT_INVALID_STATE;
++#endif
+     result = papacc_server_acceptor_win32_validate_network(
+         acceptor->server_network);
+     if (result != PAPACC_RESULT_OK) {
+@@ -210,6 +220,9 @@ PAPACC_RESULT papacc_server_acceptor_win32_accept_ready(
+         acceptor->connection_manager.initialized != PAPACC_TRUE) {
+         return PAPACC_RESULT_INVALID_STATE;
+     }
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++    if(papacc_server_launcher_generic_io_is_c8(acceptor->server_network,acceptor,NULL))return PAPACC_RESULT_INVALID_STATE;
++#endif
+     result = papacc_server_acceptor_win32_validate_network(
+         acceptor->server_network);
+     if (result != PAPACC_RESULT_OK) {
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_c2_participant_win32.c.preimage" b/apps/server/server_c2_participant_win32.c
+index 968870b..05328a2 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_c2_participant_win32.c.preimage"
++++ b/apps/server/server_c2_participant_win32.c
+@@ -107,4 +107,30 @@ PAPACC_RESULT papacc_server_c2_participant_rollback(PAPACC_SERVER_C2_PARTICIPANT
+ }
+ PAPACC_RESULT papacc_server_c2_participant_stop(PAPACC_SERVER_C2_PARTICIPANT *p,
+  const void *root,PAPACC_U64 invocation)
+-{return papacc_server_c2_participant_rollback(p,root,invocation);}
+\ No newline at end of file
++{return papacc_server_c2_participant_rollback(p,root,invocation);}
++#ifdef PAPACC_ENABLE_CANONICAL_C8_ROOT
++#include "server_c2_owner_win32.h"
++PAPACC_RESULT papacc_server_c2_participant_retire(PAPACC_SERVER_C2_PARTICIPANT *p,
++ const void *root,PAPACC_U64 invocation,const PAPACC_SERVER_C2_OWNER_WIN32 *consumer)
++{
++ unsigned i;PAPACC_SIZE j;
++ if(!identity(p,root,invocation)||!consumer||p->state!=PAPACC_C2_PARTICIPANT_READY||
++    consumer->manager!=&p->manager||consumer->initialized||consumer->loop||consumer->secure||
++    consumer->configuration.state!=PAPACC_C2_CONFIG_CLOSED||consumer->configuration.io_attached||
++    consumer->configuration.source||consumer->configuration.source_ticket||consumer->configuration.secure_lease||
++    !p->manager.initialized||p->manager.owner!=p->thread||!p->manager.stopping||
++    consumer->e10.enabled||consumer->e10.busy)return PAPACC_RESULT_INVALID_STATE;
++ for(i=0;i<PAPACC_C2_SESSION_CAPACITY;++i)
++  if(p->manager.sessions[i].session||consumer->sessions[i].initialized)return PAPACC_RESULT_INVALID_STATE;
++ for(i=0;i<PAPACC_C2_OPERATION_CAPACITY;++i){
++  const unsigned char *bytes=(const unsigned char *)&p->manager.operations[i];
++  if(consumer->bridges[i])return PAPACC_RESULT_INVALID_STATE;
++  for(j=0;j<sizeof(p->manager.operations[i]);++j)if(bytes[j])return PAPACC_RESULT_INVALID_STATE;
++ }
++ for(i=0;i<6U;++i)if(consumer->writes[i].pending||consumer->writes[i].secret_borrow||consumer->writes[i].quarantined)
++  return PAPACC_RESULT_INVALID_STATE;
++ /* These facts authorize retiring an empty manager, never child destruction. */
++ memset(&p->manager,0,sizeof(p->manager));p->reserved=0U;p->combined=0U;
++ p->state=PAPACC_C2_PARTICIPANT_CLOSED;return PAPACC_RESULT_OK;
++}
++#endif
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_c2_participant_win32.h.preimage" b/apps/server/server_c2_participant_win32.h
+index c572562..6301fb3 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_c2_participant_win32.h.preimage"
++++ b/apps/server/server_c2_participant_win32.h
+@@ -31,6 +31,13 @@ PAPACC_RESULT papacc_server_c2_participant_prepare(PAPACC_SERVER_C2_PARTICIPANT
+  const PAPACC_CAPABILITY_EVALUATION_INPUTS *,PAPACC_SIZE);
+ PAPACC_RESULT papacc_server_c2_participant_validate(const PAPACC_SERVER_C2_PARTICIPANT *,const void *,PAPACC_U64);
+ PAPACC_RESULT papacc_server_c2_participant_rollback(PAPACC_SERVER_C2_PARTICIPANT *,const void *,PAPACC_U64);
++#ifdef PAPACC_ENABLE_CANONICAL_C8_ROOT
++struct PAPACC_SERVER_C2_OWNER_WIN32;
++/* Separate from rollback: the existing consumer must be detached, configuration
++ * CLOSED and every Session/operation/write/bridge reference factually retired. */
++PAPACC_RESULT papacc_server_c2_participant_retire(PAPACC_SERVER_C2_PARTICIPANT *,
++ const void *,PAPACC_U64,const struct PAPACC_SERVER_C2_OWNER_WIN32 *);
++#endif
+ /* Stop is rollback only for a never-consumed empty participant. */
+ PAPACC_RESULT papacc_server_c2_participant_stop(PAPACC_SERVER_C2_PARTICIPANT *,const void *,PAPACC_U64);
+ #endif
+\ No newline at end of file
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_network.c.api3.inc.preimage" b/apps/server/server_network.c.api3.inc
+index 4b257fd..b9e5372 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_network.c.api3.inc.preimage"
++++ b/apps/server/server_network.c.api3.inc
+@@ -1,6 +1,9 @@
+ #include <stdlib.h>
+ 
+ #include "server_network.h"
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++PAPACC_RESULT papacc_server_launcher_network_reserve(PAPACC_SERVER_NETWORK *);
++#endif
+ 
+ #define PAPACC_SERVER_NETWORK_DISCOVERY_ATTEMPTS 4
+ 
+@@ -123,6 +126,10 @@ PAPACC_RESULT papacc_server_network_start(
+     if (result != PAPACC_RESULT_OK) {
+         return result;
+     }
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++    result=papacc_server_launcher_network_reserve(network);
++    if(result!=PAPACC_RESULT_OK)return result;
++#endif
+     result = papacc_server_network_snapshot_discover(&discovery);
+     if (result != PAPACC_RESULT_OK) {
+         goto cleanup;
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_run_win32.c.api3.inc.preimage" b/apps/server/server_run_win32.c.api3.inc
+index 5d7f1e6..81831c8 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_run_win32.c.api3.inc.preimage"
++++ b/apps/server/server_run_win32.c.api3.inc
+@@ -1,3 +1,6 @@
++#ifdef PAPACC_ENABLE_CANONICAL_C8_ROOT
++#include "server_run_root_win32.inc"
++#else
+ #include "server_run_win32.h"
+ #include "server_application_lifetime_win32.h"
+ #ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+@@ -403,3 +406,5 @@ cleanup:
+ #endif
+     return result;
+ }
++
++#endif
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_secure_io_win32.c.api3.inc.preimage" b/apps/server/server_secure_io_win32.c.api3.inc
+index 8163d4c..8ee92ce 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\apps__server__server_secure_io_win32.c.api3.inc.preimage"
++++ b/apps/server/server_secure_io_win32.c.api3.inc
+@@ -530,7 +530,7 @@ static PAPACC_RESULT papacc_secure_accept(
+     result = papacc_tcp_accepted_socket_win32_set_nonblocking(
+         &accepted, PAPACC_TRUE);
+     if (result != PAPACC_RESULT_OK) goto fail;
+-#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
++#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC)
+     {char scenario[32];DWORD size=GetEnvironmentVariableA("PAPACC_C2_SITE_CASE",scenario,sizeof(scenario));
+      if(size==12U&&memcmp(scenario,"BACKPRESSURE",12U)==0){
+       int send_buffer=4096;
+@@ -1641,7 +1641,7 @@ static PAPACC_RESULT papacc_secure_c2_reconcile_interest(PAPACC_SERVER_SECURE_IO
+  return PAPACC_RESULT_OK;
+ }
+ #endif
+-#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
++#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC)
+ #include "c7_owner_metrics.inc"
+ static PAPACC_RESULT c7_secure_poll_impl(
+ #else
+@@ -1738,7 +1738,7 @@ PAPACC_RESULT papacc_server_secure_io_win32_poll_once(
+         timeout_ms = 0U;
+     result = papacc_pst_secure_scheduler_wait(&secure_io->scheduler,
+         timeout_ms, &outcome, &ready_count);
+-#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
++#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC)
+     c7_ready_sources(secure_io);
+     if(c7_metrics_enabled())fprintf(stderr,"C7_NATIVE_WAIT pid=%lu thread=%lu owner=%p scheduler=%p round=%llu requested_ms=%lu result=%d outcome=%d ready_count=%llu event_count=%llu\n",GetCurrentProcessId(),GetCurrentThreadId(),(void*)secure_io,(void*)&secure_io->scheduler,c7_round_sequence,(unsigned long)timeout_ms,(int)result,result==0?(int)outcome:-1,(unsigned long long)(result==0?ready_count:0),(unsigned long long)secure_io->scheduler.event_count);
+ #endif
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\CMakeLists.txt.preimage" b/CMakeLists.txt
+index 46466d8..7feb44b 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\CMakeLists.txt.preimage"
++++ b/CMakeLists.txt
+@@ -5,7 +5,7 @@ project(PapinhoAccelerator VERSION 0.1.0 LANGUAGES C)
+ if(MSVC AND CMAKE_GENERATOR MATCHES "Ninja")
+     set(CMAKE_C_COMPILER_LAUNCHER
+         "${CMAKE_CURRENT_SOURCE_DIR}/tools/msvc-ninja-utf8.cmd")
+-    set(CMAKE_CL_SHOWINCLUDES_PREFIX "Observação: incluindo arquivo: ")
++    set(CMAKE_CL_SHOWINCLUDES_PREFIX "Observa??o: incluindo arquivo: ")
+ endif()
+ 
+ include(CTest)
+@@ -2498,3 +2498,53 @@ if(WIN32 AND PAPACC_ENABLE_CANONICAL_API3_CANDIDATE AND BUILD_TESTING)
+     papacc_stage_pst_runtime(papacc_c2_core_empty_offline_test)
+     add_test(NAME papacc.c2.core_empty_offline COMMAND papacc_c2_core_empty_offline_test)
+ endif()
++
++option(PAPACC_ENABLE_CANONICAL_C8_ROOT "Compose the existing factual closed root with C2/C3" OFF)
++if(PAPACC_ENABLE_CANONICAL_C8_ROOT)
++    if(NOT WIN32 OR NOT PAPACC_ENABLE_CANONICAL_API3_CANDIDATE OR NOT BUILD_TESTING)
++        message(FATAL_ERROR "Canonical closed root requires normal API3 offline candidate profile")
++    endif()
++    add_compile_definitions(
++      "$<$<NOT:$<BOOL:$<TARGET_PROPERTY:PAPACC_STANDALONE_SOCKET_FIXTURE>>>:PAPACC_ENABLE_CANONICAL_C8_ROOT=1>"
++      "$<$<NOT:$<BOOL:$<TARGET_PROPERTY:PAPACC_STANDALONE_SOCKET_FIXTURE>>>:PAPACC_C8_PRIVATE_STORAGE_PROFILE=1>")
++    add_library(papacc_configuration_commit STATIC apps/server/server_configuration_commit_win32.c)
++    target_include_directories(papacc_configuration_commit PUBLIC ${PAPACC_GRAPH_INCLUDE_DIRS})
++    target_link_libraries(papacc_configuration_commit PUBLIC papacc_server_config bcrypt ktmw32)
++    target_compile_options(papacc_configuration_commit PRIVATE /W4 /WX)
++    add_library(papacc_c2_root_owner STATIC apps/server/server_c2_owner_win32.c
++        apps/server/server_c2_configuration_win32.c apps/server/server_c2_participant_win32.c)
++    target_include_directories(papacc_c2_root_owner PUBLIC ${PAPACC_GRAPH_INCLUDE_DIRS})
++    target_link_libraries(papacc_c2_root_owner PUBLIC papacc_c2_core papacc_c3_bridge papacc_configuration_commit)
++    target_compile_options(papacc_c2_root_owner PRIVATE /W4 /WX)
++    add_library(papacc_c8_target_evidence STATIC apps/server/server_c8_target_evidence_win32.c)
++    target_include_directories(papacc_c8_target_evidence PUBLIC ${PAPACC_GRAPH_INCLUDE_DIRS})
++    target_link_libraries(papacc_c8_target_evidence PUBLIC papacc_pst_consumer papacc_pal psapi)
++    target_compile_options(papacc_c8_target_evidence PRIVATE /W4 /WX)
++    target_sources(papacc_server_run_win32 PRIVATE apps/server/server_launcher_owner_win32.c)
++    target_link_libraries(papacc_server_run_win32 PRIVATE papacc_c2_root_owner papacc_c8_target_evidence)
++endif()
++
++if(PAPACC_ENABLE_CANONICAL_C8_ROOT AND BUILD_TESTING)
++    add_executable(papacc_canonical_root_layout_test tests/canonical_root_layout_test.c)
++    target_include_directories(papacc_canonical_root_layout_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS})
++    target_link_libraries(papacc_canonical_root_layout_test PRIVATE papacc_c2_root_owner)
++    target_compile_options(papacc_canonical_root_layout_test PRIVATE /W4 /WX)
++    papacc_stage_pst_runtime(papacc_canonical_root_layout_test)
++    add_test(NAME papacc.canonical.root_layout COMMAND papacc_canonical_root_layout_test)
++endif()
++
++if(PAPACC_ENABLE_CANONICAL_C8_ROOT AND BUILD_TESTING)
++ add_executable(papacc_canonical_root_transaction_test tests/canonical_root_transaction_test.c)
++ target_include_directories(papacc_canonical_root_transaction_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS})
++ target_link_libraries(papacc_canonical_root_transaction_test PRIVATE papacc_server_run_win32)
++ target_compile_options(papacc_canonical_root_transaction_test PRIVATE /W4 /WX)
++ papacc_stage_pst_runtime(papacc_canonical_root_transaction_test)
++endif()
++
++# Standalone synthetic socket fixture does not instantiate a C8 root.
++# Its low-level sources must retain the normal API3 fixture profile.
++if(PAPACC_ENABLE_CANONICAL_C8_ROOT AND BUILD_TESTING)
++ set_property(TARGET papacc_socket_ownership_offline_test PROPERTY PAPACC_STANDALONE_SOCKET_FIXTURE TRUE)
++ target_link_libraries(papacc_socket_retention_offline_test PRIVATE papacc_server_run_win32)
++ target_link_libraries(papacc_c2_core_empty_offline_test PRIVATE papacc_server_run_win32)
++endif()
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\live-document.preimage" b/docs/capabilities/canonical-phase6-consolidation.md
+index b791093..6a700ca 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\live-document.preimage"
++++ b/docs/capabilities/canonical-phase6-consolidation.md
+@@ -1,13 +1,15 @@
+ # Consolidação canônica Phase 6 — estado factual
+ 
+-Atualizado em 2026-10-18, sob [decisão de consolidação accepted](../adr/DECISION-phase6-canonical-consolidation-20261018.md).
++Atualizado em 2026-10-18, sob a decisão accepted de consolidação canônica.
+ 
+-O candidato normal API3 contém a migração Model E de transporte, Connection, stream e Secure IO, com corpos API2 preservados por seleção de build. Socket, accepted socket, acceptor, connector, listener e WinSock preservam referências quando o fechamento nativo falha. Um wrapper PST não consumido é retido pelo owner; o alias nativo anterior à criação não é novamente fechado. Secure, outbound e C3 reutilizam o mesmo mecanismo privado de handoff.
++Produção PST0.6.4/API2 permanece separada do candidato normal0.6.5/API3/SPI4 e R2 TEST_ONLY. O slice anterior de socket ownership preserva seus builds e20 testes nos escopos originais.
+ 
+-O produto normal e a produção0.6.4 compilam/linkam em Debug/Release sem warnings finais. Dez testes offline por configuração normal passaram, incluindo onze casos sintéticos de handoff/close e entry points reais de Stop/teardown alimentados por registros sintéticos. Isso não prova close nativo, TLS, Session autenticada, provider/kernel ou execução conjunta.
++O novo perfil opt-in PAPACC_ENABLE_CANONICAL_C8_ROOT incorpora uma root durável e reutiliza o participante C2 canônico, com material/leases Secure, configuração BODY0.4, commit local e CURRENT/epoch pós-commit. Debug/Release compilam com zero warnings finais. Quatorze execuções offline finais passaram: transação real local (commit/abort), retenção sem reuso, censo, manager vazio e fixtures sintéticas de ownership/Stop.
+ 
+-O núcleo C2 completo e a ponte C3 existentes foram incorporados seletivamente e compilados como componentes canônicos. Não estão instalados numa transação factual de root C8; dispatch C2/C3, configuração committed, policy CURRENT, emissão de epoch e grants operacionais permanecem pendentes. O candidato nega startup antes de criar listeners. O gate negativo não é um novo Authorization Provider e não possui setter ou caminho positivo. Não houve rede, alteração Browser/PST, wire, produção ou publicação de versão.
++O layout gerenciado declarado soma1537992 bytes. O caso offline registrou reserva combinada1794899, limite2097152 inalterado. Provider/kernel continuam UNKNOWN; ED11 total PARTIAL. Isso não comprova capacidade física ou admissão operacional.
+ 
+-O censo do layout candidato atual registra873176 bytes para os itens explicitamente somados, incluindo os participantes declarados. O valor875312 intermediário usava o perfil privado C8 e não representa o layout normal. Ponte C3:132448 bytes por instância, ainda não alocada pela root atual. Não somar duas vezes o manager C2 embutido no participante. Dois bridges futuros somariam264896 bytes, projeção separada e não reserva/admissão comprovada. Memória dinâmica de snapshot/discovery, stack, allocator, PST/provider/kernel e multiplicidade operacional ainda exigem reconciliação; ED11 total permanece PARTIAL e UNKNOWN não concede admissão.
++Hooks privados C2/CONTROL/roles e root binding foram incorporados e compilados. Attachment positivo cria wait-set/wake TCP e não foi executado. Startup continua negado; dispatch operacional C2/C3 e qualificação conjunta ainda não estão concluídos.
+ 
+-[Closeout e matriz](../integration/canonical-socket-ownership-20261018/closeout.md). Evidências históricas mantêm os escopos originais; nenhuma qualificação E10/C8 é promovida por este trabalho. A direção futura de policy/egress não foi modificada: nenhum novo seletor, provider ou semântica de policy foi implementado nesta retomada.
+\ No newline at end of file
++MODE_C_SITE_TLS_CATALOG=NOT_ESTABLISHED. C2§7 requer perfil aprovado; templates S6 e resolver Network Egress não suprem essa autoridade. Site TLS permanece DENY. Nenhuma Session/Principal/grant factual foi fabricado. Preservados Model E, ED08 e fronteiras de fechamento factual, sem qualificação nativa nova de rede.
++
++[Closeout atual e limites](../integration/canonical-root-c2-c3-wiring-20261018/closeout.md) · [Slice anterior de socket ownership](../integration/canonical-socket-ownership-20261018/closeout.md). Nenhuma alteração PST, Browser, wire ou pin; PST0.6.5 só será publicado após o fechamento integral da Phase6. A direção futura de egress/policy não foi transformada em autoridade Site TLS.
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\src__platform__win32__tcp_accept_win32.c.api3.inc.preimage" b/src/platform/win32/tcp_accept_win32.c.api3.inc
+index d27c031..7dd69ef 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\src__platform__win32__tcp_accept_win32.c.api3.inc.preimage"
++++ b/src/platform/win32/tcp_accept_win32.c.api3.inc
+@@ -1,5 +1,8 @@
+ #include "tcp_accept_win32.h"
+ #include "native_teardown_win32.h"
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++PAPACC_BOOL papacc_server_launcher_owns_listener(const PAPACC_TCP_SOCKET_WIN32 *);
++#endif
+ 
+ #include <ws2tcpip.h>
+ 
+@@ -82,9 +85,9 @@ static PAPACC_RESULT papacc_tcp_win32_endpoint_from_native(
+     return PAPACC_RESULT_OK;
+ }
+ 
+-PAPACC_RESULT papacc_tcp_socket_win32_accept(
++static PAPACC_RESULT accept_impl(
+     const PAPACC_TCP_SOCKET_WIN32 *listener,
+-    PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *out_accepted)
++    PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *out_accepted, PAPACC_BOOL durable)
+ {
+     PAPACC_TCP_ACCEPTED_SOCKET_WIN32 accepted =
+         PAPACC_TCP_ACCEPTED_SOCKET_WIN32_INITIALIZER;
+@@ -156,7 +159,7 @@ PAPACC_RESULT papacc_tcp_socket_win32_accept(
+     return PAPACC_RESULT_OK;
+ 
+ failure:
+-    (void)papacc_tcp_accepted_socket_win32_try_close(&accepted);
++    if(!durable)(void)papacc_tcp_accepted_socket_win32_try_close(&accepted);
+     *out_accepted = accepted; /* Also publishes unresolved ownership. */
+     return result;
+ }
+@@ -195,4 +198,16 @@ PAPACC_RESULT papacc_tcp_accepted_socket_win32_try_close(PAPACC_TCP_ACCEPTED_SOC
+  return PAPACC_RESULT_OK;
+ }
+ void papacc_tcp_accepted_socket_win32_close(PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *accepted)
+-{(void)papacc_tcp_accepted_socket_win32_try_close(accepted);}
+\ No newline at end of file
++{(void)papacc_tcp_accepted_socket_win32_try_close(accepted);}
++PAPACC_RESULT papacc_tcp_socket_win32_accept(const PAPACC_TCP_SOCKET_WIN32 *listener,PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *out)
++{
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++
++ if(papacc_server_launcher_owns_listener(listener))return PAPACC_RESULT_INVALID_STATE;
++#endif
++ return accept_impl(listener,out,PAPACC_FALSE);
++}
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++PAPACC_RESULT papacc_tcp_socket_win32_accept_owned(const PAPACC_TCP_SOCKET_WIN32 *listener,PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *out)
++{return accept_impl(listener,out,PAPACC_TRUE);}
++#endif
+\ No newline at end of file
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\src__platform__win32__tcp_accept_win32.h.api3.inc.preimage" b/src/platform/win32/tcp_accept_win32.h.api3.inc
+index 78906cd..b593a6a 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\src__platform__win32__tcp_accept_win32.h.api3.inc.preimage"
++++ b/src/platform/win32/tcp_accept_win32.h.api3.inc
+@@ -32,6 +32,9 @@ PAPACC_RESULT papacc_tcp_socket_win32_accept(
+     const PAPACC_TCP_SOCKET_WIN32 *listener,
+     PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *out_accepted);
+ 
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++PAPACC_RESULT papacc_tcp_socket_win32_accept_owned(const PAPACC_TCP_SOCKET_WIN32 *,PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *);
++#endif
+ /* Changes only the accepted socket's blocking mode; ownership is unchanged. */
+ PAPACC_RESULT papacc_tcp_accepted_socket_win32_set_nonblocking(
+     PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *accepted,
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\src__platform__win32__tcp_socket_win32.c.api3.inc.preimage" b/src/platform/win32/tcp_socket_win32.c.api3.inc
+index 847bd0a..3acde37 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\src__platform__win32__tcp_socket_win32.c.api3.inc.preimage"
++++ b/src/platform/win32/tcp_socket_win32.c.api3.inc
+@@ -1,5 +1,8 @@
+ #include "tcp_socket_win32.h"
+ #include "native_teardown_win32.h"
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++PAPACC_BOOL papacc_server_launcher_owns_listener(const PAPACC_TCP_SOCKET_WIN32 *);
++#endif
+ 
+ #include <ws2tcpip.h>
+ #include <string.h>
+@@ -27,11 +30,11 @@ static PAPACC_RESULT papacc_tcp_socket_win32_create(
+     return PAPACC_RESULT_INTERNAL_ERROR;
+ }
+ 
+-PAPACC_RESULT papacc_tcp_socket_win32_bind(
++static PAPACC_RESULT bind_impl(
+     const PAPACC_TCP_PLATFORM *platform,
+     const PAPACC_BIND_TARGET *target,
+     PAPACC_U16 port,
+-    PAPACC_TCP_SOCKET_WIN32 *socket_context)
++    PAPACC_TCP_SOCKET_WIN32 *socket_context, PAPACC_BOOL durable)
+ {
+     SOCKET native_socket = INVALID_SOCKET;
+     PAPACC_RESULT result;
+@@ -80,7 +83,7 @@ PAPACC_RESULT papacc_tcp_socket_win32_bind(
+             SO_EXCLUSIVEADDRUSE,
+             (const char *)&exclusive,
+             (int)sizeof(exclusive)) == SOCKET_ERROR) {
+-        (void)papacc_tcp_socket_win32_try_close(socket_context);
++        if(!durable)(void)papacc_tcp_socket_win32_try_close(socket_context);
+         return PAPACC_RESULT_INTERNAL_ERROR;
+     }
+ 
+@@ -116,7 +119,7 @@ PAPACC_RESULT papacc_tcp_socket_win32_bind(
+     }
+ 
+     if (bind_result == SOCKET_ERROR) {
+-        (void)papacc_tcp_socket_win32_try_close(socket_context);
++        if(!durable)(void)papacc_tcp_socket_win32_try_close(socket_context);
+         return PAPACC_RESULT_INTERNAL_ERROR;
+     }
+ 
+@@ -159,4 +162,15 @@ PAPACC_RESULT papacc_tcp_socket_win32_try_close(PAPACC_TCP_SOCKET_WIN32 *value)
+  return PAPACC_RESULT_OK;
+ }
+ void papacc_tcp_socket_win32_close(PAPACC_TCP_SOCKET_WIN32 *value)
+-{(void)papacc_tcp_socket_win32_try_close(value);}
+\ No newline at end of file
++{(void)papacc_tcp_socket_win32_try_close(value);}
++PAPACC_RESULT papacc_tcp_socket_win32_bind(const PAPACC_TCP_PLATFORM *platform,const PAPACC_BIND_TARGET *target,PAPACC_U16 port,PAPACC_TCP_SOCKET_WIN32 *socket_context)
++{
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++ if(papacc_server_launcher_owns_listener(socket_context))return PAPACC_RESULT_INVALID_STATE;
++#endif
++ return bind_impl(platform,target,port,socket_context,PAPACC_FALSE);
++}
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++PAPACC_RESULT papacc_tcp_socket_win32_bind_owned(const PAPACC_TCP_PLATFORM *platform,const PAPACC_BIND_TARGET *target,PAPACC_U16 port,PAPACC_TCP_SOCKET_WIN32 *socket_context)
++{return bind_impl(platform,target,port,socket_context,PAPACC_TRUE);}
++#endif
+\ No newline at end of file
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\src__platform__win32__tcp_socket_win32.h.api3.inc.preimage" b/src/platform/win32/tcp_socket_win32.h.api3.inc
+index 56d40eb..8d5ec51 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\canonical-root-c2-c3-wiring-20261018\\src__platform__win32__tcp_socket_win32.h.api3.inc.preimage"
++++ b/src/platform/win32/tcp_socket_win32.h.api3.inc
+@@ -42,4 +42,7 @@ void papacc_tcp_socket_win32_close(
+     PAPACC_TCP_SOCKET_WIN32 *socket_context);
+ 
+ PAPACC_RESULT papacc_tcp_socket_win32_try_close(PAPACC_TCP_SOCKET_WIN32 *);
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++PAPACC_RESULT papacc_tcp_socket_win32_bind_owned(const PAPACC_TCP_PLATFORM *,const PAPACC_BIND_TARGET *,PAPACC_U16,PAPACC_TCP_SOCKET_WIN32 *);
++#endif
+ #endif
+
+
+diff --git "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_launcher_owner_win32.c" b/apps/server/server_launcher_owner_win32.c
+index e5bb008..d526004 100644
+--- "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_launcher_owner_win32.c"
++++ b/apps/server/server_launcher_owner_win32.c
+@@ -1,4 +1,6 @@
+ #include "server_launcher_owner_win32.h"
++#include "server_application_lifetime_win32.h"
++#include "server_c2_participant_win32.h"
+ #include <stdlib.h>
+ #include <string.h>
+ #include <windows.h>
+@@ -12,7 +14,8 @@ static PAPACC_U64 next_invocation;
+ #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ENABLE_PST_OUTBOUND_TLS)
+ /* The one manager already included by the full C8 layout census. Never a
+  * second authority: this is the durable root's dormant zero-Session child. */
+-static PAPACC_C2_OPERATION_MANAGER configuration_c2;
++static PAPACC_SERVER_C2_PARTICIPANT configuration_c2_participant;
++#define configuration_c2 (configuration_c2_participant.manager)
+ static PAPACC_SERVER_C2_OWNER_WIN32 configuration_c2_owner;
+ static PAPACC_RESULT configuration_dormant_unapply(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
+ static PAPACC_RESULT configuration_root_commit(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
+@@ -909,3 +912,15 @@ static PAPACC_RESULT root_resource_current(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *)
+ #include "server_c8_supervised_host_win32.inc"
+ #endif
+ #endif
++
++#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ENABLE_PST_OUTBOUND_TLS)
++PAPACC_BOOL papacc_server_launcher_owns_listener(const PAPACC_TCP_SOCKET_WIN32 *listener)
++{
++ PAPACC_SIZE i;
++ if(!listener||!root.network.listener_storage)return PAPACC_FALSE;
++ if(root.network.listener_storage_capacity>PAPACC_SERVER_INITIAL_CONNECTION_CAPACITY)return PAPACC_TRUE;
++ for(i=0;i<root.network.listener_storage_capacity;++i)
++  if(listener==&root.network.listener_storage[i].socket)return PAPACC_TRUE;
++ return PAPACC_FALSE;
++}
++#endif
+diff --git "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_launcher_owner_win32.h" b/apps/server/server_launcher_owner_win32.h
+index 66fa227..febeedb 100644
+--- "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_launcher_owner_win32.h"
++++ b/apps/server/server_launcher_owner_win32.h
+@@ -225,6 +225,7 @@ PAPACC_RESULT papacc_server_launcher_target_observation_binding(
+ PAPACC_RESULT papacc_server_launcher_target_refresh(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
+ PAPACC_RESULT papacc_server_launcher_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
+ PAPACC_RESULT papacc_server_launcher_network_reserve(PAPACC_SERVER_NETWORK *);
++PAPACC_BOOL papacc_server_launcher_owns_listener(const PAPACC_TCP_SOCKET_WIN32 *);
+ PAPACC_BOOL papacc_server_launcher_owns_secure(const PAPACC_SERVER_SECURE_IO_WIN32 *);
+ PAPACC_RESULT papacc_server_launcher_accept_prepare(PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *,PAPACC_U64);
+ PAPACC_RESULT papacc_server_launcher_accept_borrow(PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *,PAPACC_U32,PAPACC_U64);
+
+
+
+
+
+
+
+
+
+
+diff --git "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_configuration_participants_win32.inc" b/apps/server/server_configuration_participants_win32.inc
+index 7d714fc..f3b5d81 100644
+--- "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_configuration_participants_win32.inc"
++++ b/apps/server/server_configuration_participants_win32.inc
+@@ -82,23 +82,6 @@ PAPACC_RESULT papacc_server_launcher_configuration_prepare_capabilities(
+     t->participants.capabilities_prepared=PAPACC_TRUE;
+     return PAPACC_RESULT_OK;
+ }
+-static PAPACC_RESULT configuration_c2_closed_policy(void *context,const PAPACC_C2_SESSION *s,
+-    const PAPACC_U8 *payload,PAPACC_SIZE bytes,PAPACC_BOOL *permit)
+-{
+-    PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=context;
+-    (void)s;(void)payload;(void)bytes;
+-    if(permit==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+-    *permit=PAPACC_FALSE;
+-    /* Deliberately no caller Principal/Session/epoch accepted as authority. */
+-    return preparation_owned(o)?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
+-}
+-static PAPACC_RESULT configuration_c2_closed_capacity(void *context,PAPACC_SIZE bytes,PAPACC_BOOL *permit)
+-{
+-    PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=context;(void)bytes;
+-    if(permit==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+-    *permit=PAPACC_FALSE;
+-    return preparation_owned(o)?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
+-}
+ PAPACC_RESULT papacc_server_launcher_configuration_prepare_c2(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+ {
+     PAPACC_ROOT_CONFIGURATION_PREPARATION *t;PAPACC_RESULT result;
+@@ -108,8 +91,9 @@ PAPACC_RESULT papacc_server_launcher_configuration_prepare_c2(PAPACC_SERVER_LAUN
+         configuration_c2.initialized)return PAPACC_RESULT_INVALID_STATE;
+     /* Disabled capabilities are a valid dormant administrative configuration;
+      * this creates neither a Session nor any positive operational grant. */
+-    result=papacc_c2_operation_manager_init(&configuration_c2,o->owner_thread,
+-        configuration_c2_closed_policy,configuration_c2_closed_capacity,o);
++    if(t->combined_reserved<sizeof(configuration_c2_participant))return PAPACC_RESULT_LIMIT_EXCEEDED;
++    result=papacc_server_c2_participant_prepare(&configuration_c2_participant,o,o->invocation,
++        &t->model.config,&t->policy_inputs,t->combined_reserved-sizeof(configuration_c2_participant));
+     if(result!=PAPACC_RESULT_OK)return result;
+     /* Actual zero-Session manager. No fake negotiation, incarnation, principal,
+      * operation, generation, positive epoch, token, grant or owner install. */
+@@ -157,17 +141,19 @@ static PAPACC_RESULT configuration_participants_rollback(PAPACC_SERVER_LAUNCHER_
+         if(configuration_c2_owner.configuration.state!=PAPACC_C2_CONFIG_EMPTY &&
+            configuration_c2_owner.configuration.state!=PAPACC_C2_CONFIG_CLOSED)
+             return PAPACC_RESULT_INVALID_STATE;
+-        if(!configuration_c2.initialized || configuration_c2.context!=o ||
++        if(!configuration_c2.initialized || configuration_c2.context!=&configuration_c2_participant ||
+             configuration_c2.owner!=o->owner_thread)return PAPACC_RESULT_INVALID_STATE;
+         for(i=0U;i<PAPACC_C2_SESSION_CAPACITY;++i)
+             if(configuration_c2.sessions[i].session)return PAPACC_RESULT_INVALID_STATE;
+         for(i=0U;i<PAPACC_C2_OPERATION_CAPACITY;++i)
+             if(configuration_c2.operations[i].state!=PAPACC_C2_OP_EMPTY)return PAPACC_RESULT_INVALID_STATE;
+-        result=papacc_c2_operation_stop(&configuration_c2);
++        if(configuration_c2.stopping)
++            result=papacc_server_c2_participant_retire(&configuration_c2_participant,o,o->invocation,&configuration_c2_owner);
++        else result=papacc_server_c2_participant_stop(&configuration_c2_participant,o,o->invocation);
+         if(result!=PAPACC_RESULT_OK)return result;
+         /* No lifetime identity was ever issued/borrowed. Zero-child rollback
+          * cannot reclaim a manager installed in an IO owner (guarded above). */
+-        memset(&configuration_c2,0,sizeof(configuration_c2));
++        /* Participant CLOSED tombstone is preserved; no second manager. */
+         memset(&configuration_c2_owner,0,sizeof(configuration_c2_owner));
+     }
+     memset(p,0,sizeof(*p));return PAPACC_RESULT_OK;
+
+diff --git "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_configuration_attachment_win32.inc" b/apps/server/server_configuration_attachment_win32.inc
+index 2d57bf5..cfd6350 100644
+--- "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_configuration_attachment_win32.inc"
++++ b/apps/server/server_configuration_attachment_win32.inc
+@@ -40,13 +40,13 @@ static PAPACC_RESULT attachment_cleanup(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+   result=papacc_connection_manager_try_shutdown(&o->acceptor.connection_manager,&complete);
+   if(result!=PAPACC_RESULT_OK||!complete)return attachment_retain(o,PAPACC_RESULT_INVALID_STATE);
+  }
++ result=papacc_server_acceptor_win32_try_shutdown(&o->acceptor);
++ if(result!=PAPACC_RESULT_OK)return attachment_retain(o,result);
+  o->acceptor.initialized=PAPACC_FALSE;o->acceptor.server_network=NULL;
+  o->acceptor.transport_context_storage=NULL;o->acceptor.transport_context_capacity=0U;
+  free(o->context_storage);o->context_storage=NULL;
+- free(o->network.listener_storage);o->network.listener_storage=NULL;
+- o->network.listener_storage_capacity=0U;
+- o->network.listener_set=(PAPACC_TCP_LISTENER_SET_WIN32)PAPACC_TCP_LISTENER_SET_WIN32_INITIALIZER;
+- papacc_tcp_platform_shutdown(&o->network.tcp_platform);
++ result=papacc_server_network_try_shutdown(&o->network);
++ if(result!=PAPACC_RESULT_OK)return attachment_retain(o,result);
+  free(o->connection_storage);o->connection_storage=NULL;free(o->session_storage);o->session_storage=NULL;
+  free(o->channel_storage);o->channel_storage=NULL;free(o->association_storage);o->association_storage=NULL;
+  free(o->processor_storage);o->processor_storage=NULL;free(o->secure_candidates);o->secure_candidates=NULL;
+
+
+
+
+
+
+
+
+diff --git "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_c8_resource_root_win32.inc" b/apps/server/server_c8_resource_root_win32.inc
+index 4b38ff8..768cb0f 100644
+--- "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_c8_resource_root_win32.inc"
++++ b/apps/server/server_c8_resource_root_win32.inc
+@@ -262,6 +262,7 @@ PAPACC_RESULT papacc_server_launcher_accept_retain_transport(PAPACC_SERVER_SECUR
+  PAPACC_C8_ACCEPT_LIFETIME *a=root_accept_lifetime(candidate);
+  if(!a||a->phase!=2U||!transport||a->socket_transferred||a->unaccepted_transport)return PAPACC_RESULT_INVALID_STATE;
+  a->unaccepted_transport=transport;
++ a->socket.native_socket=INVALID_SOCKET;a->socket.is_open=PAPACC_FALSE; /* wrapper owns it */
+  (void)papacc_c8_resource_retain(&root.resource_admission,&a->context,&a->ticket);
+  a->phase=3U;candidate->state=PAPACC_SERVER_SECURE_CANDIDATE_FAILED;
+  root.secure_io.stop_state=PAPACC_SERVER_SECURE_STOP_ERROR_TERMINAL;
+@@ -357,7 +358,7 @@ static PAPACC_RESULT root_activation_retire(void)
+   if(&root.resource_admission.tickets[i]!=ticket&&root.resource_admission.tickets[i].state&&
+      root.resource_admission.tickets[i].state!=PAPACC_C8_RESOURCE_RELEASED)return PAPACC_RESULT_INVALID_STATE;
+  socket=&root.network.listener_storage[0].socket;
+- if(socket->native_socket==INVALID_SOCKET||closesocket(socket->native_socket)!=0){
++ if(socket->native_socket==INVALID_SOCKET||papacc_tcp_socket_win32_try_close(socket)!=PAPACC_RESULT_OK){
+   (void)papacc_c8_resource_retain(&root.resource_admission,&a->context,&a->ticket);a->phase=3U;
+   return attachment_retain(&root,PAPACC_RESULT_INTERNAL_ERROR);
+  }
+
+
+
+
+
+
+
+diff --git "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_c8_private_storage_layout_win32.h" b/apps/server/server_c8_private_storage_layout_win32.h
+index c45e195..ae878f1 100644
+--- "a/build\\phase6-c2-c3-20261012\\accelerator\\apps\\server\\server_c8_private_storage_layout_win32.h"
++++ b/apps/server/server_c8_private_storage_layout_win32.h
+@@ -7,13 +7,14 @@
+ #include "server_c2_owner_win32.h"
+ #include "server_c8_stage_pool_win32.h"
+ #include "server_c8_policy_adapter_win32.h"
++#include "server_c2_participant_win32.h"
+ /* Future C8 durable containment type only; no functional C8 is installed by this
+  * declaration. Do not link its differently laid out loop with old objects. */
+ typedef struct PAPACC_C8_PRIVATE_STORAGE_LAYOUT {
+  PAPACC_SERVER_LAUNCHER_OWNER_WIN32 launcher;
+  PAPACC_C8_POLICY_ADAPTER policy_adapter;
+  PAPACC_SERVER_C2_OWNER_WIN32 c2;
+- PAPACC_C2_OPERATION_MANAGER operations;
++ PAPACC_SERVER_C2_PARTICIPANT participant; /* contains the only manager */
+  PAPACC_C3_BRIDGE bridges[2];
+  PAPACC_CONNECTION_MANAGER site_manager;
+  PAPACC_CONNECTION site_connections[2];
+
+
+
+
+diff --git a/build/phase6-c2-c3-20261012/accelerator/apps/server/server_run_win32.c b/apps/server/server_run_root_win32.inc
+index 9626db1..6a20c1c 100644
+--- a/build/phase6-c2-c3-20261012/accelerator/apps/server/server_run_win32.c
++++ b/apps/server/server_run_root_win32.inc
+@@ -1,5 +1,6 @@
+ #include "server_run_win32.h"
+ #include "server_launcher_owner_win32.h"
++#include "server_application_lifetime_win32.h"
+ 
+ #include <stdlib.h>
+ #include <string.h>
+@@ -327,7 +328,7 @@ cleanup:
+         if (manager_result != PAPACC_RESULT_OK || manager_stopped != PAPACC_TRUE)
+             goto retain;
+     }
+-    papacc_server_acceptor_win32_shutdown(&owner->acceptor);
++    if(papacc_server_acceptor_win32_try_shutdown(&owner->acceptor)!=PAPACC_RESULT_OK)goto retain;
+ #ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+     papacc_security_composition_release(&owner->security_composition);
+     papacc_resolved_server_security_configuration_release(&owner->resolved_security);
+@@ -352,10 +353,13 @@ cleanup:
+     free(owner->context_storage); owner->context_storage = NULL;
+     free(owner->connection_storage); owner->connection_storage = NULL;
+     if (papacc_server_launcher_owner_finish(owner, caller_network,
+-            PAPACC_TRUE) != PAPACC_RESULT_OK)
++            PAPACC_TRUE) != PAPACC_RESULT_OK) {
++        (void)papacc_application_parent_retain();
+         return PAPACC_RESULT_INVALID_STATE;
++    }
+     return result;
+ retain:
++    (void)papacc_application_parent_retain();
+     /* Retained ownership transfers the network/WinSock lease into the root.
+      * The caller's aggregate stays empty; no caller WSACleanup can reach it. */
+     (void)papacc_server_launcher_owner_finish(owner, caller_network, PAPACC_FALSE);

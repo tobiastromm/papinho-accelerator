@@ -1,0 +1,36 @@
+#ifndef PAPACC_CONFIG_SOURCE_H
+#define PAPACC_CONFIG_SOURCE_H
+#include <stddef.h>
+/* Private OFFLINE candidate API. No runtime apply, storage or authorization.
+ * Caller exclusively owns workspace until all const views are released.
+ * No mutation/reparse while a validated view is borrowed. No hidden allocation.
+ * All strings are copied; input lifetime does not escape parse. */
+#define PC_SOURCE_MAX 8192U
+#define PC_LINES_MAX 96U
+#define PC_TOKENS_MAX 8U
+#define PC_TEXT_MAX 64U
+#define PC_BLOCKS_MAX 16U
+#define PC_LISTENERS_MAX 4U
+#define PAPACC_CONFIG_NO_INDEX 0xffffffffU
+typedef enum PC_RESULT { PC_OK=0, PC_INVALID, PC_UNKNOWN, PC_UNSUPPORTED,
+ PC_LIMIT, PC_DUPLICATE, PC_MISSING, PC_REFERENCE, PC_CONFLICT } PC_RESULT;
+typedef struct PC_DIAGNOSTIC { PC_RESULT code; unsigned line,column;
+ const char *reason; } PC_DIAGNOSTIC;
+typedef struct PC_TOKEN { char text[PC_TEXT_MAX+1U]; unsigned column,quoted; } PC_TOKEN;
+typedef struct PC_LINE { unsigned line,count,block; PC_TOKEN tokens[PC_TOKENS_MAX]; } PC_LINE;
+typedef struct PC_BLOCK { unsigned kind,opener,end; } PC_BLOCK;
+typedef struct PC_LISTENER { unsigned block,binding,security,authentication,policy;
+ unsigned port,profile,admission,presence; } PC_LISTENER;
+typedef struct PC_DOCUMENT { unsigned version,parsed,validated,line_count,block_count,listener_count;
+ PC_LINE lines[PC_LINES_MAX]; PC_BLOCK blocks[PC_BLOCKS_MAX];
+ PC_LISTENER listeners[PC_LISTENERS_MAX]; } PC_DOCUMENT;
+/* Only a structural offline profile. This descriptor NEVER enables a product
+ * feature or asserts external resolver/Principal/grant/ED11 authority. */
+typedef struct PC_TARGET { unsigned max_listeners; int legacy_supported; } PC_TARGET;
+PC_RESULT pc_parse(const unsigned char *,size_t,PC_DOCUMENT *,PC_DIAGNOSTIC *);
+PC_RESULT pc_validate(PC_DOCUMENT *,const PC_TARGET *,PC_DIAGNOSTIC *);
+const PC_DOCUMENT *pc_view(const PC_DOCUMENT *);
+/* Pure bounded candidate rule decision; not an operational authorization.
+ * Principal input must come from factual caller; no principal is inferred. */
+int pc_policy_accepts(const PC_DOCUMENT *,unsigned,unsigned,unsigned,const char *);
+#endif

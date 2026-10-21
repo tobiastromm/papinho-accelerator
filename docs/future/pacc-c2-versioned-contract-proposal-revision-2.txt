@@ -1,0 +1,505 @@
+MODE C C2 - VERSIONED PACC OPERATION CONTRACT
+Document revision: 2 / 2026-10-11
+Status: PROPOSED; joint Browser/Accelerator/PACC owner review required.
+Authority: PAPINHOACCELERATOR-BROWSER-MODE-C-C2-VERSIONED-PACC-CONTRACT-REVIEW.
+This is an isolated decision candidate, not an accepted ADR or a wire allocation.
+No canonical ADR number is claimed. No implementation or experiment is authorized.
+
+1. AUTHORITY AND SCOPE
+
+Accepted Accelerator ADR0022/0029 define placement C: Browser owns DNS and site
+TCP/IP egress; Accelerator/PST owns Site TLS. Browser ADR0007 owns client route
+policy/UX. ADR0003/0005/0011/0012/0016/0017/0018/0025 govern Sessions, grants,
+versioning and protocol-only PACC. ADR0023 and family ADR0013 preserve distinct
+TLS terminal and application completeness. ADR0026/0027/0028 keep destination,
+outbound trust, admission and inbound Transport Security orthogonal.
+This proposal complements those decisions; none is edited or superseded.
+
+Roadmap C2 means this operation protocol. ADR0029's selected PST alternative
+called C2 is the PRIVATE BRIDGE implemented at roadmap C3. Its unselected C1
+transport alternative is NOT the now-qualified Browser C1 socket pump.
+Placements A Browser/Browser, B Accelerator/Accelerator, C Browser/Accelerator,
+D Accelerator/Browser remain unchanged (network owner / Site TLS owner).
+
+2. FACTUAL CURRENT CONTRACT
+
+PACC API/package1.1.0, external contract generation2, Envelope1.0, CONTROL1.0.
+Contract generation is package metadata, not negotiated wire authority.
+Existing registry: NETWORK_EGRESS v1/v2 and TLS_OFFLOAD v1. No Mode C operation.
+Existing message IDs1..15 and their payloads are preserved, including the
+negotiated Network Egress v2 terminal reason. No new numeric ID is allocated here.
+
+Server supports multiple DATA Channels per Session, with one outstanding ticket
+at a time. Sequential ticket/attach/consume can create two live DATA Channels.
+DATA_TICKET/ATTACH bind a Session, not a Mode C operation or APPLICATION/RECORD.
+The current 16-byte ticket generator is a predictable counter, not a secret.
+Secure attach checks live CONTROL principal and authorization before commit.
+After ticket consumption, later bind/ACK failure does not restore the ticket.
+DATA_ACCEPT must finish writing before subsequent channel traffic is processed.
+
+Current NETWORK_OPEN describes one destination and one stream on a DATA Channel.
+It does not carry the combined original-host/numeric-endpoint/operation/role
+binding. Two NETWORK_OPENs are NOT a Mode C operation. Browser currently has
+one runtime DATA slot; supporting two roles requires an explicit consumer change.
+
+Unknown valid capability keys are omitted, never implicitly granted. The current
+post-CONTROL reader limits negotiation payload to28 bytes and two keys per set.
+Unknown message types may pass framing, but stateful dispatch rejects them.
+Reserved header flags cannot be repurposed as Mode C negotiation.
+
+3. VERSIONING DECISION PROPOSED FOR OWNER REVIEW
+
+Select a distinct versioned Mode C operation SERVICE capability, in addition to
+TLS_OFFLOAD v1. Documentary name: MODE_C_OPERATION, semantic contract revision1.
+The name/revision are NOT wire values. Registry ID, major allocation, constants,
+message IDs, lengths and binary layouts require the PACC owner's separate gate.
+This service represents reservation, two-role binding and lifecycle authority,
+not an arbitrary syntax flag or a new TLS backend. Both grants are required.
+
+Reasons: preserve TLS_OFFLOAD's existing Site TLS meaning and Mode B semantics;
+express operation admission separately; do not require remote NETWORK_EGRESS.
+Alternative TLS_OFFLOAD major successor is viable but couples ordinary Site TLS
+eligibility to a new operation lifecycle. A global wire-generation descriptor
+has no existing discovery mechanism. Reusing NETWORK_OPEN/ABORT payloads would
+silently change accepted grammars. These alternatives are not selected here.
+
+Proposed initial Session offer contains exactly TWO keys: TLS_OFFLOAD v1 plus
+the allocated Mode C operation key, sorted canonically after allocation.
+Do not add NETWORK_EGRESS or multiple Mode C majors to an unknown peer's offer.
+Keep current bounded negotiation framing, Envelope1.0 and CONTROL1.0 if final
+codec review confirms additive feasibility. A new cumulative public contract
+and package/API additions are required; release numbers are not allocated here.
+
+Capability matrix (expected future behavior, NOT executed):
+Peer/grant                         Result
+old server / unknown Mode C key    key omitted; Mode C unavailable; no new frames
+new server / old client offer      only requested old grants/grammars
+new/new / both required keys       operation request eligible, not yet authorized
+only TLS_OFFLOAD                   deny Mode C; no site connect or role payload
+only operation key                deny; no Site TLS execution
+NETWORK_EGRESS only or v2          no Mode C authority
+malformed result/extra grant       protocol failure, no downgrade or probe
+policy revokes eligible key        deny/terminate affected operations, no new major
+
+No renegotiation in the same Session and no implicit fallback to A/B/D, Legacy,
+old Mode C, plaintext or unverified TLS. A route change is a separate governed
+Browser decision, not a protocol recovery trick. Session grant snapshot is an
+immutable upper bound; live policy may restrict it, never expand it silently.
+
+4. IMMUTABLE OPERATION RECORD AND ATTACHMENT AUTHORITY
+
+Server-owned bounded reservation contains these semantic fields:
+- non-secret operation correlation identity, attempt generation and lifecycle;
+- live CONTROL/Session incarnation and immutable negotiated service major;
+- profile/assurance; Secure principal OR explicitly admitted Legacy context;
+- original hostname, normalized verification/SNI hostname, numeric address
+  family/address/port, Browser resolution snapshot identity;
+- Site TLS grant/policy epoch, trust/profile identity, version constraints and
+  bounded ALPN inputs; no client-selected privileged trust or server interface;
+- one APPLICATION role slot and one RECORD role slot;
+- expiry/deadline/resource reservation and cancellation/terminal generation.
+
+Client ConfigGeneration and resolution generation are provenance, not remote
+authorization. Server assigns/checks its own Session and operation incarnation;
+runtime pointers, handles and private runtime IDs are never serialized as proof.
+Identifiers cannot be reused while callbacks, frames or retained owners can
+still reference them. Exhaustion fails closed rather than wrapping authority.
+
+Issue a separate unpredictable, single-use, role-bound attachment authority for
+each role. Bind the full immutable record and expiry; secrecy is not supplied
+by a predictable DATA ticket. Require an approved server random-source boundary;
+failure to obtain appropriate entropy denies admission, never falls back to a
+counter/time value. Entropy size/encoding and token construction remain PACC
+security-review gates, not invented bytes in this document.
+
+Validate context, identity, generation, current grant, destination and role
+before atomic token consumption plus role claim. Recheck revocation at commit.
+After commit, failed response/publication never makes the token reusable.
+Do not echo/log tokens or application/record contents. Logs use non-secret
+correlation, generation, role and bounded reason categories.
+
+5. PROPOSED EXCHANGES AND ATOMIC ACTIVATION
+
+The following are semantic exchange descriptions, NOT new wire message names:
+
+Browser first obtains the C0 resolution snapshot and validates local policy;
+this preflight performs no site TCP connect. The numeric selection is included
+in the server reservation request and remains immutable for this attempt.
+
+CONTROL authorize/reserve immutable tuple -> bounded reservation response
+  -> Browser C0 exact numeric connect through C1 (no second DNS)
+  -> ordinary Session DATA ticket/attach/accept for RECORD
+  -> new role-bind exchange on that accepted DATA, then role-bind acknowledgement
+  -> prepare Accelerator private bridge/PST, without releasing application bytes
+  -> ordinary DATA ticket/attach/accept for APPLICATION
+  -> role-bind exchange and acknowledgement
+  -> Browser reports site socket ready for this exact attempt
+  -> server atomically activates only with both acknowledged roles + site readiness
+  -> bounded TLS handshake through RECORD
+  -> verified TLS-ready result enables APPLICATION payload.
+
+Reservation does not authorize bypassing Browser local destination policy.
+Preparing PST objects is not permission to start Site TLS before the activation
+barrier. RECORD TLS traffic starts only after activation; plaintext APPLICATION
+traffic starts only after factual peer verification/ALPN success. TLS failure
+never releases queued application bytes or downgrades the operation.
+
+Additive role binding AFTER existing DATA_ACCEPT avoids rewriting existing
+DATA_ATTACH. The final PACC specification must distinguish this new dispatch
+path from old NETWORK_OPEN using the negotiated service and explicit state.
+All bind fields arrive in a complete validated bounded frame before commit.
+Partial writes, parser chunks and queued following frames are not completion.
+
+Untrusted invalid token/principal/unknown correlation rejects the candidate
+channel without letting a guessed operation ID kill another operation.
+An authenticated, operation-authorized missing/duplicate/invalid role sequence
+fails its reservation/operation and sibling role. Expiry releases unbound
+reservations. No speculative payload, automatic role inference or ticket reuse.
+Fail at the smallest safe scope; a CONTROL protocol/transport failure still
+uses the existing Session-wide cascade. DATA failure affects its operation,
+not unrelated operations merely because they share CONTROL.
+
+6. AUTHORIZATION, DESTINATION AND SECURE/LEGACY MATRIX
+
+Server owns admission, capabilities, operation grants, exact destination rules,
+quotas, trust profile, revocation and audit. Browser owns local egress policy
+and route permission; it is not the server's ACL authority.
+Site TLS service authorization != authorization for Accelerator remote egress.
+Mode C needs no Accelerator NETWORK_EGRESS grant and must not create a server
+connection to the public site. Private loopback C3 is not remote egress.
+
+Hostname and endpoint are separately authorized and immutable. Redirect, new
+endpoint, new TLS profile or replaced operation requires a fresh authorization
+and fresh generation. Never substitute the IP for SNI/peer name or silently
+resolve the hostname again. Literal IP requires explicit profile/provider
+support for factual IP identity validation; otherwise deny.
+
+The server can validate the declared tuple, roles and actual TLS peer identity,
+but cannot attest a remote Browser's physical TCP endpoint from PACC claims.
+C0/C1 enforce exact-connect in the trusted Browser consumer. A malicious client
+can misreport its network path; tokens do not solve remote attestation. Record
+this trust boundary in the security gate; do not claim cryptographic endpoint
+attestation or proof of source interface at the server.
+
+Dimension                  Secure Principal              Legacy
+PACC first hop             TLS1.3 mTLS, papacc/1           plaintext/lower assurance
+identity                   authenticated principal        explicit admitted context
+service/operation grants   server required                server required
+Site TLS verification      PST on Accelerator required    same functional target
+attachment secret          channel protected              observable/on-path unsafe
+cryptographic parity       not applicable                 NO
+functional parity target   YES                            YES
+lab authorization          separate execution gate        D9A plus explicit lab grant
+production Mode C          later production gates         D9B/C9-C11 not approved
+
+Legacy tokens prevent some accidental/cross-context association, not on-path
+tampering, impersonation or confidentiality loss. Lower-assurance warnings
+remain visible. No current Legacy Mode C enablement follows from this proposal.
+No global exceptions, admission weakening, Secure-to-Legacy fallback, wildcard
+lab destinations or reuse of inbound CA as outbound site trust.
+
+7. BYTE ORDERING, PARTIAL I/O AND BOUNDED BACKPRESSURE
+
+APPLICATION and RECORD each carry two ordered byte directions for ONE operation.
+Frame/read/write boundaries have no application/TLS-record meaning. Accelerator
+does not parse HTTP; Browser does not parse Site TLS to implement RECORD routing.
+Do not splice two independent Network Streams or transfer a SOCKET to the peer.
+
+Maintain four bounded queues; include parser/writer staging, bridge and deferred
+notifications in separately declared total admission accounting. No unbounded
+list for blocked writes or control notifications. Stop upstream reads at high
+water, resume at low water, service partial writes by factual readiness with
+bounded per-role/per-operation fairness. C1 caller retains buffers until consumed.
+
+Use the dedicated DATA transports' backpressure initially, not an invented
+wire-credit protocol. Reserve bounded CONTROL cancellation/terminal capacity;
+finish the bounded in-flight frame before priority control traffic, never splice
+or skip a partial frame. Closing/cancelling must not require a full data queue
+to drain indefinitely. CONTROL blockage remains subject to deadline/cascade.
+
+ADR0029 laboratory limits only: two global operations, one per Session;
+four64KiB queues per operation,512KiB aggregate; high48KiB/low24KiB;
+PACC fragments<=16KiB,16KiB flow quantum and8 opportunities per wake.
+These are NOT approved production memory budgets or total kernel-memory claims.
+C1's internal two-owner cap includes retained observers; C2 admission must
+respect both caps and charge retained owners instead of evicting them.
+Production budgets and NT4 8/16/32/64KiB measurements remain later gates.
+
+8. EOF, HALF-CLOSE, TERMINALITY AND RESOURCE LIFECYCLE
+
+Proposed state model:
+RESERVED -> CONNECTED/ROLES_PREPARING -> ACTIVE_HANDSHAKE -> ACTIVE_APPLICATION
+    -> SHUTTING_DOWN -> TERMINAL_RECORDED -> RELEASED
+Any eligible phase -> TERMINAL_RECORDED -> RELEASED or TERMINAL_RETAINED
+TERMINAL_RETAINED is not RELEASED and has no transition back to active I/O.
+
+Track each direction's accepted/delivered prefix independently. Each role's
+normal terminal/fence follows its accepted bytes on that SAME ordered DATA
+channel. CONTROL may announce cancellation/terminal action sooner, but cannot
+certify that queued DATA has arrived. A final clean summary requires both role
+fences and relevant PST shutdown facts; bounded missing-fence failure is unclean.
+No global order is inferred between CONTROL, APPLICATION and RECORD sockets.
+Exact fence representation belongs to the versioned encoding review.
+
+TCP EOF, reset and half-close are RECORD transport facts, not authenticated TLS
+close. Forward the factual directional condition to the bridge/PST owner only
+after its preceding byte prefix. Browser may half-close site send only after
+all accepted outbound records and the authorized direction-end are accounted.
+Do not emulate plaintext TLS half-close: ADR0023's TLS_REQUIRED v1 restriction
+remains intact. APPLICATION end requests governed TLS shutdown, not permission
+for arbitrary subsequent TLS application writes.
+
+Only PST can establish Site TLS close_notify/truncation/verification failure.
+Clean success requires incremental reciprocal shutdown completion where the
+contract requires it, record drainage and factual owner completion. A raw socket
+EOF or a successful HTTP parser result is insufficient. Browser maintains
+application completeness separately from TLS/PACC terminal and transport error.
+Family ADR0013's explicit TLS_TRUNCATED exception applies only to independently
+validated complete application framing, never unknown abort/reset/control loss.
+Do not send existing Network Egress v2 reason frames without that contract;
+the new operation terminal must explicitly carry the equivalent factual cause.
+
+First VALID terminal accepted by the operation owner is immutable. Authority,
+identity, generation and factual cause are checked before acceptance. Later
+policy action may revoke delivery/force stop without rewriting the first fact.
+Duplicate internal events are idempotent; duplicate remote frames remain
+protocol violations. Cancellation revokes publication authority and wakes owners;
+late callbacks must revalidate token/generation BEFORE resource dereference.
+
+Preserve distinct causes: cancellation, policy revocation, CONTROL loss,
+required DATA loss, handshake/peer verification failure, raw EOF/reset/socket
+error, PST truncation, deadline and factual clean close. Store the chosen action
+separately. Never turn cleanup cancellation or deadline into clean success.
+Operation deadlines are local monotonic budgets; no peer absolute clock or
+unbounded extension on partial progress/wake. Binding/shutdown/cleanup are bounded.
+ADR0029 lab budgets attach5s/handshake10s/no-progress30s/shutdown5s/cleanup5s are
+experiment parameters, not newly selected production timeouts.
+
+Exactly one physical owner finalizes each resource; relinquishing logical
+operation authority is not native destruction. PST API3 Model E finalization
+requires OK+DESTROYED. PRECONDITION_RETAINED keeps dependencies and allows only
+governed eligible correction; CLOSE_UNRESOLVED_RETAINED remains terminal retained.
+No native retry, alternative close, rebind, new I/O, deadline eviction or early
+reuse. Retain runtime/provider/trust/lease/WinSock/transport/identity/generation
+as required. A cleanup deadline ends scheduling/authority, not ownership by fiat.
+Bounded admission closes when retained-resource budget is exhausted.
+
+9. REQUIRED POSITIVE/NEGATIVE ORACLES (NOT EXECUTED)
+
+ID   Stimulus / required factual result
+P01  Supported Secure tuple / two authorized roles, one exact-connect, TLS verified.
+P02  Sequential DATA tickets / distinct roles, same operation; CONTROL persists.
+P03  Byte-by-byte/coalesced frames / same ordered prefixes, no early activation.
+P04  Partial send/recv and stalled role / exact accepted counts, bounded queues.
+P05  Normal shutdown / ordered fences, PST complete, one terminal, one finalization.
+P06  Old/new peers both directions / old goldens unchanged; no unnegotiated bytes.
+N01  Missing key, oversized offer, extra grant / fail before Mode C side effects.
+N02  Wrong principal/profile/CONTROL incarnation / reject before role commit.
+N03  Stale operation/resolution generation / no bind, no socket/PST access.
+N04  Expired/replayed/consumed token / reject; no second role or renewed expiry.
+N05  Duplicate role/cross-operation swap / no data crossover; scoped failure.
+N06  Host/port/IP substitution or redirect reuse / fresh authorization required.
+N07  Revocation between validation and commit / commit fails; no payload escapes.
+N08  Missing role/site readiness or plaintext before TLS-ready / bounded failure.
+N09  Bind ACK partial then disconnect / consumed authority never restored.
+N10  Saturated queues + cancel / owner wakes, no new delivery after revocation.
+N11  CONTROL loss / Session cascade once; unrelated Sessions unaffected.
+N12  One DATA loss / operation+sibling terminal; other operations preserved.
+N13  EOF/RST/half-close / exact raw fact, no fabricated close_notify or TLS success.
+N14  Explicit TLS_TRUNCATED with complete/incomplete HTTP / orthogonal outcomes.
+N15  Terminal ahead on CONTROL / no fabricated DATA completion or prefix loss.
+N16  Duplicate/conflicting/tardy terminals / first accepted fact, no resurrection.
+N17  Old callback after worker exit/window close/replacement / authority rejected.
+N18  Clock wrap/wake storms/deadline / bounded monotonic expiry, never timeout PASS.
+N19  Model E retention / dependencies and budget retained; no extra native close.
+N20  Capacity/length/arithmetic overflow / reject before allocation or reservation.
+N21  Weak/missing entropy / admission denied; counter ticket not a fallback.
+N22  Legacy without D9A grant or production approval / no capability enablement.
+N23  TLS_OFFLOAD without NETWORK_EGRESS / eligible Mode C if separately authorized;
+     never create public site socket on Accelerator.
+N24  Partial-frame terminal publication failure / channel abandoned, no resync/retry.
+
+Each future run records operation/session generation, grant snapshot/epoch,
+expected/actual terminal, per-direction accepted/delivered bytes, bounded queue
+peaks, PST operation/disposition, owner state and per-resource teardown counts.
+No generic exit0/absence-of-crash oracle. Separate synthetic, native current-host
+and real NT4 evidence; no E1-E12 execution is authorized by this plan.
+
+10. IMPLEMENTATION PLAN AND APPROVAL GATES
+
+G0 Joint owners review this candidate: service identity choice, attachment
+   authority, trust boundary, terminal fences and Secure/Legacy admission.
+G1 PACC owner approves registry allocations, exact bounded grammar, field sizes,
+   compatibility/version metadata and golden vectors. Add authoritative portable
+   C89 codecs/tests in its owning project only in a separately authorized task.
+   Require malformed/fragmentation/old-new matrix before consumer adoption.
+G2 C2 consumers: server operation registry/admission and two-role coordinator;
+   Browser dual-DATA adapter, immutable C0/C1 endpoint/authority propagation,
+   bounded buffers/control scheduling and late-callback guards. Preserve Model E.
+   Resolve hostname normalization/all-candidate policy gaps before claiming more
+   than C0's FIRST_IPV4 qualified scope; no second resolution as a shortcut.
+G3 C3: isolated Accelerator private one-shot IPv4 loopback exact-tuple bridge,
+   one accept and closed listener; attach through public PST API with
+   ownership_accepted and durable Model E owner. No public listener or site dial.
+G4 C4/C5 security and resource qualification, C6 fixtures, then HUMAN approval
+   before C7 E1-E12. C8 production Secure; C9-C11 approved Legacy; C12 real NT4.
+
+C2_IMPLEMENTATION_READY=NO (semantic proposal complete; encoding and owner gate pending).
+C3 depends on accepted/versioned C2 codecs, operation state, dual-role consumer,
+bounded queues, PST package identity and ownership tests. C1 qualified component
+does not activate Mode C routing, and Model E does not complete Phase6.
+No current runtime test/build is needed for this documentation-only review.
+No pin change, PST/Accelerator/Browser active modification or publication.
+
+
+11. JOINT REVIEW ADDENDUM - REVISION 2 / 2026-10-11
+
+Status remains PROPOSED. Sections 1-10 retain revision1 architecture, service
+candidate, exchanges and original P01-P06/N01-N24 oracles. This addendum is a
+minimal clarification, not approved wire or a replacement design.
+Source revision1 SHA256:
+E69C822159FC0070AF6EC8C64419108B4342ADC63EB4E5722AFB3A36F131E9F9.
+
+R2-01 SESSION SCOPE AND COMPATIBILITY
+The two-key offer TLS_OFFLOAD + proposed operation key does NOT include
+NETWORK_EGRESS. Even a successful Mode C grant therefore does not authorize
+Mode B on that Session. An old server's omission of the unknown operation
+key makes Mode C unavailable; TLS_OFFLOAD alone is not a compatibility fallback.
+Do not replace a production Session, request a third key from an unknown peer,
+add an unoffered grant, renegotiate in-place or infer remote egress permission.
+OWNER DECISION PENDING: explicit separately authorized Session composition for
+Mode C and existing services, or a separately versioned negotiation extension.
+The limited two-key candidate remains unchanged until that decision; no new
+Session pooling mechanism is approved by this addendum.
+Tests must cover mixed placement requests on the unchanged grant snapshot.
+
+R2-02 CONTROL DISPATCH AND PAYLOAD LIMITS
+The current post-CONTROL reader is limited to28 bytes and two keys/set.
+Keeping the negotiation offer within28 bytes does not make operation request,
+reservation, readiness, cancellation or terminal grammars fit that reader.
+Existing negotiation bytes and limits remain unchanged for old exchanges.
+OWNER ENCODING DECISION PENDING: explicit negotiated dispatch states and bounded
+per-message lengths for every new exchange. Never raise a universal limit or
+start a new decoder solely from package/API/contract-generation metadata.
+Validate the complete frame and state before side effects. Preserve buffered
+reader bytes across handoff. Unnegotiated new types remain protocol-invalid;
+unknown nonzero type passing framing is not permission to skip it.
+
+R2-03 REVOCATION AND PARTIAL PUBLICATION
+Distinguish bytes accepted locally, submitted to transport, received/validated
+by the peer, delivered to application/site and retained in queues. Local writer
+completion is not peer delivery. Earlier escaped bytes cannot be retracted.
+The owner must define a revocation linearization point and revalidate authority
+before each bounded new payload submission/delivery. No new operation payload
+may be authorized after that point. Drop unsubmitted revoked payload under its
+owner's lifetime rules, not by freeing buffers still borrowed by an in-flight API.
+A partially submitted DATA frame cannot be skipped, replaced, resumed as another
+operation or silently completed after authority revocation. Abandon that affected
+transport/operation if safe completion would violate revocation; preserve the
+escaped prefix and non-clean failure fact. The encoding/owner gate must define
+the exact receiver rule for in-flight prefixes and incomplete terminal fences.
+On CONTROL, unrelated in-flight framing cannot be spliced to insert cancel.
+Bounded completion of still-authorized traffic or Session loss is distinct from
+authorization to finish cancelled DATA payload. Cancel/terminal reserve capacity,
+priority and deadline behavior require a finite accounting table.
+N10/N15/N24 gain byte-prefix/cancel-interleaving tests, not weakened oracles.
+
+R2-04 AUTHORITIES AND GENERATIONS
+C0 resolution generation is local scope provenance, not a globally ordered
+server-issued authorization generation. Server checks equality with the tuple
+captured in its reservation, current Session/operation incarnation, role claim
+and policy epoch. It cannot detect arbitrary stale Browser resolver values or
+attest a remote socket using a number alone. Browser must reject replaced local
+snapshot/operation authority before exact connect or result publication.
+OWNER ENCODING DECISION PENDING: which fields are actually transmitted, their
+width/scope/nonreuse rules, and which are retained local-only. A nonsecret
+operation identity plus single-use secret and authorized Session provides the
+binding; serializing pointers/private runtime IDs is forbidden.
+N03 must test mismatches against a registered operation and replaced Browser
+owner, without claiming global ordering or physical endpoint attestation.
+
+R2-05 ACKNOWLEDGEMENT AND ATOMIC ACTIVATION
+Token consumption/role claim, ACK enqueue, complete ACK write, peer acceptance,
+operation activation and TLS-ready verification are different facts.
+Server activation requires both valid committed role slots, complete local bind
+ACK writes, factual site-readiness for the captured attempt and current grants.
+Browser observes both valid complete bind acknowledgements before sending its
+ready declaration; queued or partial frames do not satisfy this condition.
+Verified-TLS result, its publication and Browser observation must likewise be
+specified before APPLICATION sends/receives are enabled. A lost ACK never
+restores the consumed authority. Recheck revocation at role commit, activation,
+TLS-ready publication and each authorized delivery boundary.
+These are proposed completion rules consistent with the existing DATA_ACCEPT
+barrier; exact exchange schemas remain pending.
+
+R2-06 ENCODING COMPLETENESS
+For every proposed exchange the PACC owner must approve: ID/direction/channel,
+service version, exact field order, wire type/width, byte order, length bounds,
+required/optional fields, presence rules, enums, reserved values, canonical text
+normalization/ASCII-or-other encoding, hostname versus IP semantics and rejection
+of trailing/duplicate/unknown fields. No TLV or optional-field skip rule is
+selected here. Missing decisions block encoding approval.
+All size arithmetic must be overflow-safe on VC6/x86; wire integers must not
+depend on native long, pointer width, struct alignment or packing.
+Token entropy/length/construction/provider, operation/generation widths, fence
+and verified-TLS result representations, cause/action enums and API/package
+release metadata remain unallocated owner decisions.
+
+R2-07 SECURITY AND ADMISSION ACCOUNTING
+Use the existing authenticated DATA/CONTROL Principal match before new role
+binding; same Principal alone does not permit cross-Session/incarnation attach.
+Untrusted guessed IDs or invalid authority cannot revoke another operation.
+Compare/validate authority using an approved primitive; do not invent crypto.
+Security review must approve entropy quality, token exposure handling, lifetime,
+invalid-bind rate/work limits and bounded negative responses so failures cannot
+become an unbounded lookup/response or operation-existence disclosure service.
+Admission charges reservations, both DATA connections, bridge endpoints,
+parser/writer staging, control notifications and retained owners/dependencies;
+the512KiB experimental payload cap is not total process/kernel memory.
+No budget eviction, timeout or cleanup deadline permits a second native close
+or early reuse. Production Legacy still requires D9B/C9-C11; lab requires its
+own materialized D9A grant and separately approved C7 execution.
+
+R2-08 HUMAN SPECIFICATION AND CONFORMITY GATE
+The owner task explicitly requires a human-readable implementation-independent
+protocol specification, defined MUST/MUST NOT/SHOULD/MAY language, versionable
+sequences/state machines, exact approved message tables and wire examples.
+See docs/pacc-c2-specification-requirements.md for the recorded owner requirement
+and docs/protocol/pacc-c2-protocol-specification-draft.md for the current draft.
+Do not populate C2 hex vectors or numeric message/capability/role values before
+owner approval of encoding. Existing approved CONTROL/DATA examples remain
+separate from future C2 examples.
+FUTURE_GATE=NO_C2_PROTOCOL_QUALIFICATION_WITHOUT_SPECIFICATION_ENCODING_AND_TEST_CONSISTENCY.
+Specification + codecs + malformed/golden/old-new tests must share the approved
+revision and be traceable before C2 qualification. C1 component PASS, Model E,
+old package version or synthetic E1-E12 output cannot waive this requirement.
+
+ADDITIONAL REVIEW TESTS (future, not executed)
+R2-T01 Mode C two-key Session cannot perform Mode B without NETWORK_EGRESS;
+        old normal Session still behaves identically, no silent replacement.
+R2-T02 New unnegotiated exchange rejected at28-byte old-state boundary;
+        approved new-state bounds accept exact maximum and reject maximum+1.
+R2-T03 Revoke at every header/payload write offset: escaped prefix recorded,
+        no newly authorized DATA, incomplete frame abandoned, sibling isolation.
+R2-T04 Old local resolution snapshot and wrong reservation echo rejected at
+        their actual owner; no global generation/endpoint-attestation claim.
+R2-T05 Partial/missing bind ACK or TLS-ready response never enables application.
+R2-T06 Guess invalid ID/token cannot terminate victim; bounded work/responses.
+R2-T07 Exhaust reservations, parser/writer/control and retained-owner budgets;
+        no eviction, destructive fallback, hidden allocation or early reuse.
+R2-T08 Approved optional/unknown/reserved/text/arithmetic rules checked at every
+        field boundary with common golden/malformed vectors.
+R2-T09 A second CONTROL of the same Principal cannot attach to the first;
+        Legacy admitted contexts/profile epochs remain separately scoped.
+R2-T10 Specification examples encode/decode identically in independent peer
+        review and public C89/VC6 codecs; no implementation-defined layout.
+
+RECOMMENDATION
+C2_CONTRACT_ACCEPTABLE=NO_FOR_FINAL_VERSIONED_WIRE_APPROVAL
+SEMANTIC_DIRECTION=CONSISTENT_WITH_ACCEPTED_ADRS_WITH_PROPOSED_CLARIFICATIONS
+PACC_VERSIONED_EXTENSION_REQUIRED=YES
+WIRE_ENCODING_READY=NO
+OWNER_APPROVAL_REQUIRED=SERVICE_AND_SESSION_COMPOSITION_ENCODING_SECURITY_FENCES_BOUNDS
+C2_IMPLEMENTATION_AUTHORIZED=NO
+C3_IMPLEMENTATION_AUTHORIZED=NO
+E1_E12_EXECUTION_AUTHORIZED=NO

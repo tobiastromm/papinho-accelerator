@@ -1,0 +1,57 @@
+#include "server_config_root8_data_win32.h"
+#include "server_configuration_body05_win32.h"
+#include <string.h>
+static unsigned le16(const PAPACC_U8 *p){return (unsigned)p[0]|((unsigned)p[1]<<8);}
+static PAPACC_U64 le64(const PAPACC_U8 *p)
+{PAPACC_U64 v=0;unsigned i;for(i=0;i<8U;++i)v|=(PAPACC_U64)p[i]<<(8U*i);return v;}
+PC_ROOT8_RESULT papacc_root8_body05_data(void *ctx,unsigned kind,const PAPACC_U8 *p,
+ PAPACC_SIZE n,const PAPACC_U8 *desc,const PAPACC_U8 *header)
+{
+ PAPACC_CONFIG_VIEW v;PAPACC_SIZE i;const PAPACC_SERVER_CONFIG *c;PAPACC_RESULT result;
+ (void)ctx;
+ if(kind==6U)return PC_ROOT8_UNSUPPORTED;
+ if(kind!=5U||!desc||!header||!p||n!=1024U)return PC_ROOT8_INVALID;
+ result=papacc_configuration_body05_decode(p,n,&v);
+ if(result!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
+ c=&v.config;
+ if(memcmp(v.domain,header+72,32)||v.revision!=le64(header+104)||v.predecessor!=le64(header+112)||v.policy_epoch||
+  c->control_port!=le16(desc+8)||(unsigned)c->listener_profile!=desc[4]||
+  c->policy.admission+1U!=desc[5]||(unsigned)c->bind_selection.mode!=desc[6]||
+  c->bind_selection.interface_persistent_id_count!=le16(desc+18)||
+  c->security_configuration_ref_length!=le16(desc+12)||
+  memcmp(c->security_configuration_ref,desc+88,c->security_configuration_ref_length)||
+  memcmp(c->policy.identity,desc+280,32))return PC_ROOT8_INVALID;
+ for(i=0;i<c->bind_selection.interface_persistent_id_count;++i)
+  if(!v.ids[i].is_valid||v.ids[i].value!=le64(desc+392U+16U*i))return PC_ROOT8_INVALID;
+ return PC_ROOT8_OK;
+}
+
+/* Separate offline callback: historical body-only dispatch above is unchanged. */
+PC_ROOT8_RESULT papacc_root8_issuer_carrier_data(void *ctx,unsigned kind,
+ const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
+{
+ PAPACC_ROOT8_CARRIER_DATA *c=ctx;PAPACC_ISSUER_VIEW v;
+ PAPACC_ISSUER_CHECKPOINT_REPORT report;PAPACC_ISSUER_RECORD record;
+ PAPACC_ISSUER_RESULT s;
+ if(kind==5U)return papacc_root8_body05_data(NULL,kind,p,n,row,header);
+ if(kind!=6U&&kind!=7U)return PC_ROOT8_UNSUPPORTED;
+ if(!c||!c->owner||!c->workspace||!header||!p||n!=16384U)return PC_ROOT8_INVALID;
+ if(c->owner->stopped||c->owner->unresolved||c->owner->authority_lost)return PC_ROOT8_INCOMPLETE;
+ if(!c->floor||c->floor_bytes!=16384U)return PC_ROOT8_INCOMPLETE;
+ if(papacc_configuration_issuer_carrier_inspect06(c->owner,c->floor,c->floor_bytes,c->workspace,&v)!=PAPACC_RESULT_OK||
+    papacc_configuration_issuer_carrier_inspect06(c->owner,p,n,c->workspace,&v)!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
+ if(memcmp(v.root,header+72,32)||v.revision!=le64(header+120)||memcmp(p,c->floor,8192))return PC_ROOT8_INVALID;
+ s=papacc_issuer_checkpoint_assess(p+8192,8192,c->floor+8192,8192,
+    papacc_configuration_issuer_hash06,c->owner,0,&report);
+ if(s!=PAPACC_ISSUER_DENIED||report.state!=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED)return PC_ROOT8_INVALID;
+ if(kind==6U)return PC_ROOT8_OK; /* relative DATA continuity; never recovery */
+ if(!row||memcmp(row+40,v.authority,16)||memcmp(row+56,v.generation,16)||memcmp(row+568,v.ca_spki_digest,32))return PC_ROOT8_INVALID;
+ if(row[22]==1U)return PC_ROOT8_OK;
+ if(row[22]!=2U&&row[22]!=3U)return PC_ROOT8_INVALID;
+ s=papacc_issuer_image_find(p+8192,row+72,&record,papacc_configuration_issuer_hash06,c->owner);
+ if(s!=PAPACC_ISSUER_OK||record.request.purpose!=PAPACC_ISSUER_SERVER||
+    memcmp(row+88,record.request.csr_digest,32)||memcmp(row+120,record.request.key_digest,32))return PC_ROOT8_INVALID;
+ if(row[22]==3U)return PC_ROOT8_INCOMPLETE; /* DER/profile/SAN authority gate */
+ if(record.state!=PAPACC_ISSUER_SERIAL_RESERVED&&record.state!=PAPACC_ISSUER_SIGN_REQUESTED)return PC_ROOT8_INVALID;
+ return PC_ROOT8_OK;
+}

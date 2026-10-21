@@ -1,0 +1,604 @@
+diff --git a/docs/adr/DECISION-production-client-provisioning-20261018.md b/docs/adr/DECISION-production-client-provisioning-20261018.md
+new file mode 100644
+--- /dev/null
++++ b/docs/adr/DECISION-production-client-provisioning-20261018.md
+@@ -0,0 +1,117 @@
++---
++status: accepted
++decision-date: 2026-10-18
++last-revised: 2026-10-18
++revision: 1
++scope-level: project
++scope-target: PapinhoAccelerator
++decision-makers: [Tobias Tromm]
++supersedes: []
++superseded-by: []
++---
++
++# Production client provisioning — obrigação de fechamento da Phase 6
++
++## Autoridade e contexto
++
++Registro normativo designado da direção expressa do owner na tarefa
++`PACC-PHASE6-PRODUCTION-CLIENT-PROVISIONING-CONSOLIDATION-1`,
++`OWNER_DIRECTION=PRODUCTION_CLIENT_PROVISIONING_REQUIRED_BEFORE_PHASE6_COMPLETION`.
++A [solicitação integral](../integration/production-client-provisioning-consolidation-20261018/OWNER-REQUEST.txt)
++identifica a autorização. Este documento registra somente as obrigações expressas;
++não aceita formatos, protocolos, algoritmos, interfaces ou parâmetros inferidos.
++Nenhum ADR accepted anterior é modificado ou superseded.
++
++O [ADR-0006](ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md)
++separa credencial de Principal, exige chave nos endpoints, servidor verificável
++sem silent TOFU, código contextual/single-use/rate-limited e lifecycle de
++renovação/revogação. O [ADR-0028](ADR-0028-modelo-ortogonal-de-admissao-autenticacao-e-policies.md)
++separa transporte, admissão, AuthN e AuthZ. O
++[ADR-0012](ADR-0012-snapshot-de-capabilities-e-enforcement-contextual.md)
++proíbe ampliar silenciosamente o snapshot de uma Session.
++Browser ADR-0007, seção "Production Secure Provisioning: two official modes
++(2026-10-07)", já exige dois modos permanentes e convergentes. Manual R1
++CLOSED_CURRENT_HOST não implementa pacote, enrollment ou revogação remota.
++
++## Decisão explicitamente aprovada
++
++1. MANUAL e AUTOMATIC são obrigatórios antes do fechamento integral da Phase6.
++   Manual permanece após enrollment automático; preservar importação granular
++   avançada do Browser.
++2. MANUAL: administrador autorizado gera pacote para novo cliente; Browser o
++   valida/importa pelos mecanismos existentes. Exigir versão, identidade do
++   servidor/destinatário, integridade verificável, limites e importação
++   transacional; proteger segredos quando aplicável. Gerar pacote não autoriza
++   gerar/exportar no servidor a chave privada do cliente. Custódia e CSR devem
++   obedecer ao contrato aprovado. Formato permanece aberto.
++3. AUTOMATIC: usuário informa endereço; Browser apresenta identidade verificável
++   do servidor e realiza confirmação por código. Preservar vínculo ao
++   servidor/contexto/chave ou request, expiração, single-use e anti-replay.
++   Chave privada fica no cliente no fluxo normal; CSR/prova de posse conforme
++   contrato. Não selecionar representação do código ou bootstrap por inferência.
++4. OPEN/CLOSED no acesso ao enrollment: OPEN não exige username/password inicial
++   para solicitar enrollment; CLOSED exige sua validação antes de aprovação
++   automática ou manual. Password nunca trafega plaintext nem exige armazenamento
++   plaintext. Ambos preservam verificação do servidor e confirmação de pareamento.
++   Esta especialização não redefine Admission Mode geral do ADR-0028 nem elimina
++   CLOSED por certificado nas demais operações.
++5. Permitir AUTO_APPROVAL e MANUAL_APPROVAL administrativos. Ambos mantêm
++   identidade, confirmação, autorização, expiração e anti-replay; decisão manual
++   fica vinculada à solicitação exata. Pending/unapproved não obtém CONTROL/DATA/
++   egress operacional. Aprovação também não concede capabilities/grants implícitos.
++6. Adicionar, aprovar, renovar e revogar clientes sem reiniciar o serviço.
++   Reutilizar a root administrativa e PREPARE -> COMMIT -> CURRENT -> EPOCH
++   factuais. Não escrever diretamente na configuração committed, inventar epoch
++   ou criar segundo listener/autoridade. Primeiro commit dormente existente não
++   satisfaz sozinho o requisito de hot update.
++7. Revogação persiste no servidor e nega novas conexões revogadas; definir política
++   explícita para sessões ativas. Preservar renovação, trust rotation, safe
++   retirement, leases, auditoria sem segredos e recuperação após restart.
++   Unpair local não revoga no servidor. Não liberar dependências sobreviventes,
++   fazer retry destrutivo ou fabricar DESTROYED.
++8. Ambos convergem no mesmo cadastro administrativo, autoridade de emissão,
++   Principal/policy, configuração de grants e contrato CredentialGeneration ->
++   CredentialReference -> store -> PST/Secure Principal, com os mesmos leases e
++   lifecycle. Não criar dois subsistemas, outro owner ou autoridade operacional.
++
++## Gates e compatibilidade
++
++As seis entregas no [roadmap Phase6](../phase6-network-tls-offload.md#production-client-provisioning--phase-6-gates)
++permanecem OPEN até implementação e qualificação efetivas ou decisão normativa
++explícita de alteração de escopo. Documento/fixture não fecha entrega. Phase6
++integral não pode ser declarada encerrada com essas obrigações abertas. READY
++histórico do escopo anterior/Mode B não comprova fechamento integral atual.
++
++A decisão canônica de 18/10, Model E e ED08/ED11 continuam aplicáveis. Secure
++Principal operacional mantém TLS1.3/mTLS/ALPN papacc/1. O mecanismo anterior à
++primeira credencial exige decisão concreta própria: não inferir segundo listener,
++perfil operacional server-auth ou reutilização de plaintext. Preservar Browser
++C89/VC6/NT4 e backend substituível; NTFS+DACL não vira requisito universal nem
++criptografia em repouso.
++
++CLIENT_ADMISSION=DISABLED; SITE_TLS_ADMISSION=DENY; ED11_ADMISSION=DENY.
++Produção064/API2 preservada; candidato065/API3 normal opt-in separado de R2 TEST_ONLY.
++PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION.
++Nenhum código, SDK, PACC wire, quota ou gate muda por este registro.
++
++## Escolhas não aprovadas
++
++Cerimônia/apresentação do código; bootstrap anterior à primeira credencial;
++formato/autenticidade/limites do pacote; seleção operacional de issuer e
++custódia/CSR/PoP; CLI/GUI administrativa; expiração/limites numéricos; propagação
++da revogação nas sessões ativas. A [matriz factual](../integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md)
++detalha somente essas lacunas. Não reabrir chave local, anti-replay, dois modos,
++ortogonalidade, grants separados ou Model E já accepted.
++
++## Rationale e consequências
++
++Só registrar backlog deixaria obrigação normativa dependente do roadmap;
++considerar R1 como produto completo confundiria importação com emissão/enrollment.
++Reusar mecanismos e separar obrigação/estado/escolhas preserva decisões anteriores.
++Gates ficam abertos e decisões concretas precedem o código que delas depende.
++
++## Histórico
++
++| Revisão | Data | Descrição |
++|---|---|---|
++| 1 | 2026-10-18 | Direção explícita do owner registrada; nenhum formato/parâmetro inferido. |
+diff --git a/docs/integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md b/docs/integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md
+new file mode 100644
+--- /dev/null
++++ b/docs/integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md
+@@ -0,0 +1,98 @@
++# Reconciliação factual — Production Client Provisioning
++
++Data: 2026-10-18. Accelerator canônico; Browser somente leitura.
++Nenhum código implementado, build/teste/rede/runtime/PKI executado.
++
++## Baseline e referências exatas
++
++Accelerator main/c50b8fb9a7e3293b5e6355fc08459bf85b56857a;
++Browser main/1eb028554f622672377953225e162ed9b6564a40. Ambos já tinham WIP extenso.
++[BASELINE.json](BASELINE.json): status integral, hashes dos arquivos versionados/
++não ignorados existentes e hash do diff HEAD de cada árvore. SDKs/artefatos
++ignorados não são automaticamente incluídos; manifests e evidências selecionados
++constam de AUTHORITIES-SHA256.json. Preimagens byte-exact dos três documentos
++vivos em preimages.zip. Nenhum SDK/build foi alterado ou executado.
++
++| Ref | Autoridade/evidência exata | Uso e limite |
++|---|---|---|
++| A1 | [Accelerator ADR-0006](../../adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md), Pairing e first-use trust / Cert lifecycle / Logging e secrets | TLS1.3/mTLS, chave nos endpoints, credential != Principal; código contextual single-use/short-lived/rate-limited; renewal/revoke; sem secrets. |
++| A2 | [Accelerator ADR-0028](../../adr/ADR-0028-modelo-ortogonal-de-admissao-autenticacao-e-policies.md), Admission Mode / Authentication / Combinações canônicas | OPEN/CLOSED independente de TLS/AuthN/AuthZ; CLOSED geral admite certificado e/ou password. |
++| A3 | [Accelerator ADR-0012](../../adr/ADR-0012-snapshot-de-capabilities-e-enforcement-contextual.md), Decisão | Snapshot imutável; policy pode negar/revogar, nunca acrescentar capability silenciosamente. |
++| A4 | [Browser ADR-0007](../../../../PapinhoBrowser/docs/adr/ADR-0007-integracao-policy-e-ux-do-papinhoaccelerator-no-papinhobrowser.md), Production Secure Provisioning: two official modes (2026-10-07), linhas 1885–1933 da baseline | Dois modos permanentes/convergentes, pacote não congelado, blocker de final handoff. Accelerator ADR-0007 governa bind de interfaces, não este contrato Browser. |
++| A5 | [Browser roadmap](../../../../PapinhoBrowser/docs/architecture-roadmap.md#production-secure-provisioning), linhas 18–71 | Granular/R1 current-host fechado; pacote/export/enrollment/bootstrap/re-pair/unpair/revoke abertos. |
++| A6 | [Browser ADR-0007](../../../../PapinhoBrowser/docs/adr/ADR-0007-integracao-policy-e-ux-do-papinhoaccelerator-no-papinhobrowser.md), Minimum Secure Provisioning R1 closeout (2026-10-07), linhas 1807–1883; build/provisioning-closeout/REPORT.txt | Import DER/Base64/PKCS8 não cifrado, validação/commit/leases anteriores; não issuer/pacote/enrollment/revoke servidor ou NT4. Relato preservado, não rerun. |
++| A7 | [Proposta/handoff Browser 07/10](../../../../PapinhoBrowser/build/diagnostics/consolidated-intermediate-handoff-proposal-20261007.md#8-permanent-provisioning-paths-and-revocation), seção 8, linhas 187–212 | CSR/public-key preferido, bounded package/import, remote revoke separado; proposta não congela formato, issuer ou parâmetro. |
++| A8 | [Factual handoff 07/10](../../../../PapinhoBrowser/build/diagnostics/mode-c-c2-browser-factual-handoff-20261007.md), Baseline; [pre-handoff audit](../../../../PapinhoBrowser/build/diagnostics/pre-handoff-readiness-audit-20261007.md), Executive finding | Histórico source-established; não importa cleanup antigo nem nega integrações canônicas posteriores. |
++| A9 | [Decisão canônica 18/10](../../adr/DECISION-phase6-canonical-consolidation-20261018.md) | Mesma root/listener, Model E/ED08/ED11, pin064 e publicação065 diferida; preservar WIP/SDK. |
++| A10 | [Provisioning handoff 18/10](../mode-c-administrative-tls-input-binding-20261018/provisioning-handoff.md), Exact configuration and storage interfaces | BODY0.5/root/source/Browser APIs; materiais/input bindings não aprovados; primeiro commit apenas; fonte lab não issuer de produção. |
++| A11 | [Future policy](../../future/network-egress-policy.md), Estado implementado / Governance classification | Ortogonalidade e egress separados; não autoriza enrollment, outra CA ou emissão. |
++| A12 | [Decisão explícita atual](../../adr/DECISION-production-client-provisioning-20261018.md) / OWNER-REQUEST.txt | Seis gates antes do fechamento integral, password no enrollment CLOSED, aprovação auto/manual e hot update; escolhas concretas não inferidas. |
++
++## Matriz por requisito
++
++EXISTING = contrato/mecanismo encontrado, apenas no escopo descrito.
++PARTIAL = parte reutilizável existe; produto integral não implementado/qualificado.
++MISSING = implementação produtiva correspondente não localizada nos caminhos
++canônicos inspecionados. Contrato não equivale a código ou qualificação.
++Todos os seis gates de entrega permanecem OPEN.
++
++| Requisito | Contrato | Implementação | Evidência / lacuna |
++|---|---|---|---|
++| Dois modos permanentes antes do fechamento Phase6 | EXISTING A4/A12 | PARTIAL | R1 granular existe; pacote e automático faltam. |
++| Importação granular avançada | EXISTING A4/A6 | EXISTING R1/current-host | Browser src/papinho_credential_options.inc: papinho_security_dialog_proc -> material_import -> store_prepare; Apply/OK/Cancel preservados. NT4 não qualificado. |
++| Admin Export new client | EXISTING obrigação A4/A12 | MISSING | Não há gerador/issuer/cadastro produtivo identificado nos apps/server, src/include inspecionados. Fonte lab não substitui. |
++| Importação de pacote único | EXISTING obrigação A4/A12 | MISSING | Browser importer lê três materiais; reutilizar validator/store/generation, não anunciar parser de container existente. |
++| Versão/servidor/destinatário/integridade/bounds | PARTIAL: invariantes A12; formato aberto | MISSING pacote | Aprovar encoding/autenticidade/limites/replay/duplicates/secret protection antes de serializer/parser. Não escolher ZIP/JSON/PEM/PKCS12. |
++| Chave privada local, CSR/PoP | EXISTING custódia A1; PARTIAL fluxo concreto | PARTIAL | R1 importa chave fornecida pelo usuário; não gera CSR nem autoriza exportar chave de cliente no servidor. Issuer/algoritmo/CSR/PoP concretos pendentes. |
++| Address -> identidade verificável -> código | EXISTING obrigação A1/A12; PARTIAL cerimônia | MISSING automático | Endpoint/código não autentica servidor; bootstrap/transcript/apresentação não congelados. |
++| OPEN sem login inicial | EXISTING A2/A12 | MISSING enrollment | Não dispensa TLS/confirmação/policy, não concede uso operacional. |
++| CLOSED password antes de approval | EXISTING A12, escopo enrollment | MISSING enrollment | CLOSED geral A2 continua representável por certificado. TLS obrigatório para password; sem armazenamento plaintext. |
++| AUTO_APPROVAL/MANUAL_APPROVAL | EXISTING A12 | MISSING | Ambos validam tudo; manual request-bound; admin frontend não identificado. |
++| Expiração/single-use/limites/anti-replay | EXISTING invariantes A1/A12 | MISSING enrollment | Request, clocks, replay state e valores não aprovados. Nenhum default inventado. |
++| Pending sem CONTROL/DATA/egress | EXISTING A1/A12 | PARTIAL | Gates deny e AuthN/policy existentes; bootstrap/approval/issuer não implementados. Não usar Session operacional como atalho. |
++| Mesmo cadastro e issuer | EXISTING A12 | MISSING produto | server_security_source_win32.h/.c é lab, single leaf digest; não registro multi-cliente, emissor ou admin de produção. Não criar nova CA. |
++| Principal/policy/grants separados | EXISTING A1/A2/A3 | PARTIAL | server_policy_model.h e C2/root têm Principal16/policy; enrollment/revoke/approval pendentes. Não converter fingerprint em Principal. |
++| CredentialGeneration/Reference/store | EXISTING A4/A6 | EXISTING Browser R1 | papinho_credential_store.h/.c e papinho_accelerator_config_generation.inc, metadados/ActiveConfiguration. Frontends novos pendentes. |
++| Leases/retirement/Model E | EXISTING A6/A9 | EXISTING mecanismos; PARTIAL ciclo novo | papinho_credential_lifetime.inc e finalização canônica; Accelerator source prepare/borrow/unborrow/retain. Não liberar dependência sobrevivente. |
++| PREPARE -> COMMIT -> CURRENT -> EPOCH | EXISTING A9/A12 | PARTIAL | server_configuration_root_transaction_win32.inc: apply_dormant/transaction_prepare_store/commit/publish/current_pin; primeiro commit, não hot reload. |
++| Add/approve/renew/revoke sem restart | EXISTING A12 | MISSING caminho live do cadastro | prepare_store rejeita expected != 0 e root/store inicializados; root_dormant_owned exige I/O inativo; publish declara transição/reload posterior unsupported. Estender mesma autoridade, não contornar preconditions. |
++| Revoke persistente/deny novas conexões | EXISTING obrigação A1/A12 | MISSING cadastro produtivo | Allowlist lab de um leaf não prova revogação persistente multi-cliente/live/recovery. |
++| Revogação sobre sessões/requests ativos | PARTIAL: obrigação A3/A12, disposição aberta | PARTIAL base | Snapshot admite deny; não determina encerramento/propagação/ack das sessões já vivas. Política concreta pendente. |
++| Renovação/trust rotation | EXISTING obrigação A1/A12 | PARTIAL | Browser troca geração/retém leases; issuance/registro servidor/overlap/rollback/rotação verificada pendentes. |
++| Recovery após restart | EXISTING obrigação A12 | PARTIAL | Store/recovery e Browser gerações existem; não provam recovery de pending/approval/revoke/issuer registry inexistente. |
++| Unpair local != revoke remoto | EXISTING A4/A6/A12 | EXISTING distinção; MISSING remoto | papinho_options_security_remove avisa explicitamente; remover referência não revoga servidor. |
++| Auditoria sem segredos | EXISTING A1/A12 | PARTIAL | Logger não implementa auditoria do enrollment ainda inexistente; sem chave/password/token/proof bruto. |
++| Interface admin CLI/GUI | MISSING decisão concreta | MISSING produto | APIs privadas root não comprovam CLI/GUI instalada ou workflow autorizado de cadastro. |
++| Seis gates Phase6 OPEN | EXISTING A12 | EXISTING registro documental | Atualizado roadmap Phase6 existente; nenhuma conclusão funcional nova. |
++
++## Somente decisões concretas ainda faltantes
++
++| Lacuna | Parte accepted, não reabrir | Decisão mínima pendente |
++|---|---|---|
++| D1 cerimônia/apresentação do código | Código contextual/single-use/bounded obrigatório; não é identidade | Quem compara/confirma, transcript/request/public-key binding, relay/replay/cancel/re-pair, pending/recovery; sem escolher número de dígitos. |
++| D2 bootstrap | Servidor verificável, sem silent TOFU; normal Secure Principal mTLS | Como verificar antes da primeira credencial na autoridade/listener existente; trusted channel/anchors/name. Sem reduzir mTLS ou criar listener. |
++| D3 pacote | Versão/integridade/destinatário/servidor/bounds/commit | Schema/encoding, autenticidade/verificador, IDs/validade/replay/duplicates, limites e confidencialidade se houver segredos. Primeiro gate do gerador. |
++| D4 issuer/custódia concreta | Chave normal no cliente; mesmo issuer/Principal; CA key fora da credencial runtime | Issuer aprovado, interface CSR/PoP, identidade/SAN/EKU/algoritmo/validade/operadores/referências. Export excepcional de chave exige autoridade própria. |
++| D5 interface admin/live | Uma root/autoridade; auto/manual approval e hot update obrigatórios | CLI/GUI/callers reais, permissões e contrato de publicação live, retorno factual; sem inventar comando. |
++| D6 parâmetros | Expiração/single-use/rate limit obrigatórios | Valores/escopos de tempo/tentativas/pending/concurrency/replay e custos ED11; clocks apropriados. Não copiar margem de 512 MiB ou quota de outra árvore. |
++| D7 revogação ativa | Persistir/deny novas conexões/Model E/leases | Política para sessões/ops ativas, checkpoints/bound/ack/revisão/epoch/falha/recovery/retirement sem ressurreição. |
++
++Não foram aceitas escolhas dessas sete lacunas, nem criadas sete ADRs.
++Submeter somente o necessário ao próximo slice, preservando o já accepted.
++
++## Divergências reconciliadas
++
++NORMATIVE_CONFLICTS=NONE_IDENTIFIED_WITH_SCOPED_ENROLLMENT_INTERPRETATION.
++Password CLOSED novo é requisito do enrollment, não revisão universal de A2.
++Manual permanente de A4 não autoriza private-key export; A7 é proposta, não
++prevalece sobre A1/A4/A9/A12.
++
++O READY/complete no cabeçalho antigo de phase6-network-tls-offload.md era do
++escopo anterior/Mode B. O documento agora separa esse resultado histórico da
++Phase6 integral OPEN. Nenhuma evidência histórica foi apagada/requalificada.
++Não existe docs/architecture-roadmap.md no Accelerator nesta baseline; o arquivo
++com esse nome é do Browser. Atualizou-se o registro Phase6 já existente no
++Accelerator, sem criar outro roadmap concorrente.
++
++FIRST_UNRESOLVED_DIVERGENCE=MANUAL_PACKAGE_SCHEMA_ISSUER_RECIPIENT_CONTRACT_NOT_FROZEN.
++Hot update é lacuna funcional independente: primeiro commit não prova update live.
+diff --git a/docs/phase6-network-tls-offload.md b/docs/phase6-network-tls-offload.md
+--- a/docs/phase6-network-tls-offload.md
++++ b/docs/phase6-network-tls-offload.md
+@@ -1,6 +1,42 @@
+ # Phase 6 — Network & TLS Offload
+ 
+-Status: complete. Phase 6 is READY. Phase 7 has not started.
++Status atual (2026-10-18): Phase 6 integral OPEN / NOT COMPLETE.
++O READY/complete do relatório original abaixo qualifica somente o escopo
++histórico Network & TLS Offload/Mode B; não fecha a integração canônica posterior
++nem Production Secure Provisioning. Phase 7 não é habilitada por esta tarefa.
++
++## Production client provisioning — Phase 6 gates
++
++Obrigação normativa: [decisão expressa do owner](adr/DECISION-production-client-provisioning-20261018.md).
++Dois modos permanentes convergem na mesma autoridade/cadastro/issuer,
++Principal-policy/grants e CredentialGeneration/Reference/store/leases.
++
++| Entrega obrigatória | Status | Evidência necessária para fechar |
++|---|---|---|
++| P6-PROVISIONING-MANUAL-PACKAGE | OPEN | Gerador admin e importação Browser reais; formato/issuer/custódia aprovados, integridade/destinatário/servidor/limites e commit transacional, preservando importação granular. |
++| P6-PROVISIONING-AUTOMATIC-ENROLLMENT | OPEN | Address, bootstrap verificável, confirmação por código, chave local/CSR-PoP conforme contrato, emissão e commit comuns; negativos/replay/recovery qualificados. |
++| P6-PROVISIONING-OPEN-CLOSED | OPEN | OPEN sem login inicial; CLOSED no enrollment valida password dentro de TLS antes de aprovação; políticas ortogonais e sem uso operacional pendente. |
++| P6-PROVISIONING-AUTO-MANUAL-APPROVAL | OPEN | Configuração e callers reais; validações completas, decisão manual vinculada ao request exato, sem grants implícitos. |
++| P6-PROVISIONING-HOT-UPDATE | OPEN | Add/approve/renew/revoke sem restart na mesma root PREPARE/COMMIT/CURRENT/EPOCH factual; falha/concorrência/recovery/retenção comprovados. Primeiro commit dormente atual não basta. |
++| P6-PROVISIONING-REVOCATION-RENEWAL | OPEN | Revoke persistente/deny novas conexões, política aprovada para sessões ativas, renovação/trust rotation/recovery e safe retirement/leases comprovados. |
++
++Implementação e qualificação efetivas são necessárias; fixtures/documentos
++não fecham entregas. Alteração de escopo requer decisão normativa explícita.
++Não declarar fechamento integral Phase6 com essas obrigações abertas.
++Outros gates canônicos, E10/ED11 e qualificação Mode C continuam independentes.
++PST0.6.5 só será publicado após fechamento integral da Phase6.
++
++[Matriz e lacunas](integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md) ·
++[Handoff Browser](integration/production-client-provisioning-consolidation-20261018/BROWSER-HANDOFF.md) ·
++[Próximo slice manual](integration/production-client-provisioning-consolidation-20261018/NEXT-MANUAL-GENERATOR.md).
++Produção064/API2 preservada; candidato065 normal opt-in; R2 TEST_ONLY isolado.
++CLIENT_ADMISSION=DISABLED; SITE_TLS_ADMISSION=DENY; ED11_ADMISSION=DENY.
++
++## Relatório histórico do escopo anterior
++
++O texto seguinte preserva resultados/limitações do escopo original. Suas
++menções a Browser/Mode C ausentes não substituem o estado canônico posterior em
++[canonical-phase6-consolidation](capabilities/canonical-phase6-consolidation.md).
+ 
+ ## Scope and result
+ 
+diff --git a/docs/capabilities/client-pairing.md b/docs/capabilities/client-pairing.md
+--- a/docs/capabilities/client-pairing.md
++++ b/docs/capabilities/client-pairing.md
+@@ -2,11 +2,67 @@
+ capability: client-pairing
+ title: Client Pairing e Enrollment
+ status: concept
+-last-updated: 2026-09-06
++last-updated: 2026-10-18
+ scope: project
+ ---
+ 
+ # Client Pairing e Enrollment
++
++## Consolidação de produção — 2026-10-18
++
++O status `concept` descreve pairing/enrollment ainda não implementado, sem
++rebaixar a importação granular já existente no Browser. Dois modos permanentes
++são obrigatórios antes do fechamento integral Phase6:
++[decisão explícita do owner](../adr/DECISION-production-client-provisioning-20261018.md)
++e [seis gates OPEN](../phase6-network-tls-offload.md#production-client-provisioning--phase-6-gates).
++A [matriz atual](../integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md)
++separa contrato/mecanismo existente/lacuna. Nenhum pacote ou enrollment produtivo
++foi implementado por esta atualização documental.
++
++- MANUAL: preservar importação granular avançada; adicionar Export new client
++  no admin e importação verificada/transacional de pacote no Browser. Versão,
++  integridade, destinatário/servidor e limites obrigatórios; formato/issuer/CSR
++  concretos e proteção de eventuais segredos ainda não congelados. Não há
++  autorização para servidor exportar chave privada do cliente.
++- AUTOMATIC: endereço, servidor verificável, confirmação por código e políticas
++  AUTO_APPROVAL/MANUAL_APPROVAL. Chave normal no cliente; confirmação/AuthZ/
++  expiry/anti-replay obrigatórios. Cerimônia, bootstrap anterior à primeira
++  credencial e wire permanecem em gate próprio.
++- OPEN dispensa login inicial para pedir enrollment. CLOSED no enrollment valida
++  username/password antes de aprovação. Isso preserva ADR-0028 para o serviço
++  geral, transporte/AuthN/AuthZ separados. Password nunca plaintext;
++  pending/unapproved sem CONTROL/DATA/egress operacional.
++- Ambos convergem no mesmo cadastro/issuer/Principal-policy/grants e no mesmo
++  CredentialGeneration/Reference/store/leases. Add/approve/renew/revoke sem
++  restart é obrigatório na mesma root PREPARE -> COMMIT -> CURRENT -> EPOCH.
++  Entry point atual de primeiro commit dormente não é hot reload.
++- Revoke persistente/deny novas conexões são obrigatórios; política/propagação
++  sobre sessões ativas exige decisão concreta. Local unpair não revoga servidor.
++  Preservar Model E, retenção e safe retirement.
++
++### Mecanismos reutilizáveis e limites
++
++Browser ADR-0007 e roadmap, seção Production Secure Provisioning (07/10),
++qualificam Manual R1/current-host: import DER/raw Base64/PKCS8 não cifrado,
++validator/store_prepare, commit ActiveConfiguration e leases/retirement. Não
++qualificam NT4 real, pacote, issuer, pairing ou revoke remoto. Pontos reais:
++src/papinho_credential_options.inc, papinho_credential_import.inc,
++papinho_credential_store.h/.c, papinho_accelerator_config_generation.inc e
++papinho_credential_lifetime.inc, somente lidos nesta tarefa.
++
++No Accelerator, apps/server/server_security_source_win32.h/.c continua fonte
++lab de credenciais/single leaf digest; não é cadastro multi-cliente nem issuer
++de produção. Root e BODY0.5 existem, mas
++server_configuration_root_transaction_win32.inc restringe prepare/publish ao
++primeiro commit dormente, sem atualização live. APIs privadas não comprovam
++CLI/GUI administrativa instalada. Ver
++[handoff administrativo](../integration/mode-c-administrative-tls-input-binding-20261018/provisioning-handoff.md).
++
++Limitações/pendências abaixo referem-se ao enrollment e não negam essas bases
++parciais. A [policy futura](../future/network-egress-policy.md) permanece separada
++da emissão/enrollment. Parâmetros concretos pendentes constam da matriz;
++nenhum formato, quota ou protocolo é escolhido aqui.
++CLIENT_ADMISSION=DISABLED; SITE_TLS_ADMISSION=DENY; ED11_ADMISSION=DENY.
+ 
+ ## Objetivo
+ 
+@@ -356,3 +412,4 @@
+ |---|---|
+ | 2026-09-06 | Criação inicial do Capability Document para a experiência conceitual de client pairing/enrollment. |
+ | 2026-09-29 | Registrado o provisioning manual lab-only e explicitado que ele não constitui pairing/enrollment. |
++| 2026-10-18 | Reconciliados modos permanentes/gates Phase6 e mecanismos Browser R1/root; pacote/enrollment/hot-update permanecem pendentes. |
+diff --git a/docs/integration/production-client-provisioning-consolidation-20261018/BROWSER-HANDOFF.md b/docs/integration/production-client-provisioning-consolidation-20261018/BROWSER-HANDOFF.md
+new file mode 100644
+--- /dev/null
++++ b/docs/integration/production-client-provisioning-consolidation-20261018/BROWSER-HANDOFF.md
+@@ -0,0 +1,77 @@
++# Handoff Browser — dois modos permanentes de provisionamento
++
++Status: ACTIVE / DOCUMENTARY_HANDOFF. Data: 2026-10-18.
++Destino: Codex Browser em C:\Projetos\PapinhoBrowser.
++Preparado no Accelerator; Browser permaneceu somente leitura.
++
++## Autoridade e baseline
++
++[Decisão explícita](../../adr/DECISION-production-client-provisioning-20261018.md),
++ADR-0006/0028 Accelerator e ADR-0007 Browser, seção Production Secure Provisioning:
++two official modes (07/10). [Matriz](RECONCILIATION.md): referências históricas,
++estado real e lacunas. Browser HEAD1eb028554f622672377953225e162ed9b6564a40;
++Accelerator HEADc50b8fb9a7e3293b5e6355fc08459bf85b56857a, ambos com WIP.
++Usar canônico atual; não importar cleanup/snapshots de 07/10.
++
++## Integração mínima após contrato aprovado
++
++MANUAL permanente: preservar granular/avançado. Adicionar apenas frontend de
++pacote aprovado e validação bounded, convergindo no pipeline existente:
++
++```text
++pacote verificado / materiais aprovados
++ -> papinho_credential_material_validate
++ -> papinho_credential_store_prepare
++ -> draft CredentialReference + configuração validada
++ -> gate e commit ConfigGeneration / ActiveConfiguration
++ -> papinho_credential_candidate_committed
++ -> consumidores existentes, leases e safe retirement
++```
++
++Pontos reais: src/papinho_credential_options.inc (dialog/import/draft),
++papinho_credential_import.inc (DER/raw Base64), papinho_credential_store.h/.c
++(validator/candidate/reference), papinho_accelerator_config_generation.inc
++(commit_metadata/selector) e papinho_credential_lifetime.inc (leases/retirement).
++Preservar ordem real das chamadas e seus contratos, não copiar o diagrama como
++nova implementação. PKCS8 não cifrado de R1 não autoriza pacote com chave
++privada gerada/exportada pelo servidor. Formato e CSR/key generation concretos
++precisam de decisão. Não anunciar PEM/PKCS12/encrypted container como existente.
++
++Não publicar candidato antes do flip factual. Cancel/failure preserva committed
++anterior. Sem copiar material diretamente para gerações, editar HKCU manualmente
++ou apagar dependência retida. Mudança no Browser/roadmap pertence a tarefa
++própria autorizada; nenhuma edição Browser ocorreu aqui.
++
++## Automatic e ciclo servidor
++
++Address + servidor verificável + código + approval configurado. OPEN dispensa
++login inicial; CLOSED do enrollment valida password antes de auto/manual approval.
++TLS/confirmação/AuthZ/anti-replay obrigatórios. Pending/unapproved sem Session
++CONTROL/DATA operacional. Bootstrap anterior à primeira credencial, cerimônia e
++wire não congelados: sem silent TOFU, atalho operacional ou novo listener.
++Chave normal fica no cliente; CSR/PoP conforme contrato.
++
++Ambos convergem no mesmo cadastro/issuer/Principal-policy/grants e
++CredentialGeneration/Reference. Não criar owner/scheduler/controller/store paralelo.
++Proveniência MANUAL_IMPORT/ENROLLMENT pode ser metadata, sem bifurcar PST/routing/
++lifetime. Unpair local não revoga servidor. Hot update/revoke persistente e
++política para sessões ativas permanecem pendentes. Primeiro commit dormente do
++Accelerator não prova add/revoke sem restart.
++
++## Gates para tarefa própria
++
++Os seis IDs no [roadmap](../../phase6-network-tls-offload.md#production-client-provisioning--phase-6-gates)
++ficam OPEN. Aprovar D3/D4 e interface mínima D5 antes do parser/gerador.
++Validar tamper/wrong server/recipient, CSR/key mismatch, replay/expiry,
++limites/malformed/traversal, duplicate/cancel, crash antes/depois de commit,
++stale writer, leases/retention/Stop. Distinguir sintético/nativo/NT4.
++
++Preservar Site Pump, Session/owner duráveis, callbacks, quiescência, Model E,
++ED08/ED11 e leases canônicos. C89/VC6/Win32/NT4; produção064/API2;
++candidato065/API3 normal opt-in e R2 TEST_ONLY isolado. Sem alteração wire/PST/
++quota/segredo ou admissão por esta consolidação.
++CLIENT_ADMISSION=DISABLED; SITE_TLS_ADMISSION=DENY; ED11_ADMISSION=DENY.
++PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION.
++NEXT=IMPLEMENT_CANONICAL_MANUAL_CLIENT_PACKAGE_GENERATOR.
++O primeiro gate é aprovar D3/D4/interface mínima; NEXT não permite inventar
++formato, exportar chave ou executar PKI sem autoridade própria.
+diff --git a/docs/integration/production-client-provisioning-consolidation-20261018/NEXT-MANUAL-GENERATOR.md b/docs/integration/production-client-provisioning-consolidation-20261018/NEXT-MANUAL-GENERATOR.md
+new file mode 100644
+--- /dev/null
++++ b/docs/integration/production-client-provisioning-consolidation-20261018/NEXT-MANUAL-GENERATOR.md
+@@ -0,0 +1,50 @@
++# Próximo slice mínimo — gerador canônico de pacote manual
++
++NEXT=IMPLEMENT_CANONICAL_MANUAL_CLIENT_PACKAGE_GENERATOR.
++Escopo: P6-PROVISIONING-MANUAL-PACKAGE. Plano para a próxima autorização;
++nenhum código, emissão, importação de material ou PACC wire autorizado aqui.
++
++1. Antes do código, submeter somente D3/D4 e superfície mínima D5 da
++   [matriz](RECONCILIATION.md): schema versionado, autenticidade/verificador,
++   destinatário/servidor/request/CSR de origem, bounds exatos/validade/replay/
++   duplicates, issuer e custódia aprovados. Delimitar dados públicos/segredos e
++   sua proteção. Sem essas decisões, parar antes do parser/serializer ou key
++   generation. Não selecionar ZIP/JSON/PKCS12/algoritmo/password por conveniência.
++2. Reusar admin/cadastro/issuer aprovados. Binding inexistente é blocker factual;
++   implementar somente o autorizado na mesma root. Sem outro cadastro/CA/listener.
++   Cliente apresenta public key/CSR e demonstra posse conforme contrato; chave
++   normal não sai do cliente. Issuer selecionado fornece credencial; servidor
++   mantém Principal estável. Cert/fingerprint não concede grants.
++3. Gerar pacote de vista administrativa factual e resultado de issuer aprovado,
++   com integridade/destinatário/servidor/limites validados. Export não equivale a
++   admissão nem commit Browser. Não logar chave/password/token/proof bruto.
++   Falha de emissão/commit/export não deixa autorização parcial nem admite retry
++   destrutivo; recovery/anti-replay exigem contrato aprovado.
++4. A root atual oferece primeiro commit dormente: apply_dormant ->
++   transaction_prepare_store -> transaction_commit -> transaction_publish ->
++   current_pin. Rejeita live reload. Não fingir que root ativa está dormente.
++   Se add cliente exigir live update, fazer o menor binding hot-update autorizado
++   na mesma autoridade antes de alegar produto sem restart. Não ampliar
++   automaticamente este slice para todo enrollment/revoke. Não editar committed
++   direto nem escolher epoch no gerador.
++5. Entregar contrato/exemplo público sintético ao Codex Browser pelo
++   [handoff](BROWSER-HANDOFF.md). Implementação Browser tem autorização própria;
++   reutilizar validator/store/generation/leases e manter granular. Não criar
++   segunda biblioteca de credenciais.
++6. Sob autorização específica, validar offline: admin/issuer/recipient corretos,
++   unauthorized/substituted CSR/PoP, wrong server/recipient, tamper, expiry/replay/
++   duplicate, oversize/malformed/traversal e ausência de secret em logs. Import
++   deve manter committed em cancel/failure, validar material e publicar
++   atomicamente. Exercitar stale writer/crash/leases/Stop/retenção e reportar
++   sintético/nativo separadamente; fixture não qualifica produto operacional.
++
++Contabilizar custos incrementais de schema/staging/cópias/scratch/registro/replay,
++simultaneidade/retention no ED11 antes dos efeitos. Sem aumentar quotas ou importar
++margem histórica; provider/kernel UNKNOWN permanece UNKNOWN. Nenhum custo runtime
++foi introduzido nesta tarefa documental, sem medição nova.
++
++DoD próximo: gerador real ligado à autoridade/issuer selecionados, contrato
++consumível e negativos; import comprovado na tarefa Browser correspondente.
++Não fechar gate por export isolado/fixture, nem fechar as outras cinco entregas.
++Phase6 integral/publicação065 permanecem bloqueadas por obrigações abertas.
++CLIENT_ADMISSION=DISABLED; SITE_TLS_ADMISSION=DENY; ED11_ADMISSION=DENY.
+diff --git a/docs/integration/production-client-provisioning-consolidation-20261018/CLOSEOUT.md b/docs/integration/production-client-provisioning-consolidation-20261018/CLOSEOUT.md
+new file mode 100644
+--- /dev/null
++++ b/docs/integration/production-client-provisioning-consolidation-20261018/CLOSEOUT.md
+@@ -0,0 +1,113 @@
++# Closeout — consolidação de Production Client Provisioning
++
++TASK=PACC-PHASE6-PRODUCTION-CLIENT-PROVISIONING-CONSOLIDATION-1.
++Data: 2026-10-18. Tarefa documental concluída; provisionamento produtivo permanece
++parcial/não implementado. Nenhum novo resultado funcional ou qualificação runtime.
++
++## Entregas
++
++- [Matriz EXISTING/PARTIAL/MISSING e referências exatas](RECONCILIATION.md):
++  ADRs accepted, fontes canônicas, handoffs de 07/10 e decisões posteriores;
++  sete lacunas concretas D1–D7, sem reabrir os invariantes accepted.
++- [Registro normativo da direção explícita do owner](../../adr/DECISION-production-client-provisioning-20261018.md):
++  somente as obrigações aprovadas, sem aceitar formato/issuer/cerimônia/parâmetros.
++- [Roadmap Phase6 atualizado](../../phase6-network-tls-offload.md#production-client-provisioning--phase-6-gates):
++  seis IDs obrigatórios OPEN. READY antigo delimitado ao escopo histórico;
++  Phase6 integral OPEN até implementação/qualificação ou alteração normativa.
++- [Capability reconciliada](../../capabilities/client-pairing.md),
++  [handoff Browser](BROWSER-HANDOFF.md) e
++  [próximo slice mínimo do gerador manual](NEXT-MANUAL-GENERATOR.md).
++
++Manual granular, validator/store, ConfigGeneration/ActiveConfiguration, leases
++existem no Browser. Pacote/enrollment/cadastro/issuer de produção ainda faltam.
++A root canônica possui primeiro commit dormente, não hot update. Seu prepare_store
++rejeita root/store já inicializados e revision esperada não-zero; I/O ativo não
++satisfaz root_dormant_owned. Não contornar essas preconditions para alegar add/
++revoke sem restart. CLOSED password antes de approval aplica-se ao enrollment,
++sem redefinir CLOSED geral/por certificado do ADR-0028.
++
++## Preservação e conferência documental
++
++[BASELINE.json](BASELINE.json) registra HEAD/main e WIP de ambos os projetos:
++Accelerator c50b8fb9a7e3293b5e6355fc08459bf85b56857a;
++Browser 1eb028554f622672377953225e162ed9b6564a40. Hashes de 1.231 arquivos prévios
++Accelerator e 17.053 Browser foram conferidos. Apenas dois documentos prévios
++Accelerator mudaram de forma autorizada; nenhum arquivo Browser inventariado,
++fonte funcional ou ADR accepted prévio mudou. Nenhum arquivo prévio foi removido.
++O inventário cobre versionados/não ignorados; não afirma snapshot integral de
++outputs ignorados. Preimagens exatas dos três documentos inicialmente considerados
++em [preimages.zip](preimages.zip), incluindo o arquivo opcional que ficou intacto.
++
++[VERIFICATION.json](VERIFICATION.json): seis gates OPEN, links locais conferidos,
++sem trailing whitespace nos documentos aplicados; git diff --check passou nos
++dois documentos prévios alterados. Avisos do Git LF/CRLF são conversão declarada
++já presente na baseline; não são warnings de compilação. Não se executou build.
++[SDK-VERIFICATION.json](SDK-VERIFICATION.json): hashes conferidos em 47 arquivos
++Browser PST064, 55 normal065, 34 R2 TEST_ONLY e 46 normal065 Accelerator. Mesmos
++pacotes, sem mistura/recompilação. [Autoridades e hashes](AUTHORITIES-SHA256.json),
++[delta documental](DOCUMENTATION-DELTA.patch), [arquivos desta tarefa](CHANGED-FILES.json)
++e [manifest final](SHA256SUMS.txt) permitem revisão. O manifest exclui a si próprio.
++
++ED11: nenhum armazenamento operacional/scratch/thread/handle/retention adicional
++introduzido por escopo somente documental, sem medição nova; quotas inalteradas,
++provider/kernel UNKNOWN, total PARTIAL. A futura implementação deve contabilizar
++staging/cópias/registro/replay/concorrência/retenção antes de seus efeitos.
++Nenhuma margem de 512 MiB foi importada. Nenhum segredo/material PKI foi gerado,
++exportado/importado ou registrado; hashes não concedem admissão.
++
++## Executor e limite da alteração
++
++Escalonamentos foram solicitados ao executor oficial e aprovados. Aplicações
++documentais usam codex.exe --codex-run-as-apply-patch; [log integral](EXECUTOR-LOG.json).
++Um comando grande falhou ANTES de criar processo por limite Windows (os error206);
++foi dividido em comandos menores usando o mesmo executor. Isso não foi negativa
++de aprovação nem execução/rejeição de patch.
++
++Um patch acessório para docs/capabilities/canonical-phase6-consolidation.md
++falhou tecnicamente com "Failed to find expected lines". O arquivo termina sem
++newline; o diff gerado concatenou o contexto final. Falha preservada no log;
++nenhuma reaplicação por outro mecanismo ou nova tentativa nesse arquivo.
++Arquivo segue byte-exact à baseline. Roadmap/capability solicitados e entregas
++não dependem desse patch acessório. Não houve negativa do auto-review contornada.
++
++Não houve fonte de produto alterada, compilação, teste de produto, rede, processo
++Browser/Accelerator iniciado, store administrativo modificado, ACL/ownership/global
++config alterado, clone/worktree, commit/push/tag/release. Browser somente leitura.
++
++## Resultado
++
++```text
++CURRENT_TASK_COMPLETED=YES
++MANUAL_PROVISIONING=PARTIAL_GRANULAR_R1_EXISTS_PACKAGE_MISSING
++AUTOMATIC_ENROLLMENT=MISSING_IMPLEMENTATION_CONTRACT_OBLIGATION_REGISTERED
++OPEN_CLOSED_POLICY=EXISTING_ORTHOGONAL_CONTRACT_ENROLLMENT_SPECIALIZATION_REGISTERED_RUNTIME_MISSING
++AUTO_MANUAL_APPROVAL=REQUIRED_CONTRACT_REGISTERED_IMPLEMENTATION_MISSING
++PAIRING_CODE_CONTRACT=ACCEPTED_INVARIANTS_CEREMONY_NOT_FROZEN
++HOT_UPDATE=PARTIAL_TRANSACTION_BASE_LIVE_UPDATE_MISSING
++REVOCATION_RENEWAL=PARTIAL_LOCAL_LIFETIME_SERVER_REGISTRY_AND_ACTIVE_POLICY_PENDING
++PHASE6_ROADMAP_UPDATED=YES_SIX_MANDATORY_GATES_OPEN
++NORMATIVE_CONFLICTS=NONE_IDENTIFIED_WITH_SCOPED_ENROLLMENT_INTERPRETATION
++UNRESOLVED_DECISIONS=D1_D2_D3_D4_D5_D6_D7_CONCRETE_CHOICES_ONLY
++FILES_CHANGED=SEE_CHANGED_FILES_JSON_DOCUMENTS_AND_EVIDENCE_ONLY
++EXECUTOR_APPROVALS=OFFICIAL_GRANTED_NO_POLICY_DENIAL_ONE_CONTEXT_FAILURE_NOT_REAPPLIED
++WIP_PRESERVED=YES_18284_PREEXISTING_HASHES_CHECKED_ONLY_TWO_AUTHORIZED_DOC_EDITS
++DIFF_CHECK=PASS_SCOPED_DOCUMENTARY_CHECKS
++CLIENT_ADMISSION=DISABLED
++SITE_TLS_ADMISSION=DENY
++ED11_ADMISSION=DENY
++PST_CHANGED=NO
++BROWSER_CHANGED=NO
++PACC_WIRE_CHANGED=NO
++PRODUCTION_PIN=0.6.4
++PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
++BUILDS=NOT_RUN
++PRODUCT_TESTS=NOT_RUN
++NETWORK_TESTS=NOT_RUN
++FIRST_UNRESOLVED_DIVERGENCE=MANUAL_PACKAGE_SCHEMA_ISSUER_RECIPIENT_CONTRACT_NOT_FROZEN
++NEXT=IMPLEMENT_CANONICAL_MANUAL_CLIENT_PACKAGE_GENERATOR
++```
++
++NEXT exige primeiro aprovação do contrato concreto D3/D4/interface mínima D5.
++Não autoriza escolher formato, emitir certificado ou exportar chave por inferência.
++As seis obrigações permanecem OPEN; este closeout encerra somente a consolidação
++contratual/documental solicitada.

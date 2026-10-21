@@ -1,0 +1,15 @@
+--- tests/canonical_root_transaction_test.c
++++ tests/canonical_root_transaction_test.c
+@@ -130,10 +130,12 @@
+  result=papacc_network_discover_local_snapshot(interfaces,32,addresses,128,presentation,sizeof(presentation),&snapshot,&ir,&ar,&pr);
+  CHECK(result==PAPACC_RESULT_OK);
+  if(argc>1&&!strncmp(argv[1],"snapshot-",9)){
++  PAPACC_INTERFACE_CURRENT_REPORT interface_report;
+   PAPACC_NETWORK_DISCOVERY_SNAPSHOT borrowed=PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
+   PAPACC_NETWORK_DISCOVERY_SNAPSHOT oversized=snapshot;
+   PAPACC_SIZE observed_interfaces=snapshot.interface_count;
+   CHECK(observed_interfaces>0U);
++  CHECK(papacc_server_launcher_configuration_interface_current(o,&pin,&interface_report)!=PAPACC_RESULT_OK&&!interface_report.current_bound&&!interface_report.resolved);
+   if(!strcmp(argv[1],"snapshot-stop")){
+    papacc_server_console_win32_request_stop();
+    CHECK(papacc_server_launcher_configuration_prepare_listener(o,&snapshot)!=PAPACC_RESULT_OK);

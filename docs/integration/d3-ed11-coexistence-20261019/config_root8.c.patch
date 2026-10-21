@@ -1,0 +1,31 @@
+--- src/config/config_root8.c
++++ src/config/config_root8.c
+@@ -87,6 +87,28 @@
+  if(!hash||!hash(hc,m->fields,n-32U,digest))return PC_ROOT8_HASH_FAILED;
+  memcpy(out,m->fields,n-32U);memcpy(out+n-32U,digest,32);*used=n;return PC_ROOT8_OK;
+ }
++PC_ROOT8_RESULT pc_root8_encode_no_issuer(const PAPACC_U8 *fields,PAPACC_SIZE capacity,
++ PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc,
++ PC_ROOT8_COMPONENT component,void *cc)
++{
++ PAPACC_SIZE n;PAPACC_U8 digest[32];PC_ROOT8_RESULT result;
++ if(capacity<512U||capacity>PC_ROOT8_NO_ISSUER_FIELDS||!span(fields,capacity)||
++  !span(out,cap)||cap<PC_ROOT8_MIN||!span(used,sizeof(*used))||
++  overlaps(fields,capacity,out,cap)||overlaps(fields,capacity,used,sizeof(*used))||
++  overlaps(out,cap,used,sizeof(*used)))return PC_ROOT8_INVALID;
++ n=r32(fields+12);
++ if(n>=PC_ROOT8_MIN&&n<=PC_ROOT8_NO_ISSUER_MAX&&
++  (cap<n||capacity<n-32U))return PC_ROOT8_INVALID;
++ *used=0U;
++ /* Refuse the separate unsupported profile before component/hash callbacks. */
++ if((r32(fields+16)&2U)||r32(fields+52))return PC_ROOT8_UNSUPPORTED;
++ if(n<PC_ROOT8_MIN||n>PC_ROOT8_NO_ISSUER_MAX)return PC_ROOT8_INVALID;
++ result=shape(fields,n-32U,hash,hc,component,cc);if(result!=PC_ROOT8_OK)return result;
++ if(!zero(fields+n-32U,capacity-(n-32U)))return PC_ROOT8_INVALID;
++ if(!hash||!hash(hc,fields,n-32U,digest))return PC_ROOT8_HASH_FAILED;
++ memcpy(out,fields,n-32U);memcpy(out+n-32U,digest,32);*used=n;
++ return PC_ROOT8_OK;
++}
+ PC_ROOT8_RESULT pc_root8_decode(const PAPACC_U8 *in,PAPACC_SIZE n,PC_ROOT8_MODEL *out,
+  int *complete,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
+ {

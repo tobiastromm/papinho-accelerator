@@ -1,0 +1,170 @@
+#include "config_root8.h"
+#include <stdint.h>
+#include <string.h>
+static int span(const void *p,PAPACC_SIZE n)
+{return p&&n&&n-1U<=UINTPTR_MAX-(uintptr_t)p;}
+static int overlaps(const void *a,PAPACC_SIZE n,const void *b,PAPACC_SIZE m)
+{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<n:x-y<m;}
+static unsigned r16(const PAPACC_U8 *p){return (unsigned)p[0]|((unsigned)p[1]<<8);}
+static PAPACC_U32 r32(const PAPACC_U8 *p)
+{return (PAPACC_U32)p[0]|((PAPACC_U32)p[1]<<8)|((PAPACC_U32)p[2]<<16)|((PAPACC_U32)p[3]<<24);}
+static PAPACC_U64 r64(const PAPACC_U8 *p)
+{PAPACC_U64 v=0;unsigned i;for(i=0;i<8U;++i)v|=(PAPACC_U64)p[i]<<(8U*i);return v;}
+static int zero(const PAPACC_U8 *p,PAPACC_SIZE n)
+{PAPACC_SIZE i;for(i=0;i<n;++i)if(p[i])return 0;return 1;}
+static PC_ROOT8_RESULT shape(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc,
+ PC_ROOT8_COMPONENT component,void *cc)
+{
+ unsigned flags,count,basep,i,j,hasissuer,update;PAPACC_SIZE L,J,Q,C;PAPACC_U64 R,pre;
+ const PAPACC_U8 *q,*cp,*old;PAPACC_U8 digest[32],record[512];PC_LST1_MODEL lst;
+ PC_LST1_RESULT lr;PC_ROOT8_RESULT cr;int complete;
+ if(n<PC_ROOT8_MIN-32U||n>PC_ROOT8_MODEL_BYTES||memcmp(p,"PACROOT8",8)||r16(p+8)!=1U||
+  r16(p+10)!=512U||r32(p+12)!=n+32U||r16(p+22)!=512U||r16(p+24)!=1024U||
+  r16(p+26)!=1U||r16(p+28)!=512U||r16(p+132)!=5U||r16(p+134)!=1U||
+  !zero(p+172,4)||!zero(p+242,270))return PC_ROOT8_INVALID;
+ flags=r32(p+16);count=r16(p+20);update=flags&1U;hasissuer=(flags&2U)?1U:0U;
+ if(flags>3U||flags==2U||count<1U||count>4U)return PC_ROOT8_INVALID;
+ L=r32(p+44);J=r32(p+52);C=1536U*count;
+ if((hasissuer?J!=16384U:J!=0U)||(!update?L!=0U:(L<672U||L>2208U||(L-160U)%512U)))return PC_ROOT8_INVALID;
+ Q=512U+C+L+J;
+ if(Q+512U!=n||r32(p+32)!=512U||r32(p+36)!=C||r32(p+40)!=512U+C||
+  r32(p+48)!=512U+C+L||r32(p+56)!=Q||r32(p+60)!=512U||r32(p+64)!=Q+512U||
+  r32(p+68)!=32U||r16(p+30)!=(update?1U:0U)||r16(p+240)!=(update?1U:0U)||
+  r32(p+128)!=(7U|(hasissuer?8U:0U)|(update?16U:0U))||zero(p+72,32))return PC_ROOT8_INVALID;
+ R=r64(p+104);pre=r64(p+112);basep=r32(p+168);
+ if(!R||pre==~(PAPACC_U64)0||R!=pre+1U||(hasissuer?!r64(p+120):!zero(p+120,8)))return PC_ROOT8_INVALID;
+ if(!update){if(R!=1U||pre||hasissuer||!zero(p+136,36)||!zero(p+176,64))return PC_ROOT8_INVALID;}
+ else {
+  if(!pre||r64(p+136)!=pre||!r64(p+144)||!r64(p+152)||(basep!=7U&&basep!=15U)||
+   ((basep&8U)?(!r64(p+160)||!hasissuer||r64(p+120)<r64(p+160)):!zero(p+160,8)))return PC_ROOT8_INVALID;
+  lr=pc_lst1_decode(p+512U+C,L,&lst,&complete,hash,hc);
+  /* Separate completion storage, never interpret a decoder return as authority. */
+  if(lr==PC_LST1_HASH_FAILED)return PC_ROOT8_HASH_FAILED;
+  if(lr==PC_LST1_UNSUPPORTED)return PC_ROOT8_UNSUPPORTED;
+  if(lr!=PC_LST1_OK)return PC_ROOT8_INVALID;
+  if(memcmp(lst.fields+24,p+72,32)||r64(lst.fields+56)!=pre||
+   r64(lst.fields+64)!=r64(p+144)||r64(lst.fields+72)!=r64(p+152)||
+   r64(lst.fields+80)!=r64(p+160)||((r32(lst.fields+20)&16U)!=0U)!=((basep&8U)!=0U))return PC_ROOT8_INVALID;
+ }
+ if(!component)return PC_ROOT8_INCOMPLETE;
+ for(i=0;i<count;++i){q=p+512U+1536U*i;
+  if(memcmp(q+344,"PACCD001",8)||!zero(q+352,32))return PC_ROOT8_INVALID;
+  memcpy(record,q,512);memset(record+344,0,40);
+  lr=pc_lst1_record_shape(record,512U);
+  if(lr==PC_LST1_UNSUPPORTED)return PC_ROOT8_UNSUPPORTED;
+  if(lr!=PC_LST1_OK)return PC_ROOT8_INVALID;
+  for(j=0;j<i;++j){old=p+512U+1536U*j;
+   if(r16(q+10)==r16(old+10)&&!memcmp(q+24,old+24,r16(q+10)))return PC_ROOT8_INVALID;}
+  if(!hash||!hash(hc,q+512,1024,digest))return PC_ROOT8_HASH_FAILED;
+  if(memcmp(digest,q+312,32))return PC_ROOT8_INVALID;
+  cr=component(cc,5U,q+512,1024U,q,p);if(cr!=PC_ROOT8_OK)return cr;
+ }
+ if(hasissuer){cr=component(cc,6U,p+512U+C+L,J,NULL,p);if(cr!=PC_ROOT8_OK)return cr;}
+ cp=p+Q;
+ if(!zero(cp,512U)){
+  if(memcmp(cp,"PACR8CP1",8)||r16(cp+8)!=1U||r16(cp+10)!=512U||r32(cp+12)!=hasissuer||
+   memcmp(cp+16,p+72,32)||r64(cp+48)!=R||r64(cp+56)!=pre||!r64(cp+64)||!r64(cp+72)||
+   r64(cp+80)!=r64(p+120)||memcmp(cp+120,p+176,64)||!zero(cp+184,296))return PC_ROOT8_INVALID;
+  if(!hash||!hash(hc,cp,480U,digest))return PC_ROOT8_HASH_FAILED;
+  if(memcmp(digest,cp+480,32))return PC_ROOT8_INVALID;
+  if(!hash(hc,p,Q,digest))return PC_ROOT8_HASH_FAILED;
+  if(memcmp(digest,cp+88,32))return PC_ROOT8_INVALID;
+ }
+ return PC_ROOT8_OK;
+}
+PC_ROOT8_RESULT pc_root8_encode(const PC_ROOT8_MODEL *m,PAPACC_U8 *out,PAPACC_SIZE cap,
+ PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
+{
+ PAPACC_SIZE n;PAPACC_U8 digest[32];PC_ROOT8_RESULT result;
+ if(!span(m,sizeof(*m))||!span(out,cap)||!span(used,sizeof(*used))||cap<PC_ROOT8_MIN||
+  overlaps(m,sizeof(*m),out,cap)||overlaps(m,sizeof(*m),used,sizeof(*used))||
+  overlaps(out,cap,used,sizeof(*used)))return PC_ROOT8_INVALID;
+ n=r32(m->fields+12);
+ if(n>=PC_ROOT8_MIN&&n<=PC_ROOT8_MAX&&cap<n)return PC_ROOT8_INVALID;
+ *used=0U;if(n<PC_ROOT8_MIN||n>PC_ROOT8_MAX)return PC_ROOT8_INVALID;
+ result=shape(m->fields,n-32U,hash,hc,component,cc);if(result!=PC_ROOT8_OK)return result;
+ if(!zero(m->fields+n-32U,PC_ROOT8_MODEL_BYTES-(n-32U)))return PC_ROOT8_INVALID;
+ if(!hash||!hash(hc,m->fields,n-32U,digest))return PC_ROOT8_HASH_FAILED;
+ memcpy(out,m->fields,n-32U);memcpy(out+n-32U,digest,32);*used=n;return PC_ROOT8_OK;
+}
+PC_ROOT8_RESULT pc_root8_encode_no_issuer(const PAPACC_U8 *fields,PAPACC_SIZE capacity,
+ PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc,
+ PC_ROOT8_COMPONENT component,void *cc)
+{
+ PAPACC_SIZE n;PAPACC_U8 digest[32];PC_ROOT8_RESULT result;
+ if(capacity<512U||capacity>PC_ROOT8_NO_ISSUER_FIELDS||!span(fields,capacity)||
+  !span(out,cap)||cap<PC_ROOT8_MIN||!span(used,sizeof(*used))||
+  overlaps(fields,capacity,out,cap)||overlaps(fields,capacity,used,sizeof(*used))||
+  overlaps(out,cap,used,sizeof(*used)))return PC_ROOT8_INVALID;
+ n=r32(fields+12);
+ if(n>=PC_ROOT8_MIN&&n<=PC_ROOT8_NO_ISSUER_MAX&&
+  (cap<n||capacity<n-32U))return PC_ROOT8_INVALID;
+ *used=0U;
+ /* Refuse the separate unsupported profile before component/hash callbacks. */
+ if((r32(fields+16)&2U)||r32(fields+52))return PC_ROOT8_UNSUPPORTED;
+ if(n<PC_ROOT8_MIN||n>PC_ROOT8_NO_ISSUER_MAX)return PC_ROOT8_INVALID;
+ result=shape(fields,n-32U,hash,hc,component,cc);if(result!=PC_ROOT8_OK)return result;
+ if(!zero(fields+n-32U,capacity-(n-32U)))return PC_ROOT8_INVALID;
+ if(!hash||!hash(hc,fields,n-32U,digest))return PC_ROOT8_HASH_FAILED;
+ memcpy(out,fields,n-32U);memcpy(out+n-32U,digest,32);*used=n;
+ return PC_ROOT8_OK;
+}
+PC_ROOT8_RESULT pc_root8_decode_no_issuer(const PAPACC_U8 *in,PAPACC_SIZE n,
+ PAPACC_U8 *out,PAPACC_SIZE capacity,int *complete,PC_LST1_HASH hash,void *hc,
+ PC_ROOT8_COMPONENT component,void *cc)
+{
+ PAPACC_U8 digest[32];PC_ROOT8_RESULT result;
+ if(!span(in,n)||capacity!=PC_ROOT8_NO_ISSUER_FIELDS||!span(out,capacity)||
+  !span(complete,sizeof(*complete))||overlaps(in,n,out,capacity)||
+  overlaps(in,n,complete,sizeof(*complete))||overlaps(out,capacity,complete,sizeof(*complete)))return PC_ROOT8_INVALID;
+ *complete=0;memset(out,0,capacity);
+ if(n<PC_ROOT8_MIN||n>PC_ROOT8_MAX)return PC_ROOT8_INVALID;
+ if((r32(in+16)&2U)||r32(in+52))return PC_ROOT8_UNSUPPORTED;
+ if(n>PC_ROOT8_NO_ISSUER_MAX)return PC_ROOT8_INVALID;
+ if(!hash||!hash(hc,in,n-32U,digest))return PC_ROOT8_HASH_FAILED;
+ if(memcmp(digest,in+n-32U,32))return PC_ROOT8_INVALID;
+ result=shape(in,n-32U,hash,hc,component,cc);if(result!=PC_ROOT8_OK)return result;
+ memcpy(out,in,n-32U);*complete=1;return PC_ROOT8_OK;
+}
+PC_ROOT8_RESULT pc_root8_decode(const PAPACC_U8 *in,PAPACC_SIZE n,PC_ROOT8_MODEL *out,
+ int *complete,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
+{
+ PAPACC_U8 digest[32];PC_ROOT8_RESULT result;
+ if(!span(in,n)||!span(out,sizeof(*out))||!span(complete,sizeof(*complete))||
+  overlaps(in,n,out,sizeof(*out))||overlaps(in,n,complete,sizeof(*complete))||
+  overlaps(out,sizeof(*out),complete,sizeof(*complete)))return PC_ROOT8_INVALID;
+ *complete=0;memset(out,0,sizeof(*out));if(n<PC_ROOT8_MIN||n>PC_ROOT8_MAX)return PC_ROOT8_INVALID;
+ if(!hash||!hash(hc,in,n-32U,digest))return PC_ROOT8_HASH_FAILED;
+ if(memcmp(digest,in+n-32U,32))return PC_ROOT8_INVALID;
+ result=shape(in,n-32U,hash,hc,component,cc);if(result!=PC_ROOT8_OK)return result;
+ memcpy(out->fields,in,n-32U);*complete=1;return PC_ROOT8_OK;
+}
+PC_ROOT8_RESULT pc_root8_base_link(const PAPACC_U8 *next,PAPACC_SIZE nn,
+ const PAPACC_U8 *base,PAPACC_SIZE bn,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
+{
+ PC_ROOT8_RESULT s;const PAPACC_U8 *cp,*lst,*q,*rec;PAPACC_U8 digest[32];unsigned i,bcount;PAPACC_SIZE bq,nq,L;
+ if(!span(next,nn)||nn<PC_ROOT8_MIN||nn>PC_ROOT8_MAX)return PC_ROOT8_INVALID;
+ if(!base)return PC_ROOT8_INCOMPLETE;
+ if(!span(base,bn)||bn<PC_ROOT8_MIN||bn>PC_ROOT8_MAX)return PC_ROOT8_INVALID;
+ if(!hash||!hash(hc,next,nn-32U,digest))return PC_ROOT8_HASH_FAILED;
+ if(memcmp(digest,next+nn-32U,32))return PC_ROOT8_INVALID;
+ s=shape(next,nn-32U,hash,hc,component,cc);if(s)return s;
+ if(!hash(hc,base,bn-32U,digest))return PC_ROOT8_HASH_FAILED;
+ if(memcmp(digest,base+bn-32U,32))return PC_ROOT8_INVALID;
+ s=shape(base,bn-32U,hash,hc,component,cc);if(s)return s;
+ if(!(r32(next+16)&1U)||memcmp(next+72,base+72,32)||r64(next+112)!=r64(base+104)||
+  r64(next+136)!=r64(base+104)||memcmp(next+208,base+bn-32U,32))return PC_ROOT8_INVALID;
+ bq=r32(base+56);nq=r32(next+56);cp=base+bq;
+ if(zero(cp,512))return PC_ROOT8_INCOMPLETE;
+ if(r64(next+144)!=r64(cp+64)||r64(next+152)!=r64(cp+72)||r64(next+160)!=r64(cp+80))return PC_ROOT8_INVALID;
+ if(!hash(hc,base,bq,digest))return PC_ROOT8_HASH_FAILED;
+ if(memcmp(digest,next+176,32))return PC_ROOT8_INVALID;
+ lst=next+r32(next+40);bcount=r16(base+20);L=r32(next+44);
+ if(L!=160U+512U*bcount)return PC_ROOT8_INVALID;
+ for(i=0;i<bcount;++i){q=base+512U+1536U*i;rec=lst+128U+512U*i;
+  if(memcmp(q,rec,344U)||!zero(rec+344,40)||memcmp(q+384,rec+384,128))return PC_ROOT8_INVALID;}
+ /* Issuer-bearing transitions require factual prefix/generation/high-water
+  * assessment by existing issuer owner; no equality/digest fallback here. */
+ if((r32(base+16)&2U)||(r32(next+16)&2U))return PC_ROOT8_INCOMPLETE;
+ (void)nq;return PC_ROOT8_OK;
+}

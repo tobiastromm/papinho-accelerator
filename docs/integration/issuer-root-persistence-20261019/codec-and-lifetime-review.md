@@ -1,0 +1,11 @@
+# Private root persistence extension — pre-write integration review
+
+Status: focused implementation design under current owner authorization, not a new accepted policy. Same PAPACC_CONFIGURATION_COMMIT owns storage/handles; no second root, registry or journal file.
+
+Proposed ROOT06 container: 16384 bytes at existing selected root path, exact immutable historical store bytes [0,8192), issuer extension [8192,16384). Existing historical formats stay8192 bytes and their codecs remain unchanged; never use their zeroed tail. First conversion must compare exact current8192-byte file inside the existing native transaction, retain its file identity and preserve all8192 bytes. Future writes compare all16384 bytes and revision/high-water. Extension uses explicit endian/version/length, complete transition history and SHA256 via platform adapter; no native struct serialization. Capacity exhaustion denies rather than pruning history or raising quotas.
+
+Persistent bytes alone do not authorize CURRENT, epoch, key binding, prefix uniqueness or restored high-water freshness. No proof flags are serialized as authority. Existing C2 association accepts only initial CURRENT revision/epoch; root wrapper is dormant-only. Therefore live normative publication is not proven and must remain denied. Preserve existing Sessions/pins; do not unapply/reassociate CURRENT owner or invent epoch. Physical codec/commit selection tests are separate from application normative root publication.
+
+Full integration must also preserve failure ownership of hashing/provider handles; existing store03_hash only returns false if BCryptDestroyHash/CloseAlgorithmProvider fail and does not return retained handle identities. Do not silently extend that helper as a new lifetime-safe authority. New extension hash adapter must retain its own failed handles in existing root and set unresolved. Historical helper behavior is recorded as an inherited limitation, not qualified by new tests.
+
+ED11 projected delta for opt-in private root: committed extension8192 + staging8192 + two hash handles and stage metadata. Historical non-private root storage remains unchanged. Compile exact layouts before claiming census; no total ED11 PASS or operational admission from this projection. Per-commit stack grows to hold full current/next container and must be included. Provider/kernel UNKNOWN.

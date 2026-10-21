@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.16)
+project(shared_evidence_unavailable C)
+enable_testing()
+get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+add_executable(shared_evidence evidence_test.c
+ "${ROOT}/src/provisioning/shared_structure/trust_unavailable.c"
+ "${ROOT}/src/provisioning/shared_structure/m1.c")
+target_include_directories(shared_evidence PRIVATE "${ROOT}/src/provisioning/shared_structure")
+set_target_properties(shared_evidence PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+ target_compile_options(shared_evidence PRIVATE /W4 /WX)
+else()
+ target_compile_options(shared_evidence PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+add_test(NAME shared.evidence.source_absent COMMAND shared_evidence)

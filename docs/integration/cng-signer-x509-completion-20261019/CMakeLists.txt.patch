@@ -1,0 +1,28 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2828,3 +2828,25 @@
+  papacc_stage_pst_runtime(papacc_phase6_memory_census_test)
+  add_test(NAME papacc.phase6.memory_census COMMAND papacc_phase6_memory_census_test)
+ endif()
++
++# Protected signer adapter is an uninstantiated component, not runtime activation.
++if(WIN32)
++ add_library(papacc_issuer_cng_windows STATIC apps/server/server_issuer_x509_win32.c apps/server/server_issuer_cng_backend_win32.c apps/server/server_ca_key_win32.c)
++ target_include_directories(papacc_issuer_cng_windows PUBLIC apps/server src/issuer include)
++ target_link_libraries(papacc_issuer_cng_windows PUBLIC papacc_issuer_windows_validation ncrypt advapi32 crypt32)
++ papacc_enable_warnings(papacc_issuer_cng_windows)
++ set_source_files_properties(apps/server/server_issuer_x509_win32.c apps/server/server_issuer_cng_backend_win32.c tests/issuer_cng_x509_test.c tests/issuer_cng_production_gate_test.c PROPERTIES OBJECT_DEPENDS
++ "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_issuer_x509_win32.h;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_ca_key_win32.h;${CMAKE_CURRENT_SOURCE_DIR}/src/issuer/issuer_core.h;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_issuer_x509_win32.c;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_issuer_cng_backend_win32.c;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_issuer_windows_validation.c")
++ if(BUILD_TESTING)
++  add_executable(papacc_issuer_cng_x509_test tests/issuer_cng_x509_test.c src/issuer/issuer_core.c)
++  target_include_directories(papacc_issuer_cng_x509_test PRIVATE apps/server src/issuer include)
++  target_compile_definitions(papacc_issuer_cng_x509_test PRIVATE PAPACC_ISSUER_OFFLINE_TEST=1)
++  target_link_libraries(papacc_issuer_cng_x509_test PRIVATE crypt32)
++  papacc_enable_warnings(papacc_issuer_cng_x509_test)
++  add_test(NAME papacc.issuer.cng_x509_model COMMAND papacc_issuer_cng_x509_test "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/ca.der.b64" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/client-a.der.b64")
++  add_executable(papacc_issuer_cng_production_gate_test tests/issuer_cng_production_gate_test.c)
++  target_link_libraries(papacc_issuer_cng_production_gate_test PRIVATE papacc_issuer_cng_windows)
++  papacc_enable_warnings(papacc_issuer_cng_production_gate_test)
++  add_test(NAME papacc.issuer.cng_production_gate COMMAND papacc_issuer_cng_production_gate_test)
++ endif()
++endif()

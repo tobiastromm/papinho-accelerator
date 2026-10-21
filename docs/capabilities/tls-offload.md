@@ -1,12 +1,88 @@
 ---
 capability: tls-offload
 title: TLS Offload para conexões externas
-status: concept
-last-updated: 2026-09-07
+status: partial
+last-updated: 2026-10-10
 scope: project
 ---
 
 # TLS Offload para conexões externas
+
+## P11/P12 — qualificação parcial em 2026-10-10
+
+O consumer agora exige owner thread, identidade no pool, associação entre
+Connection e transport adapter e ausência do Protocol Slot da mesma geração
+antes de concluir a reconciliação do candidate. Os testes focais reproduziram
+e corrigiram duas violações dessa boundary sem alterar contratos públicos.
+
+O freeze P10 preserva 183 referências verificadas do candidato PST 0.6.5
+normal. A observação externa do pacote normal demonstrou a cadeia nativa
+exatamente uma vez para seis lifetimes CONTROL/DATA e retenção sem destruição
+para dois lifetimes em FAIL_PERSISTENT. Os 28 negativos do oracle são mutações
+de evidência; não constituem execução de falha nativa.
+
+P11, P12 e ADR-0032 permanecem não qualificados integralmente. Faltam cenários
+integrados da matriz C1–C12 e uma prova segura de falha nativa controlada.
+A inspeção upstream identificou risco de perda de ownership nesse ramo;
+nenhuma falha nativa foi induzida nem alteração PST autorizada executada.
+O pin de produção permanece 0.6.4, sem promoção do candidato 0.6.5.
+
+Detalhes, limitações, hashes e handoff estão no
+[relatório cumulativo](p10-resume-20261009.txt), seção de 2026-10-10,
+e em `build/p11-p12-qualification/final-evidence.json`.
+
+## Estado factual da Phase 6.F
+
+O backend Win32 possui uma boundary privada de consumer PST para o modo
+`TLS_REQUIRED`. O estabelecimento preserva a ordem TCP connect, transferência
+única do socket, handshake, verificação factual do peer e somente então
+publicação do `Network Stream`.
+
+A configuração é server-owned e injeta runtime PST, trust explícito, provider,
+nome esperado e ALPN. A configuração PST exige TLS 1.3 exato, certificado de
+servidor, cadeia válida, nome válido, I/O não bloqueante e graceful shutdown.
+Falhas não publicam o stream nem tentam plaintext. O payload na boundary é
+plaintext; records TLS e o socket transferido pertencem ao PST. Fechamento
+truncado é falha e `NETWORK_HALF_CLOSE` permanece `NOT_SUPPORTED`.
+
+O mapping produtor diferencia o major de `NETWORK_EGRESS` congelado no
+Session Capability Snapshot. Em v1, `PST_RESULT_TRUNCATED` preserva os bytes
+de aplicação já entregues e termina com `NETWORK_ABORT` vazio. Em v2, preserva
+os mesmos bytes e termina uma única vez com
+`NETWORK_ABORT_REASON(TLS_TRUNCATED=1)`, payload `00 01`. Nenhum dos caminhos
+permite reutilização do Stream ou fallback plaintext. Fechamento TLS limpo
+continua seguindo o lifecycle existente e não é classificado como truncamento.
+
+`Transport Security != TLS_OFFLOAD`: esta capability protege a conexão externa,
+não o transporte PACC. Sem PST ou configuração outbound explícita,
+`TLS_REQUIRED` falha fechado; `TCP_PLAIN` permanece independente.
+
+## P10: Stop pendente e autoridade de publicação
+
+O consumer vincula publicação terminal à Connection, operação e geração do
+Stream. Uma Connection em CLOSING ou CLOSED não autoriza criação nem despacho
+de terminal. A fila conserva sua identidade até a reconciliação do owner;
+aceitação anterior ao Stop não substitui a validação de autoridade no despacho.
+Callbacks de identidade revogada não alteram recursos nem outra geração.
+
+O gate P10 passou no candidato PST 0.6.5 normal, API 2.2.0/SPI 3.0:
+NORMAL_STOP, FAIL_ONCE, FAIL_PERSISTENT, S7 com NEED_WRITE factual e callbacks
+tardios integrados. A observação externa por identidade confirmou remoção antes
+de release e destruição única; ERROR_TERMINAL preservou os recursos sem
+destruição. As regressões do candidato passaram 91/91 em Debug e Release,
+e a composição diagnóstica passou 97/97, com builds finais sem warnings.
+
+Os seis cenários de correlação test-only foram revalidados como evidência
+auxiliar separada. O pacote normal permaneceu imutável. O pin de produção
+continua 0.6.4, sem promoção de dependência ou qualificação implícita desse pin.
+
+Contratos: [ADR-0023](../adr/ADR-0023-tls-required-v1-nao-suporta-network-half-close-direcional.md),
+[ADR-0030](../adr/ADR-0030-stop-global-phase-aware-para-teardown-outbound-pst.md),
+[ADR-0031](../adr/ADR-0031-secure-candidate-protocol-lifetime-reconciliation.md) e
+[ADR-0032](../adr/ADR-0032-result-returning-pre-close-boundary.md).
+Hashes, matriz, identidades e limites estão no
+[relatório cumulativo](p10-resume-20261009.txt), na retomada
+POST-STOP-PUBLICATION-AUTHORITY-RESOLUTION.
 
 ## Objetivo
 
@@ -178,25 +254,27 @@ TLS para conexões externas.
 
 ## Estado atual
 
-Status geral: `concept`.
+Status geral: `partial`.
 
 ### Resumo por área
 
 | Área | Estado | Observação |
 |---|---|---|
 | Nome conceitual | concept | `TLS_OFFLOAD`; nome/ID definitivo não congelado |
-| Capability Negotiation | not-implemented | Framework e wire ainda ausentes |
-| Processamento TLS externo | experimental-proof | Harness isolado comprova Accelerator → PST → google.com:443; sem fluxo de produção |
+| Capability Negotiation | implemented | `TLS_OFFLOAD_V1` possui identidade, negociação e enforcement por Session Snapshot |
+| Processamento TLS externo | implemented-partially | `TLS_REQUIRED` produtivo usa PST, sem constituir proxy genérico ou completar toda a capability macro |
 | External transport ownership | concept | Modelos client-owned e Accelerator-owned ainda não escolhidos |
-| Network egress | experimental-proof | Somente harness explícito; autoridade e fluxo de produção continuam ausentes |
-| Policy/autorização específica | not-implemented | Regras específicas pendentes |
-| Backend | experimental-proof | PST v0.6.1/API 2.1/OpenSSL 3 no target validado; sem seleção de backend da capability de produção |
-| Fallback | unknown | Sem decisão específica além de não enfraquecer segurança |
+| Network egress | partial | Wire/runtime produtivos e servidor real implementados para `TCP_PLAIN` e `TLS_REQUIRED` |
+| Policy/autorização específica | implemented | Capability, Secure Principal, master gate, destino e profile são avaliados fail-closed |
+| Backend | implemented-partially | PST v0.6.1/API 2.1/OpenSSL 3 no target validado e composto pelo servidor Win32 |
+| Fallback | implemented | Falha TLS é terminal para a operação; não há fallback plaintext |
 
 ## Implementado
 
-- somente a separação documental e arquitetural entre `TLS_OFFLOAD` e
-  Transport Security;
+- separação documental e arquitetural entre `TLS_OFFLOAD` e Transport Security;
+- key `(2,1)`, negociação e enforcement por Session Snapshot;
+- `TLS_REQUIRED` Mode B produtivo no servidor Win32 PST-enabled;
+- TLS 1.3, chain/hostname/IP e ALPN governados, lifecycle e cleanup bounded;
 - pin e aquisição reproduzível da release PST `v0.6.1`;
 - boundary privada e reutilizável do contrato de consumo do SDK PST no build;
 - prova vertical opt-in e isolada de TLS 1.3 outbound para `google.com:443`,
@@ -204,20 +282,16 @@ Status geral: `concept`.
 
 ## Parcialmente implementado
 
-- a prova exercita somente a mecânica PST/TLS outbound e não constitui a
-  capability negociável nem um caminho servido ao cliente;
-- a infraestrutura de configuração possui conceitos gerais de policy/egress,
-  mas não configura `TLS_OFFLOAD`.
+- somente Mode B server-owned está implementado;
+- configuração e policy são server-owned, sem superfície Browser/GUI;
+- quotas/accounting e outros placements permanecem futuros.
 
 ## Não implementado
 
-- negociação;
-- wire IDs/messages;
-- TLS de conexões externas no servidor/caminho de produção;
-- seleção e lifecycle do backend da capability de produção;
-- proxy/network flow;
-- policy e quotas específicas;
-- fallback local ou remoto específico.
+- Mode C e Browser integration;
+- outbound client certificates/mTLS profiles;
+- proxy HTTP genérico e TLS interception;
+- fallback/failover alternativo.
 
 ## Configuração
 
@@ -232,19 +306,16 @@ testado no harness. Isso não declara suporte implementado à capability geral.
 
 ## Limitações conhecidas
 
-- conceito sem implementação de produção, com prova vertical experimental;
-- composição concreta, ownership e lifecycle dos fluxos externos ainda não definidos;
-- nenhum protocolo, API, backend, armazenamento ou UI congelado.
+- somente o placement Mode B possui implementação produtiva atual;
+- nenhuma UI ou integração Browser foi implementada;
+- outros backends/targets exigem evidência própria.
 
 ## Pendências
 
-- [ ] Definir o contrato funcional da capability.
-- [ ] Escolher e definir modelo(s) de ownership do transport externo.
-- [ ] Definir contrato concreto de composição com network egress.
-- [ ] Definir policy, autorização, quotas e destination handling.
-- [ ] Definir fallback sem downgrade de segurança.
-- [ ] Definir IDs/wire somente em uma fase de protocolo apropriada.
-- [ ] Implementar e validar antes de declarar suporte.
+- [ ] Integrar PapinhoBrowser como consumidor dos modes aprovados.
+- [ ] Avaliar Mode C por gate arquitetural próprio.
+- [ ] Definir quotas/accounting e failover explícito quando necessários.
+- [ ] Adicionar novos targets/backends somente com contrato e evidência factual.
 
 ## Ideias futuras
 
@@ -292,7 +363,104 @@ Em 2026-09-06, o harness opt-in comprovou com a API pública PST:
 O harness não pertence ao CTest regular porque depende de Internet e trust
 store do host. A regressão offline permaneceu em 41/41 testes.
 
+## Atualizacao factual da composicao produtiva
+
+No executavel Win32 PST-enabled, `allow_network_egress` compoe um profile
+`default-route` e uma policy que continua bloqueando as classes sensiveis do
+modelo. O composition root registra o provider da release, cria runtime com o
+adapter de logging do Accelerator e escolhe `SYSTEM_TRUST` explicitamente.
+Qualquer falha nessa composicao aborta o startup; nao existe downgrade.
+
+A identidade esperada e derivada pelo estabelecimento do destino validado.
+No wire v1 atual, hostname ASCII, IPv4 e IPv6 sao aceitos. Hostname e
+normalizado, autorizado antes do DNS e preservado para SNI/verificacao; cada
+endpoint numerico retornado passa pela policy antes do connect. IP literal
+continua exigindo identidade IP exata no certificado. Nao existe entrada
+separada para SNI arbitrario.
+
+A boundary PST possui matriz hermetica direta e o caminho produtivo seguro PACC
+possui prova end-to-end para TLS 1.3 valido, 32 KiB binarios bidirecionais e
+buffers limitados. A mesma composicao produtiva comprova falha atomica para
+TLS 1.2 somente, trust/nome/ALPN incorretos, stall com deadline e reset, sem
+fallback plaintext, Job orfao ou reserva de Stream residual. Um Stream positivo
+permanece ativo durante os negativos e uma abertura valida posterior comprova
+reuso da capacidade. A Phase 6.F foi concluída com a matriz de multiplexing,
+isolamento e lifecycle/shutdown da Phase 6.F2. A capability permanece
+`partial` no escopo macro: a integração PST outbound está pronta, mas isso não
+promove as fases posteriores de wire runtime, cliente de referência, hardening
+ou produto.
+
+### Marco concluído Phase 6.F2
+
+`NETWORK_CLOSE` em um Stream `TLS_REQUIRED` deixa de realizar teardown bruto:
+ele bloqueia novos bytes de aplicação, entra em estado `CLOSING` e progride
+`pst_connection_shutdown()` incrementalmente, com uma oportunidade bounded por
+passe. Um deadline monotônico força a liberação caso o peer não coopere.
+`NETWORK_ABORT`, perda de DATA e perda de Session continuam usando teardown
+terminal imediato. O shutdown global tenta iniciar o shutdown PST antes da
+liberação forçada e nunca depende da cooperação do peer.
+
+O teste produtivo seguro comprova `NETWORK_CLOSE` via PACC, envio e recepção
+recíproca de `close_notify`, remoção do Stream e reutilização posterior do
+runtime. Testes portáteis cobrem progressão incremental, bloqueio de novos
+bytes, timeout, release único e reutilização do slot. O harness produtivo
+hermético mantém múltiplas conexões PST/TLS reais simultâneas, comprova tráfego
+bidirecional isolado, coexistência com `TCP_PLAIN`, rotação bounded entre
+Sessions e entre Streams da mesma Session, EOF sem `close_notify` isolado,
+cascatas de DATA/Session, shutdown global, clean close com sibling ativo e
+reuso de capacidade. Cada passe progride no máximo um Stream e uma operação
+PST; `WOULD_BLOCK` não gera loop interno.
+
+### Marco concluído Phase 6.H
+
+Um cliente de referência em processo separado comprovou `TLS_REQUIRED` Mode B
+contra o servidor real: o DATA Channel transporta plaintext de aplicação,
+enquanto o Accelerator estabelece PST TLS 1.3 outbound e devolve plaintext
+decifrado. A prova inclui payload binário de 32 KiB e framing fragmentado.
+
+Testes independentes e isolados comprovam fail-closed sem `TLS_OFFLOAD`, falha
+de verificação de hostname sem fallback plaintext, `NETWORK_HALF_CLOSE` em TLS
+como operação não suportada e `NETWORK_ABORT` terminal. Uma operação válida
+posterior comprova recuperação de capacidade. Isso não transforma Transport
+Security em capability: CONTROL e DATA continuam protegidos pelo perfil da
+Session independentemente de `TLS_OFFLOAD`.
+
+### Marco concluído Phase 6.I
+
+A matriz de segurança consolida `TLS_OFFLOAD` como requisito adicional de
+`TLS_REQUIRED`, nunca como substituto de Transport Security. Ausência da
+capability, policy deny/error, Secure Principal ausente ou capability removida
+do conjunto server-enabled falham antes da publicação do Network Stream.
+
+Os gates TLS reais revalidam rejeição de TLS 1.2-only, trust incorreto,
+hostname incorreto, ALPN incompatível, stall e reset, sempre sem plaintext
+fallback. SNI/identidade esperada deriva do destino normalizado; trust,
+provider, profile e resolver pertencem à configuração do servidor e não são
+campos do request. IP literal só prossegue com verificação de identidade IP
+exata pelo PST. A auditoria não encontrou material secreto ou diagnóstico
+bruto do provider exposto ao cliente.
+
 ## Documentos relacionados
+
+### Fixture externa Mode B para consumers
+
+O cenario de teste `mode-b-egress` em `papacc_secure_browser_fixture` mantem
+Browser--Accelerator em TLS 1.3/mTLS e executa separadamente o site TLS no
+Accelerator via PST. A prova hermetica valida TLS 1.3, certificado, hostname e
+ALPN do target controlado, trafego binario de 32 KiB e HTTP fragmentado em
+multiplos `NETWORK_DATA`, seguido de `NETWORK_CLOSE` normal. O cenario
+`mode-b-tls-name-failure` valida rejeicao deterministica de hostname.
+
+Essa superficie e exclusivamente de teste e nao promove Transport Security a
+capability negociavel nem muda configuracao ou policy de producao.
+O lifecycle da fixture admite multiplas conexoes TLS de site sequenciais ate o
+stop explicito, sem reutilizar a conexao PST de uma Session anterior.
+
+A matriz Browser-facing de truncamento usa o mesmo target controlado e a mesma
+validacao TLS 1.3, certificado e hostname. Somente os cenarios
+`tls-truncated-*` omitem deliberadamente `close_notify` depois dos bytes de
+aplicacao; `tls-clean-close` mantem shutdown autenticado. A fixture nao usa
+`VERIFY_NONE`, trust-all, downgrade ou bypass de hostname.
 
 - `docs/capabilities.md`
 - `docs/capabilities/network-egress.md`
@@ -310,3 +478,15 @@ store do host. A regressão offline permaneceu em 41/41 testes.
 | 2026-09-06 | Registrada a prova vertical experimental PST v0.4.0/TLS 1.3 outbound, sem promover a capability geral a implementada. |
 | 2026-09-07 | Centralizado o contrato privado de consumo do SDK PST, sem composição runtime ou promoção da capability. |
 | 2026-09-11 | Migrado o pin para PST 0.6.0/API 2.1 e revalidada a boundary; a integração de readiness da Phase 3.B4 pertence a Transport Security e não promove `TLS_OFFLOAD`. |
+| 2026-09-13 | Registrada a prova independente Phase 6.H para Mode B, negativos fail-closed, lifecycle e recuperação. |
+| 2026-09-13 | Sincronizado o estado factual e registrada a matriz adversarial Phase 6.I. |
+
+## Consolidação canônica — 2026-10-18
+
+O estado incremental de fontes, Model E, builds normais API3/API2 e limites de qualificação está registrado em [consolidação canônica Phase6](canonical-phase6-consolidation.md). Componentes C2/C3 compilados não equivalem a Site TLS operacional ou root CURRENT. A admissão do candidato permanece negada.
+
+## Mode C — autoridade administrativa em 2026-10-18
+
+[Decisão accepted](../adr/DECISION-mode-c-site-tls-profile-authority-20261018.md) separa Site TLS de canal mTLS e Network Egress. O catálogo inicial bounded usa o Configuration Model/root existentes e persistência BODY0.5 explícita. [Evidências e limites](../integration/mode-c-site-tls-authority-20261018/closeout.md): Debug/Release e22 execuções offline passaram; gate C3 permanece DENY, sem TLS/Session/rede ou qualificação operacional. CUSTOM não suportado é rejeitado. Isso não amplia os escopos históricos Mode B/S6.
+
+Correção C2/C3 exata2026-10-18: inicialização por structs API3 reais, graceful REQUIRED, bound ALPN, deadline e preparo Site TLS foram corrigidos por hunks oficialmente aprovados. [Evidência](../integration/c2-c3-exact-correction-20261018/closeout.md): Debug/Release sem warnings,22 execuções offline. Não houve negociação TLS, close_notify ou Session de rede; provas operacionais e ED11 continuam pendentes e admissão DENY.

@@ -1,0 +1,489 @@
+--- apps/server/server_c8_private_storage_layout_win32.h.before
++++ apps/server/server_c8_private_storage_layout_win32.h
+@@ -30,6 +30,6 @@
+ /* One listener and ID, exactly the preceding direct-composition census.
+  * Variable listener/ID counts and future configuration allocations must be
+  * checked against remaining credit; opaque/provider/kernel are NOT zero. */
+-#define PAPACC_C8_KNOWN_MANAGED_BYTES (PAPACC_PENDING_STACK_BYTES+sizeof(PAPACC_C8_PRIVATE_STORAGE_LAYOUT)+PAPACC_C8_BASE_ARRAY_BYTES+PAPACC_C8_SECURE_ARRAY_BYTES+PAPACC_C8_SCHED_ARRAY_BYTES+PAPACC_C8_BIND_LISTENER_BYTES)
++#define PAPACC_C8_KNOWN_MANAGED_BYTES (PAPACC_PENDING_STACK_BYTES+PAPACC_CHECKPOINT_STACK_BYTES+sizeof(PAPACC_C8_PRIVATE_STORAGE_LAYOUT)+PAPACC_C8_BASE_ARRAY_BYTES+PAPACC_C8_SECURE_ARRAY_BYTES+PAPACC_C8_SCHED_ARRAY_BYTES+PAPACC_C8_BIND_LISTENER_BYTES)
+ typedef char papacc_c8_known_storage_fits[(PAPACC_C8_KNOWN_MANAGED_BYTES<=PAPACC_C8_STORAGE_LIMIT)?1:-1];
+ #endif
+--- apps/server/server_configuration_commit_win32.c.before
++++ apps/server/server_configuration_commit_win32.c
+@@ -166,7 +166,7 @@
+     bytes=o->store02?PAPACC_CONFIG_STORE_BYTES:PAPACC_CONFIG_RECORD_BYTES;
+     previous_bytes=bytes;
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+-    if(o->issuer_stage_prepared){bytes=PAPACC_CONFIG_STORAGE_BYTES;previous_bytes=o->store02==6?PAPACC_CONFIG_STORAGE_BYTES:PAPACC_CONFIG_STORE_BYTES;}
++    if(o->issuer_stage_prepared){bytes=PAPACC_ISSUER_ROOT_IMAGE_BYTES;previous_bytes=o->committed_bytes;}
+     else if(o->store02==6){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_NOT_SUPPORTED;}
+ #endif
+     if(!o->store02){encode(&o->slots[o->pending].view,next);
+@@ -194,7 +194,7 @@
+ #endif
+         if(ok)ok=store02_append(o,&o->slots[o->pending].view,&info,next);
+     }
+-    if(ok)ok=WriteFile(file,next,bytes,&count,NULL)&&count==bytes&&FlushFileBuffers(file);
++    if(ok)ok=WriteFile(file,next,bytes,&count,NULL)&&count==bytes&&SetEndOfFile(file)&&FlushFileBuffers(file);
+     closed=file==INVALID_HANDLE_VALUE||CloseHandle(file);
+     if(!closed){o->retained_file=file;o->retained_transaction=tx;o->unresolved=1;
+         LeaveCriticalSection(&o->lock);return PAPACC_RESULT_INTERNAL_ERROR;}
+@@ -205,6 +205,9 @@
+     if(!CommitTransaction(tx)){o->retained_transaction=tx;o->unresolved=1;
+         LeaveCriticalSection(&o->lock);return PAPACC_RESULT_INTERNAL_ERROR;}
+     memcpy(o->committed,next,bytes);o->prepared=0;o->committed_pending=1;
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++    o->committed_bytes=bytes;
++#endif
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+     if(o->issuer_stage_prepared){
+         memcpy(o->issuer_snapshots[o->pending],o->issuer_staged,PAPACC_ISSUER_IMAGE_BYTES);
+--- apps/server/server_configuration_commit_win32.h.before
++++ apps/server/server_configuration_commit_win32.h
+@@ -9,7 +9,7 @@
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ #include "../../src/issuer/issuer_codec.h"
+ #include "server_configuration_pending_win32.h"
+-#define PAPACC_CONFIG_STORAGE_BYTES 16384U
++#define PAPACC_CONFIG_STORAGE_BYTES PAPACC_ISSUER_LINKED_ROOT_BYTES
+ #else
+ #define PAPACC_CONFIG_STORAGE_BYTES PAPACC_CONFIG_STORE_BYTES
+ #endif
+@@ -53,6 +53,7 @@
+     int store02, recovery_selected;
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+     PAPACC_CONFIG_PENDING pending_commit;
++    DWORD committed_bytes; /* actual same-file size, not allocated capacity */
+     int authority_lost; /* CAS conflict/unknown is not old CURRENT. */
+     int recovery_guard; /* Exclusive native read lease, not Model E destruction. */
+     unsigned char issuer_staged[PAPACC_ISSUER_IMAGE_BYTES];
+@@ -87,6 +88,11 @@
+ /* Query-only candidate, NOT a published/current configuration or new grant. */
+ PAPACC_RESULT papacc_configuration_recovered_copy(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CONFIG_VIEW *);
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++/* Root must validate full CURRENT/projection before beginning publication checkpoint.
++ * Same pending worker/CAS; this records historical facts, never recovery authority. */
++PAPACC_RESULT papacc_configuration_checkpoint_begin07(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_checkpoint_poll07(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++PAPACC_RESULT papacc_configuration_checkpoint_data07(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_LINK *);
+ PAPACC_RESULT papacc_configuration_issuer_begin06(PAPACC_CONFIGURATION_COMMIT *);
+ PAPACC_RESULT papacc_configuration_issuer_poll06(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
+ /* BODY0.3 is a COMPONENT store, not the application's normative commit.
+--- apps/server/server_configuration_issuer06_win32.inc.before
++++ apps/server/server_configuration_issuer06_win32.inc
+@@ -181,14 +181,16 @@
+ }
+ PAPACC_RESULT papacc_configuration_issuer_recovery06(PAPACC_CONFIGURATION_COMMIT *o,const char *path)
+ {
+- HANDLE file;LARGE_INTEGER size;DWORD count;BY_HANDLE_FILE_INFORMATION info;PAPACC_ISSUER_VIEW v={0};int ok;
++ HANDLE file;LARGE_INTEGER size;DWORD count;BY_HANDLE_FILE_INFORMATION info;PAPACC_ISSUER_VIEW v={0};PAPACC_ISSUER_LINK link;int ok;
+  if(!owner(o)||!path||strcmp(path,o->path)||!path_ok(path)||o->published||o->prepared||o->committed_pending||o->stopped||o->unresolved||o->recovery_selected||o->next_serial)return PAPACC_RESULT_INVALID_STATE;
+  file=CreateFileA(path,GENERIC_READ,0,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(file==INVALID_HANDLE_VALUE)return PAPACC_RESULT_INVALID_STATE;
+- ok=GetFileInformationByHandle(file,&info)&&GetFileSizeEx(file,&size)&&size.QuadPart==PAPACC_CONFIG_STORAGE_BYTES&&
+-  ReadFile(file,o->committed,PAPACC_CONFIG_STORAGE_BYTES,&count,NULL)&&count==PAPACC_CONFIG_STORAGE_BYTES;
++ ok=GetFileInformationByHandle(file,&info)&&GetFileSizeEx(file,&size)&&(size.QuadPart==16384||size.QuadPart==16896)&&
++  ReadFile(file,o->committed,(DWORD)size.QuadPart,&count,NULL)&&count==(DWORD)size.QuadPart;
+  if(ok)ok=issuer06_binding(o,o->committed,o->committed+PAPACC_CONFIG_STORE_BYTES,&info,&v);
++ if(ok&&size.QuadPart==16896)ok=papacc_issuer_link_decode(o->committed+16384,512,o->committed,16384,&link,papacc_configuration_issuer_hash06,o)==PAPACC_ISSUER_OK;
+  if(!ok){if(!CloseHandle(file)){o->retained_file=file;o->unresolved=1;}return PAPACC_RESULT_INVALID_STATE;}
+  /* Exclusive read lease protects observation, NOT freshness or CURRENT. */
++ o->committed_bytes=(DWORD)size.QuadPart;
+  o->retained_file=file;o->recovery_guard=1;o->store02=6;o->recovery_selected=1;memcpy(o->domain,v.root,32);
+  memset(&o->slots[0].view,0,sizeof(o->slots[0].view));memcpy(o->slots[0].view.domain,v.root,32);o->slots[0].view.revision=v.revision;o->slots[0].view.predecessor=v.revision-1;
+  o->current=0;o->slots[0].serial=++o->next_serial;return PAPACC_RESULT_NOT_SUPPORTED;
+--- apps/server/server_configuration_pending_win32.h.before
++++ apps/server/server_configuration_pending_win32.h
+@@ -6,9 +6,12 @@
+  * Inputs frozen before CreateThread; outputs read only after thread signal.
+  * 64KiB reserved stack, one thread, no queue, no retry or forced termination. */
+ #define PAPACC_PENDING_STACK_BYTES 65536U
++/* Additional serialized owner-side encode/hash scratch reservation. */
++#define PAPACC_CHECKPOINT_STACK_BYTES 8192U
+ typedef struct PAPACC_CONFIG_PENDING {
+- unsigned char previous[16384],next[16384],observed[16384];
+- char path[MAX_PATH];DWORD previous_bytes,native_error,close_error;
++ unsigned char previous[PAPACC_ISSUER_LINKED_ROOT_BYTES],next[PAPACC_ISSUER_LINKED_ROOT_BYTES],observed[PAPACC_ISSUER_LINKED_ROOT_BYTES];
++ char path[MAX_PATH];DWORD previous_bytes,next_bytes,native_error,close_error;
++ int checkpoint_only;
+  HANDLE thread,file,transaction;volatile LONG stop;
+  PAPACC_ISSUER_CAS_RESULT result;int active,committed,thread_close_attempted;
+ #ifdef PAPACC_ISSUER_STORAGE_COMPONENT_TEST
+--- apps/server/server_configuration_pending_win32.inc.before
++++ apps/server/server_configuration_pending_win32.inc
+@@ -23,7 +23,7 @@
+  verified=1;
+  if(InterlockedCompareExchange(&p->stop,0,0))goto cleanup;
+  if(SetFilePointer(p->file,0,NULL,FILE_BEGIN)==INVALID_SET_FILE_POINTER){pending_error(p);goto cleanup;}
+- if(!WriteFile(p->file,p->next,16384,&n,NULL)||n!=16384||!FlushFileBuffers(p->file)){pending_error(p);goto cleanup;}
++ if(!WriteFile(p->file,p->next,p->next_bytes,&n,NULL)||n!=p->next_bytes||!SetEndOfFile(p->file)||!FlushFileBuffers(p->file)){pending_error(p);goto cleanup;}
+ #ifdef PAPACC_ISSUER_STORAGE_COMPONENT_TEST
+  if(p->test_entered){
+   if(!SetEvent(p->test_entered)||WaitForSingleObject(p->test_release,INFINITE)!=WAIT_OBJECT_0){pending_error(p);goto cleanup;}
+@@ -72,9 +72,9 @@
+  memset(p,0,sizeof(*p));
+ #endif
+  p->file=INVALID_HANDLE_VALUE;
+- memcpy(p->previous,o->committed,16384);memcpy(p->next,o->committed,8192);
++ memcpy(p->previous,o->committed,o->committed_bytes);memcpy(p->next,o->committed,8192);
+  memcpy(p->next+8192,o->issuer_staged,8192);memcpy(p->path,o->path,sizeof(p->path));
+- p->previous_bytes=o->store02==6?16384:8192;p->result=PAPACC_COMMIT_PENDING;p->active=1;
++ p->previous_bytes=o->committed_bytes;p->next_bytes=PAPACC_ISSUER_ROOT_IMAGE_BYTES;p->result=PAPACC_COMMIT_PENDING;p->active=1;
+  p->thread=CreateThread(NULL,PAPACC_PENDING_STACK_BYTES,pending_worker,p,STACK_SIZE_PARAM_IS_A_RESERVATION,NULL);
+  if(!p->thread){p->native_error=GetLastError();p->result=PAPACC_COMMIT_FAILED;p->active=0;return PAPACC_RESULT_INTERNAL_ERROR;}
+  return PAPACC_RESULT_OK;
+@@ -94,8 +94,9 @@
+  if(!CloseHandle(p->thread)){p->close_error=GetLastError();o->authority_lost=1;*out=p->result;return PAPACC_RESULT_INTERNAL_ERROR;}
+  p->thread=NULL;p->active=0;*out=p->result;
+  if(p->result==PAPACC_CAS_SUCCESS){
+-  memcpy(o->committed,p->next,16384);memcpy(o->issuer_snapshots[o->pending],p->next+8192,8192);
+-  o->issuer_snapshot_valid[o->pending]=1;o->store02=6;o->prepared=0;o->issuer_stage_prepared=0;o->committed_pending=1;
++  memcpy(o->committed,p->next,p->next_bytes);o->committed_bytes=p->next_bytes;
++  if(!p->checkpoint_only){memcpy(o->issuer_snapshots[o->pending],p->next+8192,8192);
++   o->issuer_snapshot_valid[o->pending]=1;o->store02=6;o->prepared=0;o->issuer_stage_prepared=0;o->committed_pending=1;}
+  }else if(p->result==PAPACC_CAS_CONFLICT||p->result==PAPACC_CAS_UNKNOWN)o->authority_lost=1;
+  if(p->file!=INVALID_HANDLE_VALUE||p->transaction!=NULL||p->close_error)o->unresolved=1;
+  return PAPACC_RESULT_OK;
+@@ -104,4 +105,48 @@
+ PAPACC_RESULT papacc_configuration_issuer_begin06(PAPACC_CONFIGURATION_COMMIT *o)
+ {PAPACC_RESULT r;if(!owner(o))return PAPACC_RESULT_INVALID_STATE;EnterCriticalSection(&o->lock);r=pending_begin06(o);LeaveCriticalSection(&o->lock);return r;}
+ PAPACC_RESULT papacc_configuration_issuer_poll06(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER_CAS_RESULT *out)
+-{PAPACC_RESULT r;if(!owner(o))return PAPACC_RESULT_INVALID_STATE;EnterCriticalSection(&o->lock);r=pending_poll06(o,out);LeaveCriticalSection(&o->lock);return r;}
++{PAPACC_RESULT r;if(!owner(o)||o->pending_commit.checkpoint_only)return PAPACC_RESULT_INVALID_STATE;EnterCriticalSection(&o->lock);r=pending_poll06(o,out);LeaveCriticalSection(&o->lock);return r;}
++
++PAPACC_RESULT papacc_configuration_checkpoint_begin07(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ PAPACC_CONFIG_PENDING *p;PAPACC_CONFIG_SLOT *slot;PAPACC_ISSUER_LINK link;
++ PAPACC_U8 encoded[512];PAPACC_RESULT result=PAPACC_RESULT_INVALID_STATE;
++ if(!owner(o))return result;EnterCriticalSection(&o->lock);p=&o->pending_commit;
++ if(o->store02!=6||!o->published||o->prepared||o->committed_pending||o->stopped||o->unresolved||
++  o->recovery_selected||pending_blocks(o)||o->committed_bytes!=16384||p->checkpoint_only||
++  p->result!=PAPACC_CAS_SUCCESS||!p->committed||p->next_bytes!=16384||memcmp(p->next,o->committed,16384))goto done;
++ slot=&o->slots[o->current];memset(&link,0,sizeof(link));
++ link.revision=slot->view.revision;link.predecessor=slot->view.predecessor;
++ link.administrative_epoch=slot->context_epoch;link.policy_epoch=slot->operational_epoch;
++ if(!slot->issuer_revision||slot->issuer_revision!=link.revision||!o->issuer_snapshot_valid[o->current]||
++  memcmp(o->issuer_snapshots[o->current],o->committed+8192,8192)||
++  !papacc_configuration_issuer_hash06(o,p->previous,p->previous_bytes,link.previous_commit_digest)||
++  papacc_issuer_link_encode(encoded,sizeof(encoded),o->committed,16384,&link,papacc_configuration_issuer_hash06,o)!=PAPACC_ISSUER_OK)goto done;
++ /* Input proof is the confirmed native commit packet plus published slot.
++  * Reuse exactly the same completed worker storage; no second writer. */
++ memset(p,0,sizeof(*p));p->checkpoint_only=1;p->file=INVALID_HANDLE_VALUE;
++ memcpy(p->previous,o->committed,16384);memcpy(p->next,o->committed,16384);
++ memcpy(p->next+16384,encoded,512);memcpy(p->path,o->path,sizeof(p->path));
++ p->previous_bytes=16384;p->next_bytes=16896;p->result=PAPACC_COMMIT_PENDING;p->active=1;
++ p->thread=CreateThread(NULL,PAPACC_PENDING_STACK_BYTES,pending_worker,p,STACK_SIZE_PARAM_IS_A_RESERVATION,NULL);
++ if(!p->thread){p->native_error=GetLastError();p->result=PAPACC_COMMIT_FAILED;p->active=0;result=PAPACC_RESULT_INTERNAL_ERROR;goto done;}
++ result=PAPACC_RESULT_OK;
++done:LeaveCriticalSection(&o->lock);return result;
++}
++PAPACC_RESULT papacc_configuration_checkpoint_poll07(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER_CAS_RESULT *out)
++{
++ PAPACC_RESULT r;if(!owner(o)||!o->pending_commit.checkpoint_only)return PAPACC_RESULT_INVALID_STATE;
++ EnterCriticalSection(&o->lock);r=pending_poll06(o,out);LeaveCriticalSection(&o->lock);return r;
++}
++PAPACC_RESULT papacc_configuration_checkpoint_data07(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER_LINK *out)
++{
++ PAPACC_RESULT r=PAPACC_RESULT_INVALID_STATE;
++ if(!owner(o)||!out||pending_overlap(o,sizeof(*o),out,sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ EnterCriticalSection(&o->lock);
++ if(o->committed_bytes==16896&&!o->unresolved&&!o->pending_commit.active&&
++  papacc_issuer_link_decode(o->committed+16384,512,o->committed,16384,out,papacc_configuration_issuer_hash06,o)==PAPACC_ISSUER_OK&&
++  (!o->published||(o->slots[o->current].view.revision==out->revision&&
++   o->slots[o->current].context_epoch==out->administrative_epoch&&o->slots[o->current].operational_epoch==out->policy_epoch)))
++  r=PAPACC_RESULT_NOT_SUPPORTED; /* data exists; recovery/authority unsupported */
++ LeaveCriticalSection(&o->lock);return r;
++}
+--- apps/server/server_configuration_root_transaction_win32.inc.before
++++ apps/server/server_configuration_root_transaction_win32.inc
+@@ -344,6 +344,22 @@
+  LeaveCriticalSection(&c->lock);return result;
+ }
+ 
++/* Explicit administrative checkpoint AFTER live publication. No caller epoch.
++ * Full same-root CURRENT/P/projection gates before native worker begins. */
++PAPACC_RESULT papacc_server_launcher_configuration_checkpoint_begin(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
++{
++ if(!issuer_root_live_ready(o)||o->issuer_projection_validated||
++  o->configuration_commit.slots[o->configuration_commit.current].view.revision!=o->configuration_preparation.model.revision)
++  return PAPACC_RESULT_INVALID_STATE;
++ return papacc_configuration_checkpoint_begin07(&o->configuration_commit);
++}
++PAPACC_RESULT papacc_server_launcher_configuration_checkpoint_poll(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_ISSUER_CAS_RESULT *out)
++{
++ if(!preparation_owned(o)||!out||issuer06_root_output_overlap(o,out,sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ /* Completion facts remain collectable after Stop; no new publication. */
++ return papacc_configuration_checkpoint_poll07(&o->configuration_commit,out);
++}
++
+ /* Same normative application's durable owner. Staging only; no live/current
+  * issuer publication until a new C2 association lifetime is proven. */
+ static int issuer_root_dormant_ready(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+--- apps/server/server_launcher_owner_win32.c.before
++++ apps/server/server_launcher_owner_win32.c
+@@ -57,7 +57,7 @@
+      * allocation. PST/provider/kernel allocations remain external ED11 gates. */
+     reservation=sizeof(root)+
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+-        PAPACC_PENDING_STACK_BYTES+
++        PAPACC_PENDING_STACK_BYTES+PAPACC_CHECKPOINT_STACK_BYTES+
+ #endif
+         PAPACC_SERVER_INITIAL_CONNECTION_CAPACITY*(
+         sizeof(*root.connection_storage)+sizeof(*root.context_storage)+
+@@ -595,7 +595,7 @@
+      * Keep its two C3/listener entries and one external-source schedule reserve.
+      * Actual acquire charges use (capacity+streams), without that extra entry. */
+     base=PAPACC_C8_KNOWN_MANAGED_BYTES-sizeof(PAPACC_NETWORK_INTERFACE_PERSISTENT_ID);
+-    launcher_fixed=sizeof(*o)+PAPACC_PENDING_STACK_BYTES+PAPACC_C8_BASE_ARRAY_BYTES+PAPACC_C8_SECURE_ARRAY_BYTES+
++    launcher_fixed=sizeof(*o)+PAPACC_PENDING_STACK_BYTES+PAPACC_CHECKPOINT_STACK_BYTES+PAPACC_C8_BASE_ARRAY_BYTES+PAPACC_C8_SECURE_ARRAY_BYTES+
+         (PAPACC_SERVER_INITIAL_CONNECTION_CAPACITY+PAPACC_SERVER_NETWORK_STREAM_CAPACITY)*
+         (sizeof(*o->secure_members)+sizeof(*o->secure_events));
+     if(o->reserved_bytes<launcher_fixed)return PAPACC_RESULT_INVALID_STATE;
+--- apps/server/server_launcher_owner_win32.h.before
++++ apps/server/server_launcher_owner_win32.h
+@@ -314,6 +314,8 @@
+ PAPACC_RESULT papacc_server_launcher_configuration_transaction_publish(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_prepare_dormant(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,const PAPACC_U8*,PAPACC_U64,PAPACC_U64);
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_prepare_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,const PAPACC_U8*,const PAPACC_SERVER_CONFIG*,PAPACC_U64,PAPACC_U64);
++PAPACC_RESULT papacc_server_launcher_configuration_checkpoint_begin(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
++PAPACC_RESULT papacc_server_launcher_configuration_checkpoint_poll(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_ISSUER_CAS_RESULT*);
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_publish_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_ISSUER_CAS_RESULT*);
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_commit_dormant(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_port(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_ISSUER_ROOT_PORT*);
+--- CMakeLists.txt.before
++++ CMakeLists.txt
+@@ -2545,8 +2545,8 @@
+     target_compile_options(papacc_configuration_commit PRIVATE /W4 /WX)
+     add_library(papacc_c2_root_owner STATIC apps/server/server_c2_owner_win32.c
+         apps/server/server_c2_configuration_win32.c apps/server/server_c2_participant_win32.c)
+-    target_include_directories(papacc_c2_root_owner PUBLIC ${PAPACC_GRAPH_INCLUDE_DIRS})
+-    # Same IoLoop ABI as canonical owner/consumer; C8 requires outbound TLS.
++    target_include_directories(papacc_c2_root_owner PUBLIC ${PAPACC_GRAPH_INCLUDE_DIRS})
++    # Same IoLoop ABI as canonical owner/consumer; C8 requires outbound TLS.
+     target_compile_definitions(papacc_c2_root_owner PUBLIC PAPACC_ENABLE_PST_OUTBOUND_TLS=1)
+     target_link_libraries(papacc_c2_root_owner PUBLIC papacc_c2_core papacc_c3_bridge papacc_configuration_commit)
+     target_compile_options(papacc_c2_root_owner PRIVATE /W4 /WX)
+@@ -2640,3 +2640,11 @@
+ 
+ set_property(SOURCE apps/server/server_launcher_owner_win32.c APPEND PROPERTY OBJECT_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_attachment_win32.inc")
++
++# Same-root checkpoint: all consumers share capacity/accounting ABI.
++set_property(SOURCE apps/server/server_launcher_owner_win32.c apps/server/server_c2_owner_win32.c
++    tests/canonical_root_transaction_test.c tests/canonical_root_layout_test.c APPEND PROPERTY OBJECT_DEPENDS
++    "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_pending_win32.h"
++    "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_commit_win32.h"
++    "${CMAKE_CURRENT_SOURCE_DIR}/src/issuer/issuer_codec.h"
++    "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_c8_private_storage_layout_win32.h")
+--- src/issuer/issuer_codec.c.before
++++ src/issuer/issuer_codec.c
+@@ -128,3 +128,51 @@
+  out->state=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED;
+  return PAPACC_ISSUER_DENIED;
+ }
++
++static PAPACC_ISSUER_RESULT link_root(const PAPACC_U8 *b,PAPACC_SIZE size,
++ PAPACC_ISSUER_VIEW *v,PAPACC_ISSUER_HASH hash,void *ctx){
++ PAPACC_U8 digest[32];PAPACC_ISSUER_RESULT s;
++ if(!b||size!=PAPACC_ISSUER_ROOT_IMAGE_BYTES||!hash||memcmp(b,"PACL0501",8))return PAPACC_ISSUER_INVALID;
++ s=papacc_issuer_image_validate(b+8192,v,hash,ctx);if(s)return s;
++ if(memcmp(b+16,v->root,32)||r64(b+48)==(PAPACC_U64)-1||r64(b+8192+24)!=r64(b+48)+1)return PAPACC_ISSUER_INVALID;
++ if(!hash(ctx,b,8192,digest))return PAPACC_ISSUER_UNCERTAIN;
++ if(memcmp(digest,b+8192+192,32))return PAPACC_ISSUER_INVALID;
++ return PAPACC_ISSUER_OK;
++}
++PAPACC_ISSUER_RESULT papacc_issuer_link_encode(PAPACC_U8 *out,PAPACC_SIZE cap,
++ const PAPACC_U8 *root,PAPACC_SIZE size,const PAPACC_ISSUER_LINK *link,PAPACC_ISSUER_HASH hash,void *ctx){
++ PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RESULT s;
++ if(!out||cap!=PAPACC_ISSUER_LINK_BYTES||!link)return PAPACC_ISSUER_INVALID;
++ s=link_root(root,size,&v,hash,ctx);if(s)return s;
++ if(!link->revision||link->revision!=v.revision||link->predecessor!=(link->revision-1)||
++  !link->administrative_epoch||!link->policy_epoch||zero(link->previous_commit_digest,32))return PAPACC_ISSUER_INVALID;
++ memset(out,0,PAPACC_ISSUER_LINK_BYTES);memcpy(out,"PACICP01",8);w32(out+8,1);w32(out+12,512);
++ memcpy(out+16,v.root,32);w64(out+48,link->revision);w64(out+56,link->predecessor);
++ w64(out+64,link->administrative_epoch);w64(out+72,link->policy_epoch);
++ w64(out+80,v.revision);w64(out+88,v.high_water);memcpy(out+96,v.authority,16);
++ memcpy(out+112,v.generation,16);memcpy(out+128,v.prefix,8);w64(out+136,link->revision);
++ if(!hash(ctx,root,size,out+144)||!hash(ctx,root+8192,8192,out+176))return PAPACC_ISSUER_UNCERTAIN;
++ memcpy(out+208,link->previous_commit_digest,32);
++ if(!hash(ctx,out,480,out+480))return PAPACC_ISSUER_UNCERTAIN;
++ return PAPACC_ISSUER_OK;
++}
++PAPACC_ISSUER_RESULT papacc_issuer_link_decode(const PAPACC_U8 *b,PAPACC_SIZE size,
++ const PAPACC_U8 *root,PAPACC_SIZE root_size,PAPACC_ISSUER_LINK *link,PAPACC_ISSUER_HASH hash,void *ctx){
++ PAPACC_ISSUER_VIEW v;PAPACC_U8 digest[32];PAPACC_ISSUER_RESULT s;
++ if(!link)return PAPACC_ISSUER_INVALID;memset(link,0,sizeof(*link));
++ if(!b||size!=PAPACC_ISSUER_LINK_BYTES||!hash||memcmp(b,"PACICP01",8)||r32(b+8)!=1||r32(b+12)!=512||!zero(b+240,240))return PAPACC_ISSUER_INVALID;
++ if(!hash(ctx,b,480,digest))return PAPACC_ISSUER_UNCERTAIN;
++ if(memcmp(digest,b+480,32))return PAPACC_ISSUER_INVALID;
++ s=link_root(root,root_size,&v,hash,ctx);if(s)return s;
++ if(memcmp(b+16,v.root,32)||r64(b+48)!=v.revision||r64(b+56)!=v.revision-1||
++  !r64(b+64)||!r64(b+72)||r64(b+80)!=v.revision||r64(b+88)!=v.high_water||
++  memcmp(b+96,v.authority,16)||memcmp(b+112,v.generation,16)||memcmp(b+128,v.prefix,8)||
++  r64(b+136)!=v.revision||zero(b+208,32))return PAPACC_ISSUER_INVALID;
++ if(!hash(ctx,root,root_size,digest))return PAPACC_ISSUER_UNCERTAIN;
++ if(memcmp(digest,b+144,32))return PAPACC_ISSUER_INVALID;
++ if(!hash(ctx,root+8192,8192,digest))return PAPACC_ISSUER_UNCERTAIN;
++ if(memcmp(digest,b+176,32))return PAPACC_ISSUER_INVALID;
++ link->revision=r64(b+48);link->predecessor=r64(b+56);
++ link->administrative_epoch=r64(b+64);link->policy_epoch=r64(b+72);
++ memcpy(link->previous_commit_digest,b+208,32);return PAPACC_ISSUER_OK;
++}
+--- src/issuer/issuer_codec.h.before
++++ src/issuer/issuer_codec.h
+@@ -39,4 +39,20 @@
+ PAPACC_ISSUER_RESULT papacc_issuer_checkpoint_assess(
+  const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,PAPACC_SIZE,
+  PAPACC_ISSUER_HASH,void *,int,PAPACC_ISSUER_CHECKPOINT_REPORT *);
++
++/* Optional version1 publication checkpoint, appended to SAME ROOT06 file.
++ * SHA256 integrity/correlation only, never global freshness/fencing proof.
++ * A/P are historical facts captured AFTER actual publication by root adapter.
++ * No serialized C structs or platform types. Caller buffers are disjoint. */
++#define PAPACC_ISSUER_ROOT_IMAGE_BYTES 16384U
++#define PAPACC_ISSUER_LINK_BYTES 512U
++#define PAPACC_ISSUER_LINKED_ROOT_BYTES 16896U
++typedef struct PAPACC_ISSUER_LINK {
++ PAPACC_U64 revision,predecessor,administrative_epoch,policy_epoch;
++ PAPACC_U8 previous_commit_digest[32];
++} PAPACC_ISSUER_LINK;
++PAPACC_ISSUER_RESULT papacc_issuer_link_encode(PAPACC_U8 *,PAPACC_SIZE,
++ const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_ISSUER_LINK *,PAPACC_ISSUER_HASH,void *);
++PAPACC_ISSUER_RESULT papacc_issuer_link_decode(const PAPACC_U8 *,PAPACC_SIZE,
++ const PAPACC_U8 *,PAPACC_SIZE,PAPACC_ISSUER_LINK *,PAPACC_ISSUER_HASH,void *);
+ #endif--- tests/canonical_root_transaction_test.c.before
++++ tests/canonical_root_transaction_test.c
+@@ -10,6 +10,56 @@
+ static PAPACC_SERVER_CONFIG config=PAPACC_SERVER_CONFIG_INITIALIZER;
+ static PAPACC_LOGGER logger={NULL,NULL,PAPACC_LOG_LEVEL_OFF};
+ #define CHECK(x) do{++checks;if(!(x)){printf("FAIL line=%u expression=%s\n",(unsigned)__LINE__,#x);return 1;}}while(0)
++/* Real same-file TxF checkpoint; synthetic issuer metadata, no signing. */
++static int checkpoint_roundtrip(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const char *path)
++{
++ static PAPACC_U8 disk[16896],old[16896],bad[512];static int have_old;
++ static PAPACC_CONFIGURATION_COMMIT recovered;
++ PAPACC_ISSUER_LINK link,parsed;PAPACC_ISSUER_CHECKPOINT_REPORT report;
++ PAPACC_ISSUER_CAS_RESULT outcome;PAPACC_RESULT result;HANDLE f;DWORD n,start;
++ PAPACC_U64 r=o->configuration_preparation.model.revision;
++ PAPACC_U64 a=o->configuration_commit.slots[o->configuration_commit.current].context_epoch;
++ PAPACC_U64 p=o->configuration_preparation.current_policy_epoch;unsigned checks=0;
++ CHECK(papacc_configuration_checkpoint_data07(&o->configuration_commit,&link)!=PAPACC_RESULT_NOT_SUPPORTED);
++ CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)==0);
++ CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)!=0);
++ CHECK(papacc_server_launcher_configuration_current_pin(o,&o->session_revision_pins[3])!=0);
++ start=GetTickCount();do{result=papacc_server_launcher_configuration_checkpoint_poll(o,&outcome);
++  if(outcome==PAPACC_COMMIT_PENDING)Sleep(1);CHECK(GetTickCount()-start<10000U);
++ }while(outcome==PAPACC_COMMIT_PENDING);
++ CHECK(result==0&&outcome==PAPACC_CAS_SUCCESS&&o->configuration_commit.committed_bytes==16896);
++ CHECK(o->configuration_preparation.model.revision==r&&o->configuration_preparation.current_policy_epoch==p);
++ CHECK(papacc_configuration_checkpoint_data07(&o->configuration_commit,&link)==PAPACC_RESULT_NOT_SUPPORTED);
++ CHECK(link.revision==r&&link.predecessor==r-1&&link.administrative_epoch==a&&link.policy_epoch==p);
++ CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)!=0); /* no replay */
++ f=CreateFileA(path,GENERIC_READ,0,NULL,OPEN_EXISTING,0,NULL);CHECK(f!=INVALID_HANDLE_VALUE);
++ CHECK(ReadFile(f,disk,sizeof(disk),&n,NULL)&&n==sizeof(disk));CHECK(CloseHandle(f));
++ CHECK(!memcmp(disk,o->configuration_commit.committed,sizeof(disk)));
++ CHECK(papacc_issuer_link_decode(disk+16384,512,disk,16384,&parsed,papacc_configuration_issuer_hash06,&o->configuration_commit)==0);
++ CHECK(parsed.revision==r&&parsed.administrative_epoch==a&&parsed.policy_epoch==p);
++ CHECK(papacc_issuer_link_decode(disk+16384,511,disk,16384,&parsed,papacc_configuration_issuer_hash06,&o->configuration_commit)==PAPACC_ISSUER_INVALID);
++ memcpy(bad,disk+16384,512);bad[64]^=1;
++ CHECK(papacc_issuer_link_decode(bad,512,disk,16384,&parsed,papacc_configuration_issuer_hash06,&o->configuration_commit)==PAPACC_ISSUER_INVALID);
++ memcpy(bad,disk+16384,512);memset(bad+72,0,8);
++ CHECK(papacc_configuration_issuer_hash06(&o->configuration_commit,bad,480,bad+480));
++ CHECK(papacc_issuer_link_decode(bad,512,disk,16384,&parsed,papacc_configuration_issuer_hash06,&o->configuration_commit)==PAPACC_ISSUER_INVALID);
++ if(have_old){
++  CHECK(papacc_issuer_link_decode(old+16384,512,disk,16384,&parsed,papacc_configuration_issuer_hash06,&o->configuration_commit)==PAPACC_ISSUER_INVALID);
++  CHECK(papacc_issuer_link_decode(disk+16384,512,old,16384,&parsed,papacc_configuration_issuer_hash06,&o->configuration_commit)==PAPACC_ISSUER_INVALID);
++  CHECK(papacc_issuer_checkpoint_assess(old+8192,8192,disk+8192,8192,papacc_configuration_issuer_hash06,&o->configuration_commit,0,&report)==PAPACC_ISSUER_CONFLICT);
++  CHECK(report.state==PAPACC_ISSUER_CHECKPOINT_ROLLBACK);
++ }
++ memcpy(old,disk,sizeof(old));have_old=1;
++ /* Recovery has an exclusive data read lease, never live CURRENT/P/A. */
++ memset(&recovered,0,sizeof(recovered));CHECK(papacc_configuration_commit_init05(&recovered,path)==0);
++ CHECK(papacc_configuration_issuer_recovery06(&recovered,path)==PAPACC_RESULT_NOT_SUPPORTED);
++ CHECK(recovered.recovery_selected&&!recovered.published&&!recovered.slots[0].context_epoch&&!recovered.slots[0].operational_epoch);
++ CHECK(papacc_configuration_checkpoint_data07(&recovered,&parsed)==PAPACC_RESULT_NOT_SUPPORTED&&parsed.administrative_epoch==a&&parsed.policy_epoch==p);
++ CHECK(papacc_configuration_checkpoint_begin07(&recovered)!=0);
++ CHECK(papacc_configuration_stop(&recovered)==0&&papacc_configuration_finish(&recovered)==0);
++ printf("CHECKPOINT_ROUNDTRIP R=%llu A_PRESENT P_MATCH high_water=%llu checks=%u RECOVERY_DENY\n",(unsigned long long)r,(unsigned long long)o->configuration_commit.committed[8192+175],checks);
++ return 0;
++}
+ int main(int argc,char **argv)
+ {
+  PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=NULL;PAPACC_ROOT_CONFIGURATION_PREPARATION *t;
+@@ -71,7 +121,7 @@
+  CHECK(t->combined_reserved<=2097152U);
+  CHECK(papacc_server_launcher_configuration_transaction_publish(o)!=PAPACC_RESULT_OK);
+  CHECK(papacc_server_launcher_site_profile(o,&pin,7,1,&selected)!=PAPACC_RESULT_OK);
+- if(argc>2)strcpy_s(relative,sizeof(relative),argv[2]);
++ if(argc>2)strcpy_s(relative,sizeof(relative),argv[2]);
+  else if(argc>1&&!strncmp(argv[1],"catalog-live",12))sprintf_s(relative,sizeof(relative),"build/issuer-session-live-publication-20261019/root-%lu-%s.bin",GetCurrentProcessId(),argv[1]);
+  else if(argc>1&&!strcmp(argv[1],"catalog-issuer06"))sprintf_s(relative,sizeof(relative),"build/issuer-live-root-recovery-20261019/app-root-%lu-issuer06.bin",GetCurrentProcessId());
+  else sprintf_s(relative,sizeof(relative),"build/phase6-canonical-consolidation-20261018/root-tx-%lu-%s.bin",GetCurrentProcessId(),abort_case?"abort":"commit");
+@@ -172,8 +222,8 @@
+   CHECK(!o->configuration_commit.committed_pending&&t->model.revision==1&&t->current_policy_epoch==original_p);
+   CHECK(papacc_server_launcher_configuration_current_pin(o,&fresh)!=0&&!fresh.pin.ticket);
+   CHECK(papacc_server_launcher_site_profile(o,&pin,7,1,&selected)!=0);
+-  if(!strcmp(argv[1],"catalog-live-late-stop")){started=GetTickCount();while(WaitForSingleObject(o->configuration_commit.pending_commit.thread,0)==WAIT_TIMEOUT){Sleep(1);CHECK(GetTickCount()-started<10000U);}CHECK(o->configuration_commit.pending_commit.committed);}
+-  if(proof_change)o->config.site_tls.max_bytes++; /* explicit negative-only operational-proof fault */
++  if(!strcmp(argv[1],"catalog-live-late-stop")){started=GetTickCount();while(WaitForSingleObject(o->configuration_commit.pending_commit.thread,0)==WAIT_TIMEOUT){Sleep(1);CHECK(GetTickCount()-started<10000U);}CHECK(o->configuration_commit.pending_commit.committed);}
++  if(proof_change)o->config.site_tls.max_bytes++; /* explicit negative-only operational-proof fault */
+   if(stop_case)CHECK(papacc_configuration_stop(&o->configuration_commit)==0);
+   started=GetTickCount();do{
+    result=papacc_server_launcher_configuration_issuer_publish_live(o,&outcome);tries++;
+@@ -185,18 +235,34 @@
+    CHECK(o->session_revision_pins[0].pin.ticket&&older->initialized);
+    if(fail_conflict)CHECK(outcome==PAPACC_CAS_CONFLICT&&o->configuration_commit.authority_lost);
+    if(fail_unknown){CHECK(outcome==PAPACC_CAS_UNKNOWN&&o->configuration_commit.authority_lost);CHECK(CloseHandle(held));held=INVALID_HANDLE_VALUE;}
+-   if(proof_change||!strcmp(argv[1],"catalog-live-late-stop"))CHECK(outcome==PAPACC_CAS_SUCCESS&&o->configuration_commit.committed_pending&&o->configuration_commit.slots[o->configuration_commit.current].context_epoch==original_a);
++   if(proof_change||!strcmp(argv[1],"catalog-live-late-stop"))CHECK(outcome==PAPACC_CAS_SUCCESS&&o->configuration_commit.committed_pending&&o->configuration_commit.slots[o->configuration_commit.current].context_epoch==original_a);
+    CHECK(!papacc_server_launcher_configuration_current(o,&pin));
+    CHECK(papacc_server_launcher_configuration_issuer_publish_live(o,&outcome)!=0);
+    CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)!=0);
+    printf("PASS checks=%u LIVE_FAILURE=%s outcome=%d P_UNCHANGED OLD_SESSION_RETAINED NO_CURRENT_NO_RETRY NO_NETWORK\n",checks,argv[1],(int)outcome);return 0;
+   }
+   CHECK(result==0&&outcome==PAPACC_CAS_SUCCESS&&t->model.revision==2&&t->current_policy_epoch==original_p);
++  if(!strncmp(argv[1],"catalog-live-checkpoint-",24)){
++   int conflict=!strcmp(argv[1],"catalog-live-checkpoint-conflict");
++   int unknown=!strcmp(argv[1],"catalog-live-checkpoint-unknown");
++   if(conflict){DWORD n;unsigned char v=0;held=CreateFileA(path,GENERIC_WRITE,0,NULL,OPEN_EXISTING,0,NULL);CHECK(held!=INVALID_HANDLE_VALUE);CHECK(WriteFile(held,&v,1,&n,NULL)&&n==1&&FlushFileBuffers(held));CHECK(CloseHandle(held));held=INVALID_HANDLE_VALUE;}
++   if(unknown){held=CreateFileA(path,GENERIC_READ,0,NULL,OPEN_EXISTING,0,NULL);CHECK(held!=INVALID_HANDLE_VALUE);}
++   CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)==0);
++   if(!conflict&&!unknown)CHECK(papacc_configuration_stop(&o->configuration_commit)==0);
++   started=GetTickCount();do{result=papacc_server_launcher_configuration_checkpoint_poll(o,&outcome);if(outcome==PAPACC_COMMIT_PENDING)Sleep(1);CHECK(GetTickCount()-started<10000U);}while(outcome==PAPACC_COMMIT_PENDING);
++   CHECK(result==0&&t->model.revision==2&&older->root_revision==1&&o->session_revision_pins[0].pin.ticket);
++   if(conflict)CHECK(outcome==PAPACC_CAS_CONFLICT&&o->configuration_commit.authority_lost);
++   if(unknown){CHECK(outcome==PAPACC_CAS_UNKNOWN&&o->configuration_commit.authority_lost);CHECK(CloseHandle(held));}
++   CHECK(papacc_server_launcher_configuration_checkpoint_begin(o)!=0);
++   CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)!=0);
++   printf("PASS CHECKPOINT_FAILURE=%s outcome=%d OLD_PINS_RETAINED NO_RECOVERY\n",argv[1],(int)outcome);return 0;
++  }
++  CHECK(checkpoint_roundtrip(o,path)==0);
+   CHECK(!papacc_server_launcher_configuration_current(o,&pin));
+   CHECK(papacc_server_launcher_site_profile(o,&pin,7,1,&selected)==0); /* held memory + independent CURRENT projection */
+   CHECK(papacc_server_launcher_configuration_current_pin(o,&fresh)==0&&fresh.view.revision==2&&fresh.issuer_present&&fresh.issuer_revision==2);
+   CHECK(fresh.epoch==original_p&&fresh.administrative_epoch&&fresh.administrative_epoch!=original_a);
+-  CHECK(older->root_revision==1&&older->policy_epoch==original_p&&older->grant_count==0);
++  CHECK(older->root_revision==1&&older->policy_epoch==original_p&&older->grant_count==0);
+   CHECK(papacc_server_launcher_attachment_wake(o)==0); /* old attachment R, independently CURRENT P */
+   CHECK(papacc_server_launcher_configuration_current_pin(o,&o->session_revision_pins[1])==0);
+   o->session_revision_pins[1].session_incarnation=56;
+@@ -217,6 +283,7 @@
+   CHECK(papacc_server_launcher_configuration_issuer_prepare_live(o,image,&config,2,1)==0);
+   started=GetTickCount();do{result=papacc_server_launcher_configuration_issuer_publish_live(o,&outcome);if(outcome==PAPACC_COMMIT_PENDING)Sleep(1);CHECK(GetTickCount()-started<10000U);}while(outcome==PAPACC_COMMIT_PENDING);
+   CHECK(result==0&&t->model.revision==3&&t->current_policy_epoch==original_p);
++  CHECK(checkpoint_roundtrip(o,path)==0);
+   CHECK(papacc_server_launcher_configuration_current_pin(o,&third)==0&&third.issuer_revision==3&&third.view.revision==3);
+   CHECK(third.epoch==original_p&&third.administrative_epoch!=fresh.administrative_epoch);
+   {PAPACC_U8 copy[8192];CHECK(papacc_configuration_issuer_snapshot06(&o->configuration_commit,&fresh.pin,copy)==0&&!memcmp(copy,old_image,8192));}
+@@ -240,8 +307,10 @@
+   CHECK(papacc_server_launcher_c2_session_unpin(consumer,older)!=0);
+   CHECK(papacc_server_launcher_configuration_current_unpin(o,&fresh)==0);
+   CHECK(papacc_server_launcher_configuration_issuer_prepare_live(o,image,&config,3,1)==0); /* freed middle slot is now reusable */
+-  /* Staging is explicit, not publication. Stop leaves it owned until abort. */
+-  CHECK(papacc_configuration_stop(&o->configuration_commit)==0);CHECK(papacc_configuration_abort(&o->configuration_commit)==0);
++  started=GetTickCount();do{result=papacc_server_launcher_configuration_issuer_publish_live(o,&outcome);if(outcome==PAPACC_COMMIT_PENDING)Sleep(1);CHECK(GetTickCount()-started<10000U);}while(outcome==PAPACC_COMMIT_PENDING);
++  CHECK(result==0&&t->model.revision==4&&t->current_policy_epoch==original_p);
++  CHECK(checkpoint_roundtrip(o,path)==0); /* durable reserved high-water2 */
++  CHECK(papacc_configuration_stop(&o->configuration_commit)==0);
+   CHECK(papacc_server_launcher_configuration_current_unpin(o,&third)==0);
+   CHECK(papacc_server_launcher_configuration_current_unpin(o,&pin)==0);
+   CHECK(papacc_server_launcher_detach_closed(o)==0);

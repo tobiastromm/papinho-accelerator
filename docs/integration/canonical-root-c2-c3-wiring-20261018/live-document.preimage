@@ -1,0 +1,13 @@
+# Consolidação canônica Phase 6 — estado factual
+
+Atualizado em 2026-10-18, sob [decisão de consolidação accepted](../adr/DECISION-phase6-canonical-consolidation-20261018.md).
+
+O candidato normal API3 contém a migração Model E de transporte, Connection, stream e Secure IO, com corpos API2 preservados por seleção de build. Socket, accepted socket, acceptor, connector, listener e WinSock preservam referências quando o fechamento nativo falha. Um wrapper PST não consumido é retido pelo owner; o alias nativo anterior à criação não é novamente fechado. Secure, outbound e C3 reutilizam o mesmo mecanismo privado de handoff.
+
+O produto normal e a produção0.6.4 compilam/linkam em Debug/Release sem warnings finais. Dez testes offline por configuração normal passaram, incluindo onze casos sintéticos de handoff/close e entry points reais de Stop/teardown alimentados por registros sintéticos. Isso não prova close nativo, TLS, Session autenticada, provider/kernel ou execução conjunta.
+
+O núcleo C2 completo e a ponte C3 existentes foram incorporados seletivamente e compilados como componentes canônicos. Não estão instalados numa transação factual de root C8; dispatch C2/C3, configuração committed, policy CURRENT, emissão de epoch e grants operacionais permanecem pendentes. O candidato nega startup antes de criar listeners. O gate negativo não é um novo Authorization Provider e não possui setter ou caminho positivo. Não houve rede, alteração Browser/PST, wire, produção ou publicação de versão.
+
+O censo do layout candidato atual registra873176 bytes para os itens explicitamente somados, incluindo os participantes declarados. O valor875312 intermediário usava o perfil privado C8 e não representa o layout normal. Ponte C3:132448 bytes por instância, ainda não alocada pela root atual. Não somar duas vezes o manager C2 embutido no participante. Dois bridges futuros somariam264896 bytes, projeção separada e não reserva/admissão comprovada. Memória dinâmica de snapshot/discovery, stack, allocator, PST/provider/kernel e multiplicidade operacional ainda exigem reconciliação; ED11 total permanece PARTIAL e UNKNOWN não concede admissão.
+
+[Closeout e matriz](../integration/canonical-socket-ownership-20261018/closeout.md). Evidências históricas mantêm os escopos originais; nenhuma qualificação E10/C8 é promovida por este trabalho. A direção futura de policy/egress não foi modificada: nenhum novo seletor, provider ou semântica de policy foi implementado nesta retomada.

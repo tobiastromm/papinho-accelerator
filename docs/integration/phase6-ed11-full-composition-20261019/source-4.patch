@@ -1,0 +1,11 @@
+--- tests\d3_worker_win32_test.c
++++ tests\d3_worker_win32_test.c
+@@ -71,7 +71,7 @@
+   CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))!=0&&!exported);
+   owner.pending_commit.next[used-1U]^=1;
+  }else CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))!=0&&!exported);
+- printf("COMMITTED_RECEIPT_BYTES=%Iu COPY_SCRATCH=9408 OLD_BEGIN_SCRATCH=10532 EXPLICIT_EPOCH_ABSENCE\n",sizeof(receipt));
++ printf("COMMITTED_RECEIPT_BYTES=%Iu COPY_DIGEST_SCRATCH=32 BEGIN_VIEW_IDENTITY=1156 ELIMINATED_COPY=9376 EXPLICIT_EPOCH_ABSENCE\n",sizeof(receipt));
+  if(stop_case){CHECK(CloseHandle(owner.pending_commit.test_entered));CHECK(CloseHandle(owner.pending_commit.test_release));}
+  CHECK(papacc_configuration_stop(&owner)==0);exported=99;
+  CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))!=0&&!exported);

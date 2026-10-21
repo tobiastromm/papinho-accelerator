@@ -1,0 +1,97 @@
+--- tests/config_lst1_test.c
++++ tests/config_lst1_test.c
+@@ -0,0 +1,94 @@
++/* Offline synthetic configuration + EXISTING native SHA adapter. No store,
++ * key, certificate, root CURRENT, network, authorization or operational call. */
++#include "config_lst1.h"
++#include "config_source.h"
++#include "server_configuration_commit_win32.h"
++#include <stdio.h>
++#include <string.h>
++static PAPACC_CONFIGURATION_COMMIT owner;
++static PC_LST1_MODEL model,decoded,original;
++static PAPACC_U8 bytes[PC_LST1_MAX_BYTES+1U],saved[PC_LST1_MAX_BYTES+1U];
++static unsigned checks;
++#define CHECK(x) do{++checks;if(!(x)){printf("FAIL %d: %s\n",__LINE__,#x);return 1;}}while(0)
++static void put16(PAPACC_U8 *p,unsigned v){p[0]=(PAPACC_U8)v;p[1]=(PAPACC_U8)(v>>8);}
++static void put32(PAPACC_U8 *p,unsigned v){unsigned i;for(i=0;i<4U;++i)p[i]=(PAPACC_U8)(v>>(8U*i));}
++static void setup(unsigned count)
++{unsigned i;PAPACC_U8 *q;memset(&model,0,sizeof(model));memcpy(model.fields,"PACLST01",8);
++ put16(model.fields+8,1);put16(model.fields+10,128);put32(model.fields+12,160U+512U*count);
++ put16(model.fields+16,count);put16(model.fields+18,512);put32(model.fields+20,15);
++ model.fields[24]=1;model.fields[56]=2;model.fields[64]=3;model.fields[72]=4;model.fields[88]=1;put16(model.fields+96,1);
++ for(i=0;i<count;++i){q=model.fields+128U+512U*i;put32(q,127);q[4]=1;q[5]=1;q[6]=1;
++ put16(q+8,443U+i);put16(q+10,2);put16(q+12,3);put16(q+16,3);
++ q[24]='L';q[25]=(PAPACC_U8)('a'+i);memcpy(q+88,"tls",3);memcpy(q+216,"pol",3);q[280]=1;q[312]=2;}}
++static int unavailable(void *c,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 h[32])
++{(void)c;(void)p;(void)n;(void)h;return 0;}
++static int seal(PAPACC_SIZE n)
++{return papacc_configuration_issuer_hash06(&owner,bytes,n-32U,bytes+n-32U);}
++int main(void)
++{
++ PAPACC_SIZE used,n,i;int complete;unsigned c,j;PAPACC_U8 *q;PC_LST1_RESULT result;
++ CHECK(papacc_configuration_commit_init03(&owner,"lst1-unused-no-store") == PAPACC_RESULT_OK);
++ /* Native SHA known vector; this tests existing adapter, not custom crypto. */
++ CHECK(papacc_configuration_issuer_hash06(&owner,(const PAPACC_U8 *)"abc",3,bytes));
++ CHECK(bytes[0]==0xba&&bytes[1]==0x78&&bytes[31]==0xad);
++ for(c=0;c<=4U;++c){setup(c);original=model;used=99;
++  CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner)==0);
++  CHECK(used==160U+512U*c);complete=99;
++  CHECK(pc_lst1_decode(bytes,used,&decoded,&complete,papacc_configuration_issuer_hash06,&owner)==0&&complete==1);
++  CHECK(!memcmp(&model,&decoded,sizeof(model))&&!memcmp(&model,&original,sizeof(model)));
++ }
++ n=used;memcpy(saved,bytes,n);
++ /* Every single byte corrupted, including header/record/trailer. */
++ for(i=0;i<n;++i){memcpy(bytes,saved,n);bytes[i]^=1;complete=99;
++  CHECK(pc_lst1_decode(bytes,n,&decoded,&complete,papacc_configuration_issuer_hash06,&owner)!=0&&complete==0);}
++ memcpy(bytes,saved,n);
++ for(i=1;i<n;++i){complete=99;CHECK(pc_lst1_decode(bytes,i,&decoded,&complete,papacc_configuration_issuer_hash06,&owner)!=0&&complete==0);}
++ complete=99;CHECK(pc_lst1_decode(bytes,n+1U,&decoded,&complete,papacc_configuration_issuer_hash06,&owner)!=0&&complete==0);
++ /* Rehashed hostile bytes: structural checks independent from digest. */
++ {static const unsigned offsets[]={0,8,10,12,16,18,20,56,64,72,80,88,96,98,128,132,133,134,135,136,138,140,142,144,146,148,152,216,280,344,512};
++ for(j=0;j<sizeof(offsets)/sizeof(offsets[0]);++j){memcpy(bytes,saved,n);bytes[offsets[j]]=255;CHECK(seal(n));complete=99;
++  CHECK(pc_lst1_decode(bytes,n,&decoded,&complete,papacc_configuration_issuer_hash06,&owner)!=0&&complete==0);}}
++ setup(1);model.fields[128+5]=2;used=99;
++ CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner)==PC_LST1_UNSUPPORTED&&used==0);
++ setup(1);q=model.fields+128;put32(q,255);q[7]=1;put16(q+14,3);memcpy(q+152,"usr",3);used=99;
++ CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner)==PC_LST1_UNSUPPORTED&&used==0);
++ /* Binary CLOSED/authkind remains known but never accepted as auth. */
++ memcpy(bytes,saved,n);bytes[128+5]=2;CHECK(seal(n));complete=99;
++ CHECK(pc_lst1_decode(bytes,n,&decoded,&complete,papacc_configuration_issuer_hash06,&owner)==PC_LST1_UNSUPPORTED&&complete==0);
++ memcpy(bytes,saved,n);put32(bytes+128,255);bytes[135]=1;put16(bytes+142,3);memcpy(bytes+280,"usr",3);CHECK(seal(n));
++ CHECK(pc_lst1_decode(bytes,n,&decoded,&complete,papacc_configuration_issuer_hash06,&owner)==PC_LST1_UNSUPPORTED&&!complete);
++ setup(2);memcpy(model.fields+128+512+24,model.fields+128+24,2);used=99;
++ CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner)==PC_LST1_INVALID&&!used);
++ setup(1);q=model.fields+128;q[6]=2;put16(q+18,2);q[384]=1;q[400]=1;memset(q+408,255,8);
++ CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner)==0);
++ CHECK(pc_lst1_decode(bytes,used,&decoded,&complete,papacc_configuration_issuer_hash06,&owner)==0&&complete);
++ memset(q+408,0,8);CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner)==PC_LST1_INVALID);
++ /* UTF8 invalid/control/BOM/overlong/surrogate/out-of-range/truncated/tail. */
++ {static const PAPACC_U8 bad[][4]={{0,0,0,0},{31,0,0,0},{127,0,0,0},{0xc0,0xaf,0,0},{0xed,0xa0,0x80,0},{0xf4,0x90,0x80,0x80},{0xef,0xbb,0xbf,0},{0xc2,0,0,0}};
++ for(j=0;j<sizeof(bad)/sizeof(bad[0]);++j){setup(1);q=model.fields+128;memcpy(q+88,bad[j],4);put16(q+12,4);
++ CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner)==PC_LST1_INVALID);}}
++ setup(1);q=model.fields+128;memset(q+88,0,64);q[88]=0xc3;q[89]=0xa9;q[90]='#';q[91]=';';put16(q+12,4);
++ CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner)==0);
++ CHECK(pc_lst1_decode(bytes,used,&decoded,&complete,papacc_configuration_issuer_hash06,&owner)==0);
++ setup(1);used=99;CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,unavailable,NULL)==PC_LST1_HASH_FAILED&&!used);
++ used=99;CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,NULL,NULL)==PC_LST1_HASH_FAILED&&!used);
++ CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner)==0);n=used;
++ complete=99;memset(&decoded,255,sizeof(decoded));CHECK(pc_lst1_decode(bytes,n,&decoded,&complete,unavailable,NULL)==PC_LST1_HASH_FAILED&&!complete);
++ for(i=0;i<sizeof(decoded);++i)CHECK(((PAPACC_U8 *)&decoded)[i]==0);
++ used=99;CHECK(pc_lst1_encode(&model,(PAPACC_U8 *)&model,sizeof(model),&used,NULL,NULL)==PC_LST1_INVALID&&used==99);
++ CHECK(pc_lst1_encode(&model,bytes,159,&used,NULL,NULL)==PC_LST1_INVALID&&used==99);
++ CHECK(pc_lst1_encode(&model,bytes,sizeof(bytes),(PAPACC_SIZE *)bytes,NULL,NULL)==PC_LST1_INVALID);
++ complete=99;CHECK(pc_lst1_decode(bytes,n,(PC_LST1_MODEL *)bytes,&complete,NULL,NULL)==PC_LST1_INVALID&&complete==99);
++ CHECK(pc_lst1_decode(bytes,n,&decoded,(int *)&decoded,NULL,NULL)==PC_LST1_INVALID);
++ CHECK(pc_lst1_decode(NULL,n,&decoded,&complete,NULL,NULL)==PC_LST1_INVALID);
++ /* Historic discriminators never reinterpreted; no historic codec modified. */
++ {static const char *names[]={"ADMP0201","ADMP0301","ADMP0401","ADMP0501","ROOT0601"};
++ for(j=0;j<5U;++j){memcpy(bytes,saved,160);memcpy(bytes,names[j],8);complete=99;
++ result=pc_lst1_decode(bytes,160,&decoded,&complete,papacc_configuration_issuer_hash06,&owner);CHECK(result==PC_LST1_INVALID&&!complete);}}
++ CHECK(papacc_configuration_stop(&owner)==PAPACC_RESULT_OK);
++ CHECK(papacc_configuration_finish(&owner)==PAPACC_RESULT_OK);
++ printf("LST1_PASS checks=%u native_existing_SHA256 synthetic_configuration NO_CURRENT NO_NETWORK\n",checks);
++ printf("CENSUS model=%Iu two_models=%Iu encoded_pair=%u AST=%Iu input=%u used=%Iu complete=%Iu codec_hash_stack=32 product_delta=0 no_new_pins\n",
++ sizeof(model),2U*sizeof(model),2U*PC_LST1_MAX_BYTES,sizeof(PC_DOCUMENT),PC_SOURCE_MAX,sizeof(used),sizeof(complete));
++ return 0;
++}

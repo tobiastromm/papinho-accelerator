@@ -1,0 +1,11 @@
+--- apps/server/server_configuration_bootstrap_commit_win32.inc
++++ apps/server/server_configuration_bootstrap_commit_win32.inc
+@@ -23,7 +23,7 @@
+   proof->volume=p->bootstrap_volume;proof->high=p->bootstrap_high;proof->low=p->bootstrap_low;
+   ok=1;
+  }else ok=proof->version==1U&&proof->sid_bytes>0U&&proof->sid_bytes<=sizeof(proof->sid)&&
+-  EqualSid(proof->sid,user->User.Sid)&&
++  IsValidSid(proof->sid)&&proof->sid_bytes==GetLengthSid(proof->sid)&&EqualSid(proof->sid,user->User.Sid)&&
+   !memcmp(&proof->statistics.TokenId,&statistics.TokenId,sizeof(LUID))&&
+   !memcmp(&proof->statistics.AuthenticationId,&statistics.AuthenticationId,sizeof(LUID))&&
+   !memcmp(&proof->statistics.ModifiedId,&statistics.ModifiedId,sizeof(LUID))&&

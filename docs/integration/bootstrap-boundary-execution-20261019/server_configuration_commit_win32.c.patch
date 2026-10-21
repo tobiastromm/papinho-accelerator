@@ -1,0 +1,11 @@
+--- apps/server/server_configuration_commit_win32.c
++++ apps/server/server_configuration_commit_win32.c
+@@ -12,7 +12,7 @@
+ static int pending_blocks(PAPACC_CONFIGURATION_COMMIT *o)
+ {
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+- return o->pending_commit.active||o->authority_lost;
++ return o->pending_commit.active||o->authority_lost||o->pending_commit.bootstrap_parent||o->pending_commit.bootstrap_container;
+ #else
+  (void)o;return 0;
+ #endif

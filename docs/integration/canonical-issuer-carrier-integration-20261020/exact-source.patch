@@ -1,0 +1,167 @@
+--- apps/server/server_configuration_commit_win32.h
++++ apps/server/server_configuration_commit_win32.h
+@@ -119,6 +119,13 @@
+ PAPACC_RESULT papacc_configuration_issuer_snapshot06(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_U8 *);
+ PAPACC_RESULT papacc_configuration_issuer_recovery06(PAPACC_CONFIGURATION_COMMIT *,const char *);
+ PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_VIEW *,PAPACC_U64 *,PAPACC_U64 *);
++/* Offline DATA inspection of a full historical carrier, not file adoption.
++ * Caller owns immutable16384 input and disjoint workspace/output. No CURRENT,
++ * epoch/proof bits, source lease, key binding or recovery authority returned.
++ * Embedded file identity is checked for internal consistency only. */
++PAPACC_RESULT papacc_configuration_issuer_carrier_inspect06(
++ PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,
++ PAPACC_CONFIG_VIEW *,PAPACC_ISSUER_VIEW *);
+ int papacc_configuration_issuer_projection06(const PAPACC_SERVER_CONFIG *,const PAPACC_SERVER_CONFIG *);
+ PAPACC_RESULT papacc_configuration_issuer_publish06(PAPACC_CONFIGURATION_COMMIT *);
+ /* Explicit BODY0.5 catalog profile; no old-format promotion. */
+--- apps/server/server_configuration_issuer06_win32.inc
++++ apps/server/server_configuration_issuer06_win32.inc
+@@ -89,6 +89,32 @@
+  if(papacc_issuer_image_validate(image,v,papacc_configuration_issuer_hash06,o)!=PAPACC_ISSUER_OK)return 0;
+  return get64(image+24)==get64(base+48)+1U;
+ }
++/* Synchronous owner-thread inspection only; never opens/adopts a file.
++ * store05_select is a read-only historical decoder despite its old signature.
++ * Supplied workspace is NOT a current slot. No pointer is retained. */
++PAPACC_RESULT papacc_configuration_issuer_carrier_inspect06(
++ PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_U8 *b,PAPACC_SIZE n,
++ PAPACC_CONFIG_VIEW *workspace,PAPACC_ISSUER_VIEW *out)
++{
++ BY_HANDLE_FILE_INFORMATION f;PAPACC_ISSUER_VIEW v;
++ if(!owner(o)||!b||n!=PAPACC_ISSUER_ROOT_IMAGE_BYTES||!workspace||!out||
++    (ULONG_PTR)b>MAXULONG_PTR-(n-1U)||
++    (ULONG_PTR)workspace>MAXULONG_PTR-(sizeof(*workspace)-1U)||
++    (ULONG_PTR)out>MAXULONG_PTR-(sizeof(*out)-1U)||
++    issuer06_overlap(b,n,o,sizeof(*o))||issuer06_overlap(workspace,sizeof(*workspace),o,sizeof(*o))||
++    issuer06_overlap(out,sizeof(*out),o,sizeof(*o))||issuer06_overlap(workspace,sizeof(*workspace),b,n)||
++    issuer06_overlap(out,sizeof(*out),b,n)||issuer06_overlap(out,sizeof(*out),workspace,sizeof(*workspace)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ memset(out,0,sizeof(*out));memset(workspace,0,sizeof(*workspace));
++ if(o->stopped||o->unresolved||o->authority_lost||pending_blocks(o)||o->prepared||o->committed_pending)return PAPACC_RESULT_INVALID_STATE;
++ memset(&f,0,sizeof(f));f.dwVolumeSerialNumber=(DWORD)get64(b+104);
++ f.nFileIndexHigh=(DWORD)(get64(b+112)>>32);f.nFileIndexLow=(DWORD)get64(b+112);
++ if(!issuer06_binding(o,b,b+8192,&f,&v)||
++    !store05_select((unsigned char *)b,&f,workspace)||
++    memcmp(workspace->domain,v.root,32)){
++  memset(workspace,0,sizeof(*workspace));return PAPACC_RESULT_INVALID_STATE;}
++ /* Header identity above is serialized DATA, not native namespace custody. */
++ *out=v;out->epoch=0;out->proofs=0;return PAPACC_RESULT_OK;
++}
+ static int issuer06_append(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_VIEW *next,const BY_HANDLE_FILE_INFORMATION *f,unsigned char *b)
+ {
+  PAPACC_ISSUER_VIEW v;
+--- apps/server/server_config_root8_data_win32.h
++++ apps/server/server_config_root8_data_win32.h
+@@ -6,4 +6,16 @@
+  * origin/adapter gate is qualified. This library never calls commit/publish. */
+ PC_ROOT8_RESULT papacc_root8_body05_data(void *,unsigned,const PAPACC_U8 *,
+  PAPACC_SIZE,const PAPACC_U8 *,const PAPACC_U8 *);
++#include "server_configuration_commit_win32.h"
++/* Borrowed immutable carrier floor and caller workspace, DATA only. The real
++ * root owner must separately supply CURRENT, pins, source leases and budgets.
++ * No configuration can select this callback as an authority. */
++typedef struct PAPACC_ROOT8_CARRIER_DATA {
++ PAPACC_CONFIGURATION_COMMIT *owner;
++ PAPACC_CONFIG_VIEW *workspace;
++ const PAPACC_U8 *floor;
++ PAPACC_SIZE floor_bytes;
++} PAPACC_ROOT8_CARRIER_DATA;
++PC_ROOT8_RESULT papacc_root8_issuer_carrier_data(void *,unsigned,const PAPACC_U8 *,
++ PAPACC_SIZE,const PAPACC_U8 *,const PAPACC_U8 *);
+ #endif
+--- apps/server/server_config_root8_data_win32.c
++++ apps/server/server_config_root8_data_win32.c
+@@ -25,3 +25,33 @@
+   if(!v.ids[i].is_valid||v.ids[i].value!=le64(desc+392U+16U*i))return PC_ROOT8_INVALID;
+  return PC_ROOT8_OK;
+ }
++
++/* Separate offline callback: historical body-only dispatch above is unchanged. */
++PC_ROOT8_RESULT papacc_root8_issuer_carrier_data(void *ctx,unsigned kind,
++ const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
++{
++ PAPACC_ROOT8_CARRIER_DATA *c=ctx;PAPACC_ISSUER_VIEW v;
++ PAPACC_ISSUER_CHECKPOINT_REPORT report;PAPACC_ISSUER_RECORD record;
++ PAPACC_ISSUER_RESULT s;
++ if(kind==5U)return papacc_root8_body05_data(NULL,kind,p,n,row,header);
++ if(kind!=6U&&kind!=7U)return PC_ROOT8_UNSUPPORTED;
++ if(!c||!c->owner||!c->workspace||!header||!p||n!=16384U)return PC_ROOT8_INVALID;
++ if(c->owner->stopped||c->owner->unresolved||c->owner->authority_lost)return PC_ROOT8_INCOMPLETE;
++ if(!c->floor||c->floor_bytes!=16384U)return PC_ROOT8_INCOMPLETE;
++ if(papacc_configuration_issuer_carrier_inspect06(c->owner,c->floor,c->floor_bytes,c->workspace,&v)!=PAPACC_RESULT_OK||
++    papacc_configuration_issuer_carrier_inspect06(c->owner,p,n,c->workspace,&v)!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
++ if(memcmp(v.root,header+72,32)||v.revision!=le64(header+120)||memcmp(p,c->floor,8192))return PC_ROOT8_INVALID;
++ s=papacc_issuer_checkpoint_assess(p+8192,8192,c->floor+8192,8192,
++    papacc_configuration_issuer_hash06,c->owner,0,&report);
++ if(s!=PAPACC_ISSUER_DENIED||report.state!=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED)return PC_ROOT8_INVALID;
++ if(kind==6U)return PC_ROOT8_OK; /* relative DATA continuity; never recovery */
++ if(!row||memcmp(row+40,v.authority,16)||memcmp(row+56,v.generation,16)||memcmp(row+568,v.ca_spki_digest,32))return PC_ROOT8_INVALID;
++ if(row[22]==1U)return PC_ROOT8_OK;
++ if(row[22]!=2U&&row[22]!=3U)return PC_ROOT8_INVALID;
++ s=papacc_issuer_image_find(p+8192,row+72,&record,papacc_configuration_issuer_hash06,c->owner);
++ if(s!=PAPACC_ISSUER_OK||record.request.purpose!=PAPACC_ISSUER_SERVER||
++    memcmp(row+88,record.request.csr_digest,32)||memcmp(row+120,record.request.key_digest,32))return PC_ROOT8_INVALID;
++ if(row[22]==3U)return PC_ROOT8_INCOMPLETE; /* DER/profile/SAN authority gate */
++ if(record.state!=PAPACC_ISSUER_SERIAL_RESERVED&&record.state!=PAPACC_ISSUER_SIGN_REQUESTED)return PC_ROOT8_INVALID;
++ return PC_ROOT8_OK;
++}
+--- tests/config_root8_v2_test.c
++++ tests/config_root8_v2_test.c
+@@ -101,6 +101,50 @@
+  CHECK(pc_root8_v2_cp_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_OK&&n==512);memcpy(c,part,512);
+  CHECK(pc_root8_v2_encode(fields,prefix,encoded,sizeof(encoded),&used,hash,&owner,model_component,NULL)==PC_ROOT8_OK);return 1;
+ }
++/* New carrier cases use a complete historical journal fixture, never a file,
++ * actual CURRENT, CA, certificate or signature. Its embedded file IDs are DATA. */
++static void be64(PAPACC_U8 *p,PAPACC_U64 v)
++{unsigned i;for(i=0;i<8U;i++)p[7U-i]=(PAPACC_U8)(v>>(8U*i));}
++static int canonical_carrier_cases(void)
++{
++ PAPACC_ROOT8_CARRIER_DATA ctx;PAPACC_U8 *a,*c,*w,*image;PAPACC_SIZE off,n;
++ PAPACC_ISSUER_VIEW iv,data;PAPACC_ISSUER_RECORD record;DWORD writer;
++ CHECK(setup(1,1,2));off=r32(fields+48);a=fields+off;image=a+8192;
++ memset(a,0,8192);memcpy(a,"PACL0501",8);be64(a+8,5);a[16]=7;
++ be64(a+48,1);be64(a+56,1);be64(a+64,1);be64(a+104,1);be64(a+112,2);
++ c=a+128;w=a+4736;c[0]=w[0]=7;be64(c+32,1);be64(c+48,1001);be64(c+56,1024);memcpy(c+96,"CONF0501",8);
++ config_init(0,1);CHECK(papacc_configuration_body05_encode(&view,c+128,1024)==PAPACC_RESULT_OK);
++ be64(w+32,1);be64(w+48,1001);CHECK(hash(&owner,c,1152,w+56));CHECK(hash(&owner,w,128,a+72));CHECK(hash(&owner,a,8160,a+8160));
++ memset(&iv,0,sizeof(iv));iv.root[0]=7;iv.authority[0]=2;iv.generation[0]=3;iv.prefix[0]=4;iv.policy[0]=5;iv.ca_spki_digest[0]=6;iv.revision=2;iv.high_water=1;iv.ca_not_after=2000000000;
++ {PAPACC_U8 d[32];CHECK(hash(&owner,a,8192,d));CHECK(papacc_issuer_image_init(image,&iv,d,hash,&owner)==PAPACC_ISSUER_OK);}
++ memset(&record,0,sizeof(record));record.request.id[0]=11;record.request.device[0]=12;record.request.csr_digest[0]=13;record.request.key_digest[0]=14;record.request.purpose=PAPACC_ISSUER_SERVER;record.request.not_before=1700000000;record.request.not_after=1700003600;
++ memcpy(record.authority,iv.authority,16);memcpy(record.generation,iv.generation,16);memcpy(record.policy,iv.policy,32);record.approved_epoch=8;record.state=PAPACC_ISSUER_PREPARED;
++ CHECK(papacc_issuer_image_append(image,&record,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ record.state=PAPACC_ISSUER_SERIAL_RESERVED;record.counter=2;memcpy(record.serial,iv.prefix,8);record.serial[15]=2;
++ CHECK(papacc_issuer_image_append(image,&record,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK);w64(fields+120,iv.revision);w64(fields+160,2);w64(lst.fields+80,2);
++ CHECK(pc_lst1_encode(&lst,fields+r32(fields+40),r32(fields+44),&n,hash,&owner)==PC_LST1_OK);CHECK(seal());memcpy(original,fields,prefix);
++ ctx.owner=&owner;ctx.workspace=&view;ctx.floor=original+off;ctx.floor_bytes=16384;
++ CHECK(papacc_configuration_issuer_carrier_inspect06(&owner,a,16384,&view,&data)==PAPACC_RESULT_OK&&data.high_water==2&&!data.epoch&&!data.proofs);
++ CHECK(pc_root8_v2_validate(encoded,used,hash,&owner,papacc_root8_issuer_carrier_data,&ctx)==PC_ROOT8_OK);
++ CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_OK);
++ ctx.floor=NULL;CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_INCOMPLETE);ctx.floor=original+off;
++ CHECK(papacc_configuration_issuer_carrier_inspect06(&owner,a,16383,&view,&data)!=PAPACC_RESULT_OK);
++ a[8160]^=1;CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_INVALID);a[8160]^=1;
++ fields[120]^=1;CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_INVALID);fields[120]^=1;
++ writer=owner.writer;owner.writer=writer+1U;CHECK(papacc_configuration_issuer_carrier_inspect06(&owner,a,16384,&view,&data)!=PAPACC_RESULT_OK);owner.writer=writer;
++ /* Existing event prefix may extend, never shrink or erase a reservation. */
++ record.state=PAPACC_ISSUER_SIGN_REQUESTED;CHECK(papacc_issuer_image_append(image,&record,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK);w64(fields+120,iv.revision);
++ CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_OK);
++ memcpy(original+off,a,16384);memcpy(image,encoded+off+8192,8192);CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK);w64(fields+120,iv.revision);
++ CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_INVALID);
++ CHECK(papacc_configuration_stop(&owner)==PAPACC_RESULT_OK);
++ CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_INCOMPLETE);
++ CHECK(papacc_configuration_issuer_carrier_inspect06(&owner,a,16384,&view,&data)!=PAPACC_RESULT_OK&&!data.proofs&&!data.epoch);
++ CHECK(papacc_configuration_finish(&owner)==PAPACC_RESULT_OK);
++ return 1;
++}
+ static int run(void)
+ {
+  unsigned N,B,stage,i;PAPACC_SIZE n,offset,S,Q;int complete;char path[MAX_PATH];DWORD len;PC_ROOT8_RESULT result;
+@@ -127,6 +171,7 @@
+  CHECK(setup(1,1,1));CHECK(checkpoints());Q=r32(fields+56);fields[Q+8]=1;n=99;CHECK(pc_root8_v2_cp_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_INVALID&&!n);
+  /* Runtime OLD version1 decoder rejects v2 rather than truncate/reinterpret. */
+  {static PC_ROOT8_MODEL old;complete=99;result=pc_root8_decode(encoded,used,&old,&complete,hash,&owner,model_component,NULL);CHECK(result!=PC_ROOT8_OK&&!complete);}
++ CHECK(canonical_carrier_cases());
+  printf("PASS %u DATA_MODEL_ONLY NO_CURRENT NO_NATIVE_CARRIER NO_SIGNATURE arrays=%Iu\n",checks,sizeof(fields)+sizeof(original)+sizeof(encoded)+sizeof(decoded)+sizeof(part)+sizeof(lst)+sizeof(owner)+sizeof(view));return 1;
+ }
+ int main(void){return run()?0:1;}

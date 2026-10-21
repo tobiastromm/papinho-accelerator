@@ -1,0 +1,153 @@
+#include "server_config.h"
+
+PAPACC_RESULT papacc_server_config_validate(
+    const PAPACC_SERVER_CONFIG *config)
+{
+    PAPACC_RESULT result;
+
+    if (config == NULL) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    if (config->allow_network_egress != PAPACC_FALSE &&
+        config->allow_network_egress != PAPACC_TRUE) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    if (config->listener_profile !=
+            PAPACC_SERVER_LISTENER_PROFILE_LEGACY_ENDPOINT &&
+        config->listener_profile !=
+            PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (config->listener_profile ==
+            PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL) {
+        if (config->security_configuration_ref_valid != PAPACC_TRUE ||
+            config->security_configuration_ref_length == 0U ||
+            config->security_configuration_ref_length >
+                PAPACC_SERVER_SECURITY_CONFIGURATION_REF_CAPACITY)
+            return PAPACC_RESULT_INVALID_STATE;
+    } else if (config->security_configuration_ref_valid != PAPACC_FALSE ||
+        config->security_configuration_ref_length != 0U)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    if (config->allow_network_egress == PAPACC_TRUE) {
+        if (config->listener_profile !=
+                PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL ||
+            config->egress_policy_ref_valid != PAPACC_TRUE ||
+            config->egress_profile_ref_valid != PAPACC_TRUE ||
+            config->outbound_tls_profile_ref_valid != PAPACC_TRUE ||
+            config->egress_policy_ref_length == 0U ||
+            config->egress_profile_ref_length == 0U ||
+            config->outbound_tls_profile_ref_length == 0U ||
+            config->egress_policy_ref_length >
+                PAPACC_SERVER_EGRESS_CONFIGURATION_REF_CAPACITY ||
+            config->egress_profile_ref_length >
+                PAPACC_SERVER_EGRESS_CONFIGURATION_REF_CAPACITY ||
+            config->outbound_tls_profile_ref_length >
+                PAPACC_SERVER_EGRESS_CONFIGURATION_REF_CAPACITY)
+            return PAPACC_RESULT_INVALID_STATE;
+    } else if (config->egress_policy_ref_valid != PAPACC_FALSE ||
+        config->egress_profile_ref_valid != PAPACC_FALSE ||
+        config->outbound_tls_profile_ref_valid != PAPACC_FALSE ||
+        config->egress_policy_ref_length != 0U ||
+        config->egress_profile_ref_length != 0U ||
+        config->outbound_tls_profile_ref_length != 0U)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    result = papacc_persistent_bind_selection_validate(
+        &config->bind_selection);
+    if (result != PAPACC_RESULT_OK) {
+        return result;
+    }
+    if (config->control_port == 0) {
+        return PAPACC_RESULT_INVALID_STATE;
+    }
+
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+    result=papacc_site_tls_catalog_validate(&config->site_tls);
+    if(result!=PAPACC_RESULT_OK)return result;
+    if(config->site_tls.present&&(!config->policy.present||config->policy.representation!=PAPACC_ADMIN_REPRESENTATION_04||
+       config->listener_profile!=PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL))return PAPACC_RESULT_INVALID_STATE;
+    result=papacc_server_policy_validate(config);
+    if(result!=PAPACC_RESULT_OK)return result;
+#endif
+    return PAPACC_RESULT_OK;
+}
+
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+#include <string.h>
+static int policy_key_known(const PAPACC_CAPABILITY_KEY *k)
+{
+ return (k->id==1U&&(k->major==1U||k->major==2U)) ||
+        ((k->id==2U||k->id==3U)&&k->major==1U);
+}
+PAPACC_RESULT papacc_server_policy_validate(const PAPACC_SERVER_CONFIG *c)
+{
+ const PAPACC_ADMIN_POLICY *p;PAPACC_SIZE i,j;unsigned nonzero=0U;
+ if(c==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+ p=&c->policy;
+ if(p->present==PAPACC_FALSE)return PAPACC_RESULT_OK;
+ if((p->representation!=0U&&p->representation!=PAPACC_ADMIN_REPRESENTATION_04)||
+    p->present!=PAPACC_TRUE || p->enabled_count>PAPACC_ADMIN_POLICY_KEYS ||
+    p->rule_count>PAPACC_ADMIN_POLICY_RULES || p->profile!=(PAPACC_U32)c->listener_profile ||
+    p->listener_port==0U || p->listener_port!=c->control_port ||
+    p->admission>PAPACC_ADMIN_CLOSED)return PAPACC_RESULT_INVALID_ARGUMENT;
+ for(i=0U;i<32U;++i)nonzero|=p->identity[i];
+ if(!nonzero)return PAPACC_RESULT_INVALID_ARGUMENT;
+ for(i=0U;i<p->enabled_count;++i){
+  if(!policy_key_known(&p->enabled[i]))return PAPACC_RESULT_NOT_SUPPORTED;
+  if(p->profile==PAPACC_SERVER_LISTENER_PROFILE_LEGACY_ENDPOINT && p->enabled[i].id==1U)
+   return PAPACC_RESULT_NOT_SUPPORTED;
+  for(j=0U;j<i;++j)if(p->enabled[i].id==p->enabled[j].id &&
+      p->enabled[i].major==p->enabled[j].major)return PAPACC_RESULT_INVALID_ARGUMENT;
+ }
+ for(i=0U;i<p->rule_count;++i){
+  const PAPACC_ADMIN_POLICY_RULE *rule=&p->rules[i];
+  if(!policy_key_known(&rule->key)||rule->action>PAPACC_ADMIN_POLICY_ACCEPT ||
+     (rule->conditions&~PAPACC_ADMIN_POLICY_PRINCIPAL)!=0U)return PAPACC_RESULT_NOT_SUPPORTED;
+  if(p->representation==PAPACC_ADMIN_REPRESENTATION_04){
+   for(j=0U;j<32U;++j)if(rule->principal[j])return PAPACC_RESULT_INVALID_ARGUMENT;
+   if(rule->conditions&PAPACC_ADMIN_POLICY_PRINCIPAL){
+    if(rule->principal16.type!=1U||rule->principal16.length!=16U)return PAPACC_RESULT_INVALID_ARGUMENT;
+   }else{
+    const PAPACC_U8 *bytes=(const PAPACC_U8 *)&rule->principal16;
+    for(j=0U;j<sizeof(rule->principal16);++j)if(bytes[j])return PAPACC_RESULT_INVALID_ARGUMENT;
+   }
+  }else{
+   const PAPACC_U8 *bytes=(const PAPACC_U8 *)&rule->principal16;
+   for(j=0U;j<sizeof(rule->principal16);++j)if(bytes[j])return PAPACC_RESULT_INVALID_ARGUMENT;
+   if(!(rule->conditions&PAPACC_ADMIN_POLICY_PRINCIPAL))
+    for(j=0U;j<32U;++j)if(rule->principal[j])return PAPACC_RESULT_INVALID_ARGUMENT;
+  }
+ }
+ return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_server_policy_evaluate(const PAPACC_SERVER_CONFIG *c,
+ const PAPACC_ADMIN_POLICY_CONTEXT *context,const PAPACC_CAPABILITY_KEY *key,
+ PAPACC_U32 *decision,PAPACC_SIZE *matched)
+{
+ const PAPACC_ADMIN_POLICY *p;PAPACC_SIZE i;int enabled=0;PAPACC_RESULT result;
+ if(decision==NULL||matched==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+ *decision=PAPACC_ADMIN_POLICY_DENY;*matched=PAPACC_ADMIN_POLICY_RULES;
+ if(c==NULL||context==NULL||key==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+ result=papacc_server_config_validate(c);if(result!=PAPACC_RESULT_OK)return result;
+ p=&c->policy;if(!p->present)return PAPACC_RESULT_INVALID_STATE;
+ if(context->profile!=p->profile||context->listener_port!=p->listener_port||
+    context->admission!=p->admission || context->representation!=p->representation ||
+    (context->principal_valid!=PAPACC_FALSE&&context->principal_valid!=PAPACC_TRUE))
+  return PAPACC_RESULT_INVALID_STATE;
+ if(p->representation==PAPACC_ADMIN_REPRESENTATION_04&&context->principal_valid&&
+    (context->principal16.type!=1U||context->principal16.length!=16U))return PAPACC_RESULT_INVALID_ARGUMENT;
+ for(i=0U;i<p->enabled_count;++i)if(p->enabled[i].id==key->id&&p->enabled[i].major==key->major)enabled=1;
+ if(!enabled)return PAPACC_RESULT_OK;
+ for(i=0U;i<p->rule_count;++i){
+  const PAPACC_ADMIN_POLICY_RULE *rule=&p->rules[i];
+  if(rule->key.id!=key->id||rule->key.major!=key->major)continue;
+  if(rule->conditions&PAPACC_ADMIN_POLICY_PRINCIPAL){
+   if(!context->principal_valid)continue;
+   if(p->representation==PAPACC_ADMIN_REPRESENTATION_04){
+    if(context->principal16.type!=1U||context->principal16.length!=16U||
+       memcmp(context->principal16.value,rule->principal16.value,16U)!=0)continue;
+   }else if(memcmp(context->principal,rule->principal,32U)!=0)continue;
+  }
+  *matched=i;*decision=rule->action;return PAPACC_RESULT_OK;
+ }
+ return PAPACC_RESULT_OK;
+}
+#endif

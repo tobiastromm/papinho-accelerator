@@ -1,0 +1,11 @@
+--- apps/server/server_config_source_binding_win32.c
++++ apps/server/server_config_source_binding_win32.c
+@@ -99,6 +99,8 @@
+  PAPACC_BOOTSTRAP_RESOLUTION resolved;PC_DIAGNOSTIC diagnostic;PAPACC_CONFIG_VIEW expected;
+  PAPACC_CONFIGURATION_COMMIT *c;const PC_LINE *line;unsigned length;
+  if(!o||!image||bytes<PC_ROOT8_MIN||bytes>PC_ROOT8_NO_ISSUER_MAX)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if((ULONG_PTR)image<=(ULONG_PTR)o? (ULONG_PTR)o-(ULONG_PTR)image<bytes:
++    (ULONG_PTR)image-(ULONG_PTR)o<sizeof(*o))return PAPACC_RESULT_INVALID_ARGUMENT;
+  if(papacc_server_config_initial_bootstrap_resolve(o,doc,&resolved,&diagnostic)!=PC_OK||!resolved.initial_resolved||resolved.epochs_present)
+   return PAPACC_RESULT_INVALID_STATE;
+  c=&o->configuration_commit;

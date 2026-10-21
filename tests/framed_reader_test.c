@@ -206,6 +206,54 @@ static int papacc_test_multiple_frames_and_eof(void)
     return 0;
 }
 
+static int papacc_test_frame_plus_next_prefix(void)
+{
+    PAPACC_U8 bytes[35];
+    PAPACC_U8 scratch[sizeof(bytes)];
+    const PAPACC_U8 payload_a[1] = { 0xA5 };
+    const PAPACC_U8 payload_b[2] = { 0xB6, 0xB7 };
+    const PAPACC_SIZE chunks[2] = { 22U, 13U };
+    PAPACC_TEST_STREAM stream = {
+        bytes, sizeof(bytes), 0, chunks, 2, 0, 0, 0,
+        PAPACC_FALSE, PAPACC_FALSE
+    };
+    PAPACC_TRANSPORT_CONNECTION transport = papacc_test_transport(&stream);
+    PAPACC_FRAMED_READER reader = PAPACC_FRAMED_READER_INITIALIZER;
+    PAPACC_FRAMED_READER_STATUS status;
+    PAPACC_FRAME_PARSER_EVENT event;
+
+    papacc_test_frame(bytes, 4, payload_a, 1);
+    papacc_test_frame(&bytes[17], 5, payload_b, 2);
+    if (papacc_framed_reader_init(&reader, &transport, scratch,
+            sizeof(scratch), 2) != PAPACC_RESULT_OK ||
+        papacc_framed_reader_next(&reader, &status, &event) !=
+            PAPACC_RESULT_OK ||
+        event.type != PAPACC_FRAME_PARSER_EVENT_HEADER_READY ||
+        reader.buffered_length != 6U || stream.read_count != 1U ||
+        papacc_framed_reader_next(&reader, &status, &event) !=
+            PAPACC_RESULT_OK ||
+        event.type != PAPACC_FRAME_PARSER_EVENT_FRAME_COMPLETE ||
+        event.payload_length != 1U || event.payload[0] != payload_a[0] ||
+        reader.buffered_length != 5U || stream.read_count != 1U ||
+        papacc_framed_reader_next(&reader, &status, &event) !=
+            PAPACC_RESULT_OK ||
+        status != PAPACC_FRAMED_READER_STATUS_NEED_MORE_DATA ||
+        reader.buffered_length != 0U || stream.read_count != 1U ||
+        papacc_framed_reader_next(&reader, &status, &event) !=
+            PAPACC_RESULT_OK ||
+        event.type != PAPACC_FRAME_PARSER_EVENT_HEADER_READY ||
+        stream.read_count != 2U ||
+        papacc_framed_reader_next(&reader, &status, &event) !=
+            PAPACC_RESULT_OK ||
+        event.type != PAPACC_FRAME_PARSER_EVENT_FRAME_COMPLETE ||
+        event.payload_length != 2U ||
+        memcmp(event.payload, payload_b, sizeof(payload_b)) != 0 ||
+        stream.read_count != 2U) {
+        return 14;
+    }
+    return 0;
+}
+
 static int papacc_test_would_block_reset_and_shutdown(void)
 {
     PAPACC_U8 frame[16];
@@ -395,6 +443,7 @@ int main(void)
 {
     int result = papacc_test_partial_and_one_byte();
     if (result == 0) result = papacc_test_multiple_frames_and_eof();
+    if (result == 0) result = papacc_test_frame_plus_next_prefix();
     if (result == 0) result = papacc_test_would_block_reset_and_shutdown();
     if (result == 0) result = papacc_test_failures();
     if (result == 0) result = papacc_test_move();

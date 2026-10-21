@@ -1,0 +1,56 @@
+[
+  {
+    "hunk": 1,
+    "original": "revision: 1",
+    "proposed": "revision: 2",
+    "preimage_sha256": "f43ecab4fae68e8d34fb3be913df30bd862a1c12417e32a68345fc1cd528aa08"
+  },
+  {
+    "hunk": 2,
+    "original": "Predecessor < R; zero permitido como predecessor da primeira revisão.",
+    "proposed": "Predecessor = R-1, com R não zero, sem overflow/wrap; zero somente quando R=1, conforme codec BODY0.4/0.5 existente. Esta igualdade é validação estrutural/histórica, não prova de CAS ou atualidade.",
+    "preimage_sha256": "f43ecab4fae68e8d34fb3be913df30bd862a1c12417e32a68345fc1cd528aa08"
+  },
+  {
+    "hunk": 3,
+    "original": "authkind NONE0/CERTIFICATE_IDENTITY1 (identidade do canal, não provider de usuário/senha); enums desconhecidos rejeitados.",
+    "proposed": "authkind NONE0/CERTIFICATE_IDENTITY1 (dimensão candidata de autenticação, distinta de Transport Security conforme ADR-0028); enums desconhecidos rejeitados. Nenhum desses valores comprova autenticação real ou mapeamento de Principal. Admission é obrigatório no byte5 por enum explícito, sem default ou bit de ausência adicional.",
+    "preimage_sha256": "f43ecab4fae68e8d34fb3be913df30bd862a1c12417e32a68345fc1cd528aa08"
+  },
+  {
+    "hunk": 4,
+    "original": "IDs e policy_ref usam exatamente identificadores ASCII aceitos pelo parser existente; comprimento explícito, sem NUL interno, tail zero. Referências de segurança/auth são bytes opacos não secretos, sem NUL interno e tail zero.",
+    "proposed": "IDs e policy_ref têm1..64 bytes e obedecem [A-Za-z][A-Za-z0-9_.-]*, case-sensitive, sem NUL interno e tail zero, conforme ident() vigente. Referências de segurança/auth são strings opacas não secretas de1..64 bytes UTF-8 válidos já decodificados pelo parser, sem BOM, NUL, controles U+0000..U+001F ou U+007F; não armazenar aspas/escapes lexicais, não normalizar Unicode e comparar por bytes. # e ; dentro de strings permanecem dados literais. Comprimentos são de bytes, não codepoints; tail zero.",
+    "preimage_sha256": "f43ecab4fae68e8d34fb3be913df30bd862a1c12417e32a68345fc1cd528aa08"
+  },
+  {
+    "hunk": 5,
+    "original": "CERTIFICATE_IDENTITY não permite inferir provider/password: no primeiro slice é UNSUPPORTED para encode/decode sem contrato/mapeamento específico. CLOSED também UNSUPPORTED no primeiro slice: não substituir usuário/senha obrigatório por mTLS. Assim bytes reservados no domínio de enums não criam um provider fictício. Qualquer combinação ativa não suportada falha integralmente.",
+    "proposed": "CLOSED e CERTIFICATE_IDENTITY permanecem configurações candidatas representáveis na gramática/modelo, sem autenticação, Principal ou grants implícitos. Este primeiro codec deliberadamente limitado retorna UNSUPPORTED para encode/decode de qualquer registro CLOSED ou CERTIFICATE_IDENTITY, sem descartar o registro nem converter para OPEN/NONE. Não altera a gramática ou ADR-0028: certificate identity de acesso não é automaticamente a identidade mTLS do canal, e a regra username/password do enrollment da decisão de provisionamento não elimina CLOSED por certificado nas demais operações. I4 mantém provider nomeado PENDING e não autoriza substituição implícita do requisito de acesso aplicável por mTLS. Nenhum provider ou regra nova de autenticação é implementado por este contrato.",
+    "preimage_sha256": "f43ecab4fae68e8d34fb3be913df30bd862a1c12417e32a68345fc1cd528aa08"
+  },
+  {
+    "hunk": 6,
+    "original": "Policy_identity e digest BODY0.5 não podem ser todo zero. Comparação do digest/modelo e resolução de refs exigem consumidores factuais externos ao codec.",
+    "proposed": "Policy_identity e digest BODY0.5 não podem ser todo zero. O digest é SHA256 dos1024 bytes completos produzidos pelo codec BODY0.5 existente, incluindo seu trailer de integridade, sem reescrever o BODY. Um adapter factual deve verificar domain/R/predecessor do BODY contra header e policy_identity/configuração contra o registro correspondente; A/P/I vêm do contexto/pin root aplicável e não são copiados de policy_epoch do BODY (BODY0.4/0.5 exige esse campo zero). As relações A/P/I não são inferidas do digest. Cada registro exige seu modelo exato; não duplicar modelo singular como prova da coleção. Encode/decode isolados não podem atestar essas relações. Comparação do digest/modelo e resolução de refs exigem consumidores factuais externos ao codec.",
+    "preimage_sha256": "f43ecab4fae68e8d34fb3be913df30bd862a1c12417e32a68345fc1cd528aa08"
+  },
+  {
+    "hunk": 7,
+    "original": "Saída inválida não pode reutilizar bytes/flags de sucesso anterior: falha deixa resultado indisponível e tamanho usado zero; precondições inválidas de ponteiro/overlap não escrevem.",
+    "proposed": "Validade do resultado depende obrigatoriamente do retorno da chamada; bytes anteriores nunca são reutilizados após falha. Se ponteiros, capacidades e disjunção das saídas de dados/metadados/diagnóstico e entradas forem válidos, inicializar tamanho usado/success a zero e resultado indisponível antes da validação. Falha tardia do hash também mantém esses metadados zerados; bytes parciais não são publicáveis. Para precondição inválida de ponteiro/capacidade/overlap, não escrever nenhuma saída, nem o tamanho: o chamador invalida o resultado anterior pelo retorno, não por zeros garantidos em memória inválida. Decoder não retorna view emprestada do input: a saída é cópia própria bounded, utilizável somente após sucesso.",
+    "preimage_sha256": "f43ecab4fae68e8d34fb3be913df30bd862a1c12417e32a68345fc1cd528aa08"
+  },
+  {
+    "hunk": 8,
+    "original": "Limites excedidos rejeitados, sem alocação oculta.",
+    "proposed": "Limites excedidos rejeitados, sem alocação oculta. O adapter hash é empréstimo síncrono, não retém ponteiros, não reentra no codec/owner e não altera inputs ou autoridade. O chamador garante seu lifetime e recursos. O codec offline não será chamado no event loop/Stop nem tratado como operação com latência nativa limitada: adapter pode falhar e não há nova thread, espera ou cancelamento destrutivo. Não adquirir/retirar pins ou liberar crédito pelo resultado do codec.",
+    "preimage_sha256": "f43ecab4fae68e8d34fb3be913df30bd862a1c12417e32a68345fc1cd528aa08"
+  },
+  {
+    "hunk": 9,
+    "original": "até4416 bytes, mais modelo normalizado",
+    "proposed": "até4416 bytes somente se o patch demonstrar exatamente dois buffers; isso é um cenário de coexistência, não limite total/transitivo. Preço efetivo inclui ainda modelo normalizado",
+    "preimage_sha256": "f43ecab4fae68e8d34fb3be913df30bd862a1c12417e32a68345fc1cd528aa08"
+  }
+]

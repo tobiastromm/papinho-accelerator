@@ -1,0 +1,68 @@
+---
+status: accepted
+revision: 1
+decision-date: 2026-10-19
+scope-level: project
+scope-target: PapinhoAccelerator channel-server administrative identity
+supersedes: []
+decision-makers: [Tobias Tromm]
+---
+# Canonical ExpectedServerName source — same-root listener TLS binding
+
+## Authority and delimited acceptance
+
+Owner conditional acceptance: PACC-PHASE6-SERVER-TLS-NAME-SOURCE-ACCEPTANCE-1. Effective only after official executor approval of the exact registration and post-write hash verification. Accept ONLY S1–S5 reproduced verbatim below, under the delimited interpretation in this record. Source: ../integration/server-tls-expected-name-binding-20261019/SOURCE-DECISION-PROPOSED.md, SHA256 8e63eccb38e5394856822026431f6bdc770d37902a347490f09f19906bd045aa. Original proposal and preceding STOP evidence remain unchanged. The source heading/status and introductory prose are historical and are not incorporated as current status. S5's sentence that the proposal accepts nothing automatically remains true for that proposal; this explicitly reviewed record accepts only the named clauses, not functional or byte-layout hunks.
+
+This supplements ADR-0009/ADR-0010 and accepted internal-issuer technical profile §1.3/§1.5 only by designating the administrative source relationship for the channel server name. No earlier accepted file, identity/purpose contract, papacc.conf grammar/directive set, LST1/D3/BODY/ROOT06 bytes, private issuer codec or checkpoint format is modified or superseded. No numeric profile/hostname, key or authority identifier is selected. No second root, registry, catalog, issuer, counter or operational authority is introduced.
+
+## Exact incorporated clauses
+
+S1. ExpectedServerName shall be an explicitly authorized PUBLIC administrative attribute of the channel server Local Identity resolved by the existing security_configuration_ref. A listener references that configuration. The value shall not be derived from CSR, existing certificate SAN/CN, received SNI, origin Site TLS, filesystem path or configuration text presence.
+
+S2. The same root-owned administrative history shall bind exact source identity/revision, approved name, security reference/listener channel role, server SPKI/certificate reference and issuer authority/generation. Exact persistent representation must be reviewed and accepted before encoding. No old reserved bytes, registry, journal or authority are introduced by this proposal.
+
+S3. The existing source transaction/snapshot owns immutable public name and association data. Acquisition precedes exposure, uses factual root/source revision and applicable CURRENT or explicit bootstrap authority, and lifetime extends over every consumer/uncertain operation. Existing borrowing/retention is reused; no new pin system is authorized.
+
+S4. Reservation and subsequent consumption must check that exact approved name, source revision, issuer generation, CSR/SPKI and certificate SAN agree. A historical pin, digest or valid certificate alone does not approve a new name or signing action. Missing, changed, ambiguous, revoked, stale or stopped context denies; no CAS conflict/UNKNOWN fallback. Operational client Principal/grants, trust/admission, CURRENT/epochs and signature authority remain separate.
+
+S5. Adoption requires owner acceptance and official executor review of the exact source/storage contract and functional hunks, plus lifetime and complete ED11 proof. This document accepts nothing automatically. SERVER signer, signature authority, recovery and admission remain DENY.
+
+## Explicit listener, source and issuer relation
+
+The authority is the existing administrative root acting through its authorized configuration transaction and the application-owned ADR-0010 security resolver. ExpectedServerName is a PUBLIC approved attribute of that configuration's channel-server Local Identity. It is not itself an identity registry or a new authorization provider. For every use the SAME root history must establish an explicit association among the stable listener identity, exact security_configuration_ref/channel_tls reference, explicit SECURE_PRINCIPAL transport and applicable TLS security profile, approved server name, source/model revision and applicable issuer authority/generation. These identifiers remain distinct. The relation is scoped to that administrative root and the explicitly associated listener/security configuration; there is no implicit global server name, default alias, cross-listener inheritance or hostname-to-Principal mapping. Explicit sharing of a security reference does not dispense with proof of each listener association; ambiguous/missing/unsupported relations deny rather than choose a default.
+
+The same immutable association must identify the approved server public key/CSR request correlation and, when present, the exact selected public certificate. Before issuance it cannot require a fabricated already-issued certificate: the approved request/SPKI/reservation is bound first, and the actual result is checked and associated in the later factual result transaction. S4's CSR/SPKI agreement means exact authorized request/digest/key binding and the accepted CSR proof of possession; CSR requested subject/SAN/extensions remain requests, not name authority, and are checked/replaced under accepted technical profile §1.3. No CSR name, existing certificate, received SNI, origin hostname, path, candidate string or digest grants administrative approval. Future consumption must require SAN dNSName matching the approved ExpectedServerName and the accepted SERVER profile: RSA2048/e65537/SHA256, critical CAfalse BasicConstraints and digitalSignature KU, exclusive serverAuth EKU, approved issuer and validity. ClientAuth, client Principal/grants and origin Site TLS trust remain separate; no CN-only fallback or silent role/algorithm downgrade.
+
+## CURRENT, epochs, lifetime and failure
+
+For updates the actual root CURRENT, expected revision, pin and existing source borrow must be acquired/validated before exposing the name relation. A root pin alone does not protect backing owned by a security source: retain that source's existing lease/ownership as well. Explicit bootstrap may use ONLY its accepted authorized initial-source path, never synthetic CURRENT. Root identity, R, issuer revision I, administrative A and operational P remain separate. No name value chooses an epoch. PREPARE -> VALIDATE -> durable COMMIT -> CURRENT -> EPOCH remains the single transaction; CURRENT and epoch publication require their existing factual gates after commit. This acceptance does not perform any such publication.
+
+A name/security association update is not assumed ISSUER_ONLY: the existing issuer/C2 rule must prove equality of the operational projection before preserving P; a changed operational projection requires its own corresponding transition. Historical pin/snapshot retains memory and previously authorized dependencies only; it grants no new CURRENT authority. Old Sessions, callbacks, references and leases remain protected without retroactive grants or snapshot replacement. Active Session revocation disposition remains POLICY_PENDING.
+
+The owning source snapshot must preserve the immutable approved bytes, identity/revision and association throughout preparation, pending persistence, signature request/result and any uncertain/retained consumer. Check the exact association again at consumption, not only at string parsing. Missing/revoked/changed/ambiguous name, listener, role, issuer, request, CURRENT, revision or lifetime denies before new effects. Stop prevents new work; quiescence/exact factual release governs retirement. CAS conflict/UNKNOWN gives no fallback or destructive retry; uncertainty retains ownership, serial, buffers and credit. No timeout, remote FINAL or process exit proves local destruction. A valid binding does not grant signature, authentication, admission, Network Egress or trust installation.
+
+## Minimal persistence extension boundary — layout remains pending
+
+The current model has only channel_tls.security_ref and an opaque listener security reference; the normalized security inputs and issuer request do not encode the approved name/source/issuer tuple. LST1 is an offline reference fragment, not the owner of that approval, and ROOT8 version1 composes the existing BODY0.5 without a field for this relation. Neither can be reinterpreted as implicitly carrying the missing name. Certificates/SAN cannot serve as their own approval record.
+
+The minimal REQUIRED extension is a versioned public representation of this SAME-root security-identity association in the existing administrative model/participant, with explicit presence, exact name and listener/security-role association, source revision, request/public-key correlation and applicable issuer generation. It must bind to the containing root revision/history rather than introduce competing CURRENT or counters. The exact byte layout, discriminator/version, lengths, hash domains, placement and migration are NOT accepted here; a focused exact layout review is mandatory before persistence code. No LST1 extension is required merely to keep carrying the existing security reference; whether/how a later root-model/envelope version carries the associated content must be selected in that exact review. BODY0.5, ROOT06, PACROOT8/version1, LST1 and historical readers/checkpoints remain byte-exact. Do not use reserved bytes, silently migrate, reinterpret an unknown version, ignore a missing relation or fall back to an old issuer. This decision creates no executable directive or raw-store editing permission.
+
+## ED11 and qualification limits
+
+No runtime storage is added by this normative registration. Future implementation must count actual owned name bytes and length/presence metadata, listener/security/profile and issuer/request references, source and root snapshots/pins/leases, buffers/hash workspaces, coexisting generations and all uncertain retained results. For each actually owned live copy charge its real name length and any terminator; do not assume one copy, impose an invented quota, or count shared proven backing twice. Multiplicity and lifetime must come from the implementation, including old snapshots still in use. Public certificate/CSR/backing and signer/native/provider resources are additional where simultaneous. No reserve, serialized maximum, current margin or existing stack allowance is automatically approved. Limit remains2097152; insufficient or unproved composition denies integration. Provider/kernel UNKNOWN, ED11 total PARTIAL. No new hostname length, freshness, headroom or cryptographic parameter is chosen.
+
+Authority/backup/fencing, native administrative token/key isolation, productive signer and exact target/Browser/NT4 compatibility remain separate qualification gates. The source relation accepted here is not evidence that a factual approved hostname or CURRENT-bound source already exists. No CA/key/certificate is created; no signature, issuance, trust publication, listener activation, network, PST release or Phase6 completion is authorized. Functional code requires separate exact official review, applicable storage contract and complete lifetime/ED11 validation.
+
+IMPLEMENTATION_AUTHORIZED=NO
+SIGNATURE_AUTHORITY=DENY
+AUTHORITATIVE_RECOVERY=DENY
+CONFIG_CURRENT_PUBLICATION=DENY
+CLIENT_ADMISSION=DISABLED
+SITE_TLS_ADMISSION=DENY
+ED11_ADMISSION=DENY
+PRODUCTION_PIN=0.6.4
+PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
+
+## History
+
+Revision1,2026-10-19: owner-directed same-root source relationship accepted only by exact official registration. Original S1–S5 proposal preserved; persistent layout, source implementation, operational binding and qualification remain pending.

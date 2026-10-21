@@ -1,0 +1,11 @@
+--- apps/server/server_config_source_binding_win32.c
++++ apps/server/server_config_source_binding_win32.c
+@@ -76,7 +76,7 @@
+  if(!t->source.reference.valid||t->source.reference.length!=t->model.config.security_configuration_ref_length||
+     memcmp(t->source.reference.value,t->model.config.security_configuration_ref,t->source.reference.length))
+   return deny(&out->binding,diag,"initial security reference mismatch");
+- if(t->combined_reserved>2097152U||sizeof(PC_DOCUMENT)+PC_SOURCE_MAX+sizeof(*out)+2048U>2097152U-t->combined_reserved)
++ if(t->combined_reserved>2097152U||sizeof(PC_DOCUMENT)+PC_SOURCE_MAX+sizeof(*out)+4096U>2097152U-t->combined_reserved)
+   return deny(&out->binding,diag,"initial resolver reservation insufficient");
+  models[0]=&t->model.config;result=pc_bind_existing_models(doc,models,1U,&out->binding,diag);
+  if(result!=PC_OK)return result;

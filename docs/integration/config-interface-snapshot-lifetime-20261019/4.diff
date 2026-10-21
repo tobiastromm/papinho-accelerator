@@ -1,0 +1,44 @@
+--- apps/server/server_configuration_participants_win32.inc
++++ apps/server/server_configuration_participants_win32.inc
+@@ -20,11 +20,19 @@
+     PAPACC_ROOT_CONFIGURATION_PREPARATION *t;
+     PAPACC_ROOT_TRANSACTION_PARTICIPANTS next;
+     PAPACC_BIND_SELECTION selection=PAPACC_BIND_SELECTION_INITIALIZER;
++    PAPACC_NETWORK_DISCOVERY_SNAPSHOT owned=PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
+     PAPACC_SIZE required;PAPACC_RESULT result;
+-    if(!participant_candidate(o))return PAPACC_RESULT_INVALID_STATE;
++    if(!participant_candidate(o)||papacc_server_console_win32_stop_requested()==PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
+     t=&o->configuration_preparation;
+     if(t->participants.listener_prepared || catalog==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
++    /* Embedded copy is priced in sizeof(root); temporary next plus bounded
++     * helper stack are additional here, never a historical headroom grant. */
++    if(t->combined_reserved>PAPACC_LAUNCHER_MANAGED_LIMIT||
++       sizeof(next)+4096U>PAPACC_LAUNCHER_MANAGED_LIMIT-t->combined_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+     memset(&next,0,sizeof(next));
++    result=papacc_interface_snapshot_copy_prepare(&next.interface_snapshot,catalog,o->invocation,t->model.revision);
++    if(result==PAPACC_RESULT_OK)result=papacc_interface_snapshot_copy_view(&next.interface_snapshot,o->invocation,t->model.revision,&owned);
++    if(result!=PAPACC_RESULT_OK)return result;
+     next.listener.bind_selection=t->model.config.bind_selection;
+     next.listener.port=t->model.config.control_port;
+     /* Explicit Secure only. Legacy model validity never activates Legacy. */
+@@ -35,13 +43,17 @@
+         t->model.config.security_configuration_ref,t->model.config.security_configuration_ref_length);
+     if(result==PAPACC_RESULT_OK)result=papacc_server_listener_configuration_validate(&next.listener);
+     if(result==PAPACC_RESULT_OK)result=papacc_persistent_bind_selection_resolve(
+-        &next.listener.bind_selection,catalog,next.runtime_ids,PAPACC_CONFIG_IDS,&selection,&required);
+-    if(result==PAPACC_RESULT_OK)result=papacc_bind_targets_resolve(&selection,catalog,
++        &next.listener.bind_selection,&owned,next.runtime_ids,PAPACC_CONFIG_IDS,&selection,&required);
++    if(result==PAPACC_RESULT_OK)result=papacc_bind_targets_resolve(&selection,&owned,
+         next.targets,PAPACC_ROOT_BIND_TARGETS,&next.target_count,&required);
+     if(result!=PAPACC_RESULT_OK)return result;
+     if(!next.target_count)return PAPACC_RESULT_INVALID_STATE;
+     next.invocation=o->invocation;next.listener_prepared=PAPACC_TRUE;
+-    /* No catalog/presentation/runtime selection pointer escapes the call. */
++    if(!participant_candidate(o)||papacc_server_console_win32_stop_requested()==PAPACC_TRUE)
++        return PAPACC_RESULT_INVALID_STATE;
++    /* Only completed immutable value storage escapes, owned by this existing
++     * preparation invocation. No source or presentation pointer is retained.
++     * Preparation revision zero remains pending, not an invented CURRENT. */
+     t->participants=next;
+     return PAPACC_RESULT_OK;
+ }

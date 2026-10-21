@@ -2,6 +2,17 @@
 #define PAPACC_TYPES_H
 
 #include <stddef.h>
+#if defined(_MSC_VER) && _MSC_VER < 1600
+/* VC6 predates stdint.h. Widths are checked below, not assumed silently. */
+typedef unsigned char PAPACC_U8;
+typedef unsigned short PAPACC_U16;
+typedef unsigned int PAPACC_U32;
+typedef unsigned __int64 PAPACC_U64;
+typedef signed char PAPACC_I8;
+typedef signed short PAPACC_I16;
+typedef signed int PAPACC_I32;
+typedef signed __int64 PAPACC_I64;
+#else
 #include <stdint.h>
 
 typedef uint8_t PAPACC_U8;
@@ -13,6 +24,7 @@ typedef int8_t PAPACC_I8;
 typedef int16_t PAPACC_I16;
 typedef int32_t PAPACC_I32;
 typedef int64_t PAPACC_I64;
+#endif
 
 typedef size_t PAPACC_SIZE;
 

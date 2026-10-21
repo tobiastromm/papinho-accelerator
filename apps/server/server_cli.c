@@ -71,12 +71,25 @@ static PAPACC_RESULT papacc_server_cli_scan(
     PAPACC_U16 *out_port,
     PAPACC_BOOL *out_allow_egress,
     PAPACC_BIND_SELECTION_MODE *out_bind_mode,
-    PAPACC_SIZE *out_id_count)
+    PAPACC_SIZE *out_id_count,
+    PAPACC_SERVER_LISTENER_PROFILE *out_listener_profile,
+    PAPACC_BOOL *out_security_ref_valid,
+    PAPACC_SIZE *out_security_ref_length,
+    PAPACC_U8 *out_security_ref,
+    PAPACC_BOOL *out_policy_ref_valid,PAPACC_SIZE *out_policy_ref_length,
+    PAPACC_U8 *out_policy_ref,PAPACC_BOOL *out_profile_ref_valid,
+    PAPACC_SIZE *out_profile_ref_length,PAPACC_U8 *out_profile_ref,
+    PAPACC_BOOL *out_tls_ref_valid,PAPACC_SIZE *out_tls_ref_length,
+    PAPACC_U8 *out_tls_ref)
 {
     PAPACC_BOOL has_port = PAPACC_FALSE;
     PAPACC_BOOL has_all = PAPACC_FALSE;
     PAPACC_BOOL has_egress = PAPACC_FALSE;
     PAPACC_BOOL has_log_level = PAPACC_FALSE;
+    PAPACC_BOOL has_listener_profile = PAPACC_FALSE;
+    PAPACC_BOOL has_security_ref = PAPACC_FALSE;
+    PAPACC_BOOL has_policy_ref = PAPACC_FALSE,has_profile_ref=PAPACC_FALSE;
+    PAPACC_BOOL has_tls_ref = PAPACC_FALSE;
     PAPACC_SIZE id_count = 0;
     int index;
 
@@ -118,6 +131,58 @@ static PAPACC_RESULT papacc_server_cli_scan(
             }
             has_egress = PAPACC_TRUE;
             *out_allow_egress = PAPACC_TRUE;
+        } else if (strcmp(argv[index], "--listener-profile") == 0) {
+            if (has_listener_profile == PAPACC_TRUE || index + 1 >= argc ||
+                argv[index + 1] == NULL)
+                return PAPACC_RESULT_INVALID_ARGUMENT;
+            if (strcmp(argv[index + 1], "legacy-endpoint") == 0)
+                *out_listener_profile =
+                    PAPACC_SERVER_LISTENER_PROFILE_LEGACY_ENDPOINT;
+            else if (strcmp(argv[index + 1], "secure-principal") == 0)
+                *out_listener_profile =
+                    PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL;
+            else return PAPACC_RESULT_INVALID_ARGUMENT;
+            has_listener_profile = PAPACC_TRUE;
+            ++index;
+        } else if (strcmp(argv[index], "--security-configuration-ref") == 0) {
+            PAPACC_SIZE length;
+            if (has_security_ref == PAPACC_TRUE || index + 1 >= argc ||
+                argv[index + 1] == NULL)
+                return PAPACC_RESULT_INVALID_ARGUMENT;
+            length = strlen(argv[index + 1]);
+            if (length == 0U || length >
+                    PAPACC_SERVER_SECURITY_CONFIGURATION_REF_CAPACITY)
+                return PAPACC_RESULT_INVALID_ARGUMENT;
+            memcpy(out_security_ref, argv[index + 1], length);
+            *out_security_ref_length = length;
+            *out_security_ref_valid = PAPACC_TRUE;
+            has_security_ref = PAPACC_TRUE;
+            ++index;
+        } else if (strcmp(argv[index], "--egress-policy-ref") == 0 ||
+            strcmp(argv[index], "--egress-profile-ref") == 0) {
+            PAPACC_BOOL policy=strcmp(argv[index],"--egress-policy-ref")==0?
+                PAPACC_TRUE:PAPACC_FALSE;PAPACC_SIZE length;
+            if ((policy==PAPACC_TRUE?has_policy_ref:has_profile_ref)==PAPACC_TRUE||
+                index+1>=argc||argv[index+1]==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+            length=strlen(argv[index+1]);if(length==0U||length>
+                PAPACC_SERVER_EGRESS_CONFIGURATION_REF_CAPACITY)return PAPACC_RESULT_INVALID_ARGUMENT;
+            if(policy==PAPACC_TRUE){memcpy(out_policy_ref,argv[index+1],length);*out_policy_ref_length=length;*out_policy_ref_valid=PAPACC_TRUE;has_policy_ref=PAPACC_TRUE;}
+            else{memcpy(out_profile_ref,argv[index+1],length);*out_profile_ref_length=length;*out_profile_ref_valid=PAPACC_TRUE;has_profile_ref=PAPACC_TRUE;}
+            ++index;
+        } else if (strcmp(argv[index], "--outbound-tls-profile-ref") == 0) {
+            PAPACC_SIZE length;
+            if (has_tls_ref == PAPACC_TRUE || index + 1 >= argc ||
+                argv[index + 1] == NULL)
+                return PAPACC_RESULT_INVALID_ARGUMENT;
+            length = strlen(argv[index + 1]);
+            if (length == 0U || length >
+                    PAPACC_SERVER_EGRESS_CONFIGURATION_REF_CAPACITY)
+                return PAPACC_RESULT_INVALID_ARGUMENT;
+            memcpy(out_tls_ref, argv[index + 1], length);
+            *out_tls_ref_length = length;
+            *out_tls_ref_valid = PAPACC_TRUE;
+            has_tls_ref = PAPACC_TRUE;
+            ++index;
         } else if (strcmp(argv[index], "--log-level") == 0) {
             PAPACC_LOG_LEVEL ignored_level;
             if (has_log_level == PAPACC_TRUE || index + 1 >= argc ||
@@ -137,6 +202,10 @@ static PAPACC_RESULT papacc_server_cli_scan(
                                 ? PAPACC_BIND_SELECTION_SELECTED_INTERFACES
                                 : PAPACC_BIND_SELECTION_UNSPECIFIED);
     *out_id_count = id_count;
+    if ((*out_listener_profile ==
+            PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL) !=
+        (*out_security_ref_valid == PAPACC_TRUE))
+        return PAPACC_RESULT_INVALID_ARGUMENT;
     return PAPACC_RESULT_OK;
 }
 
@@ -167,7 +236,16 @@ PAPACC_RESULT papacc_server_cli_parse(
 
     result = papacc_server_cli_scan(
         argc, argv, &config.control_port, &config.allow_network_egress,
-        &bind_mode, &required);
+        &bind_mode, &required, &config.listener_profile,
+        &config.security_configuration_ref_valid,
+        &config.security_configuration_ref_length,
+        config.security_configuration_ref,
+        &config.egress_policy_ref_valid,&config.egress_policy_ref_length,
+        config.egress_policy_ref,&config.egress_profile_ref_valid,
+        &config.egress_profile_ref_length,config.egress_profile_ref,
+        &config.outbound_tls_profile_ref_valid,
+        &config.outbound_tls_profile_ref_length,
+        config.outbound_tls_profile_ref);
     if (result != PAPACC_RESULT_OK) {
         return result;
     }
@@ -180,6 +258,13 @@ PAPACC_RESULT papacc_server_cli_parse(
         if (strcmp(argv[index], "--port") == 0) {
             ++index;
         } else if (strcmp(argv[index], "--log-level") == 0) {
+            ++index;
+        } else if (strcmp(argv[index], "--listener-profile") == 0 ||
+            strcmp(argv[index], "--security-configuration-ref") == 0 ||
+            strcmp(argv[index], "--egress-policy-ref") == 0 ||
+            strcmp(argv[index], "--egress-profile-ref") == 0) {
+            ++index;
+        } else if (strcmp(argv[index], "--outbound-tls-profile-ref") == 0) {
             ++index;
         } else if (strcmp(argv[index], "--interface-id") == 0) {
             PAPACC_U64 value;

@@ -1,0 +1,12 @@
+--- 
++++ 
+@@ -57,6 +57,9 @@
+   CHECK(exported==used&&receipt.bytes==used&&receipt.listener_count==4&&!receipt.epochs_present);
+   CHECK(receipt.revision==2&&receipt.predecessor==1&&!memcmp(receipt.root,owner.domain,32));
+   CHECK(!memcmp(bounded_output,owner.pending_commit.next,used));
++  file=CreateFileA(argv[2],GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(file!=INVALID_HANDLE_VALUE);
++  CHECK(ReadFile(file,bytes,(DWORD)used,&written,NULL)&&written==used);CHECK(CloseHandle(file));
++  CHECK(!memcmp(bytes,bounded_output,used));
+   CHECK(!memcmp(receipt.whole_digest,bounded_output+used-32U,32));
+   CHECK(!memcmp(owner.committed,base,base_used)&&owner.slots[0].readers==1);
+   /* Caller byte image can be reused after begin returns: packet is copied. */

@@ -1,0 +1,36 @@
+--- apps/server/server_issuer_x509_win32.c
++++ apps/server/server_issuer_x509_win32.c
+@@ -110,7 +110,7 @@
+  z=32;if(!CryptHashPublicKeyInfo(0,CALG_SHA_256,0,X509_ASN_ENCODING,(PCERT_PUBLIC_KEY_INFO)key,digest,&z)||z!=32)return PAPACC_ISSUER_INVALID;
+  ski.cbData=32;ski.pbData=digest;if(!xencode(X509_OCTET_STRING,&ski,extension_bytes[4],128,&ext[4].Value.cbData))return PAPACC_ISSUER_INVALID;
+  info.cExtension=5;info.rgExtension=ext;
+- if(server_san){ext[5].pszObjId=(LPSTR)szOID_SUBJECT_ALT_NAME2;ext[5].Value=*server_san;info.cExtension=6;}
++ if(server_san){ext[5].pszObjId=(LPSTR)szOID_SUBJECT_ALT_NAME2;ext[5].fCritical=TRUE;ext[5].Value=*server_san;info.cExtension=6;}
+  n=cap;if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,&info,0,NULL,out,&n))return GetLastError()==ERROR_MORE_DATA?PAPACC_ISSUER_LIMIT:PAPACC_ISSUER_INVALID;
+  *used=n;return PAPACC_ISSUER_OK;
+ }
+@@ -122,7 +122,7 @@
+ PAPACC_ISSUER_RESULT papacc_issuer_x509_server_tbs(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
+  const CERT_INFO *ca,const CERT_PUBLIC_KEY_INFO *key,const char *name,DWORD length,BYTE *out,DWORD cap,DWORD *used)
+ {
+- WCHAR dns[254];char cn[257];BYTE subject[320],san[272];DWORD i,label=0,n;int nonnumeric=0;
++ WCHAR dns[254];BYTE subject[2],san[272];DWORD i,label=0,n;int nonnumeric=0;CERT_NAME_INFO subject_info;
+  CERT_ALT_NAME_ENTRY entry;CERT_ALT_NAME_INFO names;CRYPT_DATA_BLOB subject_blob,san_blob;
+  if(!name||!length||length>253||!r||r->request.purpose!=PAPACC_ISSUER_SERVER||!used||!out||!cap||
+   xspan(name,length,out,cap)||xspan(name,length,used,sizeof(*used)))return PAPACC_ISSUER_INVALID;
+@@ -131,10 +131,12 @@
+  for(i=0;i<length;i++){unsigned char c=(unsigned char)name[i];
+   if(c=='.'){if(!label||name[i-1]=='-')return PAPACC_ISSUER_INVALID;label=0;}
+   else{if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='-')||label==63||(!label&&c=='-'))return PAPACC_ISSUER_INVALID;label++;if(c<'0'||c>'9')nonnumeric=1;}
+-  dns[i]=(WCHAR)c;cn[3+i]=(char)c;}
++  dns[i]=(WCHAR)c;}
+  if(!label||name[length-1]=='-'||!nonnumeric)return PAPACC_ISSUER_INVALID;
+- dns[length]=0;memcpy(cn,"CN=",3);cn[3+length]=0;n=sizeof(subject);
+- if(!CertStrToNameA(X509_ASN_ENCODING,cn,CERT_X500_NAME_STR,NULL,subject,&n,NULL))return PAPACC_ISSUER_INVALID;
++ dns[length]=0;n=sizeof(subject);memset(&subject_info,0,sizeof(subject_info));
++ /* Subject carries no invented administrative name. The sole identity is
++  * the explicit DNS SAN, critical because the subject is empty. */
++ if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_NAME,&subject_info,0,NULL,subject,&n))return PAPACC_ISSUER_INVALID;
+  subject_blob.pbData=subject;subject_blob.cbData=n;memset(&entry,0,sizeof(entry));
+  entry.dwAltNameChoice=CERT_ALT_NAME_DNS_NAME;entry.pwszDNSName=dns;names.cAltEntry=1;names.rgAltEntry=&entry;n=sizeof(san);
+  if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_ALTERNATE_NAME,&names,0,NULL,san,&n))return PAPACC_ISSUER_INVALID;

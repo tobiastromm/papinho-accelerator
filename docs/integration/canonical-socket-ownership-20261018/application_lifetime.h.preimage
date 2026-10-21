@@ -1,0 +1,19 @@
+#ifndef PAPACC_APPLICATION_LIFETIME_WIN32_H
+#define PAPACC_APPLICATION_LIFETIME_WIN32_H
+#include "log.h"
+/* Metadata of the existing single application owner, not a second owner.
+ * Parent storage and sink context must remain durable until CLOSED. The
+ * canonical main supplies static parent objects and the CRT stderr sink.
+ * Registration establishes lifetime only, never config/policy authority. */
+typedef enum PAPACC_APPLICATION_LIFETIME_STATE {
+ PAPACC_APPLICATION_EMPTY=0,PAPACC_APPLICATION_ACTIVE,
+ PAPACC_APPLICATION_RETAINED,PAPACC_APPLICATION_SEALED
+} PAPACC_APPLICATION_LIFETIME_STATE;
+PAPACC_RESULT papacc_application_parent_register(const void *,const void *,const PAPACC_LOGGER *);
+PAPACC_BOOL papacc_application_parent_matches(const void *,const void *,const PAPACC_LOGGER *);
+const PAPACC_LOGGER *papacc_application_owned_logger(void);
+PAPACC_RESULT papacc_application_parent_retain(void);
+PAPACC_RESULT papacc_application_logger_seal(void);
+PAPACC_APPLICATION_LIFETIME_STATE papacc_application_lifetime_state(void);
+PAPACC_SIZE papacc_application_lifetime_storage_size(void);
+#endif

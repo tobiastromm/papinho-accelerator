@@ -1,0 +1,33 @@
+--- tests\issuer_cng_x509_test.c
++++ tests\issuer_cng_x509_test.c
+@@ -129,6 +129,30 @@
+  CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,"other.example",13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);
+  CHECK(papacc_issuer_x509_verify(&v,&record,&ca,out,z,&backend.workspace,digest)==PAPACC_ISSUER_UNSUPPORTED);
+  bad_signature=1;CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);bad_signature=0;
++ CHECK(papacc_issuer_windows_verify_request(&backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_OK);
++ bad_signature=1;CHECK(papacc_issuer_windows_verify_request(&backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_INVALID);bad_signature=0;
++ /* Independently corrupt role fields while retaining a CN matching the name.
++  * Synthetic outer signatures never stand in for a native private operation. */
++ for(i=0;i<4;i++){
++  CERT_ENHKEY_USAGE wrong_eku;LPSTR wrong_oid=(LPSTR)szOID_PKIX_KP_CLIENT_AUTH;BYTE wrong_usage=0xa0;
++  CRYPT_BIT_BLOB bits;CERT_BASIC_CONSTRAINTS2_INFO wrong_bc={TRUE,FALSE,0};DWORD changed;
++  CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
++  changed=sizeof(storage);CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,tbs,n,0,NULL,storage,&changed));
++  if(i==0)info->cExtension=5; /* Remove SAN; leave matching CN. */
++  else{
++   extension=CertFindExtension(i==1?szOID_KEY_USAGE:(i==2?szOID_ENHANCED_KEY_USAGE:szOID_BASIC_CONSTRAINTS2),info->cExtension,info->rgExtension);CHECK(extension!=NULL);changed=sizeof(decoded);
++   if(i==1){bits.pbData=&wrong_usage;bits.cbData=1;bits.cUnusedBits=5;CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_KEY_USAGE,&bits,0,NULL,decoded.bytes,&changed));}
++   else if(i==2){wrong_eku.cUsageIdentifier=1;wrong_eku.rgpszUsageIdentifier=&wrong_oid;CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_ENHANCED_KEY_USAGE,&wrong_eku,0,NULL,decoded.bytes,&changed));}
++   else CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_BASIC_CONSTRAINTS2,&wrong_bc,0,NULL,decoded.bytes,&changed));
++   extension->Value.pbData=decoded.bytes;extension->Value.cbData=changed;
++  }
++  n=sizeof(tbs);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,info,0,NULL,tbs,&n));
++  signed_cert.ToBeSigned.cbData=n;z=sizeof(out);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_cert,0,NULL,out,&z));
++  CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);
++ }
++
++ CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
++ signed_cert.ToBeSigned.cbData=n;z=sizeof(out);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_cert,0,NULL,out,&z));
+  backend.workspace.stopped=1;CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_STOPPED);backend.workspace.stopped=0;
+  {const char *invalid[]={"","*.example","127.0.0.1","-bad.example","bad-.example","a..b","a.example.","a;CN=bad","a_b.example"};
+  for(i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++)CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,invalid[i],(DWORD)strlen(invalid[i]),tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);}

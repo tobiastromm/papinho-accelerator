@@ -24,6 +24,19 @@ typedef struct TEST_FIXTURE {
     TEST_IO io[2]; TEST_GENERATOR generator;
 } TEST_FIXTURE;
 typedef struct ISSUE_GATE { TEST_FIXTURE *fixture; PAPACC_U32 calls; } ISSUE_GATE;
+typedef struct CLOSE_OBSERVER {
+    PAPACC_U32 calls;
+    PAPACC_CONTROL_CLOSE_RESULT result;
+} CLOSE_OBSERVER;
+static PAPACC_RESULT observe_close(void *context,
+    const PAPACC_CONTROL_CLOSE_RESULT *result)
+{
+    CLOSE_OBSERVER *observer = (CLOSE_OBSERVER *)context;
+    if (observer == NULL || result == NULL) return PAPACC_RESULT_INVALID_ARGUMENT;
+    ++observer->calls;
+    observer->result = *result;
+    return PAPACC_RESULT_OK;
+}
 static PAPACC_RESULT issue_gate(void *context,PAPACC_U64 session_id,
     PAPACC_U64 now_ns,PAPACC_DATA_ASSOCIATION_TICKET *ticket,
     PAPACC_U64 *deadline)
@@ -347,6 +360,51 @@ static int test_lengths_and_io_lifecycle(void)
     return 0;
 }
 
+static int test_deferred_close_authority(void)
+{
+    TEST_FIXTURE f; PAPACC_SESSION *s; PAPACC_CHANNEL *c; PAPACC_U8 scratch[16];
+    PAPACC_POST_CONTROL_STEP_STATUS status;
+    PAPACC_POST_CONTROL_PROCESSOR p = PAPACC_POST_CONTROL_PROCESSOR_INITIALIZER;
+    CLOSE_OBSERVER observer;
+    memset(&observer, 0, sizeof(observer));
+    if (fixture_init(&f, 1) || fixture_publish(&f, 0, &s, &c)) return 60;
+    if (papacc_post_control_processor_init(&p, &f.connections, &f.sessions,
+            &f.channels, &f.associations, s->session_instance_id,
+            c->channel_instance_id, scratch, sizeof(scratch)) != PAPACC_RESULT_OK ||
+        papacc_post_control_processor_set_close_handler(&p, observe_close,
+            &observer) != PAPACC_RESULT_OK ||
+        papacc_post_control_processor_read_once(&p, 0, &status) !=
+            PAPACC_RESULT_OK || status != PAPACC_POST_CONTROL_STEP_STATUS_CLOSED ||
+        observer.calls != 1U ||
+        observer.result.origin != PAPACC_CONTROL_CLOSE_ORIGIN_NORMAL ||
+        observer.result.pacc_result != PAPACC_RESULT_OK ||
+        observer.result.session_instance_id != s->session_instance_id ||
+        observer.result.control_channel_instance_id != c->channel_instance_id ||
+        s->state != PAPACC_SESSION_STATE_ACTIVE)
+        return 61;
+    if (papacc_post_control_processor_read_once(&p, 0, &status) !=
+            PAPACC_RESULT_INVALID_STATE || observer.calls != 1U)
+        return 62;
+
+    memset(&observer, 0, sizeof(observer));
+    if (fixture_init(&f, 1) || fixture_publish(&f, 0, &s, &c)) return 63;
+    set_request(&f.io[0], 0xBEEFU, 0);
+    p = (PAPACC_POST_CONTROL_PROCESSOR)PAPACC_POST_CONTROL_PROCESSOR_INITIALIZER;
+    if (papacc_post_control_processor_init(&p, &f.connections, &f.sessions,
+            &f.channels, &f.associations, s->session_instance_id,
+            c->channel_instance_id, scratch, sizeof(scratch)) != PAPACC_RESULT_OK ||
+        papacc_post_control_processor_set_close_handler(&p, observe_close,
+            &observer) != PAPACC_RESULT_OK ||
+        papacc_post_control_processor_read_once(&p, 0, &status) !=
+            PAPACC_RESULT_PROTOCOL_ERROR || observer.calls != 1U ||
+        observer.result.origin !=
+            PAPACC_CONTROL_CLOSE_ORIGIN_PACC_PROTOCOL_FAILURE ||
+        observer.result.pacc_result != PAPACC_RESULT_PROTOCOL_ERROR ||
+        s->state != PAPACC_SESSION_STATE_ACTIVE)
+        return 64;
+    return 0;
+}
+
 int main(void)
 {
     int result = test_success_reissue_expiry(); if (result) return result;
@@ -354,5 +412,6 @@ int main(void)
     result = test_invalid_input_and_failures(); if (result) return result;
     result = test_capacity_generator_shutdown(); if (result) return result;
     result = test_invalid_init(); if (result) return result;
-    return test_lengths_and_io_lifecycle();
+    result = test_lengths_and_io_lifecycle(); if (result) return result;
+    return test_deferred_close_authority();
 }

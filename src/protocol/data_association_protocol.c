@@ -35,8 +35,10 @@ static PAPACC_FRAME_HEADER papacc_data_frame_header(
 {
     PAPACC_FRAME_HEADER header = {
         PAPACC_FRAME_ENVELOPE_MAJOR, PAPACC_FRAME_ENVELOPE_MINOR,
-        PAPACC_FRAME_BASE_HEADER_SIZE, type, 0, payload_length
+        PAPACC_FRAME_BASE_HEADER_SIZE, 0, 0, 0
     };
+    header.message_type = type;
+    header.payload_length = payload_length;
     return header;
 }
 

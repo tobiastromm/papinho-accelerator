@@ -1,0 +1,91 @@
+{
+  "task": "PACC-PHASE6-MODE-C-SUPERVISED-ED11-CAMPAIGN-PREPARATION-1",
+  "status": "PROPOSED_NOT_EXECUTABLE",
+  "execution_authorized": false,
+  "date": "2026-10-18",
+  "targets": [
+    {
+      "selection": "PROPOSED_EXACT_ARTIFACT_NOT_EXECUTION_APPROVAL",
+      "sha256": "AB3CC7C07457854690E51515DBD41FB623D87F4A815BB6B79D6DEC11E55DC9CA",
+      "bytes": 332800,
+      "configuration": "Release",
+      "path": "C:\\Projetos\\PapinhoAccelerator\\build\\phase6-canonical-consolidation-20261018\\FactualTimestampsRelease\\papacc_server.exe"
+    },
+    {
+      "selection": "PROPOSED_EXACT_ARTIFACT_NOT_EXECUTION_APPROVAL",
+      "sha256": "50883F332C1A4A59001F0BC0DA5CC7402CF28022C38F4547B3340D3A956AE60E",
+      "bytes": 1359872,
+      "configuration": "Release",
+      "path": "C:\\Projetos\\PapinhoBrowser\\build\\mode-c-native-producer-binding-20261018\\candidate-Release\\bin\\papinho_browser.exe"
+    }
+  ],
+  "heads": {
+    "accelerator": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+    "browser": "1eb028554f622672377953225e162ed9b6564a40"
+  },
+  "runs": [
+    {
+      "all_outcomes_reported": true,
+      "automatic_retry": false,
+      "ordinal": 1,
+      "operation_count": 1
+    }
+  ],
+  "profile": {
+    "browser": "x86/VC6/NSS",
+    "browser_parent_sessions": 1,
+    "normal_pst": "0.6.5/API3/SPI4",
+    "browser_child_c2_sessions": 1,
+    "accelerator": "x64/MSVC/OpenSSL",
+    "origin_address": "127.0.0.1",
+    "alpn": "http/1.1",
+    "listener": "EXISTING_SECURE_ONLY",
+    "bind_address": "127.0.0.1",
+    "site_pumps": 1,
+    "roles": [
+      "CONTROL",
+      "APPLICATION",
+      "RECORD"
+    ],
+    "tls": "TLS1.3"
+  },
+  "unbound_required_inputs": [
+    "channel_listener_port",
+    "origin_port",
+    "channel_hostname_and_certificate_chain",
+    "channel_client_certificate_and_secure_principal_mapping",
+    "site_hostname_and_approved_system_trust_chain",
+    "credential_lease_references_no_secrets",
+    "committed_configuration_revision_and_integrity",
+    "CURRENT_policy_revision",
+    "factually_issued_epoch",
+    "authorized_Principal_and_grants",
+    "CURRENT_site_tls_profile_ref",
+    "origin_server_existing_executable_config_response_bytes_and_digest",
+    "bounded_HTTPS_request_and_response_sizes",
+    "duration_watchdog_and_safe_stop_mechanism",
+    "approved_freshness_headroom_and_unknown_resource_disposition",
+    "Browser_resource_measurement_binding",
+    "Accelerator_active_phase_observation_export_binding"
+  ],
+  "freshness_ms": null,
+  "headroom_bytes": null,
+  "duration_ms": null,
+  "provider_max": null,
+  "kernel_max": null,
+  "admission": {
+    "site_tls": "DENY",
+    "ed11": "DENY",
+    "client": "DISABLED"
+  },
+  "prohibited": [
+    "R2_TEST_ONLY",
+    "external_egress",
+    "second_listener",
+    "new_collector",
+    "new_supervisor",
+    "destructive_retry",
+    "automatic_rerun_until_PASS",
+    "wire_change"
+  ]
+}

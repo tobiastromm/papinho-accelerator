@@ -1,0 +1,63 @@
+--- apps/server/server_configuration_root_transaction_win32.inc
++++ apps/server/server_configuration_root_transaction_win32.inc
+@@ -85,6 +85,27 @@
+  }
+  return result;
+ }
++/* Called under the existing configuration lock AFTER successful publish.
++ * Copies actual R/A/P; never issues epoch or changes operational authority. */
++static void interface_bind_committed_current(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
++{
++ PAPACC_ROOT_CONFIGURATION_PREPARATION *t=&o->configuration_preparation;
++ PAPACC_CONFIGURATION_COMMIT *c=&o->configuration_commit;
++ PAPACC_INTERFACE_CURRENT_BINDING *b=&t->participants.interface_current;
++ PAPACC_INTERFACE_SNAPSHOT_COPY *copy=&t->participants.interface_snapshot;
++ const PAPACC_CONFIG_VIEW *v=&c->slots[c->current].view;
++ memset(b,0,sizeof(*b));
++ if(!t->normative_committed||!t->administrative_published||!c->published||c->unresolved||c->stopped||
++    c->authority_lost||c->recovery_selected||papacc_server_console_win32_stop_requested()==PAPACC_TRUE||
++    !t->participants.listener_prepared||t->participants.invocation!=o->invocation||
++    copy->present!=PAPACC_TRUE||copy->retained!=PAPACC_FALSE||copy->invocation!=o->invocation||
++    copy->preparation_revision!=v->predecessor||!v->revision||
++    !c->slots[c->current].context_epoch||!c->slots[c->current].operational_epoch||
++    !root_snapshot_model_equal(&t->model,v))return;
++ memcpy(b->domain,v->domain,32U);b->invocation=o->invocation;b->preparation_revision=copy->preparation_revision;
++ b->revision=v->revision;b->administrative_epoch=c->slots[c->current].context_epoch;
++ b->policy_epoch=c->slots[c->current].operational_epoch;b->bound=PAPACC_TRUE;
++}
+ PAPACC_RESULT papacc_server_launcher_configuration_transaction_publish(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+ {
+  PAPACC_ROOT_CONFIGURATION_PREPARATION *t;PAPACC_CONFIGURATION_COMMIT *c;
+@@ -110,6 +131,7 @@
+   c->slots[c->current].context_epoch=t->current_policy_epoch;
+   c->slots[c->current].operational_epoch=t->current_policy_epoch;
+   t->administrative_published=PAPACC_TRUE;
++  interface_bind_committed_current(o);
+  }
+  LeaveCriticalSection(&c->lock);return result;
+ }
+@@ -181,6 +203,24 @@
+  c=&o->configuration_commit;EnterCriticalSection(&c->lock);live=root_snapshot_live(o,p);LeaveCriticalSection(&c->lock);
+  return live?PAPACC_TRUE:PAPACC_FALSE;
+ }
++PAPACC_RESULT papacc_server_launcher_configuration_interface_current(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,
++ const PAPACC_ROOT_CURRENT_PIN *pin,PAPACC_INTERFACE_CURRENT_REPORT *out)
++{
++ const PAPACC_ROOT_TRANSACTION_PARTICIPANTS *p;const PAPACC_INTERFACE_CURRENT_BINDING *b;
++ if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;memset(out,0,sizeof(*out));
++ if(!preparation_owned(o)||!pin||papacc_server_console_win32_stop_requested()==PAPACC_TRUE||
++    papacc_server_launcher_configuration_current(o,pin)!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
++ p=&o->configuration_preparation.participants;b=&p->interface_current;
++ if(b->bound!=PAPACC_TRUE||p->interface_snapshot.present!=PAPACC_TRUE||p->interface_snapshot.retained!=PAPACC_FALSE||
++    b->invocation!=o->invocation||p->interface_snapshot.invocation!=b->invocation||
++    p->interface_snapshot.preparation_revision!=b->preparation_revision||
++    memcmp(b->domain,pin->view.domain,32U)||b->revision!=pin->view.revision||
++    b->administrative_epoch!=pin->administrative_epoch||b->policy_epoch!=pin->epoch)return PAPACC_RESULT_INVALID_STATE;
++ out->binding=*b;out->current_bound=PAPACC_TRUE;
++ /* No topology revision/continuity proof exists in the current backend.
++  * Stored CURRENT correlation is never promoted to RESOLVED. */
++ return PAPACC_RESULT_OK;
++}
+ PAPACC_RESULT papacc_server_launcher_configuration_current_unpin(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)
+ {
+  if(o!=&root||!p||p->invocation!=o->invocation||!o->configuration_commit.initialized)return PAPACC_RESULT_INVALID_STATE;

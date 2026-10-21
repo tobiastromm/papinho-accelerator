@@ -1,0 +1,26 @@
+--- src/config/config_root8.c
++++ src/config/config_root8.c
+@@ -109,6 +109,23 @@
+  memcpy(out,fields,n-32U);memcpy(out+n-32U,digest,32);*used=n;
+  return PC_ROOT8_OK;
+ }
++PC_ROOT8_RESULT pc_root8_decode_no_issuer(const PAPACC_U8 *in,PAPACC_SIZE n,
++ PAPACC_U8 *out,PAPACC_SIZE capacity,int *complete,PC_LST1_HASH hash,void *hc,
++ PC_ROOT8_COMPONENT component,void *cc)
++{
++ PAPACC_U8 digest[32];PC_ROOT8_RESULT result;
++ if(!span(in,n)||capacity!=PC_ROOT8_NO_ISSUER_FIELDS||!span(out,capacity)||
++  !span(complete,sizeof(*complete))||overlaps(in,n,out,capacity)||
++  overlaps(in,n,complete,sizeof(*complete))||overlaps(out,capacity,complete,sizeof(*complete)))return PC_ROOT8_INVALID;
++ *complete=0;memset(out,0,capacity);
++ if(n<PC_ROOT8_MIN||n>PC_ROOT8_MAX)return PC_ROOT8_INVALID;
++ if((r32(in+16)&2U)||r32(in+52))return PC_ROOT8_UNSUPPORTED;
++ if(n>PC_ROOT8_NO_ISSUER_MAX)return PC_ROOT8_INVALID;
++ if(!hash||!hash(hc,in,n-32U,digest))return PC_ROOT8_HASH_FAILED;
++ if(memcmp(digest,in+n-32U,32))return PC_ROOT8_INVALID;
++ result=shape(in,n-32U,hash,hc,component,cc);if(result!=PC_ROOT8_OK)return result;
++ memcpy(out,in,n-32U);*complete=1;return PC_ROOT8_OK;
++}
+ PC_ROOT8_RESULT pc_root8_decode(const PAPACC_U8 *in,PAPACC_SIZE n,PC_ROOT8_MODEL *out,
+  int *complete,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
+ {

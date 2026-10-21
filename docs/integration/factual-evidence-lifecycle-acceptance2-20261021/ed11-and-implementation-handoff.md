@@ -1,0 +1,11 @@
+# ED11 e handoff delimitado
+
+Nenhum armazenamento/código runtime criado nesta tarefa. Os tipos opacos e backing, tentativas do owner produtor, snapshots/pins, buffers/callbacks/stack e retenção precisam de censo/prova antes dos patches dependentes. O lease “já reservado” em E6 é precondição futura de implementação, não declaração de reserva aprovada agora. Borrow-only não transfere memória para fora da conta, nem comprova economia.
+
+Censo histórico da extração: state48 x64/36 x86, operação792 x64 (inclui state), input128/PDG72 e RO nomeado68; cenário conservador3626009,480281 acima de3145728, não pico operacional. Sem nova medição ou alteração dos números. Default2097152, Windows3145728 somente explícito, quotas de cliente/Session/Connection e Browser inalterados. Provider/kernel UNKNOWN e ED11PARTIAL/ativaçãoDENY.
+
+Handoff: implementar somente após autorização funcional própria e revisão de hunks. Mapear primeiro as funções factuais do owner produtor para preparar/proteger/consultar recursos ANTES da ligação acquire. Se qualquer preparação ficar pendente sem identidade/consulta factual no owner original, negar o binding; não criar lease fictício ou objeto pendente no SDK. A escolha de detalhes/representações concretas deve caber nos contratos accepted sem nova autoridade; necessidade de nova semântica/layout exige decisão específica.
+
+SDK acquire faz apenas ligação síncrona all-or-nothing; revalidate requer lease conhecido e confirmação/status aplicáveis; release/query respeitam disposições do registro. Não dar ao usuário tabela trust selecionável, bool de autoridade, dados decodificados ou fallback. O M1 compartilhado offline existente fica intacto, com confiança positiva negada. Nenhuma factory positiva de teste pertence ao produto.
+
+Browser permanece fora desta implementação; confirmação independente e autorização local são do seu owner/profile/writer existentes. Não exigir root codec. Preservar importação avançada, simples, provenancev2, gerações/leasing e Modelo E. Não gerar fixture rejeitada, CA/chave/certificado/pacote, não executar assinatura privada/rede/CURRENT. NT4/VC6 e outros targets continuam gates de qualificação: declarações C89 não substituem builds/testes futuros.

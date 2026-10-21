@@ -1,0 +1,21 @@
+--- src/network/interface_snapshot_copy.h
++++ src/network/interface_snapshot_copy.h
+@@ -1,6 +1,7 @@
+ #ifndef PAPACC_INTERFACE_SNAPSHOT_COPY_H
+ #define PAPACC_INTERFACE_SNAPSHOT_COPY_H
+ #include "network_interface.h"
++#include "persistent_bind_selection.h"
+ /* Private bounded storage, not a catalog/registry or an authority. The owner
+  * supplies exclusive immutable input during copy and owns the resulting bytes.
+  * No pin system, allocation, source pointer or presentation string is retained.
+@@ -24,4 +25,10 @@
+  * Output contains no CURRENT/epoch/authentication proof. */
+ PAPACC_RESULT papacc_interface_snapshot_copy_view(const PAPACC_INTERFACE_SNAPSHOT_COPY *,
+  PAPACC_U64,PAPACC_U64,PAPACC_NETWORK_DISCOVERY_SNAPSHOT *);
++/* Pure comparison of selected interfaces in two observations. Ignores volatile
++ * indices/instance IDs and presentation, compares per-PersistentID flags and
++ * endpoint sets (IP/scope). Does NOT prove recency, native origin, continuity
++ * between observations or administrative authority. No operational ticket. */
++PAPACC_RESULT papacc_interface_snapshot_copy_matches(const PAPACC_INTERFACE_SNAPSHOT_COPY *,
++ const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *,const PAPACC_PERSISTENT_BIND_SELECTION *,PAPACC_BOOL *);
+ #endif

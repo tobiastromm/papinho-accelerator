@@ -1,0 +1,47 @@
+component,bytes,status,included_in,lifetime_or_limit
+fixed_graph,1384376,compiled design reservation,top,root+C2+participant+2*C3+site+stages+leases; do not add children again
+root,182768,embedded actual static owner,fixed_graph,lifetime through retained invocation
+commit,105712,embedded,root,three slots/pins/committed/pending/issuer images
+pending_packet,51096,embedded,commit,3*16896=50688 plus fields; retained while worker/close uncertain
+committed_image,16896,embedded,commit,separate from packet; never reused by this patch
+slots,3456,embedded,commit,three immutable config slots; pinned generations not overwritten
+pin_tickets,1024,embedded,commit,32 tickets; no pin/credit release changed
+issuer_staged,8192,embedded,commit,staging plus three retained snapshots may coexist
+issuer_snapshots,24576,embedded,commit,three images; journal/certificate payload already inside image bounds
+configuration_preparation,9952,embedded,root,"source416, participants6408, policy1120 are children"
+interface_snapshot_copy,5928,embedded,configuration_preparation.participants,do not add again; no shared lifetime shortcut
+listener_composition,1208,embedded,root,explicit retained pin
+c2,274040,embedded static instance,fixed_graph,Session/operation state retained
+c2_participant,528944,embedded static instance,fixed_graph,"manager belongs here, not separate registry"
+two_c3_bridges,264896,embedded static instances,fixed_graph,2*132448; buffers and child TLS managed fields included
+site_manager_connections,280,embedded static instances,fixed_graph,40+240; PST native resources separately UNKNOWN
+stage_pool,131712,design reservation,fixed_graph,not free credit just because dormant
+stage_leases_borrows,1216,design reservation,fixed_graph,576+640; retain while dependencies live
+base_arrays,319488,reserved conditional arrays,top,conservative full generic capacity; never count duplicate manager objects
+secure_arrays,25088,reserved conditional arrays,top,PST internals not zero
+scheduler_arrays,4432,reserved arrays,top,separate external-source slot reserve retained
+bind,144,design reservation,top,ALL/SELECTED actual acquisition corrected in root formula
+pending_worker_stack,65536,reservation,top,one existing worker; not an extra worker per phase
+checkpoint_owner_scratch,8192,reservation,top,unchanged; no assertion of reusable retained memory
+caller_additional,131072,existing unitemized caller reservation,root_preparation_budget,preserved; not relabeled as typed live buffer or reused to claim signer space
+material_credit,32768,existing source material credit,root_preparation_budget,preserved; failure/retention keeps full charge
+runtime_credit,3203,observed provider-managed credit,root_preparation_budget,does not bound all provider/kernel resources
+source_input,8192,caller bytes,source_caller,retained while callers still need configuration
+parser_ast,59880,caller bytes,source_caller,one parsed immutable document; no second parser
+initial_resolution,1088,caller bytes,source_caller,"update binding1072 is alternative, not additional"
+diagnostic_models_stack,16416,caller reservation,source_caller,diag24+model-pointer8+existing stack allowance16384 retained
+bounded_codec_fields,9376,caller bytes,codec_pair,still preserved; only redundant inner decode copy removed
+bounded_encoded,9408,caller bytes,codec_pair,may coexist with immutable fields and frozen packet
+committed_receipt,128,caller bytes,known_peak,unchanged; observation does not grant authority
+native_scratch,4096,existing reservation,known_peak,not automatically shared with CSR/provider
+remaining_begin_locals,1156,explicit view+identity,known_peak,1104+52; separate source stack allowance unchanged
+new_cng_owner,472,future noninstantiated,incremental_signer,retained native handles need this owner; do not omit because provider external
+new_issuer_core_backend,304,future noninstantiated,incremental_signer,216+88; record bytes already persisted in existing issuer snapshots
+csr_descriptor_scratch,4120,future caller storage,incremental_signer,24+4096; cannot alias retained configuration/source by assumption
+csr_input,UNKNOWN,future caller bytes,unbounded,exact maximum and lifetime not selected; not zero
+x509_tbs_and_der,UNKNOWN,not implemented,unbounded,need distinct buffers if coexistence/retention possible
+signer_hash_crypto,UNKNOWN,not implemented or opaque,unbounded,provider workspaces and close-failed handles included in future native census
+uncertain_sign_output,UNKNOWN,future retained caller output,unbounded,cannot reclaim on timeout/Stop; plus certificate storage on committed root
+external_observer_hash,66560,existing separate process explicit scratch,observer_process,"65536+1024; not root credit, not a complete process bound"
+external_observer_record,8192,existing separate process local,observer_process,plus native/CRT/stack/3 handles UNKNOWN; host coexistence required
+offline_verifier_input,8388608,existing separate Python diagnostic bound,verifier_process,plus rows/parser heap UNKNOWN; not product 2MiB budget

@@ -1,0 +1,438 @@
+diff --git "a/docs\\integration\\canonical-durable-application-graph-20261018\\CMakeLists.txt.preimage" b/CMakeLists.txt
+index cf29862..30c689c 100644
+--- "a/docs\\integration\\canonical-durable-application-graph-20261018\\CMakeLists.txt.preimage"
++++ b/CMakeLists.txt
+@@ -722,6 +722,7 @@ if(WIN32)
+ 
+     add_library(papacc_server_run_win32 STATIC
+         apps/server/server_run_win32.c
++        apps/server/server_application_lifetime_win32.c
+         apps/server/server_egress_source_win32.c
+     )
+ 
+@@ -2396,3 +2397,44 @@ endif()
+ if(TARGET papacc_secure_source_participant_test)
+     set_tests_properties(papacc.security.source_participant PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+ endif()
++
++if(WIN32 AND BUILD_TESTING)
++    add_executable(papacc_application_lifetime_test
++        tests/application_lifetime_test.c
++        apps/server/server_application_lifetime_win32.c)
++    target_include_directories(papacc_application_lifetime_test PRIVATE
++        ${CMAKE_CURRENT_SOURCE_DIR}/apps/server ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime)
++    target_link_libraries(papacc_application_lifetime_test PRIVATE papacc_runtime)
++    target_compile_options(papacc_application_lifetime_test PRIVATE /W4 /WX)
++    add_test(NAME papacc.application.lifetime COMMAND papacc_application_lifetime_test)
++endif()
++if(WIN32 AND BUILD_TESTING)
++    add_test(NAME papacc.application.lifetime_retained COMMAND papacc_application_lifetime_test retained)
++endif()
++# Compile the real Secure application sources against normal API3 without
++# linking/executing the still-API2 processor. No alternative service is built.
++if(WIN32 AND PAPACC_ENABLE_CANONICAL_API3_CANDIDATE)
++    add_library(papacc_application_graph_compile OBJECT
++        apps/server/main.c apps/server/server_run_win32.c)
++    file(GLOB_RECURSE PAPACC_GRAPH_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h")
++    set(PAPACC_GRAPH_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/apps/server" "${CMAKE_CURRENT_SOURCE_DIR}/include")
++    foreach(header IN LISTS PAPACC_GRAPH_HEADERS)
++        get_filename_component(header_dir "${header}" DIRECTORY)
++        list(APPEND PAPACC_GRAPH_INCLUDE_DIRS "${header_dir}")
++    endforeach()
++    list(REMOVE_DUPLICATES PAPACC_GRAPH_INCLUDE_DIRS)
++    target_include_directories(papacc_application_graph_compile PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS})
++    target_link_libraries(papacc_application_graph_compile PRIVATE papacc_pst_consumer)
++    target_compile_definitions(papacc_application_graph_compile PRIVATE PAPACC_ENABLE_PST_OUTBOUND_TLS=1)
++    target_compile_options(papacc_application_graph_compile PRIVATE /W4 /WX)
++endif()
++
++if(WIN32 AND PAPACC_ENABLE_CANONICAL_API3_CANDIDATE AND BUILD_TESTING)
++    add_executable(papacc_application_graph_census tests/application_graph_census.c
++        apps/server/server_application_lifetime_win32.c)
++    target_include_directories(papacc_application_graph_census PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS})
++    target_link_libraries(papacc_application_graph_census PRIVATE papacc_core papacc_pst_consumer)
++    target_compile_definitions(papacc_application_graph_census PRIVATE PAPACC_ENABLE_PST_OUTBOUND_TLS=1 PAPACC_C8_PRIVATE_STORAGE_PROFILE)
++    target_compile_options(papacc_application_graph_census PRIVATE /W4 /WX)
++    add_test(NAME papacc.application.graph_census COMMAND papacc_application_graph_census)
++endif()
+diff --git "a/docs\\integration\\canonical-durable-application-graph-20261018\\main.c.preimage" b/apps/server/main.c
+index 2a5edbe..6f31426 100644
+--- "a/docs\\integration\\canonical-durable-application-graph-20261018\\main.c.preimage"
++++ b/apps/server/main.c
+@@ -7,6 +7,7 @@
+ #include "server_console_win32.h"
+ #include "server_network.h"
+ #include "server_run_win32.h"
++#include "server_application_lifetime_win32.h"
+ #include "log.h"
+ 
+ static const char *papacc_server_log_level_name(PAPACC_LOG_LEVEL level)
+@@ -97,13 +98,15 @@ static int papacc_server_run(
+     PAPACC_NETWORK_INTERFACE_PERSISTENT_ID *cli_id_storage,
+     PAPACC_LOG_LEVEL log_level)
+ {
+-    PAPACC_SERVER_CONSOLE_WIN32 console =
++    static PAPACC_SERVER_CONSOLE_WIN32 console =
+         PAPACC_SERVER_CONSOLE_WIN32_INITIALIZER;
+-    PAPACC_SERVER_NETWORK network = PAPACC_SERVER_NETWORK_INITIALIZER;
++    static PAPACC_SERVER_NETWORK network = PAPACC_SERVER_NETWORK_INITIALIZER;
+     PAPACC_RESULT result;
+     PAPACC_RESULT uninstall_result;
+-    PAPACC_LOGGER logger;
++    static PAPACC_LOGGER logger;
++    static PAPACC_SERVER_CONFIG owned_config;
+ 
++    owned_config=*config;config=&owned_config;
+     if (papacc_logger_init(&logger, papacc_server_console_log_sink, stderr,
+                            log_level) != PAPACC_RESULT_OK) {
+         free(cli_id_storage);
+@@ -118,8 +121,8 @@ static int papacc_server_run(
+         return 1;
+     }
+     result = papacc_server_network_start(&network, config);
+-    free(cli_id_storage);
+     if (result != PAPACC_RESULT_OK) {
++        free(cli_id_storage);
+         fprintf(stderr, "Server startup failed: %s\n",
+                 papacc_server_result_name(result));
+         papacc_server_network_shutdown(&network);
+@@ -127,7 +130,20 @@ static int papacc_server_run(
+         return 1;
+     }
+ 
++    result=papacc_application_parent_register(&network,config,&logger);
++    if(result!=PAPACC_RESULT_OK){
++        papacc_server_network_shutdown(&network);
++        (void)papacc_server_console_win32_uninstall(&console);
++        free(cli_id_storage);return 1;
++    }
+     result = papacc_server_run_win32(&network, config, stdout, stderr, &logger);
++    if(papacc_application_lifetime_state()==PAPACC_APPLICATION_RETAINED)
++        return 1; /* Static parents and owned CLI ID view stay intact. */
++    if(papacc_application_logger_seal()!=PAPACC_RESULT_OK){
++        (void)papacc_application_parent_retain();return 1;
++    }
++    free(cli_id_storage);owned_config.bind_selection.interface_persistent_ids=NULL;
++    owned_config.bind_selection.interface_persistent_id_count=0U;
+     puts("Stopping PapinhoAccelerator Server...");
+     papacc_server_network_shutdown(&network);
+     uninstall_result = papacc_server_console_win32_uninstall(&console);
+diff --git "a/docs\\integration\\canonical-durable-application-graph-20261018\\server_run_win32.c.preimage" b/apps/server/server_run_win32.c
+index aaca747..03d2fb1 100644
+--- "a/docs\\integration\\canonical-durable-application-graph-20261018\\server_run_win32.c.preimage"
++++ b/apps/server/server_run_win32.c
+@@ -1,4 +1,11 @@
+ #include "server_run_win32.h"
++#include "server_application_lifetime_win32.h"
++#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
++#define PAPACC_RUN_STORAGE static
++static volatile LONG papacc_run_storage_claimed;
++#else
++#define PAPACC_RUN_STORAGE
++#endif
+ 
+ #include <stdlib.h>
+ #include <string.h>
+@@ -63,47 +70,47 @@ PAPACC_RESULT papacc_server_run_win32(
+ {
+     const PAPACC_SIZE capacity =
+         (PAPACC_SIZE)PAPACC_SERVER_INITIAL_CONNECTION_CAPACITY;
+-    PAPACC_SERVER_ACCEPTOR_WIN32 acceptor =
++    PAPACC_RUN_STORAGE PAPACC_SERVER_ACCEPTOR_WIN32 acceptor =
+         PAPACC_SERVER_ACCEPTOR_WIN32_INITIALIZER;
+-    PAPACC_SERVER_IO_LOOP_WIN32 io_loop =
++    PAPACC_RUN_STORAGE PAPACC_SERVER_IO_LOOP_WIN32 io_loop =
+         PAPACC_SERVER_IO_LOOP_WIN32_INITIALIZER;
+-    PAPACC_CONNECTION *connection_storage = NULL;
+-    PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *context_storage = NULL;
+-    PAPACC_SESSION *session_storage = NULL;
+-    PAPACC_CHANNEL *channel_storage = NULL;
+-    PAPACC_DATA_ASSOCIATION_ENTRY *association_storage = NULL;
+-    PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *processor_storage = NULL;
++    PAPACC_RUN_STORAGE PAPACC_CONNECTION *connection_storage = NULL;
++    PAPACC_RUN_STORAGE PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *context_storage = NULL;
++    PAPACC_RUN_STORAGE PAPACC_SESSION *session_storage = NULL;
++    PAPACC_RUN_STORAGE PAPACC_CHANNEL *channel_storage = NULL;
++    PAPACC_RUN_STORAGE PAPACC_DATA_ASSOCIATION_ENTRY *association_storage = NULL;
++    PAPACC_RUN_STORAGE PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *processor_storage = NULL;
+     PAPACC_RESULT result = PAPACC_RESULT_OK;
+-    PAPACC_SERVER_EGRESS_SOURCE_WIN32 egress_source=
++    PAPACC_RUN_STORAGE PAPACC_SERVER_EGRESS_SOURCE_WIN32 egress_source=
+         PAPACC_SERVER_EGRESS_SOURCE_WIN32_INITIALIZER;
+ #ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+     PST_RUNTIME_OPTIONS pst_options;
+     PST_LOG_CONFIG pst_log_config;
+     PST_TRUST_SOURCE pst_trust_source;
+     PST_DER_ITEM pst_trust_anchor;
+-    PAPACC_RESOLVED_OUTBOUND_TLS_PROFILE resolved_outbound_tls=
++    PAPACC_RUN_STORAGE PAPACC_RESOLVED_OUTBOUND_TLS_PROFILE resolved_outbound_tls=
+         PAPACC_RESOLVED_OUTBOUND_TLS_PROFILE_INITIALIZER;
+-    PAPACC_PST_LOG_ADAPTER pst_log_adapter=PAPACC_PST_LOG_ADAPTER_INITIALIZER;
+-    pst_runtime *pst_runtime_instance=NULL;
+-    pst_trust *pst_system_trust=NULL;
+-    PAPACC_OUTBOUND_TLS_POLICY outbound_tls_policy;
+-    PAPACC_SERVER_LISTENER_CONFIGURATION secure_listener =
++    PAPACC_RUN_STORAGE PAPACC_PST_LOG_ADAPTER pst_log_adapter=PAPACC_PST_LOG_ADAPTER_INITIALIZER;
++    PAPACC_RUN_STORAGE pst_runtime *pst_runtime_instance=NULL;
++    PAPACC_RUN_STORAGE pst_trust *pst_system_trust=NULL;
++    PAPACC_RUN_STORAGE PAPACC_OUTBOUND_TLS_POLICY outbound_tls_policy;
++    PAPACC_RUN_STORAGE PAPACC_SERVER_LISTENER_CONFIGURATION secure_listener =
+         PAPACC_SERVER_LISTENER_CONFIGURATION_INITIALIZER;
+-    PAPACC_SERVER_LISTENER_CONFIGURATION_SET secure_listener_set =
++    PAPACC_RUN_STORAGE PAPACC_SERVER_LISTENER_CONFIGURATION_SET secure_listener_set =
+         PAPACC_SERVER_LISTENER_CONFIGURATION_SET_INITIALIZER;
+-    PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION resolved_security =
++    PAPACC_RUN_STORAGE PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION resolved_security =
+         PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION_INITIALIZER;
+     PAPACC_SECURITY_CONFIGURATION_RESOLUTION security_resolution =
+         PAPACC_SECURITY_CONFIGURATION_RESOLVER_ERROR;
+-    PAPACC_SECURITY_COMPOSITION security_composition =
++    PAPACC_RUN_STORAGE PAPACC_SECURITY_COMPOSITION security_composition =
+         PAPACC_SECURITY_COMPOSITION_INITIALIZER;
+-    PAPACC_SERVER_SECURE_IO_WIN32 secure_io =
++    PAPACC_RUN_STORAGE PAPACC_SERVER_SECURE_IO_WIN32 secure_io =
+         PAPACC_SERVER_SECURE_IO_WIN32_INITIALIZER;
+-    PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *secure_candidates = NULL;
+-    PAPACC_PST_SCHEDULER_MEMBER *secure_members = NULL;
+-    PST_WAIT_EVENT *secure_events = NULL;
+-    pst_external_source **listener_sources = NULL;
+-    pst_wait_token *listener_tokens = NULL;
++    PAPACC_RUN_STORAGE PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *secure_candidates = NULL;
++    PAPACC_RUN_STORAGE PAPACC_PST_SCHEDULER_MEMBER *secure_members = NULL;
++    PAPACC_RUN_STORAGE PST_WAIT_EVENT *secure_events = NULL;
++    PAPACC_RUN_STORAGE pst_external_source **listener_sources = NULL;
++    PAPACC_RUN_STORAGE pst_wait_token *listener_tokens = NULL;
+     PAPACC_SIZE secure_scheduler_capacity = 0U;
+     PAPACC_BOOL secure_cleanup_allowed = PAPACC_TRUE;
+     PAPACC_RESULT secure_shutdown_result = PAPACC_RESULT_OK;
+@@ -114,6 +121,16 @@ PAPACC_RESULT papacc_server_run_win32(
+         logger == NULL) {
+         return PAPACC_RESULT_INVALID_ARGUMENT;
+     }
++    if (papacc_application_parent_matches(server_network,server_config,logger))
++        logger=papacc_application_owned_logger();
++    else if(server_config->listener_profile==PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL ||
++            server_config->allow_network_egress==PAPACC_TRUE)
++        return PAPACC_RESULT_INVALID_STATE;
++#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
++    /* Single existing run storage. No retained invocation may be overwritten. */
++    if(InterlockedCompareExchange(&papacc_run_storage_claimed,1,0)!=0)
++        return PAPACC_RESULT_INVALID_STATE;
++#endif
+     if (capacity > SIZE_MAX / sizeof(*connection_storage) ||
+         capacity > SIZE_MAX / sizeof(*context_storage) ||
+         capacity > SIZE_MAX / sizeof(*session_storage) ||
+@@ -340,7 +357,10 @@ cleanup:
+             secure_cleanup_allowed = PAPACC_FALSE;
+         }
+     }
+-    if (secure_cleanup_allowed != PAPACC_TRUE) return result;
++    if (secure_cleanup_allowed != PAPACC_TRUE) {
++        (void)papacc_application_parent_retain();
++        return result;
++    }
+     papacc_security_composition_release(&security_composition);
+     papacc_resolved_server_security_configuration_release(&resolved_security);
+     if(pst_system_trust!=NULL)pst_trust_release(pst_system_trust);
+@@ -361,5 +381,19 @@ cleanup:
+     free(session_storage);
+     free(context_storage);
+     free(connection_storage);
++#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
++    connection_storage=NULL;context_storage=NULL;session_storage=NULL;
++    channel_storage=NULL;association_storage=NULL;processor_storage=NULL;
++    secure_candidates=NULL;secure_members=NULL;secure_events=NULL;
++    listener_sources=NULL;listener_tokens=NULL;
++    secure_listener.bind_selection=(PAPACC_PERSISTENT_BIND_SELECTION)PAPACC_PERSISTENT_BIND_SELECTION_INITIALIZER;
++    secure_listener_set.listeners=NULL;secure_listener_set.count=0U;
++    /* Non-Secure/no-egress path never acquired PST borrowers: preserve its
++     * historical sequential invocation behavior. PST-bearing storage is never
++     * reused; a retained invocation returns before this boundary. */
++    if(server_config->listener_profile!=PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL&&
++       server_config->allow_network_egress!=PAPACC_TRUE)
++        InterlockedExchange(&papacc_run_storage_claimed,0);
++#endif
+     return result;
+ }
+diff --git a/apps/server/server_application_lifetime_win32.c b/apps/server/server_application_lifetime_win32.c
+new file mode 100644
+index 0000000..0e4de97
+--- /dev/null
++++ b/apps/server/server_application_lifetime_win32.c
+@@ -0,0 +1,54 @@
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include "server_application_lifetime_win32.h"
++/* Never reused: stale callbacks cannot reach another invocation or sink. */
++static struct {
++ volatile LONG gate,state;
++ const void *network,*config;
++ const PAPACC_LOGGER *identity;
++ PAPACC_LOGGER sink,owned;
++ DWORD owner;
++} application;
++static void application_log(void *context,const PAPACC_LOG_RECORD *record)
++{
++ (void)context;
++ if(InterlockedCompareExchange(&application.gate,1,0)!=0)return;
++ if((application.state==PAPACC_APPLICATION_ACTIVE||application.state==PAPACC_APPLICATION_RETAINED)&&
++ application.sink.sink) application.sink.sink(application.sink.sink_context,record);
++ InterlockedExchange(&application.gate,0);
++}
++PAPACC_RESULT papacc_application_parent_register(const void *network,const void *config,const PAPACC_LOGGER *logger)
++{
++ if(!network||!config||!logger)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(InterlockedCompareExchange(&application.gate,1,0)!=0)return PAPACC_RESULT_INVALID_STATE;
++ if(application.state!=PAPACC_APPLICATION_EMPTY){InterlockedExchange(&application.gate,0);return PAPACC_RESULT_INVALID_STATE;}
++ application.network=network;application.config=config;application.identity=logger;
++ application.sink=*logger;application.owned.sink=application_log;
++ application.owned.sink_context=NULL;application.owned.minimum_level=logger->minimum_level;
++ application.owner=GetCurrentThreadId();InterlockedExchange(&application.state,PAPACC_APPLICATION_ACTIVE);
++ InterlockedExchange(&application.gate,0);return PAPACC_RESULT_OK;
++}
++PAPACC_BOOL papacc_application_parent_matches(const void *network,const void *config,const PAPACC_LOGGER *logger)
++{
++ return application.state==PAPACC_APPLICATION_ACTIVE&&application.owner==GetCurrentThreadId()&&
++ application.network==network&&application.config==config&&application.identity==logger?PAPACC_TRUE:PAPACC_FALSE;
++}
++const PAPACC_LOGGER *papacc_application_owned_logger(void){return &application.owned;}
++PAPACC_RESULT papacc_application_parent_retain(void)
++{
++ if(application.owner!=GetCurrentThreadId()||application.state!=PAPACC_APPLICATION_ACTIVE)return PAPACC_RESULT_INVALID_STATE;
++ InterlockedExchange(&application.state,PAPACC_APPLICATION_RETAINED);return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_application_logger_seal(void)
++{
++ if(application.owner!=GetCurrentThreadId())return PAPACC_RESULT_INVALID_STATE;
++ if(InterlockedCompareExchange(&application.gate,1,0)!=0)return PAPACC_RESULT_INVALID_STATE;
++ if(application.state!=PAPACC_APPLICATION_ACTIVE){InterlockedExchange(&application.gate,0);return PAPACC_RESULT_INVALID_STATE;}
++ application.sink.sink=NULL;application.sink.sink_context=NULL;
++ InterlockedExchange(&application.state,PAPACC_APPLICATION_SEALED);
++ InterlockedExchange(&application.gate,0);return PAPACC_RESULT_OK;
++}
++PAPACC_APPLICATION_LIFETIME_STATE papacc_application_lifetime_state(void)
++{return (PAPACC_APPLICATION_LIFETIME_STATE)InterlockedCompareExchange(&application.state,0,0);}
++PAPACC_SIZE papacc_application_lifetime_storage_size(void){return sizeof(application);}
++
+diff --git a/apps/server/server_application_lifetime_win32.h b/apps/server/server_application_lifetime_win32.h
+new file mode 100644
+index 0000000..16e073f
+--- /dev/null
++++ b/apps/server/server_application_lifetime_win32.h
+@@ -0,0 +1,19 @@
++#ifndef PAPACC_APPLICATION_LIFETIME_WIN32_H
++#define PAPACC_APPLICATION_LIFETIME_WIN32_H
++#include "log.h"
++/* Metadata of the existing single application owner, not a second owner.
++ * Parent storage and sink context must remain durable until CLOSED. The
++ * canonical main supplies static parent objects and the CRT stderr sink.
++ * Registration establishes lifetime only, never config/policy authority. */
++typedef enum PAPACC_APPLICATION_LIFETIME_STATE {
++ PAPACC_APPLICATION_EMPTY=0,PAPACC_APPLICATION_ACTIVE,
++ PAPACC_APPLICATION_RETAINED,PAPACC_APPLICATION_SEALED
++} PAPACC_APPLICATION_LIFETIME_STATE;
++PAPACC_RESULT papacc_application_parent_register(const void *,const void *,const PAPACC_LOGGER *);
++PAPACC_BOOL papacc_application_parent_matches(const void *,const void *,const PAPACC_LOGGER *);
++const PAPACC_LOGGER *papacc_application_owned_logger(void);
++PAPACC_RESULT papacc_application_parent_retain(void);
++PAPACC_RESULT papacc_application_logger_seal(void);
++PAPACC_APPLICATION_LIFETIME_STATE papacc_application_lifetime_state(void);
++PAPACC_SIZE papacc_application_lifetime_storage_size(void);
++#endif
+\ No newline at end of file
+diff --git a/tests/application_lifetime_test.c b/tests/application_lifetime_test.c
+new file mode 100644
+index 0000000..71429f8
+--- /dev/null
++++ b/tests/application_lifetime_test.c
+@@ -0,0 +1,49 @@
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include "server_application_lifetime_win32.h"
++#include <stdio.h>
++#include <string.h>
++static int network,config,wrong,delivered;
++static PAPACC_LOGGER parent;
++static PAPACC_RESULT seal_during_callback;
++static void sink(void *context,const PAPACC_LOG_RECORD *record)
++{
++ (void)record;if(context!=&delivered)return;
++ ++delivered;seal_during_callback=papacc_application_logger_seal();
++}
++static const PAPACC_LOGGER *prepare_in_frame(void)
++{
++ parent.sink=sink;parent.sink_context=&delivered;parent.minimum_level=PAPACC_LOG_INFO;
++ if(papacc_application_parent_register(&network,&config,&parent)!=PAPACC_RESULT_OK)return NULL;
++ return papacc_application_owned_logger();
++}
++#define CHECK(x) do{++checks;if(!(x)){printf("FAIL %d\n",__LINE__);return 1;}}while(0)
++int main(int argc,char **argv)
++{
++ unsigned checks=0;const PAPACC_LOGGER *logger;PAPACC_LOG_RECORD record;
++ int retained=argc>1&&strcmp(argv[1],"retained")==0;
++ memset(&record,0,sizeof(record));
++ CHECK(papacc_application_parent_register(NULL,&config,&parent)==PAPACC_RESULT_INVALID_ARGUMENT);
++ CHECK(papacc_application_lifetime_state()==PAPACC_APPLICATION_EMPTY);
++ logger=prepare_in_frame();CHECK(logger!=NULL);
++ CHECK(papacc_application_parent_matches(&network,&config,&parent));
++ CHECK(!papacc_application_parent_matches(&wrong,&config,&parent));
++ CHECK(papacc_application_parent_register(&network,&config,&parent)==PAPACC_RESULT_INVALID_STATE);
++ /* The creating frame is gone. Parent, sink context and bridge are static. */
++ logger->sink(logger->sink_context,&record);
++ CHECK(delivered==1&&seal_during_callback==PAPACC_RESULT_INVALID_STATE);
++ CHECK(papacc_application_lifetime_state()==PAPACC_APPLICATION_ACTIVE);
++ if(retained){
++ CHECK(papacc_application_parent_retain()==PAPACC_RESULT_OK);
++ CHECK(papacc_application_logger_seal()==PAPACC_RESULT_INVALID_STATE);
++ logger->sink(logger->sink_context,&record);CHECK(delivered==2);
++ CHECK(papacc_application_lifetime_state()==PAPACC_APPLICATION_RETAINED);
++ }else{
++ CHECK(papacc_application_logger_seal()==PAPACC_RESULT_OK);
++ CHECK(papacc_application_lifetime_state()==PAPACC_APPLICATION_SEALED);
++ logger->sink(logger->sink_context,&record);CHECK(delivered==1);
++ CHECK(papacc_application_logger_seal()==PAPACC_RESULT_INVALID_STATE);
++ }
++ CHECK(papacc_application_parent_register(&network,&config,&parent)==PAPACC_RESULT_INVALID_STATE);
++ printf("PASS checks=%u retained=%d delivered=%d\n",checks,retained,delivered);return 0;
++}
+\ No newline at end of file
+diff --git a/tests/application_graph_census.c b/tests/application_graph_census.c
+new file mode 100644
+index 0000000..e803621
+--- /dev/null
++++ b/tests/application_graph_census.c
+@@ -0,0 +1,33 @@
++#include "server_run_win32.h"
++#include "server_secure_io_win32.h"
++#include "server_egress_source_win32.h"
++#include "server_outbound_tls_source_win32.h"
++#include "server_security_source_win32.h"
++#include "server_c2_participant_win32.h"
++#include "server_application_lifetime_win32.h"
++#include <stdio.h>
++int main(void)
++{
++ const PAPACC_SIZE n=PAPACC_SERVER_INITIAL_CONNECTION_CAPACITY,l=1U,w=n+l+PAPACC_SERVER_NETWORK_STREAM_CAPACITY;
++ PAPACC_SIZE root,arrays,secure_arrays,participants;
++ root=sizeof(PAPACC_SERVER_NETWORK)+sizeof(PAPACC_SERVER_CONSOLE_WIN32)+sizeof(PAPACC_LOGGER)+sizeof(PAPACC_SERVER_CONFIG)+
++ sizeof(PAPACC_SERVER_ACCEPTOR_WIN32)+sizeof(PAPACC_SERVER_IO_LOOP_WIN32)+sizeof(PAPACC_SERVER_EGRESS_SOURCE_WIN32)+
++ sizeof(PAPACC_RESOLVED_OUTBOUND_TLS_PROFILE)+sizeof(PAPACC_PST_LOG_ADAPTER)+sizeof(pst_runtime *)+sizeof(pst_trust *)+
++ sizeof(PAPACC_OUTBOUND_TLS_POLICY)+sizeof(PAPACC_SERVER_LISTENER_CONFIGURATION)+sizeof(PAPACC_SERVER_LISTENER_CONFIGURATION_SET)+
++ sizeof(PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION)+sizeof(PAPACC_SECURITY_COMPOSITION)+sizeof(PAPACC_SERVER_SECURE_IO_WIN32)+
++ 11U*sizeof(void *)+papacc_application_lifetime_storage_size()+sizeof(long);
++ arrays=n*(sizeof(PAPACC_CONNECTION)+sizeof(PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT)+sizeof(PAPACC_SESSION)+
++ sizeof(PAPACC_CHANNEL)+sizeof(PAPACC_DATA_ASSOCIATION_ENTRY)+sizeof(PAPACC_SERVER_PROTOCOL_SLOT_WIN32));
++ secure_arrays=n*sizeof(PAPACC_SERVER_SECURE_CANDIDATE_WIN32)+w*(sizeof(PAPACC_PST_SCHEDULER_MEMBER)+sizeof(PST_WAIT_EVENT))+
++ l*(sizeof(pst_external_source *)+sizeof(pst_wait_token)+sizeof(PAPACC_TCP_LISTENER_ENTRY_WIN32));
++ participants=sizeof(PAPACC_SERVER_C2_PARTICIPANT)+sizeof(PAPACC_SECURITY_SOURCE_TRANSACTION);
++ printf("LAYOUT root_static_requested=%llu base_arrays=%llu secure_arrays_one_listener=%llu dormant_participants=%llu material_credit=32768 lifetime_metadata=%llu config=%llu loop=%llu acceptor=%llu secure=%llu slot=%llu candidate=%llu\n",
++ (unsigned long long)root,(unsigned long long)arrays,(unsigned long long)secure_arrays,(unsigned long long)participants,
++ (unsigned long long)papacc_application_lifetime_storage_size(),(unsigned long long)sizeof(PAPACC_SERVER_CONFIG),
++ (unsigned long long)sizeof(PAPACC_SERVER_IO_LOOP_WIN32),(unsigned long long)sizeof(PAPACC_SERVER_ACCEPTOR_WIN32),
++ (unsigned long long)sizeof(PAPACC_SERVER_SECURE_IO_WIN32),(unsigned long long)sizeof(PAPACC_SERVER_PROTOCOL_SLOT_WIN32),
++ (unsigned long long)sizeof(PAPACC_SERVER_SECURE_CANDIDATE_WIN32));
++ printf("REQUESTED_PROFILE_SUM=%llu LIMIT=2097152 PROVIDER_KERNEL=UNKNOWN STACK_ALLOCATOR=NOT_MEASURED\n",
++ (unsigned long long)(root+arrays+secure_arrays+participants+32768U));
++ return 0;
++}
+\ No newline at end of file

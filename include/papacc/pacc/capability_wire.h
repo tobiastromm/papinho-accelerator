@@ -1,0 +1,47 @@
+#ifndef PAPACC_PACC_CAPABILITY_WIRE_H
+#define PAPACC_PACC_CAPABILITY_WIRE_H
+
+#include <papacc/types.h>
+
+/* Wire identity and caller-owned canonical set; no runtime policy state. */
+typedef PAPACC_U32 PAPACC_CAPABILITY_ID;
+typedef PAPACC_U16 PAPACC_CAPABILITY_VERSION;
+
+typedef struct PAPACC_CAPABILITY_KEY {
+    PAPACC_CAPABILITY_ID id;
+    PAPACC_CAPABILITY_VERSION major;
+} PAPACC_CAPABILITY_KEY;
+#define PAPACC_CAPABILITY_KEY_INITIALIZER { 0U, 0U }
+
+/* Public wire keys; server support and policy remain separate decisions. */
+#define PAPACC_PACC_NETWORK_EGRESS_ID ((PAPACC_CAPABILITY_ID)1U)
+#define PAPACC_PACC_NETWORK_EGRESS_MAJOR_V1 ((PAPACC_CAPABILITY_VERSION)1U)
+#define PAPACC_PACC_NETWORK_EGRESS_MAJOR_V2 ((PAPACC_CAPABILITY_VERSION)2U)
+#define PAPACC_PACC_TLS_OFFLOAD_ID ((PAPACC_CAPABILITY_ID)2U)
+#define PAPACC_PACC_TLS_OFFLOAD_MAJOR_V1 ((PAPACC_CAPABILITY_VERSION)1U)
+#define PAPACC_PACC_NETWORK_EGRESS_V1_KEY_INITIALIZER { 1U, 1U }
+#define PAPACC_PACC_NETWORK_EGRESS_V2_KEY_INITIALIZER { 1U, 2U }
+#define PAPACC_PACC_TLS_OFFLOAD_V1_KEY_INITIALIZER { 2U, 1U }
+
+typedef struct PAPACC_CAPABILITY_SET {
+    PAPACC_CAPABILITY_KEY *storage;
+    PAPACC_SIZE capacity;
+    PAPACC_SIZE count;
+    PAPACC_BOOL initialized;
+} PAPACC_CAPABILITY_SET;
+#define PAPACC_CAPABILITY_SET_INITIALIZER { NULL, 0U, 0U, PAPACC_FALSE }
+
+PAPACC_BOOL papacc_capability_key_valid(const PAPACC_CAPABILITY_KEY *key);
+int papacc_capability_key_compare(const PAPACC_CAPABILITY_KEY *a,
+    const PAPACC_CAPABILITY_KEY *b);
+PAPACC_BOOL papacc_capability_key_equal(const PAPACC_CAPABILITY_KEY *a,
+    const PAPACC_CAPABILITY_KEY *b);
+PAPACC_RESULT papacc_capability_set_init(PAPACC_CAPABILITY_SET *set,
+    PAPACC_CAPABILITY_KEY *storage, PAPACC_SIZE capacity);
+PAPACC_RESULT papacc_capability_set_insert(PAPACC_CAPABILITY_SET *set,
+    const PAPACC_CAPABILITY_KEY *key);
+PAPACC_BOOL papacc_capability_set_contains(const PAPACC_CAPABILITY_SET *set,
+    const PAPACC_CAPABILITY_KEY *key);
+void papacc_capability_set_release(PAPACC_CAPABILITY_SET *set);
+
+#endif

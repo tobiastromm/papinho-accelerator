@@ -1,0 +1,16 @@
+--- apps/server/server_configuration_commit_win32.h
++++ apps/server/server_configuration_commit_win32.h
+@@ -134,9 +134,11 @@
+ #endif
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+ /* Offline update only. No bootstrap/recovery/publication; actual current pin
+- * and native identity handle required. Result packet remains root-owned. */
++ * and native identity handle required. Last argument is factual already-reserved
++ * composition including root, caller and codec pair; extra scratch is checked
++ * before effects. Result packet remains root-owned; no credit is released. */
+ PAPACC_RESULT papacc_configuration_d3_begin08(PAPACC_CONFIGURATION_COMMIT *,
+- const PAPACC_CONFIG_PIN *,const PAPACC_U8 *,PAPACC_SIZE,HANDLE);
++ const PAPACC_CONFIG_PIN *,const PAPACC_U8 *,PAPACC_SIZE,HANDLE,PAPACC_SIZE);
+ PAPACC_RESULT papacc_configuration_d3_poll08(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
+ #endif
+ #endif

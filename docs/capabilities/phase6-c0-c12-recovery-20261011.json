@@ -1,0 +1,456 @@
+{
+  "task": "PAPINHOACCELERATOR-PHASE6-C0-C12-ROADMAP-RECOVERY-AND-GOVERNED-RESUME",
+  "date": "2026-10-11",
+  "currentTaskCompleted": false,
+  "sliceCompleted": true,
+  "phase6IntegratedQualified": false,
+  "baseline": {
+    "acceleratorBranch": "main",
+    "acceleratorHead": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+    "browserBranch": "main",
+    "browserHead": "1eb028554f622672377953225e162ed9b6564a40",
+    "isolatedGit": false,
+    "browserOriginalFilesReverified": 1084,
+    "browserWipStatusPreserved": true
+  },
+  "roadmap": [
+    {
+      "id": "C0",
+      "requirement": "Endpoint Snapshot / Exact Connect",
+      "authority": "ADR-0029 section 4; Browser core/networking/papinho_socket.h",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Blocking FIRST_IPV4 value snapshot/exact numeric connect; historical focused tests unchanged. New clean/name/truncation current-host regression evidence only. Not API3 Browser or real NT4 qualification.",
+      "nextOwnerDependency": "Browser; full C0 closure review then C1"
+    },
+    {
+      "id": "C1",
+      "requirement": "Nonblocking/cancellable site socket pump",
+      "authority": "ADR-0029 section 5",
+      "status": "NOT_IMPLEMENTED",
+      "evidenceLimit": "Site backend still blocking; no readiness/wake/deadline/half-close pump. PST feasibility alternative C1 is a different identifier.",
+      "nextOwnerDependency": "Browser; next original roadmap slice under accepted contract"
+    },
+    {
+      "id": "C2",
+      "requirement": "Operation + APPLICATION/RECORD PACC",
+      "authority": "ADR-0029 sections 2,3,9",
+      "status": "BLOCKED",
+      "evidenceLimit": "Current DATA/session ticket not dual-role operation authority; wire IDs/encoding not allocated.",
+      "nextOwnerDependency": "PACC owner; separate versioned wire decision required"
+    },
+    {
+      "id": "C3",
+      "requirement": "Private C2 bridge",
+      "authority": "ADR-0029 section 8",
+      "status": "NOT_IMPLEMENTED",
+      "evidenceLimit": "Historical socket attachment feasibility is not implemented bridge or API3 validation.",
+      "nextOwnerDependency": "Accelerator; exact tuple/one accept/owner-only cleanup; C1/C2"
+    },
+    {
+      "id": "C4",
+      "requirement": "Secure authorization/binding",
+      "authority": "ADR-0029 sections 2,9,10",
+      "status": "PARTIAL",
+      "evidenceLimit": "Existing Secure Session/capability/generation foundation; role-bound unpredictable single-use operation authority absent.",
+      "nextOwnerDependency": "Accelerator/Browser; lab grant, epoch, replay/profile/swap negatives"
+    },
+    {
+      "id": "C5",
+      "requirement": "Budgets/backpressure/cancel/deadline/terminal",
+      "authority": "ADR-0029 sections 5-7",
+      "status": "NOT_IMPLEMENTED",
+      "evidenceLimit": "Experimental four-queue caps do not become production defaults. Existing Mode B queues are not Mode C evidence.",
+      "nextOwnerDependency": "Both consumers; C1-C4, measured watermarks/fairness/terminal cause versus action"
+    },
+    {
+      "id": "C6",
+      "requirement": "Deterministic E1-E12 fixtures",
+      "authority": "ADR-0029 section 12; joint gate D10",
+      "status": "NOT_IMPLEMENTED",
+      "evidenceLimit": "Approved matrix/design only; Mode B fixtures do not qualify Mode C.",
+      "nextOwnerDependency": "Both consumers; deterministic fragmentation/stall/cancel/egress/lifetime evidence"
+    },
+    {
+      "id": "C7",
+      "requirement": "Secure Mode C E1-E12 experiments",
+      "authority": "ADR-0029 section 12",
+      "status": "NOT_AUTHORIZED",
+      "evidenceLimit": "APPROVED_EXECUTION_NOT_AUTHORIZED; no later specific prerequisite-review authorization found. ADR-0031 C7 is unrelated.",
+      "nextOwnerDependency": "Human owner; new gate after C0-C6 review, hashes, measured budgets"
+    },
+    {
+      "id": "C8",
+      "requirement": "Production Secure Mode C integration",
+      "authority": "ADR-0029 consequences; Browser ADR-0007 Mode C debt",
+      "status": "BLOCKED",
+      "evidenceLimit": "No productive Mode C path; preserve mixed-route fail-closed guard.",
+      "nextOwnerDependency": "Both consumers; C2 contract, C7 evidence, production decisions"
+    },
+    {
+      "id": "C9",
+      "requirement": "Legacy production-security approval",
+      "authority": "ADR-0029 section 11 D9B; ADR-0028",
+      "status": "NOT_AUTHORIZED",
+      "evidenceLimit": "D9B proposed; lab D9A does not authorize production.",
+      "nextOwnerDependency": "Human/Accelerator security owner; accepted admission/grants/policy/quota/audit/revocation"
+    },
+    {
+      "id": "C10",
+      "requirement": "Legacy implementation",
+      "authority": "Original joint gate C10; ADR-0029 section 11",
+      "status": "BLOCKED",
+      "evidenceLimit": "Plaintext profile mechanics are not productive Mode C authority.",
+      "nextOwnerDependency": "Both consumers; C9 and shared qualified runtime"
+    },
+    {
+      "id": "C11",
+      "requirement": "Legacy validation/profile matrix",
+      "authority": "Original joint gate C11; ADR-0029 section 11",
+      "status": "BLOCKED",
+      "evidenceLimit": "Not ADR-0032 candidate-close C11 B/C. No productive Legacy Mode C validation.",
+      "nextOwnerDependency": "Both consumers; C9/C10, profile isolation/lower assurance/no downgrade"
+    },
+    {
+      "id": "C12",
+      "requirement": "NT4 Mode C qualification",
+      "authority": "ADR-0029 section 5; Browser nt4-toolchain.md",
+      "status": "BLOCKED",
+      "evidenceLimit": "VC6/current Windows host is not actual NT4 acceptance.",
+      "nextOwnerDependency": "Browser; implemented Mode C, target runtime and queue/budget measurements"
+    }
+  ],
+  "placements": [
+    {
+      "id": "A",
+      "network": "Browser",
+      "siteTls": "Browser",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Historical local HTTP/HTTPS current-host UI evidence; BearSSL authenticated-site trust debt and real NT4 remain open."
+    },
+    {
+      "id": "B",
+      "network": "Accelerator",
+      "siteTls": "Accelerator",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "New scoped normal API3 Accelerator / Browser PST064 interoperability positive and negatives; Browser API3 Model E migration pending."
+    },
+    {
+      "id": "C",
+      "network": "Browser",
+      "siteTls": "Accelerator",
+      "status": "PARTIAL",
+      "evidenceLimit": "Accepted ADR-0029 architecture; C0 exists, productive dual-role operation absent; C0-C12 roadmap."
+    },
+    {
+      "id": "D",
+      "network": "Accelerator",
+      "siteTls": "Browser",
+      "status": "PARTIAL",
+      "evidenceLimit": "Opaque TCP_PLAIN foundation; Browser supported mixed-route composition/security qualification remains open."
+    }
+  ],
+  "phase6Core": [
+    {
+      "authority": "ADR-0015",
+      "requirement": "Bounded establishment/Network Stream lifecycle",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    },
+    {
+      "authority": "ADR-0016",
+      "requirement": "Initial capability negotiation",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    },
+    {
+      "authority": "ADR-0017",
+      "requirement": "Dedicated DATA/network framing",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    },
+    {
+      "authority": "ADR-0018",
+      "requirement": "Independent Network Egress/TLS Offload registry",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    },
+    {
+      "authority": "ADR-0019",
+      "requirement": "Server-owned Destination Policy/Egress Profile",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    },
+    {
+      "authority": "ADR-0020",
+      "requirement": "One-resolution DNS/numeric candidate policy",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    },
+    {
+      "authority": "ADR-0021",
+      "requirement": "Sensitive destination deny",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    },
+    {
+      "authority": "ADR-0022",
+      "requirement": "PST CLIENT outbound TLS profile",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    },
+    {
+      "authority": "ADR-0023",
+      "requirement": "TLS close/truncation/abort contract",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    },
+    {
+      "authority": "ADR-0024",
+      "requirement": "Concrete composition boundary",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Preserved Phase6 core evidence; no complete suite rerun"
+    }
+  ],
+  "integration": [
+    {
+      "authority": "ADR-0030/31/32/33",
+      "requirement": "Model E/lifecycle API3 Accelerator",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Accepted handoff preserves P1-P12, D/E/F/G1, G3-G6/H/I, S1-S12, candidate C11 B/C; 55 distinct native lifetimes. No Browser lifetimes added."
+    },
+    {
+      "authority": "Browser ADR-0007",
+      "requirement": "Independent routing/Network Egress/fallback",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Historical A/B cold/reconnect/fallback/recovery evidence; C/D remain open."
+    },
+    {
+      "authority": "Browser ADR-0007 GUI debt",
+      "requirement": "Final independent capability/policy GUI",
+      "status": "PARTIAL",
+      "evidenceLimit": "Network Egress and Site TLS permissions/preferences must be exposed independently or explicitly deferred by governed version decision."
+    },
+    {
+      "authority": "Browser ADR-0013",
+      "requirement": "HTTP/terminal/fallback consumer semantics",
+      "status": "QUALIFIED_FOR_SCOPE",
+      "evidenceLimit": "Complete versus incomplete HTTP, terminal/no-reuse and no inappropriate fallback; scoped new tests, no full API3 Browser claim."
+    },
+    {
+      "authority": "Browser API3 consumer",
+      "requirement": "Result-returning Model E release authority",
+      "status": "IMPLEMENTED_UNQUALIFIED",
+      "evidenceLimit": "Existing consumer still uses void pst_connection_release and clears contexts. API3 migration must preserve stream/session/manager/provider/runtime on retention; unsafe symbol-only replacement prohibited."
+    },
+    {
+      "authority": "Browser ADR-0007 trust debt",
+      "requirement": "Authenticated local Site TLS identity",
+      "status": "IMPLEMENTED_UNQUALIFIED",
+      "evidenceLimit": "Local BearSSL transport success is not authenticated site identity; documented local trust debt remains."
+    },
+    {
+      "authority": "ADR-0028/0029",
+      "requirement": "Secure/Legacy capability parity",
+      "status": "PARTIAL",
+      "evidenceLimit": "Functional parity target YES, cryptographic parity NO. Production Legacy Network Egress restriction is current policy; D9B still needs accepted decision."
+    },
+    {
+      "authority": "Browser NT4 target",
+      "requirement": "Actual NT4 integrated runtime acceptance",
+      "status": "IMPLEMENTED_UNQUALIFIED",
+      "evidenceLimit": "VC6 build on current host does not qualify actual NT4, ownership, budgets and runtime."
+    }
+  ],
+  "sources": {
+    "C:\\Projetos\\PapinhoAccelerator\\AGENTS.md": "289BA76D8FAB2CF1D19B3C14ADFDEBF41E39C2D835AC4D7F13539F8F7E3D47EC",
+    "C:\\Projetos\\PapinhoAccelerator\\docs\\adr\\ADR-0022-perfil-tls13-client-outbound-via-pst.md": "2D81C1B1968FFCE4070A808D50711A7D1398B90DDBE11AF8A87D3C6CE9D88596",
+    "C:\\Projetos\\PapinhoAccelerator\\docs\\adr\\ADR-0029-contrato-mode-c-c2-e-autorizacao-laboratorial.md": "F55D4AC97469A2F9F9DCB106790F4F577F6F3AF86CDE17E922BFBA300DE2D2FD",
+    "C:\\Projetos\\PapinhoAccelerator\\docs\\adr\\ADR-0028-modelo-ortogonal-de-admissao-autenticacao-e-policies.md": "965E61A2A5AC768AACDF5CFDEEDF93CDA4680250229F95795130480DC71AD851",
+    "C:\\Projetos\\PapinhoAccelerator\\docs\\mode-c-c2-joint-contract-gate.md": "6FC4C3F29A28084C5244191B0222BA0C155BEEAD31A33971E5C44C186756E61B",
+    "C:\\Projetos\\PapinhoAccelerator\\docs\\mode-c-c2-coordination-contract-audit.md": "97909A3146526D67365FEB4A324A97EBEFBA8558A51B948D06B6D20F103ECBE1",
+    "C:\\Projetos\\PapinhoAccelerator\\docs\\phase6-network-tls-offload.md": "1C172B34FA94854809BE9A8B0A9709FC764706AB6E49A4F82FE1AD018A7D4096",
+    "C:\\Projetos\\PapinhoBrowser\\docs\\mode-c-c2-factual-handoff.md": "DBA4D7BD3F82B1FAFA6CEAE79932F08B585B4C12A533A411E7A45650703D0B77",
+    "C:\\Projetos\\PapinhoBrowser\\docs\\adr\\ADR-0007-integracao-policy-e-ux-do-papinhoaccelerator-no-papinhobrowser.md": "257BD06F78F6F24827CAD61BDF2539B3A4E6F5F277FF1EE2B108972D86C23EBA",
+    "C:\\Projetos\\PapinhoBrowser\\docs\\adr\\ADR-0013-versioned-vendored-dependency-ingestion-and-pinning-for-cross-project-source-packages.md": "06D9D1011B98F44F69D943C22AA664D102473455624ECCBA8A8EA16507BD2385",
+    "C:\\Projetos\\PapinhoBrowser\\build\\mode-c-c0\\REPORT.txt": "42296869230171270C3FA1DEA419AC2A3E53E889A97743E67197569A1903B4DE",
+    "C:\\Projetos\\PapinhoBrowser\\core\\networking\\papinho_socket.h": "57FCC750593B2ACDAB58F4D2B349C009C0177E6399FA0EA5C888DCA8FFAB5586",
+    "C:\\Projetos\\PapinhoBrowser\\tests\\endpoint_snapshot_test.c": "9EF0F9C6AD0447E6106FF3E7820243E125D8E6C53EF4C151CDA820A6769EF082",
+    "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\c11-bc-closeout\\browser-accelerator-final-handoff.md": "E34D555A578097C1787D249695EAA96EB5A87F1EF3C74397E6EEF1ABA7485B68",
+    "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\c11-bc-closeout-final-audit.json": "8A5EB55B8350B3EFD4A940A9FB9B0037F8F63C68245197BF82254EE8C159B5DD",
+    "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\final-closeout-reconciliation-final-audit.json": "AC5E29A97CD1A3086903A3FBE376D39E93B95FC3F48E47F5824F38D73AC08E03",
+    "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\sdk-browser-normal\\manifest.ini": "1EE3850C15A1301713F12BDA9302E1D0272580E043893C55574F28954BB1D07D",
+    "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\sdk-browser-normal\\VERSION": "49D34EB92E8E7872B7772DE19B3354BD13CB89DE4A189853AF94939ACF51F762"
+  },
+  "runs": [
+    {
+      "run": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\c0-final-positive-20261011-165234",
+      "browserPst": "0.6.4",
+      "acceleratorPst": "0.6.5 API3 SPI4 NORMAL",
+      "fixturePid": 14512,
+      "clientPid": 31948,
+      "clientExit": 0,
+      "fixtureTimely": true,
+      "fixtureExit": 0,
+      "processesRemaining": 0,
+      "artifacts": {
+        "c0-final-positive-20261011-165234\\client.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-final-positive-20261011-165234\\client.out": "B7125CF0000DC91075FA59807C977ECFF6F98E44603DB527F31FCFE62CEDC49B",
+        "c0-final-positive-20261011-165234\\fixture.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-final-positive-20261011-165234\\fixture.out": "598284A887BEDD882F3F916B414D46EA89E89610D1AF359A9D0E235D50F622D5",
+        "c0-final-positive-20261011-165234\\result.json": "1DCCC8BADA4E73FD9A72B1F358E96D269321BFA571E8324425C68FBD74F1209F"
+      }
+    },
+    {
+      "run": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\c0-lifecycle-20261011-164810",
+      "browserPst": "0.6.4",
+      "acceleratorPst": "0.6.5 API3 SPI4 NORMAL",
+      "fixturePid": 4344,
+      "clientPid": 24572,
+      "clientExit": 16,
+      "fixtureTimely": true,
+      "stopElapsedMs": 13,
+      "fixtureExit": 0,
+      "processesRemaining": 0,
+      "artifacts": {
+        "c0-lifecycle-20261011-164810\\client.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-lifecycle-20261011-164810\\client.out": "CB78589E3A1E7E57A1485FEF8058DB3E532D18072C6DA83E1AE85B213F0784DE",
+        "c0-lifecycle-20261011-164810\\fixture.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-lifecycle-20261011-164810\\fixture.out": "E41CAFAB82B17FE0E49E3BF6A60DAA2A78CC6944C3280C62D91CA771CA858FC8",
+        "c0-lifecycle-20261011-164810\\result.json": "D9AE585B500CB33B178DE7B79FC2173A2D13BC3CD87898091BDA41B0818B157D"
+      }
+    },
+    {
+      "run": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\c0-name-negative-20261011-165036",
+      "browserPst": "0.6.4",
+      "acceleratorPst": "0.6.5 API3 SPI4 NORMAL",
+      "fixturePid": 1420,
+      "clientPid": 17368,
+      "clientExit": 0,
+      "fixtureTimely": true,
+      "fixtureExit": 0,
+      "processesRemaining": 0,
+      "artifacts": {
+        "c0-name-negative-20261011-165036\\client.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-name-negative-20261011-165036\\client.out": "339137505FF8576FAF645495F8870AE7452F9AF9DA5B7C666E79135C63CBEDB1",
+        "c0-name-negative-20261011-165036\\fixture.err": "74A9AD763DAA099AD59D1DD08AE771A075BA57EDDB200C62742A40242B7999D6",
+        "c0-name-negative-20261011-165036\\fixture.out": "38A46822ACB521659AA0D4961B007B83473BFD3F9D4B6BD5D0500AA23491312F",
+        "c0-name-negative-20261011-165036\\result.json": "58248A8D474BA6125A0CB03A18024A89850E0401C12976A5FBB19EE8B173FD14"
+      }
+    },
+    {
+      "run": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\c0-terminal-20261011-164929",
+      "browserPst": "0.6.4",
+      "acceleratorPst": "0.6.5 API3 SPI4 NORMAL",
+      "fixturePid": 4988,
+      "clientPid": 7184,
+      "clientExit": 16,
+      "fixtureTimely": true,
+      "fixtureExit": 0,
+      "processesRemaining": 0,
+      "artifacts": {
+        "c0-terminal-20261011-164929\\client.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-terminal-20261011-164929\\client.out": "033B1732A5E5A1394C2B7BD59831DBEA20EFEF3D5C9BFF0C560468217DF4460D",
+        "c0-terminal-20261011-164929\\fixture.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-terminal-20261011-164929\\fixture.out": "DD087DF6E33A9F790D206CF378581296F5A6BF9A5D562A18EFAA979A0D76C098",
+        "c0-terminal-20261011-164929\\result.json": "6742459A62DF90CBD8EA216439D62372CEF0630247F1DDC8A514CF903C5FB97B"
+      }
+    },
+    {
+      "run": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\c0-terminal-20261011-165025",
+      "browserPst": "0.6.4",
+      "acceleratorPst": "0.6.5 API3 SPI4 NORMAL",
+      "fixturePid": 28608,
+      "clientPid": 14456,
+      "clientExit": 0,
+      "fixtureTimely": true,
+      "fixtureExit": 0,
+      "processesRemaining": 0,
+      "artifacts": {
+        "c0-terminal-20261011-165025\\client.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-terminal-20261011-165025\\client.out": "B7125CF0000DC91075FA59807C977ECFF6F98E44603DB527F31FCFE62CEDC49B",
+        "c0-terminal-20261011-165025\\fixture.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-terminal-20261011-165025\\fixture.out": "941E9BBDE17C0A45A328CF6E726EB309A7ED7F7F1EC03B1B7197A4818E859398",
+        "c0-terminal-20261011-165025\\result.json": "46C37317268F8515005B7D65B819B7E90EE0B32F78C014BDF323640B699CE4AC"
+      }
+    },
+    {
+      "run": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\c0-truncation-fixed-20261011-165207",
+      "browserPst": "0.6.4",
+      "acceleratorPst": "0.6.5 API3 SPI4 NORMAL",
+      "fixturePid": 3944,
+      "clientPid": 6132,
+      "clientExit": 0,
+      "fixtureTimely": true,
+      "fixtureExit": 0,
+      "processesRemaining": 0,
+      "artifacts": {
+        "c0-truncation-fixed-20261011-165207\\client.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-truncation-fixed-20261011-165207\\client.out": "A504A3CAFF9471FE90ABD9A8C3AD295981BB87E82E693DC0AF239031A0EDFF24",
+        "c0-truncation-fixed-20261011-165207\\fixture.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-truncation-fixed-20261011-165207\\fixture.out": "D4F21C1D88FC407A98A2C27B8D8C1843F990803D54E78FA49C54AD13446C199F",
+        "c0-truncation-fixed-20261011-165207\\result.json": "E069815CD90CCC79A30174A5DDC187645B7AD86D36B18E73A66F4F7CBF31C9B5"
+      }
+    },
+    {
+      "run": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\c0-truncation-negative-20261011-165039",
+      "browserPst": "0.6.4",
+      "acceleratorPst": "0.6.5 API3 SPI4 NORMAL",
+      "fixturePid": 19144,
+      "clientPid": 23212,
+      "clientExit": 16,
+      "fixtureTimely": true,
+      "fixtureExit": 0,
+      "processesRemaining": 0,
+      "artifacts": {
+        "c0-truncation-negative-20261011-165039\\client.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-truncation-negative-20261011-165039\\client.out": "C3D45CBFE9435C045FCB00BC0887807DD3621146CDC0CC1B5BCD77451A06BFC4",
+        "c0-truncation-negative-20261011-165039\\fixture.err": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "c0-truncation-negative-20261011-165039\\fixture.out": "BA1FA7455980A2396F5D0D75F34270608E3D693EAA4E4EE524EAE7B2785690C2",
+        "c0-truncation-negative-20261011-165039\\result.json": "C7C87EF71684BCB47F1468A7416F0A90FEEB552D6758AAF857E278D3C7350CD4"
+      }
+    }
+  ],
+  "edits": [
+    {
+      "file": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\browser-source\\src\\papinho_accelerator_fixture_runner.c",
+      "pre": "8c2673440a93d43ecb32c260cd761f336d8a8a5d23c71e7d6a6d5f1450659fe7",
+      "post": "abe8016b52d81923c07ea51f9ca9011f6042f63c48747d533163ccd594890b98",
+      "diffCheck": "PASS",
+      "cause": "Observed remote NETWORK_CLOSE type13; TLS_REQUIRED fixture oracle incorrectly requires forbidden half-close type12",
+      "authority": "Accelerator accepted ADR-0023 Case A, Browser ADR-0013 remote terminal completes operation without second CLOSE",
+      "scope": "Test-only harness; no consumer/provider/wire change"
+    },
+    {
+      "file": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\browser-source\\src\\papinho_accelerator_fixture_runner.c",
+      "pre": "F3BFABA81387B8589F1CFCDC27AFE08FDA6EF02A53DE45203FB8C08E6B55108F",
+      "post": "8C2673440A93D43ECB32C260CD761F336D8A8A5D23C71E7D6A6D5F1450659FE7",
+      "diffCheck": "PASS",
+      "reason": "Failure-detail instrumentation only; original oracle unchanged"
+    },
+    {
+      "file": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\phase6-browser-integration-20261011\\browser-source\\src\\papinho_accelerator_fixture_runner.c",
+      "pre": "abe8016b52d81923c07ea51f9ca9011f6042f63c48747d533163ccd594890b98",
+      "post": "8fe1c77b2760e2288d9f1798bb22a7fc1097970776efabe7000918f63d98118d",
+      "diffCheck": "PASS",
+      "cause": "Negative fixture emits exact papacc-complete! body, runner incorrectly compares clean-mode-b body",
+      "authority": "Browser ADR-0013 complete Content-Length plus TLS_TRUNCATED remains usable, terminal, no reuse/fallback",
+      "scope": "Test-only expected bytes align controlled fixture; terminal assertions unchanged"
+    }
+  ],
+  "normalBrowserStagedZipSha256": "FA20BE54AFB2DC55443E3711FD57325C394B4237F90156140D696E9E5441BFFA",
+  "focusedBrowserPst": "0.6.4 VC6 x86 MD",
+  "focusedAcceleratorPst": "0.6.5 API3 SPI4 normal OpenSSL Debug",
+  "productionPin": "0.6.4",
+  "pstChanged": false,
+  "paccWireChanged": false,
+  "pst065Promoted": false,
+  "R7": "PENDING_NONBLOCKING_FOR_BROWSER_NO_SUPERSESSION",
+  "PaccWireChangeRequired": "YES_FOR_C2_REQUIRES_SEPARATE_DECISION",
+  "PstUpstreamChangesRequired": "NOT_ESTABLISHED; historical C2 socket feasibility must be checked against API3 public release/ownership contracts",
+  "phase6RequirementTotal": "NOT_ASSERTED: overlapping inventories, not a recovered normative denominator",
+  "nextExecutableSlice": "C1 original roadmap after C0 scope/closure review; independent prerequisite Browser API3 Model E owner migration",
+  "nextAuthorizationRequired": "Versioned PACC operation/role encoding; C7 prerequisite human review; C9 accepted production Legacy policy",
+  "firstUnresolvedDivergence": "BROWSER_API3_MODEL_E_RELEASE_BOUNDARY_NOT_IMPLEMENTED",
+  "testProcessesRemaining": 0,
+  "build": "FOCUSED_VC6_PASS_ZERO_WARNINGS; full Debug/Release products NOT_EXECUTED"
+}

@@ -1,0 +1,11 @@
+--- a/docs/capabilities/client-pairing.md
++++ b/docs/capabilities/client-pairing.md
+@@ -527,3 +527,8 @@
+ ### Persistência de delegação — codecs offline v3 — 2026-10-20
+ 
+ PACROOT8/v3, PDG1 e CP3 agora possuem codecs DATA offline sob F1–F5/G0–G7 accepted. SNT/BODY/LST/issuer reutilizam rotinas existentes; representação APPROVED/REVOKED não concede confiança ou CURRENT. Selected/Legacy Debug/Release:14/14 suítes e43.934 asserções v3 de modelo por configuração, zero warnings;56 casos nativos históricos CAS/Stop/retenção passaram, sem qualificar commit v3. Worker permanece negado e sem ampliação de buffers: máximo v330592 excede imagem selecionada28960, com CURRENT/fontes/lifetime e reserva de ativação ainda pendentes. M1 e Browser não foram alterados. Perfil completo do signer requer adapter factual próprio; provider/kernel UNKNOWN e ED11 total PARTIAL. Ver [prova/closeout](../integration/package-delegation-persistence-implementation-20261020/closeout.md) e handoff Browser separado.
++
++
++### Consumo PDG1 no M1 offline — 2026-10-20
++
++O pipeline M1 consome a seleção DATA PDG1 após validação integral PACROOT8/v3, correlacionando pacote e SPKI e rejeitando delegação/issuer divergentes ou revogados. Mesmo uma correspondência completa mantém SOURCE_ABSENT antes do KDF: CURRENT, pins factuais e confirmação independente continuam sem fonte ligada. Não há trust positivo produtivo. Selected/Legacy Debug/Release:2/2 suítes de pacote,146 asserções de controle sintético e1189 criptográficas reais por configuração;14/14 regressões root/issuer/ED11 por configuração. Fixtures administrativas não são provas nativas de autoridade. Operação776,input128,contexto PDG72 e imagem máxima30592 bytes; cenário conservador não compartilhado3625925 excede3MiB e nega ativação, sem alterar quotas. Worker/runtime/CLI e formatos históricos inalterados; Browser não precisa conhecer a root interna. Ver [closeout](../integration/pdg1-m1-trust-consumption-20261020/closeout.md), [lifetime/ED11](../integration/pdg1-m1-trust-consumption-20261020/consumption-proof-and-ed11.md) e [handoff Browser](../integration/pdg1-m1-trust-consumption-20261020/browser-import-handoff.md).

@@ -1,0 +1,12 @@
+--- apps/server/server_config_root8_data_win32.h
++++ apps/server/server_config_root8_data_win32.h
+@@ -0,0 +1,9 @@
++#ifndef PAPACC_ROOT8_DATA_WIN32_H
++#define PAPACC_ROOT8_DATA_WIN32_H
++#include "config_root8.h"
++/* Existing BODY05 data decoder only. No root pin, loader or native identity
++ * proof returned. ROOT06 issuer carrier remains unsupported until its separate
++ * origin/adapter gate is qualified. This library never calls commit/publish. */
++PC_ROOT8_RESULT papacc_root8_body05_data(void *,unsigned,const PAPACC_U8 *,
++ PAPACC_SIZE,const PAPACC_U8 *,const PAPACC_U8 *);
++#endif

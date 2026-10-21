@@ -1,0 +1,25 @@
+#ifndef PAPACC_CONFIG_LST1_H
+#define PAPACC_CONFIG_LST1_H
+#include <papacc/types.h>
+#define PC_LST1_HEADER 128U
+#define PC_LST1_RECORD 512U
+#define PC_LST1_MODEL_BYTES 2176U
+#define PC_LST1_MAX_BYTES 2208U
+/* Owned explicit byte fields, NOT a struct dump or AST. Header/records follow
+ * the accepted offsets; unused records zero. No resolved/current/auth flags.
+ * Exclusive immutable inputs; disjoint outputs; no hash reentry/borrow escape.
+ * Used/complete only valid on return OK. Bad pointer/range/overlap writes none.
+ * Other failures zero metadata, never publish a partial result. */
+typedef struct PC_LST1_MODEL { PAPACC_U8 fields[PC_LST1_MODEL_BYTES]; } PC_LST1_MODEL;
+typedef enum PC_LST1_RESULT { PC_LST1_OK=0,PC_LST1_INVALID,
+ PC_LST1_UNSUPPORTED,PC_LST1_HASH_FAILED } PC_LST1_RESULT;
+/* Same signature as existing papacc_configuration_issuer_hash06 adapter.
+ * No crypto implementation or platform dependency in this library. */
+typedef int (*PC_LST1_HASH)(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8[32]);
+/* Private shared record shape, no header/epoch/authority. Exactly512 bytes. */
+PC_LST1_RESULT pc_lst1_record_shape(const PAPACC_U8 *,PAPACC_SIZE);
+PC_LST1_RESULT pc_lst1_encode(const PC_LST1_MODEL *,PAPACC_U8 *,PAPACC_SIZE,
+ PAPACC_SIZE *,PC_LST1_HASH,void *);
+PC_LST1_RESULT pc_lst1_decode(const PAPACC_U8 *,PAPACC_SIZE,PC_LST1_MODEL *,
+ int *,PC_LST1_HASH,void *);
+#endif

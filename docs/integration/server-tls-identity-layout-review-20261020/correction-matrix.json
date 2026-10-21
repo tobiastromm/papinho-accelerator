@@ -1,0 +1,37 @@
+{
+  "original": "docs\\integration\\server-tls-identity-binding-20261019\\PERSISTENCE-LAYOUT-PROPOSED.md",
+  "original_sha256": "8f84533e42ea7a6273a1209af6ebf4685fff19fc8cad1610af8d1672848a131f",
+  "new_layout_bytes_unchanged": true,
+  "corrections": [
+    {
+      "id": "R0_REVISION",
+      "preimage": "revision: 1",
+      "proposed": "revision: 2"
+    },
+    {
+      "id": "R3_SHARED_SOURCE_COHERENCE",
+      "preimage": "Shared security_ref is allowed only through explicit separate associations; the application-owned resolver must prove coherent mapping to the same immutable Local Identity or deny ambiguity.",
+      "proposed": "Shared security_ref is allowed only through explicit separate associations; the application-owned resolver must prove coherent mapping to the same immutable Local Identity or deny ambiguity.\n\nR3 explicit coherence: within one containing root revision, rows sharing the exact security_ref must agree byte-for-byte on transport/role, certificate profile, name length/name bytes, issuer authority/generation/CA-SPKI, association stage and all conditionally present request/CSR/SPKI/certificate fields. Listener ordinal/ID and the approval revision for that listener association may differ; every row still requires its own factual association proof. The fields describe ONE normalized Local Identity at that source/revision, not per-listener alternate credentials hidden behind one reference. Any divergence rejects the whole component before exposing a binding; no first-row/default selection. Retained prior root/source snapshots are different immutable generations, not an exception allowing divergent rows in a single selected revision."
+    },
+    {
+      "id": "R1_TLS_VS_CERTIFICATE_PROFILE",
+      "preimage": "Role/profile/transport disagreement rejects. Security reference is still opaque; no hostname derivation from it.",
+      "proposed": "Role/profile/transport disagreement rejects. Security reference is still opaque; no hostname derivation from it.\n\nR1 profile distinction: record20:2 identifies ONLY the X509 technical certificate profile1. It is not a TLS transport/security-profile identifier and cannot satisfy that check. In this bounded version, transport1/role1 plus the exact security_ref and its verified source/root revision must resolve the existing ADR-0006 channel security profile: TLS1.3-only, mutual certificate authentication, mandatory exact ALPN papacc/1, 0-RTT/resumption disabled and the remaining accepted security requirements. Verify these against the actual immutable normalized security configuration before RESOLVED or consumption, independently of certificate KU/EKU/algorithm checks. Certificate profile1/serverAuth alone proves none of those transport facts. Missing/incompatible/unqualified channel TLS configuration returns DENY/UNSUPPORTED, never an inferred profile. No new profile catalog, default, enum or bytes are introduced. Different future channel profiles require a separately reviewed format/support contract."
+    },
+    {
+      "id": "R4_EXACT_HOSTNAME_PREDICATE",
+      "preimage": "The first bounded representation supports the existing offline server builder's DNS ASCII subset: labels1..63, total1..253, letters/digits/hyphen, no empty or edge-hyphen label, wildcard, embedded NUL, non-ASCII, trailing dot or numeric IP representation.",
+      "proposed": "The first bounded representation supports the existing offline server builder's exact byte predicate: total length1..253; each byte belongs to ASCII A-Z, a-z, 0-9, '-' or '.'; every dot separates nonempty labels of length1..63; a label must neither begin nor end with '-'; the final byte is not a dot; and at least one byte in the whole name is an ASCII letter or '-'. Thus an all-digits-and-dots name is rejected, as in the current public builder. No wildcard, embedded NUL, whitespace, non-ASCII, colon or other byte is accepted. This is a DNS-label representation check, not a resolver for every historical IPv4 spelling or a claim to detect every possible address alias; no IP literal alternative is encoded or inferred. Runtime hostname/identity applicability and target support remain separate fail-closed checks."
+    },
+    {
+      "id": "R2_APPROVAL_TUPLE_AND_RETENTION",
+      "preimage": "On introducing/changing the exact name/listener/security/role relation, it must name that transaction R; on retaining an unchanged association it refers to the prior verified approval revision. Request/result attachment alone does not manufacture a new naming approval.",
+      "proposed": "R2 approval tuple: the provenance covers the exact listener identity, security_ref, normalized channel TLS profile/source content, transport/role, certificate technical profile, name bytes and issuer authority/generation/CA-SPKI association. On introducing or changing ANY of those attributes it must name the transaction R that explicitly approved that new tuple; on retaining an unchanged tuple it refers to its prior verified approval revision. An unchanged hostname alone is insufficient to reuse approval after issuer rotation or source/profile replacement. The revision is not proof of the transaction: verify exact authorized content/history and actual source ownership before consumption. Request/result attachment alone does not create a new naming approval when this tuple remains unchanged; it still requires the separately authorized exact request/reservation/result transaction and its current revision. It cannot reuse old request authority, clear pending/uncertain work or change an already reserved request's CSR/SPKI/issuer/serial. Keep the old immutable association/leases and credits for any old dependent consumer until factual quiescence; a new tuple never retags an old request or Session as CURRENT."
+    },
+    {
+      "id": "R2_FIELD32_DESCRIPTION",
+      "preimage": "name_approval_revision: existing root revision that approved this exact name/listener/security/role association; nonzero <= containing R",
+      "proposed": "name_approval_revision: existing root revision approving the exact source/name/listener/TLS/issuer tuple defined in R2; nonzero <= containing R"
+    }
+  ]
+}

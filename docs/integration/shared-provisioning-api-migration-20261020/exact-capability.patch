@@ -1,0 +1,11 @@
+--- a/docs/capabilities/client-pairing.md
++++ b/docs/capabilities/client-pairing.md
+@@ -557,3 +557,8 @@
+ ### Implementação parcial offline de enrollment — 2026-10-20
+ 
+ Bibliotecas privadas opt-in implementam projeção do perfil PST ENROLLMENT, framing PAE1, trace de dados, CSPRNG Windows para código de 50 bits, claim único local e limiter pré-TLS. Não estão ligadas ao servidor nem registram listener. APPROVED/claim não constituem autorização ou emissão; operacional mantém mTLS/papacc/1. Selected/Legacy Debug/Release passaram 10/10 suítes por configuração, zero warnings; prova nativa nova limitada ao RNG. Permanecem gates de propósito persistente, owner/runtime de coleção, fontes factuais, provider CLOSED, limites globais P4 e deadlines nativos. Delta fixo no servidor zero, pico de ativação UNKNOWN; ED11 PARTIAL. CURRENT/assinatura/admissão DENY. Ver [closeout](../integration/automatic-enrollment-listener-pairing-20261020/closeout.md) e [prova/handoff](../integration/automatic-enrollment-listener-pairing-20261020/implementation-proof-and-browser-handoff.md).
++
++
++### Núcleo estrutural compartilhado — primeira extração — 2026-10-20
++
++Sob S0–S8 accepted, src/provisioning/shared_structure implementa API C89 DATA para M2/M3/ZIP/TLV/campos e normalização, sem KDF/AEAD/trust/root/provider/UI. Independente de papacc_protocol; não ligado aos consumidores produtivos. Debug/Release moderno:19.815 checks diferenciais entre leitores Accelerator/Browser/core e2.077 regressões originais por configuração. VC6 real /Za /WX Debug/Release:15.681 checks Browser/core por configuração; zero warnings finais. Erros/outputs distintos dos callers estão documentados, não ocultos como equivalência integral. Browser permanece inalterado, migração não autorizada; NT4 nativo não qualificado. Delta fixo runtime0, stack transitivo/ativação não medidos, ED11PARTIAL sem quotas. Nome público/release/snapshot ingerido pendentes. Ver [closeout](../integration/shared-provisioning-api-migration-20261020/closeout.md) e [prova/handoff](../integration/shared-provisioning-api-migration-20261020/extraction-and-equivalence-proof.md).

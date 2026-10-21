@@ -1,0 +1,18 @@
+--- tests/config_root8_test.c
++++ tests/config_root8_test.c
+@@ -147,7 +147,14 @@
+  for(B=1;B<=4U;++B){CHECK(setup(B,0));CHECK(synthetic_checkpoint());base_used=used;memcpy(base,bytes,used);
+   for(N=1;N<=4U;++N){CHECK(setup(N,1));memcpy(bounded_fields,model.fields,sizeof(bounded_fields));
+    oldused=99;CHECK(pc_root8_encode_no_issuer(bounded_fields,sizeof(bounded_fields),bounded_output,sizeof(bounded_output),&oldused,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,NULL)==PC_ROOT8_OK);
+-   CHECK(oldused==used&&!memcmp(bounded_output,bytes,used));}}
++   CHECK(oldused==used&&!memcmp(bounded_output,bytes,used));
++   CHECK(pc_root8_decode_no_issuer(bounded_output,used,bounded_fields,sizeof(bounded_fields),&complete,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,NULL)==PC_ROOT8_OK&&complete);
++   CHECK(!memcmp(bounded_fields,model.fields,sizeof(bounded_fields)));}}
++ complete=99;CHECK(pc_root8_decode_no_issuer(bounded_output,used,bounded_output,sizeof(bounded_fields),&complete,NULL,NULL,NULL,NULL)==PC_ROOT8_INVALID&&complete==99);
++ bounded_output[used-1U]^=1;complete=99;
++ CHECK(pc_root8_decode_no_issuer(bounded_output,used,bounded_fields,sizeof(bounded_fields),&complete,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,NULL)==PC_ROOT8_INVALID&&!complete);
++ for(i=0;i<sizeof(bounded_fields);++i)CHECK(!bounded_fields[i]);
++ bounded_output[used-1U]^=1;memcpy(bounded_fields,model.fields,sizeof(bounded_fields));
+  CHECK(used==PC_ROOT8_NO_ISSUER_MAX);
+  memcpy(saved,bounded_output,used);oldused=99;
+  CHECK(pc_root8_encode_no_issuer(bounded_fields,sizeof(bounded_fields)-1U,bounded_output,sizeof(bounded_output),&oldused,NULL,NULL,NULL,NULL)==PC_ROOT8_INVALID&&oldused==99);

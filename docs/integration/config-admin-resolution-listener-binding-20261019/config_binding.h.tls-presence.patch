@@ -1,0 +1,11 @@
+--- src/config/config_binding.h
++++ src/config/config_binding.h
+@@ -15,7 +15,7 @@
+  PAPACC_BIND_TARGET targets[2];
+ } PC_BOUND_LISTENER;
+ typedef struct PC_MODEL_BINDING {
+- unsigned model_bound,resolved,count;
++ unsigned model_bound,resolved,count,issuer_present;
+  PC_BOUND_LISTENER listeners[PC_LISTENERS_MAX];
+  PAPACC_U8 root[32];PAPACC_U64 revision,administrative_epoch,policy_epoch,issuer_revision;
+ } PC_MODEL_BINDING;

@@ -1,0 +1,589 @@
+---
+capability: client-pairing
+title: Client Pairing e Enrollment
+status: concept
+last-updated: 2026-10-18
+scope: project
+---
+
+# Client Pairing e Enrollment
+
+## Consolidação de produção — 2026-10-18
+
+O status `concept` descreve pairing/enrollment ainda não implementado, sem
+rebaixar a importação granular já existente no Browser. Dois modos permanentes
+são obrigatórios antes do fechamento integral Phase6:
+[decisão explícita do owner](../adr/DECISION-production-client-provisioning-20261018.md)
+e [seis gates OPEN](../phase6-network-tls-offload.md#production-client-provisioning--phase-6-gates).
+A [matriz atual](../integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md)
+separa contrato/mecanismo existente/lacuna. Nenhum pacote ou enrollment produtivo
+foi implementado por esta atualização documental.
+
+- MANUAL: preservar importação granular avançada; adicionar Export new client
+  no admin e importação verificada/transacional de pacote no Browser. Versão,
+  integridade, destinatário/servidor e limites obrigatórios; formato/issuer/CSR
+  concretos e proteção de eventuais segredos ainda não congelados. Não há
+  autorização para servidor exportar chave privada do cliente.
+- AUTOMATIC: endereço, servidor verificável, confirmação por código e políticas
+  AUTO_APPROVAL/MANUAL_APPROVAL. Chave normal no cliente; confirmação/AuthZ/
+  expiry/anti-replay obrigatórios. Cerimônia, bootstrap anterior à primeira
+  credencial e wire permanecem em gate próprio.
+- OPEN dispensa login inicial para pedir enrollment. CLOSED no enrollment valida
+  username/password antes de aprovação. Isso preserva ADR-0028 para o serviço
+  geral, transporte/AuthN/AuthZ separados. Password nunca plaintext;
+  pending/unapproved sem CONTROL/DATA/egress operacional.
+- Ambos convergem no mesmo cadastro/issuer/Principal-policy/grants e no mesmo
+  CredentialGeneration/Reference/store/leases. Add/approve/renew/revoke sem
+  restart é obrigatório na mesma root PREPARE -> COMMIT -> CURRENT -> EPOCH.
+  Entry point atual de primeiro commit dormente não é hot reload.
+- Revoke persistente/deny novas conexões são obrigatórios; política/propagação
+  sobre sessões ativas exige decisão concreta. Local unpair não revoga servidor.
+  Preservar Model E, retenção e safe retirement.
+
+### Mecanismos reutilizáveis e limites
+
+Browser ADR-0007 e roadmap, seção Production Secure Provisioning (07/10),
+qualificam Manual R1/current-host: import DER/raw Base64/PKCS8 não cifrado,
+validator/store_prepare, commit ActiveConfiguration e leases/retirement. Não
+qualificam NT4 real, pacote, issuer, pairing ou revoke remoto. Pontos reais:
+src/papinho_credential_options.inc, papinho_credential_import.inc,
+papinho_credential_store.h/.c, papinho_accelerator_config_generation.inc e
+papinho_credential_lifetime.inc, somente lidos nesta tarefa.
+
+No Accelerator, apps/server/server_security_source_win32.h/.c continua fonte
+lab de credenciais/single leaf digest; não é cadastro multi-cliente nem issuer
+de produção. Root e BODY0.5 existem, mas
+server_configuration_root_transaction_win32.inc restringe prepare/publish ao
+primeiro commit dormente, sem atualização live. APIs privadas não comprovam
+CLI/GUI administrativa instalada. Ver
+[handoff administrativo](../integration/mode-c-administrative-tls-input-binding-20261018/provisioning-handoff.md).
+
+Limitações/pendências abaixo referem-se ao enrollment e não negam essas bases
+parciais. A [policy futura](../future/network-egress-policy.md) permanece separada
+da emissão/enrollment. Parâmetros concretos pendentes constam da matriz;
+nenhum formato, quota ou protocolo é escolhido aqui.
+CLIENT_ADMISSION=DISABLED; SITE_TLS_ADMISSION=DENY; ED11_ADMISSION=DENY.
+
+## Objetivo
+
+Registrar a experiência futura de pareamento e enrollment entre um cliente
+Papinho, especialmente o PapinhoBrowser, e o PapinhoAccelerator. Para o usuário
+comum, a experiência deve usar conceitos como **Parear com Accelerator**,
+**Novo dispositivo**, **Autorizar**, **Recusar** e **Dispositivo autorizado**.
+
+X.509, CSR, CA privada, certificate chain e provider TLS permanecem abaixo
+dessa experiência. Este documento descreve uma capacidade futura de produto;
+não define uma capability de processamento negociável nem congela protocolo,
+API, armazenamento ou GUI.
+
+## Escopo
+
+### Inclui
+
+- first-use trust verificável do Accelerator;
+- enrollment de uma credencial individual de dispositivo;
+- geração e ownership local da private key do cliente;
+- aprovação ou recusa explícita do contexto de pairing;
+- mapeamento posterior da credencial para Principal estável e policy;
+- experiências conceituais para usuário final, administrador e enterprise;
+- reconexão automática após enrollment bem-sucedido.
+
+### Não inclui
+
+- mensagens, IDs, payloads ou encoding PACC de pairing;
+- GUI, CLI, API, formato de armazenamento ou fluxo de renewal congelados;
+- implementação de CA, issuer, enrollment ou gerenciamento de dispositivos;
+- external PSK como perfil atual;
+- confiança baseada apenas em código, nome, IP ou proximidade de rede;
+- geração ou armazenamento normal da private key do cliente pelo servidor;
+- autorização irrestrita decorrente do enrollment;
+- alteração do perfil criptográfico normativo do ADR-0006.
+
+## Comportamento esperado
+
+Regra fundamental:
+
+```text
+pairing code != server identity
+```
+
+O cliente não pode confiar automaticamente em um peer apenas porque conectou a
+um endereço e recebeu um código. No primeiro pareamento, deve existir uma ação
+explícita para verificar a identidade apresentada pelo Accelerator. Conforme
+disponível, a experiência pode mostrar:
+
+- nome de apresentação do servidor;
+- network endpoint;
+- identidade do servidor e trust domain;
+- fingerprint SHA-256 do certificado;
+- código de pairing/verificação;
+- estado de trust;
+- ação explícita de confirmação.
+
+Nome e endpoint são presentation/diagnostic metadata, não autenticam servidor
+ou cliente. O código também não é uma senha reutilizável nem identidade
+standalone. Ele deve permanecer vinculado ao servidor/certificado esperado, à
+fingerprint, ao pairing session/transcript atual, ao material público gerado
+pelo cliente e ao propósito de enrollment. Os requisitos criptográficos
+canônicos pertencem ao ADR-0006.
+
+## Arquitetura / fluxo
+
+### Primeiro pareamento
+
+```text
+PapinhoBrowser
+    ↓
+descobre ou recebe o endereço do Accelerator
+    ↓
+obtém a identidade apresentada
+    ↓
+usuário verifica identity / fingerprint / code
+    ↓
+cliente gera private key LOCALMENTE
+    ↓
+private key nunca sai do cliente
+    ↓
+client-generated public key / enrollment request
+    ↓
+Accelerator mostra solicitação pendente
+    ↓
+administrador Autoriza ou Recusa
+    ↓
+issuer autorizado emite/assina device credential
+    ↓
+credential mapeada para stable Principal + assigned policy
+    ↓
+cliente armazena private key, device credential
+e expected trust anchor / server identity
+```
+
+A aprovação deve estar vinculada ao mesmo pairing context verificado pelo
+cliente. O servidor recebe somente o material público necessário ao enrollment.
+
+### Ownership da private key
+
+```text
+Client private key
+    → generated on client
+    → stored on client
+    → NEVER transmitted to Accelerator
+```
+
+No fluxo normal, o Accelerator não gera nem armazena a private key do cliente.
+Essa fronteira deriva do ADR-0006 e não depende do frontend usado.
+
+### Enrollment e autorização
+
+```text
+approved enrollment != unrestricted authorization
+
+credential / device
+        ↓
+stable Principal
+        ↓
+assigned policy
+```
+
+Uma credencial autenticada não concede tudo implicitamente. Policy poderá
+controlar Session, DATA attachment, capabilities, network egress, quotas e
+outros privilégios de forma separada.
+
+### Conexões futuras
+
+```text
+PapinhoBrowser
+      ↓ automatic mTLS with enrolled device credential
+PapinhoAccelerator
+```
+
+O pairing não deve ser repetido a cada conexão. Novo pairing ou retrust pode
+ser necessário após remoção da credencial, revocation, expiry ou falha de
+renewal, mudança de server identity/trust domain ou ação explícita de
+forget/unpair. A UX e as regras finais de renewal permanecem futuras.
+
+## Experiências conceituais
+
+Os exemplos a seguir são **possíveis implementações/UI**. Valores, texto,
+layout e fluxo visual são ilustrativos e podem mudar sem alterar a semântica.
+
+### PapinhoBrowser — usuário verifica o Accelerator
+
+```text
+┌────────────────────────────────────────────┐
+│ Parear com PapinhoAccelerator              │
+│                                            │
+│ Servidor: Accelerator-Sala                 │
+│ Endereço: 192.204.1.50                     │
+│                                            │
+│ Identidade apresentada                     │
+│ SHA-256: AB:CD:EF:...                      │
+│                                            │
+│ Código de verificação                      │
+│ 482 731                                    │
+│                                            │
+│ Confirme que estes dados correspondem      │
+│ aos exibidos no PapinhoAccelerator.        │
+│                                            │
+│ [ Cancelar ]              [ Confirmar ]    │
+└────────────────────────────────────────────┘
+```
+
+### PapinhoAccelerator — administrador decide
+
+```text
+PapinhoBrowser solicita enrollment
+            ↓
+
+┌────────────────────────────────────┐
+│ Solicitação de novo dispositivo    │
+│                                    │
+│ Nome: Tobias-PC                    │
+│ Endpoint: 192.204.1.35             │
+│ Código: 482 731                    │
+│ Fingerprint: AB:CD:...             │
+│                                    │
+│ [ Autorizar ]       [ Recusar ]    │
+└────────────────────────────────────┘
+```
+
+Nome e IP ajudam apresentação e diagnóstico, mas não autenticam o cliente. A
+identidade real resulta do enrollment, da credencial validada e do mapeamento
+para Principal.
+
+## Modos de operação conceituais
+
+### End-user pairing
+
+Para pequeno ambiente privado: o Browser verifica a identidade, o usuário
+confirma e o restante do enrollment pode ser automatizado.
+
+### Server-admin approval
+
+O dispositivo aparece como pending; o administrador vê o contexto vinculado,
+decide **Autorizar** ou **Recusar** e poderá atribuir Principal/policy.
+
+### Enterprise enrollment
+
+Provisioning, PKI ou management externo podem realizar enrollment sem GUI
+interativa. Os detalhes permanecem futuros.
+
+Os modos podem usar frontends diferentes, mas devem convergir para o mesmo
+modelo de enrollment, trust, credencial, Principal e policy.
+
+## Estados conceituais
+
+Nomes úteis para raciocínio, sem congelar API ou wire:
+
+```text
+UNPAIRED
+PAIRING
+PENDING_APPROVAL
+AUTHORIZED
+REJECTED
+REVOKED / EXPIRED
+```
+
+Os nomes e transições finais podem mudar. Um cliente não pareado não recebe
+normal CONTROL Session, DATA attachment, capabilities ou network egress.
+Ausência, ambiguidade ou falha de verificação deve falhar fechada.
+
+`Recusar` encerra o pairing atual sem emitir credencial. Uma solicitação
+rejeitada não é reaprovada automaticamente. Rate limiting, expiry e resistência
+a replay devem respeitar o security profile. Blacklist, bloqueio permanente e
+retry policy exigem decisão posterior.
+
+## Estado atual
+
+Status geral: `concept`.
+
+### Resumo por área
+
+| Área | Estado | Observação |
+|---|---|---|
+| UX de pairing | concept | Sem GUI ou textos finais congelados |
+| First-use trust | concept | Requisitos governados pelo ADR-0006 |
+| Enrollment | not-implemented | Sem issuer ou fluxo operacional |
+| Device credential | not-implemented | Sem provisionamento ou armazenamento |
+| Principal/policy mapping | partial | Runtime AuthN/AuthZ existe; enrollment e storage não |
+| Reconexão mTLS | partial | Listener real e provisioning manual lab-only existem; pairing/enrollment e persistência não |
+| Enterprise enrollment | concept | Modelo e frontend futuros |
+| Wire/API | not-implemented | Nenhuma mensagem, ID, payload ou API definida |
+
+## Implementado
+
+- provisioning manual e descartável de PKI para laboratório, fora do checkout;
+- listener real aceita uma credencial previamente matriculada por fingerprint
+  através de uma Configuration Source lab-only.
+
+Esses itens são infraestrutura de validação e não implementam client
+pairing/enrollment.
+
+## Parcialmente implementado
+
+- reconexão mTLS é tecnicamente possível com credencial manualmente
+  provisionada, sem UX, emissão, armazenamento ou lifecycle de enrollment.
+
+## Não implementado
+
+- telas de cliente e administração;
+- discovery orientado a pairing;
+- verificação e binding do pairing context;
+- geração/invocação de enrollment request;
+- aprovação, recusa, emissão, armazenamento, renewal e revocation;
+- mapeamento de credencial para Principal/policy;
+- mensagens ou APIs de pairing;
+- integração com PST ou com a Phase 3.B.
+
+## Configuração
+
+Nenhuma opção de configuração de pairing/enrollment existe. A fonte lab-only
+do listener Secure Principal não é uma fonte de pairing. Fontes futuras
+devem convergir para o Configuration Model compartilhado e preservar policy e
+defaults fail-closed.
+
+## Compatibilidade
+
+Nenhum target, cliente ou frontend declara suporte implementado ou testado.
+PapinhoBrowser é o exemplo principal de UX, não o único cliente possível.
+
+## Limitações conhecidas
+
+- conceito sem implementação;
+- UX, wire, API, storage e operação do issuer indefinidos;
+- nenhum lifecycle concreto de retry, renewal ou revocation;
+- nenhuma integração enterprise definida.
+
+## Pendências
+
+- [ ] Definir threat model e ceremony operacional detalhados antes de implementar.
+- [ ] Definir ownership, lifetime e persistência dos registros públicos.
+- [ ] Definir issuer e fluxos end-user, admin e enterprise.
+- [ ] Definir vínculo verificável do contexto e resistência a relay/replay.
+- [ ] Definir rate limits, expiração e auditoria sem vazar material sensível.
+- [ ] Definir renewal, revocation, forget/unpair e retrust.
+- [ ] Definir wire/API somente em fase apropriada.
+- [ ] Implementar e validar antes de declarar suporte.
+
+## Ideias futuras
+
+- frontend simples que esconda terminologia de PKI do usuário comum;
+- automação enterprise por tooling de gestão externo;
+- atribuição de policy durante aprovação administrativa.
+
+Essas ideias não congelam UX, integração ou comportamento implementado.
+
+## Questões em aberto
+
+- Qual componente e autoridade operarão o issuer em cada deployment?
+- Como o canal independente de verificação será apresentado em cada frontend?
+- Como pedidos pendentes serão persistidos, expirados e auditados?
+- Como renewal, revocation e mudança de trust domain serão apresentados?
+- Quais operações administrativas serão separadas por policy?
+
+## ADRs relacionadas
+
+- `PapinhoAccelerator/ADR-0001` — Secure Principal e Legacy Endpoint.
+- `PapinhoAccelerator/ADR-0005` — capability, backend e autoridade de policy.
+- `PapinhoAccelerator/ADR-0006` — perfil de Transport Security, credenciais, first-use trust e pairing.
+- `PapinhoEngineering/ADR-0005` — governança da documentação viva de capabilities.
+
+## Código relevante
+
+Nenhum código implementa client pairing/enrollment atualmente.
+
+## Testes / evidências
+
+Não existem testes funcionais de pairing/enrollment. A busca no source tree e
+nos testes não encontrou implementação; o ADR-0006 e a documentação histórica
+fornecem somente a baseline arquitetural/conceitual.
+
+## Documentos relacionados
+
+- `docs/security-model.md`
+- `docs/phase3-transport-security-profile.md`
+- `docs/phase3-security-architecture.md`
+- `docs/architecture.md`
+- `docs/secure-principal-operation.md`
+
+## Histórico de mudanças
+
+| Data | Descrição |
+|---|---|
+| 2026-09-06 | Criação inicial do Capability Document para a experiência conceitual de client pairing/enrollment. |
+| 2026-09-29 | Registrado o provisioning manual lab-only e explicitado que ele não constitui pairing/enrollment. |
+| 2026-10-18 | Reconciliados modos permanentes/gates Phase6 e mecanismos Browser R1/root; pacote/enrollment/hot-update permanecem pendentes. |
+
+## Backend CA privado — diagnóstico de 2026-10-19
+
+O backend parcial `server_ca_key_win32` registra agora a primeira falha por
+função, etapa e origem LOCAL_GUARD/NATIVE_NCRYPT, preservando o código original
+e o ownership. A comparação sintética com a preimagem cobriu 19 cenários;
+Debug/Release focais passaram sem warnings. Isso não implementa enrollment,
+nem qualifica emissão nativa. A origem histórica de NTE_PERM e o estado da
+chave diagnóstica anterior continuam UNKNOWN. Nenhuma chave foi criada ou
+excluída nesta instrumentação. Ver [closeout focal](../integration/cng-failure-origin-instrumentation-20261019/closeout.md).
+As decisões posteriores de issuer/custódia e perfil técnico constam em
+[issuer e custódia](../adr/DECISION-internal-client-issuer-and-manual-custody-20261018.md)
+e [perfil técnico](../adr/DECISION-internal-ca-technical-profile-20261018.md);
+essas autoridades delimitam os trechos conceituais históricos acima.
+### Diagnóstico de chave somente-leitura — 2026-10-19
+
+O antigo `--native-key` foi removido do harness atual. O diagnóstico separado
+exige nome/IDs/SIDs explícitos e só abre/valida/fecha a chave; criação/setters
+ficam excluídos por compilação, sem exportação privada ou exclusão. Testes
+focais são sintéticos; nenhuma operação nativa de chave foi executada. A chave
+anterior permanece UNKNOWN. Ver [handoff de segurança/portabilidade](../integration/cng-diagnostic-safety-portability-20261019/safety-identity-portability-handoff.md).
+### Núcleo de issuer portável — 2026-10-19
+
+O núcleo comum privado passou a implementar estados, serial/reserva,
+idempotência, consulta, revogação/renovação e retenção com interfaces de backend
+substituíveis. Testes são offline/sintéticos, sem CA ou certificados reais.
+Persistência na root real, publicação live e backend CNG permanecem pendentes;
+isso não implementa pairing/enrollment nem libera admissão. Ver
+[contrato de integração](../integration/portable-issuer-core-20261019/implementation-and-root-handoff.md).
+### Persistência issuer na root canônica — 2026-10-19
+
+Codec privado e adapter dormente integrados à única root; serial, histórico e revogação com fixtures foram persistidos em arquivos nativos isolados. A composição produtiva nega publicação ROOT06 e assinatura sem CURRENT/EPOCH. Recuperação é somente observacional; emissão real, CNG e publicação live continuam pendentes. Ver [closeout](../integration/issuer-root-persistence-20261019/closeout.md) e [handoff](../integration/issuer-root-persistence-20261019/implementation-and-live-root-handoff.md). Admissão permanece DENY.
+
+### Lifetime de snapshots issuer — 2026-10-19
+
+Três gerações de dados issuer podem coexistir nos slots protegidos da única root. Tickets inválidos, slot esgotado e retenção negam reuso. O guard dormente da aplicação e a negação de publicação foram preservados: Sessions operacionais entre revisões ainda não comprovadas; recuperação autoritativa exige checkpoint/fencing. Ver [closeout parcial](../integration/issuer-live-root-recovery-20261019/closeout.md). Nenhuma emissão/admissão foi habilitada.
+
+### Persistência issuer pendente — 2026-10-19
+
+A mesma root possui agora um pacote de I/O e um worker Windows sem autoridade operacional. Begin/poll não esperam pela persistência; Stop preserva buffers e handles até conclusão factual. CAS conflitante ou incerto não publica CURRENT nem reutiliza autoridade antiga. O contrato comum de resultados não inclui Win32/CNG e compila em C estrito. Debug/Release e regressões offline passaram; publicação live/Session, recuperação autoritativa, CNG e box/ISA continuam pendentes. Admissão permanece DENY. Ver [prova e handoff](../integration/issuer-live-transaction-safety-20261019/safety-proof-and-handoff.md).
+
+### Session e publicação administrativa issuer — 2026-10-19
+
+A integração canônica vincula cada Session à revisão admitida por pin e mantém R/I/A/P distintos. A publicação de metadados issuer usa o worker pendente existente, confirma commit, revalida a projeção operacional e publica CURRENT/A sem alterar P em issuer-only. O reaper preserva quiescência e retenção. Debug/Release e 46 regressões offline passaram; metadados de Sessions nos testes são REVOKED sintéticos, sem autenticação ou tráfego real. Censo com ABI outbound correto: 1.790.912 bytes fixos; reserva base 1.957.939, attachment fechado 1.962.035. Recuperação autoritativa, CNG e credenciais reais continuam pendentes; admissão DENY, box/ISA não qualificadas. Os parágrafos anteriores registram slices históricos. Ver [prova, limites e handoff](../integration/issuer-session-live-publication-20261019/integration-proof-and-handoff.md).
+
+
+## Issuer checkpoint data assessment - 2026-10-19
+
+Portable validation now compares the existing version1 issuer image with a retained baseline: integrity, immutable origin, complete event prefix and revision/high-water regression. Debug/Release and48 offline invocations pass. This is data-only: complete durable CURRENT/A/P checkpoint linkage and authoritative latest-state/fencing remain pending; recovery DENY. No new owner/worker/storage/admission. See [scoped closeout](../integration/issuer-authoritative-checkpoint-fencing-20261019/closeout.md).
+
+
+## Same-root CURRENT/A/P checkpoint linkage - 2026-10-19
+
+The same root now persists an explicit version1 publication checkpoint after native issuer commit and CURRENT/A confirmation, preserving independently current P. Existing worker/CAS appends512 bytes to the same ROOT06 file; later issuer commits remove stale linkage. Native readback R2/R3/R4, high-water2, retained old pins and denied data-only recovery passed in Debug/Release,56/56offline invocations. Known managed1801204; checked combined1972291 with existing attachment, quota unchanged. Provider/kernel UNKNOWN; no authoritative recovery/fencing/signing/admission. See [closeout](../integration/issuer-same-root-checkpoint-linkage-20261019/closeout.md) and [CLI/recovery handoff](../integration/issuer-same-root-checkpoint-linkage-20261019/backup-fencing-and-cli-handoff.md).
+
+
+### Validação pública Windows do issuer — 2026-10-19
+
+O adaptador possui agora validação pública de CSR compatível com a porta verify_request, usando Crypt32 e scratch do caller, sem operações privadas CNG. O núcleo portável e os registros da mesma root não mudam. Não há registro produtivo do backend, construção completa CSR/X509 ou qualificação de assinatura/recuperação. Instanciar novo scratch na composição ALL excederia a margem; ativação DENY até prova ED11 de coexistência. Provider/kernel UNKNOWN; admissão fechada. Ver [prova e handoff](../integration/internal-ca-windows-backend-continuation-20261019/implementation-proof-and-handoff.md).
+
+
+### Preparação X509 e portas CNG do issuer — 2026-10-19
+
+O componente Windows prepara/verifica client/package X509 e integra portas do core com borrow no owner CNG existente (480 bytes). O backend não está ativado: autoridade factual, orçamento completo/Stop nativo e SERVER/ExpectedServerName permanecem gates. Contexto696+core216+key480+arena4096=5488 bytes novos se instanciados, além de inputs/outputs/CA/stack ainda sem censo completo. Base runtime2084039 inalterada; ED11 PARTIAL, provider/kernel UNKNOWN. Suítes Debug/Release passam com assinaturas positivas somente sintéticas, nenhuma operação privada nativa ou material real criado. Núcleo/codec portáveis e wire preservados; box/ISA/NT4 não qualificadas. Ver [prova e handoff](../integration/cng-signer-x509-completion-20261019/implementation-proof-and-handoff.md).
+
+
+### Perfil servidor X509 offline e readiness do issuer — 2026-10-19
+
+Preparação pública SERVER implementada com subject vazio, SAN DNS crítico explícito e serverAuth exclusivo; identidade candidata não é autoridade. Signer continua recusando SERVER e não foi ativado. Cliente/pacote preservados; seis suítes Debug/Release passam, com504 verificações do modelo e zero warnings de compilação. Nenhuma chave, CA, certificado real, assinatura privada, CURRENT ou rede. Base runtime2084039 inalterada; censo completo de ativação e origem administrativa do ExpectedServerName permanecem gates. Cenário ilustrativo com frames adicionais excederia o limite em44 bytes antes de CA/backing/nativo; não há autorização de reutilização da reserva de stack. ED11 PARTIAL, provider/kernel UNKNOWN, admissão e recuperação DENY; box/ISA/NT4 não qualificadas. Ver [prova e handoff focal](../integration/issuer-native-readiness-20261019/readiness-proof-and-handoff.md).
+
+
+### Fonte administrativa do nome TLS do servidor — 2026-10-19
+
+O contrato da fonte ExpectedServerName foi aceito como atributo público da configuração de segurança da mesma root, com associação explícita listener/security_ref/perfil TLS e issuer. É decisão normativa, sem implementação de fonte, hostname aprovado ou binding operacional. Layout persistente versionado, lifetime e ED11 continuam gates específicos; LST1/D3/BODY0.5/ROOT06 e fontes funcionais permanecem inalterados. Assinatura, CURRENT, recuperação e admissão continuam DENY. Ver [decisão delimitada](../adr/DECISION-server-tls-expected-name-source-20261019.md) e [conformidade](../integration/server-tls-name-source-acceptance-20261019/conformance-matrix.md).
+
+
+### Persistência da identidade TLS servidor — Revision2 accepted, 2026-10-20
+
+T0–T6 Revision2 foram aceitos como contrato byte-exato para PACROOT8/version2, SNT1 e CP2, com separação TLS/X509, aprovação da associação completa, coerência de security_ref compartilhado e predicado DNS explícito. É aceitação normativa apenas: codec/binding/source/carrier e censo de ativação continuam sem qualificação; carrier issuer UNSUPPORTED. Nenhum formato histórico ou código mudou. Assinatura, CURRENT, recuperação e admissão continuam DENY; ED11 PARTIAL/provider-kernel UNKNOWN, sem reserva aprovada. Ver [decisão delimitada](../adr/DECISION-server-tls-identity-persistence-revision2-20261020.md) e [conformidade](../integration/server-tls-persistence-revision2-acceptance-20261020/conformance-matrix.md).
+
+
+### ROOT8/version2, SNT1 e CP2 offline — 2026-10-20
+
+Codecs portáveis de dados implementados conforme T0–T6 Revision2; nove suítes Debug/Release passaram por configuração, zero warnings,41450 verificações do novo modelo. SHA/BODY05 usam adaptadores públicos nativos; carrier e história positiva são sintéticos. O carrier nativo permanece UNSUPPORTED; fonte CURRENT/pin/lifetime e binding X509 positivo não foram integrados. Preparador SERVER continua candidato offline, signer negado. Nenhum formato histórico, worker, root, autoridade ou wire foi substituído. Base runtime2084039 preservada; buffers máximos de prefixo+saída57888 ainda sem reserva, acima da margem contábil13113; ED11 total PARTIAL/provider-kernel UNKNOWN, ativação DENY. Sem rede, chave, certificado, assinatura privada ou publicação CURRENT. Box/ISA/NT4 não qualificadas. Ver [prova, censo e handoff delimitados](../integration/server-tls-persistence-x509-binding-20261020/implementation-proof-and-handoff.md).
+
+
+### Carrier issuer ROOT8/v2 — validação offline, 2026-10-20
+
+O owner existente agora inspeciona o carrier completo ROOT06 e um callback offline valida sua composição ROOT8/v2, identidade/I e continuidade de prefixo de eventos/high-water. Regresso de histórico e perda de revogação são negados; dados inspecionados retornam epoch/proofs0. Nove suítes Debug/Release passam por configuração,41500 verificações do modelo, zero warnings. Journal/CA/epochs positivos são fixtures, com SHA/BODY05 nativos; nenhuma autoridade CURRENT ou assinatura real foi exercitada. O callback histórico body-only permanece intacto. Worker/pacotes20496, slots e reservas não cresceram: ligação produtiva ainda DENY por capacidade, ED11 de ativação e source/pin/lifetime não comprovados. Base runtime2084039 inalterada; ED11 total PARTIAL/provider-kernel UNKNOWN. Sem rede, CA/chave/certificado real, CURRENT ou mudança wire. Núcleo portável e targets arquiteturais preservados; box/ISA/NT4 não qualificados. Ver [prova e gate delimitados](../integration/canonical-issuer-carrier-integration-20261020/carrier-proof-and-handoff.md).
+
+
+### Scratch de comparação do worker — 2026-10-20
+
+O worker existente agora compara integralmente CAS/read-back em blocos de512 bytes, substituindo observed20496 sem tocar committed/previous/next, snapshots, pins ou retenção. Economia compilada16384 bytes: composição conhecida2067655/2097152; margem contábil29497 não autoriza ativação. Cenário ROOT08/v2 completo ainda2142951, excesso45799, com demais custos de ativação desconhecidos; integração segue DENY. Debug/Release sem warnings, dez suítes e casos nativos D3/ROOT06/bootstrap passam, incluindo conflito no último bloco, Stop/UNKNOWN e snapshots pinned. Autoridade dos modelos/fixtures não é CURRENT operacional; sem rede, CA/chave/certificado real ou assinatura privada. ED11 total PARTIAL/provider-kernel UNKNOWN. Nenhum novo owner/worker/root ou formato foi criado. Ver [prova de lifetime e censo](../integration/root08-worker-storage-strategy-20261020/storage-lifetime-proof-and-handoff.md).
+
+
+### Perfil Windows ED11 3 MiB — 2026-10-20
+
+[W1–W6 accepted](../adr/DECISION-ed11-windows-3mib-process-profile-20261020.md) especializam somente o teto gerenciado por PROCESSO Windows do Accelerator explicitamente selecionado:3145728. Default/legacy/outros targets permanecem2097152; Browser e quotas individuais não mudam. CMake PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE=ON exige o candidato Windows API3/C8; inválidos rejeitam sem fallback. Guards usam uma constante privada única. Selected/Legacy Debug/Release e16 suítes por configuração passam; pressão de crédito/Stop/retenção são modelos, CAS/IO locais são nativos sobre fixtures. Censo conhecido2067655, cenário futuro ROOT08/issuer2142951; diferenças1078073/1002777 são aritméticas, não reservas nem qualificação. Estruturas/buffers não cresceram; worker atual20496 e binding CURRENT/pin/source ainda pendentes. ED11 total PARTIAL/provider-kernel UNKNOWN; CURRENT, assinatura, recuperação e admissão DENY. Pin0.6.4 e PST0.6.5 candidato preservados; box/ISA/NT4 não qualificados. Ver [prova e handoff](../integration/ed11-windows-3mib-profile-20261020/profile-proof-and-handoff.md).
+
+
+### Componentes criptográficos offline do pacote manual — 2026-10-20
+
+Adaptador OpenSSL3.5.8 isolado implementa PBKDF2-HMAC-SHA256/600000, ChaCha20-Poly1305 com quarentena, verificação RSA do domínio M2 e correspondência certificado/PKCS8v0. Debug/Release:1155 asserções criptográficas reais cada, KDF comparado ao BCrypt e vetor RFC AEAD;17 regressões offline passaram em Selected/Legacy Debug/Release. Assinatura de teste usa somente chave pública TEST ONLY upstream, sem delegação ou autoridade produtiva. Validador completo, geração, importação e CLI permanecem negados: binding independente do assinante/material, lifecycle e crédito ainda pendentes. Pico CRT observado1290354 inclui contexto global exclusivo da fixture; não é censo operacional. Cenário conservador com base3394201 excede3MiB antes dos buffers; ativação DENY até censo segregado e reserva qualificada, sem reduzir reservas/aumentar quotas. Runtime/formatos/CURRENT/PST/Browser/wire inalterados; ED11 total PARTIAL. Ver [prova e handoff](../integration/manual-package-crypto-completion-20261020/implementation-proof-and-browser-handoff.md).
+
+
+### Pipeline autenticado offline M1 — 2026-10-20
+
+Núcleo portável agora encadeia estrutura, assinatura, trust, KDF, AEAD, conteúdo e liberação controlada, com revalidação final de trust, quarentena e retenção factual. Adapter nativo verifica RSA, mas nega TRUST por fonte factual policy/issuer/atestação independente ainda não ligada; não há sucesso autenticado produtivo. Selected/Legacy Debug/Release: zero warnings, 139 verificações sintéticas e1163 criptográficas reais por configuração. Modelo isolado não concede autoridade. Runtime não foi ligado ao componente; composição conservadora não compartilhada3594733 excede3MiB antes de custos desconhecidos, portanto ativação ED11 permanece DENY. CURRENT, assinatura, recuperação e admissão continuam negados. Ver [closeout e handoff](../integration/manual-package-trust-authenticated-validation-20261020/closeout.md).
+
+
+### Persistência de delegação — codecs offline v3 — 2026-10-20
+
+PACROOT8/v3, PDG1 e CP3 agora possuem codecs DATA offline sob F1–F5/G0–G7 accepted. SNT/BODY/LST/issuer reutilizam rotinas existentes; representação APPROVED/REVOKED não concede confiança ou CURRENT. Selected/Legacy Debug/Release:14/14 suítes e43.934 asserções v3 de modelo por configuração, zero warnings;56 casos nativos históricos CAS/Stop/retenção passaram, sem qualificar commit v3. Worker permanece negado e sem ampliação de buffers: máximo v330592 excede imagem selecionada28960, com CURRENT/fontes/lifetime e reserva de ativação ainda pendentes. M1 e Browser não foram alterados. Perfil completo do signer requer adapter factual próprio; provider/kernel UNKNOWN e ED11 total PARTIAL. Ver [prova/closeout](../integration/package-delegation-persistence-implementation-20261020/closeout.md) e handoff Browser separado.
+
+
+### Consumo PDG1 no M1 offline — 2026-10-20
+
+O pipeline M1 consome a seleção DATA PDG1 após validação integral PACROOT8/v3, correlacionando pacote e SPKI e rejeitando delegação/issuer divergentes ou revogados. Mesmo uma correspondência completa mantém SOURCE_ABSENT antes do KDF: CURRENT, pins factuais e confirmação independente continuam sem fonte ligada. Não há trust positivo produtivo. Selected/Legacy Debug/Release:2/2 suítes de pacote,146 asserções de controle sintético e1189 criptográficas reais por configuração;14/14 regressões root/issuer/ED11 por configuração. Fixtures administrativas não são provas nativas de autoridade. Operação776,input128,contexto PDG72 e imagem máxima30592 bytes; cenário conservador não compartilhado3625925 excede3MiB e nega ativação, sem alterar quotas. Worker/runtime/CLI e formatos históricos inalterados; Browser não precisa conhecer a root interna. Ver [closeout](../integration/pdg1-m1-trust-consumption-20261020/closeout.md), [lifetime/ED11](../integration/pdg1-m1-trust-consumption-20261020/consumption-proof-and-ed11.md) e [handoff Browser](../integration/pdg1-m1-trust-consumption-20261020/browser-import-handoff.md).
+
+
+### Prontidão de enrollment automático — 2026-10-20
+
+Reconciliação confirma que ADR-0006/provisioning18/10 definem obrigações, mas não selecionam transporte pré-credencial ou parâmetros do código. Owner confirmou ausência de contrato concreto adicional e autorizou uma única proposta focal P0–P9, ainda PROPOSED. Não há novo fluxo ou fonte funcional aplicada; automático DENY. CSR público/issuer/Stop/retenção/ED11 existentes passaram12/12 suítes em Selected/Legacy Debug/Release incremental, sem warnings; código/replay/OPEN-CLOSED/approval de enrollment não foram executados por ausência de implementação. Chave automática continua exclusivamente no cliente, CSR somente após pareamento verificado/autorizado. Secure Principal mTLS não foi relaxado; sem wire/listener/protocolo novo. Delta de buffers runtime0, orçamento completo de enrollment UNKNOWN/provider-kernel UNKNOWN; ED11 PARTIAL. Ver [proposta focal](../integration/automatic-enrollment-readiness-20261020/PAIRING-CODE-CONTRACT-PROPOSED.md), [conformidade](../integration/automatic-enrollment-readiness-20261020/conformance-and-readiness.md) e [closeout](../integration/automatic-enrollment-readiness-20261020/closeout.md). Próximo: revisão exata do código; transporte continua gate separado.
+
+
+### Revisão código e transporte inicial — 2026-10-20
+
+P0–P9 continua PROPOSED: falta fechar cerimônia de entrega/submissão, claim único antes da aprovação e continuidade factual até o CSR posterior. PST oferece mecanismos server-auth, mas o Secure Principal continua mTLS; Site TLS/C2/egress não são transporte inicial. Preparada complementação T0–T7 PROPOSED, sem porta/ALPN/mensagem nova, perfil aplicado ou autoridade aceita. Primeiro contato exige confirmação independente, CA privada pública aprovada e verificação de servidor/nome; código não autentica servidor. Discriminação do propósito de enrollment e limites pré-handshake continuam gates de implementação. Sem código/build/teste/rede, ED11 total PARTIAL e todas as admissões DENY. Ver [revisão exata](../integration/pairing-code-transport-review-20261020/exact-review.md), [complementação candidata](../integration/pairing-code-transport-review-20261020/INITIAL-TRANSPORT-COMPLEMENT-PROPOSED.md) e [closeout](../integration/pairing-code-transport-review-20261020/closeout.md).
+
+
+### Listener separado de enrollment — 2026-10-20
+
+Decisão explícita do owner registrada em [L0–L5](../adr/DECISION-enrollment-listener-adr0009-specialization-20261020.md): listener ENROLLMENT separado e imutável antes da publicação, mesma coleção/root, sem multiplexar mTLS operacional. P0–P9 permanece PROPOSED. [T2/T6 Revision2](../integration/enrollment-listener-specialization-20261020/COMPLEMENT-REVISION2-PROPOSED.md) completa como PROPOSED ALPN papacc-enroll/1, framing PAE1/1.0, mensagens/estados e limites pré-código. Nenhum protocolo foi implementado ou wire operacional alterado. Limite de umaCONFIRM nesse perfil é restrição candidata explícita do tetoP4, não aceita por inferência. ED11 subteto candidato262144 não é reserva; Windows apenas passa soma conhecida, Legacy mantém DENY para o adicional hipotético; provider/kernel UNKNOWN. Codec/modelo ainda não comportam novo propósito sem extensão versionada aceita, e runtime singular não pode truncar coleção. Sem código/build/testes/rede, CURRENT/assinatura/admissão DENY. Ver [conformidade e ED11](../integration/enrollment-listener-specialization-20261020/conformance-security-and-ed11.md), [handoff](../integration/enrollment-listener-specialization-20261020/implementation-handoff.md) e [closeout](../integration/enrollment-listener-specialization-20261020/closeout.md).
+
+
+### Pareamento e transporte inicial — contratos accepted — 2026-10-20
+
+[P0–P9 e T0–T7 Revision 2](../adr/DECISION-pairing-enrollment-transport-20261020.md) registrados ACCEPTED, após revisão exata e aprovação oficial. O registro incorpora intervalos byte-exatos, preserva propostas originais e delimita precedência: listener separado L0–L5, ALPN papacc-enroll/1 e PAE1/v1.0 exclusivos de enrollment; uma CONFIRM restringe o teto geral de cinco; claim inicial, aprovação e consumo posterior são distintos. Operacional mantém TLS 1.3/mTLS/papacc/1. Contrato normativo não é código, reserva ED11 ou qualificação: implementação, CURRENT, emissão, recuperação e admissão continuam negados. Modelo/codec versionados para o novo propósito, runtime de coleção, fontes factuais, provider CLOSED e medição de targets permanecem gates. Nenhum build, teste ou rede foi executado; produção 0.6.4, Browser, PST e wire operacional inalterados. Ver [conformidade](../integration/pairing-enrollment-transport-acceptance-20261020/conformance-matrix.md), [handoff](../integration/pairing-enrollment-transport-acceptance-20261020/implementation-gates-and-handoff.md) e [closeout](../integration/pairing-enrollment-transport-acceptance-20261020/closeout.md).
+
+
+### Implementação parcial offline de enrollment — 2026-10-20
+
+Bibliotecas privadas opt-in implementam projeção do perfil PST ENROLLMENT, framing PAE1, trace de dados, CSPRNG Windows para código de 50 bits, claim único local e limiter pré-TLS. Não estão ligadas ao servidor nem registram listener. APPROVED/claim não constituem autorização ou emissão; operacional mantém mTLS/papacc/1. Selected/Legacy Debug/Release passaram 10/10 suítes por configuração, zero warnings; prova nativa nova limitada ao RNG. Permanecem gates de propósito persistente, owner/runtime de coleção, fontes factuais, provider CLOSED, limites globais P4 e deadlines nativos. Delta fixo no servidor zero, pico de ativação UNKNOWN; ED11 PARTIAL. CURRENT/assinatura/admissão DENY. Ver [closeout](../integration/automatic-enrollment-listener-pairing-20261020/closeout.md) e [prova/handoff](../integration/automatic-enrollment-listener-pairing-20261020/implementation-proof-and-browser-handoff.md).
+
+
+### Núcleo estrutural compartilhado — primeira extração — 2026-10-20
+
+Sob S0–S8 accepted, src/provisioning/shared_structure implementa API C89 DATA para M2/M3/ZIP/TLV/campos e normalização, sem KDF/AEAD/trust/root/provider/UI. Independente de papacc_protocol; não ligado aos consumidores produtivos. Debug/Release moderno:19.815 checks diferenciais entre leitores Accelerator/Browser/core e2.077 regressões originais por configuração. VC6 real /Za /WX Debug/Release:15.681 checks Browser/core por configuração; zero warnings finais. Erros/outputs distintos dos callers estão documentados, não ocultos como equivalência integral. Browser permanece inalterado, migração não autorizada; NT4 nativo não qualificado. Delta fixo runtime0, stack transitivo/ativação não medidos, ED11PARTIAL sem quotas. Nome público/release/snapshot ingerido pendentes. Ver [closeout](../integration/shared-provisioning-api-migration-20261020/closeout.md) e [prova/handoff](../integration/shared-provisioning-api-migration-20261020/extraction-and-equivalence-proof.md).
+
+
+### Boundary compartilhada de crypto/trust — 2026-10-21
+
+Suite DATA C89 e plano do domínio assinado no módulo complementar; adapter EVP offline passa a consumir normalização/plano/constante KDF comuns. Backends criptográficos permanecem específicos e Browser funcional não mudou. Builds finais moderno/VC6 Debug/Release sem warnings:1611 checks DATA cada,146 controle+1189 crypto por Selected/Legacy/configuração e940 do oracle Browser por configuração. M1 compartilhado e API factual de evidências ainda pendem de extração/revisão S3/F5; pipeline existente continua SOURCE_ABSENT antes KDF. Não há trust/CURRENT/install positivo ou economia ED11 presumida, ativação DENY e totalPARTIAL. Ver [closeout parcial e gates](../integration/shared-crypto-trust-boundary-20261021/closeout.md). Propostas futuras existentes não foram alteradas porque este slice não congela wire, rede, jobs ou capabilities novas.
+
+
+### Máquina M1 compartilhada — 2026-10-21
+
+Controle de sequência/primeiroerro/Stop/retenção extraído para shared_structure/m1.c C89 e consumido pelo adapter offline canônico. Native trust permanece SOURCE_ABSENT antes KDF; API factual E0–E8 PROPOSED, sem implementação dependente. Oito builds finais VC6/MSVC/Selected/Legacy Debug/Release sem warnings;204 controles compartilhados/configuração,146 controles+1189 crypto/configuração de integração. Op x64 +16bytes e RO nomeado+68, sem buffers secretos novos/reservas/economia presumida; ativação DENY/ED11PARTIAL. Browser/PST/wire/produção intactos, nenhuma fixture rejeitada retomada. Ver [closeout/proposta/handoff](../integration/shared-m1-factual-evidence-20261021/closeout.md). Future docs existentes não são alterados porque não houve decisão de wire/jobs/rede/egress nesta extração.
+
+
+### Evidências factuais E0–E8 — lifecycle normativo reconciliado — 2026-10-21
+
+[Contrato E0–E8 corrigido](../adr/DECISION-factual-evidence-e0-e8-lifecycle-20261021.md) accepted normativo: acquire somente ligação síncrona de grafo já adquirido/protegido, nunca RETAINED; preparação anterior incerta permanece sob consulta/retenção do owner original. INVALID de release não executa tentativa nem libera borrow/ownership, e query inválida conserva a disposição anterior. API/fábricas/fontes factuais e migração Browser NÃO implementadas/autorizadas por esta aceitação; M1 offline existente e TRUST DENY preservados. Sem código/build/teste/rede ou reserva ED11/quotas novas. [Conformidade, hashes e handoff](../integration/factual-evidence-lifecycle-acceptance2-20261021/closeout.md).
+
+
+### Interface factual compartilhada — slice negativo — 2026-10-21
+
+E0–E8 corrigido accepted agora possui header C89 opaco e binding fixo SOURCE_ABSENT, consumido pelo TRUST do adapter M1 offline. Acquire nega sem efeitos/output; release/query INVALID não executam tentativa nem liberam ownership. Não existem produtores/tipos concretos/leases positivos: E8 mantém implementação dependente DENY. Dados PDG e controles sintéticos não são autoridade. VC6/MSVC Debug/Release e integração Selected/Legacy passaram sem warnings (5452 asserções offline). Censo operacional completo permanece desconhecido e cenário conservador anterior excede3MiB; sem ativação, aumento de quota ou economia presumida. Browser não migrado; todos gates de instalação/enrollment/CURRENT/assinatura/recuperação/admissão continuam DENY. [Prova, limites, testes e hashes](../integration/shared-factual-evidence-api-20261021/closeout.md).
+
+
+### Fonte factual D3 — auditoria de implementação — 2026-10-21
+
+A auditoria das funções canônicas confirmou fontes parciais DATA/issuer/pins, mas nenhum grafo completo CURRENT/policy-delegation-v3/signer capaz de produzir observação E0–E8. O adapter nativo rejeita kind8, issuer_root_port_read deixa proofs deliberadamente ausentes e PDG1 decodificado permanece DATA. Nenhum patch funcional ou novo shim aplicado; binding positivo DENY por F2/E8. MSVC Debug/Release:14 suítes root/issuer/ED11 +1 negativa compartilhada por configuração e8 casos nativos históricos passam, sem confiança factual positiva. Browser permanece consumidor do snapshot negativo, intacto. Sem quotas/reservas, CURRENT, assinatura, instalação ou admissão; ED11 PARTIAL/provider-kernel UNKNOWN. [Prova, dependências, testes e handoff](../integration/factual-d3-evidence-source-20261021/closeout.md).

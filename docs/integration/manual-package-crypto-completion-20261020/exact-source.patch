@@ -1,0 +1,347 @@
+--- /dev/null
++++ src/provisioning/manual_package_crypto.h
+@@ -0,0 +1,34 @@
++#ifndef PAPACC_MANUAL_PACKAGE_CRYPTO_H
++#define PAPACC_MANUAL_PACKAGE_CRYPTO_H
++#include "manual_package.h"
++/* OFFLINE ONLY: crypto success is not trust, X509 validity, RESOLVED or CURRENT.
++ * Caller serializes each operation; all buffers are disjoint and immutable
++ * inputs remain owned until return. Stop callback may observe a synchronized
++ * flag, never frees/reenters. PBKDF2 is synchronous and not interruptible inside
++ * the provider: never call on an owner Stop path. No production linkage.
++ * Provider allocations are opaque/unqualified; runtime activation is denied. */
++typedef struct MP_CRYPTO MP_CRYPTO;
++typedef int (*MP_CANCEL)(void *);
++#define MP_CRYPTO_ONLY 2
++MP_CRYPTO *mp_crypto_open(void);
++void mp_crypto_close(MP_CRYPTO *);
++int mp_password_normalize(const unsigned char *,size_t,unsigned char [32]);
++int mp_crypto_derive(MP_CRYPTO *,const unsigned char *,size_t,
++ const unsigned char *,size_t,unsigned char [32],MP_CANCEL,void *);
++int mp_crypto_seal(MP_CRYPTO *,const unsigned char [32],const unsigned char *,size_t,
++ const unsigned char *,size_t,const unsigned char *,size_t,
++ unsigned char *,size_t,unsigned char [16]);
++/* quarantine is private caller workspace; it MUST NOT be observed concurrently.
++ * No plaintext output is written until final tag verification succeeds.
++ * quarantine is wiped on every exit after accepted argument validation. */
++int mp_crypto_unseal(MP_CRYPTO *,const unsigned char [32],const unsigned char *,size_t,
++ const unsigned char *,size_t,const unsigned char *,size_t,const unsigned char *,size_t,
++ unsigned char *,size_t,unsigned char *,size_t,size_t *,MP_CANCEL,void *);
++/* approved_spki must come from independent approved signer trust, not the
++ * package. This verifies the exact M1 signed domain, never establishes trust. */
++int mp_crypto_verify_package(MP_CRYPTO *,const unsigned char *,size_t,
++ const unsigned char *,size_t);
++/* Correspondence only, NOT certificate profile/chain/validity authorization. */
++int mp_crypto_key_match(MP_CRYPTO *,const unsigned char *,size_t,
++ const unsigned char *,size_t);
++#endif
+--- /dev/null
++++ src/provisioning/manual_package_crypto_openssl.c
+@@ -0,0 +1,139 @@
++#include "manual_package_crypto.h"
++#include <string.h>
++#include <stdint.h>
++#include <limits.h>
++#include <openssl/evp.h>
++#include <openssl/kdf.h>
++#include <openssl/core_names.h>
++#include <openssl/params.h>
++#include <openssl/provider.h>
++#include <openssl/crypto.h>
++#include <openssl/x509.h>
++#include <openssl/rsa.h>
++#include <openssl/bn.h>
++struct MP_CRYPTO { OSSL_LIB_CTX *lib; OSSL_PROVIDER *provider; };
++static int cancelled(MP_CANCEL f,void *u){return f && f(u);}
++static int overlap(const void *a,size_t n,const void *b,size_t m){
++ uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;
++ if(!n||!m)return 0;
++ if(x>UINTPTR_MAX-n||y>UINTPTR_MAX-m)return 1;
++ return x<y+m&&y<x+n;
++}
++MP_CRYPTO *mp_crypto_open(void){
++ MP_CRYPTO *c;
++ if(OpenSSL_version_num()!=0x30500080UL)return NULL;
++ c=OPENSSL_zalloc(sizeof(*c));if(!c)return NULL;
++ c->lib=OSSL_LIB_CTX_new();
++ if(c->lib)c->provider=OSSL_PROVIDER_load(c->lib,"default");
++ if(!c->provider){mp_crypto_close(c);return NULL;}return c;
++}
++void mp_crypto_close(MP_CRYPTO *c){if(c){OSSL_PROVIDER_unload(c->provider);
++ OSSL_LIB_CTX_free(c->lib);OPENSSL_clear_free(c,sizeof(*c));}}
++int mp_password_normalize(const unsigned char *p,size_t n,unsigned char out[32]){
++ unsigned char tmp[32];size_t i,j=0;int ok=1;
++ if(!p||!out||n>128||overlap(p,n,out,32))return MP_INVALID;
++ memset(tmp,0,sizeof(tmp));
++ for(i=0;i<n;i++){unsigned char v=p[i];if(v==' '||v=='-')continue;
++ if(v>='a'&&v<='z')v=(unsigned char)(v-'a'+'A');
++ if(!((v>='A'&&v<='Z')||(v>='2'&&v<='7'))||j>=32){ok=0;break;}tmp[j++]=v;}
++ if(j!=32)ok=0;if(ok)memcpy(out,tmp,32);else OPENSSL_cleanse(out,32);
++ OPENSSL_cleanse(tmp,sizeof(tmp));return ok?MP_CRYPTO_ONLY:MP_INVALID;
++}
++int mp_crypto_derive(MP_CRYPTO *c,const unsigned char *p,size_t pn,
++ const unsigned char *s,size_t sn,unsigned char out[32],MP_CANCEL stop,void *u){
++ EVP_KDF *k=NULL;EVP_KDF_CTX *x=NULL;OSSL_PARAM a[6];
++ unsigned char pw[32],key[32];unsigned int iterations=600000;int ok=0,pkcs5=0;
++ if(!c||!p||!s||!out||sn!=16||overlap(out,32,p,pn)||overlap(out,32,s,sn))return MP_INVALID;
++ memset(pw,0,32);memset(key,0,32);OPENSSL_cleanse(out,32);
++ if(cancelled(stop,u)){ok=MP_STOPPED;goto done;}
++ if(mp_password_normalize(p,pn,pw)!=MP_CRYPTO_ONLY){ok=MP_INVALID;goto done;}
++ k=EVP_KDF_fetch(c->lib,"PBKDF2","provider=default");if(!k)goto done;
++ x=EVP_KDF_CTX_new(k);if(!x)goto done;
++ a[0]=OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_PASSWORD,pw,32);
++ a[1]=OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,(void *)s,16);
++ a[2]=OSSL_PARAM_construct_uint(OSSL_KDF_PARAM_ITER,&iterations);
++ a[3]=OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,"SHA256",0);
++ a[4]=OSSL_PARAM_construct_int(OSSL_KDF_PARAM_PKCS5,&pkcs5);a[5]=OSSL_PARAM_construct_end();
++ if(EVP_KDF_derive(x,key,32,a)!=1)goto done;
++ if(cancelled(stop,u)){ok=MP_STOPPED;goto done;}
++ memcpy(out,key,32);ok=MP_CRYPTO_ONLY;
++ done:OPENSSL_cleanse(pw,32);OPENSSL_cleanse(key,32);
++ EVP_KDF_CTX_free(x);EVP_KDF_free(k);return ok?ok:MP_CRYPTO_UNAVAILABLE;
++}
++int mp_crypto_seal(MP_CRYPTO *c,const unsigned char key[32],const unsigned char *nonce,size_t nn,
++ const unsigned char *aad,size_t an,const unsigned char *plain,size_t pn,
++ unsigned char *out,size_t cap,unsigned char tag[16]){
++ EVP_CIPHER *alg=NULL;EVP_CIPHER_CTX *x=NULL;int n=0,t=0,ok=0;
++ if(!c||!key||!nonce||nn!=12||!aad||an>1116||!plain||!pn||pn>65536||!out||cap<pn||!tag||
++ overlap(out,pn,plain,pn)||overlap(out,pn,key,32)||overlap(out,pn,nonce,nn)||
++ overlap(out,pn,aad,an)||overlap(out,pn,tag,16)||overlap(tag,16,key,32)||
++ overlap(tag,16,plain,pn)||overlap(tag,16,nonce,nn)||overlap(tag,16,aad,an))return MP_INVALID;
++ alg=EVP_CIPHER_fetch(c->lib,"CHACHA20-POLY1305","provider=default");x=EVP_CIPHER_CTX_new();
++ if(!alg||!x)goto done;
++ if(EVP_EncryptInit_ex2(x,alg,key,nonce,NULL)!=1||EVP_EncryptUpdate(x,NULL,&n,aad,(int)an)!=1||
++ EVP_EncryptUpdate(x,out,&n,plain,(int)pn)!=1||n!=(int)pn||
++ EVP_EncryptFinal_ex(x,out+n,&t)!=1||t!=0||
++ EVP_CIPHER_CTX_ctrl(x,EVP_CTRL_AEAD_GET_TAG,16,tag)!=1)goto done;ok=1;
++ done:if(!ok){OPENSSL_cleanse(out,pn);OPENSSL_cleanse(tag,16);}
++ EVP_CIPHER_CTX_free(x);EVP_CIPHER_free(alg);return ok?MP_CRYPTO_ONLY:MP_CRYPTO_UNAVAILABLE;
++}
++int mp_crypto_unseal(MP_CRYPTO *c,const unsigned char key[32],const unsigned char *nonce,size_t nn,
++ const unsigned char *aad,size_t an,const unsigned char *cipher,size_t cn,const unsigned char *tag,size_t tn,
++ unsigned char *q,size_t qc,unsigned char *out,size_t oc,size_t *used,MP_CANCEL stop,void *u){
++ EVP_CIPHER *alg=NULL;EVP_CIPHER_CTX *x=NULL;int n=0,t=0,ok=MP_INVALID;
++ if(!c||!key||!nonce||nn!=12||!aad||an>1116||!cipher||!cn||cn>65536||!tag||tn!=16||
++ !q||qc<cn||!out||oc<cn||!used||overlap(q,cn,out,cn)||
++ overlap(q,cn,key,32)||overlap(q,cn,nonce,nn)||overlap(q,cn,aad,an)||overlap(q,cn,cipher,cn)||overlap(q,cn,tag,tn)||
++ overlap(out,cn,key,32)||overlap(out,cn,nonce,nn)||overlap(out,cn,aad,an)||overlap(out,cn,cipher,cn)||overlap(out,cn,tag,tn)||
++ overlap(used,sizeof(*used),out,cn)||overlap(used,sizeof(*used),q,cn)||
++ overlap(used,sizeof(*used),key,32)||overlap(used,sizeof(*used),cipher,cn)||
++ overlap(used,sizeof(*used),nonce,nn)||overlap(used,sizeof(*used),aad,an)||overlap(used,sizeof(*used),tag,tn))return MP_INVALID;
++ *used=0;if(cancelled(stop,u)){ok=MP_STOPPED;goto done;}
++ alg=EVP_CIPHER_fetch(c->lib,"CHACHA20-POLY1305","provider=default");x=EVP_CIPHER_CTX_new();
++ if(!alg||!x){ok=MP_CRYPTO_UNAVAILABLE;goto done;}
++ if(EVP_DecryptInit_ex2(x,alg,key,nonce,NULL)!=1||EVP_DecryptUpdate(x,NULL,&n,aad,(int)an)!=1||
++ EVP_DecryptUpdate(x,q,&n,cipher,(int)cn)!=1||n!=(int)cn||
++ EVP_CIPHER_CTX_ctrl(x,EVP_CTRL_AEAD_SET_TAG,16,(void *)tag)!=1||
++ EVP_DecryptFinal_ex(x,q+n,&t)!=1||t!=0)goto done;
++ if(cancelled(stop,u)){ok=MP_STOPPED;goto done;}
++ memcpy(out,q,cn);*used=cn;ok=MP_CRYPTO_ONLY;
++ done:OPENSSL_cleanse(q,cn);EVP_CIPHER_CTX_free(x);EVP_CIPHER_free(alg);return ok;
++}
++static int rsa_profile(EVP_PKEY *p){BIGNUM *e=NULL;int ok;
++ if(!p||!EVP_PKEY_is_a(p,"RSA")||EVP_PKEY_get_bits(p)!=2048)return 0;
++ ok=EVP_PKEY_get_bn_param(p,OSSL_PKEY_PARAM_RSA_E,&e)==1&&BN_is_word(e,65537);
++ BN_free(e);return ok;
++}
++int mp_crypto_verify_package(MP_CRYPTO *c,const unsigned char *raw,size_t rn,
++ const unsigned char *approved,size_t sn){
++ MP_ENVELOPE env;const unsigned char *p;EVP_PKEY *key=NULL;EVP_MD_CTX *md=NULL;
++ EVP_PKEY_CTX *pc=NULL;unsigned char digest[32];size_t dn=0;int ok=0;
++ static const unsigned char domain[]="PAPACC-COMPLETE-MANUAL-V2";
++ if(!c||!approved||!sn||sn>1024||mp_envelope_inspect(raw,rn,&env,0)!=MP_DATA_ONLY)return MP_INVALID;
++ if(env.spki.size!=sn||CRYPTO_memcmp(approved,env.spki.data,sn))return MP_INVALID;
++ if(EVP_Q_digest(c->lib,"SHA256","provider=default",approved,sn,digest,&dn)!=1||dn!=32||
++ CRYPTO_memcmp(digest,raw+56,32))return MP_INVALID;
++ p=approved;key=d2i_PUBKEY_ex(NULL,&p,(long)sn,c->lib,"provider=default");
++ if(!key||p!=approved+sn||!rsa_profile(key))goto done;
++ md=EVP_MD_CTX_new();if(!md)goto done;
++ if(EVP_DigestVerifyInit_ex(md,&pc,"SHA256",c->lib,"provider=default",key,NULL)!=1||
++ EVP_PKEY_CTX_set_rsa_padding(pc,RSA_PKCS1_PADDING)<=0||
++ EVP_DigestVerifyUpdate(md,domain,sizeof(domain))!=1||
++ EVP_DigestVerifyUpdate(md,raw,rn-256)!=1)goto done;
++ ok=EVP_DigestVerifyFinal(md,env.signature.data,env.signature.size)==1;
++ done:EVP_MD_CTX_free(md);EVP_PKEY_free(key);return ok?MP_CRYPTO_ONLY:MP_INVALID;
++}
++int mp_crypto_key_match(MP_CRYPTO *c,const unsigned char *cert,size_t cn,
++ const unsigned char *private_der,size_t pn){
++ const unsigned char *a=cert,*b=private_der;X509 *x=NULL;PKCS8_PRIV_KEY_INFO *info=NULL;
++ EVP_PKEY *pub=NULL,*key=NULL;int ok=0;
++ if(!c||!cert||!cn||cn>16384||!private_der||!pn||pn>8192)return MP_INVALID;
++ x=X509_new_ex(c->lib,"provider=default");if(!x)goto done;
++ if(!d2i_X509(&x,&a,(long)cn)||a!=cert+cn)goto done;
++ info=d2i_PKCS8_PRIV_KEY_INFO(NULL,&b,(long)pn);if(!info||b!=private_der+pn)goto done;
++ key=EVP_PKCS82PKEY_ex(info,c->lib,"provider=default");pub=X509_get_pubkey(x);
++ if(!rsa_profile(key)||!rsa_profile(pub))goto done;
++ ok=EVP_PKEY_eq(pub,key)==1;
++ done:EVP_PKEY_free(pub);EVP_PKEY_free(key);PKCS8_PRIV_KEY_INFO_free(info);X509_free(x);
++ return ok?MP_CRYPTO_ONLY:MP_INVALID;
++}
+--- /dev/null
++++ tests/manual_package_crypto_test.c
+@@ -0,0 +1,97 @@
++#include "manual_package_crypto.h"
++#include <stdio.h>
++#include <string.h>
++#include <stdlib.h>
++#include <openssl/evp.h>
++#include <openssl/pem.h>
++#include <openssl/rsa.h>
++#include <openssl/crypto.h>
++static int checks=0;
++#define CHECK(x) do{checks++;if(!(x)){fprintf(stderr,"failure line %d\n",__LINE__);return 1;}}while(0)
++static int hex(const char *s,unsigned char *out){unsigned int v;int n=0;
++ while(*s){if(sscanf(s,"%2x",&v)!=1)return 0;out[n++]=(unsigned char)v;s+=2;}return n;}
++static int stop(void *u){int *n=(int *)u;return --*n<=0;}
++static void be32(unsigned char *p,size_t n){p[0]=(unsigned char)(n>>24);p[1]=(unsigned char)(n>>16);p[2]=(unsigned char)(n>>8);p[3]=(unsigned char)n;}
++static size_t fixture(const char *path,unsigned char *out,size_t cap){
++ FILE *f=fopen(path,"rb");char b[24000];size_t n,i,j=0;int decoded,pad=0;
++ if(!f)return 0;n=fread(b,1,sizeof(b),f);fclose(f);
++ for(i=0;i<n;i++)if(b[i]!='\r'&&b[i]!='\n'&&b[i]!=' ')b[j++]=b[i];
++ if(j<4||j%4||j/4*3>cap)return 0;
++ if(b[j-1]=='=')pad++;if(b[j-2]=='=')pad++;
++ decoded=EVP_DecodeBlock(out,(const unsigned char *)b,(int)j);
++ return decoded>=pad?(size_t)(decoded-pad):0;
++}
++int main(int argc,char **argv){
++ MP_CRYPTO *c;unsigned char key[32],expected[256],salt[16],nonce[12],aad[12];
++ unsigned char cipher[256],tag[16],q[256],out[256],pw[32],wrong[32];
++ const unsigned char plain[]="Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
++ size_t n=sizeof(plain)-1,used=9,i;int count;
++ unsigned char cert[16384],private_der[8192],other[8192];size_t cn,pn,on;
++ FILE *f;EVP_PKEY *signer;EVP_MD_CTX *md;EVP_PKEY_CTX *pc=NULL;
++ unsigned char spki[1024],*sp=spki,raw[2048],header[92],signature[256],hash[32];
++ size_t sn,siglen=256,hn=0,rn=0;MP_ENVELOPE env;
++ static const unsigned char domain[]="PAPACC-COMPLETE-MANUAL-V2";
++ CHECK(argc==5);c=mp_crypto_open();CHECK(c!=NULL);
++ memset(pw,'A',32);for(i=0;i<16;i++)salt[i]=(unsigned char)i;
++ CHECK(mp_crypto_derive(c,pw,32,salt,16,key,NULL,NULL)==MP_CRYPTO_ONLY);
++ CHECK(hex("cd9ead6a37c37227e0f1f521cfcb321504eaab5dc335824da45c2bb8f264a92e",expected)==32);
++ CHECK(!memcmp(key,expected,32));
++ CHECK(mp_crypto_derive(c,pw,32,salt,15,key,NULL,NULL)==MP_INVALID);
++ count=1;CHECK(mp_crypto_derive(c,pw,32,salt,16,key,stop,&count)==MP_STOPPED);
++ for(i=0;i<32;i++)CHECK(key[i]==0);
++ count=2;CHECK(mp_crypto_derive(c,pw,32,salt,16,key,stop,&count)==MP_STOPPED);
++ for(i=0;i<32;i++)CHECK(key[i]==0);
++ CHECK(mp_password_normalize((const unsigned char *)"aaaa-aaaa aaaa-aaaa aaaa-aaaa aaaa-aaaa",39,wrong)==MP_CRYPTO_ONLY);
++ CHECK(!memcmp(pw,wrong,32));wrong[0]='0';CHECK(mp_password_normalize(wrong,32,pw)==MP_INVALID);
++ hex("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f",key);
++ hex("070000004041424344454647",nonce);hex("50515253c0c1c2c3c4c5c6c7",aad);
++ CHECK(mp_crypto_seal(c,key,nonce,12,aad,12,plain,n,cipher,sizeof(cipher),tag)==MP_CRYPTO_ONLY);
++ CHECK(hex("d31a8d34648e60db7b86afbc53ef7ec2a4aded51296e08fea9e2b5a736ee62d63dbea45e8ca9671282fafb69da92728b1a71de0a9e060b2905d6a5b67ecd3b3692ddbd7f2d778b8c9803aee328091b58fab324e4fad675945585808b4831d7bc3ff4def08e4b7a9de576d26586cec64b6116",expected)==(int)n);
++ CHECK(!memcmp(cipher,expected,n));hex("1ae10b594f09e26a7e902ecbd0600691",expected);CHECK(!memcmp(tag,expected,16));
++ CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),out,sizeof(out),&used,NULL,NULL)==MP_CRYPTO_ONLY);
++ CHECK(used==n&&!memcmp(out,plain,n));for(i=0;i<n;i++)CHECK(q[i]==0);
++ /* Corruption of every ciphertext byte and tag byte must publish nothing. */
++ for(i=0;i<n+16;i++){
++  if(i<n)cipher[i]^=1;else tag[i-n]^=1;
++  memset(out,0xa5,sizeof(out));memset(q,0xa5,sizeof(q));used=99;
++  CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),out,sizeof(out),&used,NULL,NULL)==MP_INVALID);
++  CHECK(used==0&&out[0]==0xa5&&out[n-1]==0xa5&&q[0]==0&&q[n-1]==0);
++  if(i<n)cipher[i]^=1;else tag[i-n]^=1;
++ }
++ nonce[0]^=1;CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),out,sizeof(out),&used,NULL,NULL)==MP_INVALID);nonce[0]^=1;
++ CHECK(mp_crypto_unseal(c,key,nonce,11,aad,12,cipher,n,tag,16,q,sizeof(q),out,sizeof(out),&used,NULL,NULL)==MP_INVALID);
++ key[0]^=1;CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),out,sizeof(out),&used,NULL,NULL)==MP_INVALID);key[0]^=1;
++ count=2;CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),out,sizeof(out),&used,stop,&count)==MP_STOPPED);
++ CHECK(used==0&&q[0]==0);
++ CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),q,sizeof(q),&used,NULL,NULL)==MP_INVALID);
++ cn=fixture(argv[2],cert,sizeof(cert));pn=fixture(argv[3],private_der,sizeof(private_der));on=fixture(argv[4],other,sizeof(other));
++ CHECK(cn&&pn&&on);CHECK(mp_crypto_key_match(c,cert,cn,private_der,pn)==MP_CRYPTO_ONLY);
++ CHECK(mp_crypto_key_match(c,cert,cn,other,on)==MP_INVALID);
++ CHECK(mp_crypto_key_match(c,cert,cn-1,private_der,pn)==MP_INVALID);
++ CHECK(mp_crypto_key_match(c,cert,cn,private_der,pn-1)==MP_INVALID);
++ /* Public upstream RSA TEST KEY, never a delegated production signer. */
++ f=fopen(argv[1],"rb");CHECK(f!=NULL);signer=PEM_read_PrivateKey(f,NULL,NULL,NULL);fclose(f);CHECK(signer!=NULL);
++ sn=(size_t)i2d_PUBKEY(signer,&sp);CHECK(sn<=1024);
++ memset(header,0,sizeof(header));memcpy(header,"PACCMP02",8);header[9]=2;header[11]=1;
++ be32(header+16,364+sn+1);be32(header+20,1);be32(header+24,600000);be32(header+88,sn);
++ CHECK(EVP_Q_digest(NULL,"SHA256",NULL,spki,sn,hash,&hn)==1&&hn==32);memcpy(header+56,hash,32);
++ memset(signature,0,sizeof(signature));memset(tag,0,sizeof(tag));
++ env.spki.data=spki;env.spki.size=sn;env.ciphertext.data=cipher;env.ciphertext.size=1;
++ env.tag.data=tag;env.tag.size=16;env.signature.data=signature;env.signature.size=256;
++ CHECK(mp_envelope_prepare(header,&env,raw,sizeof(raw),&rn,0)==MP_DATA_ONLY);
++ md=EVP_MD_CTX_new();CHECK(md!=NULL);
++ CHECK(EVP_DigestSignInit(md,&pc,EVP_sha256(),NULL,signer)==1);
++ CHECK(EVP_PKEY_CTX_set_rsa_padding(pc,RSA_PKCS1_PADDING)>0);
++ CHECK(EVP_DigestSignUpdate(md,domain,sizeof(domain))==1);
++ CHECK(EVP_DigestSignUpdate(md,raw,rn-256)==1);
++ CHECK(EVP_DigestSignFinal(md,raw+rn-256,&siglen)==1&&siglen==256);
++ EVP_MD_CTX_free(md);EVP_PKEY_free(signer);
++ CHECK(mp_crypto_verify_package(c,raw,rn,spki,sn)==MP_CRYPTO_ONLY);
++ for(i=0;i<rn;i++){raw[i]^=1;CHECK(mp_crypto_verify_package(c,raw,rn,spki,sn)==MP_INVALID);raw[i]^=1;}
++ CHECK(mp_crypto_verify_package(c,raw,rn-1,spki,sn)==MP_INVALID);
++ spki[sn-1]^=1;CHECK(mp_crypto_verify_package(c,raw,rn,spki,sn)==MP_INVALID);
++ CHECK(mp_package_validate(raw,rn,0)==MP_CRYPTO_UNAVAILABLE);
++ OPENSSL_cleanse(private_der,sizeof(private_der));OPENSSL_cleanse(other,sizeof(other));
++ OPENSSL_cleanse(key,sizeof(key));mp_crypto_close(c);
++ printf("%d assertions: REAL OFFLINE CRYPTO, PUBLIC TEST FIXTURES; no trust/profile/operational authority\n",checks);return 0;
++}
+--- /dev/null
++++ tests/manual_package_crypto/CMakeLists.txt
+@@ -0,0 +1,33 @@
++cmake_minimum_required(VERSION 3.20)
++project(papacc_manual_crypto_offline C)
++enable_testing()
++if(NOT WIN32 OR NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
++ message(FATAL_ERROR "Only the explicitly qualified modern Windows x64 artifact is selected")
++endif()
++if(NOT PAPACC_MANUAL_CRYPTO_OPENSSL_358_OFFLINE)
++ message(FATAL_ERROR "Explicit offline backend selection required; no fallback")
++endif()
++if(NOT DEFINED PAPACC_PACKAGE_OPENSSL_ROOT)
++ message(FATAL_ERROR "Explicit pinned OpenSSL artifact root required")
++endif()
++foreach(item "lib/libcrypto.lib|e6047dadbf2b9c85b3bd52598fd6dbac78f9789de9b1c0a837712584ac883509" "runtime/libcrypto-3-x64.dll|09eec573c9adea156ba2073f8cd61720d0aabeb7562d8498b4ecd21b710a3044")
++ string(REPLACE "|" ";" pair "${item}")
++ list(GET pair 0 name)
++ list(GET pair 1 expected)
++ file(SHA256 "${PAPACC_PACKAGE_OPENSSL_ROOT}/${name}" actual)
++ if(NOT actual STREQUAL expected)
++  message(FATAL_ERROR "Pinned crypto artifact mismatch: ${name}")
++ endif()
++endforeach()
++get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
++add_library(package_crypto STATIC "${ROOT}/src/provisioning/manual_package.c" "${ROOT}/src/provisioning/manual_package_crypto_openssl.c")
++target_include_directories(package_crypto PUBLIC "${ROOT}/src/provisioning" PRIVATE "${PAPACC_PACKAGE_OPENSSL_ROOT}/include")
++target_compile_options(package_crypto PRIVATE /W4 /WX)
++target_link_libraries(package_crypto PUBLIC "${PAPACC_PACKAGE_OPENSSL_ROOT}/lib/libcrypto.lib")
++add_executable(package_crypto_test "${ROOT}/tests/manual_package_crypto_test.c")
++target_include_directories(package_crypto_test PRIVATE "${PAPACC_PACKAGE_OPENSSL_ROOT}/include")
++target_compile_definitions(package_crypto_test PRIVATE _CRT_SECURE_NO_WARNINGS)
++target_compile_options(package_crypto_test PRIVATE /W4 /WX)
++target_link_libraries(package_crypto_test PRIVATE package_crypto)
++add_custom_command(TARGET package_crypto_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PAPACC_PACKAGE_OPENSSL_ROOT}/runtime/libcrypto-3-x64.dll" "$<TARGET_FILE_DIR:package_crypto_test>")
++add_test(NAME papacc.manual_package.real_crypto COMMAND package_crypto_test "${ROOT}/tests/fixtures/manual-package/upstream-public-test-key.pem" "${ROOT}/tests/fixtures/security/client-a.der.b64" "${ROOT}/tests/fixtures/security/client-a.pk8.b64" "${ROOT}/tests/fixtures/security/client-b.pk8.b64")
+--- /dev/null
++++ tests/fixtures/manual-package/upstream-public-test-key.pem
+@@ -0,0 +1,29 @@
++-----BEGIN PRIVATE KEY-----
++MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDNAIHqeyrh6gbV
++n3xz2f+5SglhXC5Lp8Y2zvCN01M+wxhVJbAVx2m5mnfWclv5w1Mqm25fZifV+4UW
++B2jT3anL01l0URcX3D0wnS/EfuQfl+Mq23+d2GShxHZ6Zm7NcbwarPXnUX9LOFlP
++6psF5C1a2pkSAIAT5FMWpNm7jtCGuI0odYusr5ItRqhotIXSOcm66w4rZFknEPQr
++LR6gpLSALAvsqzKPimiwBzvbVG/uqYCdKEmRKzkMFTK8finHZY+BdfrkbzQzL/h7
++yrPkBkm5hXeGnaDqcYNT8HInVIhpE2SHYNEivmduD8SD3SD/wxvalqMZZsmqLnWt
++A95H4cRPAgMBAAECggEAYCl6x5kbFnoG1rJHWLjL4gi+ubLZ7Jc4vYD5Ci41AF3X
++ziktnim6iFvTFv7x8gkTvArJDWsICLJBTYIQREHYYkozzgIzyPeApIs3Wv8C12cS
++IopwJITbP56+zM+77hcJ26GCgA2Unp5CFuC/81WDiPi9kNo3Oh2CdD7D+90UJ/0W
++glplejFpEuhpU2URfKL4RckJQF/KxV+JX8FdIDhsJu54yemQdQKaF4psHkzwwgDo
++qc+yfp0Vb4bmwq3CKxqEoc1cpbJ5CHXXlAfISzUjlcuBzD/tW7BDtp7eDAcgRVAC
++XO6MX0QBcLYSC7SOD3R7zY9SIRCFDfBDxCjf0YcFMQKBgQD2+WG0fLwDXTrt68fe
++hQqVa2Xs25z2B2QGPxWqSFU8WNly/mZ1BW413f3De/O58vYi7icTNyVoScm+8hdv
++6PfD+LuRujdN1TuvPeyBTSvewQwf3IjN0Wh28mse36PwlBl+301C/x+ylxEDuJjK
++hZxCcocIaoQqtBC7ac8tNa9r4wKBgQDUfnJKf/QQSLJwwlJKQQGHi3MVm7c9PbwY
++eyIOY1s1NPluJDoYTZP4YLa/u2txwe2aHh9FhYMCPDAelqaSwaCLU9DsnKkQEA2A
++RR47fcagG6xK7O+N95iEa8I1oIy7os9MBoBMwRIZ6VYIxxTj8UMNSR+tu6MqV1Gg
++T5d0WDTJpQKBgCHyRSu5uV39AoyRS/eZ8cp36JqV1Q08FtOE+EVfi9evnrPfo9WR
++2YQt7yNfdjCo5IwIj/ZkLhAXlFNakz4el2+oUJ/HKLLaDEoaCNf883q6rh/zABrK
++HcG7sF2d/7qhoJ9/se7zgjfZ68zHIrkzhDbd5xGREnmMJoCcGo3sQyBhAoGAH3UQ
++qmLC2N5KPFMoJ4H0HgLQ6LQCrnhDLkScSBEBYaEUA/AtAYgKjcyTgVLXlyGkcRpg
++esRHHr+WSBD5W+R6ReYEmeKfTJdzyDdzQE9gZjdyjC0DUbsDwybIu3OnIef6VEDq
++IXK7oUZfzDDcsNn4mTDoFaoff5cpqFfgDgM43VkCgYBNHw11b+d+AQmaZS9QqIt7
++aF3FvwCYHV0jdv0Mb+Kc1bY4c0R5MFpzrTwVmdOerjuuA1+9b+0Hwo3nBZM4eaBu
++SOamA2hu2OJWCl9q8fLCT69KqWDjghhvFe7c6aJJGucwaA3Uz3eLcPqoaCarMiNH
++fMkTd7GabVourqIZdgvu1Q==
++-----END PRIVATE KEY-----
++

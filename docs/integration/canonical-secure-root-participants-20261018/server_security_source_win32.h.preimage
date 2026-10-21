@@ -1,0 +1,20 @@
+#ifndef PAPACC_SERVER_SECURITY_SOURCE_WIN32_H
+#define PAPACC_SERVER_SECURITY_SOURCE_WIN32_H
+
+#include "server_security_configuration.h"
+
+/*
+ * Lab-only application Configuration Source.  The reference is matched
+ * against PAPACC_SECURITY_CONFIGURATION_REF and the credential locations are
+ * read from PAPACC_SERVER_CERTIFICATE_DER_B64,
+ * PAPACC_SERVER_PRIVATE_KEY_PKCS8_DER_B64 and PAPACC_CLIENT_CA_DER_B64.
+ * PAPACC_ALLOWED_CLIENT_CERT_SHA256 contains the single enrolled client
+ * certificate fingerprint as 64 hexadecimal characters.
+ * Paths and secret material never become part of PAPACC_SERVER_CONFIG.
+ */
+PAPACC_RESULT papacc_server_security_environment_resolve(
+    void *context, const PAPACC_SECURITY_CONFIGURATION_REF *reference,
+    PAPACC_SECURITY_CONFIGURATION_RESOLUTION *resolution,
+    PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION *configuration);
+
+#endif

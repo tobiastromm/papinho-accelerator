@@ -1,0 +1,20 @@
+--- tests/config_source_test.c
++++ tests/config_source_test.c
+@@ -48,7 +48,7 @@
+  check(run("format_version 2\n",1U)==PC_INVALID,"unknown version");
+  check(run("format_version 1\nformat_version 1\n",1U)==PC_UNKNOWN,"duplicate version rejected");
+  check(run(base,1U)==PC_OK,"listener valid synthetic refs only");
+- check(doc.listener_count==1U&&doc.listeners[0].profile==1U&&doc.listeners[0].security!=PC_NONE,"explicit profile and collection");
++ check(doc.listener_count==1U&&doc.listeners[0].profile==1U&&doc.listeners[0].security!=PAPACC_CONFIG_NO_INDEX,"explicit profile and collection");
+  b=doc.listeners[0].policy;
+  check(pc_policy_accepts(&doc,b,2U,1U,NULL)==1,"first ACCEPT");
+  check(pc_policy_accepts(&doc,b,3U,1U,NULL)==0,"disabled key default deny");
+@@ -107,7 +107,7 @@
+  t.max_listeners=1U;t.legacy_supported=1;
+  copy_text(buf,base);{char *at=strstr(buf,"SECURE_PRINCIPAL");size_t tail=strlen(at+16U);memmove(at+15U,at+16U,tail+1U);memcpy(at,"LEGACY_ENDPOINT",15U);at=strstr(buf," channel_tls_ref tls\n");memmove(at,at+21U,strlen(at+21U)+1U);}
+  r=pc_parse((const unsigned char *)buf,strlen(buf),&doc,&d);if(r==PC_OK)r=pc_validate(&doc,&t,&d);
+- check(r==PC_OK,"Legacy explicit offline support");if(r==PC_OK)check(doc.listeners[0].profile==2U&&doc.listeners[0].security==PC_NONE&&(doc.listeners[0].presence&128U)==0U,"Legacy absence preserved");
++ check(r==PC_OK,"Legacy explicit offline support");if(r==PC_OK)check(doc.listeners[0].profile==2U&&doc.listeners[0].security==PAPACC_CONFIG_NO_INDEX&&(doc.listeners[0].presence&128U)==0U,"Legacy absence preserved");
+  check(run("format_version 1\r",1U)==PC_INVALID,"bare terminal CR rejected");
+  check(run("format_version 1\n; ignored\n\tlistener a\nend\n",1U)==PC_REFERENCE,"visual indent and physical lines");
+  r=pc_parse((const unsigned char *)"format_version 1\n\tunknown a\n",strlen("format_version 1\n\tunknown a\n"),&doc,&d);

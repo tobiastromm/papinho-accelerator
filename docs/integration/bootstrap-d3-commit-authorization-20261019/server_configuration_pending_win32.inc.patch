@@ -1,0 +1,98 @@
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -16,6 +16,7 @@
+  p->result=PAPACC_COMMIT_FAILED;p->file=INVALID_HANDLE_VALUE;p->transaction=NULL;
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+  if(p->packet_format==9U){bootstrap_worker(p);return 0;}
++ if(p->packet_format==10U){bootstrap_commit_worker(p);return 0;}
+ #endif
+  if(p->packet_format!=6U
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+@@ -119,6 +120,12 @@
+  if(!CloseHandle(p->thread)){p->close_error=GetLastError();o->authority_lost=1;*out=p->result;return PAPACC_RESULT_INTERNAL_ERROR;}
+  p->thread=NULL;p->active=0;*out=p->result;
+ #ifdef PAPACC_OFFLINE_D3_WORKER
++ if(p->packet_format==10U){
++  if(p->result==PAPACC_CAS_SUCCESS&&p->committed){o->prepared=0;o->committed_pending=1;o->authority_lost=1;}
++  else if(p->result==PAPACC_CAS_UNKNOWN||p->result==PAPACC_CAS_CONFLICT)o->authority_lost=1;
++  if(p->file!=INVALID_HANDLE_VALUE||p->transaction||p->close_error)o->unresolved=1;
++  return PAPACC_RESULT_OK;
++ }
+  if(p->packet_format==9U){
+   /* Namespace operation only, not commit/current. Keep leases in this packet. */
+   if(p->close_error||p->result==PAPACC_CAS_UNKNOWN)o->unresolved=1;
+@@ -308,6 +315,7 @@
+  p=&o->pending_commit;
+  /* No impersonated caller can delegate its operation to the process token. */
+  if(!bootstrap_admin(p)){
++  if(p->close_error){o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}
+ #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+   if(p->checkpoint_only!=91)
+ #endif
+@@ -322,6 +330,7 @@
+ #endif
+  p->packet_format=9U;p->file=INVALID_HANDLE_VALUE;
+  memcpy(p->path,parent,n+1U);memcpy(p->previous,leaf,k+1U);
++ memcpy(p->previous+128U,o->domain,32U);
+  p->result=PAPACC_COMMIT_PENDING;p->active=1;
+  p->thread=CreateThread(NULL,PAPACC_PENDING_STACK_BYTES,pending_worker,p,STACK_SIZE_PARAM_IS_A_RESERVATION,NULL);
+  if(!p->thread){p->active=0;p->native_error=GetLastError();p->result=PAPACC_COMMIT_FAILED;return PAPACC_RESULT_INTERNAL_ERROR;}
+@@ -340,7 +349,8 @@
+ PAPACC_RESULT papacc_configuration_bootstrap_custody_close(PAPACC_CONFIGURATION_COMMIT *o)
+ {
+  PAPACC_CONFIG_PENDING *p;if(!owner(o)||!o->stopped)return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;
+- if(p->packet_format!=9U||p->active||p->thread)return PAPACC_RESULT_INVALID_STATE;
++ if((p->packet_format!=9U&&p->packet_format!=10U)||p->active||p->thread||
++    p->bootstrap_token||(p->packet_format==10U&&(p->file!=INVALID_HANDLE_VALUE||p->transaction)))return PAPACC_RESULT_INVALID_STATE;
+  p->bootstrap_ready=0;
+  if(p->bootstrap_container){if(p->bootstrap_close_attempts&1U)return PAPACC_RESULT_INVALID_STATE;p->bootstrap_close_attempts|=1U;
+ #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+@@ -353,3 +363,48 @@
+  return PAPACC_RESULT_OK;
+ }
+ #endif
++
++#ifdef PAPACC_OFFLINE_D3_WORKER
++PAPACC_BOOL papacc_configuration_bootstrap_authority_valid(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ BOOTSTRAP_AUTH_PROOF proof;PAPACC_CONFIG_PENDING *p;
++ if(papacc_configuration_bootstrap_custody_ready(o)!=PAPACC_TRUE)return PAPACC_FALSE;p=&o->pending_commit;
++ memcpy(&proof,p->previous+BOOTSTRAP_AUTH_OFFSET,sizeof(proof));
++ return proof.version==1U&&proof.scope==1U&&proof.sid_bytes>0U&&proof.sid_bytes<=sizeof(proof.sid)&&
++  IsValidSid(proof.sid)&&!memcmp(proof.root,o->domain,32U)&&proof.volume==p->bootstrap_volume&&
++  proof.high==p->bootstrap_high&&proof.low==p->bootstrap_low?PAPACC_TRUE:PAPACC_FALSE;
++}
++PAPACC_RESULT papacc_configuration_bootstrap_commit_begin(PAPACC_CONFIGURATION_COMMIT *o,
++ const PAPACC_U8 *image,PAPACC_SIZE bytes,const char *leaf,PAPACC_SIZE reserved)
++{
++ PAPACC_CONFIG_PENDING *p;BOOTSTRAP_AUTH_PROOF proof;PAPACC_U8 fields[PC_ROOT8_NO_ISSUER_FIELDS];
++ PAPACC_SIZE k;int complete,diagnostic=0;unsigned i;
++ if(!owner(o)||!image||!leaf)return PAPACC_RESULT_INVALID_ARGUMENT;p=&o->pending_commit;
++#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
++ diagnostic=p->checkpoint_only==91;
++#endif
++ if(!diagnostic&&papacc_configuration_bootstrap_authority_valid(o)!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
++ if(p->packet_format!=9U||p->active||p->thread||p->result!=PAPACC_CAS_SUCCESS||!p->bootstrap_ready||
++    !p->bootstrap_parent||!p->bootstrap_container||o->published||o->committed_bytes||o->stopped||o->unresolved||
++    p->close_error||p->committed||InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
++ if(reserved>2097152U||10532U>2097152U-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(bytes<PC_ROOT8_MIN||bytes>PC_ROOT8_NO_ISSUER_MAX||pending_overlap(o,sizeof(*o),image,bytes))return PAPACC_RESULT_INVALID_ARGUMENT;
++ k=strlen(leaf);if(!k||k>64U||!strcmp(leaf,".")||!strcmp(leaf,"..")||leaf[k-1U]=='.')return PAPACC_RESULT_INVALID_ARGUMENT;
++ for(i=0;i<k;i++)if(!((leaf[i]>='a'&&leaf[i]<='z')||(leaf[i]>='A'&&leaf[i]<='Z')||
++    (leaf[i]>='0'&&leaf[i]<='9')||leaf[i]=='_'||leaf[i]=='-'||leaf[i]=='.'))return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(pc_root8_decode_no_issuer(image,bytes,fields,sizeof(fields),&complete,papacc_configuration_issuer_hash06,o,
++    papacc_root8_body05_data,NULL)!=PC_ROOT8_OK||d3_u32(fields+16)||d3_u64(fields+104)!=1U||
++    d3_u64(fields+112)||memcmp(fields+72,o->domain,32U))return PAPACC_RESULT_INVALID_ARGUMENT;
++ for(i=0;i<512U;i++)if(fields[d3_u32(fields+56)+i])return PAPACC_RESULT_INVALID_ARGUMENT;
++ memcpy(&proof,p->previous+BOOTSTRAP_AUTH_OFFSET,sizeof(proof));
++ if(!store03_hash(image,(unsigned)bytes,proof.candidate))return PAPACC_RESULT_INTERNAL_ERROR;
++ proof.scope=2U;memcpy(p->previous+BOOTSTRAP_AUTH_OFFSET,&proof,sizeof(proof));
++ memcpy(p->next,image,bytes);p->next_bytes=(DWORD)bytes;memcpy(p->path,leaf,k+1U);
++ p->packet_format=10U;p->result=PAPACC_COMMIT_PENDING;p->active=1;p->thread_close_attempted=0;
++ p->thread=CreateThread(NULL,PAPACC_PENDING_STACK_BYTES,pending_worker,p,STACK_SIZE_PARAM_IS_A_RESERVATION,NULL);
++ if(!p->thread){p->active=0;p->result=PAPACC_COMMIT_FAILED;p->native_error=GetLastError();return PAPACC_RESULT_INTERNAL_ERROR;}
++ return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_configuration_bootstrap_commit_poll(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER_CAS_RESULT *out)
++{if(!owner(o)||o->pending_commit.packet_format!=10U)return PAPACC_RESULT_INVALID_STATE;return pending_poll06(o,out);}
++#endif

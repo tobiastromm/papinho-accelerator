@@ -1,0 +1,112 @@
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_configuration_commit_win32.h" "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_configuration_commit_win32.h"
+index 6d4f0e1..ec25bd6 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_configuration_commit_win32.h"
++++ "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_configuration_commit_win32.h"
+@@ -24,6 +24,9 @@ typedef struct PAPACC_CONFIG_SLOT {
+     PAPACC_CONFIG_VIEW view;
+     unsigned long readers;
+     PAPACC_U64 serial;
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++    PAPACC_U64 context_epoch; /* Root-issued after commit, not a persisted proof. */
++#endif
+     int retained;
+ } PAPACC_CONFIG_SLOT;
+ typedef struct PAPACC_CONFIG_PIN {
+@@ -102,6 +105,8 @@ PAPACC_RESULT papacc_configuration_issuer_copy06(PAPACC_CONFIGURATION_COMMIT *,P
+ /* Data-only copy using an existing live pin; no CURRENT/epoch proof returned. */
+ PAPACC_RESULT papacc_configuration_issuer_snapshot06(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_U8 *);
+ PAPACC_RESULT papacc_configuration_issuer_recovery06(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_VIEW *,PAPACC_U64 *);
++PAPACC_RESULT papacc_configuration_issuer_publish06(PAPACC_CONFIGURATION_COMMIT *);
+ /* Explicit BODY0.5 catalog profile; no old-format promotion. */
+ PAPACC_RESULT papacc_configuration_commit_init05(PAPACC_CONFIGURATION_COMMIT *,const char *);
+ PAPACC_RESULT papacc_configuration_prepare05(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SERVER_CONFIG *,PAPACC_U64);
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_configuration_issuer06_win32.inc" "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_configuration_issuer06_win32.inc"
+index d318be1..3f56935 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_configuration_issuer06_win32.inc"
++++ "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_configuration_issuer06_win32.inc"
+@@ -72,6 +72,31 @@ PAPACC_RESULT papacc_configuration_issuer_snapshot06(PAPACC_CONFIGURATION_COMMIT
+  memcpy(out,o->issuer_snapshots[p->index],PAPACC_ISSUER_IMAGE_BYTES);r=PAPACC_RESULT_OK;
+ done:LeaveCriticalSection(&o->lock);return r;
+ }
++PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *p,PAPACC_CONFIG_VIEW *v,PAPACC_U64 *epoch)
++{
++ unsigned i;PAPACC_RESULT r=PAPACC_RESULT_INVALID_STATE;
++ if(!owner(o)||!p||!v||!epoch||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS)return PAPACC_RESULT_INVALID_ARGUMENT;
++ EnterCriticalSection(&o->lock);
++ if(!p->ticket||!o->slots[p->index].readers||o->slots[p->index].serial!=p->serial||o->unresolved)goto done;
++ for(i=0;i<32;i++)if(o->tickets[i].ticket==p->ticket&&o->tickets[i].serial==p->serial&&o->tickets[i].index==p->index)break;
++ if(i==32)goto done;
++ *v=o->slots[p->index].view;fix(v);*epoch=o->slots[p->index].context_epoch;r=PAPACC_RESULT_OK;
++done:LeaveCriticalSection(&o->lock);return r;
++}
++PAPACC_RESULT papacc_configuration_issuer_publish06(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ PAPACC_U64 epoch;unsigned i;PAPACC_RESULT r=PAPACC_RESULT_INVALID_STATE;
++ if(!owner(o))return r;EnterCriticalSection(&o->lock);
++ if(o->store02!=6||!o->committed_pending||o->prepared||o->stopped||o->unresolved||o->recovery_selected||
++    !o->issuer_snapshot_valid[o->pending]||o->slots[o->pending].readers||o->slots[o->pending].retained)goto done;
++ /* Root-owned post-commit generation: never accept an issuer/caller epoch.
++  * No observer sees CURRENT without its epoch: selection is under one lock. */
++ if(BCryptGenRandom(NULL,(PUCHAR)&epoch,sizeof(epoch),BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0){r=PAPACC_RESULT_INTERNAL_ERROR;goto done;}
++ if(!epoch)goto done;
++ for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->slots[i].context_epoch==epoch)goto done;
++ o->slots[o->pending].context_epoch=epoch;o->current=o->pending;o->committed_pending=0;o->published=1;r=PAPACC_RESULT_OK;
++done:LeaveCriticalSection(&o->lock);return r;
++}
+ PAPACC_RESULT papacc_configuration_issuer_copy06(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_U8 *out)
+ {
+  PAPACC_ISSUER_VIEW v;PAPACC_RESULT r=PAPACC_RESULT_INVALID_STATE;
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_configuration_root_transaction_win32.inc" "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_configuration_root_transaction_win32.inc"
+index b783e14..0a36d5d 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_configuration_root_transaction_win32.inc"
++++ "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_configuration_root_transaction_win32.inc"
+@@ -107,6 +107,7 @@ PAPACC_RESULT papacc_server_launcher_configuration_transaction_publish(PAPACC_SE
+  if(result==PAPACC_RESULT_OK)result=c->recovery_selected?(c->store02==4?papacc_configuration_recovery_publish04(c):papacc_configuration_recovery_publish03(c)):papacc_configuration_publish(c);
+  if(result==PAPACC_RESULT_OK){
+   memcpy(t->model.domain,v->domain,32U);t->model.revision=v->revision;t->model.predecessor=v->predecessor;
++  c->slots[c->current].context_epoch=t->current_policy_epoch;
+   t->administrative_published=PAPACC_TRUE;
+  }
+  LeaveCriticalSection(&c->lock);return result;
+@@ -118,6 +119,15 @@ static int root_snapshot_model_equal(const PAPACC_CONFIG_VIEW *a,const PAPACC_CO
+  x.bind_selection.interface_persistent_ids=NULL;y.bind_selection.interface_persistent_ids=NULL;
+  return memcmp(&x,&y,sizeof(x))==0&&(!count||memcmp(a->ids,b->ids,count*sizeof(a->ids[0]))==0);
+ }
++static int root_snapshot_held(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)
++{
++ PAPACC_CONFIG_VIEW v;PAPACC_U64 epoch;
++ if(!preparation_owned(o)||!p||p->invocation!=o->invocation||!p->epoch||
++    papacc_configuration_pin_read(&o->configuration_commit,&p->pin,&v,&epoch)!=PAPACC_RESULT_OK)return 0;
++ return epoch==p->epoch&&v.revision==p->view.revision&&v.predecessor==p->view.predecessor&&
++  !memcmp(v.domain,p->view.domain,32)&&root_snapshot_model_equal(&v,&p->view)&&
++  root_snapshot_model_equal(&v,&o->configuration_commit.slots[o->configuration_commit.current].view);
++}
+ static int root_snapshot_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)
+ {
+  PAPACC_CONFIGURATION_COMMIT *c=&o->configuration_commit;PAPACC_ROOT_CONFIGURATION_PREPARATION *t=&o->configuration_preparation;
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_launcher_owner_win32.h" "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_launcher_owner_win32.h"
+index c5aa1f9..a1acf59 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_launcher_owner_win32.h"
++++ "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_launcher_owner_win32.h"
+@@ -156,6 +156,7 @@ typedef struct PAPACC_SERVER_LAUNCHER_OWNER_WIN32 {
+ #ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+     PAPACC_ROOT_CONFIGURATION_PREPARATION configuration_preparation;
+     PAPACC_ROOT_CURRENT_PIN attachment_pin;
++    PAPACC_ROOT_CURRENT_PIN session_revision_pins[4];
+     PAPACC_U32 attachment_state;
+     PAPACC_ROOT_LISTENER_COMPOSITION listener_composition;
+     PAPACC_C8_RESOURCE_ADMISSION resource_admission;
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_admission_preflight_win32.inc" "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_admission_preflight_win32.inc"
+index d4de166..aabe3e1 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\issuer-live-session-coexistence-20261019\\preimages\\apps__server__server_admission_preflight_win32.inc"
++++ "b/C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_admission_preflight_win32.inc"
+@@ -63,7 +63,7 @@ static PAPACC_RESULT root_cohort_preflight(
+     c->policy.profile==(PAPACC_U32)c->listener_profile&&c->policy.listener_port==c->control_port)
+   report->checked|=PAPACC_ADMISSION_MODEL;
+  if(t->normative_committed&&t->administrative_published&&t->policy.prepared&&t->policy.from_model&&
+-    papacc_server_launcher_configuration_current(o,pin)&&
++    root_snapshot_held(o,pin)&&
+     root_snapshot_model_equal(&t->model,&pin->view)&&root_policy_model_valid(o)){
+   report->checked|=PAPACC_ADMISSION_CURRENT;report->revision=pin->view.revision;
+  }

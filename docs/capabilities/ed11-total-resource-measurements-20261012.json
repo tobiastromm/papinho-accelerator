@@ -1,0 +1,1797 @@
+{
+  "date": "2026-10-12",
+  "branch": "main",
+  "HEAD": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+  "host": "Windows-10-10.0.19045-SP0",
+  "interpretation": "INCREMENTAL_ENVELOPES_ACCEPTED_NUMERICAL_CAPS_CANDIDATE",
+  "normalSDKCommit": "da7190930700f54ecc92611f5edbcb0932caa5ec",
+  "upstreamBranch": "homologacao/pst-0.6.5",
+  "upstreamHEAD": "4dbd2783ebaf135114da2b7247e36c0ad6bc550a",
+  "upstreamMixing": "none; reissued packages not consumed",
+  "policyRuns": [
+    {
+      "id": "policy-debug-final",
+      "sha256": "89485FB75C5A888D5886C84EBBA06EAF56EECA1536439DB89D0D703DB326D01E",
+      "exeSHA256": "72E347D8AEAF69D9EF10CDCC5C12B3F6A7F3AD18D213B7A03B8B796DAEEC7324",
+      "compiledSizes": {
+        "sizeof_budget": 232,
+        "sizeof_entry": 48,
+        "managed_limit": 2097152,
+        "core_reservation": 524288,
+        "session_reservation": 16384,
+        "app_reservation": 1048576
+      },
+      "assertions": 41,
+      "class": "CANDIDATE_MANAGED_POLICY_SIMULATED_PROVIDER_KERNEL_MEASUREMENT_FAILURES",
+      "tests": [
+        {
+          "sizeof_budget": 232,
+          "sizeof_entry": 48,
+          "managed_limit": 2097152,
+          "core_reservation": 524288,
+          "session_reservation": 16384,
+          "app_reservation": 1048576
+        },
+        {
+          "test": "SATURATED_CONTROL_AND_DATA_NO_STARVATION_BOUNDED_8",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "SPAN_LAYOUT_FITS_CORE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CANCEL_FINAL_RESERVED_OUTSIDE_SATURATED_DATA",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "FAIRNESS_RELEASE_EXACTLY_ONCE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PARTIAL_ALLOCATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PARTIAL_ALLOCATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PARTIAL_ALLOCATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CANCEL_DURING_RESERVATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "MEASUREMENT_FAILURE_DENIES_BEFORE_EFFECTS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PROVIDER_UNAVAILABLE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "KERNEL_RESOURCE_UNAVAILABLE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "UNKNOWN_OPAQUE_ENVELOPE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_EXHAUSTED_DESPITE_INCREMENT_FITTING",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PHYSICAL_EXHAUSTION_DESPITE_COMMIT_HEADROOM_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PROCESS_CAPACITY_EXHAUSTED_DESPITE_HOST_AND_QUOTA_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_EXACT_RESERVATION_ACCEPTS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_SHARED_SNAPSHOT_CREDIT_NOT_DOUBLESPENT",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_CREDIT_RECOVERS_ONLY_ON_CONFIRMED_FREE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_HEADROOM_UNDERFLOW_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "EXACT_REQUEST_EXCEEDS_QUOTA_BY_ONE_BYTE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "EXACT_LIMIT_ACCEPTS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "LIMIT_PLUS_ONE_OR_MORE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "EXACT_LIMIT_RELEASE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CHECKED_ARITHMETIC_OVERFLOW",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CHECKED_ARITHMETIC_EXACT",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "TWO_SESSIONS_WITH_TWO_OPS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "REPEATED_ADMISSION_OR_THIRD_OP_DENIED",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CALLBACK_BORROWER_PREVENTS_FREE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "STALE_GENERATION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "ATTEMPT_NOT_DESTRUCTION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "DUPLICATE_RELEASE_DENIED",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "NO_CLOSED_OPERATION_ID_RESURRECTION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "FRESH_ID_REUSE_AFTER_QUIESCENCE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "LATE_CALLBACK_CANNOT_RETARGET_REUSED_SLOT",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "NEW_LIFETIME_RELEASE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "SECOND_SESSION_RELEASE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "ALL_MANAGED_CREDITS_RECOVERED",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "RETENTION_SETUP",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "TERMINAL_RETENTION_MODEL",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PERSISTENT_RETENTION_NO_EVICTION_REUSE_OR_RESURRECTION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "LATE_CALLBACK_STALE_GENERATION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "retained_charged": 540904,
+          "retained_op": 9,
+          "generation": 7,
+          "class": "SYNTHETIC_NO_PST_OUTCOME",
+          "containment": "process_exit_not_destroyed"
+        },
+        {
+          "assertions": 41,
+          "failures": 0,
+          "result": "PASS",
+          "scope": "C89_PORTABLE_MANAGED_ADMISSION_AND_FAIRNESS_CANDIDATE_NOT_GLOBAL_C2"
+        }
+      ]
+    },
+    {
+      "id": "policy-release-final",
+      "sha256": "89485FB75C5A888D5886C84EBBA06EAF56EECA1536439DB89D0D703DB326D01E",
+      "exeSHA256": "04130224BB8664FDE6C152B47D2B23A5A8F202EFE289E814F5A0036871677DD5",
+      "compiledSizes": {
+        "sizeof_budget": 232,
+        "sizeof_entry": 48,
+        "managed_limit": 2097152,
+        "core_reservation": 524288,
+        "session_reservation": 16384,
+        "app_reservation": 1048576
+      },
+      "assertions": 41,
+      "class": "CANDIDATE_MANAGED_POLICY_SIMULATED_PROVIDER_KERNEL_MEASUREMENT_FAILURES",
+      "tests": [
+        {
+          "sizeof_budget": 232,
+          "sizeof_entry": 48,
+          "managed_limit": 2097152,
+          "core_reservation": 524288,
+          "session_reservation": 16384,
+          "app_reservation": 1048576
+        },
+        {
+          "test": "SATURATED_CONTROL_AND_DATA_NO_STARVATION_BOUNDED_8",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "SPAN_LAYOUT_FITS_CORE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CANCEL_FINAL_RESERVED_OUTSIDE_SATURATED_DATA",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "FAIRNESS_RELEASE_EXACTLY_ONCE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PARTIAL_ALLOCATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PARTIAL_ALLOCATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PARTIAL_ALLOCATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CANCEL_DURING_RESERVATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "MEASUREMENT_FAILURE_DENIES_BEFORE_EFFECTS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PROVIDER_UNAVAILABLE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "KERNEL_RESOURCE_UNAVAILABLE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "UNKNOWN_OPAQUE_ENVELOPE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_EXHAUSTED_DESPITE_INCREMENT_FITTING",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PHYSICAL_EXHAUSTION_DESPITE_COMMIT_HEADROOM_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PROCESS_CAPACITY_EXHAUSTED_DESPITE_HOST_AND_QUOTA_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_EXACT_RESERVATION_ACCEPTS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_SHARED_SNAPSHOT_CREDIT_NOT_DOUBLESPENT",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_CREDIT_RECOVERS_ONLY_ON_CONFIRMED_FREE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_HEADROOM_UNDERFLOW_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "EXACT_REQUEST_EXCEEDS_QUOTA_BY_ONE_BYTE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "EXACT_LIMIT_ACCEPTS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "LIMIT_PLUS_ONE_OR_MORE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "EXACT_LIMIT_RELEASE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CHECKED_ARITHMETIC_OVERFLOW",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CHECKED_ARITHMETIC_EXACT",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "TWO_SESSIONS_WITH_TWO_OPS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "REPEATED_ADMISSION_OR_THIRD_OP_DENIED",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CALLBACK_BORROWER_PREVENTS_FREE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "STALE_GENERATION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "ATTEMPT_NOT_DESTRUCTION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "DUPLICATE_RELEASE_DENIED",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "NO_CLOSED_OPERATION_ID_RESURRECTION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "FRESH_ID_REUSE_AFTER_QUIESCENCE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "LATE_CALLBACK_CANNOT_RETARGET_REUSED_SLOT",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "NEW_LIFETIME_RELEASE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "SECOND_SESSION_RELEASE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "ALL_MANAGED_CREDITS_RECOVERED",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "RETENTION_SETUP",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "TERMINAL_RETENTION_MODEL",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PERSISTENT_RETENTION_NO_EVICTION_REUSE_OR_RESURRECTION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "LATE_CALLBACK_STALE_GENERATION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "retained_charged": 540904,
+          "retained_op": 9,
+          "generation": 7,
+          "class": "SYNTHETIC_NO_PST_OUTCOME",
+          "containment": "process_exit_not_destroyed"
+        },
+        {
+          "assertions": 41,
+          "failures": 0,
+          "result": "PASS",
+          "scope": "C89_PORTABLE_MANAGED_ADMISSION_AND_FAIRNESS_CANDIDATE_NOT_GLOBAL_C2"
+        }
+      ]
+    },
+    {
+      "id": "policy-vc6-final",
+      "sha256": "625634128946D4AFD9F4B85D93A026B90AF5CF12FE08E356F4B6A13390C4B042",
+      "exeSHA256": "C403AF602AEB87FBD4BA075D4E111B1707935E553C8C58938E1D00BA62D7A26B",
+      "compiledSizes": {
+        "sizeof_budget": 156,
+        "sizeof_entry": 32,
+        "managed_limit": 2097152,
+        "core_reservation": 524288,
+        "session_reservation": 16384,
+        "app_reservation": 1048576
+      },
+      "assertions": 41,
+      "class": "CANDIDATE_MANAGED_POLICY_SIMULATED_PROVIDER_KERNEL_MEASUREMENT_FAILURES",
+      "tests": [
+        {
+          "sizeof_budget": 156,
+          "sizeof_entry": 32,
+          "managed_limit": 2097152,
+          "core_reservation": 524288,
+          "session_reservation": 16384,
+          "app_reservation": 1048576
+        },
+        {
+          "test": "SATURATED_CONTROL_AND_DATA_NO_STARVATION_BOUNDED_8",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "SPAN_LAYOUT_FITS_CORE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CANCEL_FINAL_RESERVED_OUTSIDE_SATURATED_DATA",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "FAIRNESS_RELEASE_EXACTLY_ONCE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PARTIAL_ALLOCATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PARTIAL_ALLOCATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PARTIAL_ALLOCATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CANCEL_DURING_RESERVATION_ROLLBACK",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "MEASUREMENT_FAILURE_DENIES_BEFORE_EFFECTS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PROVIDER_UNAVAILABLE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "KERNEL_RESOURCE_UNAVAILABLE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "UNKNOWN_OPAQUE_ENVELOPE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_EXHAUSTED_DESPITE_INCREMENT_FITTING",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PHYSICAL_EXHAUSTION_DESPITE_COMMIT_HEADROOM_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PROCESS_CAPACITY_EXHAUSTED_DESPITE_HOST_AND_QUOTA_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_EXACT_RESERVATION_ACCEPTS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_SHARED_SNAPSHOT_CREDIT_NOT_DOUBLESPENT",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_CREDIT_RECOVERS_ONLY_ON_CONFIRMED_FREE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "HOST_HEADROOM_UNDERFLOW_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "EXACT_REQUEST_EXCEEDS_QUOTA_BY_ONE_BYTE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "EXACT_LIMIT_ACCEPTS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "LIMIT_PLUS_ONE_OR_MORE_DENIES",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "EXACT_LIMIT_RELEASE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CHECKED_ARITHMETIC_OVERFLOW",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CHECKED_ARITHMETIC_EXACT",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "TWO_SESSIONS_WITH_TWO_OPS",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "REPEATED_ADMISSION_OR_THIRD_OP_DENIED",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "CALLBACK_BORROWER_PREVENTS_FREE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "STALE_GENERATION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "ATTEMPT_NOT_DESTRUCTION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "DUPLICATE_RELEASE_DENIED",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "NO_CLOSED_OPERATION_ID_RESURRECTION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "FRESH_ID_REUSE_AFTER_QUIESCENCE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "LATE_CALLBACK_CANNOT_RETARGET_REUSED_SLOT",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "NEW_LIFETIME_RELEASE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "SECOND_SESSION_RELEASE",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "ALL_MANAGED_CREDITS_RECOVERED",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "RETENTION_SETUP",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "TERMINAL_RETENTION_MODEL",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "PERSISTENT_RETENTION_NO_EVICTION_REUSE_OR_RESURRECTION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "test": "LATE_CALLBACK_STALE_GENERATION",
+          "result": "PASS",
+          "class": "ISOLATED_CANDIDATE_POLICY"
+        },
+        {
+          "retained_charged": 540828,
+          "retained_op": 9,
+          "generation": 7,
+          "class": "SYNTHETIC_NO_PST_OUTCOME",
+          "containment": "process_exit_not_destroyed"
+        },
+        {
+          "assertions": 41,
+          "failures": 0,
+          "result": "PASS",
+          "scope": "C89_PORTABLE_MANAGED_ADMISSION_AND_FAIRNESS_CANDIDATE_NOT_GLOBAL_C2"
+        }
+      ]
+    }
+  ],
+  "nativeLoops": [
+    {
+      "id": "loop-debug-32",
+      "traceSHA256": "3D5CD145524D9E58133CEB247FC2AB8141EA622754876D2A90CAD58E6DEA7255",
+      "exeSHA256": "4386230BE6FC2C201F9CFD194027BF80304AF2B57D7C1D077D1DA809D7CC594B",
+      "cycles": 32,
+      "operations": 34,
+      "PSTContextCountPerOperation": 2,
+      "concurrentOpsMax": 2,
+      "concurrentPSTContextsMax": 4,
+      "resourceSamples": 1088,
+      "metrics": {
+        "private_usage": {
+          "baseline": 1482752,
+          "sampledPeak": 3493888,
+          "final": 2854912
+        },
+        "working_set": {
+          "baseline": 5906432,
+          "sampledPeak": 11771904,
+          "final": 11145216
+        },
+        "peak_working_set": {
+          "baseline": 5910528,
+          "sampledPeak": 12521472,
+          "final": 12521472
+        },
+        "pagefile_usage": {
+          "baseline": 1482752,
+          "sampledPeak": 3493888,
+          "final": 2854912
+        },
+        "peak_pagefile_usage": {
+          "baseline": 1679360,
+          "sampledPeak": 4149248,
+          "final": 4149248
+        },
+        "paged_pool_quota_usage": {
+          "baseline": 118368,
+          "sampledPeak": 132608,
+          "final": 127680
+        },
+        "nonpaged_pool_quota_usage": {
+          "baseline": 7200,
+          "sampledPeak": 24504,
+          "final": 8152
+        },
+        "handles": {
+          "baseline": 75,
+          "sampledPeak": 116,
+          "final": 94
+        },
+        "privateSamplePeakIncrement": 2011136,
+        "historicalCommitPeakIncrement": 2666496,
+        "finalPrivateIncrement": 1372160
+      },
+      "threadsObservedMin": 4,
+      "threadsObservedMax": 4,
+      "postCloseHandleRange": [
+        98,
+        98
+      ],
+      "postClosePrivateSeries": [
+        2539520,
+        2551808,
+        2666496,
+        2887680,
+        2875392,
+        2854912,
+        2686976,
+        2912256,
+        2736128,
+        2981888,
+        3010560,
+        2924544,
+        2940928,
+        2973696,
+        2961408,
+        2998272,
+        2785280,
+        2768896,
+        2859008,
+        2940928,
+        2850816,
+        2969600,
+        2883584,
+        2834432,
+        2838528,
+        2826240,
+        2895872,
+        2863104,
+        2945024,
+        2891776,
+        2945024,
+        2854912
+      ],
+      "physicalAvailableMin": 3177218048,
+      "commitAvailableMin": 8530239488,
+      "class": "NORMAL_OPENSSL_BOUND_CERTIFICATE_FIXTURE_NOT_FULL_C2"
+    },
+    {
+      "id": "loop-release-128",
+      "traceSHA256": "ACC111D0726057423FA05012136479541204205B0FBC76491EDA31CE7CB61FB0",
+      "exeSHA256": "87827A761AC8332EE35B79ACC32D20B50D42E868E5082328A0563FBF67DB6FA9",
+      "cycles": 128,
+      "operations": 136,
+      "PSTContextCountPerOperation": 2,
+      "concurrentOpsMax": 2,
+      "concurrentPSTContextsMax": 4,
+      "resourceSamples": 4346,
+      "metrics": {
+        "private_usage": {
+          "baseline": 1466368,
+          "sampledPeak": 3833856,
+          "final": 3137536
+        },
+        "working_set": {
+          "baseline": 5865472,
+          "sampledPeak": 12005376,
+          "final": 11333632
+        },
+        "peak_working_set": {
+          "baseline": 5869568,
+          "sampledPeak": 12763136,
+          "final": 12763136
+        },
+        "pagefile_usage": {
+          "baseline": 1466368,
+          "sampledPeak": 3833856,
+          "final": 3137536
+        },
+        "peak_pagefile_usage": {
+          "baseline": 1679360,
+          "sampledPeak": 4468736,
+          "final": 4468736
+        },
+        "paged_pool_quota_usage": {
+          "baseline": 118160,
+          "sampledPeak": 132400,
+          "final": 127472
+        },
+        "nonpaged_pool_quota_usage": {
+          "baseline": 7200,
+          "sampledPeak": 24712,
+          "final": 8288
+        },
+        "handles": {
+          "baseline": 75,
+          "sampledPeak": 116,
+          "final": 94
+        },
+        "privateSamplePeakIncrement": 2367488,
+        "historicalCommitPeakIncrement": 3002368,
+        "finalPrivateIncrement": 1671168
+      },
+      "threadsObservedMin": 4,
+      "threadsObservedMax": 4,
+      "postCloseHandleRange": [
+        98,
+        98
+      ],
+      "postClosePrivateSeries": [
+        2646016,
+        2646016,
+        2613248,
+        2605056,
+        2584576,
+        2543616,
+        2707456,
+        2768896,
+        2719744,
+        2850816,
+        2695168,
+        2678784,
+        2699264,
+        2801664,
+        2777088,
+        2818048,
+        2781184,
+        2904064,
+        2748416,
+        2699264,
+        2801664,
+        2830336,
+        2801664,
+        2744320,
+        2736128,
+        2723840,
+        2793472,
+        2756608,
+        2801664,
+        2842624,
+        2920448,
+        2813952,
+        2813952,
+        2801664,
+        2846720,
+        2932736,
+        2768896,
+        2924544,
+        3153920,
+        2883584,
+        3219456,
+        2904064,
+        2793472,
+        2854912,
+        2973696,
+        2871296,
+        2863104,
+        3182592,
+        2904064,
+        2822144,
+        3047424,
+        2875392,
+        2977792,
+        2793472,
+        2912256,
+        2875392,
+        2981888,
+        2904064,
+        2973696,
+        3022848,
+        3026944,
+        2854912,
+        2981888,
+        2981888,
+        3047424,
+        3104768,
+        3067904,
+        3072000,
+        3063808,
+        3076096,
+        3129344,
+        3035136,
+        3117056,
+        3092480,
+        3059712,
+        3055616,
+        3035136,
+        3047424,
+        3100672,
+        2961408,
+        3072000,
+        3051520,
+        3100672,
+        3338240,
+        3080192,
+        3022848,
+        3063808,
+        2965504,
+        3026944,
+        2998272,
+        3031040,
+        3088384,
+        3026944,
+        3092480,
+        3084288,
+        2990080,
+        3174400,
+        3186688,
+        3121152,
+        3280896,
+        3104768,
+        3076096,
+        3141632,
+        3104768,
+        3100672,
+        3031040,
+        3137536,
+        3010560,
+        3137536,
+        3272704,
+        3260416,
+        3059712,
+        3198976,
+        3170304,
+        3133440,
+        3190784,
+        3072000,
+        3137536,
+        3072000,
+        3194880,
+        3072000,
+        3043328,
+        3100672,
+        3706880,
+        3190784,
+        3031040,
+        3182592,
+        3137536
+      ],
+      "physicalAvailableMin": 3040735232,
+      "commitAvailableMin": 8375451648,
+      "class": "NORMAL_OPENSSL_BOUND_CERTIFICATE_FIXTURE_NOT_FULL_C2"
+    },
+    {
+      "id": "loop-release-512",
+      "traceSHA256": "684AC679B21AAEB3645B7A9E540EF4F7E5091D33D940CC4759722421C38805BE",
+      "exeSHA256": "86EFC366A53D5E64A34FB871DC4583EDEEEFFC196A9079ABE0676B02D8F1238E",
+      "cycles": 512,
+      "operations": 544,
+      "PSTContextCountPerOperation": 2,
+      "concurrentOpsMax": 2,
+      "concurrentPSTContextsMax": 4,
+      "resourceSamples": 17378,
+      "metrics": {
+        "private_usage": {
+          "baseline": 1470464,
+          "sampledPeak": 3747840,
+          "final": 3158016
+        },
+        "working_set": {
+          "baseline": 5844992,
+          "sampledPeak": 11923456,
+          "final": 11337728
+        },
+        "peak_working_set": {
+          "baseline": 5849088,
+          "sampledPeak": 12726272,
+          "final": 12726272
+        },
+        "pagefile_usage": {
+          "baseline": 1470464,
+          "sampledPeak": 3747840,
+          "final": 3158016
+        },
+        "peak_pagefile_usage": {
+          "baseline": 1478656,
+          "sampledPeak": 4407296,
+          "final": 4407296
+        },
+        "paged_pool_quota_usage": {
+          "baseline": 122256,
+          "sampledPeak": 136496,
+          "final": 131568
+        },
+        "nonpaged_pool_quota_usage": {
+          "baseline": 7200,
+          "sampledPeak": 24880,
+          "final": 7880
+        },
+        "handles": {
+          "baseline": 75,
+          "sampledPeak": 116,
+          "final": 94
+        },
+        "privateSamplePeakIncrement": 2277376,
+        "historicalCommitPeakIncrement": 2936832,
+        "finalPrivateIncrement": 1687552
+      },
+      "threadsObservedMin": 1,
+      "threadsObservedMax": 4,
+      "postCloseHandleRange": [
+        98,
+        98
+      ],
+      "postClosePrivateSeries": [
+        2461696,
+        2531328,
+        2486272,
+        2711552,
+        2748416,
+        2740224,
+        2744320,
+        2641920,
+        2723840,
+        2744320,
+        2670592,
+        2654208,
+        2875392,
+        2711552,
+        2740224,
+        2805760,
+        2875392,
+        2842624,
+        2863104,
+        2842624,
+        2813952,
+        2854912,
+        2838528,
+        2854912,
+        2822144,
+        2940928,
+        2940928,
+        2752512,
+        2867200,
+        2842624,
+        2924544,
+        2863104,
+        2793472,
+        2797568,
+        2834432,
+        2961408,
+        2961408,
+        2785280,
+        2764800,
+        2760704,
+        3002368,
+        3063808,
+        2793472,
+        2969600,
+        2985984,
+        2879488,
+        2949120,
+        2801664,
+        2879488,
+        2850816,
+        2801664,
+        2969600,
+        2973696,
+        2945024,
+        2809856,
+        2961408,
+        2846720,
+        2977792,
+        2797568,
+        2891776,
+        2867200,
+        2957312,
+        3104768,
+        2875392,
+        3014656,
+        3043328,
+        3022848,
+        3133440,
+        3035136,
+        3088384,
+        3051520,
+        2994176,
+        3096576,
+        3059712,
+        2977792,
+        3108864,
+        3076096,
+        3043328,
+        2990080,
+        3129344,
+        3153920,
+        3211264,
+        3055616,
+        3076096,
+        2957312,
+        3055616,
+        3133440,
+        2985984,
+        3108864,
+        3112960,
+        3100672,
+        3121152,
+        3055616,
+        3133440,
+        3104768,
+        3149824,
+        3125248,
+        3203072,
+        3067904,
+        3035136,
+        3072000,
+        3088384,
+        3178496,
+        3096576,
+        3137536,
+        3092480,
+        3088384,
+        3117056,
+        3047424,
+        3051520,
+        3067904,
+        3276800,
+        3100672,
+        3223552,
+        3186688,
+        3039232,
+        3031040,
+        3039232,
+        3117056,
+        3149824,
+        3096576,
+        3133440,
+        3153920,
+        3031040,
+        3096576,
+        3215360,
+        3026944,
+        3096576,
+        3129344,
+        3141632,
+        3244032,
+        3010560,
+        3051520,
+        3133440,
+        3121152,
+        3096576,
+        3018752,
+        3104768,
+        3145728,
+        3330048,
+        3153920,
+        3190784,
+        3055616,
+        3096576,
+        3194880,
+        3125248,
+        3112960,
+        3674112,
+        3178496,
+        3072000,
+        3055616,
+        3674112,
+        3043328,
+        3244032,
+        3678208,
+        3108864,
+        3674112,
+        3182592,
+        3067904,
+        3674112,
+        3207168,
+        3125248,
+        3575808,
+        3268608,
+        3088384,
+        3674112,
+        3182592,
+        3674112,
+        3194880,
+        3297280,
+        3022848,
+        3149824,
+        3674112,
+        3186688,
+        3678208,
+        3678208,
+        3182592,
+        3198976,
+        3674112,
+        3674112,
+        3674112,
+        3674112,
+        3674112,
+        3182592,
+        3678208,
+        3678208,
+        3678208,
+        3137536,
+        3674112,
+        3678208,
+        3268608,
+        3579904,
+        3743744,
+        3305472,
+        3653632,
+        3743744,
+        3743744,
+        3215360,
+        3739648,
+        3739648,
+        3743744,
+        3231744,
+        3641344,
+        3641344,
+        3739648,
+        3190784,
+        3739648,
+        3743744,
+        3297280,
+        3276800,
+        3743744,
+        3743744,
+        3248128,
+        3604480,
+        3604480,
+        3747840,
+        3211264,
+        3743744,
+        3743744,
+        3743744,
+        3276800,
+        3600384,
+        3743744,
+        3743744,
+        3260416,
+        3743744,
+        3743744,
+        3743744,
+        3284992,
+        3743744,
+        3743744,
+        3747840,
+        3747840,
+        3747840,
+        3747840,
+        3747840,
+        3747840,
+        3342336,
+        3186688,
+        3670016,
+        3211264,
+        3678208,
+        3678208,
+        3063808,
+        3563520,
+        3182592,
+        3563520,
+        3563520,
+        3563520,
+        3182592,
+        3555328,
+        3555328,
+        3559424,
+        3076096,
+        3559424,
+        3559424,
+        3678208,
+        3219456,
+        3584000,
+        3674112,
+        3674112,
+        3317760,
+        3674112,
+        3674112,
+        3674112,
+        3674112,
+        3129344,
+        3678208,
+        3678208,
+        3678208,
+        3125248,
+        3674112,
+        3678208,
+        3678208,
+        3211264,
+        3674112,
+        3678208,
+        3678208,
+        3264512,
+        3649536,
+        3674112,
+        3129344,
+        3670016,
+        3284992,
+        3674112,
+        3674112,
+        3678208,
+        3678208,
+        3678208,
+        3678208,
+        3678208,
+        3166208,
+        3534848,
+        3538944,
+        3608576,
+        3678208,
+        3239936,
+        3665920,
+        3674112,
+        3674112,
+        3674112,
+        3674112,
+        3674112,
+        3674112,
+        3244032,
+        3596288,
+        3674112,
+        3674112,
+        3674112,
+        3297280,
+        3567616,
+        3674112,
+        3678208,
+        3678208,
+        3678208,
+        3678208,
+        3678208,
+        3678208,
+        3239936,
+        3674112,
+        3698688,
+        3698688,
+        3268608,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3158016,
+        3698688,
+        3698688,
+        3702784,
+        3702784,
+        3702784,
+        3342336,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3264512,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3121152,
+        3698688,
+        3698688,
+        3190784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3153920,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3137536,
+        3702784,
+        3702784,
+        3395584,
+        3702784,
+        3702784,
+        3702784,
+        3186688,
+        3555328,
+        3559424,
+        3698688,
+        3698688,
+        3158016,
+        3698688,
+        3698688,
+        3698688,
+        3158016,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3268608,
+        3133440,
+        3698688,
+        3698688,
+        3231744,
+        3555328,
+        3559424,
+        3563520,
+        3563520,
+        3215360,
+        3563520,
+        3563520,
+        3563520,
+        3563520,
+        3289088,
+        3555328,
+        3694592,
+        3137536,
+        3256320,
+        3596288,
+        3694592,
+        3694592,
+        3698688,
+        3215360,
+        3694592,
+        3694592,
+        3694592,
+        3694592,
+        3694592,
+        3698688,
+        3698688,
+        3698688,
+        3231744,
+        3555328,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3256320,
+        3694592,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3702784,
+        3702784,
+        3702784,
+        3235840,
+        3551232,
+        3551232,
+        3694592,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3383296,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3178496,
+        3559424,
+        3559424,
+        3559424,
+        3559424,
+        3559424,
+        3698688,
+        3698688,
+        3698688,
+        3698688,
+        3256320,
+        3608576,
+        3698688,
+        3698688,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3211264,
+        3698688,
+        3698688,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3252224,
+        3698688,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3702784,
+        3670016,
+        3227648,
+        3493888,
+        3670016,
+        3670016,
+        3670016,
+        3670016,
+        3670016,
+        3670016,
+        3670016,
+        3112960,
+        3665920,
+        3665920,
+        3670016,
+        3670016,
+        3670016,
+        3670016,
+        3670016,
+        3670016,
+        3670016,
+        3158016
+      ],
+      "physicalAvailableMin": 2848354304,
+      "commitAvailableMin": 8529133568,
+      "class": "NORMAL_OPENSSL_BOUND_CERTIFICATE_FIXTURE_NOT_FULL_C2"
+    },
+    {
+      "id": "loop-debug-final-4",
+      "traceSHA256": "83A0A82A2B57C03FB011CB43B9A177B58123C109AA7AC370E8EB7B4C9EEE3FE0",
+      "exeSHA256": "E259DAA127B2BD5F450A10A63CD3927930AB0753355F7B22933238882B05387B",
+      "cycles": 4,
+      "operations": 5,
+      "PSTContextCountPerOperation": 2,
+      "concurrentOpsMax": 2,
+      "concurrentPSTContextsMax": 4,
+      "resourceSamples": 161,
+      "metrics": {
+        "private_usage": {
+          "baseline": 1478656,
+          "sampledPeak": 3219456,
+          "final": 2830336
+        },
+        "working_set": {
+          "baseline": 5873664,
+          "sampledPeak": 11464704,
+          "final": 10973184
+        },
+        "peak_working_set": {
+          "baseline": 5877760,
+          "sampledPeak": 12152832,
+          "final": 12152832
+        },
+        "pagefile_usage": {
+          "baseline": 1478656,
+          "sampledPeak": 3219456,
+          "final": 2830336
+        },
+        "peak_pagefile_usage": {
+          "baseline": 1486848,
+          "sampledPeak": 3842048,
+          "final": 3842048
+        },
+        "paged_pool_quota_usage": {
+          "baseline": 118368,
+          "sampledPeak": 132224,
+          "final": 127680
+        },
+        "nonpaged_pool_quota_usage": {
+          "baseline": 7200,
+          "sampledPeak": 23560,
+          "final": 8152
+        },
+        "handles": {
+          "baseline": 75,
+          "sampledPeak": 116,
+          "final": 94
+        },
+        "privateSamplePeakIncrement": 1740800,
+        "historicalCommitPeakIncrement": 2363392,
+        "finalPrivateIncrement": 1351680
+      },
+      "threadsObservedMin": 4,
+      "threadsObservedMax": 4,
+      "postCloseHandleRange": [
+        98,
+        98
+      ],
+      "postClosePrivateSeries": [
+        2592768,
+        2863104,
+        2494464,
+        2830336
+      ],
+      "physicalAvailableMin": 2690220032,
+      "commitAvailableMin": 8295763968,
+      "class": "NORMAL_OPENSSL_BOUND_CERTIFICATE_FIXTURE_NOT_FULL_C2"
+    }
+  ],
+  "builds": [
+    {
+      "id": "debug",
+      "result": "PASS",
+      "warnings": 0,
+      "logSHA256": "BF16AB7235AC940842D2F03C0CA6EC5580C073260F1A4B325CDF69F85F3495EC"
+    },
+    {
+      "id": "release",
+      "result": "PASS",
+      "warnings": 0,
+      "logSHA256": "9D6369B191E7DA3F468733BCCBE6781B5EC7C831D816455130498D9D704B6B4B"
+    },
+    {
+      "id": "vc6",
+      "result": "PASS",
+      "warnings": 0,
+      "logSHA256": "8BDA9BB82AF66E56FA4452F01D829B014C47280BB3272E47E39D492DDEF2C1D9"
+    }
+  ],
+  "C1Component": {
+    "traceSHA256": "1C7E70C1278676C5483C111F5AC74D7CC6FE5C9672E2A63301A2D73523D656BD",
+    "observerSHA256": "944DC6327B07C18E40B715CDEE175501A6944ABD5B62015041E3CC6D9DE5FFFF",
+    "childSHA256": "6B4ECEF516A6C208CB795B5E859EDCDA719C3A9F72AC2A1D499C1B3834185AB1",
+    "architecture": "VC6_x86_existing_fixture_observed_from_modern_x64",
+    "samples": 206,
+    "metrics": {
+      "private_usage": {
+        "firstSample": 471040,
+        "sampledPeak": 1572864,
+        "lastBeforeExit": 1507328
+      },
+      "working_set": {
+        "firstSample": 2207744,
+        "sampledPeak": 6995968,
+        "lastBeforeExit": 6979584
+      },
+      "peak_working_set": {
+        "firstSample": 2211840,
+        "sampledPeak": 7012352,
+        "lastBeforeExit": 7012352
+      },
+      "pagefile_usage": {
+        "firstSample": 471040,
+        "sampledPeak": 1572864,
+        "lastBeforeExit": 1507328
+      },
+      "peak_pagefile_usage": {
+        "firstSample": 471040,
+        "sampledPeak": 1581056,
+        "lastBeforeExit": 1581056
+      },
+      "paged_pool_quota_usage": {
+        "firstSample": 20440,
+        "sampledPeak": 133632,
+        "lastBeforeExit": 132800
+      },
+      "nonpaged_pool_quota_usage": {
+        "firstSample": 2176,
+        "sampledPeak": 146880,
+        "lastBeforeExit": 11680
+      },
+      "handles": {
+        "firstSample": 6,
+        "sampledPeak": 137,
+        "lastBeforeExit": 133
+      }
+    },
+    "threadsObserved": [
+      1,
+      5,
+      5,
+      5
+    ],
+    "class": "C1_PRIMITIVE_FIXTURE_NOT_BROWSER_PROCESS_OR_C2_BASELINE",
+    "physicalAvailableMin": 2614038528,
+    "commitAvailableMin": 8221904896
+  },
+  "sourceHashes": {
+    "tests\\diagnostic\\ed11_total_probe\\CMakeLists.txt": "EA75A9764681786984B84014A11B2584433919AF945712C9BF4E036836C128D9",
+    "tests\\diagnostic\\ed11_total_probe\\ed11_c1_external_observer.c": "9C656B5E186CDE1CDBC6D3992FDB40B77651C1FE58E01160A2D2732A322003E4",
+    "tests\\diagnostic\\ed11_total_probe\\ed11_lifecycle_loop.c": "69314AA6437AE0AB39D7920CEB9F443A443852782F63EB4363F64262C892EB7E",
+    "tests\\diagnostic\\ed11_total_probe\\ed11_policy_test.c": "EBEA6DDBC41991E8E2EFA1D719C3D90AC01E4F5004B1AD50091FFA0CFC41C01B"
+  },
+  "inputSourceHashes": {
+    "tests\\diagnostic\\ed11_resource_probe\\CMakeLists.txt": "AF72923FC138666CFA334AE5A8887F9B6AA0EB2368AA8B685E89D42AA6BDBE10",
+    "tests\\diagnostic\\ed11_resource_probe\\ed11_admission_test.c": "5FF8B465D42A795A62012658AC1698F42F9C211EC1903875BB08033FF6970313",
+    "tests\\diagnostic\\ed11_resource_probe\\ed11_resource_probe.c": "69F47E2E0449699DB3F091B5AA507CE13404FC254155107EF37937C36DDEF52F",
+    "tests\\diagnostic\\ed11_resource_probe\\README.md": "25691DCAD001D363D9ED18404B50AF581552E1A5101B5D44EE2987E1DDC0C0E1"
+  },
+  "baselinePreservedFiles": 489,
+  "SDK": {
+    "manifestSHA256": "F4FFA55319AA3CF6B9136DFDABCCD61813939EBEDD4D8BB4AE3A91881A7CA896",
+    "checksumsVerified": 44,
+    "librarySHA256": "556431E3E5C15D321867BE5BC88610B7D1586749D2DFFF5E6DB6BD5E598182DB",
+    "DLLHashes": {
+      "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\sdk\\runtime\\win32-x64-msvc-19.51-openssl3\\libcrypto-3-x64.dll": "09EEC573C9ADEA156BA2073F8CD61720D0AABEB7562D8498B4ECD21B710A3044",
+      "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\sdk\\runtime\\win32-x64-msvc-19.51-openssl3\\libssl-3-x64.dll": "3FB3CD7804DBE3216C801B470E14461D80214ECE99C637AE42EA3D8CAF75D7ED"
+    }
+  },
+  "qualification": {
+    "managedPolicy": "PASS_ISOLATED_C89_X64_AND_VC6_CURRENT_HOST",
+    "fullProviderMemory": "UNKNOWN_UNENFORCEABLE_PUBLIC_NORMAL_API",
+    "socketKernelTotal": "UNKNOWN_POOL_QUOTA_NOT_TOTAL",
+    "fullBrowserProcess": "NOT_MEASURED",
+    "fullC2Topology": "NOT_IMPLEMENTED_NOT_AUTHORIZED",
+    "NT4": "NOT_RUN",
+    "C2WireApproved": false
+  }
+}

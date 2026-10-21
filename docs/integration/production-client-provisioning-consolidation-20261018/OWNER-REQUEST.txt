@@ -1,0 +1,240 @@
+TASK=PACC-PHASE6-PRODUCTION-CLIENT-PROVISIONING-CONSOLIDATION-1
+
+MODE=GOVERNED_CANONICAL_CONTRACT_RECONCILIATION_AND_ROADMAP_REGISTRATION
+
+CANONICAL_ACCELERATOR=C:\Projetos\PapinhoAccelerator
+CANONICAL_BROWSER=C:\Projetos\PapinhoBrowser
+
+OWNER_DIRECTION=PRODUCTION_CLIENT_PROVISIONING_REQUIRED_BEFORE_PHASE6_COMPLETION
+
+## 1. Objetivo
+
+Recuperar, reconciliar e registrar as decisões já tomadas sobre provisionamento de clientes PapinhoBrowser no PapinhoAccelerator.
+
+Não redesenhar decisões existentes.
+
+Não criar outro sistema de identidade, certificados ou credenciais.
+
+Registrar expressamente a conclusão do provisionamento manual e automático como obrigação de fechamento da Phase 6, respeitando as autoridades normativas existentes.
+
+## 2. Documentação a verificar
+
+Pesquisar nos dois projetos canônicos:
+
+- docs/capabilities/client-pairing.md;
+- docs/architecture-roadmap.md;
+- ADR-0007 e decisões posteriores;
+- contratos de Production Secure Provisioning;
+- contratos de autenticação e autorização;
+- configuração OPEN/CLOSED;
+- credenciais, CredentialGeneration/Reference e leases;
+- stores e configuração administrativa;
+- root/policy/CURRENT/epoch;
+- contratos de revogação e renovação;
+- documentação de enrollment;
+- handoffs Browser–Accelerator.
+
+Consultar também os handoffs históricos de 07/10/2026 e as decisões posteriores, sem presumir que documentos antigos prevaleçam sobre decisões accepted mais recentes.
+
+## 3. Dois modos permanentes
+
+### MANUAL
+
+O administrador do Accelerator deve conseguir gerar um pacote de provisionamento para um novo cliente.
+
+O Browser deve importar esse pacote utilizando os mecanismos existentes.
+
+Preservar também a importação granular avançada.
+
+O pacote deve possuir formato versionado, identidade do servidor e destinatário, integridade, limites, proteção de segredos quando aplicável e importação transacional.
+
+A custódia de chave privada e o uso de CSR precisam respeitar o contrato aprovado. Não escolher silenciosamente um formato ou exportar chave privada sem autoridade.
+
+### AUTOMATIC
+
+O usuário informa o endereço do Accelerator no Browser.
+
+O Browser inicia o pareamento, apresenta a identidade verificável do servidor e realiza a confirmação por código conforme a cerimônia aprovada.
+
+O servidor controla a aprovação automática ou manual.
+
+A chave privada do cliente deve permanecer sob custódia do cliente no fluxo normal, utilizando CSR e prova de posse quando previstos pelo contrato.
+
+Antes de concluir, verificar identidade, autorização, expiração, replay e vínculo da solicitação.
+
+## 4. Política OPEN/CLOSED
+
+A política de acesso é independente da exigência de transporte TLS seguro.
+
+OPEN:
+Não exige autenticação inicial por usuário/senha para solicitar enrollment.
+
+CLOSED:
+Exige validação de usuário/senha antes da decisão de aprovação automática ou manual.
+
+Credenciais de usuário nunca trafegam em canal plaintext.
+
+Em ambos os modos, preservar a verificação da identidade do servidor e a confirmação de pareamento.
+
+## 5. Política de aprovação
+
+Permitir configuração administrativa:
+
+AUTO_APPROVAL
+MANUAL_APPROVAL
+
+Aprovação automática não significa ausência de validação de identidade, código, autorização ou controles anti-replay.
+
+Aprovação manual deve vincular a decisão administrativa à solicitação exata.
+
+Não permitir que um cliente ainda não aprovado obtenha CONTROL/DATA/egress operacional.
+
+## 6. Provisionamento sem reinício
+
+Requisito obrigatório:
+
+Adicionar, aprovar, renovar ou revogar clientes sem exigir reinício do serviço Accelerator.
+
+Reutilizar a root administrativa e a transação factual existente:
+
+PREPARE → COMMIT → CURRENT → EPOCH
+
+Preservar sessões existentes conforme as regras de revogação e Model E.
+
+Não substituir configuração committed por escrita direta em arquivo.
+
+Não criar segundo listener ou autoridade paralela.
+
+## 7. Revogação e renovação
+
+Preservar:
+
+- revogação persistente no servidor;
+- negação de novas conexões revogadas;
+- política explícita para sessões existentes;
+- renovação de certificados;
+- rotação de trust;
+- safe retirement;
+- retenção de leases;
+- auditoria sem segredos;
+- recuperação após restart.
+
+Unpair local não equivale a revogação no servidor.
+
+## 8. Integração comum
+
+Manual e automático devem convergir para:
+
+- mesmo cadastro administrativo;
+- mesma autoridade de emissão;
+- mesmo Principal/policy;
+- mesma configuração de grants;
+- CredentialGeneration/Reference;
+- mesmos mecanismos de leases e lifecycle.
+
+Não criar dois subsistemas de segurança.
+
+Não alterar PST ou PACC wire sem autorização normativa específica.
+
+## 9. Roadmap Phase 6
+
+Registrar como entregas obrigatórias:
+
+P6-PROVISIONING-MANUAL-PACKAGE
+P6-PROVISIONING-AUTOMATIC-ENROLLMENT
+P6-PROVISIONING-OPEN-CLOSED
+P6-PROVISIONING-AUTO-MANUAL-APPROVAL
+P6-PROVISIONING-HOT-UPDATE
+P6-PROVISIONING-REVOCATION-RENEWAL
+
+Essas entregas devem permanecer OPEN até implementação e qualificação efetivas ou decisão normativa explícita que altere seu escopo.
+
+Não marcar como concluídas apenas porque existem fixtures ou documentação.
+
+Não declarar a Phase 6 encerrada com essas obrigações abertas.
+
+## 10. Pontos ainda não congelados
+
+Identificar precisamente, sem inventar:
+
+- cerimônia e apresentação do código;
+- bootstrap de confiança;
+- formato final do pacote manual;
+- mecanismo de emissão e custódia de chaves;
+- interface administrativa CLI/GUI;
+- expiração e limites de tentativas;
+- propagação da revogação para sessões ativas.
+
+Propor somente as decisões realmente faltantes.
+
+Não reabrir decisões já accepted.
+
+## 11. Governança
+
+Trabalhar no Accelerator canônico.
+
+Browser somente leitura; preparar handoff para seu Codex.
+
+Solicitar aprovação oficial do executor quando exigida.
+
+Não contornar negativas.
+
+Não criar clones ou worktrees.
+
+Não modificar PST ou PACC wire.
+
+Não alterar produção 0.6.4.
+
+Não habilitar admissão Mode C ou executar rede nesta tarefa.
+
+PST 0.6.5 somente será publicado após conclusão integral da Phase 6.
+
+Não fazer commit, push, tag ou release.
+
+Preservar WIP e evidências.
+
+## 12. Entregas
+
+Produzir:
+
+1. Matriz EXISTING / PARTIAL / MISSING de cada requisito.
+2. Referências exatas às decisões anteriores.
+3. Registro normativo somente das lacunas aprovadas.
+4. Atualização do roadmap Phase 6.
+5. Handoff Browser.
+6. Próxima implementação mínima para provisionamento manual.
+
+Não implementar código nesta tarefa.
+
+## 13. Resultado
+
+CURRENT_TASK_COMPLETED=YES|NO
+
+MANUAL_PROVISIONING=...
+AUTOMATIC_ENROLLMENT=...
+OPEN_CLOSED_POLICY=...
+AUTO_MANUAL_APPROVAL=...
+PAIRING_CODE_CONTRACT=...
+HOT_UPDATE=...
+REVOCATION_RENEWAL=...
+
+PHASE6_ROADMAP_UPDATED=...
+NORMATIVE_CONFLICTS=...
+UNRESOLVED_DECISIONS=...
+
+FILES_CHANGED=...
+EXECUTOR_APPROVALS=...
+WIP_PRESERVED=...
+DIFF_CHECK=...
+
+CLIENT_ADMISSION=DISABLED
+SITE_TLS_ADMISSION=DENY
+ED11_ADMISSION=DENY
+
+PST_CHANGED=NO
+BROWSER_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+PRODUCTION_PIN=0.6.4
+PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
+
+NEXT=IMPLEMENT_CANONICAL_MANUAL_CLIENT_PACKAGE_GENERATOR

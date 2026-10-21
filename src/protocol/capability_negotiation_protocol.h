@@ -1,0 +1,4 @@
+#ifndef PAPACC_INTERNAL_CAPABILITY_NEGOTIATION_PROTOCOL_H_FORWARD_H
+#define PAPACC_INTERNAL_CAPABILITY_NEGOTIATION_PROTOCOL_H_FORWARD_H
+#include <papacc/pacc/capability_negotiation_protocol.h>
+#endif

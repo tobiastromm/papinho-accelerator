@@ -1,0 +1,495 @@
+{
+  "task": "PACC-PHASE6-ISSUER-LIVE-TRANSACTION-SAFETY-1",
+  "completed": true,
+  "scope": "PENDING_PERSISTENCE_ADAPTER_ONLY_NO_SESSION_OR_PUBLICATION_HUNKS",
+  "head": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+  "branch": "main",
+  "official_executor_review": "APPROVED_11_FILE_OPERATION_AND_EXACT_STACK_DEDUP_HUNK_NO_DENIAL",
+  "builds": "DEBUG_RELEASE_PASS",
+  "warnings": 0,
+  "offline_invocations": 28,
+  "portable_contract": "STRICT_C_COMPILE_PASS_FINAL_LOG2",
+  "synthetic_faults": "WORKER_PAUSE_AND_UNKNOWN_EXPLICIT_TEST_ONLY",
+  "native_evidence": "LOCAL_TXF_COMMIT_ROLLBACK_FILE_CAS_NOT_OS_CRASH_OR_CERTIFICATE_ISSUANCE",
+  "known_managed_bytes": 1695352,
+  "combined_fixture_reserved_bytes": 1957667,
+  "managed_limit": 2097152,
+  "normal_configuration_owner_size": 103520,
+  "component_test_configuration_owner_size": 103544,
+  "worker_stack_reserved_bytes": 65536,
+  "authority_recovery": "DENY_UNTIL_QUALIFIED",
+  "live_current_publication": "DENY_PENDING_SESSION_HUNKS",
+  "provider_kernel": "UNKNOWN",
+  "admission": "DENY",
+  "network": "NOT_RUN",
+  "key_operations": "NOT_RUN",
+  "production_pin_sha256": "3d347a0606c7ad03d2ed02b593daba8853a2c627f85a146f28fb90c94ba05c39",
+  "unchanged_previously_captured_files": [
+    "apps/server/server_launcher_owner_win32.h",
+    "apps/server/server_c2_root_binding_win32.inc",
+    "apps/server/server_c2_owner_win32.c",
+    "apps/server/server_c2_owner_win32.h",
+    "apps/server/server_admission_preflight_win32.inc",
+    "apps/server/server_listener_composition_win32.inc",
+    "tests/canonical_root_transaction_test.c",
+    "docs/adr/DECISION-issuer-c2-epoch-authority-relation-20261019.md"
+  ],
+  "wip": "PRESERVED_OUTSIDE_EXACT_AUTHORIZED_HUNKS",
+  "files": [
+    {
+      "path": "src/issuer/issuer_transaction.h",
+      "before": null,
+      "after": "8476f19a929478a4e4fbeaad5827dde745f636588bd17443ca5615c35bb8f1c2",
+      "bytes": 420
+    },
+    {
+      "path": "apps/server/server_configuration_pending_win32.h",
+      "before": null,
+      "after": "d378632cc7a32ffdf9e36defc9aec403247b7a25c16612ce77f0b5a2f1235a31",
+      "bytes": 919
+    },
+    {
+      "path": "apps/server/server_configuration_commit_win32.h",
+      "before": "ee144b5d647a5e703568c32af7477cfd3510feabfb68c8f81fb6723e5d7d1417",
+      "after": "51190785721e758bf0b152756e9d853328c73aa6b52d12f15e6601028db04068",
+      "bytes": 7743
+    },
+    {
+      "path": "apps/server/server_configuration_pending_win32.inc",
+      "before": null,
+      "after": "fd37a51bba14ce0710ea52569fb68552ee15daa8c0091936dcc49bdff6323db9",
+      "bytes": 6992
+    },
+    {
+      "path": "apps/server/server_configuration_commit_win32.c",
+      "before": "ce40d1320e688c242f8a40ae7ba59538777cde752f6af0513f90c96c0f484b31",
+      "after": "22f51f8dc19fc71fb8cf1d9e5d56677fc1af5594b620fa23b2fe9a14ec0d1c39",
+      "bytes": 22314
+    },
+    {
+      "path": "apps/server/server_configuration_issuer06_win32.inc",
+      "before": "223f7270a8344285e7ee5ce4b2adb91f8fc7860ed4cf6ff4ca6c71ac4e41f3ef",
+      "after": "1dcf71c46f0f96167ed914a43dd495bc31be6c510a6c22ab4d7d1d94a88427fc",
+      "bytes": 9933
+    },
+    {
+      "path": "apps/server/server_launcher_owner_win32.c",
+      "before": "93f28e85e86cb241f36587ac26d124e6f765c821fb6ecf865fe8cf21337c8778",
+      "after": "6647936749308a8d1002a55d761c972e3bbd487c9c6856926c2883bd39b4ef52",
+      "bytes": 61587
+    },
+    {
+      "path": "apps/server/server_configuration_root_transaction_win32.inc",
+      "before": "fb9a4a3faa04580700682f0ece3c323e915d83d22a97a32288979dcfa72ffeef",
+      "after": "9566553905ddcc75be9eae53d94108c57d197a80f17ca04454317498b002c04f",
+      "bytes": 23277
+    },
+    {
+      "path": "apps/server/server_c8_private_storage_layout_win32.h",
+      "before": "3c78c1c03d21388d3544aa90360b2eabf1292a5bcb3a26b8b0f6e5b233b2bb42",
+      "after": "24af96eca6fe9c16474b8421c58b66c2a8e99770dca8bc964d15eed7df7dc9b3",
+      "bytes": 2552
+    },
+    {
+      "path": "tests/issuer_root_store_win32_test.c",
+      "before": "003819730670f3c63e0c9c4779e1dd47112fd107e9eacd2c45899d86475a5634",
+      "after": "1423cc48cdae5396a69208f8866bb7868dcea1c578b4537ea782b57a2dac077f",
+      "bytes": 18382
+    },
+    {
+      "path": "CMakeLists.txt",
+      "before": "6ddbe8d7692c90ff39162eaf40c316852987571be8aaa372b9ad1858f9d846ac",
+      "after": "5a2a85f08e7108e96757bbd9f34a42adfe895d451b126e3279d708225832960e",
+      "bytes": 112632
+    },
+    {
+      "path": "docs/capabilities/client-pairing.md",
+      "after": "a31228761c9887ea9a017b835ef70da96ab0c0b3f76dd2c761d03401a8e9fc41",
+      "bytes": 20540
+    },
+    {
+      "path": "docs/portability.md",
+      "after": "e921ad887cb1bc24e005d7d2d393b2858d67bd143ce6091a2bbc4f28dda04edf",
+      "bytes": 6446
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Debug/papacc_canonical_root_layout_test.exe",
+      "after": "e2f0ccf019ef62e78e2a297dc513cbd5b94fb9c1c91489957e9a2238e4df140e",
+      "bytes": 51200
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Debug/papacc_canonical_root_transaction_test.exe",
+      "after": "c37d357a6014ba1f2afcde09f781754ceb8ffdb7f28ffa7caf812a019a9913eb",
+      "bytes": 863232
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Debug/papacc_issuer_offline_test.exe",
+      "after": "93bd753ab96bd82fa6eadc2b30be4c7236ab4b1ce4f92a098978545087d70e72",
+      "bytes": 96256
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Debug/papacc_issuer_production_gate_test.exe",
+      "after": "14b53d2e3a74a304651218b6fa5b1e37f44e19962fb456f17e666e0424213cc1",
+      "bytes": 73216
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Debug/papacc_issuer_root_guard_test.exe",
+      "after": "c80561dd19e27974b603a857b50574fdfa1c90c37eddf099bcd0b1560fefe5d2",
+      "bytes": 174592
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Debug/papacc_issuer_root_store_test.exe",
+      "after": "d3f209cfdc3a836fda7b2206b8d364c4cadb0df0dc2316e8d3d95a610e7f44f0",
+      "bytes": 201216
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Debug/papacc_server.exe",
+      "after": "0a4d464448978e3094222afe7e126969472eec1d4f45a5d877c76af60e0727dd",
+      "bytes": 876032
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Debug/papacc_site_tls_catalog_offline_test.exe",
+      "after": "d547d504a9f2c1eebff2508bcdd18bb6d60dbc7d5fb62281b35d033cd5b746cb",
+      "bytes": 164352
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Release/papacc_canonical_root_layout_test.exe",
+      "after": "00f71e8585110bef30a55b1319e75667eff9f0a9c122578e85a6e114c28dc0a3",
+      "bytes": 10240
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Release/papacc_canonical_root_transaction_test.exe",
+      "after": "c9a82c1498226d5b3b59ff0ffcfb73079af76dee7028425b0f7279b82048a0fc",
+      "bytes": 187392
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Release/papacc_issuer_offline_test.exe",
+      "after": "506ae6ed277fede32b2f6ed2e71a74193144c5ed91cb195d5100025064e3f9d7",
+      "bytes": 35840
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Release/papacc_issuer_production_gate_test.exe",
+      "after": "c497c712fc5c9c38952ae0494b8def17e27ea77cb815d202f8e275c855a09ec5",
+      "bytes": 13824
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Release/papacc_issuer_root_guard_test.exe",
+      "after": "6cb9e87a2c3bdf8e1e4d223708b1c04c32126f22ebcf4220d34ef49458d35b0f",
+      "bytes": 74752
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Release/papacc_issuer_root_store_test.exe",
+      "after": "5b95cba33601e3a3d5697c04e015fefd339545448faecc2f225de59dede05ab2",
+      "bytes": 90624
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Release/papacc_server.exe",
+      "after": "a4bda35cbecc7517f6c871d2cdc87f44d5e8faf86098e524bb62c2f38f9a6d9f",
+      "bytes": 333312
+    },
+    {
+      "path": "build/issuer-live-transaction-safety-20261019/Release/papacc_site_tls_catalog_offline_test.exe",
+      "after": "fc200afd71d3ff5b9700d355b8a25ee9b7d88e916047dce22c2cd3ce11147d45",
+      "bytes": 29184
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/audit-final.py",
+      "sha256": "89aa1a63fbd020eb4eef08e4bf0c38441d40cd7eb77750155a35cb0f3d8c3eb6"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/build-Debug.cmd",
+      "sha256": "760c72023785408a0d9d27404aabe02cb3b7c94314ec3335f4dd712a2a3a857c"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/build-Release.cmd",
+      "sha256": "7cb39d3b9865fc291d05864e7cae121565318a57ae03da53fdb4ed0ed997afec"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/closeout.md",
+      "sha256": "12f9ae146a0baeb596519e940b2754c5f9b2a7861bb08b16e3d7ed9cd7b74637"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-application-root.log",
+      "sha256": "f49e40aeb3af626187b140507d88928c5d08351f47f9a7e8e736870a698a1ecc"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-application-root2.log",
+      "sha256": "670e70da4c5c181024f8bbcf01b35bfe1b3283024d891f7fdefd06ebc5a803b6"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-build1.log",
+      "sha256": "798462f0249a618207360799d461fc135458ac302db10223bd826dd57c6754dc"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-build2.log",
+      "sha256": "0c09ab39beee78d51d68603fa339570db37a561df2cf30bd93c196159d3a1f29"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-codec-only.log",
+      "sha256": "bcf61f8e6c96efa1f7e64261247f1418353f0e0b927555c6bf8eeef56487de36"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-native-history.log",
+      "sha256": "8dcdfb46c6e7c01c75c68bf8551a97cc77a61bbcfca9649e302d39d170e8873b"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-native-snapshots.log",
+      "sha256": "799a05ef76df4aa6a6fd5e140af6ff43d252040897228955ff5ecaf596f07db5"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-native-stop.log",
+      "sha256": "0a50ac57672b016d2f9958a78f72b4b999bc055f3d9e65a14013baea44b1edb0"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-normal-guard.log",
+      "sha256": "2ea75acdb2b69d7f5af67825fb0c52ad8d402d8186ddcb68a03701996afa8888"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-papacc_canonical_root_layout_test.log",
+      "sha256": "7042555e47d9050b65e8b255b464bc5c24f6c66cf56ec2b3e93d291a39ab00a4"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-papacc_issuer_offline_test.log",
+      "sha256": "2272d81c1d2b23083185bed73a183a7b50ee8d2358c81eb042ea12b57a35c0b3"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-papacc_issuer_production_gate_test.log",
+      "sha256": "d0831ace1b08ebb5cdcc814c3a3743f0bbfd38a6ed12ebc0e0d77fafc0d7c88e"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-papacc_site_tls_catalog_offline_test.log",
+      "sha256": "c1a35aba8c49258b5df004c1b9b32bf04254763a30666ae855f9810d6bf04334"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-pending-conflict.log",
+      "sha256": "dd322db5ef6cd9431be1eaf708301f2b46f557b3d89f5a90e3d7aaafd507cc19"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-pending-stop.log",
+      "sha256": "a0f06670f658d0094209a6035dbb6cc950d1a53a902fc8159babb136015f428c"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-pending-success.log",
+      "sha256": "2de336b7b64c85385ee1a5d6a7af1625bb20a5e8b1ca66b30b56d925def6bd65"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-pending-unknown.log",
+      "sha256": "a380474e0a40c2c475022cde3ed3031c7f3d95acd79db1fc235a7f1280d5678b"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Debug-test-results.json",
+      "sha256": "91fb63ebf3de3e677bf8cb5e3c58de2c5a38246126b3d83c624dc48199b331b8"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/final-source.diff",
+      "sha256": "41b0c04404222054e79dfc259415dbaabca53999d26d988c3e9dae5fbafece5d"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/finalize.py",
+      "sha256": "139bdda2bfb5948673f6f37d9ddc221419875d97f55df1f20708385f13bdc874"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/lock-refine.py",
+      "sha256": "136ae68dc98bdb0b48f4512fa7cfdeaaab0da0330ae7c1f5caf08932c5b6456c"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/operation.json",
+      "sha256": "0ec69bab54d8253ef50e39d31726cf9ac8c2d99b5e6f230f3754dfc7a7898546"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/portable-check.cmd",
+      "sha256": "94c34386f7f4a8f332c4304b8ff0f37070fe65bd7dcfceea0718efe7d596b004"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/portable-check.log",
+      "sha256": "de31a91aa095bd03e37fcefbcfb445d4701f63b488500bc803db6bc82083f0a2"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/portable-check2.log",
+      "sha256": "a0555dde8670f1d7c28a0b0bc0aeacbee6ba82dc84ea1d4177255221d2c34a36"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/apps__server__server_c8_private_storage_layout_win32.h",
+      "sha256": "3c78c1c03d21388d3544aa90360b2eabf1292a5bcb3a26b8b0f6e5b233b2bb42"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/apps__server__server_configuration_commit_win32.c",
+      "sha256": "ce40d1320e688c242f8a40ae7ba59538777cde752f6af0513f90c96c0f484b31"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/apps__server__server_configuration_commit_win32.h",
+      "sha256": "ee144b5d647a5e703568c32af7477cfd3510feabfb68c8f81fb6723e5d7d1417"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/apps__server__server_configuration_issuer06_win32.inc",
+      "sha256": "223f7270a8344285e7ee5ce4b2adb91f8fc7860ed4cf6ff4ca6c71ac4e41f3ef"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/apps__server__server_configuration_root_transaction_win32.inc",
+      "sha256": "fb9a4a3faa04580700682f0ece3c323e915d83d22a97a32288979dcfa72ffeef"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/apps__server__server_launcher_owner_win32.c",
+      "sha256": "93f28e85e86cb241f36587ac26d124e6f765c821fb6ecf865fe8cf21337c8778"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/CMakeLists.txt",
+      "sha256": "6ddbe8d7692c90ff39162eaf40c316852987571be8aaa372b9ad1858f9d846ac"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/docs__capabilities__client-pairing.md",
+      "sha256": "ad6156c73776f6bb3e9b328abc6623ea2692ff030a79f87be7da7d91f9e85495"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/docs__portability.md",
+      "sha256": "8afaf35b76c2bd505629a19d9845cb522441179bcd8e15b0e0c0bab147800545"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/launcher-before-stack-dedup.c",
+      "sha256": "77dff13f943a1024bff27c0bc3ccca60077a05c5258fb262f5d6bc6dcb412e65"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/preimages/tests__issuer_root_store_win32_test.c",
+      "sha256": "003819730670f3c63e0c9c4779e1dd47112fd107e9eacd2c45899d86475a5634"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/prepare.py",
+      "sha256": "cc406e703a9a82190bf68a44d8a42c04faa3e48bc4524a141e28e8d58ed45772"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/apps__server__server_c8_private_storage_layout_win32.h",
+      "sha256": "24af96eca6fe9c16474b8421c58b66c2a8e99770dca8bc964d15eed7df7dc9b3"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/apps__server__server_configuration_commit_win32.c",
+      "sha256": "22f51f8dc19fc71fb8cf1d9e5d56677fc1af5594b620fa23b2fe9a14ec0d1c39"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/apps__server__server_configuration_commit_win32.h",
+      "sha256": "51190785721e758bf0b152756e9d853328c73aa6b52d12f15e6601028db04068"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/apps__server__server_configuration_issuer06_win32.inc",
+      "sha256": "1dcf71c46f0f96167ed914a43dd495bc31be6c510a6c22ab4d7d1d94a88427fc"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/apps__server__server_configuration_pending_win32.h",
+      "sha256": "d378632cc7a32ffdf9e36defc9aec403247b7a25c16612ce77f0b5a2f1235a31"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/apps__server__server_configuration_pending_win32.inc",
+      "sha256": "fd37a51bba14ce0710ea52569fb68552ee15daa8c0091936dcc49bdff6323db9"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/apps__server__server_configuration_root_transaction_win32.inc",
+      "sha256": "9566553905ddcc75be9eae53d94108c57d197a80f17ca04454317498b002c04f"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/apps__server__server_launcher_owner_win32.c",
+      "sha256": "77dff13f943a1024bff27c0bc3ccca60077a05c5258fb262f5d6bc6dcb412e65"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/CMakeLists.txt",
+      "sha256": "5a2a85f08e7108e96757bbd9f34a42adfe895d451b126e3279d708225832960e"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/src__issuer__issuer_transaction.h",
+      "sha256": "8476f19a929478a4e4fbeaad5827dde745f636588bd17443ca5615c35bb8f1c2"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed/tests__issuer_root_store_win32_test.c",
+      "sha256": "1423cc48cdae5396a69208f8866bb7868dcea1c578b4537ea782b57a2dac077f"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/proposed.patch",
+      "sha256": "269a3f0b234b1ad48095216092b6c73d7a691a6eba873820464e060fb90ddd82"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/refine.py",
+      "sha256": "9744b9d81458e1b255c8af4fad081e868a9fa1ab16c81a5a536a93e559db5867"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-application-root.log",
+      "sha256": "f49e40aeb3af626187b140507d88928c5d08351f47f9a7e8e736870a698a1ecc"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-application-root2.log",
+      "sha256": "670e70da4c5c181024f8bbcf01b35bfe1b3283024d891f7fdefd06ebc5a803b6"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-build1.log",
+      "sha256": "8cdebfe38777b4ed4b3be67dd506a480ad100e5b5a13afa89987651281af4513"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-build2.log",
+      "sha256": "4cbf08c18b1b7d4521d4b88dc976687dc781142869383282a893d3e7b9395d93"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-codec-only.log",
+      "sha256": "bcf61f8e6c96efa1f7e64261247f1418353f0e0b927555c6bf8eeef56487de36"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-native-history.log",
+      "sha256": "8dcdfb46c6e7c01c75c68bf8551a97cc77a61bbcfca9649e302d39d170e8873b"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-native-snapshots.log",
+      "sha256": "799a05ef76df4aa6a6fd5e140af6ff43d252040897228955ff5ecaf596f07db5"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-native-stop.log",
+      "sha256": "0a50ac57672b016d2f9958a78f72b4b999bc055f3d9e65a14013baea44b1edb0"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-normal-guard.log",
+      "sha256": "2ea75acdb2b69d7f5af67825fb0c52ad8d402d8186ddcb68a03701996afa8888"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-papacc_canonical_root_layout_test.log",
+      "sha256": "7042555e47d9050b65e8b255b464bc5c24f6c66cf56ec2b3e93d291a39ab00a4"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-papacc_issuer_offline_test.log",
+      "sha256": "2272d81c1d2b23083185bed73a183a7b50ee8d2358c81eb042ea12b57a35c0b3"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-papacc_issuer_production_gate_test.log",
+      "sha256": "d0831ace1b08ebb5cdcc814c3a3743f0bbfd38a6ed12ebc0e0d77fafc0d7c88e"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-papacc_site_tls_catalog_offline_test.log",
+      "sha256": "c1a35aba8c49258b5df004c1b9b32bf04254763a30666ae855f9810d6bf04334"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-pending-conflict.log",
+      "sha256": "6be5e95640ecdd6b2e5f6a2d1c13d9fb5303a15e5b88a22d455a5fbb5b7d160d"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-pending-stop.log",
+      "sha256": "7a97b62b77d30dbc08cfbe0e15ed5b517a7decca4cc243819e1ce10e1e7738e7"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-pending-success.log",
+      "sha256": "2de336b7b64c85385ee1a5d6a7af1625bb20a5e8b1ca66b30b56d925def6bd65"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-pending-unknown.log",
+      "sha256": "a380474e0a40c2c475022cde3ed3031c7f3d95acd79db1fc235a7f1280d5678b"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/Release-test-results.json",
+      "sha256": "91fb63ebf3de3e677bf8cb5e3c58de2c5a38246126b3d83c624dc48199b331b8"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/safety-proof-and-handoff.md",
+      "sha256": "79695a0d1d14913382f8a852be37f590725172b48baff8726c335e82444e99ed"
+    },
+    {
+      "path": "docs/integration/issuer-live-transaction-safety-20261019/safety-refine.py",
+      "sha256": "879b01352fe7b13326f959dc0a5d3116ca91e0a5b8123c24c7f0b58991d83df3"
+    }
+  ],
+  "next": "RECONCILE_AND_APPLY_EXACT_ISSUER_SESSION_HUNKS"
+}

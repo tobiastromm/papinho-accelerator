@@ -1,0 +1,27 @@
+--- apps/server/server_configuration_bootstrap_win32.inc
++++ apps/server/server_configuration_bootstrap_win32.inc
+@@ -11,7 +11,7 @@
+ {
+  BYTE sid[SECURITY_MAX_SID_SIZE];DWORD bytes=sizeof(sid),e;BOOL member=FALSE;HANDLE token=NULL;
+  if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&token)){
+-  if(!CloseHandle(token)){p->file=token;p->close_error=GetLastError();}return 0;
++  if(!CloseHandle(token)){p->bootstrap_token=token;p->close_error=GetLastError();}return 0;
+  }
+  e=GetLastError();if(e!=ERROR_NO_TOKEN)return 0;
+  return CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,sid,&bytes)&&
+@@ -25,6 +25,7 @@
+  if(first){*volume=f.dwVolumeSerialNumber;*high=f.nFileIndexHigh;*low=f.nFileIndexLow;return 1;}
+  return *volume==f.dwVolumeSerialNumber&&*high==f.nFileIndexHigh&&*low==f.nFileIndexLow;
+ }
++#include "server_configuration_bootstrap_commit_win32.inc"
+ static void bootstrap_worker(PAPACC_CONFIG_PENDING *p)
+ {
+  HMODULE module;FARPROC address;BOOTSTRAP_NT_CREATE create;
+@@ -70,6 +71,7 @@
+  if(InterlockedCompareExchange(&p->stop,0,0))return;
+  if(!bootstrap_identity(p->bootstrap_parent,&p->bootstrap_parent_volume,&p->bootstrap_parent_high,&p->bootstrap_parent_low,0)||
+     !bootstrap_identity(p->bootstrap_container,&p->bootstrap_volume,&p->bootstrap_high,&p->bootstrap_low,0))goto unknown;
++ if(p->bootstrap_admin&&!bootstrap_auth_capture(p))goto unknown;
+  p->bootstrap_ready=1U;p->result=PAPACC_CAS_SUCCESS;return;
+ unknown:p->result=PAPACC_CAS_UNKNOWN;p->native_error=GetLastError();
+ }

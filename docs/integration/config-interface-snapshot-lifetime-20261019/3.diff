@@ -1,0 +1,18 @@
+--- apps/server/server_launcher_owner_win32.h
++++ apps/server/server_launcher_owner_win32.h
+@@ -6,6 +6,7 @@
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ #include "server_configuration_commit_win32.h"
+ #include "bind_target.h"
++#include "interface_snapshot_copy.h"
+ #include "server_c8_resource_admission_win32.h"
+ #include "server_c8_target_evidence_win32.h"
+ #include "tcp_accept_win32.h"
+@@ -74,6 +75,7 @@
+     PAPACC_BIND_TARGET targets[PAPACC_ROOT_BIND_TARGETS];
+     PAPACC_U32 runtime_ids[PAPACC_CONFIG_IDS];
+     PAPACC_SIZE target_count;
++    PAPACC_INTERFACE_SNAPSHOT_COPY interface_snapshot;
+     PAPACC_U64 invocation;
+     PAPACC_BOOL listener_prepared, capabilities_prepared, c2_prepared;
+ } PAPACC_ROOT_TRANSACTION_PARTICIPANTS;

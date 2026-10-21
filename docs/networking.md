@@ -1,5 +1,15 @@
 # Networking e transports
 
+## Estado factual após a Phase 6
+
+Network Egress v1 está implementado para conexões server-owned em
+`TCP_PLAIN` e `TLS_REQUIRED` Mode B. `allow_network_egress` é apenas o master
+gate; Destination Policy decide se destino/porta/contexto é permitido e Egress
+Profile decide como a conexão aprovada sai. DNS ocorre uma vez, cada endpoint
+numérico é filtrado e o connect usa exatamente o endpoint aprovado. Classes
+sensíveis e destinos públicos exigem policy explícita. O closeout completo está
+em [Phase 6 — Network & TLS Offload](phase6-network-tls-offload.md).
+
 Decisões arquiteturais canônicas relacionadas:
 
 - [ADR-0002 — Core portável entre deployments e backends substituíveis](adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md);
@@ -320,3 +330,25 @@ Egress remoto será uma autoridade privilegiada e deverá aplicar validação de
 ## UDP
 
 UDP não será implementado inicialmente. Poderá ser avaliado no futuro para latência, após definição de segurança, congestion control, confiabilidade e sincronização apropriadas. Esta baseline não projeta mídia sobre UDP.
+
+
+### interface_ref decimal — 2026-10-19
+
+A [decisão focal accepted](adr/DECISION-papacc-conf-interface-ref-persistent-id-20261019.md) adota somente o PersistentID decimal uint64 da CLI, sob ADR-0007. O [binding portável](integration/config-interface-persistent-binding-20261019/closeout.md) compara o token com o modelo administrativo existente e resolve um snapshot emprestado pelos resolvers canônicos, produzindo apenas MODEL_BOUND. Não cria aliases, nomes derivados ou autoridade de Network Egress/TLS/acesso. A entrada nativa continua sem caminho SELECTED para RESOLVED enquanto a proveniência/revisão/lifetime do snapshot administrativo não forem comprovados. Provider nomeado permanece PENDING e rejeitado; CLOSED preserva usuário/senha conforme contrato de provisionamento, sem substituição implícita por mTLS. Codec permanece PROPOSED; nenhum CURRENT, listener, grant, reserva ou admissão foi publicado. Testes são offline/sintéticos, não qualificação operacional. As descrições anteriores registram os slices históricos.
+
+
+### Lifetime do snapshot de preparação — 2026-10-19
+
+O [slice de ownership](integration/config-interface-snapshot-lifetime-20261019/closeout.md) integra uma cópia imutável bounded no participante da única root administrativa. Ela resolve seleção/targets durante preparação sem reter buffers/presentation do produtor, usa invocation/revisão de preparação factuais e preserva retenção até o cleanup existente. Tentativas de replacement e uso com revisão divergente são negadas. Debug/Release e24invocações offline/nativas locais passaram, sem rede ou publicação de configuração. O novo storage embutido custa5928bytes, incluídos uma vez no censo; ED11 total permanece PARTIAL e provider/kernel UNKNOWN. Revisão inicial pending0 não é CURRENT nem epoch. Esta realização não estabelece provenance/freshness de source arbitrária nem autoriza SELECTED/RESOLVED sob CURRENT: esse vínculo continua negado até a transação factual aplicável. Provider nomeado PENDING/rejeitado, codec PROPOSED, quotas e produção0.6.4 preservadas. As notas anteriores descrevem seus respectivos slices históricos.
+
+
+### Correlação CURRENT e comparação de capturas — 2026-10-19
+
+O [slice focal](integration/config-interface-current-topology-20261019/closeout.md) adiciona metadados ao participante existente, escritos somente no ramo de sucesso pós-commit/publicação da root, copiando R/A/P reais. A consulta exige pin CURRENT factual, mesma invocation/revisão e Stop válido; não atesta topologia nem produz RESOLVED. O hook positivo pós-commit está compilado, mas não foi executado nesta tarefa, que preservou CONFIG_PUBLICATION=DENY. O comparador portável reutiliza os resolvers por PersistentID e compara estado/endpoints entre observações sem usar índice/nome como identidade. Duas capturas nativas foram iguais para4IDs em cada configuração; isso não prova continuidade/freshness.24invocações finais Debug/Release passaram, zero warnings. A prova nativa de topologia aplicável à resolução permanece ausente: entrada SELECTED/RESOLVED negada, provider PENDING, codec PROPOSED, ED11 PARTIAL e admissão/rede negadas.80bytes adicionais de metadados, sem elevar quotas; cópia5928bytes permanece contada uma vez. Notas anteriores são históricas e não qualificam este ramo positivo novo.
+
+
+### Interface consumption guard (2026-10-19)
+
+Actual consumer: papacc_server_launcher_activate -> papacc_tcp_socket_win32_bind_owned. The offline config_source_resolve export is not consumed by this path. SELECTED now requires the existing factual CURRENT/topology report before activation acquisition and again before bind. The report does not establish topology applicability; SELECTED remains denied. No additional authority, producer, worker, snapshot or quota was introduced. Native bind consumes address/port/scope; success alone cannot establish PersistentID continuity.
+
+Debug/Release compiled without warnings; 30/30 focused invocations passed, including native enumeration and dormant-root SELECTED denial, Stop, rollback and retention. CURRENT-positive, bind/listen and operational qualification remain unproved. No CURRENT, socket/listener or network was activated. Persistent storage delta is zero. ED11 remains PARTIAL; named authentication provider remains PENDING. Evidence and gates: docs/integration/config-interface-consumption-binding-20261019/closeout.md.

@@ -1,0 +1,86 @@
+#include "config_binding.h"
+#include <stdio.h>
+#include <string.h>
+static PC_DOCUMENT doc;static PC_MODEL_BINDING out;
+static PAPACC_SERVER_CONFIG config;static unsigned checks,failures;
+static const char *text="format_version 1\nbinding b\n mode ALL\nend\nchannel_tls t\n security_ref \"source\"\nend\naccess_auth a\n method NONE\nend\ncapability_policy p\n enable 2 1\n rule no DENY 2 1\nend\nlistener front\n binding_ref b\n port 7443\n transport SECURE_PRINCIPAL\n channel_tls_ref t\n admission OPEN\n authentication_ref a\n policy_ref p\nend\n";
+static void check(int v,const char *name){++checks;if(!v){++failures;printf("FAIL %s\n",name);}}
+static int parse(const char *t){PC_DIAGNOSTIC d;PC_TARGET target;target.max_listeners=1U;target.legacy_supported=0;return pc_parse((const unsigned char *)t,strlen(t),&doc,&d)==PC_OK&&pc_validate(&doc,&target,&d)==PC_OK;}
+static void initialize(void)
+{memset(&config,0,sizeof(config));config.control_port=7443U;config.listener_profile=PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL;
+ config.bind_selection.mode=PAPACC_BIND_SELECTION_ALL_INTERFACES;config.security_configuration_ref_valid=PAPACC_TRUE;
+ config.security_configuration_ref_length=6U;memcpy(config.security_configuration_ref,"source",6U);
+ config.policy.present=PAPACC_TRUE;config.policy.identity[0]=1U;config.policy.representation=PAPACC_ADMIN_REPRESENTATION_04;
+ config.policy.profile=1U;config.policy.listener_port=7443U;config.policy.admission=PAPACC_ADMIN_OPEN;
+ config.policy.enabled_count=config.policy.rule_count=1U;config.policy.enabled[0].id=2U;config.policy.enabled[0].major=1U;
+ config.policy.rules[0].key=config.policy.enabled[0];config.policy.rules[0].action=PAPACC_ADMIN_POLICY_DENY;}
+static void selected_tests(const PAPACC_SERVER_CONFIG *const *models)
+{
+ PAPACC_NETWORK_INTERFACE interfaces[2];PAPACC_NETWORK_INTERFACE_ADDRESS addresses[3];
+ PAPACC_NETWORK_DISCOVERY_SNAPSHOT snapshot=PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
+ PAPACC_NETWORK_INTERFACE_PERSISTENT_ID id=PAPACC_NETWORK_INTERFACE_PERSISTENT_ID_INITIALIZER;
+ PC_DIAGNOSTIC diag;char source[1400];const char *tail=strstr(text,"end\nchannel_tls");
+ const char *values[]={"0","18446744073709551615","18446744073709551616","-1","adapter","0x10","1 0"};unsigned i;
+ initialize();memset(interfaces,0,sizeof(interfaces));memset(addresses,0,sizeof(addresses));
+ id.is_valid=PAPACC_TRUE;config.bind_selection.mode=PAPACC_BIND_SELECTION_SELECTED_INTERFACES;
+ config.bind_selection.interface_persistent_ids=&id;config.bind_selection.interface_persistent_id_count=1U;
+ interfaces[0].interface_instance_id=7U;interfaces[0].persistent_id=id;
+ addresses[0].interface_instance_id=7U;addresses[0].address.family=PAPACC_IP_FAMILY_IPV4;
+ addresses[0].address.bytes[0]=127U;addresses[0].address.bytes[3]=1U;
+ snapshot.interfaces=interfaces;snapshot.interface_count=1U;snapshot.addresses=addresses;snapshot.address_count=1U;
+ for(i=0U;i<7U;++i){sprintf(source,"format_version 1\nbinding b\n mode SELECTED\n interface_ref \"%s\"\n%s",values[i],tail);
+  check(parse(source),"decimal reference candidate parsed");
+  id.value=i==1U?~(PAPACC_U64)0:0U;interfaces[0].persistent_id=id;
+  check((pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)==PC_OK)==(i<2U),"decimal uint64 exact range and lexical rejection");
+  check(!out.resolved,"borrowed snapshot never supplies CURRENT");
+ }
+ id.value=0U;interfaces[0].persistent_id=id;
+ sprintf(source,"format_version 1\nbinding b\n mode SELECTED\n interface_ref \"000\"\n%s",tail);
+ check(parse(source),"leading zero decimal parsed");
+ check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)==PC_OK&&out.model_bound&&out.listeners[0].target_count==1U,"zero present maps to existing model and snapshot");
+ check(pc_bind_existing_models(&doc,models,1U,&out,&diag)==PC_UNSUPPORTED&&!out.model_bound,"old native entry has no discovery provenance and denies SELECTED");
+ snapshot.interface_count=0U;check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)!=PC_OK&&!out.count,"missing interface denies");snapshot.interface_count=1U;
+ interfaces[0].persistent_id.value=1U;check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)!=PC_OK,"changed persistent identity denies");interfaces[0].persistent_id=id;
+ interfaces[1]=interfaces[0];interfaces[1].interface_instance_id=8U;snapshot.interface_count=2U;
+ check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)!=PC_OK&&!out.model_bound,"ambiguous identity denies atomically");snapshot.interface_count=1U;
+ interfaces[0].interface_instance_id=19U;addresses[0].interface_instance_id=19U;
+ check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)==PC_OK&&out.listeners[0].targets[0].interface_instance_id==19U,"current instance not persisted or assumed stable");
+ interfaces[0].persistent_id.is_valid=PAPACC_FALSE;check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)!=PC_OK,"zero without factual presence denies");interfaces[0].persistent_id=id;
+ id.value=2U;check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)!=PC_OK,"model mismatch denies despite snapshot membership");id.value=0U;
+ snapshot.address_count=0U;check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)!=PC_OK,"no bindable address denies");snapshot.address_count=3U;
+ addresses[1]=addresses[0];addresses[2]=addresses[0];addresses[1].address.bytes[3]=2U;addresses[2].address.bytes[3]=3U;
+ check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)==PC_LIMIT&&!out.count,"existing two target capacity rejects without truncation");
+ sprintf(source,"format_version 1\nbinding b\n mode SELECTED\n interface_ref \"0\"\n interface_ref \"00\"\n%s",tail);
+ check(parse(source),"distinct textual aliases reach typed duplicate validation");
+ check(pc_bind_existing_models_snapshot(&doc,models,1U,&snapshot,&out,&diag)==PC_DUPLICATE&&!out.count,"same numeric token duplicate rejected");
+ initialize();
+}
+int main(void)
+{const PAPACC_SERVER_CONFIG *models[2];PC_DIAGNOSTIC d;PC_RESULT r;char copy[1024];size_t n;PC_TARGET limit;
+ initialize();models[0]=models[1]=&config;
+ check(parse(text),"synthetic validated fixture");
+ check(pc_bind_existing_models(&doc,models,1U,&out,&d)==PC_OK&&out.model_bound&&!out.resolved,"model bound is not RESOLVED");
+ check(out.count==1U&&out.listeners[0].profile==1U&&out.listeners[0].target_count==2U,"one logical listener two canonical wildcard targets");
+ check(out.listeners[0].policy_identity[0]==1U&&out.listeners[0].security_length==6U,"existing identities preserved");
+ check(out.revision==0U&&out.policy_epoch==0U&&out.administrative_epoch==0U,"no fabricated CURRENT epochs");
+ check(pc_bind_existing_models(&doc,models,2U,&out,&d)==PC_CONFLICT&&!out.model_bound&&!out.resolved,"ambiguous existing model denied atomically");
+ check(pc_bind_existing_models(&doc,NULL,0U,&out,&d)==PC_MISSING&&!out.count,"missing references");
+ config.control_port=7444;config.policy.listener_port=7444;
+ check(pc_bind_existing_models(&doc,models,1U,&out,&d)==PC_REFERENCE,"absent listener");initialize();
+ config.security_configuration_ref[0]='X';check(pc_bind_existing_models(&doc,models,1U,&out,&d)==PC_REFERENCE,"security divergent");initialize();
+ config.policy.present=PAPACC_FALSE;check(pc_bind_existing_models(&doc,models,1U,&out,&d)==PC_REFERENCE,"policy nonexistent");initialize();
+ config.policy.rules[0].action=PAPACC_ADMIN_POLICY_ACCEPT;check(pc_bind_existing_models(&doc,models,1U,&out,&d)==PC_REFERENCE,"text cannot install grants or policy");initialize();
+ config.listener_profile=PAPACC_SERVER_LISTENER_PROFILE_LEGACY_ENDPOINT;check(pc_bind_existing_models(&doc,models,1U,&out,&d)!=PC_OK,"no Legacy fallback");initialize();
+ /* Synthetic mutation only: parsed document still owned, no borrowed views. */
+ n=strlen(text);memcpy(copy,text,n+1U);{char *at=strstr(copy,"mode ALL");size_t tail=strlen(at+8U);const char *replacement="mode SELECTED\n interface_ref \"missing-interface\"";size_t len=strlen(replacement);memmove(at+len,at+8U,tail+1U);memcpy(at,replacement,len);}
+ check(parse(copy),"selected ref syntax valid");check(pc_bind_existing_models(&doc,models,1U,&out,&d)==PC_UNSUPPORTED,"no fictitious interface lookup");
+ check(parse(text),"restore fixture");
+ limit.max_listeners=0U;limit.legacy_supported=0;
+ check(pc_validate(&doc,&limit,&d)==PC_LIMIT,"target listener exceeded");
+ check(pc_bind_existing_models(&doc,models,1U,&out,&d)==PC_MISSING,"invalidated candidate cannot bind");
+ check(parse(text),"restore second fixture");
+ config.policy.identity[0]=0U;check(pc_bind_existing_models(&doc,models,1U,&out,&d)==PC_REFERENCE,"zero policy identity not fabricated");initialize();
+ {PAPACC_SERVER_CONFIG before=config;r=pc_bind_existing_models(&doc,models,1U,&out,&d);check(r==PC_OK&&!memcmp(&before,&config,sizeof(config)),"existing administrative model read-only");}
+ selected_tests(models);
+ printf("MODEL_CHECKS=%u FAILURES=%u BINDING=%lu BOUND_LISTENER=%lu DOCUMENT=%lu CANONICAL_CONFIG=%lu\n",checks,failures,(unsigned long)sizeof(out),(unsigned long)sizeof(PC_BOUND_LISTENER),(unsigned long)sizeof(doc),(unsigned long)sizeof(config));
+ return failures?1:0;}

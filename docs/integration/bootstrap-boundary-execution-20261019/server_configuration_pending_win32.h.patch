@@ -1,0 +1,15 @@
+--- apps/server/server_configuration_pending_win32.h
++++ apps/server/server_configuration_pending_win32.h
+@@ -14,6 +14,12 @@
+  int checkpoint_only;
+  /* Explicit packet discriminator; native identity is never taken from D3 R. */
+  unsigned packet_format;DWORD expected_volume,expected_index_high,expected_index_low;
++ /* Same worker owns these namespace leases until signaled and explicitly closed.
++  * Parent/container native identities are never serialized or CURRENT. */
++ HANDLE bootstrap_parent,bootstrap_container;
++ DWORD bootstrap_parent_volume,bootstrap_parent_high,bootstrap_parent_low;
++ DWORD bootstrap_volume,bootstrap_high,bootstrap_low;
++ unsigned bootstrap_created,bootstrap_ready,bootstrap_admin,bootstrap_close_attempts;
+  HANDLE thread,file,transaction;volatile LONG stop;
+  PAPACC_ISSUER_CAS_RESULT result;int active,committed,thread_close_attempted;
+ #ifdef PAPACC_ISSUER_STORAGE_COMPONENT_TEST

@@ -1,0 +1,197 @@
+--- src/issuer/issuer_codec.h.before
++++ src/issuer/issuer_codec.h
+@@ -13,4 +13,30 @@
+ PAPACC_ISSUER_RESULT papacc_issuer_image_find(const PAPACC_U8 *,const PAPACC_U8[16],PAPACC_ISSUER_RECORD *,PAPACC_ISSUER_HASH,void *);
+ PAPACC_ISSUER_RESULT papacc_issuer_image_append(PAPACC_U8 *,const PAPACC_ISSUER_RECORD *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_ISSUER_HASH,void *);
+ PAPACC_ISSUER_RESULT papacc_issuer_image_certificate(const PAPACC_U8 *,const PAPACC_U8[16],PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PAPACC_ISSUER_HASH,void *);
++
++/* Data-only recovery assessment of the EXISTING version1 ROOT06 issuer image.
++ * Inputs are immutable borrowed complete snapshots for this synchronous call.
++ * Output must be disjoint from inputs; caller serializes Stop and owns leases.
++ * No owner-thread/native latency claim or active-root invocation is added.
++ * Retained baseline is a comparison floor, NOT independent proof of latest state.
++ * No signer/backend call, allocation, lock, ownership transfer or authority bit.
++ * All outcomes deny authoritative recovery, including matching valid images. */
++typedef enum PAPACC_ISSUER_CHECKPOINT_STATE {
++ PAPACC_ISSUER_CHECKPOINT_INVALID=1,
++ PAPACC_ISSUER_CHECKPOINT_INCOMPLETE,
++ PAPACC_ISSUER_CHECKPOINT_ROLLBACK,
++ PAPACC_ISSUER_CHECKPOINT_DIVERGENT,
++ PAPACC_ISSUER_CHECKPOINT_STOPPED,
++ PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED
++} PAPACC_ISSUER_CHECKPOINT_STATE;
++typedef struct PAPACC_ISSUER_CHECKPOINT_REPORT {
++ unsigned version;
++ PAPACC_ISSUER_CHECKPOINT_STATE state;
++ PAPACC_ISSUER_VIEW data;
++ PAPACC_U32 events;
++ /* No CURRENT/A/P reconstructed from issuer image; no proof flags granted. */
++} PAPACC_ISSUER_CHECKPOINT_REPORT;
++PAPACC_ISSUER_RESULT papacc_issuer_checkpoint_assess(
++ const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,PAPACC_SIZE,
++ PAPACC_ISSUER_HASH,void *,int,PAPACC_ISSUER_CHECKPOINT_REPORT *);
+ #endif--- src/issuer/issuer_codec.c.before
++++ src/issuer/issuer_codec.c
+@@ -92,4 +92,39 @@
+ PAPACC_ISSUER_RESULT papacc_issuer_image_certificate(const PAPACC_U8 *b,const PAPACC_U8 id[16],PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *size,PAPACC_ISSUER_HASH hash,void *ctx){
+  PAPACC_ISSUER_RECORD r;PAPACC_SIZE p=256,n;PAPACC_ISSUER_RESULT s;if(!out||!size)return PAPACC_ISSUER_INVALID;s=papacc_issuer_image_find(b,id,&r,hash,ctx);if(s)return s;
+  while(p<r32(b+12)){n=r32(b+p+12);if(n&&!memcmp(b+p+48,id,16)){*size=n;if(cap<n)return PAPACC_ISSUER_LIMIT;memcpy(out,b+p+324,n);return PAPACC_ISSUER_OK;}p+=r32(b+p+8);}return PAPACC_ISSUER_ABSENT;
+-}+}
++/* Validate before reading offsets. No API can grant recovery authority here. */
++PAPACC_ISSUER_RESULT papacc_issuer_checkpoint_assess(
++ const PAPACC_U8 *image,PAPACC_SIZE size,const PAPACC_U8 *floor,PAPACC_SIZE floor_size,
++ PAPACC_ISSUER_HASH hash,void *ctx,int stopped,PAPACC_ISSUER_CHECKPOINT_REPORT *out){
++ PAPACC_ISSUER_VIEW candidate,prior;PAPACC_ISSUER_RESULT s;PAPACC_SIZE used;
++ if(!out)return PAPACC_ISSUER_INVALID;
++ memset(out,0,sizeof(*out));out->version=1;out->state=PAPACC_ISSUER_CHECKPOINT_INVALID;
++ if(stopped){out->state=PAPACC_ISSUER_CHECKPOINT_STOPPED;return PAPACC_ISSUER_STOPPED;}
++ if(!image||size!=PAPACC_ISSUER_IMAGE_BYTES||!hash||(!floor&&floor_size)||
++  (floor&&floor_size!=PAPACC_ISSUER_IMAGE_BYTES))return PAPACC_ISSUER_INVALID;
++ s=papacc_issuer_image_validate(image,&candidate,hash,ctx);
++ if(s!=PAPACC_ISSUER_OK){if(s==PAPACC_ISSUER_UNCERTAIN)out->state=PAPACC_ISSUER_CHECKPOINT_INCOMPLETE;return s;}
++ out->data=candidate;out->events=r32(image+16);
++ if(!floor){out->state=PAPACC_ISSUER_CHECKPOINT_INCOMPLETE;return PAPACC_ISSUER_DENIED;}
++ s=papacc_issuer_image_validate(floor,&prior,hash,ctx);
++ if(s!=PAPACC_ISSUER_OK){out->state=PAPACC_ISSUER_CHECKPOINT_INCOMPLETE;return s;}
++ /* Immutable image origin includes root/CA/generation/prefix/policy/key/base.
++  * This data-only comparison deliberately refuses a changed identity/policy. */
++ if(memcmp(image+24,floor+24,144)||memcmp(image+176,floor+176,8)||
++  memcmp(image+192,floor+192,32)){
++  out->state=PAPACC_ISSUER_CHECKPOINT_DIVERGENT;return PAPACC_ISSUER_CONFLICT;
++ }
++ if(candidate.revision<prior.revision||candidate.high_water<prior.high_water||
++  out->events<r32(floor+16)){
++  out->state=PAPACC_ISSUER_CHECKPOINT_ROLLBACK;return PAPACC_ISSUER_CONFLICT;
++ }
++ /* Compare the complete old event prefix, not just counter/revision/digest.
++  * A newer fork may have equal/higher high-water while discarding revocation. */
++ used=r32(floor+12);
++ if(r32(image+12)<used||memcmp(image+256,floor+256,used-256)){
++  out->state=PAPACC_ISSUER_CHECKPOINT_DIVERGENT;return PAPACC_ISSUER_CONFLICT;
++ }
++ out->state=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED;
++ return PAPACC_ISSUER_DENIED;
++}
+--- CMakeLists.txt.before
++++ CMakeLists.txt
+@@ -70,6 +70,13 @@
+     target_link_libraries(papacc_issuer_production_gate_test PRIVATE papacc_issuer)
+     papacc_enable_warnings(papacc_issuer_production_gate_test)
+     add_test(NAME papacc.issuer.production_gate COMMAND papacc_issuer_production_gate_test)
++    if(WIN32)
++    add_executable(papacc_issuer_checkpoint_test tests/issuer_checkpoint_test.c)
++    target_link_libraries(papacc_issuer_checkpoint_test PRIVATE papacc_issuer bcrypt)
++    set_target_properties(papacc_issuer_checkpoint_test PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++    papacc_enable_warnings(papacc_issuer_checkpoint_test)
++    add_test(NAME papacc.issuer.checkpoint COMMAND papacc_issuer_checkpoint_test)
++    endif()
+ endif()
+ 
+ # One authoritative, transport-independent implementation of PACC wire logic.
+@@ -2538,8 +2545,8 @@
+     target_compile_options(papacc_configuration_commit PRIVATE /W4 /WX)
+     add_library(papacc_c2_root_owner STATIC apps/server/server_c2_owner_win32.c
+         apps/server/server_c2_configuration_win32.c apps/server/server_c2_participant_win32.c)
+-    target_include_directories(papacc_c2_root_owner PUBLIC ${PAPACC_GRAPH_INCLUDE_DIRS})
+-    # Same IoLoop ABI as canonical owner/consumer; C8 requires outbound TLS.
++    target_include_directories(papacc_c2_root_owner PUBLIC ${PAPACC_GRAPH_INCLUDE_DIRS})
++    # Same IoLoop ABI as canonical owner/consumer; C8 requires outbound TLS.
+     target_compile_definitions(papacc_c2_root_owner PUBLIC PAPACC_ENABLE_PST_OUTBOUND_TLS=1)
+     target_link_libraries(papacc_c2_root_owner PUBLIC papacc_c2_core papacc_c3_bridge papacc_configuration_commit)
+     target_compile_options(papacc_c2_root_owner PRIVATE /W4 /WX)
+--- tests/issuer_checkpoint_test.c.before
++++ tests/issuer_checkpoint_test.c
+@@ -0,0 +1,93 @@
++/* Native SHA256 of synthetic metadata only. No CNG key/sign/CA operations. */
++#include "issuer_codec.h"
++#include <windows.h>
++#include <bcrypt.h>
++#include <stdio.h>
++#include <string.h>
++static PAPACC_U8 image[8192],floor_image[8192],fork_image[8192];
++static PAPACC_ISSUER_CHECKPOINT_REPORT report;
++static PAPACC_ISSUER_RECORD record;
++static unsigned checks;
++#define CHECK(x) do{++checks;if(!(x)){printf("FAIL %d: %s\n",__LINE__,#x);return 1;}}while(0)
++static int failed_hash(void *ctx,const PAPACC_U8 *b,PAPACC_SIZE n,PAPACC_U8 out[32]){
++ (void)ctx;(void)b;(void)n;(void)out;return 0;
++}
++static BCRYPT_ALG_HANDLE provider;
++static int native_hash(void *ctx,const PAPACC_U8 *b,PAPACC_SIZE n,PAPACC_U8 out[32]){
++ (void)ctx;if(n>0xffffffffU)return 0;
++ return BCryptHash(provider,NULL,0,(PUCHAR)b,(ULONG)n,out,32)==0;
++}
++static PAPACC_ISSUER_RESULT assess(const PAPACC_U8 *b,const PAPACC_U8 *f){
++ return papacc_issuer_checkpoint_assess(b,8192,f,f?8192:0,native_hash,NULL,0,&report);
++}
++int main(void){
++ PAPACC_ISSUER_VIEW v;PAPACC_U8 base_hash[32];PAPACC_U64 reserved;
++ CHECK(BCryptOpenAlgorithmProvider(&provider,BCRYPT_SHA256_ALGORITHM,NULL,0)==0);
++ memset(&v,0,sizeof(v));memset(base_hash,1,32);
++ v.root[0]=1;v.authority[0]=2;v.generation[0]=3;v.prefix[0]=4;
++ v.policy[0]=5;v.ca_spki_digest[0]=6;v.revision=2;v.high_water=1;v.ca_not_after=1000000;
++ CHECK(papacc_issuer_image_init(image,&v,base_hash,native_hash,NULL)==0);
++ memcpy(floor_image,image,8192);
++ CHECK(assess(image,floor_image)==PAPACC_ISSUER_DENIED);
++ CHECK(report.version==1&&report.state==PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED);
++ CHECK(!report.data.proofs&&!report.data.epoch);
++ CHECK(assess(image,NULL)==PAPACC_ISSUER_DENIED&&report.state==PAPACC_ISSUER_CHECKPOINT_INCOMPLETE);
++ CHECK(papacc_issuer_checkpoint_assess(image,8191,floor_image,8192,native_hash,NULL,0,&report)==PAPACC_ISSUER_INVALID);
++ CHECK(papacc_issuer_checkpoint_assess(image,8192,NULL,8192,native_hash,NULL,0,&report)==PAPACC_ISSUER_INVALID);
++ CHECK(papacc_issuer_checkpoint_assess(image,8192,floor_image,8192,native_hash,NULL,1,&report)==PAPACC_ISSUER_STOPPED);
++ CHECK(report.state==PAPACC_ISSUER_CHECKPOINT_STOPPED&&!report.data.high_water);
++ CHECK(papacc_issuer_checkpoint_assess(image,8192,floor_image,8192,failed_hash,NULL,0,&report)==PAPACC_ISSUER_UNCERTAIN);
++ CHECK(report.state==PAPACC_ISSUER_CHECKPOINT_INCOMPLETE);
++ memset(&record,0,sizeof(record));record.request.id[0]=1;record.request.device[0]=7;
++ record.request.csr_digest[0]=8;record.request.key_digest[0]=9;record.request.purpose=1;
++ record.request.not_before=100;record.request.not_after=500;record.approved_epoch=10;
++ memcpy(record.authority,v.authority,16);memcpy(record.generation,v.generation,16);memcpy(record.policy,v.policy,32);
++ record.state=PAPACC_ISSUER_PREPARED;
++ CHECK(papacc_issuer_image_append(image,&record,NULL,0,native_hash,NULL)==0);
++ memcpy(fork_image,image,8192);
++ CHECK(assess(image,floor_image)==PAPACC_ISSUER_DENIED&&report.events==1);
++ CHECK(assess(floor_image,image)==PAPACC_ISSUER_CONFLICT&&report.state==PAPACC_ISSUER_CHECKPOINT_ROLLBACK);
++ record.state=PAPACC_ISSUER_SERIAL_RESERVED;record.counter=2;memcpy(record.serial,v.prefix,8);record.serial[15]=2;
++ CHECK(papacc_issuer_image_append(image,&record,NULL,0,native_hash,NULL)==0);
++ CHECK(assess(image,fork_image)==PAPACC_ISSUER_DENIED&&report.data.high_water==2);
++ reserved=report.data.high_water;
++ CHECK(assess(fork_image,image)==PAPACC_ISSUER_CONFLICT&&report.state==PAPACC_ISSUER_CHECKPOINT_ROLLBACK);
++ memcpy(floor_image,image,8192);record.state=PAPACC_ISSUER_SIGN_REQUESTED;
++ CHECK(papacc_issuer_image_append(image,&record,NULL,0,native_hash,NULL)==0);
++ record.state=PAPACC_ISSUER_RECONCILIATION_REQUIRED;
++ CHECK(papacc_issuer_image_append(image,&record,NULL,0,native_hash,NULL)==0);
++ CHECK(assess(image,floor_image)==PAPACC_ISSUER_DENIED&&report.data.high_water==reserved);
++ CHECK(papacc_issuer_image_find(image,record.request.id,&record,native_hash,NULL)==0&&record.state==PAPACC_ISSUER_RECONCILIATION_REQUIRED);
++ /* Valid alternate branch under same identity, not a higher counter proof. */
++ memcpy(fork_image,floor_image,8192);record.state=PAPACC_ISSUER_ABANDONED;
++ CHECK(papacc_issuer_image_append(fork_image,&record,NULL,0,native_hash,NULL)==0);
++ CHECK(assess(image,fork_image)==PAPACC_ISSUER_CONFLICT&&report.state==PAPACC_ISSUER_CHECKPOINT_DIVERGENT);
++ memcpy(fork_image,image,8192);fork_image[300]^=1;
++ CHECK(assess(fork_image,floor_image)==PAPACC_ISSUER_INVALID);
++ CHECK(assess(image,fork_image)==PAPACC_ISSUER_INVALID&&report.state==PAPACC_ISSUER_CHECKPOINT_INCOMPLETE);
++ v.generation[0]=99;CHECK(papacc_issuer_image_init(fork_image,&v,base_hash,native_hash,NULL)==0);
++ CHECK(assess(image,fork_image)==PAPACC_ISSUER_CONFLICT&&report.state==PAPACC_ISSUER_CHECKPOINT_DIVERGENT);
++ /* Separate complete synthetic publication/revocation history. */
++ CHECK(papacc_issuer_image_init(image,&v,base_hash,native_hash,NULL)==0);
++ memset(&record,0,sizeof(record));record.request.id[0]=2;record.request.device[0]=7;
++ record.request.csr_digest[0]=8;record.request.key_digest[0]=9;record.request.purpose=1;
++ record.request.not_before=100;record.request.not_after=500;record.approved_epoch=10;
++ memcpy(record.authority,v.authority,16);memcpy(record.generation,v.generation,16);memcpy(record.policy,v.policy,32);
++ record.state=PAPACC_ISSUER_PREPARED;CHECK(papacc_issuer_image_append(image,&record,NULL,0,native_hash,NULL)==0);
++ record.state=PAPACC_ISSUER_SERIAL_RESERVED;record.counter=2;memcpy(record.serial,v.prefix,8);record.serial[15]=2;
++ CHECK(papacc_issuer_image_append(image,&record,NULL,0,native_hash,NULL)==0);
++ record.state=PAPACC_ISSUER_SIGN_REQUESTED;CHECK(papacc_issuer_image_append(image,&record,NULL,0,native_hash,NULL)==0);
++ record.state=PAPACC_ISSUER_ISSUED_UNPUBLISHED;record.certificate_size=3;
++ CHECK(native_hash(NULL,(const PAPACC_U8 *)"DER",3,record.certificate_digest));
++ CHECK(papacc_issuer_image_append(image,&record,(const PAPACC_U8 *)"DER",3,native_hash,NULL)==0);
++ record.state=PAPACC_ISSUER_PUBLISHED;record.published_epoch=11;
++ CHECK(papacc_issuer_image_append(image,&record,NULL,0,native_hash,NULL)==0);
++ memcpy(floor_image,image,8192);record.state=PAPACC_ISSUER_REVOKED;
++ CHECK(papacc_issuer_image_append(image,&record,NULL,0,native_hash,NULL)==0);
++ CHECK(assess(image,floor_image)==PAPACC_ISSUER_DENIED&&report.data.high_water==2);
++ CHECK(papacc_issuer_image_find(image,record.request.id,&record,native_hash,NULL)==0&&record.state==PAPACC_ISSUER_REVOKED);
++ CHECK(assess(floor_image,image)==PAPACC_ISSUER_CONFLICT&&report.state==PAPACC_ISSUER_CHECKPOINT_ROLLBACK);
++ CHECK(papacc_issuer_checkpoint_assess(image,8192,floor_image,8192,native_hash,NULL,1,&report)==PAPACC_ISSUER_STOPPED);
++ CHECK(BCryptCloseAlgorithmProvider(provider,0)==0);
++ printf("PASS checks=%u report_bytes=%zu synthetic_metadata_native_sha256 authoritative_recovery=DENY\n",checks,sizeof(report));return 0;
++}

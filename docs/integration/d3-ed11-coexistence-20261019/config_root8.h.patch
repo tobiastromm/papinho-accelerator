@@ -1,0 +1,26 @@
+--- src/config/config_root8.h
++++ src/config/config_root8.h
+@@ -4,6 +4,9 @@
+ #define PC_ROOT8_MAX 25792U
+ #define PC_ROOT8_MODEL_BYTES 25760U
+ #define PC_ROOT8_MIN 2592U
++/* Exact no-carrier maximum: 1056 + 1536*4 + 2208. */
++#define PC_ROOT8_NO_ISSUER_MAX 9408U
++#define PC_ROOT8_NO_ISSUER_FIELDS 9376U
+ /* Complete owned explicit byte fields, no native struct dump/AST/authority.
+  * Header/records/components/checkpoint follow accepted D3; unused tail zero.
+  * Exclusive synchronous inputs/output, no hash/component callback reentry or
+@@ -20,6 +23,13 @@
+  PAPACC_SIZE,const PAPACC_U8 *,const PAPACC_U8 *);
+ PC_ROOT8_RESULT pc_root8_encode(const PC_ROOT8_MODEL *,PAPACC_U8 *,PAPACC_SIZE,
+  PAPACC_SIZE *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++/* Data-only bounded encoder for the currently supported no-carrier profile.
++ * Caller owns exactly fields_capacity bytes (header through CP, zero tail),
++ * disjoint encoded output and metadata. Same lifetime/callback/Stop contract.
++ * Carrier flags/length return UNSUPPORTED, never truncate/fallback. No view or
++ * allocation escapes. A retained input/output cannot be reused by this API. */
++PC_ROOT8_RESULT pc_root8_encode_no_issuer(const PAPACC_U8 *,PAPACC_SIZE,
++ PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
+ PC_ROOT8_RESULT pc_root8_decode(const PAPACC_U8 *,PAPACC_SIZE,PC_ROOT8_MODEL *,
+  int *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
+ /* Data-only comparison to a complete prior image. No CAS/native authority;

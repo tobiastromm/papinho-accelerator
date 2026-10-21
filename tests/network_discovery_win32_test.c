@@ -1,7 +1,11 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "network_interface.h"
+#include "persistent_bind_selection.h"
+#include "bind_target.h"
+#include "interface_snapshot_copy.h"
 
 static int snapshot_is_empty(const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *snapshot)
 {
@@ -9,6 +13,62 @@ static int snapshot_is_empty(const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *snapshot)
         snapshot->addresses == NULL && snapshot->address_count == 0;
 }
 
+/* Lifetime fixtures only: these metadata are not a root CURRENT or epoch. */
+static int copy_lifetime_fixtures(void)
+{
+ static PAPACC_INTERFACE_SNAPSHOT_COPY copy;
+ PAPACC_NETWORK_INTERFACE interface_record=PAPACC_NETWORK_INTERFACE_INITIALIZER;
+ PAPACC_NETWORK_INTERFACE_ADDRESS address=PAPACC_NETWORK_INTERFACE_ADDRESS_INITIALIZER;
+ PAPACC_NETWORK_DISCOVERY_SNAPSHOT source=PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
+ PAPACC_NETWORK_DISCOVERY_SNAPSHOT view=PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
+ interface_record.interface_instance_id=7U;interface_record.persistent_id.is_valid=PAPACC_TRUE;
+ interface_record.persistent_id.value=31U;interface_record.presentation_name.is_available=PAPACC_TRUE;
+ interface_record.presentation_name.utf8="temporary";interface_record.presentation_name.length=9U;
+ address.interface_instance_id=7U;address.address.family=PAPACC_IP_FAMILY_IPV4;address.address.bytes[0]=127U;address.address.bytes[3]=1U;
+ source.interfaces=&interface_record;source.interface_count=1U;source.addresses=&address;source.address_count=1U;
+ if(papacc_interface_snapshot_copy_prepare(&copy,&source,11U,0U)!=PAPACC_RESULT_OK)return 1;
+ if(papacc_interface_snapshot_copy_view(&copy,11U,0U,&view)!=PAPACC_RESULT_OK||view.interfaces==source.interfaces||view.addresses==source.addresses)return 2;
+ if(view.interfaces[0].presentation_name.utf8||view.interfaces[0].presentation_name.is_available)return 3;
+ {PAPACC_PERSISTENT_BIND_SELECTION selected=PAPACC_PERSISTENT_BIND_SELECTION_INITIALIZER;PAPACC_BOOL matches=PAPACC_FALSE;
+  selected.mode=PAPACC_BIND_SELECTION_SELECTED_INTERFACES;selected.interface_persistent_ids=&interface_record.persistent_id;selected.interface_persistent_id_count=1U;
+  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_OK||!matches)return 19;
+  selected.interface_persistent_id_count=9U;
+  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_LIMIT_EXCEEDED||matches)return 25;
+  selected.interface_persistent_id_count=1U;source.address_count=PAPACC_INTERFACE_COPY_ADDRESSES+1U;
+  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_LIMIT_EXCEEDED||matches)return 26;
+  source.address_count=1U;
+  interface_record.interface_instance_id=19U;address.interface_instance_id=19U;address.interface_index=321U;
+  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_OK||!matches)return 20;
+  address.address.bytes[3]=2U;
+  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_OK||matches)return 21;
+  address.address.bytes[3]=1U;source.interface_count=0U;
+  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_OK||matches)return 22;
+  source.interface_count=1U;interface_record.persistent_id.value=32U;
+  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_OK||matches)return 23;
+  interface_record.persistent_id.value=31U;interface_record.is_up=PAPACC_TRUE;
+  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_OK||matches)return 24;
+  interface_record.is_up=PAPACC_FALSE;interface_record.interface_instance_id=7U;address.interface_instance_id=7U;
+ }
+ /* Mutating/replacing caller storage after return cannot alter owned bytes. */
+ interface_record.persistent_id.value=99U;address.address.bytes[3]=2U;
+ if(view.interfaces[0].persistent_id.value!=31U||view.addresses[0].address.bytes[3]!=1U)return 4;
+ if(papacc_interface_snapshot_copy_prepare(&copy,&source,11U,1U)!=PAPACC_RESULT_INVALID_STATE||copy.preparation_revision!=0U)return 5;
+ if(papacc_interface_snapshot_copy_view(&copy,11U,1U,&view)!=PAPACC_RESULT_INVALID_STATE||view.interfaces)return 6;
+ if(papacc_interface_snapshot_copy_view(&copy,12U,0U,&view)!=PAPACC_RESULT_INVALID_STATE)return 7;
+ copy.retained=PAPACC_TRUE;
+ if(papacc_interface_snapshot_copy_view(&copy,11U,0U,&view)!=PAPACC_RESULT_INVALID_STATE||copy.interfaces[0].persistent_id.value!=31U)return 8;
+ if(papacc_interface_snapshot_copy_prepare(&copy,&source,12U,0U)!=PAPACC_RESULT_INVALID_STATE)return 9;
+ /* Test owns all storage and has no live borrow here. No native free/close is
+  * required for embedded value bytes; no synthetic DESTROYED is reported. */
+ memset(&copy,0,sizeof(copy));source.interface_count=PAPACC_INTERFACE_COPY_INTERFACES+1U;
+ if(papacc_interface_snapshot_copy_prepare(&copy,&source,11U,0U)!=PAPACC_RESULT_LIMIT_EXCEEDED||copy.present)return 10;
+ source.interface_count=1U;source.addresses=NULL;
+ if(papacc_interface_snapshot_copy_prepare(&copy,&source,11U,0U)!=PAPACC_RESULT_INVALID_ARGUMENT||copy.present)return 11;
+ source.addresses=&address;address.interface_instance_id=99U;
+ if(papacc_interface_snapshot_copy_prepare(&copy,&source,11U,0U)!=PAPACC_RESULT_INVALID_STATE||copy.present)return 12;
+ printf("COPY_LIFETIME_FIXTURES=PASS COPY_BYTES=%llu REVISION_ZERO=PENDING NO_CURRENT_PROOF\n",(unsigned long long)sizeof(copy));
+ return 0;
+}
 int main(void)
 {
     PAPACC_NETWORK_INTERFACE *interfaces = NULL;
@@ -26,6 +86,8 @@ int main(void)
     PAPACC_RESULT result = PAPACC_RESULT_INTERNAL_ERROR;
     int attempt;
     int exit_code = 0;
+
+    if (copy_lifetime_fixtures() != 0) return 17;
 
     if (papacc_network_discover_local_snapshot(
             NULL, 0, NULL, 0, NULL, 0, NULL,
@@ -206,6 +268,97 @@ int main(void)
             exit_code = 13;
             goto cleanup;
         }
+    }
+
+    /* Real local enumeration, not administrative CURRENT or a synthetic ID.
+     * No pointer escapes this test's owned storage, and no listener is opened. */
+    {
+        PAPACC_SIZE valid_ids = 0;
+        PAPACC_SIZE bindable_ids = 0;
+        for (index = 0; index < snapshot.interface_count; ++index) {
+            const PAPACC_NETWORK_INTERFACE *record = &snapshot.interfaces[index];
+            PAPACC_NETWORK_INTERFACE_PERSISTENT_ID id = record->persistent_id;
+            PAPACC_PERSISTENT_BIND_SELECTION persistent =
+                PAPACC_PERSISTENT_BIND_SELECTION_INITIALIZER;
+            PAPACC_BIND_SELECTION runtime = PAPACC_BIND_SELECTION_INITIALIZER;
+            PAPACC_U32 instance = 0;
+            PAPACC_SIZE required = 0, count = 0;
+            PAPACC_RESULT resolved;
+            if (id.is_valid != PAPACC_TRUE) {
+                continue;
+            }
+            persistent.mode = PAPACC_BIND_SELECTION_SELECTED_INTERFACES;
+            persistent.interface_persistent_ids = &id;
+            persistent.interface_persistent_id_count = 1;
+            resolved = papacc_persistent_bind_selection_resolve(
+                &persistent, &snapshot, &instance, 1, &runtime, &required);
+            if (resolved != PAPACC_RESULT_OK || required != 1 ||
+                instance != record->interface_instance_id ||
+                runtime.interface_instance_ids != &instance) {
+                exit_code = 14;
+                goto cleanup;
+            }
+            ++valid_ids;
+            resolved = papacc_bind_targets_resolve(
+                &runtime, &snapshot, NULL, 0, &count, &required);
+            if (resolved == PAPACC_RESULT_LIMIT_EXCEEDED && required != 0 && count == 0) {
+                ++bindable_ids;
+            } else if (resolved != PAPACC_RESULT_INVALID_STATE) {
+                exit_code = 15;
+                goto cleanup;
+            }
+            /* Invalid presence is a typed negative; it is not removal of an
+             * operating-system interface or evidence of topology change. */
+            id.is_valid = PAPACC_FALSE;
+            if (papacc_persistent_bind_selection_resolve(
+                    &persistent, &snapshot, &instance, 1, &runtime, &required) !=
+                    PAPACC_RESULT_INVALID_ARGUMENT ||
+                runtime.mode != PAPACC_BIND_SELECTION_UNSPECIFIED) {
+                exit_code = 16;
+                goto cleanup;
+            }
+        }
+        printf("NATIVE_ENUMERATION=PASS INTERFACES=%llu ADDRESSES=%llu "
+               "VALID_PERSISTENT_IDS=%llu BINDABLE_IDS=%llu "
+               "CURRENT_PROVENANCE=NOT_ESTABLISHED NETWORK=NOT_RUN\n",
+               (unsigned long long)snapshot.interface_count,
+               (unsigned long long)snapshot.address_count,
+               (unsigned long long)valid_ids,
+               (unsigned long long)bindable_ids);
+    }
+
+    {
+        static PAPACC_INTERFACE_SNAPSHOT_COPY native_copy;
+        PAPACC_NETWORK_DISCOVERY_SNAPSHOT owned = PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
+        if (papacc_interface_snapshot_copy_prepare(&native_copy, &snapshot, 1U, 0U) != PAPACC_RESULT_OK ||
+            papacc_interface_snapshot_copy_view(&native_copy, 1U, 0U, &owned) != PAPACC_RESULT_OK ||
+            owned.interface_count != snapshot.interface_count || owned.address_count != snapshot.address_count ||
+            (owned.interface_count && owned.interfaces == snapshot.interfaces) ||
+            (owned.address_count && owned.addresses == snapshot.addresses)) {
+            exit_code = 18; goto cleanup;
+        }
+        printf("NATIVE_OWNED_COPY=PASS PREPARATION_METADATA=FIXTURE CURRENT=NOT_ESTABLISHED\n");
+        /* Second actual enumeration, separate observation, never a proof of
+         * continuous topology stability or CURRENT. Limit/failure incomplete. */
+        result=papacc_network_discover_local_snapshot(interfaces,interface_capacity,
+            addresses,address_capacity,presentation,presentation_capacity,&snapshot,
+            &interface_required,&address_required,&presentation_required);
+        if(result==PAPACC_RESULT_OK){
+            PAPACC_SIZE checked=0,matched=0;
+            for(index=0;index<native_copy.interface_count;++index){
+                PAPACC_PERSISTENT_BIND_SELECTION selected=PAPACC_PERSISTENT_BIND_SELECTION_INITIALIZER;
+                PAPACC_BOOL matches=PAPACC_FALSE;
+                if(native_copy.interfaces[index].persistent_id.is_valid!=PAPACC_TRUE)continue;
+                selected.mode=PAPACC_BIND_SELECTION_SELECTED_INTERFACES;
+                selected.interface_persistent_ids=&native_copy.interfaces[index].persistent_id;
+                selected.interface_persistent_id_count=1U;
+                if(papacc_interface_snapshot_copy_matches(&native_copy,&snapshot,&selected,&matches)!=PAPACC_RESULT_OK){exit_code=19;goto cleanup;}
+                ++checked;if(matches)++matched;
+            }
+            printf("NATIVE_CAPTURE_TOPOLOGY_CHECKS=%llu MATCHES=%llu DIFFERENCES=%llu CURRENT_PROOF=NONE\n",
+                (unsigned long long)checked,(unsigned long long)matched,(unsigned long long)(checked-matched));
+        }else{printf("NATIVE_SECOND_CAPTURE=INCOMPLETE CURRENT_PROOF=NONE\n");}
+
     }
 
 cleanup:

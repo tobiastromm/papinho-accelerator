@@ -1,0 +1,61 @@
+{
+  "hunks": [
+    {
+      "id": "T01",
+      "path": "tests/canonical_root_transaction_test.c",
+      "function": "",
+      "line": 4,
+      "offset": 155,
+      "old": "#include <string.h>",
+      "new": "#include <string.h>\r\nextern PAPACC_RESULT papacc_server_launcher_c2_deadline(const PAPACC_C2_SESSION *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U64 *);",
+      "rationale": "Private consumer declaration, not PST API; allows no-authority negative."
+    },
+    {
+      "id": "T02",
+      "path": "tests/canonical_root_transaction_test.c",
+      "function": "int main(",
+      "line": 39,
+      "offset": 2583,
+      "old": " CHECK(papacc_server_config_validate(&config)==PAPACC_RESULT_OK);",
+      "new": " {PAPACC_U64 denied_deadline=123U;PAPACC_BOOL permit=PAPACC_TRUE;\r\n CHECK(papacc_server_launcher_c2_deadline(NULL,NULL,0U,&denied_deadline)!=PAPACC_RESULT_OK&&!denied_deadline);\r\n CHECK(papacc_server_launcher_c2_capacity(NULL,0U,&permit)!=PAPACC_RESULT_OK&&!permit);}\r\n CHECK(papacc_server_config_validate(&config)==PAPACC_RESULT_OK);",
+      "rationale": "Verify missing Session/owner cannot mint a deadline or capacity authority; no synthetic authentication."
+    },
+    {
+      "id": "T03",
+      "path": "tests/canonical_root_transaction_test.c",
+      "function": "int main(",
+      "line": 73,
+      "offset": 5729,
+      "old": " CHECK(papacc_server_launcher_configuration_transaction_prepare_store(o,path,0)==PAPACC_RESULT_OK);",
+      "new": " if(catalog_case){\r\n  pst_trust *held=o->pst_system_trust;PAPACC_RESULT missing_trust;\r\n  CHECK(held!=NULL);\r\n  /* Negative-only invalidation; keep actual ownership locally and restore\r\n   * before assertions. No PST call, callback or cleanup during this interval. */\r\n  o->pst_system_trust=NULL;\r\n  missing_trust=papacc_server_launcher_configuration_transaction_prepare_store(o,path,0);\r\n  o->pst_system_trust=held;\r\n  CHECK(missing_trust!=PAPACC_RESULT_OK&&!o->configuration_commit.initialized);\r\n }\r\n CHECK(papacc_server_launcher_configuration_transaction_prepare_store(o,path,0)==PAPACC_RESULT_OK);",
+      "rationale": "Verify missing mandatory trust blocks commit preparation before file effects; actual reference restored, no resource release/fiction."
+    },
+    {
+      "id": "T04",
+      "path": "tests/site_tls_catalog_offline_test.c",
+      "function": "int main(",
+      "line": 38,
+      "offset": 2894,
+      "old": " config->site_tls=c;view.domain[0]=1;view.revision=1;",
+      "new": " CHECK(papacc_site_tls_alpn_allowed(&c,c.alpn,c.alpn_length)==PAPACC_RESULT_OK);\r\n {const PAPACC_U8 bad[]={2U,'h','3'};\r\n CHECK(papacc_site_tls_alpn_allowed(&c,bad,sizeof(bad))!=PAPACC_RESULT_OK);}\r\n CHECK(papacc_site_tls_alpn_allowed(&c,c.alpn,1U)!=PAPACC_RESULT_OK);\r\n CHECK(papacc_site_tls_alpn_allowed(&c,NULL,0U)!=PAPACC_RESULT_OK);\r\n CHECK(papacc_site_tls_alpn_allowed(&c,c.alpn,257U)!=PAPACC_RESULT_OK);\r\n config->site_tls=c;view.domain[0]=1;view.revision=1;",
+      "rationale": "Exact ALPN allow/mismatch/truncation/empty/oversize regressions of real pure validator; not negotiated TLS evidence."
+    }
+  ],
+  "files": [
+    {
+      "preimage": "tests__canonical_root_transaction_test.c.preimage",
+      "proposed": "tests__canonical_root_transaction_test.c.proposed",
+      "path": "tests/canonical_root_transaction_test.c",
+      "before": "35F7E984D981E7F49079576BD2A4E31D2295E28D7009CD3150A8B4A98FC08500",
+      "after": "45E7038574DE81536DE416E5FC2675CDCBD8F65A30A5D1D4A266EC19CD2AEE59"
+    },
+    {
+      "preimage": "tests__site_tls_catalog_offline_test.c.preimage",
+      "proposed": "tests__site_tls_catalog_offline_test.c.proposed",
+      "path": "tests/site_tls_catalog_offline_test.c",
+      "before": "3EC0812787558AF055904872AE2893E685BAD3CD88464E21E9FC12E7A6ECCAC7",
+      "after": "3F61508A492E353E6D2021605C18963A5825EF06A0472EFB703C86DF645D7ED6"
+    }
+  ],
+  "head": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a"
+}

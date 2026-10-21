@@ -1,0 +1,136 @@
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include "server_c2_participant_win32.h"
+#include <string.h>
+static PAPACC_RESULT closed_policy(void *context,const PAPACC_C2_SESSION *session,
+ const PAPACC_U8 *payload,PAPACC_SIZE bytes,PAPACC_BOOL *permit)
+{
+ (void)context;(void)session;(void)payload;(void)bytes;
+ if(!permit)return PAPACC_RESULT_INVALID_ARGUMENT;
+ *permit=PAPACC_FALSE;return PAPACC_RESULT_OK;
+}
+static PAPACC_RESULT closed_capacity(void *context,PAPACC_SIZE bytes,PAPACC_BOOL *permit)
+{
+ (void)context;(void)bytes;
+ if(!permit)return PAPACC_RESULT_INVALID_ARGUMENT;
+ *permit=PAPACC_FALSE;return PAPACC_RESULT_OK;
+}
+static int identity(const PAPACC_SERVER_C2_PARTICIPANT *p,const void *root,PAPACC_U64 invocation)
+{
+ return p&&root&&invocation&&p->self==p&&p->root==root&&p->invocation==invocation&&
+ p->thread==(PAPACC_U32)GetCurrentThreadId();
+}
+static int empty_manager(const PAPACC_SERVER_C2_PARTICIPANT *p)
+{
+ unsigned i;
+ if(!p->manager.initialized||p->manager.owner!=p->thread||p->manager.stopping||
+ p->manager.next_operation!=1U||p->manager.context!=p||
+ p->manager.policy!=closed_policy||p->manager.capacity!=closed_capacity)return 0;
+ for(i=0;i<PAPACC_C2_SESSION_CAPACITY;++i)
+  if(p->manager.sessions[i].session)return 0;
+ for(i=0;i<PAPACC_C2_OPERATION_CAPACITY;++i){
+  const unsigned char *b=(const unsigned char *)&p->manager.operations[i];PAPACC_SIZE j;
+  for(j=0;j<sizeof(p->manager.operations[i]);++j)if(b[j])return 0;
+ }
+ return 1;
+}
+PAPACC_RESULT papacc_server_c2_participant_prepare(PAPACC_SERVER_C2_PARTICIPANT *p,
+ const void *root,PAPACC_U64 invocation,const PAPACC_SERVER_CONFIG *model,
+ const PAPACC_CAPABILITY_EVALUATION_INPUTS *inputs,PAPACC_SIZE other_reserved)
+{
+ const unsigned char *b;PAPACC_SIZE i;PAPACC_RESULT r;
+ if(!p||!root||!invocation||!model||!inputs)return PAPACC_RESULT_INVALID_ARGUMENT;
+ b=(const unsigned char *)p;
+ for(i=0;i<sizeof(*p);++i)if(b[i])return PAPACC_RESULT_INVALID_STATE;
+ if(sizeof(*p)>PAPACC_C2_PARTICIPANT_LIMIT||
+ other_reserved>PAPACC_C2_PARTICIPANT_LIMIT-sizeof(*p))return PAPACC_RESULT_LIMIT_EXCEEDED;
+ r=papacc_server_config_validate(model);if(r!=PAPACC_RESULT_OK)return r;
+ if(model->listener_profile!=PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL||
+ model->allow_network_egress||model->bind_selection.interface_persistent_id_count>PAPACC_C2_PARTICIPANT_IDS)
+ return PAPACC_RESULT_NOT_SUPPORTED;
+ if(!inputs->registry||!inputs->registry->initialized||!inputs->registry->storage||
+ inputs->registry->count>inputs->registry->capacity||!inputs->server_supported||!inputs->server_enabled||
+ !inputs->server_supported->initialized||!inputs->server_enabled->initialized||
+ inputs->server_supported->count>inputs->server_supported->capacity||
+ inputs->server_enabled->count>inputs->server_enabled->capacity||inputs->server_enabled->count>2U||
+ (inputs->server_supported->count&&!inputs->server_supported->storage)||
+ (inputs->server_enabled->count&&!inputs->server_enabled->storage))return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<inputs->server_enabled->count;++i){
+  const PAPACC_CAPABILITY_KEY *k=&inputs->server_enabled->storage[i];
+  const PAPACC_CAPABILITY_DESCRIPTOR *descriptor;
+  if(k->major!=1U||(k->id!=2U&&k->id!=3U)||
+   !papacc_capability_set_contains(inputs->server_supported,k)||
+   papacc_capability_registry_find(inputs->registry,k,&descriptor)!=PAPACC_RESULT_OK)
+   return PAPACC_RESULT_NOT_SUPPORTED;
+ }
+ {const PAPACC_CAPABILITY_KEY tls={2U,1U},mode={3U,1U};
+ if(papacc_capability_set_contains(inputs->server_enabled,&mode)&&
+ !papacc_capability_set_contains(inputs->server_enabled,&tls))return PAPACC_RESULT_INVALID_STATE;}
+ /* Reserve caller-owned fixed storage before initializing the actual manager.
+  * This is component accounting, never positive operational ED11 admission. */
+ p->reserved=sizeof(*p);p->combined=other_reserved+sizeof(*p);
+ r=papacc_c2_operation_manager_init(&p->manager,(PAPACC_U32)GetCurrentThreadId(),
+ closed_policy,closed_capacity,p);
+ if(r!=PAPACC_RESULT_OK){memset(p,0,sizeof(*p));return r;}
+ p->self=p;p->root=root;p->invocation=invocation;p->thread=(PAPACC_U32)GetCurrentThreadId();
+ p->model=*model;
+ if(model->bind_selection.interface_persistent_id_count)
+ memcpy(p->ids,model->bind_selection.interface_persistent_ids,
+ model->bind_selection.interface_persistent_id_count*sizeof(p->ids[0]));
+ p->model.bind_selection.interface_persistent_ids=model->bind_selection.interface_persistent_id_count?p->ids:NULL;
+ p->enabled_count=inputs->server_enabled->count;
+ if(p->enabled_count)memcpy(p->enabled,inputs->server_enabled->storage,p->enabled_count*sizeof(p->enabled[0]));
+ p->state=PAPACC_C2_PARTICIPANT_READY;return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_server_c2_participant_validate(const PAPACC_SERVER_C2_PARTICIPANT *p,
+ const void *root,PAPACC_U64 invocation)
+{
+ if(!identity(p,root,invocation)||p->state!=PAPACC_C2_PARTICIPANT_READY||
+ p->reserved!=sizeof(*p)||p->combined<p->reserved||p->combined>PAPACC_C2_PARTICIPANT_LIMIT||
+ p->model.bind_selection.interface_persistent_ids!=(p->model.bind_selection.interface_persistent_id_count?p->ids:NULL)||
+ p->model.bind_selection.interface_persistent_id_count>PAPACC_C2_PARTICIPANT_IDS||
+ p->enabled_count>2U||!empty_manager(p))return PAPACC_RESULT_INVALID_STATE;
+ return papacc_server_config_validate(&p->model);
+}
+PAPACC_RESULT papacc_server_c2_participant_rollback(PAPACC_SERVER_C2_PARTICIPANT *p,
+ const void *root,PAPACC_U64 invocation)
+{
+ if(!identity(p,root,invocation))return PAPACC_RESULT_INVALID_STATE;
+ if(p->state==PAPACC_C2_PARTICIPANT_CLOSED)return PAPACC_RESULT_OK;
+ if(p->state!=PAPACC_C2_PARTICIPANT_READY)return PAPACC_RESULT_INVALID_STATE;
+ if(papacc_server_c2_participant_validate(p,root,invocation)!=PAPACC_RESULT_OK){
+ p->state=PAPACC_C2_PARTICIPANT_RETAINED;return PAPACC_RESULT_INVALID_STATE;}
+ /* No Session, operation, callback, token, socket or PST child was consumed.
+  * Preserve identity/CLOSED tombstone; never reset for another invocation. */
+ memset(&p->manager,0,sizeof(p->manager));p->reserved=0U;p->combined=0U;
+ p->state=PAPACC_C2_PARTICIPANT_CLOSED;return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_server_c2_participant_stop(PAPACC_SERVER_C2_PARTICIPANT *p,
+ const void *root,PAPACC_U64 invocation)
+{return papacc_server_c2_participant_rollback(p,root,invocation);}
+#ifdef PAPACC_ENABLE_CANONICAL_C8_ROOT
+#include "server_c2_owner_win32.h"
+PAPACC_RESULT papacc_server_c2_participant_retire(PAPACC_SERVER_C2_PARTICIPANT *p,
+ const void *root,PAPACC_U64 invocation,const PAPACC_SERVER_C2_OWNER_WIN32 *consumer)
+{
+ unsigned i;PAPACC_SIZE j;
+ if(!identity(p,root,invocation)||!consumer||p->state!=PAPACC_C2_PARTICIPANT_READY||
+    consumer->manager!=&p->manager||consumer->initialized||consumer->loop||consumer->secure||
+    consumer->configuration.state!=PAPACC_C2_CONFIG_CLOSED||consumer->configuration.io_attached||
+    consumer->configuration.source||consumer->configuration.source_ticket||consumer->configuration.secure_lease||
+    !p->manager.initialized||p->manager.owner!=p->thread||!p->manager.stopping||
+    consumer->e10.enabled||consumer->e10.busy)return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<PAPACC_C2_SESSION_CAPACITY;++i)
+  if(p->manager.sessions[i].session||consumer->sessions[i].initialized)return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<PAPACC_C2_OPERATION_CAPACITY;++i){
+  const unsigned char *bytes=(const unsigned char *)&p->manager.operations[i];
+  if(consumer->bridges[i])return PAPACC_RESULT_INVALID_STATE;
+  for(j=0;j<sizeof(p->manager.operations[i]);++j)if(bytes[j])return PAPACC_RESULT_INVALID_STATE;
+ }
+ for(i=0;i<6U;++i)if(consumer->writes[i].pending||consumer->writes[i].secret_borrow||consumer->writes[i].quarantined)
+  return PAPACC_RESULT_INVALID_STATE;
+ /* These facts authorize retiring an empty manager, never child destruction. */
+ memset(&p->manager,0,sizeof(p->manager));p->reserved=0U;p->combined=0U;
+ p->state=PAPACC_C2_PARTICIPANT_CLOSED;return PAPACC_RESULT_OK;
+}
+#endif

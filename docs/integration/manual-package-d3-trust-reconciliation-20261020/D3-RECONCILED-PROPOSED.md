@@ -1,0 +1,68 @@
+---
+status: proposed
+revision: 2
+scope: D3 first-contact and purpose/status reconciliation only
+---
+# Reconciled D3 normative text for conditional official acceptance
+
+Prepared under owner task PACC-PHASE6-MANUAL-PACKAGE-D3-TRUST-RECONCILIATION-1. This prepared source is not self-accepting. Exact clauses are separately frozen; a designated officially approved acceptance record determines their normative status. Prior proposals remain unchanged.
+
+## D3.1 Scope and distinct decisions
+
+This contract specifies only first-contact trust for the already accepted manual PACCMP02/version2/suite1 package and the explicit decision to import that exact configuration. Mathematical signature verification, trust in the signer and local permission to install are separate outcomes. None grants operational admission, Principal, capabilities, Network Egress, issuance, recovery or permission to change another authority. M0-M8, automatic enrollment with client-local key custody and advanced separate-file import remain unchanged.
+
+## D3.2 Independent first-contact channel
+
+A newly installed Browser need not already trust the Accelerator issuer. It SHALL obtain the expected complete signer-SPKI SHA256 fingerprint and the approval facts below through an independently authenticated administrative channel. The minimal accepted ceremony is in-person confirmation with an administrator whose identity and applicable role the Browser operator already recognizes independently of this package, its password, delivery and candidate connection. That previously established recognition is a necessary trust assumption, not something supplied by a package label or successful RSA/TLS/TCP operation.
+
+Another channel is eligible only when an existing explicitly approved administrative authentication procedure proves its identity, role, independence and integrity for this use; this decision does not select a new protocol/provider or qualify such a channel. If there is no verifiable independent channel or recognized authorized administrator, DENY before KDF. No silent TOFU, self-assigned trust anchor, generic SYSTEM/channel/client trust substitution or PapinhoTrustStore is required or authorized. The package may be delivered separately; its unlock secret follows the existing distinct-delivery rule and is never proof of issuer identity.
+
+## D3.3 Authoritative purpose/status evidence
+
+The confirming administrator SHALL obtain evidence from the existing canonical root/policy and issuer owner under its factual applicable CURRENT context and protected snapshot lifetime. An explicit policy approval of the exact signer for manual-package authentication is required in addition to certificate issuance. Existing PACKAGE purpose, codeSigning or a certificate chain alone is insufficient. The evidence must establish: root/server scope and ExpectedServerName; issuer authority/generation and approved CA SPKI identity; exact signer record/certificate identity and full DER-SPKI fingerprint; dedicated package-signing purpose/delegation; certificate and delegation validity; separate certificate/delegation revocation status; factual revision and administrative observation context. Existing R/A/P/I meanings and applicability remain intact; no epoch/revision is invented or substituted.
+
+The source SHALL validate the accepted dedicated signer certificate profile with vetted routines, including issuer association, RSA2048/e65537, sha256WithRSAEncryption, critical CA=FALSE BasicConstraints and digitalSignature KeyUsage, noncritical codeSigning-only EKU, accepted signer identity and validity under trustworthy UTC. Certificate/delegation absence, ambiguity, wrong purpose, mismatch, expiration, revocation, uncertain authority or unproved CURRENT denies confirmation. CA, channel and client keys cannot sign package bytes in place of the dedicated signer.
+
+## D3.4 Explicit administrative attestation boundary
+
+For this first-contact ceremony only, the independently recognized administrator's explicit confirmation of the validated D3.3 facts, carried through D3.2 and bound to D3.5, is an accepted source of the approved signer context described by M1. This acceptance makes the human administrative trust assumption explicit; it is not a new cryptographic proof or general trust service. An unchecked checkbox, an arbitrary callback/boolean, a package-provided assertion or a manually entered string without that independent confirmation does not satisfy it.
+
+The Browser SHALL distinguish independently attested purpose/delegation/status from mathematical verification and from any local validation of a signer certificate it actually receives. It SHALL NOT claim to have locally validated an unseen certificate. When the applicable deployment requires additional independent public certificate evidence, it must be available and validated; this ceremony does not waive that requirement. No new package member, mandatory second material file, prior CSR, signed-attestation format or crypto construction is introduced. ca.der and cliente.der retain their existing roles and do not become the signer certificate or a self-authenticating trust source.
+
+## D3.5 Exact package and operation binding
+
+Before KDF, the independent confirmation SHALL be associated with the exact immutable package bytes/object selected for this one import operation and its expected server/root scope. Use the existing complete-file SHA256 transfer/audit correlation with exact full-SPKI fingerprint comparison; a digest correlates bytes and is not itself authority. The administrator's authorized confirmation is the authority source, not the embedded hash or the hash comparison alone. Hold the same input/object identity through verification and use, never reread a replaceable path as the authenticated file.
+
+Confirmation permits only continued validation of this package for the named import, not permanent acceptance of that key, other packages, another server, automatic reimport, renewal or operational TLS trust. Changed bytes, target, operation, source approval or identity require a new independently validated context. Existing M5 already-imported/idempotency rules remain unchanged and do not create a new trust exemption. Values encrypted inside the package are checked against independently approved expectations after AEAD; they cannot establish pre-KDF trust or scope.
+
+## D3.6 Status, validity and offline behavior
+
+The status policy for this minimum ceremony is a contemporaneous authoritative administrative observation for this same interactive import, not reuse of cached evidence as a continuing status grant. Before the TRUST decision the administrator must check the actual applicable CURRENT approval and certificate/delegation status and convey the observation/revision through the independent channel. Before controlled release and local installation, revalidate validity and that applicable approval/status still permits this operation, using a renewed authoritative observation if the prior facts cannot be proved applicable. New revocation, expiration, loss of source lifetime, changed/mismatched authority, Stop, interruption or uncertainty prevents release and requires fresh confirmation before a replacement operation proceeds.
+
+An observation proves status at its factual source revision/time; it does not prove global latest state, restored-instance fencing, immunity to later revocation or ongoing remote CURRENT. No numerical TTL, certificate-lifetime-as-import-TTL, wall-clock freshness bypass or offline global-revocation guarantee is introduced. A stricter applicable approved deployment policy still applies.
+
+The Browser may be offline if the independently authenticated administrator can provide those factual authoritative observations without requiring Browser network access. If neither the Browser nor that approved independent source can establish the required status/validity/delegation, DENY. A stored package, old certificate, password, valid signature, historical root hash or previously accepted fingerprint is not a fallback. This decision adds no mandatory network service, online protocol, backup or fencing mechanism and does not reopen authoritative recovery.
+
+## D3.7 Mandatory M1 order and confidential release
+
+STRUCTURE -> SIGNATURE -> TRUST -> KDF -> AEAD -> CONTENT -> RELEASE is mandatory. Outer structure/version/suite/length/parameters are validated first; untrusted SPKI may be used for mathematical verification only. Independent signature and D3.2-D3.6 trust must both succeed before invoking KDF or treating the signer as authenticated. The implementation may acquire independent public reference data earlier; it may not derive trust from file-supplied bytes or password knowledge.
+
+Keep AEAD output in exclusive private quarantine until tag success and keep the entire result private through ZIP/TLV, certificate/key correspondence, accepted profiles, issuer/serial/time/identity/server and final authority/lifetime validation. No private-key/plaintext disclosure or usable result follows from signature, trust or AEAD success alone. Every missing or failed prerequisite denies; no partial success or fallback. Crypto parameters and layouts remain exactly M0-M8.
+
+## D3.8 Local import authorization and existing ownership
+
+After complete authenticated validation, an operator already authorized by existing BrowserProfile policy to change that profile must explicitly confirm installation of the identified configuration. Administrator attestation, trusted signer, password entry and successful validation do not grant that local right. Validation and installation remain different factual outcomes. Cancel or denial before commit preserves the old committed configuration.
+
+Use the existing candidate -> CredentialGeneration -> CredentialReference -> store -> gate/ActiveConfiguration/leases flow for both simple package and advanced imports. The existing owner must hold independent confirmation/provenance and protected references through use/commit; retain only public bounded provenance as required by that existing lifecycle, not a general reusable signer allowlist. No new importer owner, registry, trust store or storage/codec is approved. Any necessary versioned representation requires its own exact acceptance before writing. No Browser source or normative file is changed by this Accelerator decision.
+
+## D3.9 Stop, uncertainty and retention
+
+Keep immutable inputs, source/snapshot references, password/key/provider copies, quarantine and output credit owned until factual completion/quiescence. Stop does not prove cancellation of synchronous native KDF/I/O or destruction; timeout, process exit and FINAL do not free retained dependencies. Failed/uncertain release retains resources and credits under Model E/ED08, without destructive retry, guessed rollback or fabricated DESTROYED. Wipe only quiescent owned secret copies using reviewed non-elidable facilities; never log passwords, keys or protected plaintext. Active Session revocation remains a separate pending policy; this ceremony does not redefine it.
+
+## D3.10 ED11 and platform boundary
+
+No quota, reservation or operational credit is granted. Account trust/source references, immutable package, signature/provider, KDF, password/key, AEAD, plaintext/ciphertext/quarantine, ZIP/TLV, certificates/material, snapshots, old/new generations, stack/callbacks and retained coexistence once with proven ownership. Explicit Windows3145728 and default/legacy2097152 remain per-process limits, not per-client budgets. Provider/kernel and unmeasured costs stay UNKNOWN; ED11 total stays PARTIAL until operational qualification. Insufficient or unknown required credit denies integration. No CNG/Win32 dependency, box/ISA qualification or PapinhoTrustStore prerequisite is introduced into the common contract.
+
+## D3.11 Normative acceptance versus factual readiness
+
+This is a delimited first-contact/purpose/status contract, not evidence of an installed administrator channel, live policy delegation, factual CURRENT, qualified crypto/lifetime/ED11 or successful import. Those facts must exist and be proved before use; otherwise DENY. Implementation is NOT authorized by this record, nor are any referenced functional hunks. No productive signature, CURRENT publication, recovery, admission, key/certificate/package creation, network or Phase6 completion is authorized. Proposals and earlier accepted decisions remain preserved.

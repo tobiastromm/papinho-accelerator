@@ -19,17 +19,23 @@ Secure Transport pronta para consumo. Providers concretos permanecem
 selecionáveis por target; nenhum provider é universalmente obrigatório.
 Criptografia própria é proibida.
 
-**Estado de implementação:** o controller Win32 seguro opt-in integra PST,
-TLS 1.3 mTLS, AuthN/AuthZ, CONTROL e DATA. A prova 3.F usa um cliente de
-referência em processo separado. O executável padrão ainda não possui fonte
-operacional de credenciais/listener Secure, e `TLS_OFFLOAD` não foi
-implementado. O serviço padrão não deve ser apresentado como seguro.
+**Estado de implementação:** o executável Win32 possui listener operacional
+opt-in `secure-principal`, composto com PST, TLS 1.3 mTLS, ALPN `papacc/1`,
+AuthN/AuthZ, CONTROL e DATA. A fonte de credenciais disponível nesta etapa é
+explicitamente lab-only e exige uma `security_configuration_ref`; pairing e
+uma fonte persistente de produção permanecem não implementados. A prova 3.F
+usa um cliente de referência em processo separado. A Phase 6 implementou `TLS_OFFLOAD` v1 no
+Mode B para conexões externas server-owned, sempre abaixo de Secure Principal,
+Capability Snapshot e policy de egress. O executável sem configuração Secure
+não deve ser apresentado como seguro.
 
 ## Transport Security e TLS Offload
 
 Transport Security é a segurança da comunicação `PapinhoAccelerator Client ↔ PapinhoAccelerator Server`. Ela pertence à infraestrutura e ao protocolo do PapinhoAccelerator e protege Control Channel, Data Channels, autenticação, comandos, payloads, credenciais e dados enviados para processamento. Não é uma capability de processamento normal.
 
-`TLS_OFFLOAD` é um conceito diferente: uma capability negociável que poderá futuramente auxiliar ou executar operações TLS relacionadas às conexões do cliente com sites ou serviços externos. O nome e o ID definitivos dessa capability não estão congelados.
+`TLS_OFFLOAD` é um conceito diferente: capability negociável de processamento
+TLS para conexões externas. A key v1 `(2,1)` e o Mode B são governados pelos
+ADRs 0018, 0022 e 0023. Modes adicionais permanecem futuros.
 
 ```text
 Transport Security != TLS Offload
@@ -93,7 +99,8 @@ CONCRETE PST PROVIDER PER TARGET
     → selecionável/substituível; nenhum provider universal obrigatório
 
 INTEGRATION INTO ACCELERATOR
-    → controller Win32 seguro opt-in implementado; wiring operacional ausente
+    → listener Win32 seguro opt-in ligado ao executável real
+    → provisioning atual lab-only; pairing/config source de produção ausentes
 ```
 
 A decisão arquitetural posterior define os perfis futuros
@@ -110,17 +117,20 @@ runtime e sem mudar o campo opaco de 16 bytes, salvo revisão protocolar futura.
 
 ## Modos, autenticação e autorização
 
-Os termos históricos `OPEN` e `AUTHENTICATED` descreviam possibilidades de
-autenticação antes da formalização dos transport profiles. Eles não são
-transport profiles concorrentes e não substituem `Secure Principal` ou
-`Legacy Endpoint`, cuja semântica canônica pertence ao ADR-0001.
+`OPEN` e `CLOSED` são Admission Modes futuros, não transport profiles. `OPEN`
+significa que nenhum login de aplicação é exigido; não significa plaintext,
+ausência de TLS, policy ou limites. `CLOSED` exige autenticação de acesso antes
+do uso do serviço. TLS/mTLS/Legacy permanece uma dimensão independente:
+`mTLS` é TLS com autenticação por certificado de cliente e não equivale por si
+só a `CLOSED`.
 
-Na terminologia histórica, “open” significava somente ausência de autenticação
-de cliente exigida, não ausência de política, validação ou limites. Essa
-descrição não concede segurança ao canal, não caracteriza um Secure Principal
-e não autoriza fallback para Legacy Endpoint. Possíveis mecanismos adicionais,
-como usuário/senha, tokens ou allowlists, continuam trabalho futuro e não foram
-decididos por este documento.
+Métodos futuros como `NONE`, username/password dentro de TLS, certificate
+identity, combinação de certificado e senha ou pairing/enrollment exigem ADR
+próprio antes de implementação. Da mesma forma, Source/Context Policy futura
+poderá considerar source IP/subnet, Principal/grupo, listener/interface e
+janelas de dia/horário sem ser confundida com Admission ou Destination Policy.
+As boundaries e combinações que devem permanecer representáveis estão
+formalizadas no ADR-0028.
 
 Autenticação estabelece uma identidade; autorização decide o que essa identidade pode fazer. São etapas independentes. Uma identidade pode, por exemplo, usar decode e framebuffer, mas não transcoding ou network egress. A autorização deve considerar capability, parâmetros, local de execução, egress e quotas.
 

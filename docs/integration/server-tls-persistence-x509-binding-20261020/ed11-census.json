@@ -1,0 +1,37 @@
+{
+  "status": "PARTIAL",
+  "managed_limit": 2097152,
+  "previous_known_runtime_base": 2084039,
+  "accounting_margin_not_reservation": 13113,
+  "new_runtime_instantiated_storage": 0,
+  "runtime_registration": "NONE",
+  "carrier": "UNSUPPORTED",
+  "provider_kernel": "UNKNOWN",
+  "serialized": {
+    "root_min": 20512,
+    "root_max": 28960,
+    "prefix_max": 28928,
+    "SNT1_max": 3168,
+    "CP2": 512,
+    "carrier": 16384,
+    "historical_worker_packet_capacity": 16896
+  },
+  "caller_scenarios": {
+    "immutable_prefix_plus_disjoint_encoded_output_max": 57888,
+    "with_owned_decoded_copy": 86816,
+    "with_separate_SNT1_scratch": 89984,
+    "CP2_scratch_reuse": "512 can fit same3168 fragment buffer only in sequential caller-owned calls; no product reuse proved",
+    "baseline_plus_two_max_buffers_if_additive": 2141927,
+    "conditional_excess": 44775
+  },
+  "excluded_from_qualification": [
+    "compiled complete call-stack bound",
+    "native provider/kernel resources",
+    "callbacks and CA backing",
+    "source pins and retained generations",
+    "transitive parser AST root issuer coexistence",
+    "existing workspace exclusivity proof"
+  ],
+  "test_only_static_graph_bytes": 227905,
+  "decision": "No activation or packet widening. No quota/reserve reduction. Full peak cannot be established from data-codec tests."
+}

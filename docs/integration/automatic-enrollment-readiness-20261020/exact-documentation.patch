@@ -1,0 +1,211 @@
+--- a/docs/capabilities/client-pairing.md
++++ b/docs/capabilities/client-pairing.md
+@@ -532,3 +532,8 @@
+ ### Consumo PDG1 no M1 offline — 2026-10-20
+ 
+ O pipeline M1 consome a seleção DATA PDG1 após validação integral PACROOT8/v3, correlacionando pacote e SPKI e rejeitando delegação/issuer divergentes ou revogados. Mesmo uma correspondência completa mantém SOURCE_ABSENT antes do KDF: CURRENT, pins factuais e confirmação independente continuam sem fonte ligada. Não há trust positivo produtivo. Selected/Legacy Debug/Release:2/2 suítes de pacote,146 asserções de controle sintético e1189 criptográficas reais por configuração;14/14 regressões root/issuer/ED11 por configuração. Fixtures administrativas não são provas nativas de autoridade. Operação776,input128,contexto PDG72 e imagem máxima30592 bytes; cenário conservador não compartilhado3625925 excede3MiB e nega ativação, sem alterar quotas. Worker/runtime/CLI e formatos históricos inalterados; Browser não precisa conhecer a root interna. Ver [closeout](../integration/pdg1-m1-trust-consumption-20261020/closeout.md), [lifetime/ED11](../integration/pdg1-m1-trust-consumption-20261020/consumption-proof-and-ed11.md) e [handoff Browser](../integration/pdg1-m1-trust-consumption-20261020/browser-import-handoff.md).
++
++
++### Prontidão de enrollment automático — 2026-10-20
++
++Reconciliação confirma que ADR-0006/provisioning18/10 definem obrigações, mas não selecionam transporte pré-credencial ou parâmetros do código. Owner confirmou ausência de contrato concreto adicional e autorizou uma única proposta focal P0–P9, ainda PROPOSED. Não há novo fluxo ou fonte funcional aplicada; automático DENY. CSR público/issuer/Stop/retenção/ED11 existentes passaram12/12 suítes em Selected/Legacy Debug/Release incremental, sem warnings; código/replay/OPEN-CLOSED/approval de enrollment não foram executados por ausência de implementação. Chave automática continua exclusivamente no cliente, CSR somente após pareamento verificado/autorizado. Secure Principal mTLS não foi relaxado; sem wire/listener/protocolo novo. Delta de buffers runtime0, orçamento completo de enrollment UNKNOWN/provider-kernel UNKNOWN; ED11 PARTIAL. Ver [proposta focal](../integration/automatic-enrollment-readiness-20261020/PAIRING-CODE-CONTRACT-PROPOSED.md), [conformidade](../integration/automatic-enrollment-readiness-20261020/conformance-and-readiness.md) e [closeout](../integration/automatic-enrollment-readiness-20261020/closeout.md). Próximo: revisão exata do código; transporte continua gate separado.
+--- a/docs/integration/automatic-enrollment-readiness-20261020/closeout.md
++++ b/docs/integration/automatic-enrollment-readiness-20261020/closeout.md
+@@ -0,0 +1,40 @@
++# Automatic enrollment readiness — resultado parcial
++
++A reconciliação confirmou contratos accepted de obrigação e segurança, sem contrato concreto de código/bootstrap. O owner confirmou essa ausência e autorizou uma proposta focal única. Preparada PAIRING-CODE-CONTRACT-PROPOSED.md P0–P9: código/entropia/validade/tentativas/limites, vínculo à solicitação/servidor, single-use/replay/uncertainty, OPEN/CLOSED e auto/manual separados. CSR público permanece posterior ao pareamento autorizado; chave automática exclusivamente no cliente.
++
++Nenhuma fonte funcional foi modificada. Não foi criada implementação fictícia enquanto parâmetros permanecem PROPOSED. Transporte pré-credencial continua explicitamente DENY: Secure Principal exige mTLS e não há protocolo de enrollment aceito; não foram criados listener, registry, CA ou wire. CURRENT/pins/admin positivo e provider CLOSED permanecem gates próprios. Estado factual e conformidade em conformance-and-readiness.md; próximo slice e ED11 em implementation-and-ed11-handoff.md.
++
++Progresso independente:12/12 suítes issuer/CSR público/CNG-model/ED11 em cada configuração Selected/Legacy Debug/Release. Builds incrementais existentes /W4 /WX passaram, sem warnings e sem novo source para compilar. Testes de código/enrollment não foram executados porque não existe implementação; nenhum resultado sintético foi rotulado como positivo nativo. Sem rede, chaves, certificados, assinatura produtiva, bootstrap, CURRENT, Git commit/push/tag/release ou alterações Browser/PST/wire/produção0.6.4. WIP anterior preservado por hashes e preimagens.
++
++```ini
++CURRENT_TASK_COMPLETED=NO
++AUTOMATIC_ENROLLMENT=DENY
++PAIRING_CODE=PROPOSED_P0_P9
++OPEN_CLOSED_POLICY=CONTRACT_PRESERVED_OPERATIONAL_BINDING_PENDING
++APPROVAL_WORKFLOW=CONTRACT_PRESERVED_FACTUAL_SOURCES_PENDING
++CLIENT_LOCAL_KEY_CUSTODY=PRESERVED_REQUIRED_NOT_IMPLEMENTED_IN_BROWSER
++CSR_FLOW=PUBLIC_VALIDATOR_EXISTING_ENROLLMENT_INGRESS_PENDING
++INITIAL_ENROLLMENT_TRANSPORT=DENY_UNSPECIFIED
++NORMATIVE_STATUS=PROPOSED
++IMPLEMENTATION_DEPENDENT_ON_PAIRING_CONTRACT=NOT_AUTHORIZED
++BUILDS=SELECTED_LEGACY_DEBUG_RELEASE_INCREMENTAL_PASS
++WARNINGS=0
++OFFLINE_TESTS=12_OF_12_EXISTING_SUITES_PER_CONFIGURATION_PASS
++ENROLLMENT_TESTS=NOT_RUN_NOT_IMPLEMENTED
++NETWORK_TESTS=NOT_RUN
++CURRENT_PUBLICATION=DENY
++SIGNATURE_AUTHORITY=DENY
++AUTHORITATIVE_RECOVERY=DENY
++ED11_TOTAL_STATUS=PARTIAL
++CLIENT_ADMISSION=DISABLED
++SITE_TLS_ADMISSION=DENY
++ED11_ADMISSION=DENY
++PST_CHANGED=NO
++BROWSER_CHANGED=NO
++PACC_WIRE_CHANGED=NO
++PRODUCTION_PIN=0.6.4
++PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
++WIP_PRESERVED=YES
++FIRST_UNRESOLVED_DIVERGENCE=CONCRETE_PAIRING_CONTRACT_UNACCEPTED_AND_PRE_CREDENTIAL_TRANSPORT_UNSPECIFIED
++NEXT=PAIRING_CODE_EXACT_CONTRACT_REVIEW
++```
+--- a/docs/integration/automatic-enrollment-readiness-20261020/conformance-and-readiness.md
++++ b/docs/integration/automatic-enrollment-readiness-20261020/conformance-and-readiness.md
+@@ -0,0 +1,43 @@
++# Reconciliação de contratos e prontidão — automática
++
++HEAD main/c50b8fb9a7e3293b5e6355fc08459bf85b56857a. PROJECT-CONTEXT.md ausente. AGENTS.md e decisões accepted vigentes regem a tarefa; owner confirmou que não existe contrato concreto adicional para código/bootstrap e autorizou apenas uma proposta focal. Não há conflito entre decisões accepted: há ausência expressa de decisão técnica. Nenhuma alteração de fontes é necessária/autorizada por inferência para preencher essa lacuna.
++
++## Matriz factual
++
++| Exigência | Autoridade vigente | Implementação reutilizável | Resultado desta tarefa |
++|---|---|---|---|
++| Address/servidor verificável/código | ADR-0006 Pairing; decisão provisioning item3 | listener secure exige TLS1.3/mTLS/ALPN; não há endpoint pré-credencial | DENY; P1–P4 propostos, transporte P7 aberto |
++| Código contextual curto/single-use/rate-limited | ADR-0006; provisioning itens3/5 | C2 tokens são pós-Session/offload, não enrollment | não reutilizar PAIR_OPEN/C2-token como enrollment; sem código executável |
++| OPEN | provisioning item4; ADR-0028 | não há caminho de solicitação sem primeira credencial | sem username/password inicial por contrato, não significa ausência de mTLS/trust |
++| CLOSED | provisioning item4 | authentication_authorization resolve certificado/Principal; provider username/password de enrollment não encontrado | DENY até fonte factual; não inventar catálogo |
++| AUTO/MANUAL | provisioning item5 | issuer authorize é fronteira administrativa, não workflow de confirmação de pairing | fontes e binding ainda faltam; não usar boolean sintético |
++| Chave local/CSR/PoP | CA/custódia item5; técnico1.1/1.3 | verify_request nativo Crypt32 verifica CSR DER/RSA2048/e65537/SHA256/digests/PoP; atributos unsupported | componente preservado; nada no servidor gera/exporta chave automática |
++| CSR posterior ao pareamento autorizado | custódia item5 | não há ingress automático | P2 separa contexto original por request/nonce e vínculo CSR derivado posterior; não presume CSR pré-pairing |
++| Reserva/serial/high-water | técnico2.1–2.3; issuer core/codec | prepare/reserve/issue/query/transition; mesma root via ports, CAS/re-read e burn | regressões existentes executadas, emissão operacional negada |
++| Renewal/revocation | provisioning6/7; custódia8; técnico2.3 | core predecessor/new key/new serial e REVOKED, dados persistentes issuer | preservados; ausência de API/remoting real não resolvida; Sessions ativas POLICY_PENDING |
++| Registro/Principal/grants | ADR-0006; provisioning8; root/C8 | issuer device separado de Principal; authz/gates existentes | não criar identidade/cadastro paralelo nem conceder grants |
++| Lifecycle | Model E, ADR-0003/0030/0031/0032, root/C8 | owner Stop/retention/release e créditos existentes | regressões sintéticas preservadas, sem alegar cancelamento nativo |
++| ED11 | decisão Windows3MiB W1–W6; ED11 incremental | explicit selected3145728/default2097152 e crédito compartilhado | sem buffers novos/reservas; automático completo UNKNOWN, DENY |
++
++## Compatibilidade da proposta P0–P9
++
++| Cláusula candidata | Decisões que a restringem | Classificação |
++|---|---|---|
++| P0 | ADR-0006/0028 e custódia5 | preserva separação e chave local; nenhuma ativação |
++| P1 | ADR-0006 CSPRNG/short-lived/context-bound | 10base32/50bits e nonce são NOVAS escolhas PROPOSED, não herdadas da norma |
++| P2 | provisioning3/5/8; custódia5; root/C8 | contexto imutável factual; CSR somente posterior; fontes faltantes negam |
++| P3 | ADR-0006 monotônico/UTC; Model E | 300000ms propostos, não altera validade X509 accepted |
++| P4 | ED11 W2/Model E | 5 tentativas, 2 contextos, janelas2/10 por60000ms propostos; sem nova quota efetiva ou crédito |
++| P5 | provisioning4/5; ADR-0028 | OPEN/CLOSED e AUTO/MANUAL distintos, provider ausente DENY |
++| P6 | técnico2.2/2.3; root/C8/CAS | consumo irrevogável não é commit/assinatura; UNKNOWN retém; binding ainda precisa implementação aprovada |
++| P7 | ADR-0001/0006/0009; provisioning Gates/Escolhas não aprovadas | não existe transporte inicial aprovado; nenhuma extensão/wire implementável por esta proposta |
++| P8 | issuer/C2; Model E/ED08 | preserva serial, snapshots, Stop, retenção e política ativa pendente |
++| P9 | ED11 W1–W6 | nenhuma capacidade/reserva presumida; censo de ativação falta |
++
++Não há base para registrar ACCEPTED. Revisão oficial desta tarefa cobre documentos PROPOSED e relato factual, não aceita P0–P9 ou patches funcionais. Próximo gate executável: revisão/decisão dos parâmetros exatos P1/P3/P4 e binding P2/P5/P6; o transporte P7 continua DENY e não pode ser suprido por novo protocolo inferido. Após aceitação do código, o primeiro slice possível é lógica local pura de código/estado, sem rede/issuer/authority positiva, somente com aprovação de patch exato. Não adicionar máquina de estados dormente agora para criar aparência de avanço funcional.
++
++## Evidência nativa versus modelos
++
++12/12 suites por Selected/Legacy Debug/Release. Issuer117checks usa root/signer sintéticos; production gate4checks rejeita adapters de teste; checkpoint41checks combina metadata sintética e SHA256 nativo, recuperação DENY. CSR Windows33checks usa Crypt32 real em entradas inválidas, inclusive assinatura zero; não é CSR positivo nativo de Browser. CNG X509504checks usa assinatura/root sintéticos, nenhuma private operation; output de testes não é certificado operacional. Gates CNG testam isolamento e borrow guards sem chamada nativa de chave. ED11 créditos/Stop/retenção são sintéticos, não medição operacional. Código válido/inválido/expirado/replay, OPEN/CLOSED e aprovação automática/manual de enrollment NÃO EXECUTADOS: implementação ausente, fixtures não seriam prova funcional.
++
++Builds repetem CMake/MSVC19.51 /W4 /WX existentes nas árvores canônicas opt-in. Build incremental final sem work adicional/sem warnings; nenhum source patch ou compilação de novo componente foi aplicado. SDK existente somente consumido; nenhum acquire, rede ou teste socket foi executado. Logs detalhados preservam assertions e censo por configuração.
+--- a/docs/integration/automatic-enrollment-readiness-20261020/implementation-and-ed11-handoff.md
++++ b/docs/integration/automatic-enrollment-readiness-20261020/implementation-and-ed11-handoff.md
+@@ -0,0 +1,23 @@
++# Menor handoff implementável após decisão
++
++Não há implementação automática nova nesta tarefa. Provider de usuário/senha, transporte pré-credencial, aquisição de aprovação/policy/CURRENT e fluxo Browser continuam ausentes/não qualificados. Não criar success stub, fake Principal/CURRENT, pending client registry ou parser de rede.
++
++1. Revisar P0–P9 em PAIRING-CODE-CONTRACT-PROPOSED.md como único candidato. Após eventual aceitação específica e aprovação oficial, preparar slice privado local para representação/validação do código, checked monotonic expiry, contadores/janelas e consumo único. Reutilizar owner administrativo e plataforma de CSPRNG; nenhum C2 token, worker, pool de clientes, CA ou mensagem nova. Parser local não se torna wire.
++2. Binding de owner exige origem factual de snapshot/root/identidade/revisão/lease; campos serializados/digests não substituem aquisição. Submeter preimagens/hunks. Se modelo existente não representar decisão manual/authentication/consumo, preparar somente extensão delimitada; não gravar BODY0.5/ROOT06/ROOT08/v3 por inferência. Os estados P6 não são novos estados issuer.
++3. Browser permanece intocado. Geração local da chave/CSR é trabalho futuro do Browser com backend governado, nunca transferir chave automática para servidor. Código só confirma solicitação contextual. CSR/PoP público somente após pareamento verificado/autorizado; ao chegar deve vincular request original e SPKI exato por digest/validação pública. O atual backend.verify_request aceita somente SERIAL_RESERVED/SIGN_REQUESTED; não fabricar esses estados para executar verificação de pendência. Uma futura inspeção pública pré-reserva precisa refactor/patch revisado, sem transformar dados em aprovação.
++4. Emissão/renew/revoke convergem ao issuer existente: PAPACC_ISSUER_REQUEST e root ports read/cas, authorize, UTC, verify_request/acquire/sign/release/verify_certificate. Guards existentes permanecem; prepare do issuer não é aprovação de pareamento, reserva não é certificado emitido. Não reconstruir proof bits de root a partir de config. Serial permanece queimado/incerto como contrato atual. Sem CURRENT/fencing/admin positivo: negar antes de efeitos privados.
++5. Transporte inicial permanece gate independente P7. Não ampliar o Secure Principal para server-auth, criar HTTP endpoint, ALPN ou mensagens PACC por inferência. OPEN/CLOSED não relaxam transporte. Não implementar fluxo de renovação pela rede sem contrato concreto já aprovado.
++
++## ED11 — nenhuma margem é reserva
++
++Base selected conservadora2103847 e legacy2067655 herdadas do último censo; perfis explícito3145728/default2097152, sem alteração nesta tarefa. Delta de armazenamento funcional/heap/stack/buffer permanente aplicado:0. Documentos e runners de teste não são armazenamento do runtime. Não somar reservas mutuamente exclusivas sem prova, nem omitir coexistência de assinatura/issuer e retenções.
++
++Componentes existentes se instanciados: core216, request136, record288, view176, backend696, keyowner480, public-workspace-descriptor24, arena4096; muitos campos são EMBUTIDOS no backend/core e devem ser contados uma vez. Não somar todos esses sizeof como objetos independentes. O censo compilado preservado mostra tamanhos reais, não composição de ativação. CSR/DER/TBS/CA backing transitivo/CRT/provider/callbacks devem incluir capacities máximas, stack e multiplicidade efetiva.
++
++Novo contrato propõe até2 contextos e anéis2+10timestamps64 (96bytes de timestamps antes de overhead). Tamanho real dos contextos, mapa de requests/admin identities, backing de strings/snapshots/CSR, referências/leases, relógio, limpeza e integração do limiter ainda NÃO DEFINIDOS POR IMPLEMENTAÇÃO: UNKNOWN, não zero. Anéis/limites propostos não são quota/runtime aceitos. Ao instanciar futuro slice, medir sizeof/alinhamento e custo de todos os retidos concorrentes antes de admitir; nenhum crédito pertence a esse handoff.
++
++Automático não usa criptografia KDF/AEAD/ZIP do pacote manual, mas coexistência possível com a tarefa manual não pode ser excluída. Cenário conservador anterior3625925 do pacote manual não mede enrollment e não autoriza excluir provider ou buffers. ED11 total PARTIAL; provider/kernel UNKNOWN. Nenhum gate depende da disponibilidade de fixtures .papacc no Browser.
++
++## Matriz mínima de testes futuros
++
++Código: todos os símbolos/limites, formato canônico e apresentação, invalidação de caracteres, entropia/colisão/falha, tentativas1..5, sexta negada,300000ms exato, overflow/regressão de relógio, windows60000ms, pressão2slots e retenção. Contexto: nonce/request/servidor/SPKI/listener/policy/revisão divergentes; CSR posterior correspondente ou alterado. Workflow: OPEN sem login ainda exige trust, CLOSED sem provider nega, manual sem ator/auto sem policy negam, CSR antes do pairing nega, replay depois do consumo não chama issuer, UNKNOWN/Stop não reciclam slot/código/serial. Crypto real e fontes factuais devem ser separados de modelos. Positivos de CURRENT/admin/Browser/NT4 precisam ambiente qualificado, sem inventar autoridade na sandbox.
+--- a/docs/integration/automatic-enrollment-readiness-20261020/PAIRING-CODE-CONTRACT-PROPOSED.md
++++ b/docs/integration/automatic-enrollment-readiness-20261020/PAIRING-CODE-CONTRACT-PROPOSED.md
+@@ -0,0 +1,82 @@
++---
++status: proposed
++revision: 1
++task: PACC-PHASE6-AUTOMATIC-ENROLLMENT-READINESS-1
++scope: pairing-code-only; no network protocol or authority activation
++---
++
++# Proposta focal Ãºnica â€” cÃ³digo de pareamento automÃ¡tico
++
++Este texto P0â€“P9 Ã© candidato normativo para revisÃ£o oficial, nÃ£o ACCEPTED. O owner autorizou preparar parÃ¢metros exatos apÃ³s confirmar que nÃ£o hÃ¡ contrato accepted adicional. NÃ£o altera ADR-0006, ADR-0028, provisionamento de18/10, CA/profile1 ou qualquer wire. ImplementaÃ§Ã£o dependente permanece proibida atÃ© aceitaÃ§Ã£o especÃ­fica. NÃ£o aceita um novo transporte por referÃªncia.
++
++## P0 â€” Alcance e fronteiras
++
++O cÃ³digo Ã© confirmaÃ§Ã£o contextual de pareamento, nunca identidade do servidor, senha do usuÃ¡rio, aprovaÃ§Ã£o administrativa, prova de posse, autorizaÃ§Ã£o de emissÃ£o, Principal ou grant. Quatro decisÃµes distintas sÃ£o exigidas: identidade/trust do servidor verificados; autenticaÃ§Ã£o inicial conforme OPEN/CLOSED; decisÃ£o AUTO_APPROVAL/MANUAL_APPROVAL na policy administrativa vigente; autorizaÃ§Ã£o factual do issuer para a solicitaÃ§Ã£o exata. Nenhuma etapa dispensa as outras. ConfirmaÃ§Ã£o humana deve distinguir destinatÃ¡rio/servidor e solicitaÃ§Ã£o; um cÃ³digo retransmitido nÃ£o impede phishing/relay por si sÃ³.
++
++MANUAL .papacc permanece independente. ExceÃ§Ã£o manual de chave nÃ£o se aplica: chave privada automÃ¡tica Ã© gerada e mantida exclusivamente no cliente; Accelerator recebe somente CSR pÃºblico/prova de posse apÃ³s pareamento verificado. Nada exige geraÃ§Ã£o de fixtures .papacc.
++
++## P1 â€” Formato e entropia candidatos
++
++CÃ³digo canÃ´nico: exatamente10 bytes ASCII do alfabeto ordenado `0123456789ABCDEFGHJKMNPQRSTVWXYZ` (32 sÃ­mbolos), total50bits uniformes. ApresentaÃ§Ã£o local opcional:5 sÃ­mbolos, hÃ­fen ASCII0x2D,5 sÃ­mbolos. Aceitar como entrada local somente os10 bytes canÃ´nicos ou11 bytes com Ãºnico hÃ­fen no offset5; remover somente esse hÃ­fen. Rejeitar minÃºsculas, aliases I/L/O/U, espaÃ§os, Unicode, terminadores embutidos, trailing bytes e qualquer outro tamanho; nÃ£o normalizar por locale. Strings de exibiÃ§Ã£o nÃ£o sÃ£o formato de rede.
++
++Gerar7 bytes novos por CSPRNG qualificado, ler os primeiros50bits em ordem MSB-first e mapear10 grupos consecutivos de5bits aos Ã­ndices0..31. Ignorar os6bits finais; nÃ£o aplicar mÃ³dulo decimal, hash de hostname, relÃ³gio, contador, GUID ou fallback pseudoaleatÃ³rio. Cada geraÃ§Ã£o usa nova amostra; falha da fonte nega, sem segundo provider implÃ­cito. ComparaÃ§Ã£o do cÃ³digo canÃ´nico usa mecanismo constante no tempo revisado, sem primitiva criptogrÃ¡fica prÃ³pria. A representaÃ§Ã£o nÃ£o autentica a conexÃ£o.
++
++Gerar ainda nonce servidor32bytes e correlaÃ§Ã£o administrativa16bytes, independentes do cÃ³digo. Nonce cliente32bytes vem do CSPRNG local do Browser; nenhum segredo privado Ã© transferido. ColisÃ£o de correlaÃ§Ã£o/nonce com contexto ainda vivo ou retido nega a tentativa; nÃ£o sobrescrever nem reusar slot. SeleÃ§Ã£o/revisÃ£o de um adapter de entropia Ã© prÃ©-condiÃ§Ã£o factual, nÃ£o autorizaÃ§Ã£o para usar tokens C2 como cÃ³digo. APIs CSPRNG do Windows jÃ¡ usadas no projeto sÃ£o mecanismos candidatos de plataforma, nÃ£o fonte de aprovaÃ§Ã£o.
++
++## P2 â€” Contexto imutÃ¡vel obrigatÃ³rio
++
++O owner administrativo existente deve possuir uma Ãºnica preparaÃ§Ã£o imutÃ¡vel vinculando: root identity; CURRENT/R/A/P/I factuais e pin/lifetime; listener/security_ref/perfil TLS e ExpectedServerName aprovado; fingerprint SHA256 do certificado de servidor efetivamente verificado; issuer/geraÃ§Ã£o aplicÃ¡veis; correlaÃ§Ã£o administrativa; nonce cliente; nonce servidor; identidade da solicitação pública (nonce cliente já indicado, nunca um segredo privado); identidade de dispositivo proposta e sua aprovaÃ§Ã£o administrativa separada; modo OPEN/CLOSED; modo AUTO/MANUAL; identidade/revisÃ£o da policy; inÃ­cio/deadline monotÃ´nicos; contadores e estado de consumo.
++
++Esses sÃ£o requisitos de comparaÃ§Ã£o/lifetime, nÃ£o novos campos persistentes aceitos ou um transcript criptogrÃ¡fico de rede. NÃ£o se define concatenaÃ§Ã£o assinada/hash/MAC novo. CSR subject, IP, nome de apresentaÃ§Ã£o, cÃ³digo ou request ID nÃ£o viram identidade estÃ¡vel/Principal. Request de emissÃ£o somente utiliza identidade aprovada na mesma root; se a fonte nÃ£o existe, DENY. Nenhum CURRENT, epoch, identidade ou pin vem de flags do solicitante ou de decode.
++
++Ao verificar cÃ³digo/aprovar/consumir/autorizar reserva, comparar o contexto inteiro com as fontes factuais sob lifetime protegido. Qualquer troca de nonce, destino, certificado, listener, identidade, policy ou CURRENT/R/A/P/I invalida a tentativa; nÃ£o atualizar contexto em lugar. Mesmo issuer-only que preserve P nÃ£o preserva automaticamente a autorizaÃ§Ã£o do pareamento. Nova tentativa exige nova confirmaÃ§Ã£o e novo cÃ³digo, sem afetar Sessions antigas nem seus snapshots.
++
++## P3 â€” Validade e relÃ³gios
++
++Prazo do contexto inteiro:300000ms, absoluto, a partir da conclusÃ£o factual da geraÃ§Ã£o local sob owner; inclui espera de confirmaÃ§Ã£o, autenticaÃ§Ã£o e aprovaÃ§Ã£o manual. VÃ¡lido somente se `start <= now < deadline`, com soma e diferenÃ§a verificadas. Igualdade ao deadline Ã© expirada. RelÃ³gio regressivo, invÃ¡lido, indisponÃ­vel ou overflow: DENY. NÃ£o prolongar ao errar cÃ³digo, reconectar, consultar ou alternar aprovaÃ§Ã£o. Nenhuma duraÃ§Ã£o Ã© inferida de timestamps de peers.
++
++MonotÃ´nico local rege cÃ³digo e limites; UTC confiÃ¡vel rege certificados/status, sem desabilitar validade. Contexto nÃ£o sobrevive a restart. NÃ£o reconstruir saldo, cÃ³digos, aprovaÃ§Ã£o ou autoridade com arquivo ausente, relÃ³gio remoto ou digest. Nova operaÃ§Ã£o deve cumprir de novo todas as provas; incerteza de emissÃ£o jÃ¡ iniciada continua retida no issuer, nÃ£o vira novo request automÃ¡tico.
++
++## P4 â€” Tentativas e limites candidatos
++
++No mÃ¡ximo5 submissÃµes de cÃ³digo por contexto. Toda submissÃ£o vinculada a contexto existente consome uma tentativa ANTES da comparaÃ§Ã£o, inclusive formato invÃ¡lido ou erro de backend; uma tentativa correta tambÃ©m consome. O quinto erro encerra o contexto como DENIED; bloqueado/expirado/consumido nunca compara novamente. Falha de confianÃ§a/autenticaÃ§Ã£o nÃ£o libera tentativas.
++
++Por processo/owner administrativo, no mÃ¡ximo2 contextos simultaneamente vivos OU retidos; nenhuma parcela Ã© por cliente e nÃ£o hÃ¡ novo pool/worker. Contexto retido ocupa capacidade atÃ© quiescÃªncia factual, mesmo apÃ³s expiraÃ§Ã£o. NÃ£o apropriar slots, reservas ou tokens de Sessions/C2 para contornar quotas.
++
++Limite global de criaÃ§Ã£o:2 tentativas em qualquer janela mÃ³vel de60000ms. Limite global de submissÃ£o:10 tentativas em qualquer janela mÃ³vel de60000ms. Registrar evento admitido antes de geraÃ§Ã£o/comparaÃ§Ã£o; eventos com idade exatamente60000ms deixam a janela. Rejeitar ao atingir limite, sem dormir/bloquear Stop, gerar segredo, comparar cÃ³digo ou abrir nova operaÃ§Ã£o. SubmissÃ£o cujo contexto Ã© inexistente tambÃ©m cobra a janela global quando admitida, mas nÃ£o cria registro individual. ExposiÃ§Ã£o externa de erros nÃ£o pode revelar se cÃ³digo, usuÃ¡rio ou identidade existem; diagnÃ³stico interno sem secrets identifica a fase.
++
++AnÃ©is bounded de2 e10 timestamps sÃ£o suficientes para as janelas locais, alÃ©m dos contadores por contexto; contabilizar estrutura/alinhamento antes de admitir. NÃ£o sÃ£o catÃ¡logo de clientes ou persistÃªncia de trust. Alcance explicitamente por processo contÃ­nuo: nÃ£o prova limitaÃ§Ã£o global entre instalaÃ§Ãµes/restauraÃ§Ãµes/processos. Antes de qualquer ativaÃ§Ã£o com mÃºltiplos processos, comprovar exclusividade administrativa na mesma root ou manter DENY. Restart cancela todos os contextos, nÃ£o recupera pareamento; nÃ£o Ã© garantia contra DoS nem substitui polÃ­tica de acesso. Nenhum limite aceito de Session/Connection/C2 Ã© aumentado por estes nÃºmeros propostos.
++
++## P5 â€” OPEN/CLOSED e aprovaÃ§Ã£o
++
++OPEN dispensa username/password inicial somente para solicitar enrollment. CLOSED exige resultado factual de validaÃ§Ã£o username/password por mecanismo governado, dentro de canal aprovado, antes de AUTO_APPROVAL ou MANUAL_APPROVAL. NÃ£o registrar senha, inventar provider, usar certificado ou cÃ³digo como substituto da senha CLOSED. Provider nomeado atual PENDING => CLOSED DENY.
++
++AUTO_APPROVAL exige decisÃ£o explÃ­cita da policy CURRENT para a solicitaÃ§Ã£o e todas as provas de pareamento/AuthN; a autorização posterior para emissão exige ainda CSR/PoP e sua correlação; nÃ£o Ã© flag enviada pelo cliente. MANUAL_APPROVAL exige ator administrativo autenticado/autorizado, aÃ§Ã£o explÃ­cita e vÃ­nculo Ã  preparaÃ§Ã£o imutÃ¡vel exata. A troca de modo nÃ£o reaproveita tentativa aprovada. AusÃªncia, recusa, revogaÃ§Ã£o, ambiguidade ou revisÃ£o obsoleta negam. Pending nÃ£o recebe CONTROL Session, DATA, capabilities, egress ou permissÃµes administrativas. Aprovar pareamento nÃ£o emite certificado nem concede grants.
++
++## P6 â€” Consumo Ãºnico e resultado incerto
++
++Estados lÃ³gicos candidatos, nÃ£o novo codec/API: PREPARED_CONTEXT â†’ CONFIRMED â†’ ACCESS_AUTHENTICATED_OR_OPEN â†’ APPROVAL_GRANTED â†’ CONSUMED_FOR_EXACT_REQUEST. Cada transiÃ§Ã£o depende da prova factual correspondente; negativas sÃ£o DENIED/EXPIRED/STOPPED, incerteza RETAINED_UNKNOWN. Esses estados nÃ£o sÃ£o estados de emissÃ£o do issuer.
++
++Owner serializa e marca consumo irrevogÃ¡vel ANTES de submeter a mesma correlaÃ§Ã£o de request Ã  transaÃ§Ã£o canÃ´nica; a marca nÃ£o concede autoridade. Somente a confirmaÃ§Ã£o factual na root da mesma solicitaÃ§Ã£o pode avanÃ§ar preparaÃ§Ã£o/reserva de serial conforme contratos issuer. Se houver reentrÃ¢ncia, concorrÃªncia ou resultado de consumo/commit incerto, reter contexto e DENY novos efeitos, sem restaurar saldo/cÃ³digo, fallback ou reemitir. Uma marca volÃ¡til nÃ£o prova commit durÃ¡vel; antes de restart nenhum contexto Ã© recuperÃ¡vel, e o issuer mantÃ©m serial/record/high-water/reconciliaÃ§Ã£o prÃ³prios.
++
++ApÃ³s consumo, uma consulta somente observa a correlaÃ§Ã£o existente; replay da confirmaÃ§Ã£o/cÃ³digo nunca chama emissÃ£o/reserva outra vez, mesmo com bytes idÃªnticos. NÃ£o hÃ¡ mensagem de consulta definida aqui. CAS_CONFLICT e CAS_UNKNOWN nÃ£o sÃ£o sucesso nem autorizaÃ§Ã£o de retry destrutivo; nenhuma tentativa cria novo request automaticamente. AtÃ© haver binding concreto aprovado de consumo/owner/root, o caminho permanece DENY.
++
++## P7 â€” Transporte inicial explicitamente nÃ£o selecionado
++
++Reutilizar apenas o listener e capacidades aceitas. O Secure Principal operacional continua TLS1.3/mTLS/ALPN papacc/1, sem0-RTT/resumption/downgrade. Um Browser novo sem credencial NÃƒO pode fazer esse handshake por uma exceÃ§Ã£o implÃ­cita. OPEN nÃ£o torna client certificate opcional e nÃ£o cria endpoint HTTP/server-auth/plaintext. D3 de pacote manual nÃ£o Ã© protocolo de bootstrap automÃ¡tico. C2 PAIR_OPEN e seus tokens sÃ£o associaÃ§Ã£o de offload pÃ³s-Session, nÃ£o enrollment.
++
++Nenhuma mensagem PACC, extensÃ£o TLS, ALPN, porta, ID, perfil ou exchange de cÃ³digo/CSR Ã© definido/implementado por P0â€“P9. APIs existentes nÃ£o fornecem ainda transporte anterior Ã  primeira credencial; esse caminho fica `INITIAL_ENROLLMENT_TRANSPORT=DENY_UNSPECIFIED`. Caso de cliente jÃ¡ matriculado mantÃ©m autenticaÃ§Ã£o normal, mas nÃ£o ganha mensagem de renewal nÃ£o existente. NÃ£o declarar bootstrap implementÃ¡vel enquanto essa lacuna persistir. Escolha futura que exija ampliar protocolos/perfis depende de autorizaÃ§Ã£o e decisÃ£o prÃ³prias, fora desta proposta de cÃ³digo.
++
++## P8 â€” Issuer, lifecycle e recuperaÃ§Ã£o
++
++ApÃ³s aprovaÃ§Ã£o completa, convergir ao mesmo PAPACC_ISSUER_REQUEST/backend/root e PREPARE â†’ VALIDATE â†’ durable COMMIT â†’ CURRENT â†’ EPOCH existentes. CSR exige perfil accepted/prova de posse validada, digest exato e identidade aprovada; dados pÃºblicos validados nÃ£o autorizam assinatura. Serial durÃ¡vel reservado antes de qualquer assinatura, high-water/history preservados; renovaÃ§Ã£o Ã© novo request/key/serial vinculado ao predecessor autorizado, nunca reciclagem de cÃ³digo/serial. RevogaÃ§Ã£o persiste e nega novos efeitos conforme publicaÃ§Ã£o; polÃ­tica de Sessions ativas continua pendente.
++
++NÃ£o transferir chave privada automÃ¡tica; nÃ£o aplicar custÃ³dia manual. NÃ£o gerar CA/chave/certificado ou instalar trust automaticamente. Manter SIGNATURE_AUTHORITY e AUTHORITATIVE_RECOVERY DENY atÃ© gates prÃ³prios.
++
++Stop apenas impede novos efeitos, nÃ£o cancela I/O/CNG nem implica destruiÃ§Ã£o. Owner conserva contexto, snapshots, pins, callbacks, workspaces, resultados incertos e crÃ©ditos atÃ© fechamento/quiescÃªncia factuais. ExpiraÃ§Ã£o lÃ³gica nÃ£o autoriza eviction, wipe prematuro ou reutilizaÃ§Ã£o de retidos. Limpeza posterior usa mecanismos revisados; cÃ³digo/nonce/senha/rawproof/chaves nunca em logs. Auditoria bounded: correlaÃ§Ã£o administrativa pÃºblica/revisÃ£o/fase/motivo/ator aprovado, sem cÃ³digo ou segredo. NÃ£o criar worker, registry ou log de autoridade paralelo.
++
++## P9 â€” ED11 e aceitaÃ§Ã£o
++
++Nenhum orÃ§amento novo Ã© aprovado. Windows3145728 somente opt-in; legacy2097152 e quotas individuais intactos. Antes de implementar/ativar, medir sizeof dos contextos e anÃ©is, CSR/SPKI/CA/DER/TBS, root snapshots/pins, issuer, verificador, Sessions existentes, heap/stack/provider, callbacks, coexistÃªncia e retenÃ§Ã£o. Contextos cancelados/incertos continuam cobrados. Reuso exige prova de exclusividade; nÃ£o excluir custo por estar no caller/stack/outro backend. Provider/kernel UNKNOWN nÃ£o Ã© zero. Base selected conhecida2103847 nÃ£o mede pico de enrollment; nenhuma margem dela autoriza buffers. CenÃ¡rio de pacote manual3625925 nÃ£o deve ser somado como se todo enrollment o instanciasse: automÃ¡tico nÃ£o consome KDF/ZIP/chave manual, mas suas coexistÃªncias possÃ­veis exigem censo.
++
++P0â€“P9 necessitam aceitaÃ§Ã£o humana/normativa especÃ­fica e revisÃ£o oficial do executor antes de cÃ³digo dependente. Proposta nÃ£o qualifica transporte, fonte de autorizaÃ§Ã£o positiva/CURRENT, provider CLOSED, perfil Browser/NT4, reserva ED11 ou emissÃ£o. Tudo permanece DENY. RevisÃ£o deve decidir os parÃ¢metros P1/P3/P4, fontes P2/P5, consumo P6 e gate de transporte P7 explicitamente; nÃ£o aceitar patches funcionais por referÃªncia.

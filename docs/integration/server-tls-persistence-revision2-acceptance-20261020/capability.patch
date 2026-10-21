@@ -1,0 +1,11 @@
+--- docs\capabilities\client-pairing.md
++++ docs\capabilities\client-pairing.md
+@@ -487,3 +487,8 @@
+ ### Fonte administrativa do nome TLS do servidor — 2026-10-19
+ 
+ O contrato da fonte ExpectedServerName foi aceito como atributo público da configuração de segurança da mesma root, com associação explícita listener/security_ref/perfil TLS e issuer. É decisão normativa, sem implementação de fonte, hostname aprovado ou binding operacional. Layout persistente versionado, lifetime e ED11 continuam gates específicos; LST1/D3/BODY0.5/ROOT06 e fontes funcionais permanecem inalterados. Assinatura, CURRENT, recuperação e admissão continuam DENY. Ver [decisão delimitada](../adr/DECISION-server-tls-expected-name-source-20261019.md) e [conformidade](../integration/server-tls-name-source-acceptance-20261019/conformance-matrix.md).
++
++
++### Persistência da identidade TLS servidor — Revision2 accepted, 2026-10-20
++
++T0–T6 Revision2 foram aceitos como contrato byte-exato para PACROOT8/version2, SNT1 e CP2, com separação TLS/X509, aprovação da associação completa, coerência de security_ref compartilhado e predicado DNS explícito. É aceitação normativa apenas: codec/binding/source/carrier e censo de ativação continuam sem qualificação; carrier issuer UNSUPPORTED. Nenhum formato histórico ou código mudou. Assinatura, CURRENT, recuperação e admissão continuam DENY; ED11 PARTIAL/provider-kernel UNKNOWN, sem reserva aprovada. Ver [decisão delimitada](../adr/DECISION-server-tls-identity-persistence-revision2-20261020.md) e [conformidade](../integration/server-tls-persistence-revision2-acceptance-20261020/conformance-matrix.md).

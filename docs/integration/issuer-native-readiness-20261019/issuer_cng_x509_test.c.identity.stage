@@ -1,0 +1,217 @@
+/* Public provider encoding + synthetic signatures/root authority only.
+ * No NCrypt import, private key, key creation, credential or network. */
+#define _WIN32_WINNT 0x0600
+#include "server_issuer_x509_win32.h"
+#include <bcrypt.h>
+#include <stdio.h>
+#include <string.h>
+static CERT_PUBLIC_KEY_INFO ca_public;
+static unsigned checks,private_calls,validation_calls;static SECURITY_STATUS fail_sign;
+static int bad_signature,deny_admin,stop_on_sign,fail_return;
+static PAPACC_ISSUER_CORE core;
+static BOOL WINAPI model_verify(HCRYPTPROV_LEGACY p,DWORD e,DWORD s,void *a,DWORD i,void *b,DWORD f,void *x)
+{(void)p;(void)e;(void)s;(void)a;(void)i;(void)b;(void)f;(void)x;return !bad_signature;}
+static SECURITY_STATUS model_validate(PAPACC_CA_KEY *key){(void)key;validation_calls++;return 0;}
+static SECURITY_STATUS model_borrow(PAPACC_CA_KEY *k,const void *h){if(!k||!h||k->borrower||k->state!=PAPACC_CA_KEY_READY)return NTE_BAD_KEY_STATE;k->borrower=h;return 0;}
+static SECURITY_STATUS model_return(PAPACC_CA_KEY *k,const void *h){if(!k||k->borrower!=h||k->state!=PAPACC_CA_KEY_READY||fail_return)return NTE_BAD_KEY_STATE;k->borrower=NULL;return 0;}
+static BOOL WINAPI model_export(HCRYPTPROV_OR_NCRYPT_KEY_HANDLE k,DWORD spec,DWORD enc,LPSTR oid,DWORD flags,void *aux,PCERT_PUBLIC_KEY_INFO info,DWORD *n)
+{(void)k;(void)spec;(void)enc;(void)oid;(void)flags;(void)aux;if(!info){*n=sizeof(*info);return TRUE;}if(*n<sizeof(*info))return FALSE;*info=ca_public;*n=sizeof(*info);return TRUE;}
+static SECURITY_STATUS WINAPI model_sign(NCRYPT_KEY_HANDLE key,void *pad,PBYTE hash,DWORD hn,PBYTE out,DWORD cap,DWORD *used,DWORD flags)
+{
+ BCRYPT_PKCS1_PADDING_INFO *p=pad;(void)key;(void)hash;private_calls++;
+ if(hn!=32||cap!=256||wcscmp(p->pszAlgId,BCRYPT_SHA256_ALGORITHM)||flags!=(NCRYPT_PAD_PKCS1_FLAG|NCRYPT_SILENT_FLAG))return NTE_INVALID_PARAMETER;
+ if(fail_sign)return fail_sign;memset(out,0x5a,256);*used=256;if(stop_on_sign)papacc_issuer_stop(&core);return 0;
+}
+#define CryptVerifyCertificateSignatureEx model_verify
+#define papacc_ca_key_validate model_validate
+#define papacc_ca_key_borrow model_borrow
+#define papacc_ca_key_return model_return
+#define CryptExportPublicKeyInfoEx model_export
+#define NCryptSignHash model_sign
+#define PAPACC_ISSUER_CNG_OFFLINE_TEST 1
+#include "../apps/server/server_issuer_windows_validation.c"
+#include "../apps/server/server_issuer_x509_win32.c"
+#include "../apps/server/server_issuer_cng_backend_win32.c"
+#undef CryptVerifyCertificateSignatureEx
+#undef papacc_ca_key_validate
+#undef papacc_ca_key_borrow
+#undef papacc_ca_key_return
+#undef CryptExportPublicKeyInfoEx
+#undef NCryptSignHash
+#define CHECK(x) do{checks++;if(!(x)){printf("FAIL %u line %u\n",checks,(unsigned)__LINE__);return 1;}}while(0)
+static PAPACC_ISSUER_VIEW v;
+static PAPACC_ISSUER_RECORD record;
+static PAPACC_ISSUER_CNG_BACKEND backend;
+static PAPACC_CA_KEY key;
+static PAPACC_ISSUER_BACKEND administrative;
+static PAPACC_ISSUER_ROOT_PORT root;
+static union {ULONGLONG alignment;BYTE bytes[4096];} workspace;
+static BYTE csr[2048],out[2048],tbs[2048],pubder[512],subject[128],root_serial[16],ski_bytes[32],extensions[3][128];
+static CERT_INFO ca;
+static CERT_EXTENSION ext[3];
+static DWORD csr_size;
+static PAPACC_ISSUER_RESULT root_read(void *ctx,const PAPACC_U8 id[16],PAPACC_ISSUER_VIEW *view,PAPACC_ISSUER_RECORD *r,int *found)
+{(void)ctx;*view=v;*found=!memcmp(id,record.request.id,16);if(*found)*r=record;return PAPACC_ISSUER_OK;}
+static PAPACC_ISSUER_RESULT root_cas(void *ctx,const PAPACC_ISSUER_VIEW *view,const PAPACC_ISSUER_RECORD *old,const PAPACC_ISSUER_RECORD *next,PAPACC_U64 high,const PAPACC_U8 *der,PAPACC_SIZE n,int publish)
+{(void)ctx;(void)old;(void)der;(void)n;if(publish)return PAPACC_ISSUER_DENIED;if(view->revision!=v.revision)return PAPACC_ISSUER_CONFLICT;record=*next;v.high_water=high;v.revision++;v.epoch++;return PAPACC_ISSUER_OK;}
+static PAPACC_ISSUER_RESULT admin(void *ctx,const PAPACC_ISSUER_VIEW *view,const PAPACC_ISSUER_REQUEST *r,unsigned op)
+{(void)ctx;(void)view;(void)r;(void)op;return deny_admin?PAPACC_ISSUER_DENIED:PAPACC_ISSUER_OK;}
+static PAPACC_ISSUER_RESULT clock_value(void *ctx,PAPACC_U64 *now){(void)ctx;*now=1700000000ULL;return PAPACC_ISSUER_OK;}
+static PCCERT_CONTEXT fixture(const char *path)
+{BYTE text[8192],der[4096];FILE *f;size_t n;DWORD count=sizeof(der);PCCERT_CONTEXT c;if(fopen_s(&f,path,"rb"))return NULL;n=fread(text,1,sizeof(text),f);if(ferror(f)||fclose(f)||!n||n==sizeof(text))return NULL;if(!CryptStringToBinaryA((char *)text,(DWORD)n,CRYPT_STRING_BASE64,der,&count,NULL,NULL))return NULL;c=CertCreateCertificateContext(X509_ASN_ENCODING,der,count);return c;}
+static int initialize(const CERT_PUBLIC_KEY_INFO *client)
+{
+ CERT_REQUEST_INFO q;CERT_SIGNED_CONTENT_INFO signed_request;CERT_BASIC_CONSTRAINTS2_INFO bc={TRUE,TRUE,0};CRYPT_BIT_BLOB ku;CRYPT_DATA_BLOB ski;
+ DWORD n,z=32;BYTE usage=6,signature[256]={0};unsigned i,k;static const wchar_t hex[]=L"0123456789abcdef";
+ memset(&core,0,sizeof(core));memset(&backend,0,sizeof(backend));memset(&record,0,sizeof(record));memset(&v,0,sizeof(v));memset(&ca,0,sizeof(ca));memset(&key,0,sizeof(key));memset(&administrative,0,sizeof(administrative));memset(&root,0,sizeof(root));
+ private_calls=validation_calls=0;fail_sign=0;bad_signature=deny_admin=stop_on_sign=fail_return=0;
+ v.root[0]=1;v.authority[0]=2;v.generation[0]=3;v.prefix[0]=4;v.policy[0]=5;v.revision=1;v.epoch=9;v.high_water=2;v.ca_not_after=1690000000ULL+1825ULL*86400ULL;v.proofs=31;
+ record.request.id[0]=1;record.request.device[0]=7;record.request.purpose=PAPACC_ISSUER_CLIENT;record.request.not_before=1700000000ULL;record.request.not_after=1700003600ULL;
+ memcpy(record.authority,v.authority,16);memcpy(record.generation,v.generation,16);memcpy(record.policy,v.policy,32);memcpy(record.serial,v.prefix,8);record.serial[15]=2;record.counter=2;record.approved_epoch=9;record.state=PAPACC_ISSUER_SERIAL_RESERVED;
+ CHECK(xspki(&ca_public,v.ca_spki_digest,pubder,sizeof(pubder)));CHECK(xspki(client,record.request.key_digest,pubder,sizeof(pubder)));
+ memset(&q,0,sizeof(q));q.SubjectPublicKeyInfo=*client;n=128;CHECK(xname("CN=Ignored CSR Name ",record.request.device,subject,&n));q.Subject.pbData=subject;q.Subject.cbData=n;
+ n=sizeof(tbs);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT_REQUEST_TO_BE_SIGNED,&q,0,NULL,tbs,&n));
+ memset(&signed_request,0,sizeof(signed_request));signed_request.ToBeSigned.pbData=tbs;signed_request.ToBeSigned.cbData=n;signed_request.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA256RSA;
+ signed_request.SignatureAlgorithm.Parameters.pbData=(BYTE *)"\x05\x00";signed_request.SignatureAlgorithm.Parameters.cbData=2;signed_request.Signature.pbData=signature;signed_request.Signature.cbData=256;csr_size=sizeof(csr);
+ CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_request,0,NULL,csr,&csr_size));CHECK(CryptHashCertificate2(BCRYPT_SHA256_ALGORITHM,0,NULL,csr,csr_size,record.request.csr_digest,&z));
+ ca.dwVersion=CERT_V3;ca.SubjectPublicKeyInfo=ca_public;CHECK(xname("CN=Papinho CA ",v.authority,subject,&n));ca.Subject.pbData=subject;ca.Subject.cbData=n;ca.Issuer=ca.Subject;
+ root_serial[0]=1;memset(root_serial+1,0,15);for(i=0;i<8;i++)root_serial[8+i]=v.prefix[7-i];n=16;while(n>1&&!root_serial[n-1])n--;ca.SerialNumber.pbData=root_serial;ca.SerialNumber.cbData=n;
+ ca.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA256RSA;ca.SignatureAlgorithm.Parameters.pbData=(BYTE *)"\x05\x00";ca.SignatureAlgorithm.Parameters.cbData=2;
+ CHECK(xtime(1690000000ULL,&ca.NotBefore));CHECK(xtime(v.ca_not_after,&ca.NotAfter));memset(ext,0,sizeof(ext));
+ ext[0].pszObjId=(LPSTR)szOID_BASIC_CONSTRAINTS2;ext[0].fCritical=TRUE;ext[1].pszObjId=(LPSTR)szOID_KEY_USAGE;ext[1].fCritical=TRUE;ext[2].pszObjId=(LPSTR)szOID_SUBJECT_KEY_IDENTIFIER;
+ for(i=0;i<3;i++){ext[i].Value.pbData=extensions[i];ext[i].Value.cbData=128;}
+ CHECK(xencode(X509_BASIC_CONSTRAINTS2,&bc,extensions[0],128,&ext[0].Value.cbData));ku.cbData=1;ku.pbData=&usage;ku.cUnusedBits=1;
+ CHECK(xencode(X509_KEY_USAGE,&ku,extensions[1],128,&ext[1].Value.cbData));z=32;CHECK(CryptHashPublicKeyInfo(0,CALG_SHA_256,0,X509_ASN_ENCODING,&ca_public,ski_bytes,&z));ski.pbData=ski_bytes;ski.cbData=32;
+ CHECK(xencode(X509_OCTET_STRING,&ski,extensions[2],128,&ext[2].Value.cbData));ca.cExtension=3;ca.rgExtension=ext;
+ root.ctx=&v;root.read=root_read;root.cas=root_cas;root.test_only=1;administrative.authorize=admin;administrative.utc=clock_value;administrative.test_only=1;
+ key.state=PAPACC_CA_KEY_READY;key.key=101;key.provider=202;key.thread=GetCurrentThreadId();k=0;{const wchar_t *prefix=L"PapinhoAccelerator.CA.";while(*prefix)key.name[k++]=*prefix++;}
+ for(i=0;i<16;i++){key.name[k++]=hex[v.authority[i]>>4];key.name[k++]=hex[v.authority[i]&15];}key.name[k++]=L'.';for(i=0;i<16;i++){key.name[k++]=hex[v.generation[i]>>4];key.name[k++]=hex[v.generation[i]&15];}key.name[k]=0;
+ CHECK(papacc_issuer_cng_backend_init(&backend,&root,&administrative,&core,&key,&ca,workspace.bytes,sizeof(workspace.bytes),2084039)==PAPACC_ISSUER_OK);
+ CHECK(papacc_issuer_init(&core,&root,&backend.ports)==PAPACC_ISSUER_OK);return 0;
+}
+static int inspect_leaf(int package)
+{
+ PCCERT_CONTEXT leaf;BYTE usage=0,storage[128];DWORD n=sizeof(storage);char name[128];CERT_ENHKEY_USAGE *eku=(CERT_ENHKEY_USAGE *)storage;
+ PCERT_EXTENSION extension;CERT_BASIC_CONSTRAINTS2_INFO bc;
+ leaf=CertCreateCertificateContext(X509_ASN_ENCODING,out,(DWORD)record.certificate_size);CHECK(leaf!=NULL);
+ CHECK(leaf->pCertInfo->dwVersion==CERT_V3&&leaf->pCertInfo->cExtension==5);
+ CHECK(CertGetNameStringA(leaf,CERT_NAME_SIMPLE_DISPLAY_TYPE,0,NULL,name,sizeof(name))>1);
+ CHECK(!strcmp(name,package?"Papinho Package 07000000000000000000000000000000":"Papinho Client 07000000000000000000000000000000"));
+ CHECK(CertGetIntendedKeyUsage(X509_ASN_ENCODING,leaf->pCertInfo,&usage,1)&&usage==CERT_DIGITAL_SIGNATURE_KEY_USAGE);
+ extension=CertFindExtension(szOID_BASIC_CONSTRAINTS2,5,leaf->pCertInfo->rgExtension);CHECK(extension&&extension->fCritical);n=sizeof(bc);
+ CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_BASIC_CONSTRAINTS2,extension->Value.pbData,extension->Value.cbData,0,NULL,&bc,&n)&&!bc.fCA&&!bc.fPathLenConstraint);
+ extension=CertFindExtension(szOID_ENHANCED_KEY_USAGE,5,leaf->pCertInfo->rgExtension);CHECK(extension&&!extension->fCritical);n=sizeof(storage);
+ CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_ENHANCED_KEY_USAGE,extension->Value.pbData,extension->Value.cbData,0,NULL,storage,&n));
+ CHECK(eku->cUsageIdentifier==1&&!strcmp(eku->rgpszUsageIdentifier[0],package?szOID_PKIX_KP_CODE_SIGNING:szOID_PKIX_KP_CLIENT_AUTH));
+ CHECK(!CertFindExtension(szOID_SUBJECT_ALT_NAME2,5,leaf->pCertInfo->rgExtension));CHECK(CertFreeCertificateContext(leaf));return 0;
+}
+static int server_profile(const CERT_PUBLIC_KEY_INFO *public_key)
+{
+ DWORD n,z;BYTE digest[32],signature[256]={0},storage[2048],usage;CERT_INFO *info=(CERT_INFO *)storage;
+ CERT_SIGNED_CONTENT_INFO signed_cert;PCERT_EXTENSION extension;CERT_ALT_NAME_INFO *alt;CERT_ENHKEY_USAGE *eku;
+ union {ULONGLONG alignment;BYTE bytes[1024];} decoded;
+ const char *name="accel.example";char maximum[254];unsigned i;
+ CHECK(!initialize(public_key));record.request.purpose=PAPACC_ISSUER_SERVER;
+ CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+ z=sizeof(storage);CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,tbs,n,0,NULL,storage,&z));
+ CHECK(info->cExtension==6&&info->dwVersion==CERT_V3);CHECK(info->Subject.cbData==2&&info->Subject.pbData[0]==0x30&&info->Subject.pbData[1]==0);usage=0;
+ CHECK(CertGetIntendedKeyUsage(X509_ASN_ENCODING,info,&usage,1)&&usage==CERT_DIGITAL_SIGNATURE_KEY_USAGE);
+ extension=CertFindExtension(szOID_ENHANCED_KEY_USAGE,info->cExtension,info->rgExtension);CHECK(extension&&!extension->fCritical);z=sizeof(decoded);
+ CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_ENHANCED_KEY_USAGE,extension->Value.pbData,extension->Value.cbData,0,NULL,decoded.bytes,&z));
+ eku=(CERT_ENHKEY_USAGE *)decoded.bytes;CHECK(eku->cUsageIdentifier==1&&!strcmp(eku->rgpszUsageIdentifier[0],szOID_PKIX_KP_SERVER_AUTH));
+ extension=CertFindExtension(szOID_SUBJECT_ALT_NAME2,info->cExtension,info->rgExtension);CHECK(extension&&extension->fCritical);z=sizeof(decoded);
+ CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_ALTERNATE_NAME,extension->Value.pbData,extension->Value.cbData,0,NULL,decoded.bytes,&z));
+ alt=(CERT_ALT_NAME_INFO *)decoded.bytes;CHECK(alt->cAltEntry==1&&alt->rgAltEntry[0].dwAltNameChoice==CERT_ALT_NAME_DNS_NAME&&!wcscmp(alt->rgAltEntry[0].pwszDNSName,L"accel.example"));
+ memset(&signed_cert,0,sizeof(signed_cert));signed_cert.ToBeSigned.pbData=tbs;signed_cert.ToBeSigned.cbData=n;
+ signed_cert.SignatureAlgorithm=info->SignatureAlgorithm;signed_cert.Signature.pbData=signature;signed_cert.Signature.cbData=256;z=sizeof(out);
+ CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_cert,0,NULL,out,&z));
+ CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_OK);
+ CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,"other.example",13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);
+ CHECK(papacc_issuer_x509_verify(&v,&record,&ca,out,z,&backend.workspace,digest)==PAPACC_ISSUER_UNSUPPORTED);
+ bad_signature=1;CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);bad_signature=0;
+ CHECK(papacc_issuer_windows_verify_request(&backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_OK);
+ bad_signature=1;CHECK(papacc_issuer_windows_verify_request(&backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_INVALID);bad_signature=0;
+ /* Independently corrupt role fields without adding a CN fallback.
+  * Synthetic outer signatures never stand in for a native private operation. */
+ for(i=0;i<4;i++){
+  CERT_ENHKEY_USAGE wrong_eku;LPSTR wrong_oid=(LPSTR)szOID_PKIX_KP_CLIENT_AUTH;BYTE wrong_usage=0xa0;
+  CRYPT_BIT_BLOB bits;CERT_BASIC_CONSTRAINTS2_INFO wrong_bc={TRUE,FALSE,0};DWORD changed;
+  CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+  changed=sizeof(storage);CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,tbs,n,0,NULL,storage,&changed));
+  if(i==0)info->cExtension=5; /* Remove the only identity-bearing extension. */
+  else{
+   extension=CertFindExtension(i==1?szOID_KEY_USAGE:(i==2?szOID_ENHANCED_KEY_USAGE:szOID_BASIC_CONSTRAINTS2),info->cExtension,info->rgExtension);CHECK(extension!=NULL);changed=sizeof(decoded);
+   if(i==1){bits.pbData=&wrong_usage;bits.cbData=1;bits.cUnusedBits=5;CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_KEY_USAGE,&bits,0,NULL,decoded.bytes,&changed));}
+   else if(i==2){wrong_eku.cUsageIdentifier=1;wrong_eku.rgpszUsageIdentifier=&wrong_oid;CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_ENHANCED_KEY_USAGE,&wrong_eku,0,NULL,decoded.bytes,&changed));}
+   else CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_BASIC_CONSTRAINTS2,&wrong_bc,0,NULL,decoded.bytes,&changed));
+   extension->Value.pbData=decoded.bytes;extension->Value.cbData=changed;
+  }
+  n=sizeof(tbs);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,info,0,NULL,tbs,&n));
+  signed_cert.ToBeSigned.cbData=n;z=sizeof(out);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_cert,0,NULL,out,&z));
+  CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);
+ }
+
+ CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+ signed_cert.ToBeSigned.cbData=n;z=sizeof(out);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_cert,0,NULL,out,&z));
+ backend.workspace.stopped=1;CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_STOPPED);backend.workspace.stopped=0;
+ {const char *invalid[]={"","*.example","127.0.0.1","-bad.example","bad-.example","a..b","a.example.","a;CN=bad","a_b.example"};
+ for(i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++)CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,invalid[i],(DWORD)strlen(invalid[i]),tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);}
+ CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,"a\0b",3,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
+ for(i=0;i<253;i++)maximum[i]=((i==63)||(i==127)||(i==191))?'.':'a';maximum[253]=0;
+ CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,maximum,253,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+ maximum[63]='a';CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,maximum,253,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
+ record.serial[15]=3;CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_DENIED);record.serial[15]=2;
+ CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,8,&n)==PAPACC_ISSUER_LIMIT);
+ record.request.purpose=PAPACC_ISSUER_CLIENT;CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
+ CHECK(!private_calls);papacc_issuer_stop(&core);papacc_issuer_cng_backend_stop(&backend);CHECK(papacc_issuer_finish(&core)==PAPACC_ISSUER_OK);return 0;
+}
+int main(int argc,char **argv)
+{
+ PCCERT_CONTEXT caf,client;PAPACC_ISSUER_RESULT result;DWORD n;PAPACC_SIZE saved;unsigned before;
+ if(argc!=3)return 2;caf=fixture(argv[1]);client=fixture(argv[2]);CHECK(caf&&client);ca_public=caf->pCertInfo->SubjectPublicKeyInfo;
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));
+ result=papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out));CHECK(result==PAPACC_ISSUER_OK);CHECK(private_calls==1&&record.state==PAPACC_ISSUER_ISSUED_UNPUBLISHED&&backend.active==0&&!key.borrower);
+ CHECK(!inspect_leaf(0));printf("MODEL_PUBLIC_DER_BYTES=%Iu CSR_BYTES=%lu NO_VALID_NATIVE_SIGNATURE\n",record.certificate_size,csr_size);
+ before=private_calls;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNSUPPORTED);CHECK(private_calls==before);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.state=PAPACC_ISSUER_SIGN_REQUESTED;
+ {void *lease=NULL;PAPACC_SIZE z=0;CHECK(backend.ports.acquire(&backend,&v,&record,&lease)==PAPACC_ISSUER_DENIED&&!lease);
+ CHECK(backend.ports.sign(&backend,&backend,&record,csr,csr_size,out,sizeof(out),&z)==PAPACC_ISSUER_DENIED&&!private_calls);}
+
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,16)==PAPACC_ISSUER_LIMIT&&!private_calls);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fail_return=1;
+ CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED);CHECK(private_calls==1&&key.borrower==&backend&&core.lease==&backend&&record.state==PAPACC_ISSUER_ISSUED_UNPUBLISHED);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));
+ CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK);
+ {BYTE digest[32];bad_signature=1;CHECK(papacc_issuer_x509_verify(&v,&record,&ca,out,(DWORD)record.certificate_size,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);
+ bad_signature=0;out[10]^=1;CHECK(papacc_issuer_x509_verify(&v,&record,&ca,out,(DWORD)record.certificate_size,&backend.workspace,digest)!=PAPACC_ISSUER_OK);}
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));ca.cExtension=4;CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_UNSUPPORTED);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));memcpy(record.request.key_digest,v.ca_spki_digest,32);
+ CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&ca_public,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_PACKAGE;
+ CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK);CHECK(!inspect_leaf(1));
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.counter=0;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))!=0);CHECK(!private_calls);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));bad_signature=1;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_INVALID);CHECK(!private_calls&&record.state==PAPACC_ISSUER_SERIAL_RESERVED);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));deny_admin=1;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_DENIED);CHECK(!private_calls);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));backend.key=NULL;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_ABSENT);CHECK(!private_calls&&record.state==PAPACC_ISSUER_SIGN_REQUESTED);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fail_sign=NTE_PERM;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED);CHECK(private_calls==1&&backend.native_error==NTE_PERM&&backend.native_stage==4&&core.retained_output==out&&key.borrower==&backend);
+ CHECK(papacc_issuer_finish(&core)==PAPACC_ISSUER_RETAINED);CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));stop_on_sign=1;
+ CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED);CHECK(private_calls==1&&core.stopped&&backend.retained);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));papacc_issuer_stop(&core);CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_STOPPED);CHECK(!private_calls);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));v.proofs=0;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNCERTAIN);CHECK(!private_calls);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.serial[15]=3;CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_DENIED);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));ca.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA1RSA;
+ CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID&&!private_calls);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_SERVER;
+ CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNSUPPORTED&&!private_calls&&record.state==PAPACC_ISSUER_SERIAL_RESERVED);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_SERVER;CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_UNSUPPORTED);
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));saved=backend.reserved;backend.reserved=2097152;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_LIMIT);CHECK(!private_calls);backend.reserved=saved;
+ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));v.prefix[0]=0;v.prefix[1]=128;memcpy(record.serial,v.prefix,8);
+ {unsigned i,at;for(i=0;i<8;i++)root_serial[8+i]=v.prefix[7-i];ca.SerialNumber.cbData=16;
+ CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+ at=(tbs[1]&128U)?2U+(tbs[1]&127U):2U;CHECK(tbs[at]==0xa0);at+=2U+tbs[at+1U];
+ CHECK(tbs[at]==2U&&tbs[at+1U]==16U&&tbs[at+2U]==0U&&tbs[at+3U]==128U);}
+ CHECK(!server_profile(&client->pCertInfo->SubjectPublicKeyInfo));
+ papacc_issuer_stop(&core);papacc_issuer_cng_backend_stop(&backend);CHECK(papacc_issuer_finish(&core)==PAPACC_ISSUER_OK);
+ CHECK(CertFreeCertificateContext(client));CHECK(CertFreeCertificateContext(caf));
+ printf("PASS %u SYNTHETIC_SIGNATURES_AND_ROOT_ONLY native_private_operations=NOT_RUN backend=%u workspace=%u core=%u key=%u\n",checks,(unsigned)sizeof(backend),(unsigned)sizeof(workspace),(unsigned)sizeof(core),(unsigned)sizeof(key));return 0;
+}

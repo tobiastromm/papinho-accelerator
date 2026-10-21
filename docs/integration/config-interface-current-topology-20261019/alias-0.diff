@@ -1,0 +1,25 @@
+--- apps/server/server_configuration_root_transaction_win32.inc
++++ apps/server/server_configuration_root_transaction_win32.inc
+@@ -203,11 +203,21 @@
+  c=&o->configuration_commit;EnterCriticalSection(&c->lock);live=root_snapshot_live(o,p);LeaveCriticalSection(&c->lock);
+  return live?PAPACC_TRUE:PAPACC_FALSE;
+ }
++static int interface_report_overlaps(const PAPACC_INTERFACE_CURRENT_REPORT *out,const void *object,PAPACC_SIZE size)
++{
++ uintptr_t a=(uintptr_t)(const void *)out,b=(uintptr_t)object;
++ return a>=b?a-b<size:b-a<sizeof(*out);
++}
+ PAPACC_RESULT papacc_server_launcher_configuration_interface_current(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,
+  const PAPACC_ROOT_CURRENT_PIN *pin,PAPACC_INTERFACE_CURRENT_REPORT *out)
+ {
+  const PAPACC_ROOT_TRANSACTION_PARTICIPANTS *p;const PAPACC_INTERFACE_CURRENT_BINDING *b;
+- if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;memset(out,0,sizeof(*out));
++ if(!out||interface_report_overlaps(out,&root,sizeof(root))||
++    interface_report_overlaps(out,&configuration_c2_owner,sizeof(configuration_c2_owner))||
++    interface_report_overlaps(out,&configuration_c2_participant,sizeof(configuration_c2_participant))||
++    (o&&interface_report_overlaps(out,o,sizeof(*o)))||
++    (pin&&interface_report_overlaps(out,pin,sizeof(*pin))))return PAPACC_RESULT_INVALID_ARGUMENT;
++ memset(out,0,sizeof(*out));
+  if(!preparation_owned(o)||!pin||papacc_server_console_win32_stop_requested()==PAPACC_TRUE||
+     papacc_server_launcher_configuration_current(o,pin)!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
+  p=&o->configuration_preparation.participants;b=&p->interface_current;

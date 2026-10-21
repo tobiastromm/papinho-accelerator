@@ -1,0 +1,39 @@
+--- tests/d3_worker_win32_test.c
++++ tests/d3_worker_win32_test.c
+@@ -7,6 +7,7 @@
+ {
+  HANDLE file,identity;DWORD written,start;PAPACC_CONFIG_PIN actual_pin;
+  PAPACC_CONFIG_VIEW oldview;PAPACC_ISSUER_CAS_RESULT outcome=PAPACC_COMMIT_IDLE;
++ PAPACC_D3_COMMITTED_RECEIPT receipt;PAPACC_SIZE exported;
+  unsigned i;int stop_case,unknown_case,conflict_case;
+  CHECK(argc==3);stop_case=!strcmp(argv[1],"stop");unknown_case=!strcmp(argv[1],"unknown");conflict_case=!strcmp(argv[1],"conflict");
+  CHECK(papacc_configuration_commit_init03(&owner,argv[2])==0);
+@@ -50,7 +51,27 @@
+  CHECK(!memcmp(owner.committed,base,base_used));CHECK(owner.slots[0].serial==1&&owner.slots[0].readers==1);
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)CHECK(!owner.issuer_snapshot_valid[i]);
+  CHECK(papacc_configuration_publish(&owner)!=0);CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,INVALID_HANDLE_VALUE,2078563U)!=0);
++ exported=99;memset(&receipt,0xff,sizeof(receipt));
++ if(outcome==PAPACC_CAS_SUCCESS){
++  CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))==0);
++  CHECK(exported==used&&receipt.bytes==used&&receipt.listener_count==4&&!receipt.epochs_present);
++  CHECK(receipt.revision==2&&receipt.predecessor==1&&!memcmp(receipt.root,owner.domain,32));
++  CHECK(!memcmp(bounded_output,owner.pending_commit.next,used));
++  CHECK(!memcmp(receipt.whole_digest,bounded_output+used-32U,32));
++  CHECK(!memcmp(owner.committed,base,base_used)&&owner.slots[0].readers==1);
++  /* Caller byte image can be reused after begin returns: packet is copied. */
++  memset(bytes,0,sizeof(bytes));exported=99;
++  CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))==0&&exported==used);
++  exported=99;CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED&&!exported);
++  exported=99;CHECK(papacc_configuration_d3_committed08(&owner,(PAPACC_U8 *)&owner,PC_ROOT8_NO_ISSUER_MAX,&exported,&receipt,2078563U+sizeof(receipt))!=0&&exported==99);
++  owner.pending_commit.next[used-1U]^=1;exported=99;
++  CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))!=0&&!exported);
++  owner.pending_commit.next[used-1U]^=1;
++ }else CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))!=0&&!exported);
++ printf("COMMITTED_RECEIPT_BYTES=%Iu COPY_SCRATCH=9408 OLD_BEGIN_SCRATCH=10532 EXPLICIT_EPOCH_ABSENCE\n",sizeof(receipt));
+  if(stop_case){CHECK(CloseHandle(owner.pending_commit.test_entered));CHECK(CloseHandle(owner.pending_commit.test_release));}
+- CHECK(papacc_configuration_stop(&owner)==0);CHECK(papacc_configuration_finish(&owner)!=0);
++ CHECK(papacc_configuration_stop(&owner)==0);exported=99;
++ CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))!=0&&!exported);
++ CHECK(papacc_configuration_finish(&owner)!=0);
+  printf("PASS D3_NATIVE_CAS checks=%u mode=%s outcome=%d owner=%Iu pending=%Iu RETAINED_NO_CURRENT_NO_EPOCH SYNTHETIC_CONTEXT NO_NETWORK\n",checks,argv[1],outcome,sizeof(owner),sizeof(owner.pending_commit));return 0;
+ }

@@ -1,0 +1,466 @@
+diff --git a/docs/integration/canonical-dormant-c2-participant-20261018/CMakeLists.txt.preimage b/CMakeLists.txt
+index 7c74ace..22f6c50 100644
+--- a/docs/integration/canonical-dormant-c2-participant-20261018/CMakeLists.txt.preimage
++++ b/CMakeLists.txt
+@@ -2344,4 +2344,25 @@ if(PAPACC_ENABLE_CANONICAL_API3_CANDIDATE)
+     papacc_stage_pst_runtime(papacc_pst_api3_offline_contract)
+     add_test(NAME papacc.pst.api3_offline_contract
+         COMMAND papacc_pst_api3_offline_contract)
+-endif()
+\ No newline at end of file
++endif()
++# Private, dormant configuration participant only; no application dispatch link.
++option(PAPACC_ENABLE_DORMANT_C2_PARTICIPANT "Build closed C2 configuration participant" OFF)
++if(WIN32 AND PAPACC_ENABLE_DORMANT_C2_PARTICIPANT)
++    add_library(papacc_c2_dormant STATIC
++        src/protocol/c2_operation_dormant_win32.c
++        apps/server/server_c2_participant_win32.c)
++    target_include_directories(papacc_c2_dormant PUBLIC
++        ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
++        ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
++        ${CMAKE_CURRENT_SOURCE_DIR}/src/security
++        ${CMAKE_CURRENT_SOURCE_DIR}/src/network)
++    target_link_libraries(papacc_c2_dormant PUBLIC papacc_server_config papacc_capability)
++    target_compile_definitions(papacc_c2_dormant PUBLIC PAPACC_C8_PRIVATE_STORAGE_PROFILE)
++    target_compile_options(papacc_c2_dormant PRIVATE /W4 /WX)
++    if(BUILD_TESTING)
++        add_executable(papacc_c2_dormant_test tests/c2_dormant_participant_test.c)
++        target_link_libraries(papacc_c2_dormant_test PRIVATE papacc_c2_dormant)
++        target_compile_options(papacc_c2_dormant_test PRIVATE /W4 /WX)
++        add_test(NAME papacc.c2.dormant_participant COMMAND papacc_c2_dormant_test)
++    endif()
++endif()
+diff --git a/apps/server/server_c2_participant_win32.c b/apps/server/server_c2_participant_win32.c
+new file mode 100644
+index 0000000..968870b
+--- /dev/null
++++ b/apps/server/server_c2_participant_win32.c
+@@ -0,0 +1,110 @@
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include "server_c2_participant_win32.h"
++#include <string.h>
++static PAPACC_RESULT closed_policy(void *context,const PAPACC_C2_SESSION *session,
++ const PAPACC_U8 *payload,PAPACC_SIZE bytes,PAPACC_BOOL *permit)
++{
++ (void)context;(void)session;(void)payload;(void)bytes;
++ if(!permit)return PAPACC_RESULT_INVALID_ARGUMENT;
++ *permit=PAPACC_FALSE;return PAPACC_RESULT_OK;
++}
++static PAPACC_RESULT closed_capacity(void *context,PAPACC_SIZE bytes,PAPACC_BOOL *permit)
++{
++ (void)context;(void)bytes;
++ if(!permit)return PAPACC_RESULT_INVALID_ARGUMENT;
++ *permit=PAPACC_FALSE;return PAPACC_RESULT_OK;
++}
++static int identity(const PAPACC_SERVER_C2_PARTICIPANT *p,const void *root,PAPACC_U64 invocation)
++{
++ return p&&root&&invocation&&p->self==p&&p->root==root&&p->invocation==invocation&&
++ p->thread==(PAPACC_U32)GetCurrentThreadId();
++}
++static int empty_manager(const PAPACC_SERVER_C2_PARTICIPANT *p)
++{
++ unsigned i;
++ if(!p->manager.initialized||p->manager.owner!=p->thread||p->manager.stopping||
++ p->manager.next_operation!=1U||p->manager.context!=p||
++ p->manager.policy!=closed_policy||p->manager.capacity!=closed_capacity)return 0;
++ for(i=0;i<PAPACC_C2_SESSION_CAPACITY;++i)
++  if(p->manager.sessions[i].session)return 0;
++ for(i=0;i<PAPACC_C2_OPERATION_CAPACITY;++i){
++  const unsigned char *b=(const unsigned char *)&p->manager.operations[i];PAPACC_SIZE j;
++  for(j=0;j<sizeof(p->manager.operations[i]);++j)if(b[j])return 0;
++ }
++ return 1;
++}
++PAPACC_RESULT papacc_server_c2_participant_prepare(PAPACC_SERVER_C2_PARTICIPANT *p,
++ const void *root,PAPACC_U64 invocation,const PAPACC_SERVER_CONFIG *model,
++ const PAPACC_CAPABILITY_EVALUATION_INPUTS *inputs,PAPACC_SIZE other_reserved)
++{
++ const unsigned char *b;PAPACC_SIZE i;PAPACC_RESULT r;
++ if(!p||!root||!invocation||!model||!inputs)return PAPACC_RESULT_INVALID_ARGUMENT;
++ b=(const unsigned char *)p;
++ for(i=0;i<sizeof(*p);++i)if(b[i])return PAPACC_RESULT_INVALID_STATE;
++ if(sizeof(*p)>PAPACC_C2_PARTICIPANT_LIMIT||
++ other_reserved>PAPACC_C2_PARTICIPANT_LIMIT-sizeof(*p))return PAPACC_RESULT_LIMIT_EXCEEDED;
++ r=papacc_server_config_validate(model);if(r!=PAPACC_RESULT_OK)return r;
++ if(model->listener_profile!=PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL||
++ model->allow_network_egress||model->bind_selection.interface_persistent_id_count>PAPACC_C2_PARTICIPANT_IDS)
++ return PAPACC_RESULT_NOT_SUPPORTED;
++ if(!inputs->registry||!inputs->registry->initialized||!inputs->registry->storage||
++ inputs->registry->count>inputs->registry->capacity||!inputs->server_supported||!inputs->server_enabled||
++ !inputs->server_supported->initialized||!inputs->server_enabled->initialized||
++ inputs->server_supported->count>inputs->server_supported->capacity||
++ inputs->server_enabled->count>inputs->server_enabled->capacity||inputs->server_enabled->count>2U||
++ (inputs->server_supported->count&&!inputs->server_supported->storage)||
++ (inputs->server_enabled->count&&!inputs->server_enabled->storage))return PAPACC_RESULT_INVALID_STATE;
++ for(i=0;i<inputs->server_enabled->count;++i){
++  const PAPACC_CAPABILITY_KEY *k=&inputs->server_enabled->storage[i];
++  const PAPACC_CAPABILITY_DESCRIPTOR *descriptor;
++  if(k->major!=1U||(k->id!=2U&&k->id!=3U)||
++   !papacc_capability_set_contains(inputs->server_supported,k)||
++   papacc_capability_registry_find(inputs->registry,k,&descriptor)!=PAPACC_RESULT_OK)
++   return PAPACC_RESULT_NOT_SUPPORTED;
++ }
++ {const PAPACC_CAPABILITY_KEY tls={2U,1U},mode={3U,1U};
++ if(papacc_capability_set_contains(inputs->server_enabled,&mode)&&
++ !papacc_capability_set_contains(inputs->server_enabled,&tls))return PAPACC_RESULT_INVALID_STATE;}
++ /* Reserve caller-owned fixed storage before initializing the actual manager.
++  * This is component accounting, never positive operational ED11 admission. */
++ p->reserved=sizeof(*p);p->combined=other_reserved+sizeof(*p);
++ r=papacc_c2_operation_manager_init(&p->manager,(PAPACC_U32)GetCurrentThreadId(),
++ closed_policy,closed_capacity,p);
++ if(r!=PAPACC_RESULT_OK){memset(p,0,sizeof(*p));return r;}
++ p->self=p;p->root=root;p->invocation=invocation;p->thread=(PAPACC_U32)GetCurrentThreadId();
++ p->model=*model;
++ if(model->bind_selection.interface_persistent_id_count)
++ memcpy(p->ids,model->bind_selection.interface_persistent_ids,
++ model->bind_selection.interface_persistent_id_count*sizeof(p->ids[0]));
++ p->model.bind_selection.interface_persistent_ids=model->bind_selection.interface_persistent_id_count?p->ids:NULL;
++ p->enabled_count=inputs->server_enabled->count;
++ if(p->enabled_count)memcpy(p->enabled,inputs->server_enabled->storage,p->enabled_count*sizeof(p->enabled[0]));
++ p->state=PAPACC_C2_PARTICIPANT_READY;return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_server_c2_participant_validate(const PAPACC_SERVER_C2_PARTICIPANT *p,
++ const void *root,PAPACC_U64 invocation)
++{
++ if(!identity(p,root,invocation)||p->state!=PAPACC_C2_PARTICIPANT_READY||
++ p->reserved!=sizeof(*p)||p->combined<p->reserved||p->combined>PAPACC_C2_PARTICIPANT_LIMIT||
++ p->model.bind_selection.interface_persistent_ids!=(p->model.bind_selection.interface_persistent_id_count?p->ids:NULL)||
++ p->model.bind_selection.interface_persistent_id_count>PAPACC_C2_PARTICIPANT_IDS||
++ p->enabled_count>2U||!empty_manager(p))return PAPACC_RESULT_INVALID_STATE;
++ return papacc_server_config_validate(&p->model);
++}
++PAPACC_RESULT papacc_server_c2_participant_rollback(PAPACC_SERVER_C2_PARTICIPANT *p,
++ const void *root,PAPACC_U64 invocation)
++{
++ if(!identity(p,root,invocation))return PAPACC_RESULT_INVALID_STATE;
++ if(p->state==PAPACC_C2_PARTICIPANT_CLOSED)return PAPACC_RESULT_OK;
++ if(p->state!=PAPACC_C2_PARTICIPANT_READY)return PAPACC_RESULT_INVALID_STATE;
++ if(papacc_server_c2_participant_validate(p,root,invocation)!=PAPACC_RESULT_OK){
++ p->state=PAPACC_C2_PARTICIPANT_RETAINED;return PAPACC_RESULT_INVALID_STATE;}
++ /* No Session, operation, callback, token, socket or PST child was consumed.
++  * Preserve identity/CLOSED tombstone; never reset for another invocation. */
++ memset(&p->manager,0,sizeof(p->manager));p->reserved=0U;p->combined=0U;
++ p->state=PAPACC_C2_PARTICIPANT_CLOSED;return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_server_c2_participant_stop(PAPACC_SERVER_C2_PARTICIPANT *p,
++ const void *root,PAPACC_U64 invocation)
++{return papacc_server_c2_participant_rollback(p,root,invocation);}
+\ No newline at end of file
+diff --git a/apps/server/server_c2_participant_win32.h b/apps/server/server_c2_participant_win32.h
+new file mode 100644
+index 0000000..c572562
+--- /dev/null
++++ b/apps/server/server_c2_participant_win32.h
+@@ -0,0 +1,36 @@
++#ifndef PAPACC_SERVER_C2_PARTICIPANT_H
++#define PAPACC_SERVER_C2_PARTICIPANT_H
++#include "server_config.h"
++#include "c2_operation_win32.h"
++#include "capability.h"
++#define PAPACC_C2_PARTICIPANT_IDS 8U
++#define PAPACC_C2_PARTICIPANT_LIMIT 2097152U
++typedef enum PAPACC_C2_PARTICIPANT_STATE {
++ PAPACC_C2_PARTICIPANT_EMPTY=0, PAPACC_C2_PARTICIPANT_READY,
++ PAPACC_C2_PARTICIPANT_CLOSED, PAPACC_C2_PARTICIPANT_RETAINED
++} PAPACC_C2_PARTICIPANT_STATE;
++/* Root-owned durable storage. Noncopyable after prepare; never an IO owner.
++ * All arrays are charged once by sizeof, before manager initialization.
++ * Root identity is correlation, not a commit, grant or operational authority.
++ * Caller keeps this object and root identity alive until CLOSED, or indefinitely
++ * when RETAINED. No API transfers ownership or permits reinitialization. */
++typedef struct PAPACC_SERVER_C2_PARTICIPANT {
++ const struct PAPACC_SERVER_C2_PARTICIPANT *self;
++ const void *root;
++ PAPACC_U64 invocation;
++ PAPACC_U32 thread;
++ PAPACC_C2_PARTICIPANT_STATE state;
++ PAPACC_SIZE reserved, combined;
++ PAPACC_SERVER_CONFIG model;
++ PAPACC_NETWORK_INTERFACE_PERSISTENT_ID ids[PAPACC_C2_PARTICIPANT_IDS];
++ PAPACC_CAPABILITY_KEY enabled[2]; PAPACC_SIZE enabled_count;
++ PAPACC_C2_OPERATION_MANAGER manager;
++} PAPACC_SERVER_C2_PARTICIPANT;
++PAPACC_RESULT papacc_server_c2_participant_prepare(PAPACC_SERVER_C2_PARTICIPANT *,
++ const void *,PAPACC_U64,const PAPACC_SERVER_CONFIG *,
++ const PAPACC_CAPABILITY_EVALUATION_INPUTS *,PAPACC_SIZE);
++PAPACC_RESULT papacc_server_c2_participant_validate(const PAPACC_SERVER_C2_PARTICIPANT *,const void *,PAPACC_U64);
++PAPACC_RESULT papacc_server_c2_participant_rollback(PAPACC_SERVER_C2_PARTICIPANT *,const void *,PAPACC_U64);
++/* Stop is rollback only for a never-consumed empty participant. */
++PAPACC_RESULT papacc_server_c2_participant_stop(PAPACC_SERVER_C2_PARTICIPANT *,const void *,PAPACC_U64);
++#endif
+\ No newline at end of file
+diff --git a/src/protocol/c2_operation_dormant_win32.c b/src/protocol/c2_operation_dormant_win32.c
+new file mode 100644
+index 0000000..87ca7ee
+--- /dev/null
++++ b/src/protocol/c2_operation_dormant_win32.c
+@@ -0,0 +1,10 @@
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include "c2_operation_win32.h"
++#include <string.h>
++/* Historical manager initialization only. No dispatch/Session/token implementation linked. */
++PAPACC_RESULT papacc_c2_operation_manager_init(PAPACC_C2_OPERATION_MANAGER*m,PAPACC_U32 owner,PAPACC_C2_OPEN_POLICY policy,PAPACC_C2_CAPACITY_GATE capacity,void*context){
++ if(m==NULL||policy==NULL||capacity==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(m->initialized||owner!=(PAPACC_U32)GetCurrentThreadId()||sizeof(*m)>2097152U)return PAPACC_RESULT_INVALID_STATE;
++ memset(m,0,sizeof(*m));m->owner=owner;m->next_operation=1;m->policy=policy;m->capacity=capacity;m->context=context;m->initialized=PAPACC_TRUE;return PAPACC_RESULT_OK;
++}
+diff --git a/src/protocol/c2_operation_win32.h b/src/protocol/c2_operation_win32.h
+new file mode 100644
+index 0000000..e04f270
+--- /dev/null
++++ b/src/protocol/c2_operation_win32.h
+@@ -0,0 +1,68 @@
++#ifndef PAPACC_C2_OPERATION_WIN32_H
++#define PAPACC_C2_OPERATION_WIN32_H
++#include "c2_tokens_win32.h"
++#include "authentication_authorization.h"
++#define PAPACC_C2_OPERATION_CAPACITY 2U
++#define PAPACC_C2_SESSION_CAPACITY 4U
++#define PAPACC_C2_PAYLOAD_CAPACITY 65536U
++typedef enum PAPACC_C2_OPERATION_STATE {
++ PAPACC_C2_OP_EMPTY=0,PAPACC_C2_OP_RESERVED,PAPACC_C2_OP_HANDSHAKE,
++ PAPACC_C2_OP_APPLICATION,PAPACC_C2_OP_SHUTDOWN,PAPACC_C2_OP_TERMINATING,
++ PAPACC_C2_OP_RETAINED,PAPACC_C2_OP_RELEASED
++} PAPACC_C2_OPERATION_STATE;
++typedef struct PAPACC_C2_FLOW {
++ PAPACC_U8 bytes[PAPACC_C2_PAYLOAD_CAPACITY];PAPACC_SIZE size;
++ PAPACC_U64 admitted,accepted,submitted,escaped,fence,blocked_writes;
++ PAPACC_U32 blocked_pst_operation;
++ PAPACC_BOOL paused,sealed,fence_received,fence_written,ack_written,ack_received;
++} PAPACC_C2_FLOW;
++typedef struct PAPACC_C2_OPERATION {
++ PAPACC_C2_OPERATION_STATE state;PAPACC_C2_SESSION *session;
++ PAPACC_U64 request,id,generation,epoch,deadline_ms,cleanup_deadline_ms;
++ PAPACC_U8 open[803],result[108];PAPACC_SIZE open_length;
++ PAPACC_C2_TOKENS tokens;PAPACC_C2_FLOW flow[4];
++ PAPACC_U16 first_cause,ownership,tls_fact;PAPACC_SIZE callbacks;
++ PAPACC_BOOL site_ready,tls_ready_written,revoked,final_queued,final_written;
++ PAPACC_BOOL resources_created,cleanup_confirmed,reciprocal_complete,child_destroyed,ordered_eof;
++ PAPACC_BOOL record_events[2],summary_unavailable;
++} PAPACC_C2_OPERATION;
++typedef struct PAPACC_C2_OPERATION_SESSION {
++ PAPACC_C2_SESSION *session;PAPACC_PRINCIPAL principal;
++ PAPACC_U64 highest_request,next_generation,failed_window_ms;
++ unsigned failed_candidates;
++} PAPACC_C2_OPERATION_SESSION;
++/* These trusted callbacks cannot create sockets/PST or cause irreversible effects. */
++typedef PAPACC_RESULT (*PAPACC_C2_OPEN_POLICY)(void*,const PAPACC_C2_SESSION*,const PAPACC_U8*,PAPACC_SIZE,PAPACC_BOOL*);
++typedef PAPACC_RESULT (*PAPACC_C2_CAPACITY_GATE)(void*,PAPACC_SIZE,PAPACC_BOOL*);
++typedef struct PAPACC_C2_OPERATION_MANAGER {
++ PAPACC_U32 owner;PAPACC_U64 next_operation;PAPACC_BOOL initialized,stopping;
++ PAPACC_C2_OPERATION_SESSION sessions[PAPACC_C2_SESSION_CAPACITY];
++ PAPACC_C2_OPERATION operations[PAPACC_C2_OPERATION_CAPACITY];
++ PAPACC_C2_OPEN_POLICY policy;PAPACC_C2_CAPACITY_GATE capacity;void *context;
++} PAPACC_C2_OPERATION_MANAGER;
++PAPACC_RESULT papacc_c2_operation_manager_init(PAPACC_C2_OPERATION_MANAGER*,PAPACC_U32,PAPACC_C2_OPEN_POLICY,PAPACC_C2_CAPACITY_GATE,void*);
++PAPACC_RESULT papacc_c2_operation_session_attach(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_SESSION*,const PAPACC_PRINCIPAL*);
++PAPACC_RESULT papacc_c2_operation_open(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_SESSION*,const PAPACC_U8*,PAPACC_SIZE,PAPACC_U8[108],PAPACC_C2_OPERATION**);
++PAPACC_RESULT papacc_c2_operation_result_written(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*);
++PAPACC_RESULT papacc_c2_operation_bind(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_SESSION*,const PAPACC_PRINCIPAL*,PAPACC_U64,const PAPACC_U8*,PAPACC_SIZE,PAPACC_C2_OPERATION**);
++PAPACC_RESULT papacc_c2_operation_ack_written(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,PAPACC_U64);
++PAPACC_RESULT papacc_c2_operation_site_ready(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,const PAPACC_U8*,PAPACC_SIZE);
++/* Public PST verification remains a prerequisite enforced by the C3 owner. */
++PAPACC_RESULT papacc_c2_operation_tls_ready_written(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*);
++PAPACC_RESULT papacc_c2_operation_data(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,PAPACC_U64,const PAPACC_U8*,PAPACC_SIZE);
++PAPACC_RESULT papacc_c2_operation_downstream(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,PAPACC_SIZE);
++PAPACC_RESULT papacc_c2_operation_cancel(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_SESSION*,const PAPACC_U8*,PAPACC_SIZE);
++PAPACC_RESULT papacc_c2_operation_revoke(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,PAPACC_U16);
++PAPACC_RESULT papacc_c2_operation_tick(PAPACC_C2_OPERATION_MANAGER*,PAPACC_U64);
++PAPACC_RESULT papacc_c2_operation_stop(PAPACC_C2_OPERATION_MANAGER*);
++PAPACC_RESULT papacc_c2_operation_release_slot(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*);
++/* Four flows: APP BA, APP AB, RECORD BA, RECORD AB. Trusted factual output
++ * source and transport prefix are supplied only by serialized real owner. */
++PAPACC_RESULT papacc_c2_operation_output(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,const PAPACC_U8*,PAPACC_SIZE);
++PAPACC_RESULT papacc_c2_operation_output_accepted(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,PAPACC_SIZE);
++PAPACC_RESULT papacc_c2_operation_fence(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,PAPACC_U64,PAPACC_U16,const PAPACC_U8*,PAPACC_SIZE);
++PAPACC_RESULT papacc_c2_operation_fence_written(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,unsigned,PAPACC_BOOL);
++PAPACC_RESULT papacc_c2_operation_record_event(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,const PAPACC_U8*,PAPACC_SIZE);
++PAPACC_RESULT papacc_c2_operation_final_payload(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*,PAPACC_U8[76]);
++PAPACC_BOOL papacc_c2_operation_authorized(PAPACC_C2_OPERATION_MANAGER*,PAPACC_C2_OPERATION*);
++#endif
+diff --git a/src/protocol/c2_session.h b/src/protocol/c2_session.h
+new file mode 100644
+index 0000000..1e09004
+--- /dev/null
++++ b/src/protocol/c2_session.h
+@@ -0,0 +1,28 @@
++#ifndef PAPACC_INTERNAL_C2_SESSION_H
++#define PAPACC_INTERNAL_C2_SESSION_H
++#include <papacc/pacc/capability_negotiation_protocol.h>
++typedef enum PAPACC_C2_SESSION_STATE { PAPACC_C2_SESSION_EMPTY=0,PAPACC_C2_SESSION_CONFIGURED,PAPACC_C2_SESSION_RESULT_PENDING,PAPACC_C2_SESSION_ELIGIBLE,PAPACC_C2_SESSION_UNAVAILABLE,PAPACC_C2_SESSION_REVOKED,PAPACC_C2_SESSION_RETAINED } PAPACC_C2_SESSION_STATE;
++typedef struct PAPACC_C2_SESSION {
++ PAPACC_U64 incarnation,principal,policy_epoch;
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++ /* Exact existing Resolver identity; scalar principal is not C8 authority. */
++ PAPACC_U8 authenticated_principal[16],root_domain[32];
++ PAPACC_U64 root_invocation,root_revision,control_connection,control_channel;
++ PAPACC_BOOL root_bound;
++#endif
++ PAPACC_U32 owner;
++ PAPACC_U8 assurance;
++ PAPACC_BOOL tls_allowed,c3_supported,legacy_lab,initialized;
++ PAPACC_C2_SESSION_STATE state;
++ PAPACC_CAPABILITY_KEY grants[2];PAPACC_SIZE grant_count;
++} PAPACC_C2_SESSION;
++/* Internal immutable Session gate; no new public package API. Authentication/policy
++ * arguments come only from the real owner's verified context, never peer declarations.
++ * Server full result write and Browser full result receipt are separate barriers. */
++PAPACC_RESULT papacc_c2_session_init(PAPACC_C2_SESSION*,PAPACC_U32,PAPACC_U64,PAPACC_U64,PAPACC_U64,PAPACC_U8,PAPACC_BOOL,PAPACC_BOOL,PAPACC_BOOL);
++PAPACC_RESULT papacc_c2_server_negotiate(PAPACC_C2_SESSION*,PAPACC_U32,const PAPACC_U8*,PAPACC_SIZE,PAPACC_U8*,PAPACC_SIZE,PAPACC_SIZE*);
++PAPACC_RESULT papacc_c2_server_result_written(PAPACC_C2_SESSION*,PAPACC_U32,PAPACC_BOOL,PAPACC_U64);
++PAPACC_RESULT papacc_c2_browser_result_received(PAPACC_C2_SESSION*,PAPACC_U32,const PAPACC_U8*,PAPACC_SIZE,PAPACC_U64);
++PAPACC_BOOL papacc_c2_session_authorized(const PAPACC_C2_SESSION*,PAPACC_U32,PAPACC_U64,PAPACC_U64,PAPACC_U64);
++PAPACC_RESULT papacc_c2_session_revoke(PAPACC_C2_SESSION*,PAPACC_U32,PAPACC_BOOL);
++#endif
+diff --git a/src/protocol/c2_tokens_win32.h b/src/protocol/c2_tokens_win32.h
+new file mode 100644
+index 0000000..ea64705
+--- /dev/null
++++ b/src/protocol/c2_tokens_win32.h
+@@ -0,0 +1,25 @@
++#ifndef PAPACC_INTERNAL_C2_TOKENS_WIN32_H
++#define PAPACC_INTERNAL_C2_TOKENS_WIN32_H
++#include "c2_session.h"
++#include "c2_codec.h"
++typedef struct PAPACC_C2_TOKENS {
++ const PAPACC_C2_SESSION *session;
++ PAPACC_U8 identity[32],bytes[2][32];
++ PAPACC_U64 channels[2],incarnation,principal,policy_epoch,expires_ms;
++ PAPACC_U32 owner;
++ PAPACC_BOOL generated,grant_written,claimed[2],ack_written[2],revoked,retained;
++ PAPACC_SIZE borrowers;
++} PAPACC_C2_TOKENS;
++/* No wire input supplies the authenticated Principal/Session context. */
++PAPACC_RESULT papacc_c2_tokens_generate(PAPACC_C2_TOKENS*,const PAPACC_C2_SESSION*,PAPACC_U32,const PAPACC_U8*,const PAPACC_C2_TOKENS*,PAPACC_SIZE);
++PAPACC_RESULT papacc_c2_tokens_grant_written(PAPACC_C2_TOKENS*,PAPACC_U32);
++PAPACC_RESULT papacc_c2_tokens_claim(PAPACC_C2_TOKENS*,PAPACC_U32,PAPACC_U64,PAPACC_U64,PAPACC_U64,const PAPACC_U8*,PAPACC_SIZE);
++PAPACC_RESULT papacc_c2_tokens_ack_written(PAPACC_C2_TOKENS*,PAPACC_U32,unsigned,PAPACC_U64);
++PAPACC_RESULT papacc_c2_tokens_borrow(PAPACC_C2_TOKENS*,PAPACC_U32);
++PAPACC_RESULT papacc_c2_tokens_quiescent(PAPACC_C2_TOKENS*,PAPACC_U32);
++PAPACC_RESULT papacc_c2_tokens_revoke(PAPACC_C2_TOKENS*,PAPACC_U32,PAPACC_BOOL);
++#ifdef PAPACC_C2_TEST_ONLY_FAULTS
++typedef PAPACC_RESULT (*PAPACC_C2_TEST_RNG)(PAPACC_U8*,PAPACC_SIZE);
++void papacc_c2_tokens_test_rng(PAPACC_C2_TEST_RNG);
++#endif
++#endif
+diff --git a/src/protocol/c2_codec.h b/src/protocol/c2_codec.h
+new file mode 100644
+index 0000000..9295fe7
+--- /dev/null
++++ b/src/protocol/c2_codec.h
+@@ -0,0 +1,23 @@
++#ifndef PAPACC_INTERNAL_C2_CODEC_H
++#define PAPACC_INTERNAL_C2_CODEC_H
++#include <papacc/types.h>
++#define PAPACC_C2_FRAME_CAPACITY 16400U
++typedef enum PAPACC_C2_CHANNEL { PAPACC_C2_CONTROL=0, PAPACC_C2_ROLE_CHANNEL=1 } PAPACC_C2_CHANNEL;
++typedef enum PAPACC_C2_SENDER { PAPACC_C2_BROWSER=0, PAPACC_C2_ACCELERATOR=1 } PAPACC_C2_SENDER;
++typedef struct PAPACC_C2_VIEW { PAPACC_U16 type; const PAPACC_U8 *payload; PAPACC_SIZE length; } PAPACC_C2_VIEW;
++/* Internal grammar only: successful codec validation confers no runtime authority.
++ * View borrows frame until caller's next buffer mutation. No heap/packed/native wire structs.
++ * Caller uses disjoint view/storage; encode permits overlapping payload via memmove. */
++PAPACC_RESULT papacc_c2_validate_payload(PAPACC_U16,const PAPACC_U8*,PAPACC_SIZE,PAPACC_C2_CHANNEL,PAPACC_C2_SENDER);
++PAPACC_RESULT papacc_c2_encode_frame(PAPACC_U16,const PAPACC_U8*,PAPACC_SIZE,PAPACC_C2_CHANNEL,PAPACC_C2_SENDER,PAPACC_U8*,PAPACC_SIZE,PAPACC_SIZE*);
++PAPACC_RESULT papacc_c2_decode_frame(const PAPACC_U8*,PAPACC_SIZE,PAPACC_C2_CHANNEL,PAPACC_C2_SENDER,PAPACC_C2_VIEW*);
++/* Bounded parser: caller provides fixed frame storage, one emitted borrowed view at a time.
++ * Feed stops at first complete frame and reports consumed bytes; next frame requires reset.
++ * Header limits checked before payload accumulation; malformed stream stays terminal. */
++typedef struct PAPACC_C2_READER { PAPACC_U8 *storage; PAPACC_SIZE capacity,used,expected; PAPACC_C2_CHANNEL channel; PAPACC_C2_SENDER sender; PAPACC_BOOL failed,complete; } PAPACC_C2_READER;
++PAPACC_RESULT papacc_c2_reader_init(PAPACC_C2_READER*,PAPACC_U8*,PAPACC_SIZE,PAPACC_C2_CHANNEL,PAPACC_C2_SENDER);
++PAPACC_RESULT papacc_c2_reader_feed(PAPACC_C2_READER*,const PAPACC_U8*,PAPACC_SIZE,PAPACC_SIZE*,PAPACC_BOOL*,PAPACC_C2_VIEW*);
++/* End all view borrows first. Reset erases accumulated bytes, including on
++ * terminal failure; failed parser remains terminal. Caller storage stays owned. */
++void papacc_c2_reader_reset(PAPACC_C2_READER*);
++#endif
+diff --git a/tests/c2_dormant_participant_test.c b/tests/c2_dormant_participant_test.c
+new file mode 100644
+index 0000000..fe473c7
+--- /dev/null
++++ b/tests/c2_dormant_participant_test.c
+@@ -0,0 +1,83 @@
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include "server_c2_participant_win32.h"
++#include <stdio.h>
++#include <string.h>
++static PAPACC_SERVER_C2_PARTICIPANT a,b,c;
++static int root_identity,other_root;
++static unsigned checks;
++#define CHECK(x) do {++checks;if(!(x)){printf("FAIL line %d: %s\n",__LINE__,#x);return 1;}}while(0)
++int main(void)
++{
++ PAPACC_SERVER_CONFIG model=PAPACC_SERVER_CONFIG_INITIALIZER;
++ PAPACC_CAPABILITY_DESCRIPTOR descriptors[2];
++ PAPACC_CAPABILITY_REGISTRY registry=PAPACC_CAPABILITY_REGISTRY_INITIALIZER;
++ PAPACC_CAPABILITY_KEY supported_keys[2],enabled_keys[2];
++ PAPACC_CAPABILITY_SET supported=PAPACC_CAPABILITY_SET_INITIALIZER,enabled=PAPACC_CAPABILITY_SET_INITIALIZER;
++ PAPACC_CAPABILITY_EVALUATION_INPUTS inputs;
++ const PAPACC_CAPABILITY_KEY tls={2U,1U},mode={3U,1U};
++ PAPACC_BOOL permit=PAPACC_TRUE;PAPACC_SIZE old_reservation;
++ PAPACC_NETWORK_INTERFACE_PERSISTENT_ID selected={PAPACC_TRUE,42U};
++ memset(&inputs,0,sizeof(inputs));
++ CHECK(papacc_capability_registry_init(&registry,descriptors,2U)==PAPACC_RESULT_OK);
++ CHECK(papacc_capability_registry_register(&registry,&tls,"TLS_OFFLOAD")==PAPACC_RESULT_OK);
++ CHECK(papacc_capability_registry_register(&registry,&mode,"MODE_C")==PAPACC_RESULT_OK);
++ CHECK(papacc_capability_set_init(&supported,supported_keys,2U)==PAPACC_RESULT_OK);
++ CHECK(papacc_capability_set_init(&enabled,enabled_keys,2U)==PAPACC_RESULT_OK);
++ CHECK(papacc_capability_set_insert(&supported,&tls)==PAPACC_RESULT_OK);
++ CHECK(papacc_capability_set_insert(&supported,&mode)==PAPACC_RESULT_OK);
++ CHECK(papacc_capability_set_insert(&enabled,&mode)==PAPACC_RESULT_OK);
++ inputs.registry=&registry;inputs.server_supported=&supported;inputs.server_enabled=&enabled;
++ model.control_port=4433U;model.bind_selection.mode=PAPACC_BIND_SELECTION_ALL_INTERFACES;
++ model.listener_profile=PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL;
++ model.security_configuration_ref_valid=PAPACC_TRUE;model.security_configuration_ref_length=1U;
++ model.security_configuration_ref[0]='s';
++ CHECK(papacc_server_c2_participant_validate(NULL,&root_identity,1U)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(papacc_server_c2_participant_validate(&a,&root_identity,1U)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,0U,&model,&inputs,0U)==PAPACC_RESULT_INVALID_ARGUMENT);
++ CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,1U,&model,&inputs,2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED);
++ CHECK(a.state==PAPACC_C2_PARTICIPANT_EMPTY&&!a.manager.initialized&&!a.reserved);
++ CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,1U,&model,&inputs,0U)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(!a.manager.initialized); /* MODE C without TLS refused, no partial prepare. */
++ CHECK(papacc_capability_set_insert(&enabled,&tls)==PAPACC_RESULT_OK);
++ model.control_port=0U;
++ CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,1U,&model,&inputs,0U)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(!a.manager.initialized);model.control_port=4433U;
++ CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,1U,&model,&inputs,100U)==PAPACC_RESULT_OK);
++ CHECK(a.state==PAPACC_C2_PARTICIPANT_READY&&a.manager.initialized);
++ CHECK(a.reserved==sizeof(a)&&a.combined==sizeof(a)+100U);
++ CHECK(papacc_server_c2_participant_validate(&a,&root_identity,1U)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_c2_participant_validate(&a,&other_root,1U)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(papacc_server_c2_participant_validate(&a,&root_identity,2U)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(a.manager.policy(a.manager.context,NULL,NULL,0U,&permit)==PAPACC_RESULT_OK&&!permit);
++ permit=PAPACC_TRUE;
++ CHECK(a.manager.capacity(a.manager.context,1U,&permit)==PAPACC_RESULT_OK&&!permit);
++ CHECK(!a.manager.sessions[0].session&&a.manager.operations[0].state==PAPACC_C2_OP_EMPTY);
++ CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,1U,&model,&inputs,0U)==PAPACC_RESULT_INVALID_STATE);
++ /* Caller config changes do not mutate participant snapshot. No commit, CURRENT,
++  * epoch, grant, Connection or operational API exists in this target. */
++ model.security_configuration_ref[0]='x';CHECK(a.model.security_configuration_ref[0]=='s');
++ CHECK(papacc_server_c2_participant_rollback(&a,&root_identity,1U)==PAPACC_RESULT_OK);
++ CHECK(a.state==PAPACC_C2_PARTICIPANT_CLOSED&&!a.reserved&&!a.manager.initialized);
++ CHECK(papacc_server_c2_participant_stop(&a,&root_identity,1U)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,2U,&model,&inputs,0U)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(papacc_server_c2_participant_prepare(&b,&root_identity,2U,&model,&inputs,0U)==PAPACC_RESULT_OK);
++ old_reservation=b.reserved;b.manager.operations[0].callbacks=1U;
++ CHECK(papacc_server_c2_participant_stop(&b,&root_identity,2U)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(b.state==PAPACC_C2_PARTICIPANT_RETAINED&&b.reserved==old_reservation&&b.manager.initialized);
++ CHECK(papacc_server_c2_participant_rollback(&b,&root_identity,2U)==PAPACC_RESULT_INVALID_STATE);
++ model.bind_selection.mode=PAPACC_BIND_SELECTION_SELECTED_INTERFACES;
++ model.bind_selection.interface_persistent_ids=&selected;model.bind_selection.interface_persistent_id_count=1U;
++ CHECK(papacc_server_c2_participant_prepare(&c,&root_identity,3U,&model,&inputs,
++ PAPACC_C2_PARTICIPANT_LIMIT-sizeof(c))==PAPACC_RESULT_OK);
++ selected.value=99U;
++ CHECK(c.ids[0].value==42U&&c.model.bind_selection.interface_persistent_ids==c.ids);
++ CHECK(papacc_server_c2_participant_validate(&c,&root_identity,3U)==PAPACC_RESULT_OK);
++ CHECK(c.combined==PAPACC_C2_PARTICIPANT_LIMIT);
++ CHECK(papacc_server_c2_participant_stop(&c,&root_identity,3U)==PAPACC_RESULT_OK);
++ CHECK(c.state==PAPACC_C2_PARTICIPANT_CLOSED);
++ printf("PASS checks=%u participant=%llu manager=%llu model=%llu retained_charge=%llu harness_static=%llu\n",
++ checks,(unsigned long long)sizeof(a),(unsigned long long)sizeof(a.manager),
++ (unsigned long long)sizeof(a.model),(unsigned long long)b.reserved,(unsigned long long)(sizeof(a)+sizeof(b)+sizeof(c)));
++ return 0;
++}
+\ No newline at end of file

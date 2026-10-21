@@ -1,0 +1,63 @@
+--- tests/phase6_memory_census_test.c
++++ tests/phase6_memory_census_test.c
+@@ -1,3 +1,4 @@
++#include "../src/core/ed11_process_profile.h"
+ /* Size-only census: no root allocation, callbacks, keys, sockets or CURRENT. */
+ #include "server_c8_private_storage_layout_win32.h"
+ #include "config_source.h"
+@@ -28,5 +29,6 @@
+  printf("BASE_ARRAYS=%llu\nSECURE_ARRAYS=%llu\nSCHEDULER_ARRAYS=%llu\nBIND=%llu\nKNOWN=%llu\n",
+  (unsigned long long)PAPACC_C8_BASE_ARRAY_BYTES,(unsigned long long)PAPACC_C8_SECURE_ARRAY_BYTES,
+  (unsigned long long)PAPACC_C8_SCHED_ARRAY_BYTES,(unsigned long long)PAPACC_C8_BIND_LISTENER_BYTES,(unsigned long long)PAPACC_C8_KNOWN_MANAGED_BYTES);
+- return PAPACC_C8_KNOWN_MANAGED_BYTES>2097152U?1:0;
++ printf("PROCESS_LIMIT=%llu\n",(unsigned long long)PAPACC_ED11_PROCESS_LIMIT);
++ return PAPACC_C8_KNOWN_MANAGED_BYTES>PAPACC_ED11_PROCESS_LIMIT?1:0;
+ }
+--- tests/canonical_root_layout_test.c
++++ tests/canonical_root_layout_test.c
+@@ -1,13 +1,14 @@
++#include "../src/core/ed11_process_profile.h"
+ #include "server_c8_private_storage_layout_win32.h"
+ #include <stdio.h>
+ int main(void)
+ {
+- printf("ROOT_LAYOUT=%llu PARTICIPANT=%llu C2_OWNER=%llu C3_BRIDGE=%llu FIXED_LAYOUT=%llu BASE_ARRAYS=%llu SECURE_ARRAYS=%llu SCHED=%llu BIND=%llu KNOWN_MANAGED=%llu LIMIT=2097152\n",
++ printf("ROOT_LAYOUT=%llu PARTICIPANT=%llu C2_OWNER=%llu C3_BRIDGE=%llu FIXED_LAYOUT=%llu BASE_ARRAYS=%llu SECURE_ARRAYS=%llu SCHED=%llu BIND=%llu KNOWN_MANAGED=%llu LIMIT=%llu\n",
+  (unsigned long long)sizeof(PAPACC_SERVER_LAUNCHER_OWNER_WIN32),(unsigned long long)sizeof(PAPACC_SERVER_C2_PARTICIPANT),
+  (unsigned long long)sizeof(PAPACC_SERVER_C2_OWNER_WIN32),(unsigned long long)sizeof(PAPACC_C3_BRIDGE),
+  (unsigned long long)sizeof(PAPACC_C8_PRIVATE_STORAGE_LAYOUT),(unsigned long long)PAPACC_C8_BASE_ARRAY_BYTES,
+  (unsigned long long)PAPACC_C8_SECURE_ARRAY_BYTES,(unsigned long long)PAPACC_C8_SCHED_ARRAY_BYTES,
+- (unsigned long long)PAPACC_C8_BIND_LISTENER_BYTES,(unsigned long long)PAPACC_C8_KNOWN_MANAGED_BYTES);
++ (unsigned long long)PAPACC_C8_BIND_LISTENER_BYTES,(unsigned long long)PAPACC_C8_KNOWN_MANAGED_BYTES,(unsigned long long)PAPACC_ED11_PROCESS_LIMIT);
+  puts("PROVIDER_KERNEL=UNKNOWN NATIVE_ADMISSION=DENY NO_NETWORK_OR_MEASUREMENT");
+- return PAPACC_C8_KNOWN_MANAGED_BYTES>2097152U?1:0;
++ return PAPACC_C8_KNOWN_MANAGED_BYTES>PAPACC_ED11_PROCESS_LIMIT?1:0;
+ }--- tests/canonical_root_transaction_test.c
++++ tests/canonical_root_transaction_test.c
+@@ -1,3 +1,4 @@
++#include "../src/core/ed11_process_profile.h"
+ /* Local administrative transaction only. No wait-set, socket or authentication. */
+ #include "server_c8_private_storage_layout_win32.h"
+ #include <stdio.h>
+@@ -205,10 +206,10 @@
+     printf("SNAPSHOT_ROOT_RETAINED=PASS checks=%u NO_CURRENT NO_COMMIT NO_NETWORK\n",checks);return 0;
+    }
+   }
+-  printf("SNAPSHOT_BUDGET combined=%llu copy=%llu participant=%llu transient_guard=%llu limit=2097152\n",
++  printf("SNAPSHOT_BUDGET combined=%llu copy=%llu participant=%llu transient_guard=%llu limit=%llu\n",
+    (unsigned long long)t->combined_reserved,(unsigned long long)sizeof(PAPACC_INTERFACE_SNAPSHOT_COPY),
+    (unsigned long long)sizeof(PAPACC_ROOT_TRANSACTION_PARTICIPANTS),
+-   (unsigned long long)(sizeof(PAPACC_ROOT_TRANSACTION_PARTICIPANTS)+4096U));
++   (unsigned long long)(sizeof(PAPACC_ROOT_TRANSACTION_PARTICIPANTS)+4096U),(unsigned long long)PAPACC_ED11_PROCESS_LIMIT);
+   CHECK(!t->normative_committed&&!t->administrative_published&&!t->current_policy_epoch&&!o->configuration_commit.initialized);
+   CHECK(papacc_server_launcher_configuration_preparation_rollback(o)==PAPACC_RESULT_OK);
+   CHECK(!t->participants.interface_snapshot.present&&!t->participants.listener_prepared);
+@@ -228,7 +229,7 @@
+  CHECK(!t->current_policy_epoch&&!t->normative_committed&&!t->administrative_published);
+  {PAPACC_BOOL policy=0,site=0;CHECK(papacc_server_launcher_dispatch_preflight(o,&policy,&site)==PAPACC_RESULT_OK&&policy&&site==catalog_case);}
+  printf("COMBINED_RESERVED=%llu MATERIAL_CREDIT=%llu RUNTIME_CREDIT=%llu\n",(unsigned long long)t->combined_reserved,(unsigned long long)t->material_credit,(unsigned long long)t->runtime_credit);
+- CHECK(t->combined_reserved<=2097152U);
++ CHECK(t->combined_reserved<=PAPACC_ED11_PROCESS_LIMIT);
+  CHECK(papacc_server_launcher_configuration_transaction_publish(o)!=PAPACC_RESULT_OK);
+  CHECK(papacc_server_launcher_site_profile(o,&pin,7,1,&selected)!=PAPACC_RESULT_OK);
+  if(argc>2)strcpy_s(relative,sizeof(relative),argv[2]);

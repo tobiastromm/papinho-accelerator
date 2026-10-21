@@ -1,0 +1,73 @@
+--- src/config/config_binding.c before
++++ src/config/config_binding.c proposed
+@@ -0,0 +1,70 @@
++#include "config_binding.h"
++#include <string.h>
++static int same(const char *a,const char *b){return strcmp(a,b)==0;}
++static const PC_LINE *field(const PC_DOCUMENT *d,unsigned b,const char *name)
++{unsigned i;for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i)if(same(d->lines[i].tokens[0].text,name))return &d->lines[i];return NULL;}
++static PC_RESULT reject(PC_MODEL_BINDING *o,PC_DIAGNOSTIC *diag,PC_RESULT r,unsigned line,const char *why)
++{memset(o,0,sizeof(*o));if(diag){diag->code=r;diag->line=line;diag->column=1U;diag->reason=why;}return r;}
++static unsigned dec(const char *s){unsigned n=0U;while(*s){n=n*10U+(unsigned)(*s-'0');++s;}return n;}
++static unsigned nibble(char c){return c>='0'&&c<='9'?(unsigned)(c-'0'):c>='A'&&c<='F'?(unsigned)(c-'A'+10):(unsigned)(c-'a'+10);}
++static int policy_equal(const PC_DOCUMENT *d,unsigned block,const PAPACC_ADMIN_POLICY *p)
++{
++ unsigned i,j,k,en=0U,rules=0U;const PC_LINE *r;const PAPACC_ADMIN_POLICY_RULE *rule;
++ if(!p->present||p->representation!=PAPACC_ADMIN_REPRESENTATION_04)return 0;
++ for(i=d->blocks[block].opener+1U;i<d->blocks[block].end;++i){r=&d->lines[i];
++  if(same(r->tokens[0].text,"enable")){
++   if(en>=p->enabled_count||dec(r->tokens[1].text)!=p->enabled[en].id||dec(r->tokens[2].text)!=p->enabled[en].major)return 0;++en;
++  }else{
++   if(rules>=p->rule_count)return 0;rule=&p->rules[rules++];
++   if(dec(r->tokens[3].text)!=rule->key.id||dec(r->tokens[4].text)!=rule->key.major||
++      (same(r->tokens[2].text,"ACCEPT")?PAPACC_ADMIN_POLICY_ACCEPT:PAPACC_ADMIN_POLICY_DENY)!=rule->action)return 0;
++   if(r->count==7U){if(rule->conditions!=PAPACC_ADMIN_POLICY_PRINCIPAL||rule->principal16.type!=1U||rule->principal16.length!=16U)return 0;
++    for(j=0U;j<16U;++j){k=nibble(r->tokens[6].text[j*2U])*16U+nibble(r->tokens[6].text[j*2U+1U]);if(k!=rule->principal16.value[j])return 0;}
++   }else if(rule->conditions)return 0;
++  }
++ }
++ return en==p->enabled_count&&rules==p->rule_count;
++}
++PC_RESULT pc_bind_existing_models(const PC_DOCUMENT *d,const PAPACC_SERVER_CONFIG *const *models,
++ PAPACC_SIZE model_count,PC_MODEL_BINDING *out,PC_DIAGNOSTIC *diag)
++{
++ unsigned i,j,matched;PAPACC_SIZE k,required;const PC_LISTENER *l;const PC_LINE *r,*mode,*method,*security;
++ const PAPACC_SERVER_CONFIG *c;PC_BOUND_LISTENER *bound;PAPACC_BIND_SELECTION select=PAPACC_BIND_SELECTION_INITIALIZER;
++ PAPACC_NETWORK_DISCOVERY_SNAPSHOT snapshot=PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
++ if(!out)return PC_INVALID;memset(out,0,sizeof(*out));
++ if(!pc_view(d)||!models||!model_count||model_count>PC_LISTENERS_MAX)return reject(out,diag,PC_MISSING,0U,"validated input and bounded existing model required");
++ /* Reuse canonical validator, never install candidate policy or synthesize identity. */
++ for(k=0U;k<model_count;++k)if(!models[k]||papacc_server_config_validate(models[k])!=PAPACC_RESULT_OK)
++  return reject(out,diag,PC_REFERENCE,0U,"existing model invalid or policy absent");
++ /* Even unused declared objects must resolve; no apparently applied orphan. */
++ for(i=0U;i<d->block_count;++i){matched=0U;
++  for(j=0U;j<d->listener_count;++j){l=&d->listeners[j];if(i==l->block||i==l->binding||i==l->security||i==l->authentication||i==l->policy)matched=1U;}
++  if(!matched)return reject(out,diag,PC_REFERENCE,d->lines[d->blocks[i].opener].line,"object not bound to a listener context");
++ }
++ if(!d->listener_count)return reject(out,diag,PC_MISSING,0U,"no listener to bind");
++ for(i=0U;i<d->listener_count;++i){l=&d->listeners[i];r=&d->lines[d->blocks[l->block].opener];
++  if(l->profile!=1U)return reject(out,diag,PC_UNSUPPORTED,r->line,"Legacy has no implicit administrative resolution");
++  mode=field(d,l->binding,"mode");method=field(d,l->authentication,"method");
++  if(!mode||!same(mode->tokens[1].text,"ALL"))return reject(out,diag,PC_UNSUPPORTED,r->line,"textual interface reference mapping not established");
++  if(!method||!same(method->tokens[1].text,"NONE")||l->admission!=1U)return reject(out,diag,PC_UNSUPPORTED,r->line,"named access-auth provider authority not established");
++  security=field(d,l->security,"security_ref");if(!security)return reject(out,diag,PC_REFERENCE,r->line,"security reference absent");
++  matched=0U;c=NULL;
++  for(k=0U;k<model_count;++k){const PAPACC_SERVER_CONFIG *m=models[k];
++   if(m->control_port==l->port&&m->listener_profile==PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL){++matched;c=m;}
++  }
++  if(matched!=1U)return reject(out,diag,matched?PC_CONFLICT:PC_REFERENCE,r->line,"listener model absent or ambiguous");
++  if(c->bind_selection.mode!=PAPACC_BIND_SELECTION_ALL_INTERFACES||c->policy.admission!=PAPACC_ADMIN_OPEN||
++     !policy_equal(d,l->policy,&c->policy))return reject(out,diag,PC_REFERENCE,r->line,"policy or binding does not match existing administrative content");
++  if(!c->security_configuration_ref_valid||strlen(security->tokens[1].text)!=c->security_configuration_ref_length||
++     memcmp(security->tokens[1].text,c->security_configuration_ref,c->security_configuration_ref_length))return reject(out,diag,PC_REFERENCE,r->line,"security reference does not match existing model");
++  bound=&out->listeners[i];memcpy(bound->id,r->tokens[1].text,strlen(r->tokens[1].text)+1U);
++  bound->profile=l->profile;bound->admission=l->admission;bound->port=l->port;
++  memcpy(bound->security_ref,c->security_configuration_ref,c->security_configuration_ref_length);bound->security_length=c->security_configuration_ref_length;
++  memcpy(bound->policy_identity,c->policy.identity,32U);select.mode=PAPACC_BIND_SELECTION_ALL_INTERFACES;
++  if(papacc_bind_targets_resolve(&select,&snapshot,bound->targets,2U,&bound->target_count,&required)!=PAPACC_RESULT_OK)
++   return reject(out,diag,PC_REFERENCE,r->line,"canonical bind target resolver rejected");
++ }
++ out->count=d->listener_count;out->model_bound=1U;
++ if(diag){diag->code=PC_OK;diag->line=diag->column=0U;diag->reason="model-bound only; native CURRENT and security lease still required";}
++ return PC_OK;
++}

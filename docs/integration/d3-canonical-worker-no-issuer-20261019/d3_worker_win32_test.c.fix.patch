@@ -1,0 +1,11 @@
+--- tests/d3_worker_win32_test.c
++++ tests/d3_worker_win32_test.c
+@@ -25,7 +25,7 @@
+  CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used-1U,identity)!=0);
+  bytes[0]^=1;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity)!=0);bytes[0]^=1;
+  bytes[used-1U]^=1;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity)!=0);bytes[used-1U]^=1;
+- bytes[16]|=2;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity)!=0);bytes[16]&=(PAPACC_U8)~2U;
++ bytes[16]|=2;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity)!=0);bytes[16]&=(PAPACC_U8)0xfdU;
+  owner.issuer_snapshot_valid[2]=1;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity)!=0);owner.issuer_snapshot_valid[2]=0;
+  owner.published=0;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity)!=0);owner.published=1;
+  actual_pin.serial++;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity)!=0);actual_pin.serial--;

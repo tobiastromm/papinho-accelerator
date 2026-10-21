@@ -1,0 +1,693 @@
+{
+  "task": "PHASE6-C2-ED08-R4-INTEGRATED-QUALIFICATION",
+  "baseline": {
+    "accelerator_branch": "main",
+    "accelerator_head": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+    "pst_branch": "homologacao/pst-0.6.5",
+    "pst_head": "4dbd2783ebaf135114da2b7247e36c0ad6bc550a",
+    "WIP_files": 506
+  },
+  "staging": [
+    {
+      "lane": "r4",
+      "zip": "C:\\Projetos\\PapinhoSecureTransport\\dist\\test-only\\0.6.5\\papinho-secure-transport-0.6.5-api3-spi4-openssl-r4-controlled-provider-TEST_ONLY.zip",
+      "sha256": "F897F162DB9B52D38BA97EEFE44540B5D724C6017D428F6561A834BAD6BF2F17",
+      "manifest": "classification=TEST_ONLY\nmechanism=OPENSSL_CONTROLLED_PROVIDER_BOUNDARY_FAILURE\npst_version=0.6.5\napi_version=3.0.0\nspi_version=4.0\nsource_commit=4dbd2783ebaf135114da2b7247e36c0ad6bc550a\nsource_tree=bdf4e9d76bccfd074914be87e3820260929d9fe1\nnormal_package_modified=NO\ncontrolled_provider_failure=PASS\nnative_winsock_failure=NOT_PROVEN\nresource_failure=PASS\nclose_unresolved_retained=PASS\nquery_only=PASS\nprovider_close_attempts=1\nnative_close_calls=0\ngate_off=PASS\nreproduction=CANONICAL_R_DRIVE_A_B_BYTE_EXACT\n"
+    },
+    {
+      "lane": "normal",
+      "zip": "C:\\Projetos\\PapinhoSecureTransport\\dist\\packages\\0.6.5\\papinho-secure-transport-0.6.5-win32-x64-msvc-19.51-openssl3.zip",
+      "sha256": "79E53A2D47AD6D509EC893BD1C6D9B8C26B98C5A8A9ECD75E4ADB33A240B132F",
+      "manifest": "format_version=2\npackage_name=PapinhoSecureTransport\npackage_version=0.6.5\nlibrary_version=0.6.5\napi_version=3.0.0\nspi_version=4.0\ntarget_id=win32-x64-msvc-19.51-openssl3\narchitecture=x64\ntoolchain=MSVC 19.51.36256.0; toolset 14.51.36231; Windows SDK 10.0.26100.0\ncrt=dynamic-/MD\nsource_commit=4dbd2783ebaf135114da2b7247e36c0ad6bc550a\nlinkage=static\nprovider_ids=openssl\ncapabilities=aggregate=0x00067fff;client=0x00067eb7;server=0x0004777b;server_absent=PEER_NAME_VERIFY\nruntime_files=libssl-3-x64.dll,libcrypto-3-x64.dll\nthird_party_components=OpenSSL 3.5.8 LTS\nlicense_id=MPL-2.0\nsource_package=papinho-secure-transport-0.6.5-src.zip\nlicense_file=LICENSE\nprovenance_reference=docs/release-packaging.md\nthird_party_notice=THIRD_PARTY_NOTICES.md\n"
+    }
+  ],
+  "runs": [
+    {
+      "id": "Debug-ed08_r4_probe-r4",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_r4_probe-r4.jsonl",
+      "sha256": "0DC93B103B7E9E0B3CA48EB37A8E329021B1CAF6AD700FD4C3CB6926957D0625",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_r4_probe.exe",
+      "executableSHA256": "109BA7DDB4A148BA6526444C2141F3E3CE544639E66C3DDF86D6B54B1873ADF1",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4101,
+      "generation": 7
+    },
+    {
+      "id": "Debug-ed08_r4_probe-positive",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_r4_probe-positive.jsonl",
+      "sha256": "F438A496FB8C61861BCC0A6311F03DBD59169E5508885F4D75AB7C4DF2D02CE9",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_r4_probe.exe",
+      "executableSHA256": "109BA7DDB4A148BA6526444C2141F3E3CE544639E66C3DDF86D6B54B1873ADF1",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4102,
+      "generation": 7
+    },
+    {
+      "id": "Debug-ed08_r4_probe-precondition",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_r4_probe-precondition.jsonl",
+      "sha256": "16D19B4F1AB335344B4F23FF82A195A94332775364A0B0C1996F7C87E55753BF",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_r4_probe.exe",
+      "executableSHA256": "109BA7DDB4A148BA6526444C2141F3E3CE544639E66C3DDF86D6B54B1873ADF1",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4103,
+      "generation": 7
+    },
+    {
+      "id": "Debug-ed08_current_normal-positive",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_current_normal-positive.jsonl",
+      "sha256": "6BA7203DB359241AB13656B4E1BF15EF1A7EECD14D42FC73CB1F677F5AB967E2",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_current_normal.exe",
+      "executableSHA256": "45FAF79F0739290D00EC2286F7E26E807BBD2B033BF0C68B31E2C49A4D6C4BBE",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4104,
+      "generation": 7
+    },
+    {
+      "id": "Debug-ed08_current_normal-local",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_current_normal-local.jsonl",
+      "sha256": "1E91160E8A64A157944DEDBD790F57A91C5CD7141C771BD28995F5E44DD0D0FA",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_current_normal.exe",
+      "executableSHA256": "45FAF79F0739290D00EC2286F7E26E807BBD2B033BF0C68B31E2C49A4D6C4BBE",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4105,
+      "generation": 7
+    },
+    {
+      "id": "Debug-ed08_current_normal-precondition",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_current_normal-precondition.jsonl",
+      "sha256": "E9A2F3C4B86BF3DDC0B3315121476BC144610338A99F12089A54B8C2FAA9D117",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_current_normal.exe",
+      "executableSHA256": "45FAF79F0739290D00EC2286F7E26E807BBD2B033BF0C68B31E2C49A4D6C4BBE",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4106,
+      "generation": 7
+    },
+    {
+      "id": "Debug-ed08_current_normal-cancel",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_current_normal-cancel.jsonl",
+      "sha256": "3A4DEEAD648704094BAB52B8695A2E8ACEEEF50A7023C2CA6C9F13633D8CA787",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_current_normal.exe",
+      "executableSHA256": "45FAF79F0739290D00EC2286F7E26E807BBD2B033BF0C68B31E2C49A4D6C4BBE",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4107,
+      "generation": 7
+    },
+    {
+      "id": "Debug-ed08_current_normal-eof",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_current_normal-eof.jsonl",
+      "sha256": "BEE9A0CFDF47C95C639164C9889E497772CC5B63A0207A865B3AE17B12E32C41",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_current_normal.exe",
+      "executableSHA256": "45FAF79F0739290D00EC2286F7E26E807BBD2B033BF0C68B31E2C49A4D6C4BBE",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4108,
+      "generation": 7
+    },
+    {
+      "id": "Debug-ed08_current_normal-reset",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_current_normal-reset.jsonl",
+      "sha256": "5F1B3662CE7B6A9231F5AC546EDBC22D02FC4D25786E9A569AD39B974BFF4988",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_current_normal.exe",
+      "executableSHA256": "45FAF79F0739290D00EC2286F7E26E807BBD2B033BF0C68B31E2C49A4D6C4BBE",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4109,
+      "generation": 7
+    },
+    {
+      "id": "Debug-ed08_current_normal-isolation",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Debug-ed08_current_normal-isolation.jsonl",
+      "sha256": "351F1B17A91FD3AE8D887EBEF90EB3C541F35C93036327846397E716F7C8363F",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Debug\\ed08_current_normal.exe",
+      "executableSHA256": "45FAF79F0739290D00EC2286F7E26E807BBD2B033BF0C68B31E2C49A4D6C4BBE",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4110,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_r4_probe-r4",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_r4_probe-r4.jsonl",
+      "sha256": "E264BC97A420A82C2430CAE83B1EC6B9EB99ABA22AEA33162E46674F0B3608D9",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_r4_probe.exe",
+      "executableSHA256": "F589EAC9A90FD633E6CB65E438A2BD33E7E07679C9BF63AB17A60DD8329D64D1",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4111,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_r4_probe-positive",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_r4_probe-positive.jsonl",
+      "sha256": "263352B28955D12760F9748645CAD8A3D1A4D9B2CFD7051D5B6F07A1B510B1CC",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_r4_probe.exe",
+      "executableSHA256": "F589EAC9A90FD633E6CB65E438A2BD33E7E07679C9BF63AB17A60DD8329D64D1",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4112,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_r4_probe-precondition",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_r4_probe-precondition.jsonl",
+      "sha256": "3FEB74C84057D638BF6254E7EB30445C3EE687632C17CC46456F4243753A70CB",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_r4_probe.exe",
+      "executableSHA256": "F589EAC9A90FD633E6CB65E438A2BD33E7E07679C9BF63AB17A60DD8329D64D1",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4113,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_current_normal-positive",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_current_normal-positive.jsonl",
+      "sha256": "731AB7A5F404EAF0F13A760FA930A4ABF73ED17C301ACD91BAA6B653C03A82BF",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_current_normal.exe",
+      "executableSHA256": "E577D76AD5E825017E4FFF420CDF9334DA117C67BAB4D28688ACB57C67E72717",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4114,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_current_normal-local",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_current_normal-local.jsonl",
+      "sha256": "31D9E9F51D90FCFDEB4FC456953D62C611D71A14FC561EAF95297773D93837AA",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_current_normal.exe",
+      "executableSHA256": "E577D76AD5E825017E4FFF420CDF9334DA117C67BAB4D28688ACB57C67E72717",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4115,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_current_normal-precondition",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_current_normal-precondition.jsonl",
+      "sha256": "1EDB158633FFA88C738236A1AE2DD1CDD54FC1373C6E20CD1B23100B352B88D4",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_current_normal.exe",
+      "executableSHA256": "E577D76AD5E825017E4FFF420CDF9334DA117C67BAB4D28688ACB57C67E72717",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4116,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_current_normal-cancel",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_current_normal-cancel.jsonl",
+      "sha256": "554AE70C498C7A282B9F74C488BE7D77AE1079B526FD37D38630282AA3B850A5",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_current_normal.exe",
+      "executableSHA256": "E577D76AD5E825017E4FFF420CDF9334DA117C67BAB4D28688ACB57C67E72717",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4117,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_current_normal-eof",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_current_normal-eof.jsonl",
+      "sha256": "4D5FF38ACCEC7B8F703EF7EC9B30F9A752C52C9D2A26F17889032C350947D7CA",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_current_normal.exe",
+      "executableSHA256": "E577D76AD5E825017E4FFF420CDF9334DA117C67BAB4D28688ACB57C67E72717",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4118,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_current_normal-reset",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_current_normal-reset.jsonl",
+      "sha256": "261A4C5D804FE142E0DD857F4584F1BA291362C74289C46E45AE47145D4C1426",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_current_normal.exe",
+      "executableSHA256": "E577D76AD5E825017E4FFF420CDF9334DA117C67BAB4D28688ACB57C67E72717",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4119,
+      "generation": 7
+    },
+    {
+      "id": "Release-ed08_current_normal-isolation",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\runs\\Release-ed08_current_normal-isolation.jsonl",
+      "sha256": "A6442B95E74AB663D9CCFE0C3B55B8740E65FF910830708720C30BEC9A32FF0B",
+      "exe": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\Release\\ed08_current_normal.exe",
+      "executableSHA256": "E577D76AD5E825017E4FFF420CDF9334DA117C67BAB4D28688ACB57C67E72717",
+      "returncode": 0,
+      "result": "PASS",
+      "op": 4120,
+      "generation": 7
+    }
+  ],
+  "consumer_sources": {
+    "src/runtime/connection.c": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\runtime\\connection.c",
+      "sha256": "416686F6BECF1D10E6A511FFDAFE2CCB926220EDB548D89A24131DD0213EF20D"
+    },
+    "src/runtime/connection.h": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\runtime\\connection.h",
+      "sha256": "A12F01BF08DAA95D90C620D5A5AF0E48212AC986875984AA7F10529E147E182F"
+    },
+    "src/transports/transport_connection.c": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\transports\\transport_connection.c",
+      "sha256": "BE27BC7ABC2DCBFC2B2D2FB8D33262056C4D0A27EF16B54B1D3B9619C041956A"
+    },
+    "src/transports/transport_connection.h": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\transports\\transport_connection.h",
+      "sha256": "326CA30051EA4327757CC4FCA243BC49D2B68D72A98A1EFE8294D3BC0E5BA1AB"
+    },
+    "src/network/network_endpoint.h": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\network\\network_endpoint.h",
+      "sha256": "182EACE4F03D4FDDBCA6CC0A2F881F20487422684E89ACD9120D3B7BA3AD4FFA"
+    },
+    "include/papacc/types.h": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\include\\papacc\\types.h",
+      "sha256": "BCB36363840E4C3C8E87EC946A42A03ADBC83764F4C8C5C487EA61B7B436BB05"
+    },
+    "src/network/ip_address.h": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\network\\ip_address.h",
+      "sha256": "3CC9B83BE1E69C2AD4A8B46D93A63C9DAB847D208DBBF9AB3BEEFF536D355069"
+    },
+    "src/network/network_endpoint.c": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\network\\network_endpoint.c",
+      "sha256": "874D17139E0812CB5A912EFBEB0430F89CA444981FB0A598C5ACED13F3C8C65B"
+    },
+    "src/network/ip_address.c": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\network\\ip_address.c",
+      "sha256": "A6381EBDF1A8AA12415AA838E22620255206CDC5FAFE8FDDDD396BC15D16B7EA"
+    },
+    "src/security/pst_secure_processor.c": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\security\\pst_secure_processor.c",
+      "sha256": "9AF8EC473FF32A9E4A41FC51CDDD2E96D75BD00559B855EE2FB1C352E5F4543B"
+    },
+    "src/security/pst_secure_processor.h": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\security\\pst_secure_processor.h",
+      "sha256": "3186D7BA9F39B35DA465046A43815F3DC5BBEE0ECADBC1858E0D46757901C035"
+    },
+    "src/security/pst_secure_scheduler.c": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\security\\pst_secure_scheduler.c",
+      "sha256": "0B5330B169C98D8A7D5E5B8BEDB1EE3C9E822CD958B2856171125683C9A14183"
+    },
+    "src/security/pst_secure_scheduler.h": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\security\\pst_secure_scheduler.h",
+      "sha256": "242FC29038EB9B9F94C0AFA1ECAE7501D8BFBD8B4F46170516DB0A679FAEF9BC"
+    },
+    "src/security/pst_secure_transport_adapter.c": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\security\\pst_secure_transport_adapter.c",
+      "sha256": "54471D1385F2A5DE9FF63AD3C4E6AF06F37B01B1657154AB17DE4DA425306275"
+    },
+    "src/security/pst_secure_transport_adapter.h": {
+      "origin": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\source\\src\\security\\pst_secure_transport_adapter.h",
+      "sha256": "B43E976996BA6A13A7CCFA299989AC364B1F9E750C0006032CC06316F342BF07"
+    }
+  },
+  "new_files": {
+    "tests\\diagnostic\\ed08_r4_probe\\CMakeLists.txt": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "B483356F66A26143E65E69D54CB34F8DACC12FCE9173A39DE6C24D26C1812FAC"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer-provenance.json": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "CCDEAD384628D003915FB838F22C031F215DBE8CA572B5DCDEFA02D71A638AC1"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\ed08_r4_probe.c": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "EF5824FB13699CF12C3DE163CD1BDA258407360D538B24169EEA49059C38FF84"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\README.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "9834D7D50712AD7A9F6773C45E6350408FF4BE900417D069AA92B988759FF774"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\network\\ip_address.c": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "A6381EBDF1A8AA12415AA838E22620255206CDC5FAFE8FDDDD396BC15D16B7EA"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\network\\ip_address.h": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "3CC9B83BE1E69C2AD4A8B46D93A63C9DAB847D208DBBF9AB3BEEFF536D355069"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\network\\network_endpoint.c": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "874D17139E0812CB5A912EFBEB0430F89CA444981FB0A598C5ACED13F3C8C65B"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\network\\network_endpoint.h": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "182EACE4F03D4FDDBCA6CC0A2F881F20487422684E89ACD9120D3B7BA3AD4FFA"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\runtime\\connection.c": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "416686F6BECF1D10E6A511FFDAFE2CCB926220EDB548D89A24131DD0213EF20D"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\runtime\\connection.h": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "A12F01BF08DAA95D90C620D5A5AF0E48212AC986875984AA7F10529E147E182F"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\security\\pst_secure_processor.c": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "9AF8EC473FF32A9E4A41FC51CDDD2E96D75BD00559B855EE2FB1C352E5F4543B"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\security\\pst_secure_processor.h": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "3186D7BA9F39B35DA465046A43815F3DC5BBEE0ECADBC1858E0D46757901C035"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\security\\pst_secure_scheduler.c": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "0B5330B169C98D8A7D5E5B8BEDB1EE3C9E822CD958B2856171125683C9A14183"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\security\\pst_secure_scheduler.h": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "242FC29038EB9B9F94C0AFA1ECAE7501D8BFBD8B4F46170516DB0A679FAEF9BC"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\security\\pst_secure_transport_adapter.c": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "54471D1385F2A5DE9FF63AD3C4E6AF06F37B01B1657154AB17DE4DA425306275"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\security\\pst_secure_transport_adapter.h": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "B43E976996BA6A13A7CCFA299989AC364B1F9E750C0006032CC06316F342BF07"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\transports\\transport_connection.c": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "BE27BC7ABC2DCBFC2B2D2FB8D33262056C4D0A27EF16B54B1D3B9619C041956A"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\src\\transports\\transport_connection.h": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "326CA30051EA4327757CC4FCA243BC49D2B68D72A98A1EFE8294D3BC0E5BA1AB"
+    },
+    "tests\\diagnostic\\ed08_r4_probe\\consumer\\include\\papacc\\types.h": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "BCB36363840E4C3C8E87EC946A42A03ADBC83764F4C8C5C487EA61B7B436BB05"
+    }
+  },
+  "harness_corrections": [
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\tests\\diagnostic\\ed08_r4_probe\\consumer-provenance.json",
+      "pre": "748c21a34646503d87d36977aa48899d9f2dcaa283f3ce4bcb3049511ea104e5",
+      "post": "752d890001a9c4ea4f27819866c042297294caf88c4733d24f0703617f7f6bcf",
+      "cause": "complete endpoint source dependencies",
+      "diff": "--- \n+++ \n@@ -1,30 +1,38 @@\n-{\r\n-  \"src/runtime/connection.c\": {\r\n-    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\runtime\\\\connection.c\",\r\n-    \"sha256\": \"416686F6BECF1D10E6A511FFDAFE2CCB926220EDB548D89A24131DD0213EF20D\"\r\n-  },\r\n-  \"src/runtime/connection.h\": {\r\n-    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\runtime\\\\connection.h\",\r\n-    \"sha256\": \"A12F01BF08DAA95D90C620D5A5AF0E48212AC986875984AA7F10529E147E182F\"\r\n-  },\r\n-  \"src/transports/transport_connection.c\": {\r\n-    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\transports\\\\transport_connection.c\",\r\n-    \"sha256\": \"BE27BC7ABC2DCBFC2B2D2FB8D33262056C4D0A27EF16B54B1D3B9619C041956A\"\r\n-  },\r\n-  \"src/transports/transport_connection.h\": {\r\n-    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\transports\\\\transport_connection.h\",\r\n-    \"sha256\": \"326CA30051EA4327757CC4FCA243BC49D2B68D72A98A1EFE8294D3BC0E5BA1AB\"\r\n-  },\r\n-  \"src/network/network_endpoint.h\": {\r\n-    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\network\\\\network_endpoint.h\",\r\n-    \"sha256\": \"182EACE4F03D4FDDBCA6CC0A2F881F20487422684E89ACD9120D3B7BA3AD4FFA\"\r\n-  },\r\n-  \"include/papacc/types.h\": {\r\n-    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\include\\\\papacc\\\\types.h\",\r\n-    \"sha256\": \"BCB36363840E4C3C8E87EC946A42A03ADBC83764F4C8C5C487EA61B7B436BB05\"\r\n-  },\r\n-  \"src/network/ip_address.h\": {\r\n-    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\network\\\\ip_address.h\",\r\n-    \"sha256\": \"3CC9B83BE1E69C2AD4A8B46D93A63C9DAB847D208DBBF9AB3BEEFF536D355069\"\r\n-  }\r\n-}\r\n+{\n+  \"src/runtime/connection.c\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\runtime\\\\connection.c\",\n+    \"sha256\": \"416686F6BECF1D10E6A511FFDAFE2CCB926220EDB548D89A24131DD0213EF20D\"\n+  },\n+  \"src/runtime/connection.h\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\runtime\\\\connection.h\",\n+    \"sha256\": \"A12F01BF08DAA95D90C620D5A5AF0E48212AC986875984AA7F10529E147E182F\"\n+  },\n+  \"src/transports/transport_connection.c\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\transports\\\\transport_connection.c\",\n+    \"sha256\": \"BE27BC7ABC2DCBFC2B2D2FB8D33262056C4D0A27EF16B54B1D3B9619C041956A\"\n+  },\n+  \"src/transports/transport_connection.h\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\transports\\\\transport_connection.h\",\n+    \"sha256\": \"326CA30051EA4327757CC4FCA243BC49D2B68D72A98A1EFE8294D3BC0E5BA1AB\"\n+  },\n+  \"src/network/network_endpoint.h\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\network\\\\network_endpoint.h\",\n+    \"sha256\": \"182EACE4F03D4FDDBCA6CC0A2F881F20487422684E89ACD9120D3B7BA3AD4FFA\"\n+  },\n+  \"include/papacc/types.h\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\include\\\\papacc\\\\types.h\",\n+    \"sha256\": \"BCB36363840E4C3C8E87EC946A42A03ADBC83764F4C8C5C487EA61B7B436BB05\"\n+  },\n+  \"src/network/ip_address.h\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\network\\\\ip_address.h\",\n+    \"sha256\": \"3CC9B83BE1E69C2AD4A8B46D93A63C9DAB847D208DBBF9AB3BEEFF536D355069\"\n+  },\n+  \"src/network/network_endpoint.c\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\network\\\\network_endpoint.c\",\n+    \"sha256\": \"874D17139E0812CB5A912EFBEB0430F89CA444981FB0A598C5ACED13F3C8C65B\"\n+  },\n+  \"src/network/ip_address.c\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\network\\\\ip_address.c\",\n+    \"sha256\": \"A6381EBDF1A8AA12415AA838E22620255206CDC5FAFE8FDDDD396BC15D16B7EA\"\n+  }\n+}\n"
+    },
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\tests\\diagnostic\\ed08_r4_probe\\CMakeLists.txt",
+      "pre": "e3bf86d2ab304bfe2b7eb8cc582ee62258b57ad9ceb14c74e6395333a3b48ba8",
+      "post": "4d3fc3a03ff504006ad98de0606c23ebf683b3ade72226080e8cca7fe17f7766",
+      "cause": "LNK2019 endpoint validate dependency",
+      "diff": "--- \n+++ \n@@ -1,27 +1,27 @@\n-cmake_minimum_required(VERSION 3.16)\r\n-project(ed08_r4_integrated C)\r\n-set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)\r\n-string(REGEX REPLACE \"/W[0-4]\" \"\" CMAKE_C_FLAGS \"${CMAKE_C_FLAGS}\")\r\n-if(NOT WIN32 OR NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)\r\n- message(FATAL_ERROR \"MSVC x64 required\")\r\n-endif()\r\n-set(tid win32-x64-msvc-19.51-openssl3)\r\n-set(normal \"${STAGING}/sdk-normal\")\r\n-set(r4 \"${STAGING}/sdk-r4\")\r\n-file(SHA256 \"${r4}/lib/papinho_secure_transport_API3_SPI4_TEST_ONLY_R4.lib\" identity)\r\n-if(NOT identity STREQUAL \"1450c01c2c1132566cdac2a64be8e84b72478800ba164207b7c7f592cae9ded5\")\r\n- message(FATAL_ERROR \"R4 library mismatch\")\r\n-endif()\r\n-add_executable(ed08_r4_probe ed08_r4_probe.c consumer/src/runtime/connection.c consumer/src/transports/transport_connection.c)\r\n-target_include_directories(ed08_r4_probe PRIVATE \"${normal}/include\" \"${r4}/private\" consumer/include consumer/src/runtime consumer/src/transports consumer/src/network)\r\n-target_compile_options(ed08_r4_probe PRIVATE /W4 /WX)\r\n-target_link_libraries(ed08_r4_probe PRIVATE \"${r4}/lib/papinho_secure_transport_API3_SPI4_TEST_ONLY_R4.lib\" \"${normal}/lib/${tid}/libssl.lib\" \"${normal}/lib/${tid}/libcrypto.lib\" ws2_32 crypt32 secur32 ncrypt bcrypt)\r\n-add_executable(ed08_current_normal ../ed08_c3_probe/ed08_c3_probe.c)\r\n-target_include_directories(ed08_current_normal PRIVATE \"${normal}/include\")\r\n-target_compile_options(ed08_current_normal PRIVATE /W4 /WX)\r\n-target_link_libraries(ed08_current_normal PRIVATE \"${normal}/lib/${tid}/papinho_secure_transport.lib\" \"${normal}/lib/${tid}/libssl.lib\" \"${normal}/lib/${tid}/libcrypto.lib\" ws2_32 crypt32 secur32 ncrypt bcrypt)\r\n-foreach(t ed08_r4_probe ed08_current_normal)\r\n- foreach(n libssl-3-x64.dll libcrypto-3-x64.dll)\r\n-  add_custom_command(TARGET ${t} POST_BUILD COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different \"${r4}/runtime/${n}\" \"$<TARGET_FILE_DIR:${t}>/${n}\")\r\n- endforeach()\r\n-endforeach()\r\n+cmake_minimum_required(VERSION 3.16)\n+project(ed08_r4_integrated C)\n+set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)\n+string(REGEX REPLACE \"/W[0-4]\" \"\" CMAKE_C_FLAGS \"${CMAKE_C_FLAGS}\")\n+if(NOT WIN32 OR NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)\n+ message(FATAL_ERROR \"MSVC x64 required\")\n+endif()\n+set(tid win32-x64-msvc-19.51-openssl3)\n+set(normal \"${STAGING}/sdk-normal\")\n+set(r4 \"${STAGING}/sdk-r4\")\n+file(SHA256 \"${r4}/lib/papinho_secure_transport_API3_SPI4_TEST_ONLY_R4.lib\" identity)\n+if(NOT identity STREQUAL \"1450c01c2c1132566cdac2a64be8e84b72478800ba164207b7c7f592cae9ded5\")\n+ message(FATAL_ERROR \"R4 library mismatch\")\n+endif()\n+add_executable(ed08_r4_probe ed08_r4_probe.c consumer/src/runtime/connection.c consumer/src/transports/transport_connection.c consumer/src/network/network_endpoint.c consumer/src/network/ip_address.c)\n+target_include_directories(ed08_r4_probe PRIVATE \"${normal}/include\" \"${r4}/private\" consumer/include consumer/src/runtime consumer/src/transports consumer/src/network)\n+target_compile_options(ed08_r4_probe PRIVATE /W4 /WX)\n+target_link_libraries(ed08_r4_probe PRIVATE \"${r4}/lib/papinho_secure_transport_API3_SPI4_TEST_ONLY_R4.lib\" \"${normal}/lib/${tid}/libssl.lib\" \"${normal}/lib/${tid}/libcrypto.lib\" ws2_32 crypt32 secur32 ncrypt bcrypt)\n+add_executable(ed08_current_normal ../ed08_c3_probe/ed08_c3_probe.c)\n+target_include_directories(ed08_current_normal PRIVATE \"${normal}/include\")\n+target_compile_options(ed08_current_normal PRIVATE /W4 /WX)\n+target_link_libraries(ed08_current_normal PRIVATE \"${normal}/lib/${tid}/papinho_secure_transport.lib\" \"${normal}/lib/${tid}/libssl.lib\" \"${normal}/lib/${tid}/libcrypto.lib\" ws2_32 crypt32 secur32 ncrypt bcrypt)\n+foreach(t ed08_r4_probe ed08_current_normal)\n+ foreach(n libssl-3-x64.dll libcrypto-3-x64.dll)\n+  add_custom_command(TARGET ${t} POST_BUILD COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different \"${r4}/runtime/${n}\" \"$<TARGET_FILE_DIR:${t}>/${n}\")\n+ endforeach()\n+endforeach()\n"
+    },
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\tests\\diagnostic\\ed08_r4_probe\\ed08_r4_probe.c",
+      "pre": "6902538f34570c0eb74364a8a9b374e0b35f0cfd4e8dc2774a51b4a90b26390e",
+      "post": "99fab0964009b8e498d40b610f9b257010a87616b976e19b51bc2f9986ddfa61",
+      "cause": "fixture manager requires valid endpoint family",
+      "diff": "--- \n+++ \n@@ -505,9 +505,11 @@\n     event(p,\"R4_WRONG_TOKEN_STALE_DUPLICATE_NON_TARGET_NEGATIVES_PASS\",0,0,0);\n     memset(&owner,0,sizeof(owner));owner.probe=p;owner.thread=GetCurrentThreadId();\n     REQUIRE(p,papacc_connection_manager_init(&owner.manager,owner.storage,1)==0,\"MANAGER_INIT_FAIL\");\n+    ep.address.family=PAPACC_IP_FAMILY_IPV4;\n     t.context=&owner;t.read_fn=fixture_read;t.write_fn=fixture_write;t.pre_close_fn=fixture_prepare;t.close_fn=forbidden_void;t.try_close_fn=fixture_close;\n     REQUIRE(p,papacc_connection_manager_publish(&owner.manager,&t,&ep,&ep,&owner.connection)==0,\"MANAGER_PUBLISH_FAIL\");\n     printf(\"{\\\"op\\\":%u,\\\"generation\\\":%u,\\\"event\\\":\\\"MANAGER_OWNER_IDENTITY\\\",\\\"connection_instance_id\\\":%llu,\\\"owner_thread\\\":%lu}\\n\",p->op,p->gen,(unsigned long long)owner.connection->connection_instance_id,(unsigned long)owner.thread);\n+    ep.address.family=PAPACC_IP_FAMILY_IPV4;\n     cr=papacc_connection_manager_try_remove(&owner.manager,owner.connection->connection_instance_id,&done);\n     REQUIRE(p,cr!=0&&!done&&owner.retained&&owner.manager.count==1&&owner.connection==papacc_connection_manager_find(&owner.manager,owner.connection->connection_instance_id),\"MANAGER_RETENTION_FAIL\");\n     REQUIRE(p,p->client==identity&&owner.connection->transport.context==&owner&&owner.connection->state==PAPACC_CONNECTION_STATE_CLOSING&&!p->cm,\"OWNER_IDENTITY_LOST\");\n"
+    },
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\tests\\diagnostic\\ed08_r4_probe\\consumer-provenance.json",
+      "pre": "752d890001a9c4ea4f27819866c042297294caf88c4733d24f0703617f7f6bcf",
+      "post": "ccdead384628d003915fb838f22c031f215dbe8ca572b5dcdefa02d71a638ac1",
+      "cause": "include actual API3 processor/scheduler/adapter",
+      "diff": "--- \n+++ \n@@ -34,5 +34,29 @@\n   \"src/network/ip_address.c\": {\n     \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\network\\\\ip_address.c\",\n     \"sha256\": \"A6381EBDF1A8AA12415AA838E22620255206CDC5FAFE8FDDDD396BC15D16B7EA\"\n+  },\n+  \"src/security/pst_secure_processor.c\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\security\\\\pst_secure_processor.c\",\n+    \"sha256\": \"9AF8EC473FF32A9E4A41FC51CDDD2E96D75BD00559B855EE2FB1C352E5F4543B\"\n+  },\n+  \"src/security/pst_secure_processor.h\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\security\\\\pst_secure_processor.h\",\n+    \"sha256\": \"3186D7BA9F39B35DA465046A43815F3DC5BBEE0ECADBC1858E0D46757901C035\"\n+  },\n+  \"src/security/pst_secure_scheduler.c\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\security\\\\pst_secure_scheduler.c\",\n+    \"sha256\": \"0B5330B169C98D8A7D5E5B8BEDB1EE3C9E822CD958B2856171125683C9A14183\"\n+  },\n+  \"src/security/pst_secure_scheduler.h\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\security\\\\pst_secure_scheduler.h\",\n+    \"sha256\": \"242FC29038EB9B9F94C0AFA1ECAE7501D8BFBD8B4F46170516DB0A679FAEF9BC\"\n+  },\n+  \"src/security/pst_secure_transport_adapter.c\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\security\\\\pst_secure_transport_adapter.c\",\n+    \"sha256\": \"54471D1385F2A5DE9FF63AD3C4E6AF06F37B01B1657154AB17DE4DA425306275\"\n+  },\n+  \"src/security/pst_secure_transport_adapter.h\": {\n+    \"origin\": \"C:\\\\Projetos\\\\_tmp\\\\PapinhoAccelerator\\\\pst-api3-model-e-recertification-20261011\\\\source\\\\src\\\\security\\\\pst_secure_transport_adapter.h\",\n+    \"sha256\": \"B43E976996BA6A13A7CCFA299989AC364B1F9E750C0006032CC06316F342BF07\"\n   }\n }\n"
+    },
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\tests\\diagnostic\\ed08_r4_probe\\CMakeLists.txt",
+      "pre": "4d3fc3a03ff504006ad98de0606c23ebf683b3ade72226080e8cca7fe17f7766",
+      "post": "b483356f66a26143e65e69d54cb34f8dacc12fce9173a39de6c24d26c1812fac",
+      "cause": "compose real consumer release boundary; synthetic hooks not enabled",
+      "diff": "--- \n+++ \n@@ -12,8 +12,8 @@\n if(NOT identity STREQUAL \"1450c01c2c1132566cdac2a64be8e84b72478800ba164207b7c7f592cae9ded5\")\n  message(FATAL_ERROR \"R4 library mismatch\")\n endif()\n-add_executable(ed08_r4_probe ed08_r4_probe.c consumer/src/runtime/connection.c consumer/src/transports/transport_connection.c consumer/src/network/network_endpoint.c consumer/src/network/ip_address.c)\n-target_include_directories(ed08_r4_probe PRIVATE \"${normal}/include\" \"${r4}/private\" consumer/include consumer/src/runtime consumer/src/transports consumer/src/network)\n+add_executable(ed08_r4_probe ed08_r4_probe.c consumer/src/runtime/connection.c consumer/src/transports/transport_connection.c consumer/src/network/network_endpoint.c consumer/src/network/ip_address.c consumer/src/security/pst_secure_processor.c consumer/src/security/pst_secure_scheduler.c consumer/src/security/pst_secure_transport_adapter.c)\n+target_include_directories(ed08_r4_probe PRIVATE \"${normal}/include\" \"${r4}/private\" consumer/include consumer/src/runtime consumer/src/transports consumer/src/network consumer/src/security)\n target_compile_options(ed08_r4_probe PRIVATE /W4 /WX)\n target_link_libraries(ed08_r4_probe PRIVATE \"${r4}/lib/papinho_secure_transport_API3_SPI4_TEST_ONLY_R4.lib\" \"${normal}/lib/${tid}/libssl.lib\" \"${normal}/lib/${tid}/libcrypto.lib\" ws2_32 crypt32 secur32 ncrypt bcrypt)\n add_executable(ed08_current_normal ../ed08_c3_probe/ed08_c3_probe.c)\n"
+    },
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\tests\\diagnostic\\ed08_r4_probe\\ed08_r4_probe.c",
+      "pre": "99fab0964009b8e498d40b610f9b257010a87616b976e19b51bc2f9986ddfa61",
+      "post": "d6f0f2abf64d387934ac99cf409658f147da167e7e2dee960c90a1b79a737302",
+      "cause": "replace fixture release logic with byte-exact actual adapter/processor/scheduler and test consumer guards",
+      "diff": "--- \n+++ \n@@ -453,6 +453,7 @@\n }\n \n #include \"connection.h\"\n+#include \"pst_secure_transport_adapter.h\"\n #include \"pst_test_only_openssl_r4.h\"\n typedef struct RetainedOwner {\n     PAPACC_CONNECTION_MANAGER manager;\n@@ -462,30 +463,31 @@\n     PST_RELEASE_INFO info;\n     unsigned release_calls,retained,void_calls,publication_attempts,deliveries;\n     DWORD thread;\n+    PAPACC_PST_SECURE_PROCESSOR processor;\n+    PAPACC_PST_SECURE_SCHEDULER scheduler;\n+    PAPACC_PST_SCHEDULER_MEMBER members[1];\n+    PST_WAIT_EVENT events[1];\n+    PAPACC_PST_SECURE_TRANSPORT_ADAPTER adapter;\n+    PAPACC_TRANSPORT_PRE_CLOSE_FN original_prepare;\n+    PAPACC_TRANSPORT_TRY_CLOSE_FN original_close;\n } RetainedOwner;\n static RetainedOwner owner;\n-static PAPACC_RESULT fixture_read(void *ctx,PAPACC_U8 *buf,PAPACC_SIZE cap,PAPACC_SIZE *n,PAPACC_TRANSPORT_IO_STATUS *s){\n-    (void)ctx;(void)buf;(void)cap;*n=0;*s=PAPACC_TRANSPORT_IO_STATUS_UNSPECIFIED;return PAPACC_RESULT_INVALID_STATE;\n-}\n-static PAPACC_RESULT fixture_write(void *ctx,const PAPACC_U8 *buf,PAPACC_SIZE cap,PAPACC_SIZE *n,PAPACC_TRANSPORT_IO_STATUS *s){\n-    (void)ctx;(void)buf;(void)cap;*n=0;*s=PAPACC_TRANSPORT_IO_STATUS_UNSPECIFIED;return PAPACC_RESULT_INVALID_STATE;\n-}\n-static void forbidden_void(void *ctx){RetainedOwner *o=ctx;o->void_calls++;}\n static PAPACC_RESULT fixture_prepare(void *ctx,PAPACC_BOOL *ready){\n-    RetainedOwner *o=ctx;*ready=PAPACC_FALSE;\n-    if(GetCurrentThreadId()!=o->thread||o->retained)return PAPACC_RESULT_INVALID_STATE;\n-    if(o->probe->cm){if(pst_wait_set_remove_connection(o->probe->ws,o->probe->client)!=0)return PAPACC_RESULT_INTERNAL_ERROR;o->probe->cm=0;event(o->probe,\"TARGET_WAITSET_REMOVAL_CONFIRMED\",0,0,0);}\n-    *ready=PAPACC_TRUE;return PAPACC_RESULT_OK;\n+    PAPACC_RESULT result;PAPACC_BOOL registered=owner.adapter.registered;\n+    if(GetCurrentThreadId()!=owner.thread)return PAPACC_RESULT_INVALID_STATE;\n+    result=owner.original_prepare(ctx,ready);\n+    if(registered&&!owner.adapter.registered)event(owner.probe,\"TARGET_WAITSET_REMOVAL_CONFIRMED\",0,0,0);\n+    return result;\n }\n static PAPACC_RESULT fixture_close(void *ctx,PAPACC_BOOL *closed){\n-    RetainedOwner *o=ctx;PST_RESULT result;*closed=PAPACC_FALSE;\n-    if(o->retained||GetCurrentThreadId()!=o->thread)return PAPACC_RESULT_INVALID_STATE;\n-    if(pst_release_info_init(&o->info,sizeof(o->info))!=0)return PAPACC_RESULT_INTERNAL_ERROR;\n-    o->release_calls++;event(o->probe,\"TARGET_RELEASE_ATTEMPT\",0,0,0);\n-    result=pst_connection_try_release(o->probe->client,&o->info);\n-    release_event(o->probe,\"TARGET_RELEASE_RESULT_DISPOSITION\",result,&o->info);\n-    if(result==PST_RESULT_RESOURCE_FAILURE&&o->info.disposition==PST_RELEASE_DISPOSITION_CLOSE_UNRESOLVED_RETAINED){o->retained=1;o->probe->cancel=1;return PAPACC_RESULT_INTERNAL_ERROR;}\n-    return PAPACC_RESULT_INTERNAL_ERROR;\n+    PAPACC_RESULT result;RetainedOwner *o=&owner;\n+    if(GetCurrentThreadId()!=o->thread)return PAPACC_RESULT_INVALID_STATE;\n+    if(!o->retained){o->release_calls++;event(o->probe,\"TARGET_RELEASE_ATTEMPT\",0,0,0);}\n+    result=o->original_close(ctx,closed);\n+    o->info=o->processor.release_info;\n+    if(!o->retained)release_event(o->probe,\"TARGET_RELEASE_RESULT_DISPOSITION\",o->processor.source_result,&o->info);\n+    if(o->processor.state==PAPACC_PST_SECURE_PROCESSOR_RETAINED_TERMINAL){o->retained=1;o->probe->cancel=1;}\n+    return result;\n }\n static int retained_boundary(Probe *p){\n     PST_TEST_ONLY_R4_STATUS status;PST_RELEASE_INFO q,repeat;PST_IO_RESULT io;PST_WAIT_RESULT wr;\n@@ -506,18 +508,25 @@\n     memset(&owner,0,sizeof(owner));owner.probe=p;owner.thread=GetCurrentThreadId();\n     REQUIRE(p,papacc_connection_manager_init(&owner.manager,owner.storage,1)==0,\"MANAGER_INIT_FAIL\");\n     ep.address.family=PAPACC_IP_FAMILY_IPV4;\n-    t.context=&owner;t.read_fn=fixture_read;t.write_fn=fixture_write;t.pre_close_fn=fixture_prepare;t.close_fn=forbidden_void;t.try_close_fn=fixture_close;\n+    /* Fixture adopts a Connection with factual completed TLS handshake; no PST state is manufactured. */\n+    owner.processor.connection=identity;owner.processor.state=PAPACC_PST_SECURE_PROCESSOR_ESTABLISHED;\n+    REQUIRE(p,pst_wait_set_remove_connection(p->ws,identity)==0,\"WAITSET_TRANSFER_REMOVE_FAIL\");p->cm=0;\n+    REQUIRE(p,papacc_pst_secure_scheduler_init(&owner.scheduler,owner.members,1,owner.events,1)==0,\"ACTUAL_SCHEDULER_INIT_FAIL\");\n+    {pst_wait_token token;REQUIRE(p,papacc_pst_secure_scheduler_add_connection(&owner.scheduler,identity,&token)==0,\"ACTUAL_SCHEDULER_ADD_FAIL\");}\n+    REQUIRE(p,papacc_pst_secure_transport_adapter_init(&owner.adapter,&owner.processor,&owner.scheduler,&t)==0,\"ACTUAL_ADAPTER_INIT_FAIL\");\n+    owner.original_prepare=t.pre_close_fn;owner.original_close=t.try_close_fn;t.pre_close_fn=fixture_prepare;t.try_close_fn=fixture_close;\n+    duplicate=t;\n     REQUIRE(p,papacc_connection_manager_publish(&owner.manager,&t,&ep,&ep,&owner.connection)==0,\"MANAGER_PUBLISH_FAIL\");\n     printf(\"{\\\"op\\\":%u,\\\"generation\\\":%u,\\\"event\\\":\\\"MANAGER_OWNER_IDENTITY\\\",\\\"connection_instance_id\\\":%llu,\\\"owner_thread\\\":%lu}\\n\",p->op,p->gen,(unsigned long long)owner.connection->connection_instance_id,(unsigned long)owner.thread);\n     ep.address.family=PAPACC_IP_FAMILY_IPV4;\n     cr=papacc_connection_manager_try_remove(&owner.manager,owner.connection->connection_instance_id,&done);\n     REQUIRE(p,cr!=0&&!done&&owner.retained&&owner.manager.count==1&&owner.connection==papacc_connection_manager_find(&owner.manager,owner.connection->connection_instance_id),\"MANAGER_RETENTION_FAIL\");\n-    REQUIRE(p,p->client==identity&&owner.connection->transport.context==&owner&&owner.connection->state==PAPACC_CONNECTION_STATE_CLOSING&&!p->cm,\"OWNER_IDENTITY_LOST\");\n+    REQUIRE(p,p->client==identity&&owner.connection->transport.context==&owner.adapter&&owner.connection->state==PAPACC_CONNECTION_STATE_CLOSING&&!p->cm,\"OWNER_IDENTITY_LOST\");\n     REQUIRE(p,owner.info.result==PST_RESULT_RESOURCE_FAILURE&&!owner.info.native_code_valid&&owner.info.native_domain==0&&owner.info.native_code==0,\"FALSE_NATIVE_ERROR\");\n     /* Repeated owner Stop/remove must not cross the release boundary again. */\n     REQUIRE(p,papacc_connection_manager_try_shutdown(&owner.manager,&done)!=0&&!done,\"REPEATED_STOP_DESTROYED\");\n     REQUIRE(p,papacc_connection_manager_try_remove(&owner.manager,owner.connection->connection_instance_id,&done)!=0&&!done,\"REPEATED_REMOVE_DESTROYED\");\n-    duplicate.context=&owner;duplicate.read_fn=fixture_read;duplicate.write_fn=fixture_write;duplicate.pre_close_fn=fixture_prepare;duplicate.close_fn=forbidden_void;duplicate.try_close_fn=fixture_close;\n+    duplicate=owner.connection->transport;\n     REQUIRE(p,papacc_connection_manager_publish(&owner.manager,&duplicate,&ep,&ep,&next)==PAPACC_RESULT_LIMIT_EXCEEDED&&next==NULL,\"EARLY_REUSE_ACCEPTED\");\n     REQUIRE(p,pst_release_info_init(&q,sizeof(q))==0&&pst_connection_get_release_info(identity,&q)==0&&q.result==6&&q.disposition==3,\"RELEASE_QUERY_FAIL\");\n     release_event(p,\"RETAINED_QUERY\",q.result,&q);\n@@ -532,6 +541,11 @@\n     REQUIRE(p,pst_test_only_openssl_r4_arm(identity,hi,lo,p->gen)!=0,\"LATE_ARM_ACCEPTED\");\n     memset(&status,0,sizeof(status));status.struct_size=sizeof(status);\n     REQUIRE(p,pst_test_only_openssl_r4_query(identity,hi,lo,p->gen,&status)==0&&status.provider_close_attempts==1,\"SECOND_PROVIDER_CLOSE\");\n+    REQUIRE(p,owner.processor.connection==identity&&owner.processor.state==PAPACC_PST_SECURE_PROCESSOR_RETAINED_TERMINAL&&owner.adapter.processor==&owner.processor&&!owner.adapter.closed&&!owner.adapter.registered&&owner.scheduler.member_count==0,\"ACTUAL_PROCESSOR_ADAPTER_RETENTION_FAIL\");\n+    {PAPACC_SIZE bytes;PAPACC_TRANSPORT_IO_STATUS io_status;\n+     REQUIRE(p,papacc_transport_connection_read(&owner.connection->transport,(PAPACC_U8*)&peek,1,&bytes,&io_status)!=0,\"CONSUMER_RETAINED_READ_ACCEPTED\");\n+     REQUIRE(p,papacc_transport_connection_write(&owner.connection->transport,(PAPACC_U8*)&peek,1,&bytes,&io_status)!=0,\"CONSUMER_RETAINED_WRITE_ACCEPTED\");\n+     REQUIRE(p,papacc_pst_secure_processor_release(&owner.processor)!=0,\"CONSUMER_REPEATED_RELEASE_ACCEPTED\");}\n     REQUIRE(p,owner.release_calls==1&&owner.void_calls==0&&p->rt&&p->ci&&p->si&&p->trust&&p->ws&&p->c!=INVALID_SOCKET&&p->b!=INVALID_SOCKET,\"DEPENDENCY_RETENTION_FAIL\");\n     /* A real still-open consumer peer; absence of EOF is factual, never fabricated. */\n     n=recv(p->c,&peek,1,MSG_PEEK);REQUIRE(p,n==1||(n==SOCKET_ERROR&&WSAGetLastError()==WSAEWOULDBLOCK),\"UNEXPECTED_RETAINED_EOF\");\n"
+    },
+    {
+      "path": "tests\\diagnostic\\ed08_r4_probe\\ed08_r4_probe.c",
+      "pre": "d6f0f2abf64d387934ac99cf409658f147da167e7e2dee960c90a1b79a737302",
+      "post": "ef5824fb13699cf12c3de163cd1bda258407360d538b24169eea49059c38ff84",
+      "cause": "record identity scoped final counters after every negative and second connection destruction",
+      "diff": "--- \n+++ \n@@ -560,5 +560,7 @@\n     /* Server remains independently releasable; held client/manager/C3/runtime remain. */\n     if(!release_one(p,&p->server,&p->sm,\"NON_TARGET_SERVER_DESTROYED\"))return 0;\n     REQUIRE(p,pst_connection_get_release_info(identity,&q)==0&&owner.manager.count==1,\"ISOLATION_RETENTION_LOST\");\n+    REQUIRE(p,pst_test_only_openssl_r4_query(identity,hi,lo,p->gen,&status)==0&&status.provider_close_attempts==1,\"LATE_SECOND_PROVIDER_CLOSE\");\n+    printf(\"{\\\"op\\\":%u,\\\"generation\\\":%u,\\\"event\\\":\\\"FINAL_RETAINED_IDENTITY_FACTS\\\",\\\"connection_instance_id\\\":%llu,\\\"pst_connection\\\":\\\"%p\\\",\\\"provider_close_attempts\\\":%lu,\\\"owner_release_calls\\\":%u,\\\"manager_count\\\":%llu,\\\"processor_state\\\":%d,\\\"adapter_registered\\\":%d,\\\"scheduler_members\\\":%llu,\\\"callback_attempts\\\":%u,\\\"callback_deliveries\\\":%u,\\\"clean\\\":false,\\\"ab_sealed\\\":false}\\n\",p->op,p->gen,(unsigned long long)owner.connection->connection_instance_id,(void*)identity,(unsigned long)status.provider_close_attempts,owner.release_calls,(unsigned long long)owner.manager.count,(int)owner.processor.state,(int)owner.adapter.registered,(unsigned long long)owner.scheduler.member_count,owner.publication_attempts,owner.deliveries);\n     event(p,\"R4_PROCESS_CONTAINMENT_ONLY_NOT_DESTRUCTIVE_TEARDOWN\",0,0,0);return 1;\n }\n"
+    }
+  ],
+  "scope": "REAL_GOVERNED_API3_ACCELERATOR_COMPONENTS_WITH_ISOLATED_ED08_C3_AND_PUBLICATION_FIXTURE; NOT_PRODUCTION_SERVER_OR_C2_WIRE",
+  "R4_class": "CONTROLLED_PROVIDER_BOUNDARY_FAILURE_NOT_NATIVE_WINSOCK",
+  "runtime_qualification": false,
+  "ED11": "PRESERVED_MANAGED_QUALIFIED_TOTAL_OPEN",
+  "preserved_28_runs": [
+    {
+      "id": "normal-debug-positive-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-debug-positive-r2.jsonl",
+      "sha256": "86FC1A69F82E9A7F6ADD3562FF6933A0B853CF96C7B8A69A05EEC951759599E2"
+    },
+    {
+      "id": "normal-debug-local-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-debug-local-r2.jsonl",
+      "sha256": "D2A22B161DA663D12B2AE3179D0C282CBF03DBABE2FF0B70F3078486750B6C98"
+    },
+    {
+      "id": "normal-debug-precondition-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-debug-precondition-r2.jsonl",
+      "sha256": "A190483B3ED252E926B8DBD8F6D6475B4F9BF152FDDE5270BC341E6BC04A945A"
+    },
+    {
+      "id": "normal-debug-cancel-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-debug-cancel-r2.jsonl",
+      "sha256": "595045D8E5872627B7853D8E1BAECDA1C4136834A5E3EE6193CCFDF7AD2E9960"
+    },
+    {
+      "id": "normal-debug-eof-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-debug-eof-r2.jsonl",
+      "sha256": "EF746E61B50638786FD7705F71D1FC59BF744AF9FA6A195659194C41517A45C5"
+    },
+    {
+      "id": "normal-debug-reset-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-debug-reset-r2.jsonl",
+      "sha256": "A1CFB223D8704C247B9AB4A11E46D42BC05F1562FF5A2FCD771478E0D3DD91C4"
+    },
+    {
+      "id": "normal-debug-isolation-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-debug-isolation-r2.jsonl",
+      "sha256": "C7511DA640E4B8F0CB7C2F2D933281F03FA033B6A000BD7B8275AA42C8EECC5F"
+    },
+    {
+      "id": "normal-release-positive-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-release-positive-r2.jsonl",
+      "sha256": "F278FC48B9A8511515E6A0393E1BBAD7AE7FEFCB07044EFB81456EDBD20C39BE"
+    },
+    {
+      "id": "normal-release-local-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-release-local-r2.jsonl",
+      "sha256": "A9B49875E402A16479855793A495BD38431F2A4A47790F6207AA6993B87CC940"
+    },
+    {
+      "id": "normal-release-precondition-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-release-precondition-r2.jsonl",
+      "sha256": "F6EAE560F934E3E7BCBE922FB292ABBB95B8505ACE8FC2AB22180B51288C88F7"
+    },
+    {
+      "id": "normal-release-cancel-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-release-cancel-r2.jsonl",
+      "sha256": "C71430D8DE1600EAEB9B296520A143E52F5B8E39AFC0587AFD10E632A16D68C9"
+    },
+    {
+      "id": "normal-release-eof-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-release-eof-r2.jsonl",
+      "sha256": "D968A38EB6E343D260F37067E03679EB15B1AD271E2F09983EC6AEE73E160474"
+    },
+    {
+      "id": "normal-release-reset-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-release-reset-r2.jsonl",
+      "sha256": "FD01C6BFA46D8004B4A97EE9447FE6700A77C6254472CEF4665B488C5E8A10B8"
+    },
+    {
+      "id": "normal-release-isolation-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\normal-release-isolation-r2.jsonl",
+      "sha256": "C567B2BC707C5AF1C64B4A806028814C6F4044736C455D1E5C91D7C98EB7F36F"
+    },
+    {
+      "id": "combined-debug-positive-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-debug-positive-r2.jsonl",
+      "sha256": "4C757518F6F7A45E6192AE91E05546344EB37BDBA3F495E896EB90239A407AA7"
+    },
+    {
+      "id": "combined-debug-local-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-debug-local-r2.jsonl",
+      "sha256": "B062E416E03E8CA624C38FEC777A70708CD5027C2322AAE579E0CB085C0720CC"
+    },
+    {
+      "id": "combined-debug-precondition-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-debug-precondition-r2.jsonl",
+      "sha256": "A25CFBECEC435FDEADF81BAFDFD7E69D094F23DB5FD962669DB7DED6C79AA09A"
+    },
+    {
+      "id": "combined-debug-cancel-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-debug-cancel-r2.jsonl",
+      "sha256": "5F7958D3EC72E409F3D4B40827EBF946D63CF280B71614DAE2EB082BFB02E2C4"
+    },
+    {
+      "id": "combined-debug-eof-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-debug-eof-r2.jsonl",
+      "sha256": "EE671BDB2F9CA41A2CE3978B415FE01E4F3B5205A8A92F1FB435F660EC0DAA89"
+    },
+    {
+      "id": "combined-debug-reset-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-debug-reset-r2.jsonl",
+      "sha256": "DD89CD3BDD844500873CDB2C2BA42059CD92B2BBB67E06844D8A6C351BE24D99"
+    },
+    {
+      "id": "combined-debug-isolation-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-debug-isolation-r2.jsonl",
+      "sha256": "270803C004469292DEC49E26D76F159B29F19741D8AC2D837A95C1686B52C7CA"
+    },
+    {
+      "id": "combined-release-positive-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-release-positive-r2.jsonl",
+      "sha256": "BCAA65602FA38E1EA24B500F95AC6B34D20D4C3E869444F79755911F14ADA26C"
+    },
+    {
+      "id": "combined-release-local-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-release-local-r2.jsonl",
+      "sha256": "6354B89288FFD2E8F9AE3B8882EFC92F9D8B5B88F2C75D6B258E5E8768EAD88D"
+    },
+    {
+      "id": "combined-release-precondition-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-release-precondition-r2.jsonl",
+      "sha256": "C28E013286A93BD9393F08654D1864D5831683E635567849F71DBE0AD0A47190"
+    },
+    {
+      "id": "combined-release-cancel-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-release-cancel-r2.jsonl",
+      "sha256": "12E35DED3A397B72760767D8EB328470DE369706C81C6A703318E2DC71E8C901"
+    },
+    {
+      "id": "combined-release-eof-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-release-eof-r2.jsonl",
+      "sha256": "14E525550827677AB7BCCF3EB90B6D00C0EC8280B85ED28BD6A01EB4B86D60DE"
+    },
+    {
+      "id": "combined-release-reset-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-release-reset-r2.jsonl",
+      "sha256": "14DED909C659164A291E97DF0B9350DCEC7E6B17909C31326C80881AAF11E9CC"
+    },
+    {
+      "id": "combined-release-isolation-r2",
+      "trace": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-c3-20261012\\runs\\combined-release-isolation-r2.jsonl",
+      "sha256": "388EB12E7194414C953F9B3DEDBE1D6F4233370A983CC241A4975FF06DC3741D"
+    }
+  ],
+  "builds": [
+    {
+      "config": "Debug",
+      "log": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\build-debug-final.log",
+      "sha256": "DDFCEBF501FB39122A74BBDBA74C6D916667B3A9701E7BB24A1F35EFB812A31A",
+      "result": "PASS",
+      "warnings": 0
+    },
+    {
+      "config": "Release",
+      "log": "C:\\Projetos\\PapinhoAccelerator\\build\\ed08-r4-integrated-20261012\\build-release-final.log",
+      "sha256": "EE905C35EEA16BD9D22349B8953272444F55E7195A6FD4BE53D555DFB4EEF418",
+      "result": "PASS",
+      "warnings": 0
+    }
+  ],
+  "normal_private_symbols": "ABSENT_R4_AND_NEED_WRITE_DUMPBIN",
+  "normal_symbol_log_SHA256": "AAA1AA4FAA9BAB502667F0CEC3B7BC9A25FB95F39BDC67384807D10E6614DBBF",
+  "private_gate_header_SHA256": "1CCAF90412306184597719D4A05671ED79D5A475D4784A01841B92D44FC3A7D3",
+  "canonical_patch_SHA256": "1FEBA7627858FFFCBA54165A913CB21DC2F1645CACD6C17A29DDE6D5FAEB19C3",
+  "oracle_authority_SHA256": "153D56EF9C3261C16342593AD615DFBFF88BB0CBAC2EF5091F02A481BA03002B",
+  "negative_matrix": {
+    "wrong_token": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "REAL_PRIVATE_PST_CONTROL"
+    },
+    "stale_generation": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "REAL_PRIVATE_PST_CONTROL"
+    },
+    "non_target_connection": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "REAL_PRIVATE_PST_CONTROL_PLUS_SERVER_DESTROYED"
+    },
+    "repeated_Stop": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "REAL_MANAGER_SHUTDOWN_AND_REMOVE"
+    },
+    "repeated_release": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "REAL_PROCESSOR_GUARD_PLUS_EXPLICIT_RAW_PST_NEGATIVE_NOT_OWNER_RETRY"
+    },
+    "late_callback": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "ISOLATED_PUBLICATION_FIXTURE_NOT_PRODUCTION_G1"
+    },
+    "retained_IO": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "REAL_ADAPTER_PROCESSOR_AND_PUBLIC_PST"
+    },
+    "rebind": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "PUBLIC_PST"
+    },
+    "no_second_close": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "PER_CONNECTION_PRIVATE_PROVIDER_ATTEMPT_COUNTER_AND_PATCH_NATIVE_BYPASS"
+    },
+    "no_post_Stop_publication": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "ISOLATED_FIXTURE_ATTEMPT_ONE_DELIVERY_ZERO"
+    },
+    "no_false_clean": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-r4",
+        "Release-ed08_r4_probe-r4"
+      ],
+      "scope": "REAL_RETAINED_RELEASE_AND_NO_AB_EOF_OR_SEAL"
+    },
+    "gate_OFF": {
+      "integrated_runs": [
+        "Debug-ed08_r4_probe-positive",
+        "Debug-ed08_r4_probe-precondition",
+        "Release-ed08_r4_probe-positive",
+        "Release-ed08_r4_probe-precondition"
+      ],
+      "scope": "SAME_TEST_ONLY_BINARY_UNASSOCIATED_GATE; REAL_DESTROYED_CLEAN_AND_PRECONDITION"
+    }
+  },
+  "WIP_preserved_before_report": true
+}

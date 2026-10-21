@@ -1,0 +1,69 @@
+--- src/config/config_source.c
++++ src/config/config_source.c
+@@ -43,7 +43,7 @@
+ }
+ PC_RESULT pc_parse(const unsigned char *s,size_t n,PC_DOCUMENT *doc,PC_DIAGNOSTIC *d)
+ {
+- size_t i=0U,start,end,pos,j,bad,base=0U;unsigned line=1U,col=1U,cur=PC_NONE,k,len,closed;
++ size_t i=0U,start,end,pos,j,bad,base=0U;unsigned line=1U,col=1U,cur=PAPACC_CONFIG_NO_INDEX,k,len,closed;
+  PC_LINE *r;PC_TOKEN *t;const char *name;PC_RESULT result;
+  if(!doc)return fail(d,PC_INVALID,0U,0U,"workspace required");
+  memset(doc,0,sizeof(*doc));if(d)memset(d,0,sizeof(*d));
+@@ -81,10 +81,10 @@
+   }
+   name=r->tokens[0].text;
+   if(r->tokens[0].quoted)return fail(d,PC_INVALID,line,1U,"quoted directive");
+-  if(!doc->version){if(cur!=PC_NONE||r->count!=2U||!eq(name,"format_version")||r->tokens[1].quoted||!eq(r->tokens[1].text,"1"))return fail(d,PC_INVALID,line,1U,"format_version 1 required first");doc->version=1U;}
++  if(!doc->version){if(cur!=PAPACC_CONFIG_NO_INDEX||r->count!=2U||!eq(name,"format_version")||r->tokens[1].quoted||!eq(r->tokens[1].text,"1"))return fail(d,PC_INVALID,line,1U,"format_version 1 required first");doc->version=1U;}
+   else if(eq(name,"end")){
+-   if(cur==PC_NONE||r->count!=1U)return fail(d,PC_INVALID,line,1U,"unexpected end");doc->blocks[cur].end=doc->line_count;cur=PC_NONE;
+-  }else if(cur==PC_NONE){
++   if(cur==PAPACC_CONFIG_NO_INDEX||r->count!=1U)return fail(d,PC_INVALID,line,1U,"unexpected end");doc->blocks[cur].end=doc->line_count;cur=PAPACC_CONFIG_NO_INDEX;
++  }else if(cur==PAPACC_CONFIG_NO_INDEX){
+    for(k=1U;k<sizeof(kinds)/sizeof(kinds[0]);++k)if(eq(name,kinds[k]))break;
+    if(k<sizeof(kinds)/sizeof(kinds[0])){
+     if(k>5U)return fail(d,PC_UNSUPPORTED,line,1U,"block unsupported in offline slice");
+@@ -95,7 +95,7 @@
+    }else{
+     if(!eq(name,"client_admission")&&!eq(name,"site_tls_admission")&&!eq(name,"ed11_admission")&&!eq(name,"network_egress"))return fail(d,PC_UNKNOWN,line,1U,"unknown or unsupported global");
+     if(r->count!=2U||r->tokens[1].quoted||!eq(r->tokens[1].text,(eq(name,"client_admission")||eq(name,"network_egress"))?"DISABLED":"DENY"))return fail(d,PC_INVALID,line,1U,"negative gate required");
+-    for(j=0U;j<doc->line_count;++j)if(doc->lines[j].block==PC_NONE&&eq(doc->lines[j].tokens[0].text,name))return fail(d,PC_DUPLICATE,line,1U,"duplicate global");
++    for(j=0U;j<doc->line_count;++j)if(doc->lines[j].block==PAPACC_CONFIG_NO_INDEX&&eq(doc->lines[j].tokens[0].text,name))return fail(d,PC_DUPLICATE,line,1U,"duplicate global");
+    }
+   }else{
+    if(!field(doc->blocks[cur].kind,name))return fail(d,PC_UNKNOWN,line,1U,"unknown or unsupported field");
+@@ -103,15 +103,15 @@
+   }
+   ++doc->line_count;++line;
+  }
+- if(cur!=PC_NONE)return fail(d,PC_MISSING,doc->lines[doc->blocks[cur].opener].line,1U,"end required");
++ if(cur!=PAPACC_CONFIG_NO_INDEX)return fail(d,PC_MISSING,doc->lines[doc->blocks[cur].opener].line,1U,"end required");
+  if(!doc->version)return fail(d,PC_MISSING,line,1U,"version absent");
+  result=PC_OK;doc->parsed=1U;return result;
+ }
+ static const PC_LINE *get(const PC_DOCUMENT *d,unsigned b,const char *name)
+ { unsigned i;for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i)if(eq(d->lines[i].tokens[0].text,name))return &d->lines[i];return NULL; }
+ static unsigned ref(const PC_DOCUMENT *d,unsigned kind,const PC_LINE *r)
+-{ unsigned i;if(!r||r->count!=2U||!ident(&r->tokens[1]))return PC_NONE;
+- for(i=0U;i<d->block_count;++i)if(d->blocks[i].kind==kind&&eq(d->lines[d->blocks[i].opener].tokens[1].text,r->tokens[1].text))return i;return PC_NONE; }
++{ unsigned i;if(!r||r->count!=2U||!ident(&r->tokens[1]))return PAPACC_CONFIG_NO_INDEX;
++ for(i=0U;i<d->block_count;++i)if(d->blocks[i].kind==kind&&eq(d->lines[d->blocks[i].opener].tokens[1].text,r->tokens[1].text))return i;return PAPACC_CONFIG_NO_INDEX; }
+ static int strref(const PC_LINE *r){return r&&r->count==2U&&r->tokens[1].quoted&&r->tokens[1].text[0];}
+ static int key(const PC_TOKEN *a,const PC_TOKEN *b,unsigned *v,unsigned *m)
+ {return number(a,3U,v)&&*v>0U&&number(b,2U,m)&&((*v==1U&&(*m==1U||*m==2U))||(*v!=1U&&*m==1U));}
+@@ -150,12 +150,12 @@
+  }
+  for(b=0U;b<d->block_count;++b)if(d->blocks[b].kind==2U){r=&d->lines[d->blocks[b].opener];
+   if(d->listener_count>=target->max_listeners)return fail(diag,PC_LIMIT,r->line,r->tokens[0].column,"target listener capacity");
+-  l=&d->listeners[d->listener_count];memset(l,0,sizeof(*l));l->block=b;l->security=PC_NONE;
++  l=&d->listeners[d->listener_count];memset(l,0,sizeof(*l));l->block=b;l->security=PAPACC_CONFIG_NO_INDEX;
+   l->binding=ref(d,1U,get(d,b,"binding_ref"));l->authentication=ref(d,4U,get(d,b,"authentication_ref"));l->policy=ref(d,5U,get(d,b,"policy_ref"));
+-  if(l->binding==PC_NONE||l->authentication==PC_NONE||l->policy==PC_NONE)return fail(diag,PC_REFERENCE,r->line,r->tokens[0].column,"listener reference unresolved");
++  if(l->binding==PAPACC_CONFIG_NO_INDEX||l->authentication==PAPACC_CONFIG_NO_INDEX||l->policy==PAPACC_CONFIG_NO_INDEX)return fail(diag,PC_REFERENCE,r->line,r->tokens[0].column,"listener reference unresolved");
+   q=get(d,b,"port");if(!q||!number(&q->tokens[1],65535U,&l->port)||!l->port)return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"explicit valid port required");
+   q=get(d,b,"transport");if(!q||q->tokens[1].quoted)return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"explicit profile required");
+-  if(eq(q->tokens[1].text,"SECURE_PRINCIPAL")){l->profile=1U;l->security=ref(d,3U,get(d,b,"channel_tls_ref"));if(l->security==PC_NONE)return fail(diag,PC_REFERENCE,r->line,r->tokens[0].column,"Secure security ref required");}
++  if(eq(q->tokens[1].text,"SECURE_PRINCIPAL")){l->profile=1U;l->security=ref(d,3U,get(d,b,"channel_tls_ref"));if(l->security==PAPACC_CONFIG_NO_INDEX)return fail(diag,PC_REFERENCE,r->line,r->tokens[0].column,"Secure security ref required");}
+   else if(eq(q->tokens[1].text,"LEGACY_ENDPOINT")){if(!target->legacy_supported)return fail(diag,PC_UNSUPPORTED,r->line,r->tokens[0].column,"Legacy unsupported by target");if(get(d,b,"channel_tls_ref"))return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"Legacy forbids channel TLS ref");l->profile=2U;}
+   else return fail(diag,PC_UNSUPPORTED,q->line,q->tokens[0].column,"unknown profile");
+   q=get(d,b,"admission");if(!q||q->tokens[1].quoted||(!eq(q->tokens[1].text,"OPEN")&&!eq(q->tokens[1].text,"CLOSED")))return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"admission required");

@@ -1,0 +1,86 @@
+[
+  {
+    "executable": "papacc_d3_worker_test.exe",
+    "case": "reject",
+    "exit": 0,
+    "stdout": "PASS D3_REJECTIONS SYNTHETIC_CURRENT NO_WORKER NO_NETWORK\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_d3_worker_test.exe",
+    "case": "success",
+    "exit": 0,
+    "stdout": "COMMITTED_RECEIPT_BYTES=128 COPY_SCRATCH=9408 OLD_BEGIN_SCRATCH=10532 EXPLICIT_EPOCH_ABSENCE\nPASS D3_NATIVE_CAS checks=47 mode=success outcome=2 owner=105672 pending=51056 RETAINED_NO_CURRENT_NO_EPOCH SYNTHETIC_CONTEXT NO_NETWORK\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_d3_worker_test.exe",
+    "case": "conflict",
+    "exit": 0,
+    "stdout": "COMMITTED_RECEIPT_BYTES=128 COPY_SCRATCH=9408 OLD_BEGIN_SCRATCH=10532 EXPLICIT_EPOCH_ABSENCE\nPASS D3_NATIVE_CAS checks=41 mode=conflict outcome=3 owner=105672 pending=51056 RETAINED_NO_CURRENT_NO_EPOCH SYNTHETIC_CONTEXT NO_NETWORK\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_d3_worker_test.exe",
+    "case": "unknown",
+    "exit": 0,
+    "stdout": "COMMITTED_RECEIPT_BYTES=128 COPY_SCRATCH=9408 OLD_BEGIN_SCRATCH=10532 EXPLICIT_EPOCH_ABSENCE\nPASS D3_NATIVE_CAS checks=37 mode=unknown outcome=4 owner=105672 pending=51056 RETAINED_NO_CURRENT_NO_EPOCH SYNTHETIC_CONTEXT NO_NETWORK\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_d3_worker_test.exe",
+    "case": "stop",
+    "exit": 0,
+    "stdout": "COMMITTED_RECEIPT_BYTES=128 COPY_SCRATCH=9408 OLD_BEGIN_SCRATCH=10532 EXPLICIT_EPOCH_ABSENCE\nPASS D3_NATIVE_CAS checks=47 mode=stop outcome=5 owner=105672 pending=51056 RETAINED_NO_CURRENT_NO_EPOCH SYNTHETIC_CONTEXT NO_NETWORK\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_issuer_root_store_test.exe",
+    "case": "--codec-only",
+    "exit": 0,
+    "stdout": "CENSUS_OWNER_PRE=13024 POST=105672 DELTA=92648 STAGING=8192 COMMITTED_EXTENSION=8192\nPASS codec_checks=70 owner=105672 storage=16896 model=NATIVE_SHA256_NO_ISSUANCE\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_issuer_root_store_test.exe",
+    "case": "--pending-success",
+    "exit": 0,
+    "stdout": "CENSUS_OWNER_PRE=13024 POST=105672 DELTA=92648 STAGING=8192 COMMITTED_EXTENSION=8192\nPASS pending_checks=99 outcome=2 STOP_NOT_NATIVE_CANCEL UNKNOWN_RETAINED NO_CURRENT_NO_EPOCH NO_NETWORK\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_issuer_root_store_test.exe",
+    "case": "--pending-conflict",
+    "exit": 0,
+    "stdout": "CENSUS_OWNER_PRE=13024 POST=105672 DELTA=92648 STAGING=8192 COMMITTED_EXTENSION=8192\nPASS pending_checks=105 outcome=3 STOP_NOT_NATIVE_CANCEL UNKNOWN_RETAINED NO_CURRENT_NO_EPOCH NO_NETWORK\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_issuer_root_store_test.exe",
+    "case": "--pending-unknown",
+    "exit": 0,
+    "stdout": "CENSUS_OWNER_PRE=13024 POST=105672 DELTA=92648 STAGING=8192 COMMITTED_EXTENSION=8192\nPASS pending_checks=97 outcome=4 STOP_NOT_NATIVE_CANCEL UNKNOWN_RETAINED NO_CURRENT_NO_EPOCH NO_NETWORK\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_issuer_root_store_test.exe",
+    "case": "--pending-stop",
+    "exit": 0,
+    "stdout": "CENSUS_OWNER_PRE=13024 POST=105672 DELTA=92648 STAGING=8192 COMMITTED_EXTENSION=8192\nPASS pending_checks=105 outcome=5 STOP_NOT_NATIVE_CANCEL UNKNOWN_RETAINED NO_CURRENT_NO_EPOCH NO_NETWORK\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_issuer_root_store_test.exe",
+    "case": "--native-snapshots",
+    "exit": 0,
+    "stdout": "CENSUS_OWNER_PRE=13024 POST=105672 DELTA=92648 STAGING=8192 COMMITTED_EXTENSION=8192\nPASS snapshot_checks=117 THREE_IMMUTABLE_GENERATIONS PIN_VALIDATION SLOT_EXHAUSTION STOP_COPY RETAINED_NO_REUSE COMPONENT_ONLY\n",
+    "stderr": ""
+  },
+  {
+    "executable": "papacc_issuer_root_store_test.exe",
+    "case": "--native-history",
+    "exit": 0,
+    "stdout": "CENSUS_OWNER_PRE=13024 POST=105672 DELTA=92648 STAGING=8192 COMMITTED_EXTENSION=8192\nPASS native_component_checks=153 ROOT06=COMMITTED_NOT_NORMATIVE_CURRENT owner=105672 key_operations=NOT_RUN\n",
+    "stderr": ""
+  }
+]

@@ -1,0 +1,223 @@
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "papacc/version.h"
+#include "server_cli.h"
+#include "server_cli_interfaces.h"
+#include "server_console_win32.h"
+#include "server_network.h"
+#include "server_run_win32.h"
+#include "server_application_lifetime_win32.h"
+#include "log.h"
+
+static const char *papacc_server_log_level_name(PAPACC_LOG_LEVEL level)
+{
+    switch (level) {
+    case PAPACC_LOG_TRACE: return "TRACE";
+    case PAPACC_LOG_DEBUG: return "DEBUG";
+    case PAPACC_LOG_INFO: return "INFO";
+    case PAPACC_LOG_WARNING: return "WARN";
+    case PAPACC_LOG_ERROR: return "ERROR";
+    case PAPACC_LOG_LEVEL_OFF: return "OFF";
+    default: return "UNKNOWN";
+    }
+}
+
+static const char *papacc_server_log_component_name(
+    PAPACC_LOG_COMPONENT_ID component)
+{
+    switch (component) {
+    case PAPACC_LOG_COMPONENT_RUNTIME: return "runtime";
+    case PAPACC_LOG_COMPONENT_SERVER: return "server";
+    case PAPACC_LOG_COMPONENT_SERVER_IO_LOOP: return "server-io-loop";
+    default: return "unspecified";
+    }
+}
+
+static void papacc_server_console_log_sink(
+    void *context, const PAPACC_LOG_RECORD *record)
+{
+    FILE *output = (FILE *)context;
+    fprintf(output, "[%s] %s: %s",
+            papacc_server_log_level_name(record->level),
+            papacc_server_log_component_name(record->component_id),
+            record->message);
+    if ((record->context.fields & PAPACC_LOG_CONTEXT_LOCAL_ENDPOINT) != 0)
+        fprintf(output, " local=%s", record->context.local_endpoint);
+    if ((record->context.fields & PAPACC_LOG_CONTEXT_REMOTE_ENDPOINT) != 0)
+        fprintf(output, " remote=%s", record->context.remote_endpoint);
+    fputc('\n', output);
+    (void)fflush(output);
+}
+
+static void papacc_server_print_help(void)
+{
+    puts("PapinhoAccelerator Server");
+    puts("Usage:");
+    puts("  papacc_server.exe --help");
+    puts("  papacc_server.exe --list-interfaces");
+    puts("  papacc_server.exe --port <port> --all-interfaces [--listener-profile legacy-endpoint] [--log-level <level>]");
+    puts("  papacc_server.exe --port <port> --interface-id <id> [--interface-id <id> ...] [--listener-profile legacy-endpoint] [--log-level <level>]");
+    puts("  papacc_server.exe --port <port> <bind-option> --listener-profile secure-principal --security-configuration-ref <reference> [--allow-network-egress --egress-policy-ref <reference> --egress-profile-ref <reference> --outbound-tls-profile-ref <reference>] [--log-level <level>]");
+    puts("Secure Principal lab source environment:");
+    puts("  PAPACC_SECURITY_CONFIGURATION_REF");
+    puts("  PAPACC_SERVER_CERTIFICATE_DER_B64");
+    puts("  PAPACC_SERVER_PRIVATE_KEY_PKCS8_DER_B64");
+    puts("  PAPACC_CLIENT_CA_DER_B64");
+    puts("  PAPACC_ALLOWED_CLIENT_CERT_SHA256");
+    puts("Log levels: off, error, warn, info (default), debug, trace");
+    puts("  off disables all PAPACC_LOGGER output");
+    puts("Example: papacc_server.exe --port 39999 --all-interfaces --log-level info");
+}
+
+static const char *papacc_server_result_name(PAPACC_RESULT result)
+{
+    switch (result) {
+    case PAPACC_RESULT_OK:
+        return "OK";
+    case PAPACC_RESULT_INVALID_ARGUMENT:
+        return "INVALID_ARGUMENT";
+    case PAPACC_RESULT_OUT_OF_MEMORY:
+        return "OUT_OF_MEMORY";
+    case PAPACC_RESULT_NOT_SUPPORTED:
+        return "NOT_SUPPORTED";
+    case PAPACC_RESULT_INVALID_STATE:
+        return "INVALID_STATE";
+    case PAPACC_RESULT_LIMIT_EXCEEDED:
+        return "LIMIT_EXCEEDED";
+    case PAPACC_RESULT_INTERNAL_ERROR:
+        return "INTERNAL_ERROR";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+/* Takes ownership of CLI storage; Server Network retains no config views. */
+static int papacc_server_run(
+    const PAPACC_SERVER_CONFIG *config,
+    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID *cli_id_storage,
+    PAPACC_LOG_LEVEL log_level)
+{
+    static PAPACC_SERVER_CONSOLE_WIN32 console =
+        PAPACC_SERVER_CONSOLE_WIN32_INITIALIZER;
+    static PAPACC_SERVER_NETWORK network = PAPACC_SERVER_NETWORK_INITIALIZER;
+    PAPACC_RESULT result;
+    PAPACC_RESULT uninstall_result;
+    static PAPACC_LOGGER logger;
+    static PAPACC_SERVER_CONFIG owned_config;
+
+    owned_config=*config;config=&owned_config;
+    if (papacc_logger_init(&logger, papacc_server_console_log_sink, stderr,
+                           log_level) != PAPACC_RESULT_OK) {
+        free(cli_id_storage);
+        return 1;
+    }
+
+    result = papacc_server_console_win32_install(&console);
+    if (result != PAPACC_RESULT_OK) {
+        fprintf(stderr, "Console control failed: %s\n",
+                papacc_server_result_name(result));
+        free(cli_id_storage);
+        return 1;
+    }
+    /* Candidate consolidation has no approved operational admission gate.
+     * No listener/native acquisition before factual root and ED11 approval. */
+    result = papacc_application_require_operational_admission();
+    if(result==PAPACC_RESULT_OK)
+        result = papacc_server_network_start(&network, config);
+    if (result != PAPACC_RESULT_OK) {
+        free(cli_id_storage);
+        fprintf(stderr, "Server startup failed: %s\n",
+                papacc_server_result_name(result));
+        papacc_server_network_shutdown(&network);
+        (void)papacc_server_console_win32_uninstall(&console);
+        return 1;
+    }
+
+    result=papacc_application_parent_register(&network,config,&logger);
+    if(result!=PAPACC_RESULT_OK){
+        papacc_server_network_shutdown(&network);
+        (void)papacc_server_console_win32_uninstall(&console);
+        free(cli_id_storage);return 1;
+    }
+    result = papacc_server_run_win32(&network, config, stdout, stderr, &logger);
+    if(papacc_application_lifetime_state()==PAPACC_APPLICATION_RETAINED)
+        return 1; /* Static parents and owned CLI ID view stay intact. */
+    if(papacc_application_logger_seal()!=PAPACC_RESULT_OK){
+        (void)papacc_application_parent_retain();return 1;
+    }
+
+    puts("Stopping PapinhoAccelerator Server...");
+#if defined(PAPACC_ENABLE_CANONICAL_API3_CANDIDATE)
+    if(papacc_server_network_try_shutdown(&network)!=PAPACC_RESULT_OK){
+        (void)papacc_application_parent_retain();return 1;
+    }
+#else
+    papacc_server_network_shutdown(&network);
+#endif
+    uninstall_result = papacc_server_console_win32_uninstall(&console);
+    if (uninstall_result != PAPACC_RESULT_OK) {
+        fprintf(stderr, "Console cleanup failed: %s\n",
+                papacc_server_result_name(uninstall_result));
+        return 1;
+    }
+    free(cli_id_storage);owned_config.bind_selection.interface_persistent_ids=NULL;
+    owned_config.bind_selection.interface_persistent_id_count=0U;
+    puts("Server stopped.");
+    return result == PAPACC_RESULT_OK ? 0 : 1;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc > 1) {
+        PAPACC_SERVER_CLI_REQUEST request =
+            PAPACC_SERVER_CLI_REQUEST_INITIALIZER;
+        PAPACC_NETWORK_INTERFACE_PERSISTENT_ID *id_storage = NULL;
+        PAPACC_SIZE required_ids = 0;
+        PAPACC_RESULT result = papacc_server_cli_request_parse(
+            argc, (const char *const *)argv, NULL, 0, &request,
+            &required_ids);
+
+        if (result == PAPACC_RESULT_LIMIT_EXCEEDED && required_ids != 0) {
+            if (required_ids > SIZE_MAX / sizeof(*id_storage)) {
+                result = PAPACC_RESULT_LIMIT_EXCEEDED;
+            } else {
+                id_storage =
+                    (PAPACC_NETWORK_INTERFACE_PERSISTENT_ID *)malloc(
+                        required_ids * sizeof(*id_storage));
+                if (id_storage == NULL) {
+                    result = PAPACC_RESULT_OUT_OF_MEMORY;
+                } else {
+                    result = papacc_server_cli_request_parse(
+                        argc, (const char *const *)argv, id_storage,
+                        required_ids, &request, &required_ids);
+                }
+            }
+        }
+        if (result != PAPACC_RESULT_OK) {
+            fprintf(stderr, "Invalid server command: %s\n",
+                    papacc_server_result_name(result));
+            free(id_storage);
+            return 1;
+        }
+        if (request.action == PAPACC_SERVER_CLI_ACTION_LIST_INTERFACES) {
+            free(id_storage);
+            return papacc_server_cli_list_interfaces(stdout) == PAPACC_RESULT_OK
+                       ? 0
+                       : 1;
+        }
+        if (request.action == PAPACC_SERVER_CLI_ACTION_HELP) {
+            free(id_storage);
+            papacc_server_print_help();
+            return 0;
+        }
+        return papacc_server_run(
+            &request.config, id_storage, request.log_level);
+    }
+
+    puts("PapinhoAccelerator Server");
+    puts("Foundation build");
+    printf("Software version %s\n", papacc_version_string());
+
+    return 0;
+}

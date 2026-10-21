@@ -1,0 +1,690 @@
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_c2_owner_win32.c.preimage" b/apps/server/server_c2_owner_win32.c
+index ea10f5c..0383ede 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_c2_owner_win32.c.preimage"
++++ b/apps/server/server_c2_owner_win32.c
+@@ -4,6 +4,9 @@
+ #endif
+ #include "pal_time.h"
+ #include <string.h>
++#ifdef PAPACC_ENABLE_CANONICAL_C8_ROOT
++extern PAPACC_RESULT papacc_server_launcher_c2_site_template(const PAPACC_C2_SESSION *,PAPACC_U32,const PST_CONNECTION_CONFIG *,PAPACC_SITE_TLS_CATALOG *);
++#endif
+ #include <stdio.h>
+ /* Diagnostic metadata only: no tokens, payloads or secret principals. */
+ static void causal_observe(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 sid,PAPACC_U64 channel,const char*event,PAPACC_U16 type,PAPACC_U16 fact){
+@@ -486,6 +489,14 @@ static PAPACC_RESULT owner_activate(PAPACC_SERVER_C2_OWNER_WIN32 *o,
+  PST_CONNECTION_CONFIG config;PAPACC_SIZE original,canonical,cursor,end,count=0;
+  PAPACC_BOOL capacity=PAPACC_FALSE;PAPACC_RESULT result;PAPACC_U64 now_ns,now_ms,remaining_ms;
+  if(!o->site_configured)return PAPACC_RESULT_OK; /* Default stays closed. */
++#ifdef PAPACC_ENABLE_CANONICAL_C8_ROOT
++ {
++  PAPACC_SITE_TLS_CATALOG profile;PAPACC_U32 reference;
++  reference=((PAPACC_U32)r->open[28]<<24)|((PAPACC_U32)r->open[29]<<16)|((PAPACC_U32)r->open[30]<<8)|r->open[31];
++  if(papacc_server_launcher_c2_site_template(r->session,reference,&o->site_template,&profile)!=PAPACC_RESULT_OK)
++   return papacc_c2_operation_revoke(o->manager,r,12U);
++ }
++#endif
+  result=o->site_capacity(o->site_capacity_context,sizeof(*o)+sizeof(*o->manager)+
+   2U*sizeof(PAPACC_C3_BRIDGE),&capacity);
+  if(result!=0||!capacity)return papacc_c2_operation_revoke(o->manager,r,12U);
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_config.c.api3.inc.preimage" b/apps/server/server_config.c.api3.inc
+index 1f2308d..5fdcf3a 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_config.c.api3.inc.preimage"
++++ b/apps/server/server_config.c.api3.inc
+@@ -60,6 +60,10 @@ PAPACC_RESULT papacc_server_config_validate(
+     }
+ 
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++    result=papacc_site_tls_catalog_validate(&config->site_tls);
++    if(result!=PAPACC_RESULT_OK)return result;
++    if(config->site_tls.present&&(!config->policy.present||config->policy.representation!=PAPACC_ADMIN_REPRESENTATION_04||
++       config->listener_profile!=PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL))return PAPACC_RESULT_INVALID_STATE;
+     result=papacc_server_policy_validate(config);
+     if(result!=PAPACC_RESULT_OK)return result;
+ #endif
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_config.h.api3.inc.preimage" b/apps/server/server_config.h.api3.inc
+index 5cf3c38..ac9d8cf 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_config.h.api3.inc.preimage"
++++ b/apps/server/server_config.h.api3.inc
+@@ -4,7 +4,8 @@
+ #include "persistent_bind_selection.h"
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ #include "server_policy_model.h"
+-#define PAPACC_SERVER_POLICY_INITIALIZER , PAPACC_ADMIN_POLICY_INITIALIZER
++#include "server_site_tls_profile.h"
++#define PAPACC_SERVER_POLICY_INITIALIZER , PAPACC_ADMIN_POLICY_INITIALIZER, PAPACC_SITE_TLS_CATALOG_INITIALIZER
+ #else
+ #define PAPACC_SERVER_POLICY_INITIALIZER
+ #endif
+@@ -38,6 +39,7 @@ typedef struct PAPACC_SERVER_CONFIG {
+         PAPACC_SERVER_EGRESS_CONFIGURATION_REF_CAPACITY];
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+     PAPACC_ADMIN_POLICY policy;
++    PAPACC_SITE_TLS_CATALOG site_tls;
+ #endif
+ } PAPACC_SERVER_CONFIG;
+ 
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_configuration_body04_win32.inc.preimage" b/apps/server/server_configuration_body04_win32.inc
+index 3b807db..4425b85 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_configuration_body04_win32.inc.preimage"
++++ b/apps/server/server_configuration_body04_win32.inc
+@@ -6,7 +6,7 @@ static int body04_model(const PAPACC_CONFIG_BODY04_VIEW *v)
+ {
+  const PAPACC_ADMIN_POLICY *p;unsigned i;
+  if(!v||!v->base.config.policy.present||v->base.config.policy.representation!=PAPACC_ADMIN_REPRESENTATION_04||v->base.policy_epoch||
+-    !v->base.revision||v->base.predecessor==(PAPACC_U64)-1||
++    v->base.config.site_tls.present||!v->base.revision||v->base.predecessor==(PAPACC_U64)-1||
+     v->base.revision!=v->base.predecessor+1U||
+     store03_zero(v->base.domain,32U)||
+     v->base.config.bind_selection.interface_persistent_id_count>PAPACC_CONFIG_IDS||
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_configuration_commit_win32.c.preimage" b/apps/server/server_configuration_commit_win32.c
+index b1d2991..88ffc5f 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_configuration_commit_win32.c.preimage"
++++ b/apps/server/server_configuration_commit_win32.c
+@@ -88,6 +88,9 @@ static int record_valid(unsigned char *b)
+ #include "server_configuration_body04_win32.h"
+ #include "server_configuration_body04_win32.inc"
+ #include "server_configuration_store04_win32.inc"
++#include "server_configuration_body05_win32.h"
++#include "server_configuration_body05_win32.inc"
++#include "server_configuration_store05_win32.inc"
+ #endif
+ 
+ PAPACC_RESULT papacc_configuration_commit_init(PAPACC_CONFIGURATION_COMMIT *o,const char *path)
+@@ -111,19 +114,20 @@ PAPACC_RESULT papacc_configuration_prepare(PAPACC_CONFIGURATION_COMMIT *o,
+     unsigned i;PAPACC_CONFIG_SLOT *s;PAPACC_U64 current;
+     if(!owner(o)||config==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+     if(papacc_server_config_validate(config)!=PAPACC_RESULT_OK||
+-        ((o->store02==3||o->store02==4)?epoch!=0U:epoch==0U)||
++        ((o->store02==3||o->store02==4||o->store02==5)?epoch!=0U:epoch==0U)||
+         config->bind_selection.interface_persistent_id_count>PAPACC_CONFIG_IDS)
+         return PAPACC_RESULT_INVALID_ARGUMENT;
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+-    if(((o->store02==3||o->store02==4) && !config->policy.present) ||
+-       ((o->store02!=3&&o->store02!=4) && config->policy.present))return PAPACC_RESULT_NOT_SUPPORTED;
+-    if((o->store02==4)!=(config->policy.representation==PAPACC_ADMIN_REPRESENTATION_04))return PAPACC_RESULT_NOT_SUPPORTED;
++    if(((o->store02==3||o->store02==4||o->store02==5) && !config->policy.present) ||
++       ((o->store02!=3&&o->store02!=4&&o->store02!=5) && config->policy.present))return PAPACC_RESULT_NOT_SUPPORTED;
++    if(o->store02!=5&&config->site_tls.present)return PAPACC_RESULT_NOT_SUPPORTED;
++    if((o->store02==4||o->store02==5)!=(config->policy.representation==PAPACC_ADMIN_REPRESENTATION_04))return PAPACC_RESULT_NOT_SUPPORTED;
+ #endif
+     EnterCriticalSection(&o->lock);
+     if(o->prepared||o->committed_pending||o->stopped||o->unresolved||o->recovery_selected){
+         LeaveCriticalSection(&o->lock);return PAPACC_RESULT_INVALID_STATE;}
+     current=o->published?o->slots[o->current].view.revision:0U;
+-    if(o->store02 && current>=((o->store02==3||o->store02==4)?4U:STORE02_CAP)){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_LIMIT_EXCEEDED;}
++    if(o->store02 && current>=((o->store02==3||o->store02==4||o->store02==5)?4U:STORE02_CAP)){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_LIMIT_EXCEEDED;}
+     if((o->published && epoch<o->slots[o->current].view.policy_epoch)||
+         expected!=current||expected==(PAPACC_U64)-1||o->next_serial==(PAPACC_U64)-1){
+         LeaveCriticalSection(&o->lock);return PAPACC_RESULT_INVALID_STATE;}
+@@ -168,7 +172,8 @@ PAPACC_RESULT papacc_configuration_commit(PAPACC_CONFIGURATION_COMMIT *o)
+     if(ok&&o->store02){
+         ok=GetFileInformationByHandle(file,&info)!=0;
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+-        if(ok&&o->store02==4)ok=store04_append(o,&o->slots[o->pending].view,&info,next);
++        if(ok&&o->store02==5)ok=store05_append(o,&o->slots[o->pending].view,&info,next);
++        else if(ok&&o->store02==4)ok=store04_append(o,&o->slots[o->pending].view,&info,next);
+         else if(ok&&o->store02==3)ok=store03_append(o,&o->slots[o->pending].view,&info,next);
+         else
+ #endif
+@@ -287,7 +292,8 @@ PAPACC_RESULT papacc_configuration_recovery_inspect(PAPACC_CONFIGURATION_COMMIT
+     if(!ok)return PAPACC_RESULT_INVALID_STATE;
+     if(!o->store02)return record_valid(b)?PAPACC_RESULT_NOT_SUPPORTED:PAPACC_RESULT_INVALID_STATE;
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+-    if(o->store02==4){if(!store04_select(b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
++    if(o->store02==5){if(!store05_select(b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
++    else if(o->store02==4){if(!store04_select(b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
+     else if(o->store02==3){if(!store03_select(b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
+     else
+ #endif
+@@ -316,6 +322,10 @@ PAPACC_RESULT papacc_configuration_recovered_copy(PAPACC_CONFIGURATION_COMMIT *o
+ }
+ 
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++PAPACC_RESULT papacc_configuration_commit_init05(PAPACC_CONFIGURATION_COMMIT *o,const char *path)
++{PAPACC_RESULT r=papacc_configuration_commit_init(o,path);if(r==PAPACC_RESULT_OK)o->store02=5;return r;}
++PAPACC_RESULT papacc_configuration_prepare05(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_SERVER_CONFIG *c,PAPACC_U64 expected)
++{if(o==NULL||o->store02!=5||!c||!c->site_tls.present)return PAPACC_RESULT_INVALID_STATE;return papacc_configuration_prepare(o,c,expected,0U);}
+ PAPACC_RESULT papacc_configuration_commit_init04(PAPACC_CONFIGURATION_COMMIT *o,const char *path)
+ {PAPACC_RESULT r=papacc_configuration_commit_init(o,path);if(r==PAPACC_RESULT_OK)o->store02=4;return r;}
+ PAPACC_RESULT papacc_configuration_recovery_init04(PAPACC_CONFIGURATION_COMMIT *o,const char *path)
+@@ -331,3 +341,4 @@ PAPACC_RESULT papacc_configuration_prepare03(PAPACC_CONFIGURATION_COMMIT *o,cons
+ #include "server_configuration_restart_win32.inc"
+ #include "server_configuration_restart04_win32.inc"
+ #endif
++
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_configuration_commit_win32.h.preimage" b/apps/server/server_configuration_commit_win32.h
+index a1b61d0..3dee98b 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_configuration_commit_win32.h.preimage"
++++ b/apps/server/server_configuration_commit_win32.h
+@@ -79,6 +79,9 @@ typedef struct PAPACC_NORMAL_RESTART_WITNESS {
+ PAPACC_RESULT papacc_configuration_recovery_guard03(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_NORMAL_RESTART_WITNESS *);
+ PAPACC_RESULT papacc_configuration_recovery_validate03(PAPACC_CONFIGURATION_COMMIT *);
+ PAPACC_RESULT papacc_configuration_recovery_publish03(PAPACC_CONFIGURATION_COMMIT *);
++/* Explicit BODY0.5 catalog profile; no old-format promotion. */
++PAPACC_RESULT papacc_configuration_commit_init05(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_prepare05(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SERVER_CONFIG *,PAPACC_U64);
+ /* Explicit typed0.4 profile;0.2/0.3 entry points remain strict. */
+ PAPACC_RESULT papacc_configuration_commit_init04(PAPACC_CONFIGURATION_COMMIT *,const char *);
+ PAPACC_RESULT papacc_configuration_recovery_init04(PAPACC_CONFIGURATION_COMMIT *,const char *);
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_configuration_root_transaction_win32.inc.preimage" b/apps/server/server_configuration_root_transaction_win32.inc
+index 85184fd..2b6b0c1 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_configuration_root_transaction_win32.inc.preimage"
++++ b/apps/server/server_configuration_root_transaction_win32.inc
+@@ -43,10 +43,12 @@ PAPACC_RESULT papacc_server_launcher_configuration_transaction_prepare_store(
+  if(expected||o->configuration_commit.initialized||t->normative_committed||!t->dormant_applied||
+     papacc_server_c2_configuration_validate(&configuration_c2_owner)!=PAPACC_RESULT_OK)
+   return PAPACC_RESULT_INVALID_STATE;
+- result=t->model.config.policy.representation==PAPACC_ADMIN_REPRESENTATION_04?
++ result=t->model.config.site_tls.present?papacc_configuration_commit_init05(&o->configuration_commit,path):
++ t->model.config.policy.representation==PAPACC_ADMIN_REPRESENTATION_04?
+   papacc_configuration_commit_init04(&o->configuration_commit,path):papacc_configuration_commit_init03(&o->configuration_commit,path);
+  if(result!=PAPACC_RESULT_OK)return result;
+- result=t->model.config.policy.representation==PAPACC_ADMIN_REPRESENTATION_04?
++ result=t->model.config.site_tls.present?papacc_configuration_prepare05(&o->configuration_commit,&t->model.config,expected):
++ t->model.config.policy.representation==PAPACC_ADMIN_REPRESENTATION_04?
+   papacc_configuration_prepare04(&o->configuration_commit,&t->model.config,expected):papacc_configuration_prepare03(&o->configuration_commit,&t->model.config,expected);
+  if(result!=PAPACC_RESULT_OK){
+   if(papacc_configuration_stop(&o->configuration_commit)==PAPACC_RESULT_OK&&
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_launcher_owner_win32.c.preimage" b/apps/server/server_launcher_owner_win32.c
+index d526004..0aa744f 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_launcher_owner_win32.c.preimage"
++++ b/apps/server/server_launcher_owner_win32.c
+@@ -924,3 +924,48 @@ PAPACC_BOOL papacc_server_launcher_owns_listener(const PAPACC_TCP_SOCKET_WIN32 *
+  return PAPACC_FALSE;
+ }
+ #endif
++
++/* Same root/current authority, not a second resolver/provider. */
++static int site_alias(const PAPACC_SITE_TLS_CATALOG *out,const void *object,PAPACC_SIZE size)
++{
++ ULONG_PTR a=(ULONG_PTR)out,b=(ULONG_PTR)object;
++ return a<=b?b-a<sizeof(*out):a-b<size;
++}
++PAPACC_RESULT papacc_server_launcher_site_profile(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,
++ const PAPACC_ROOT_CURRENT_PIN *pin,PAPACC_U32 ref,PAPACC_U64 revision,PAPACC_SITE_TLS_CATALOG *out)
++{
++ FILETIME ft;ULARGE_INTEGER time;
++ if(!out||(site_alias(out,&root,sizeof(root))||site_alias(out,&configuration_c2_owner,sizeof(configuration_c2_owner))||site_alias(out,&configuration_c2_participant,sizeof(configuration_c2_participant)))||(pin&&site_alias(out,pin,sizeof(*pin))))return PAPACC_RESULT_INVALID_ARGUMENT;memset(out,0,sizeof(*out));
++ if(!preparation_owned(o)||!pin||!papacc_server_launcher_configuration_current(o,pin)||
++ !o->configuration_preparation.normative_committed||!o->configuration_preparation.administrative_published||
++ !pin->epoch||pin->epoch!=o->configuration_preparation.current_policy_epoch||
++ memcmp(&pin->view.config.site_tls,&o->config.site_tls,sizeof(o->config.site_tls)))
++ return PAPACC_RESULT_INVALID_STATE;
++ GetSystemTimeAsFileTime(&ft);time.LowPart=ft.dwLowDateTime;time.HighPart=ft.dwHighDateTime;
++ return papacc_site_tls_catalog_select(&pin->view.config.site_tls,ref,revision,time.QuadPart/10000U,out);
++}
++PAPACC_RESULT papacc_server_launcher_c2_site_template(const PAPACC_C2_SESSION *session,
++ PAPACC_U32 ref,const PST_CONNECTION_CONFIG *config,PAPACC_SITE_TLS_CATALOG *out)
++{
++ PAPACC_RESULT r;
++ if(!out||(site_alias(out,&root,sizeof(root))||site_alias(out,&configuration_c2_owner,sizeof(configuration_c2_owner))||site_alias(out,&configuration_c2_participant,sizeof(configuration_c2_participant))))return PAPACC_RESULT_INVALID_ARGUMENT;
++ if((session&&site_alias(out,session,sizeof(*session)))||(config&&site_alias(out,config,sizeof(*config))))return PAPACC_RESULT_INVALID_ARGUMENT;
++ memset(out,0,sizeof(*out));
++ if(!session||!config||!papacc_server_launcher_c2_session_current(session))return PAPACC_RESULT_INVALID_STATE;
++ r=papacc_server_launcher_site_profile(&root,&root.listener_composition.pin,ref,
++ root.config.site_tls.revision,out);
++ if(r!=PAPACC_RESULT_OK)return r;
++ /* No arbitrary or borrowed trust can be promoted to approved SYSTEM trust.
++  * Operational preparation must materialize this root-owned lease before use. */
++ if(!root.pst_system_trust||root.pst_trust_source.kind!=PST_TRUST_SOURCE_SYSTEM||
++ root.pst_trust_source.anchors||root.pst_trust_source.anchor_count||config->peer_authentication.trust!=root.pst_system_trust||
++ config->role!=PST_CONNECTION_ROLE_CLIENT||config->peer_authentication.certificate_mode!=PST_PEER_CERTIFICATE_REQUIRED||
++ config->local_identity.credentials||config->tls.minimum_version!=PST_TLS_VERSION_1_3||
++ config->tls.maximum_version!=PST_TLS_VERSION_1_3||
++ config->tls.resumption!=PST_FEATURE_DISABLED||config->tls.early_data!=PST_FEATURE_DISABLED){
++ memset(out,0,sizeof(*out));return PAPACC_RESULT_INVALID_STATE;}
++ /* Existing application/ED11 admission boundary stays closed in this slice. */
++ r=papacc_application_require_operational_admission();
++ if(r!=PAPACC_RESULT_OK)memset(out,0,sizeof(*out));
++ return r;
++}
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_launcher_owner_win32.h.preimage" b/apps/server/server_launcher_owner_win32.h
+index febeedb..7515061 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\apps__server__server_launcher_owner_win32.h.preimage"
++++ b/apps/server/server_launcher_owner_win32.h
+@@ -309,6 +309,12 @@ PAPACC_RESULT papacc_server_launcher_configuration_transaction_prepare_store(PAP
+ PAPACC_RESULT papacc_server_launcher_configuration_transaction_publish(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
+ PAPACC_RESULT papacc_server_launcher_configuration_transaction_abort(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
+ PAPACC_RESULT papacc_server_launcher_configuration_transaction_close(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
++/* Administrative read-only metadata; this never grants operational authority. */
++PAPACC_RESULT papacc_server_launcher_site_profile(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,
++ const PAPACC_ROOT_CURRENT_PIN *,PAPACC_U32,PAPACC_U64,PAPACC_SITE_TLS_CATALOG *);
++struct PAPACC_C2_SESSION;
++PAPACC_RESULT papacc_server_launcher_c2_site_template(const struct PAPACC_C2_SESSION *,
++ PAPACC_U32,const PST_CONNECTION_CONFIG *,PAPACC_SITE_TLS_CATALOG *);
+ /* Reader calls use the existing commit lock and full scoped identity. Caller
+  * must establish thread/callback quiescence before final owner finish. */
+ PAPACC_RESULT papacc_server_launcher_configuration_current_pin(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_ROOT_CURRENT_PIN*);
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\CMakeLists.txt.preimage" b/CMakeLists.txt
+index 7feb44b..f7adfcb 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\CMakeLists.txt.preimage"
++++ b/CMakeLists.txt
+@@ -2507,6 +2507,7 @@ if(PAPACC_ENABLE_CANONICAL_C8_ROOT)
+     add_compile_definitions(
+       "$<$<NOT:$<BOOL:$<TARGET_PROPERTY:PAPACC_STANDALONE_SOCKET_FIXTURE>>>:PAPACC_ENABLE_CANONICAL_C8_ROOT=1>"
+       "$<$<NOT:$<BOOL:$<TARGET_PROPERTY:PAPACC_STANDALONE_SOCKET_FIXTURE>>>:PAPACC_C8_PRIVATE_STORAGE_PROFILE=1>")
++    target_sources(papacc_server_config PRIVATE apps/server/server_site_tls_profile.c)
+     add_library(papacc_configuration_commit STATIC apps/server/server_configuration_commit_win32.c)
+     target_include_directories(papacc_configuration_commit PUBLIC ${PAPACC_GRAPH_INCLUDE_DIRS})
+     target_link_libraries(papacc_configuration_commit PUBLIC papacc_server_config bcrypt ktmw32)
+@@ -2548,3 +2549,9 @@ if(PAPACC_ENABLE_CANONICAL_C8_ROOT AND BUILD_TESTING)
+  target_link_libraries(papacc_socket_retention_offline_test PRIVATE papacc_server_run_win32)
+  target_link_libraries(papacc_c2_core_empty_offline_test PRIVATE papacc_server_run_win32)
+ endif()
++
++if(PAPACC_ENABLE_CANONICAL_C8_ROOT AND BUILD_TESTING)
++ add_executable(papacc_site_tls_catalog_offline_test tests/site_tls_catalog_offline_test.c)
++ target_link_libraries(papacc_site_tls_catalog_offline_test PRIVATE papacc_configuration_commit)
++ target_compile_options(papacc_site_tls_catalog_offline_test PRIVATE /W4 /WX)
++endif()
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\docs__capabilities__canonical-phase6-consolidation.md.preimage" b/docs/capabilities/canonical-phase6-consolidation.md
+index 6a700ca..62e8fe9 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\docs__capabilities__canonical-phase6-consolidation.md.preimage"
++++ b/docs/capabilities/canonical-phase6-consolidation.md
+@@ -6,10 +6,12 @@ Produção PST0.6.4/API2 permanece separada do candidato normal0.6.5/API3/SPI4 e
+ 
+ O novo perfil opt-in PAPACC_ENABLE_CANONICAL_C8_ROOT incorpora uma root durável e reutiliza o participante C2 canônico, com material/leases Secure, configuração BODY0.4, commit local e CURRENT/epoch pós-commit. Debug/Release compilam com zero warnings finais. Quatorze execuções offline finais passaram: transação real local (commit/abort), retenção sem reuso, censo, manager vazio e fixtures sintéticas de ownership/Stop.
+ 
+-O layout gerenciado declarado soma1537992 bytes. O caso offline registrou reserva combinada1794899, limite2097152 inalterado. Provider/kernel continuam UNKNOWN; ED11 total PARTIAL. Isso não comprova capacidade física ou admissão operacional.
++O layout gerenciado declarado soma1539192 bytes. O caso offline registrou reserva combinada1796899, limite2097152 inalterado. Provider/kernel continuam UNKNOWN; ED11 total PARTIAL. Isso não comprova capacidade física ou admissão operacional.
+ 
+ Hooks privados C2/CONTROL/roles e root binding foram incorporados e compilados. Attachment positivo cria wait-set/wake TCP e não foi executado. Startup continua negado; dispatch operacional C2/C3 e qualificação conjunta ainda não estão concluídos.
+ 
+-MODE_C_SITE_TLS_CATALOG=NOT_ESTABLISHED. C2§7 requer perfil aprovado; templates S6 e resolver Network Egress não suprem essa autoridade. Site TLS permanece DENY. Nenhuma Session/Principal/grant factual foi fabricado. Preservados Model E, ED08 e fronteiras de fechamento factual, sem qualificação nativa nova de rede.
++MODE_C_SITE_TLS_CATALOG=ADMINISTRATIVE_AUTHORITY_ACCEPTED. A decisão mode-c-site-tls-profile-authority-20261018 registra a autoridade administrativa existente. Catálogo privado BODY0.5 e binding CURRENT/revisão/epoch foram integrados; templates S6 e Network Egress não fornecem autoridade. Site TLS permanece DENY. Nenhuma Session/Principal/grant factual foi fabricado. Preservados Model E, ED08 e fronteiras de fechamento factual, sem qualificação nativa nova de rede.
+ 
+ [Closeout atual e limites](../integration/canonical-root-c2-c3-wiring-20261018/closeout.md) · [Slice anterior de socket ownership](../integration/canonical-socket-ownership-20261018/closeout.md). Nenhuma alteração PST, Browser, wire ou pin; PST0.6.5 só será publicado após o fechamento integral da Phase6. A direção futura de egress/policy não foi transformada em autoridade Site TLS.
++
++Atualização Site TLS: [closeout](../integration/mode-c-site-tls-authority-20261018/closeout.md). Builds isolados Debug/Release sem warnings e22 execuções offline finais passaram. Known managed1539192, reserva do caso1796899, limite2097152 inalterado. O dispatch continua parcial; ALPN/quotas/leases operacionais e trust Site deverão ser aplicados antes de habilitação. Nenhuma Session/TLS foi qualificada.
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\docs__capabilities__tls-offload.md.preimage" b/docs/capabilities/tls-offload.md
+index eb057b5..cdca8e5 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\docs__capabilities__tls-offload.md.preimage"
++++ b/docs/capabilities/tls-offload.md
+@@ -484,3 +484,7 @@ aplicacao; `tls-clean-close` mantem shutdown autenticado. A fixture nao usa
+ ## Consolidação canônica — 2026-10-18
+ 
+ O estado incremental de fontes, Model E, builds normais API3/API2 e limites de qualificação está registrado em [consolidação canônica Phase6](canonical-phase6-consolidation.md). Componentes C2/C3 compilados não equivalem a Site TLS operacional ou root CURRENT. A admissão do candidato permanece negada.
++
++## Mode C — autoridade administrativa em 2026-10-18
++
++[Decisão accepted](../adr/DECISION-mode-c-site-tls-profile-authority-20261018.md) separa Site TLS de canal mTLS e Network Egress. O catálogo inicial bounded usa o Configuration Model/root existentes e persistência BODY0.5 explícita. [Evidências e limites](../integration/mode-c-site-tls-authority-20261018/closeout.md): Debug/Release e22 execuções offline passaram; gate C3 permanece DENY, sem TLS/Session/rede ou qualificação operacional. CUSTOM não suportado é rejeitado. Isso não amplia os escopos históricos Mode B/S6.
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\docs__future__network-egress-policy.md.preimage" b/docs/future/network-egress-policy.md
+index af95137..0208c86 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\docs__future__network-egress-policy.md.preimage"
++++ b/docs/future/network-egress-policy.md
+@@ -613,3 +613,7 @@ Egress Policy decides whether a particular operation is allowed in
+ context; Egress Profile decides how an allowed outbound connection is
+ executed. None of these turns PapinhoAccelerator into a generic firewall
+ or router.**
++
++### Realização parcial — Site TLS Mode C, 2026-10-18
++
++A [decisão accepted de autoridade administrativa](../adr/DECISION-mode-c-site-tls-profile-authority-20261018.md) designa a configuração existente do Accelerator para perfis Site TLS Mode C. A [implementação privada inicial](../integration/mode-c-site-tls-authority-20261018/closeout.md) persiste catálogo versionado e vincula referência a CURRENT/revisão/epoch. Não usa Network Egress como autoridade, não altera regras futuras de destinos e não habilita admissão. Aplicação operacional no dispatch e qualificação nativa permanecem pendentes.
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\tests__canonical_root_transaction_test.c.preimage" b/tests/canonical_root_transaction_test.c
+index d95ac99..bef42de 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-site-tls-authority-20261018\\tests__canonical_root_transaction_test.c.preimage"
++++ b/tests/canonical_root_transaction_test.c
+@@ -15,7 +15,9 @@ int main(int argc,char **argv)
+  PAPACC_NETWORK_DISCOVERY_SNAPSHOT snapshot;PAPACC_SIZE ir,ar,pr;
+  PAPACC_ROOT_CURRENT_PIN pin;PAPACC_RESULT result;unsigned checks=0,i;
+  char path[MAX_PATH],relative[MAX_PATH];PAPACC_BOOL abort_case=argc>1&&!strcmp(argv[1],"abort");
+- PAPACC_BOOL retain_case=argc>1&&!strcmp(argv[1],"retain");
++ PAPACC_BOOL retain_case=argc>1&&(!strcmp(argv[1],"retain")||!strcmp(argv[1],"catalog-retain"));
++ PAPACC_BOOL catalog_case=argc>1&&(!strncmp(argv[1],"catalog",7));
++ PAPACC_SITE_TLS_CATALOG selected;FILETIME ft;ULARGE_INTEGER clock;
+  config.control_port=4433U;config.listener_profile=PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL;
+  config.bind_selection.mode=PAPACC_BIND_SELECTION_ALL_INTERFACES;
+  config.security_configuration_ref_valid=PAPACC_TRUE;config.security_configuration_ref_length=15U;
+@@ -25,11 +27,21 @@ int main(int argc,char **argv)
+  config.policy.enabled_count=2;config.policy.rule_count=2;
+  for(i=0;i<2;++i){config.policy.enabled[i].id=2U+i;config.policy.enabled[i].major=1;
+  config.policy.rules[i].key=config.policy.enabled[i];config.policy.rules[i].action=PAPACC_ADMIN_POLICY_DENY;}
++ if(catalog_case){
++ PAPACC_SITE_TLS_CATALOG *c=&config.site_tls;memset(c,0,sizeof(*c));
++ GetSystemTimeAsFileTime(&ft);clock.LowPart=ft.dwLowDateTime;clock.HighPart=ft.dwHighDateTime;
++ c->present=c->version=c->trust_system=c->hostname_required=c->sni_required=c->tls13_only=1;
++ c->identity[0]=1;c->profile_identity[0]=2;c->administrative_origin[0]=3;
++ c->revision=c->profile_revision=1;c->reference=7;c->max_concurrent=1;
++ c->not_before_utc_ms=clock.QuadPart/10000U-1000U;c->expires_utc_ms=clock.QuadPart/10000U+60000U;
++ c->max_bytes=65536;c->max_duration_ms=1000;c->alpn_length=9;c->alpn[0]=8;memcpy(c->alpn+1,"http/1.1",8);
++ }
+  CHECK(papacc_server_config_validate(&config)==PAPACC_RESULT_OK);
+  CHECK(papacc_server_launcher_owner_acquire(&network,&config,&logger,&o)==PAPACC_RESULT_OK);
+  t=&o->configuration_preparation;memset(&pin,0,sizeof(pin));
+  CHECK(papacc_server_launcher_configuration_current_pin(o,&pin)!=PAPACC_RESULT_OK&&!pin.epoch);
+  CHECK(papacc_server_launcher_configuration_transaction_publish(o)!=PAPACC_RESULT_OK);
++ CHECK(papacc_server_launcher_site_profile(o,&pin,7,1,&selected)!=PAPACC_RESULT_OK);
+  CHECK(papacc_server_launcher_configuration_apply_dormant(o)!=PAPACC_RESULT_OK);
+  CHECK(SetEnvironmentVariableA("PAPACC_SECURITY_CONFIGURATION_REF","offline-runtime"));
+  CHECK(SetEnvironmentVariableA("PAPACC_SERVER_CERTIFICATE_DER_B64","tests/fixtures/security/server.der.b64"));
+@@ -53,10 +65,23 @@ int main(int argc,char **argv)
+  printf("COMBINED_RESERVED=%llu MATERIAL_CREDIT=%llu RUNTIME_CREDIT=%llu\n",(unsigned long long)t->combined_reserved,(unsigned long long)t->material_credit,(unsigned long long)t->runtime_credit);
+  CHECK(t->combined_reserved<=2097152U);
+  CHECK(papacc_server_launcher_configuration_transaction_publish(o)!=PAPACC_RESULT_OK);
++ CHECK(papacc_server_launcher_site_profile(o,&pin,7,1,&selected)!=PAPACC_RESULT_OK);
+  sprintf_s(relative,sizeof(relative),"build/phase6-canonical-consolidation-20261018/root-tx-%lu-%s.bin",GetCurrentProcessId(),abort_case?"abort":"commit");
+  CHECK(GetFullPathNameA(relative,sizeof(path),path,NULL)>0U);
+  CHECK(GetFileAttributesA(path)==INVALID_FILE_ATTRIBUTES&&GetLastError()==ERROR_FILE_NOT_FOUND);
+  CHECK(papacc_server_launcher_configuration_transaction_prepare_store(o,path,0)==PAPACC_RESULT_OK);
++ if(argc>1&&!strcmp(argv[1],"catalog-fail")){
++ HANDLE collision=CreateFileA(path,GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);DWORD n;
++ CHECK(collision!=INVALID_HANDLE_VALUE);
++ CHECK(WriteFile(collision,"COMMIT_COLLISION_ONLY",21,&n,NULL)&&n==21&&CloseHandle(collision));
++ CHECK(papacc_server_launcher_configuration_transaction_commit(o)!=PAPACC_RESULT_OK);
++ CHECK(!t->normative_committed&&!t->current_policy_epoch&&!t->administrative_published);
++ CHECK(papacc_server_launcher_configuration_transaction_publish(o)!=PAPACC_RESULT_OK);
++ CHECK(papacc_server_launcher_site_profile(o,&pin,7,1,&selected)!=PAPACC_RESULT_OK);
++ CHECK(papacc_server_launcher_configuration_transaction_abort(o)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)==PAPACC_RESULT_OK);
++ printf("PASS case=commit_collision checks=%u NO_NETWORK NO_ADMISSION\n",checks);return 0;
++ }
+  if(abort_case){
+  CHECK(papacc_server_launcher_configuration_transaction_abort(o)==PAPACC_RESULT_OK);
+  CHECK(GetFileAttributesA(path)==INVALID_FILE_ATTRIBUTES);
+@@ -65,12 +90,26 @@ int main(int argc,char **argv)
+  printf("NATIVE_LOCAL_COMMIT_RESULT=%d\n",(int)result);
+  CHECK(result==PAPACC_RESULT_OK);
+  CHECK(t->normative_committed&&!t->current_policy_epoch&&!t->administrative_published);
++ if(catalog_case)CHECK(!memcmp(&o->configuration_commit.slots[o->configuration_commit.pending].view.config.site_tls,&config.site_tls,sizeof(config.site_tls)));
+  CHECK(GetFileAttributesA(path)!=INVALID_FILE_ATTRIBUTES);
+  CHECK(papacc_server_launcher_configuration_current_pin(o,&pin)!=PAPACC_RESULT_OK);
+  CHECK(papacc_server_launcher_configuration_transaction_publish(o)==PAPACC_RESULT_OK);
+  CHECK(t->current_policy_epoch&&t->administrative_published);
+  CHECK(papacc_server_launcher_configuration_current_pin(o,&pin)==PAPACC_RESULT_OK);
+  CHECK(papacc_server_launcher_configuration_current(o,&pin));
++ if(catalog_case){
++ PAPACC_ROOT_CURRENT_PIN wrong=pin;
++ CHECK(o->configuration_commit.store02==5);
++ CHECK(papacc_server_launcher_site_profile(o,&pin,7,1,&selected)==PAPACC_RESULT_OK&&selected.profile_identity[0]==2);
++ CHECK(!memcmp(&selected,&config.site_tls,sizeof(selected)));
++ CHECK(papacc_server_launcher_site_profile(o,&pin,7,1,&o->config.site_tls)==PAPACC_RESULT_INVALID_ARGUMENT);
++ CHECK(!memcmp(&o->config.site_tls,&config.site_tls,sizeof(config.site_tls)));
++ CHECK(papacc_server_launcher_site_profile(o,&pin,8,1,&selected)!=PAPACC_RESULT_OK);
++ CHECK(papacc_server_launcher_site_profile(o,&pin,7,2,&selected)!=PAPACC_RESULT_OK);
++ wrong.epoch^=1;
++ CHECK(papacc_server_launcher_site_profile(o,&wrong,7,1,&selected)!=PAPACC_RESULT_OK);
++ CHECK(papacc_server_launcher_c2_site_template(NULL,7,NULL,&selected)!=PAPACC_RESULT_OK);
++ }
+  CHECK(papacc_server_launcher_listener_publication_preflight(o)!=PAPACC_RESULT_OK);
+  CHECK(!o->network.is_active&&!o->io_loop.initialized&&!o->secure_io.initialized);
+  if(retain_case){
+@@ -89,6 +128,3 @@ int main(int argc,char **argv)
+  printf("PASS checks=%u case=%s NO_NETWORK NO_AUTHENTICATION NO_ADMISSION\n",checks,abort_case?"abort":"commit");
+  return 0;
+ }
+-
+-
+-
+diff --git a/apps/server/server_site_tls_profile.h b/apps/server/server_site_tls_profile.h
+new file mode 100644
+--- /dev/null
++++ b/apps/server/server_site_tls_profile.h
+@@ -0,0 +1,16 @@
++#ifndef PAPACC_SERVER_SITE_TLS_PROFILE_H
++#define PAPACC_SERVER_SITE_TLS_PROFILE_H
++#include "papacc/types.h"
++/* One administrative profile per current configuration. No dynamic registry. */
++typedef struct PAPACC_SITE_TLS_CATALOG {
++ PAPACC_U32 present,version,reference,trust_system,hostname_required,sni_required,tls13_only,revoked;
++ PAPACC_U8 identity[16],profile_identity[16],administrative_origin[16];
++ PAPACC_U64 revision,profile_revision,not_before_utc_ms,expires_utc_ms;
++ PAPACC_U64 max_bytes,max_duration_ms;
++ PAPACC_U32 max_concurrent,alpn_length;
++ PAPACC_U8 alpn[64]; /* exact vector of [length, opaque protocol], no wildcard */
++} PAPACC_SITE_TLS_CATALOG;
++#define PAPACC_SITE_TLS_CATALOG_INITIALIZER {0}
++PAPACC_RESULT papacc_site_tls_catalog_validate(const PAPACC_SITE_TLS_CATALOG *);
++PAPACC_RESULT papacc_site_tls_catalog_select(const PAPACC_SITE_TLS_CATALOG *,PAPACC_U32,PAPACC_U64,PAPACC_U64,PAPACC_SITE_TLS_CATALOG *);
++#endif
+diff --git a/apps/server/server_site_tls_profile.c b/apps/server/server_site_tls_profile.c
+new file mode 100644
+--- /dev/null
++++ b/apps/server/server_site_tls_profile.c
+@@ -0,0 +1,39 @@
++#include "server_site_tls_profile.h"
++#include <string.h>
++#include <stdint.h>
++static int nonzero(const PAPACC_U8 *p,PAPACC_SIZE n){PAPACC_U8 v=0;while(n--)v|=*p++;return v!=0;}
++PAPACC_RESULT papacc_site_tls_catalog_validate(const PAPACC_SITE_TLS_CATALOG *c)
++{
++ PAPACC_SIZE i,j,n,start;
++ if(!c)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(!c->present){
++  const PAPACC_U8 *b=(const PAPACC_U8 *)c;
++  return nonzero(b,sizeof(*c))?PAPACC_RESULT_INVALID_STATE:PAPACC_RESULT_OK;
++ }
++ if(c->present!=1||c->version!=1||c->trust_system!=1||c->hostname_required!=1||
++ c->sni_required!=1||c->tls13_only!=1||c->revoked>1||!c->revision||!c->profile_revision||
++ !nonzero(c->identity,16)||!nonzero(c->profile_identity,16)||!nonzero(c->administrative_origin,16)||
++ c->expires_utc_ms<=c->not_before_utc_ms||!c->max_bytes||!c->max_duration_ms||
++ !c->max_concurrent||c->max_concurrent>2||!c->alpn_length||c->alpn_length>64)
++ return PAPACC_RESULT_INVALID_STATE;
++ for(i=0;i<c->alpn_length;){
++  start=i;n=c->alpn[i++];if(!n||n>c->alpn_length-i)return PAPACC_RESULT_INVALID_STATE;
++  for(j=0;j<start;){PAPACC_SIZE m=c->alpn[j++];
++   if(m==n&&!memcmp(c->alpn+j,c->alpn+i,n))return PAPACC_RESULT_INVALID_STATE;j+=m;}
++  i+=n;
++ }
++ for(i=c->alpn_length;i<64;++i)if(c->alpn[i])return PAPACC_RESULT_INVALID_STATE;
++ return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_site_tls_catalog_select(const PAPACC_SITE_TLS_CATALOG *c,PAPACC_U32 ref,
++ PAPACC_U64 revision,PAPACC_U64 utc_ms,PAPACC_SITE_TLS_CATALOG *out)
++{
++ if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(c){uintptr_t a=(uintptr_t)c,b=(uintptr_t)out;
++ if((a<=b?b-a:a-b)<sizeof(*c))return PAPACC_RESULT_INVALID_ARGUMENT;}
++ memset(out,0,sizeof(*out));
++ if(papacc_site_tls_catalog_validate(c)!=PAPACC_RESULT_OK||!c->present||c->revoked||
++ c->reference!=ref||c->revision!=revision||utc_ms<c->not_before_utc_ms||utc_ms>=c->expires_utc_ms)
++ return PAPACC_RESULT_INVALID_STATE;
++ *out=*c;return PAPACC_RESULT_OK; /* metadata only: not Principal/grant/admission */
++}
+diff --git a/apps/server/server_configuration_body05_win32.h b/apps/server/server_configuration_body05_win32.h
+new file mode 100644
+--- /dev/null
++++ b/apps/server/server_configuration_body05_win32.h
+@@ -0,0 +1,6 @@
++#ifndef PAPACC_PRIVATE_BODY05_H
++#define PAPACC_PRIVATE_BODY05_H
++#include "server_configuration_body04_win32.h"
++PAPACC_RESULT papacc_configuration_body05_encode(const PAPACC_CONFIG_VIEW *,PAPACC_U8 *,PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_body05_decode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_CONFIG_VIEW *);
++#endif
+diff --git a/apps/server/server_configuration_body05_win32.inc b/apps/server/server_configuration_body05_win32.inc
+new file mode 100644
+--- /dev/null
++++ b/apps/server/server_configuration_body05_win32.inc
+@@ -0,0 +1,47 @@
++/* BODY0.5 preserves BODY0.4 Principal16; explicit new discriminator/custody. */
++static int p05_body_encode(const PAPACC_CONFIG_VIEW *v,unsigned char *b)
++{
++ PAPACC_CONFIG_BODY04_VIEW old;const PAPACC_SITE_TLS_CATALOG *c=&v->config.site_tls;
++ if(!c->present||papacc_site_tls_catalog_validate(c)!=PAPACC_RESULT_OK)return 0;
++ old.base=*v;fix(&old.base);memset(&old.base.config.site_tls,0,sizeof(old.base.config.site_tls));
++ if(papacc_configuration_body04_encode(&old,b,1024U)!=PAPACC_RESULT_OK)return 0;
++ memcpy(b+512,"ADMP0501",8);memcpy(b+744,"SITE0101",8);
++ memcpy(b+752,c->identity,16);memcpy(b+768,c->profile_identity,16);memcpy(b+784,c->administrative_origin,16);
++ put64(b+800,c->revision);put64(b+808,c->profile_revision);
++ put64(b+816,c->not_before_utc_ms);put64(b+824,c->expires_utc_ms);
++ put64(b+832,c->max_bytes);put64(b+840,c->max_duration_ms);
++ p03_put32(b+848,c->reference);p03_put32(b+852,c->max_concurrent);
++ b[856]=(unsigned char)c->revoked;b[857]=1; b[858]=(unsigned char)c->alpn_length;
++ memcpy(b+864,c->alpn,64);
++ return store03_hash(b,992U,b+992U);
++}
++static int store05_decode(unsigned char *b,PAPACC_CONFIG_VIEW *v)
++{
++ unsigned char old[1024],hash[32];PAPACC_CONFIG_BODY04_VIEW typed;PAPACC_SITE_TLS_CATALOG c;
++ if(memcmp(b+512,"ADMP0501",8)||memcmp(b+744,"SITE0101",8)||b[856]>1||b[857]!=1||
++ b[858]>64||!store03_zero(b+859,5)||!store03_zero(b+928,64)||
++ !store03_hash(b,992U,hash)||memcmp(hash,b+992,32))return 0;
++ memset(&c,0,sizeof(c));c.present=1;c.version=1;c.trust_system=1;c.hostname_required=1;c.sni_required=1;c.tls13_only=1;
++ memcpy(c.identity,b+752,16);memcpy(c.profile_identity,b+768,16);memcpy(c.administrative_origin,b+784,16);
++ c.revision=get64(b+800);c.profile_revision=get64(b+808);
++ c.not_before_utc_ms=get64(b+816);c.expires_utc_ms=get64(b+824);c.max_bytes=get64(b+832);c.max_duration_ms=get64(b+840);
++ c.reference=p03_get32(b+848);c.max_concurrent=p03_get32(b+852);c.revoked=b[856];c.alpn_length=b[858];memcpy(c.alpn,b+864,64);
++ if(papacc_site_tls_catalog_validate(&c)!=PAPACC_RESULT_OK)return 0;
++ memcpy(old,b,1024);memcpy(old+512,"ADMP0401",8);memset(old+744,0,248);
++ if(!store03_hash(old,992,old+992)||papacc_configuration_body04_decode(old,1024,&typed)!=PAPACC_RESULT_OK)return 0;
++ *v=typed.base;v->config.site_tls=c;fix(v);return 1;
++}
++
++PAPACC_RESULT papacc_configuration_body05_encode(const PAPACC_CONFIG_VIEW *v,PAPACC_U8 *b,PAPACC_SIZE n)
++{
++ if(!v||!b||n!=1024U||body04_overlap(v,sizeof(*v),b,n))return PAPACC_RESULT_INVALID_ARGUMENT;
++ return p05_body_encode(v,b)?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
++}
++PAPACC_RESULT papacc_configuration_body05_decode(const PAPACC_U8 *b,PAPACC_SIZE n,PAPACC_CONFIG_VIEW *v)
++{
++ unsigned char bytes[1024];
++ if(!v)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(b&&body04_overlap(b,n,v,sizeof(*v)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ memset(v,0,sizeof(*v));if(!b||n!=1024U)return PAPACC_RESULT_INVALID_ARGUMENT;
++ memcpy(bytes,b,1024);return store05_decode(bytes,v)?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
++}
+diff --git a/apps/server/server_configuration_store05_win32.inc b/apps/server/server_configuration_store05_win32.inc
+new file mode 100644
+--- /dev/null
++++ b/apps/server/server_configuration_store05_win32.inc
+@@ -0,0 +1,40 @@
++static int store05_select(unsigned char*b,const BY_HANDLE_FILE_INFORMATION*f,PAPACC_CONFIG_VIEW*out)
++{
++ unsigned i,j,n;unsigned char d[32],prev[32];unsigned char*c,*w;PAPACC_CONFIG_VIEW candidate;PAPACC_U64 last_epoch=0U;
++ if(memcmp(b,"PACL0501",8U)||get64(b+8U)!=5U||store03_zero(b+16U,32U))return 0;
++ if(!store03_hash(b,STORE03_FOOTER,d)||memcmp(d,b+STORE03_FOOTER,32U))return 0;
++ if(get64(b+104U)!=f->dwVolumeSerialNumber||get64(b+112U)!=(((PAPACC_U64)f->nFileIndexHigh<<32)|f->nFileIndexLow))return 0;
++ if(get64(b+56U)==0U||get64(b+56U)>STORE03_CAP||get64(b+64U)!=get64(b+56U))return 0;
++ n=(unsigned)get64(b+56U);memset(prev,0,32U);memset(&candidate,0,sizeof(candidate));
++ if(!store03_zero(b+STORE03_PENDING,1280U)||!store03_zero(b+120U,8U))return 0;
++ for(i=0U;i<n;++i){c=b+STORE03_C+i*1152U;w=b+STORE03_W+i*128U;
++  if(memcmp(c,b+16U,32U)||memcmp(w,b+16U,32U))return 0;
++  for(j=0U;j<i;++j)if(get64(w+32U)==get64(b+STORE03_W+j*128U+32U)||get64(w+48U)==get64(b+STORE03_W+j*128U+48U))return 0;
++  if(get64(c+32U)!=i+1U||get64(w+32U)!=i+1U||get64(c+40U)!=i||get64(w+40U)!=i||
++    get64(c+48U)==0U||get64(c+48U)!=get64(w+48U)||get64(c+56U)!=1024U)return 0;
++  if(memcmp(c+64U,prev,32U)||memcmp(w+88U,prev,32U)||memcmp(c+96U,"CONF0501",8U)||!store03_zero(c+104U,24U)||!store03_zero(w+120U,8U))return 0;
++  if(!store03_hash(c,1152U,d)||memcmp(d,w+56U,32U)||!store05_decode(c+128U,&candidate))return 0;
++  if(memcmp(candidate.domain,b+16U,32U)||candidate.revision!=i+1U||candidate.predecessor!=i)return 0;
++  if(candidate.policy_epoch<last_epoch)return 0;last_epoch=candidate.policy_epoch;
++  if(!store03_hash(w,128U,prev))return 0;
++ }
++ if(get64(b+48U)!=n||memcmp(b+72U,prev,32U)||!store03_zero(b+STORE03_C+n*1152U,(STORE03_CAP-n)*1152U)||
++   !store03_zero(b+STORE03_W+n*128U,(STORE03_CAP-n)*128U)||!store03_zero(b+6528U,STORE03_FOOTER-6528U))return 0;
++ *out=candidate;fix(out);return 1;
++}
++static int store05_append(PAPACC_CONFIGURATION_COMMIT*o,const PAPACC_CONFIG_VIEW*v,
++ const BY_HANDLE_FILE_INFORMATION*f,unsigned char*b)
++{
++ unsigned char*c,*w,d[32];unsigned index;PAPACC_CONFIG_VIEW prior;
++ if(v->revision==0U||v->revision>STORE03_CAP)return 0;
++ if(o->published){memcpy(b,o->committed,PAPACC_CONFIG_STORE_BYTES);if(!store05_select(b,f,&prior)||prior.revision!=v->predecessor)return 0;}
++ else{memset(b,0,PAPACC_CONFIG_STORE_BYTES);memcpy(b,"PACL0501",8U);put64(b+8U,5U);memcpy(b+16U,v->domain,32U);
++  put64(b+104U,f->dwVolumeSerialNumber);put64(b+112U,((PAPACC_U64)f->nFileIndexHigh<<32)|f->nFileIndexLow);}
++ index=(unsigned)v->revision-1U;c=b+STORE03_C+index*1152U;w=b+STORE03_W+index*128U;
++ memcpy(c,v->domain,32U);put64(c+32U,v->revision);put64(c+40U,v->predecessor);put64(c+48U,1000U+v->revision);
++ put64(c+56U,1024U);memcpy(c+64U,b+72U,32U);memcpy(c+96U,"CONF0501",8U);if(!p05_body_encode(v,c+128U))return 0;
++ memcpy(w,v->domain,32U);put64(w+32U,v->revision);put64(w+40U,v->predecessor);put64(w+48U,1000U+v->revision);
++ if(!store03_hash(c,1152U,d))return 0;memcpy(w+56U,d,32U);memcpy(w+88U,b+72U,32U);
++ if(!store03_hash(w,128U,d))return 0;memcpy(b+72U,d,32U);put64(b+48U,v->revision);put64(b+56U,v->revision);put64(b+64U,v->revision);
++ return store03_hash(b,STORE03_FOOTER,b+STORE03_FOOTER);
++}
+diff --git a/tests/site_tls_catalog_offline_test.c b/tests/site_tls_catalog_offline_test.c
+new file mode 100644
+--- /dev/null
++++ b/tests/site_tls_catalog_offline_test.c
+@@ -0,0 +1,53 @@
++#include "server_configuration_body05_win32.h"
++#include <stdio.h>
++#include <string.h>
++static PAPACC_CONFIG_VIEW view,decoded;
++static PAPACC_CONFIG_BODY04_VIEW old;
++static unsigned char bytes[1024],saved[1024];
++#define CHECK(x) do{++checks;if(!(x)){printf("FAIL line=%d %s\n",__LINE__,#x);return 1;}}while(0)
++int main(void)
++{
++ unsigned checks=0;PAPACC_SITE_TLS_CATALOG c,out;PAPACC_SERVER_CONFIG *config=&view.config;
++ memset(&view,0,sizeof(view));config->control_port=4433;config->listener_profile=1;
++ config->security_configuration_ref_valid=1;config->security_configuration_ref_length=1;config->security_configuration_ref[0]='x';
++ config->bind_selection.mode=PAPACC_BIND_SELECTION_ALL_INTERFACES;
++ config->policy.present=1;config->policy.representation=PAPACC_ADMIN_REPRESENTATION_04;
++ config->policy.identity[0]=1;config->policy.profile=1;config->policy.listener_port=4433;
++ c=(PAPACC_SITE_TLS_CATALOG)PAPACC_SITE_TLS_CATALOG_INITIALIZER;
++ c.present=c.version=c.trust_system=c.hostname_required=c.sni_required=c.tls13_only=1;
++ c.identity[0]=1;c.profile_identity[0]=2;c.administrative_origin[0]=3;c.revision=c.profile_revision=1;
++ c.reference=7;c.not_before_utc_ms=1000;c.expires_utc_ms=2000;c.max_bytes=4096;c.max_duration_ms=1000;c.max_concurrent=1;
++ c.alpn_length=3;c.alpn[0]=2;c.alpn[1]='h';c.alpn[2]='2';
++ CHECK(papacc_site_tls_catalog_validate(&c)==PAPACC_RESULT_OK);
++ CHECK(papacc_site_tls_catalog_select(&c,7,1,1500,&out)==PAPACC_RESULT_OK&&!memcmp(&out,&c,sizeof(c)));
++ CHECK(papacc_site_tls_catalog_select(&c,8,1,1500,&out)!=PAPACC_RESULT_OK&&!out.present);
++ CHECK(papacc_site_tls_catalog_select(&c,7,2,1500,&out)!=PAPACC_RESULT_OK);
++ CHECK(papacc_site_tls_catalog_select(&c,7,1,999,&out)!=PAPACC_RESULT_OK);
++ CHECK(papacc_site_tls_catalog_select(&c,7,1,2000,&out)!=PAPACC_RESULT_OK);
++ c.revoked=1;CHECK(papacc_site_tls_catalog_select(&c,7,1,1500,&out)!=PAPACC_RESULT_OK);c.revoked=0;
++ c.trust_system=2;CHECK(papacc_site_tls_catalog_validate(&c)!=PAPACC_RESULT_OK);c.trust_system=1;
++ c.hostname_required=0;CHECK(papacc_site_tls_catalog_validate(&c)!=PAPACC_RESULT_OK);c.hostname_required=1;
++ c.sni_required=0;CHECK(papacc_site_tls_catalog_validate(&c)!=PAPACC_RESULT_OK);c.sni_required=1;
++ c.tls13_only=0;CHECK(papacc_site_tls_catalog_validate(&c)!=PAPACC_RESULT_OK);c.tls13_only=1;
++ c.max_concurrent=3;CHECK(papacc_site_tls_catalog_validate(&c)!=PAPACC_RESULT_OK);c.max_concurrent=1;
++ c.alpn_length=65;CHECK(papacc_site_tls_catalog_validate(&c)!=PAPACC_RESULT_OK);c.alpn_length=3;
++ c.version=2;CHECK(papacc_site_tls_catalog_validate(&c)!=PAPACC_RESULT_OK);c.version=1;
++ out=(PAPACC_SITE_TLS_CATALOG)PAPACC_SITE_TLS_CATALOG_INITIALIZER;
++ CHECK(papacc_site_tls_catalog_select(&out,0,1,1500,&out)==PAPACC_RESULT_INVALID_ARGUMENT);
++ {PAPACC_SITE_TLS_CATALOG absent=PAPACC_SITE_TLS_CATALOG_INITIALIZER;CHECK(papacc_site_tls_catalog_select(&absent,0,1,1500,&out)!=PAPACC_RESULT_OK);}
++ config->site_tls=c;view.domain[0]=1;view.revision=1;
++ CHECK(papacc_server_config_validate(config)==PAPACC_RESULT_OK);
++ CHECK(papacc_configuration_body05_encode(&view,bytes,1024)==PAPACC_RESULT_OK);
++ memcpy(saved,bytes,1024);
++ CHECK(papacc_configuration_body05_decode(bytes,1024,&decoded)==PAPACC_RESULT_OK&&!memcmp(&decoded.config.site_tls,&c,sizeof(c)));
++ CHECK(papacc_configuration_body04_decode(bytes,1024,&old)!=PAPACC_RESULT_OK);
++ bytes[850]^=1;CHECK(papacc_configuration_body05_decode(bytes,1024,&decoded)!=PAPACC_RESULT_OK);memcpy(bytes,saved,1024);
++ CHECK(papacc_configuration_body05_decode(bytes,1023,&decoded)!=PAPACC_RESULT_OK);
++ old.base=view;old.base.config.site_tls=(PAPACC_SITE_TLS_CATALOG)PAPACC_SITE_TLS_CATALOG_INITIALIZER;
++ CHECK(papacc_configuration_body04_encode(&old,bytes,1024)==PAPACC_RESULT_OK);
++ CHECK(papacc_configuration_body05_decode(bytes,1024,&decoded)!=PAPACC_RESULT_OK);
++ CHECK(papacc_configuration_body04_decode(bytes,1024,&old)==PAPACC_RESULT_OK&&!old.base.config.site_tls.present);
++ CHECK(papacc_configuration_body05_encode(&old.base,bytes,1024)!=PAPACC_RESULT_OK);
++ puts("PASS_OFFLINE_SYNTHETIC_CATALOG_CODEC NOT_OPERATIONAL_AUTHORITY");
++ printf("CHECKS=%u CATALOG_SIZE=%llu\n",checks,(unsigned long long)sizeof(c));return 0;
++}
+diff --git a/docs/adr/DECISION-mode-c-site-tls-profile-authority-20261018.md b/docs/adr/DECISION-mode-c-site-tls-profile-authority-20261018.md
+new file mode 100644
+--- /dev/null
++++ b/docs/adr/DECISION-mode-c-site-tls-profile-authority-20261018.md
+@@ -0,0 +1,36 @@
++---
++decision-id: MODE_C_ADMINISTRATIVE_SITE_TLS_PROFILE_AUTHORITY
++status: accepted
++decision-date: 2026-10-18
++revision: 1
++scope-level: project
++scope-target: PapinhoAccelerator canonical Mode C
++decision-makers: [Tobias Tromm]
++supersedes: []
++---
++# Autoridade administrativa de perfis Site TLS Mode C
++
++Autoridade explícita: PACC-PHASE6-MODE-C-SITE-TLS-PROFILE-AUTHORITY-1. A configuração administrativa governada do Accelerator é a única fonte de aprovação dos perfis Site TLS Mode C. Registrar esta decisão antecede implementação dependente. Não altera ADRs accepted anteriores nem PACC wire.
++
++## Decisão e conformidade
++C2 revision1.0 §7 exige tls_profile_ref opaco aprovado pelo servidor. ADR-0048 permite entrada programática no Configuration Model e extensão privada versionada na mesma transação. ADR-0044 exige commit factual antes de CURRENT/epoch. ADR-0022/0027 e PapinhoEngineering/ADR-0009 separam trust Site, canal mTLS e Network Egress. Não foi encontrada contradição; o escopo Mode B daqueles documentos não é promovido automaticamente para Mode C.
++
++O catálogo tem identidade estável, versão/revisão, identidade de perfil, tls_profile_ref, origem administrativa, trust, hostname/SNI, versões TLS, ALPN, revogação/expiração, limites e integridade. O Browser solicita referência; não aprova trust. Referência0 somente resolve um default explicitamente cadastrado, nunca um default implícito.
++
++A mesma transação PREPARE → VALIDATE → COMMIT → POLICY_CURRENT → EPOCH vincula o catálogo. Ausência, UNKNOWN, referência desconhecida, revisão/epoch divergentes, policy não CURRENT, identidade não autorizada, revogação ou expiração negam uso. Reload não migra operações nem promove referências antigas automaticamente.
++
++O catálogo não cria grants. Operação exige Principal factual, grants, snapshot e policy contextual, limites e lifecycle vigentes. Nenhuma autorização decorre de certificado mTLS, Network Egress ou perfil existente isoladamente.
++
++## Segurança e lifecycle
++Certificado/chain/nome obrigatórios; SNI é o hostname normalizado da operação. TLS1.3 somente no perfil inicial, sem downgrade, fallback, client certificate Site, resumption ou early data. ALPN limitado e filtrado. Trust é explicitamente administrativo; nenhuma CA de mTLS é reutilizada implicitamente e nenhum trust vem do Browser. Recursos PST preparados são application-owned e preservados até quiescência ou retidos sob Model E; não introduzir cleanup alternativo.
++
++## Implementação privada e limites
++Capacidade inicial pode ser menor que capacidades futuras; limites e representação privada são escolhas documentadas/testadas, não limites novos de wire. A primeira implementação pode suportar apenas SYSTEM trust; CUSTOM não implementado deve ser rejeitado, nunca convertido em SYSTEM. Configuração vazia é ausência, não aprovação. Formatos históricos permanecem estritos, sem migração ou reinterpretação automática. Integridade deve cobrir o conteúdo do catálogo na persistência da configuração, não apenas um apontador externo mutável.
++
++Reservar catálogo, cópias, snapshots, revisão e retenção sob ED11 managed2097152 inalterado. Provider/kernel UNKNOWN. Sem autorização para rede, admissão, produção, outro listener/root/owner ou alterações Browser/PST/API pública/wire/pin0.6.4.
++
++## Gates
++Builds Debug/Release e regressões offline autorizados. Testes de representação/fixture não são prova de Principal autenticado, TLS, Session ou capacidade operacional. CLIENT_ADMISSION=DISABLED, SITE_TLS_ADMISSION=DENY_UNTIL_APPROVED, ED11_ADMISSION=DENY. PST0.6.5 permanece candidato até o fechamento integral da Phase6.
++
++## Relações
++C2 accepted §7/§11; ADR-0012/0022/0027/0028; ADR-0044/0048 históricos e decisão accepted de consolidação canônica; Model E; ED08/ED11. Evidência e schema privado serão mantidos na documentação viva e no closeout, sem alterar contratos congelados.

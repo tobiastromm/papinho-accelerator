@@ -1,0 +1,13 @@
+--- tests/config_root8_v2_test.c
++++ tests/config_root8_v2_test.c
+@@ -169,8 +169,8 @@
+  config_init(0,3);q=fields+512;CHECK(papacc_configuration_body05_encode(&view,q+512,1024)==PAPACC_RESULT_OK);
+  CHECK(hash(&owner,q+512,1024,q+312));
+  q=fields+r32(fields+244);w64(q+56,3);
+- L=r32(fields+44);c=fields+r32(fields+40);memcpy(lst.fields,c,L);
+- w64(lst.fields+56,2);w64(lst.fields+64,18);w64(lst.fields+72,9);w64(lst.fields+80,r64(prior+120));
++ L=r32(fields+44);c=fields+r32(fields+40);memset(&lst,0,sizeof(lst));memcpy(lst.fields,c,L-32U);
++ w64(lst.fields+56,2);w64(lst.fields+88,1);w64(lst.fields+64,18);w64(lst.fields+72,9);w64(lst.fields+80,r64(prior+120));
+  memcpy(lst.fields+128,prior+512,512);memset(lst.fields+128+344,0,40);
+  CHECK(pc_lst1_encode(&lst,c,L,&n,hash,&owner)==PC_LST1_OK&&n==L);CHECK(seal());
+  CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_OK);

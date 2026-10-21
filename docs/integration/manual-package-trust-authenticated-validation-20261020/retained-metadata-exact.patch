@@ -1,0 +1,138 @@
+--- src/provisioning/manual_package_validation.h
++++ src/provisioning/manual_package_validation.h
+@@ -37,6 +37,7 @@
+  size_t staging_size,output_size,managed_estimate;
+  unsigned kdf_invocations,aead_invocations,content_invocations;
+  unsigned char key[32];
++ MP_ENVELOPE envelope;MP_PAYLOAD payload; /* durable metadata for retained borrowers */
+  const MP_AUTH_INPUT *input;
+  const void *internal_port;void *internal_context;
+ } MP_AUTH_OPERATION;
+--- src/provisioning/manual_package_validation.c
++++ src/provisioning/manual_package_validation.c
+@@ -44,7 +44,7 @@
+  return 1;
+ }
+ static int budget(MP_AUTH_OPERATION *o,const MP_AUTH_INPUT *i){
+- size_t total=sizeof(*o)+sizeof(*i)+sizeof(MP_ENVELOPE)+sizeof(MP_PAYLOAD);
++ size_t total=sizeof(*o)+sizeof(*i); /* retained envelope/payload already inside operation */
+  size_t n[7];unsigned j;
+  n[0]=i->package.size;n[1]=i->password.size;n[2]=i->quarantine_capacity;
+  n[3]=i->staging_capacity;n[4]=i->output_capacity;n[5]=i->other_reserved;n[6]=i->provider_reserved;
+@@ -52,30 +52,31 @@
+  o->managed_estimate=total;return 1;
+ }
+ static MP_AUTH_RESULT run(MP_AUTH_OPERATION *o,const MP_AUTH_INPUT *i,const MP_AUTH_PORT *p,void *ctx){
+- MP_ENVELOPE e;MP_PAYLOAD v;MP_RESULT parsed;MP_AUTH_RESULT result;
++ MP_ENVELOPE *e;MP_PAYLOAD *v;MP_RESULT parsed;MP_AUTH_RESULT result;
+  if(!p||!p->step||!p->wipe||!p->quiescent||!arguments(o,i)||o->state)return MP_AUTH_INVALID;
++ e=&o->envelope;v=&o->payload;
+  o->state=1;o->input=i;o->internal_port=p;o->internal_context=ctx;o->output_size=0;
+  o->first_failure_code=0;o->first_failure_stage=MP_AUTH_NONE;o->stage=MP_AUTH_STRUCTURE;
+  o->kdf_invocations=0;o->aead_invocations=0;o->content_invocations=0;
+- parsed=mp_envelope_inspect(i->package.data,i->package.size,&e,stopped(i));
++ parsed=mp_envelope_inspect(i->package.data,i->package.size,e,stopped(i));
+  if(parsed!=MP_DATA_ONLY){failure(o,parsed);o->state=3;return parsed==MP_STOPPED?MP_AUTH_STOPPED:MP_AUTH_INVALID;}
+  o->stage=MP_AUTH_BUDGET;
+- if(e.ciphertext.size>MP_ARCHIVE_MAX||i->quarantine_capacity<e.ciphertext.size||
+- i->staging_capacity<e.ciphertext.size||i->output_capacity<e.ciphertext.size||!budget(o,i)){
++ if(e->ciphertext.size>MP_ARCHIVE_MAX||i->quarantine_capacity<e->ciphertext.size||
++ i->staging_capacity<e->ciphertext.size||i->output_capacity<e->ciphertext.size||!budget(o,i)){
+  failure(o,MP_AUTH_LIMIT);o->state=3;return MP_AUTH_LIMIT;}
+  /* Caller workspaces are acquired only after structural/budget checks. */
+  wipe(o);
+- result=stage(o,MP_AUTH_SIGNATURE,&e,NULL);if(result!=MP_AUTH_VALIDATED)return result;
+- result=stage(o,MP_AUTH_TRUST,&e,NULL);if(result!=MP_AUTH_VALIDATED)return result;
+- result=stage(o,MP_AUTH_KDF,&e,NULL);if(result!=MP_AUTH_VALIDATED)return result;
+- result=stage(o,MP_AUTH_AEAD,&e,NULL);if(result!=MP_AUTH_VALIDATED)return result;
++ result=stage(o,MP_AUTH_SIGNATURE,e,NULL);if(result!=MP_AUTH_VALIDATED)return result;
++ result=stage(o,MP_AUTH_TRUST,e,NULL);if(result!=MP_AUTH_VALIDATED)return result;
++ result=stage(o,MP_AUTH_KDF,e,NULL);if(result!=MP_AUTH_VALIDATED)return result;
++ result=stage(o,MP_AUTH_AEAD,e,NULL);if(result!=MP_AUTH_VALIDATED)return result;
+  o->stage=MP_AUTH_CONTENT;
+- if(!o->staging_size||o->staging_size!=e.ciphertext.size||
+- mp_payload_inspect(i->staging,o->staging_size,&v,stopped(i))!=MP_DATA_ONLY)
++ if(!o->staging_size||o->staging_size!=e->ciphertext.size||
++ mp_payload_inspect(i->staging,o->staging_size,v,stopped(i))!=MP_DATA_ONLY)
+  return abort_operation(o,stopped(i)?MP_AUTH_STOPPED:MP_AUTH_DENIED,MP_AUTH_STEP_INVALID);
+- result=stage(o,MP_AUTH_CONTENT,&e,&v);if(result!=MP_AUTH_VALIDATED)return result;
+- result=stage(o,MP_AUTH_RECHECK_TRUST,&e,&v);if(result!=MP_AUTH_VALIDATED)return result;
+- result=stage(o,MP_AUTH_RELEASE,&e,&v);if(result!=MP_AUTH_VALIDATED)return result;
++ result=stage(o,MP_AUTH_CONTENT,e,v);if(result!=MP_AUTH_VALIDATED)return result;
++ result=stage(o,MP_AUTH_RECHECK_TRUST,e,v);if(result!=MP_AUTH_VALIDATED)return result;
++ result=stage(o,MP_AUTH_RELEASE,e,v);if(result!=MP_AUTH_VALIDATED)return result;
+  if(p->quiescent(ctx)!=1)return abort_operation(o,MP_AUTH_RETAINED,MP_AUTH_STEP_UNCERTAIN);
+  if(stopped(i))return abort_operation(o,MP_AUTH_STOPPED,MP_AUTH_STOPPED);
+  /* Sole publication point: caller output is untouched on all earlier paths. */
+--- tests/manual_package_validation_test.c
++++ tests/manual_package_validation_test.c
+@@ -12,7 +12,8 @@
+  unsigned calls[MP_AUTH_RELEASE+1],order[16],count;
+  MP_AUTH_STAGE bad,stop_at;int bad_code,after,quiescent;
+  /* Modeled independent source facts; not a productive authority adapter. */
+- int present,purpose,known_status,revoked,valid,independent,pin,revision,identity;
++ int present,purpose,known_status,revoked,valid,independent,pin,revision,identity,corrupt_archive;
++ const MP_ENVELOPE *held_envelope;const MP_PAYLOAD *held_payload;
+ } FIXTURE;
+ static FIXTURE fixture;
+ static void b16(unsigned char *p,unsigned n){p[0]=(unsigned char)(n>>8);p[1]=(unsigned char)n;}
+@@ -54,8 +55,8 @@
+   if(!f->identity||memcmp(raw,expected,rawn))return MP_AUTH_STEP_INVALID;
+  }
+  if(s==MP_AUTH_KDF)memset(o->key,0xcc,32);
+- if(s==MP_AUTH_AEAD){memcpy(input.staging,zip,zipn);memset(input.quarantine,0xa8,zipn);o->staging_size=zipn;}
+- if(s==f->bad)return f->bad_code;
++ if(s==MP_AUTH_AEAD){memcpy(input.staging,zip,zipn);memset(input.quarantine,0xa8,zipn);o->staging_size=zipn;if(f->corrupt_archive)input.staging[30]='x';}
++ if(s==f->bad){if(f->bad_code==MP_AUTH_STEP_UNCERTAIN){f->held_envelope=e;f->held_payload=v;}return f->bad_code;}
+  return MP_AUTH_STEP_OK;
+ }
+ static const MP_AUTH_PORT port={step,fake_wipe,quiet};
+@@ -72,7 +73,7 @@
+ static int unchanged(void){size_t i;for(i=0;i<sizeof(output);i++)if(output[i]!=0x5a)return 0;return 1;}
+ static MP_AUTH_RESULT run(void){return mp_auth_offline_test_run(&op,&input,&port,&fixture);}
+ int main(void){
+- unsigned i;int code;size_t limit=mp_package_validation_process_limit();
++ unsigned i;int code;size_t base_estimate,extra_credit;size_t limit=mp_package_validation_process_limit();
+  static const MP_AUTH_STAGE phases[]={MP_AUTH_SIGNATURE,MP_AUTH_TRUST,MP_AUTH_KDF,MP_AUTH_AEAD,MP_AUTH_CONTENT,MP_AUTH_RECHECK_TRUST,MP_AUTH_RELEASE};
+  CHECK(setup_bytes());reset();CHECK(run()==MP_AUTH_SYNTHETIC_ONLY);CHECK(op.output_size==zipn&&!memcmp(output,zip,zipn));
+  CHECK(fixture.count==7);for(i=0;i<7;i++)CHECK(fixture.order[i]==(unsigned)phases[i]);
+@@ -97,18 +98,27 @@
+  }
+  /* An uncertain AEAD/close keeps key and workspace, no destructive retry. */
+  reset();fixture.bad=MP_AUTH_AEAD;fixture.bad_code=MP_AUTH_STEP_UNCERTAIN;fixture.quiescent=0;
+- CHECK(run()==MP_AUTH_RETAINED&&unchanged());CHECK(op.state==2&&op.key[0]==0xcc&&q[0]==0xa8);code=op.first_failure_code;
++ CHECK(run()==MP_AUTH_RETAINED&&unchanged());CHECK(op.state==2&&op.key[0]==0xcc&&q[0]==0xa8);CHECK(fixture.held_envelope==&op.envelope&&fixture.held_envelope->ciphertext.data==raw+93);code=op.first_failure_code;
+  CHECK(mp_package_validation_finish(&op)==MP_AUTH_RETAINED&&op.key[0]==0xcc);CHECK(run()==MP_AUTH_INVALID);CHECK(fixture.calls[MP_AUTH_AEAD]==1);
+  fixture.quiescent=1;CHECK(mp_package_validation_finish(&op)==MP_AUTH_ABORTED);CHECK(zero(q,sizeof(q))&&zero(staging,sizeof(staging))&&zero(op.key,32));
+  CHECK(unchanged()&&op.first_failure_code==code&&op.first_failure_stage==MP_AUTH_AEAD&&fixture.calls[MP_AUTH_AEAD]==1);
+  reset();fixture.bad=MP_AUTH_RELEASE;fixture.bad_code=MP_AUTH_STEP_UNCERTAIN;fixture.quiescent=0;
+  CHECK(run()==MP_AUTH_RETAINED&&unchanged());fixture.quiescent=1;CHECK(mp_package_validation_finish(&op)==MP_AUTH_ABORTED);CHECK(fixture.calls[MP_AUTH_RELEASE]==1&&unchanged());
++ reset();fixture.bad=MP_AUTH_CONTENT;fixture.bad_code=MP_AUTH_STEP_UNCERTAIN;fixture.quiescent=0;
++ CHECK(run()==MP_AUTH_RETAINED&&fixture.held_payload==&op.payload&&fixture.held_payload->member[2].data>=staging);
++ CHECK(fixture.held_payload->member[2].data<staging+zipn&&unchanged());
++ fixture.quiescent=1;CHECK(mp_package_validation_finish(&op)==MP_AUTH_ABORTED&&unchanged());
++ reset();fixture.quiescent=0;CHECK(run()==MP_AUTH_RETAINED&&fixture.calls[MP_AUTH_RELEASE]==1&&unchanged());
++ fixture.quiescent=1;CHECK(mp_package_validation_finish(&op)==MP_AUTH_ABORTED&&fixture.calls[MP_AUTH_RELEASE]==1&&unchanged());
++ reset();fixture.corrupt_archive=1;CHECK(run()==MP_AUTH_DENIED&&op.first_failure_stage==MP_AUTH_CONTENT&&fixture.calls[MP_AUTH_CONTENT]==0&&unchanged());
+  reset();input.provider_reserved=MP_AUTH_UNKNOWN_BYTES;CHECK(run()==MP_AUTH_LIMIT&&op.kdf_invocations==0&&fixture.count==0&&unchanged());
+  reset();input.other_reserved=limit;CHECK(run()==MP_AUTH_LIMIT&&fixture.count==0&&unchanged());
+  reset();input.staging=q;CHECK(run()==MP_AUTH_INVALID&&unchanged());
+  reset();input.output=q;CHECK(run()==MP_AUTH_INVALID);
+  reset();input.package.size--;CHECK(run()==MP_AUTH_INVALID&&fixture.count==0&&unchanged());
+  reset();raw[9]=3;CHECK(run()==MP_AUTH_INVALID&&fixture.count==0&&unchanged());raw[9]=2;
+- reset();CHECK(run()==MP_AUTH_SYNTHETIC_ONLY);CHECK(op.managed_estimate<=limit);
++ reset();CHECK(run()==MP_AUTH_SYNTHETIC_ONLY);CHECK(op.managed_estimate<=limit);base_estimate=op.managed_estimate;extra_credit=limit-base_estimate;
++ reset();input.other_reserved+=extra_credit;CHECK(run()==MP_AUTH_SYNTHETIC_ONLY&&op.managed_estimate==limit);
++ reset();input.other_reserved+=extra_credit+1;CHECK(run()==MP_AUTH_LIMIT&&fixture.count==0&&unchanged());
+  printf("PASS %u SYNTHETIC_CONTROL_ONLY assertions limit=%zu op=%zu input=%zu; no productive trust/crypto success\n",checks,limit,sizeof(op),sizeof(input));return 0;
+ }
+--- tests/manual_package_validation_native_test.inc
++++ tests/manual_package_validation_native_test.inc
+@@ -16,5 +16,7 @@
+  CHECK(mp_package_validate_authenticated(&ao,&ai)==MP_AUTH_DENIED&&ao.first_failure_stage==MP_AUTH_SIGNATURE&&ao.kdf_invocations==0);
+  raw[rn-1]^=1;memset(&ao,0,sizeof(ao));ai.provider_reserved=MP_AUTH_UNKNOWN_BYTES;
+  CHECK(mp_package_validate_authenticated(&ao,&ai)==MP_AUTH_LIMIT&&ao.kdf_invocations==0&&aout[0]==0x5a);
++ memset(&ao,0,sizeof(ao));ai.other_reserved=2103847;ai.provider_reserved=1290354;
++ CHECK(mp_package_validate_authenticated(&ao,&ai)==MP_AUTH_LIMIT&&ao.first_failure_stage==MP_AUTH_BUDGET&&ao.kdf_invocations==0&&aout[0]==0x5a);
+  CHECK(peak<=1500000); /* actual provider test peak, not provider/kernel qualification */
+ }

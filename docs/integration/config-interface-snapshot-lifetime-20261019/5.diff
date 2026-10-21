@@ -1,0 +1,17 @@
+--- apps/server/server_launcher_owner_win32.c
++++ apps/server/server_launcher_owner_win32.c
+@@ -1,5 +1,6 @@
+ #include "server_launcher_owner_win32.h"
+ #include "server_application_lifetime_win32.h"
++#include "server_console_win32.h"
+ #include "server_c2_participant_win32.h"
+ #include <stdlib.h>
+ #include <string.h>
+@@ -885,6 +886,7 @@
+         t->administrative_published=PAPACC_FALSE;
+         LeaveCriticalSection(&o->configuration_commit.lock);
+     }
++    t->participants.interface_snapshot.retained=PAPACC_TRUE;
+     result=papacc_server_security_source_retain(&t->source);
+     if(result==PAPACC_RESULT_OK)t->state=PAPACC_ROOT_PREPARATION_RETAINED;
+     return result;

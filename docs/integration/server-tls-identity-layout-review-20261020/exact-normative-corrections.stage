@@ -1,0 +1,50 @@
+--- docs\integration\server-tls-identity-binding-20261019\PERSISTENCE-LAYOUT-PROPOSED.md
++++ docs\integration\server-tls-identity-layout-review-20261020\PERSISTENCE-LAYOUT-REVISION2-PROPOSED.md
+@@ -1,6 +1,6 @@
+ ---
+ status: proposed
+-revision: 1
++revision: 2
+ scope: private same-root server TLS identity persistence only
+ ---
+ # Byte-exact server identity extension â€” ROOT8 version2 / SNT1
+@@ -72,6 +72,8 @@
+ 
+ All offsets below are relative to each record. There is exactly one row for each Secure candidate ordinal and zero for any Legacy ordinal. No duplicated ordinal or listener ID, sorting by hostname, dropped row, wildcard or cross-listener inheritance. Shared security_ref is allowed only through explicit separate associations; the application-owned resolver must prove coherent mapping to the same immutable Local Identity or deny ambiguity.
+ 
++R3 explicit coherence: within one containing root revision, rows sharing the exact security_ref must agree byte-for-byte on transport/role, certificate profile, name length/name bytes, issuer authority/generation/CA-SPKI, association stage and all conditionally present request/CSR/SPKI/certificate fields. Listener ordinal/ID and the approval revision for that listener association may differ; every row still requires its own factual association proof. The fields describe ONE normalized Local Identity at that source/revision, not per-listener alternate credentials hidden behind one reference. Any divergence rejects the whole component before exposing a binding; no first-row/default selection. Retained prior root/source snapshots are different immutable generations, not an exception allowing divergent rows in a single selected revision.
++
+ |Offset|Bytes|Field|
+ |---:|---:|---|
+ |0|8|PACSNI01|
+@@ -88,7 +90,7 @@
+ |26|2|security_ref length1..64|
+ |28|2|ExpectedServerName byte length1..253|
+ |30|2|ZERO|
+-|32|8|name_approval_revision: existing root revision that approved this exact name/listener/security/role association; nonzero <= containing R|
++|32|8|name_approval_revision: existing root revision approving the exact source/name/listener/TLS/issuer tuple defined in R2; nonzero <= containing R|
+ |40|16|issuer authority ID, nonzero|
+ |56|16|issuer generation ID, nonzero|
+ |72|16|request correlation ID or ZERO when absent|
+@@ -105,9 +107,11 @@
+ 
+ The listener ID matches the selected descriptor at24:64 including length/case; its security_ref matches descriptor88:64 and decoded BODY security reference exactly. Identifier syntax and security_ref UTF8/no-control/bounds/zero-tail rules are unchanged LST1/D3 rules; no executable papacc.conf field is introduced. Role/profile/transport disagreement rejects. Security reference is still opaque; no hostname derivation from it.
+ 
+-The name is the explicit public attribute selected through authorized administrative configuration, not parsed as approval from config text. The first bounded representation supports the existing offline server builder's DNS ASCII subset: labels1..63, total1..253, letters/digits/hyphen, no empty or edge-hyphen label, wildcard, embedded NUL, non-ASCII, trailing dot or numeric IP representation. Preserve exact bytes/case, no normalization, IDNA, DNS lookup, CN alias or implicit additional SAN. Unsupported naming representations reject, never approximate. This serialized bound reflects the already implemented target subset; it is NOT a new approval, quota, freshness or global name policy.
++R1 profile distinction: record20:2 identifies ONLY the X509 technical certificate profile1. It is not a TLS transport/security-profile identifier and cannot satisfy that check. In this bounded version, transport1/role1 plus the exact security_ref and its verified source/root revision must resolve the existing ADR-0006 channel security profile: TLS1.3-only, mutual certificate authentication, mandatory exact ALPN papacc/1, 0-RTT/resumption disabled and the remaining accepted security requirements. Verify these against the actual immutable normalized security configuration before RESOLVED or consumption, independently of certificate KU/EKU/algorithm checks. Certificate profile1/serverAuth alone proves none of those transport facts. Missing/incompatible/unqualified channel TLS configuration returns DENY/UNSUPPORTED, never an inferred profile. No new profile catalog, default, enum or bytes are introduced. Different future channel profiles require a separately reviewed format/support contract.
+ 
+-name_approval_revision is provenance in the SAME root's committed history, not a new monotonic counter. On introducing/changing the exact name/listener/security/role relation, it must name that transaction R; on retaining an unchanged association it refers to the prior verified approval revision. Request/result attachment alone does not manufacture a new naming approval. Decode checks nonzero/range only; actual authority must verify the complete approved content and its unchanged linkage through history/source snapshots. A <=R value, hash or historical pin alone cannot prove approval/current applicability. Removing/revoking approval prevents new effects; old dependency retirement remains Model E/active-Session policy, not a consequence of zeroing a row.
++The name is the explicit public attribute selected through authorized administrative configuration, not parsed as approval from config text. The first bounded representation supports the existing offline server builder's exact byte predicate: total length1..253; each byte belongs to ASCII A-Z, a-z, 0-9, '-' or '.'; every dot separates nonempty labels of length1..63; a label must neither begin nor end with '-'; the final byte is not a dot; and at least one byte in the whole name is an ASCII letter or '-'. Thus an all-digits-and-dots name is rejected, as in the current public builder. No wildcard, embedded NUL, whitespace, non-ASCII, colon or other byte is accepted. This is a DNS-label representation check, not a resolver for every historical IPv4 spelling or a claim to detect every possible address alias; no IP literal alternative is encoded or inferred. Runtime hostname/identity applicability and target support remain separate fail-closed checks. Preserve exact bytes/case, no normalization, IDNA, DNS lookup, CN alias or implicit additional SAN. Unsupported naming representations reject, never approximate. This serialized bound reflects the already implemented target subset; it is NOT a new approval, quota, freshness or global name policy.
++
++name_approval_revision is provenance in the SAME root's committed history, not a new monotonic counter. R2 approval tuple: the provenance covers the exact listener identity, security_ref, normalized channel TLS profile/source content, transport/role, certificate technical profile, name bytes and issuer authority/generation/CA-SPKI association. On introducing or changing ANY of those attributes it must name the transaction R that explicitly approved that new tuple; on retaining an unchanged tuple it refers to its prior verified approval revision. An unchanged hostname alone is insufficient to reuse approval after issuer rotation or source/profile replacement. The revision is not proof of the transaction: verify exact authorized content/history and actual source ownership before consumption. Request/result attachment alone does not create a new naming approval when this tuple remains unchanged; it still requires the separately authorized exact request/reservation/result transaction and its current revision. It cannot reuse old request authority, clear pending/uncertain work or change an already reserved request's CSR/SPKI/issuer/serial. Keep the old immutable association/leases and credits for any old dependent consumer until factual quiescence; a new tuple never retags an old request or Session as CURRENT. Decode checks nonzero/range only; actual authority must verify the complete approved content and its unchanged linkage through history/source snapshots. A <=R value, hash or historical pin alone cannot prove approval/current applicability. Removing/revoking approval prevents new effects; old dependency retirement remains Model E/active-Session policy, not a consequence of zeroing a row.
+ 
+ ## T4 Same-root issuer/request/certificate semantics
+ 
+@@ -146,3 +150,7 @@
+ Price encoded component, decoded own copy and each retained snapshot actually instantiated, source name/reference arrays and lifetime metadata, old/new generations, pending/UNKNOWN exact-CAS images, CSR/certificate/CA backing, crypto/hash workspace, full stack/callbacks and provider/native resources. Prove sharing/exclusive phases before omitting copies; never reuse a retained/pinned generation or double-count proven shared bytes. Proposed record total includes listener/security/name arrays64+64+256=384 per row; do not add these again on top of768. Maximum component model excluding digest3136, encoded3168; coexistence if both separate=6304 BEFORE adapters/owner/other inputs. No new persistent model struct or global buffer is authorized. Missing bound/insufficient credit returns DENY under unchanged2097152. Do not reduce legitimate reservations or enlarge quota to accept this proposal.
+ 
+ This exact layout requires owner normative acceptance and official executor registration BEFORE codec/root implementation; later functional hunks require their own exact review and lifetime/ED11 proof. No code, CA/key/certificate/private signature, network, CURRENT, listener, trust, grant, recovery, admission or PST release is authorized now.
++
++## Revision provenance (informative)
++
++Revision2,2026-10-20: focal review R1–R4 clarifies semantics without changing field offsets, presence masks, sizes, hashes or existing accepted contracts. Original Revision1 remains preserved; neither revision is accepted or implemented by this review.

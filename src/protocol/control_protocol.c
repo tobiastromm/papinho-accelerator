@@ -70,9 +70,10 @@ static PAPACC_FRAME_HEADER papacc_control_frame_header(PAPACC_U16 type)
 {
     PAPACC_FRAME_HEADER header = {
         PAPACC_FRAME_ENVELOPE_MAJOR, PAPACC_FRAME_ENVELOPE_MINOR,
-        PAPACC_FRAME_BASE_HEADER_SIZE, type, 0,
+        PAPACC_FRAME_BASE_HEADER_SIZE, 0, 0,
         PAPACC_CONTROL_VERSION_PAYLOAD_SIZE
     };
+    header.message_type = type;
     return header;
 }
 PAPACC_FRAME_HEADER papacc_control_open_frame_header(void)

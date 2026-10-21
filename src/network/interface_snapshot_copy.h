@@ -1,0 +1,34 @@
+#ifndef PAPACC_INTERFACE_SNAPSHOT_COPY_H
+#define PAPACC_INTERFACE_SNAPSHOT_COPY_H
+#include "network_interface.h"
+#include "persistent_bind_selection.h"
+/* Private bounded storage, not a catalog/registry or an authority. The owner
+ * supplies exclusive immutable input during copy and owns the resulting bytes.
+ * No pin system, allocation, source pointer or presentation string is retained.
+ * A zero preparation revision is explicitly pending, never CURRENT. */
+#define PAPACC_INTERFACE_COPY_INTERFACES 32U
+#define PAPACC_INTERFACE_COPY_ADDRESSES 128U
+typedef struct PAPACC_INTERFACE_SNAPSHOT_COPY {
+ PAPACC_NETWORK_INTERFACE interfaces[PAPACC_INTERFACE_COPY_INTERFACES];
+ PAPACC_NETWORK_INTERFACE_ADDRESS addresses[PAPACC_INTERFACE_COPY_ADDRESSES];
+ PAPACC_SIZE interface_count,address_count;
+ PAPACC_U64 invocation,preparation_revision;
+ PAPACC_BOOL present,retained;
+} PAPACC_INTERFACE_SNAPSHOT_COPY;
+/* Destination must be zero initialized, disjoint and exclusively owned.
+ * Replacement of present/retained storage is denied. All validation precedes
+ * writes; caller revalidates Stop/context before exposing completed storage. */
+PAPACC_RESULT papacc_interface_snapshot_copy_prepare(PAPACC_INTERFACE_SNAPSHOT_COPY *,
+ const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *,PAPACC_U64,PAPACC_U64);
+/* Synchronous borrow only. Owner and original preparation identity must remain
+ * valid; caller must not clear/mutate storage or cross teardown with this view.
+ * Output contains no CURRENT/epoch/authentication proof. */
+PAPACC_RESULT papacc_interface_snapshot_copy_view(const PAPACC_INTERFACE_SNAPSHOT_COPY *,
+ PAPACC_U64,PAPACC_U64,PAPACC_NETWORK_DISCOVERY_SNAPSHOT *);
+/* Pure comparison of selected interfaces in two observations. Ignores volatile
+ * indices/instance IDs and presentation, compares per-PersistentID flags and
+ * endpoint sets (IP/scope). Does NOT prove recency, native origin, continuity
+ * between observations or administrative authority. No operational ticket. */
+PAPACC_RESULT papacc_interface_snapshot_copy_matches(const PAPACC_INTERFACE_SNAPSHOT_COPY *,
+ const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *,const PAPACC_PERSISTENT_BIND_SELECTION *,PAPACC_BOOL *);
+#endif

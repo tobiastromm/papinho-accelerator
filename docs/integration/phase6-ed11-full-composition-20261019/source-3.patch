@@ -1,0 +1,10 @@
+--- tests\config_root8_test.c
++++ tests\config_root8_test.c
+@@ -65,6 +65,7 @@
+  }
+  result=pc_root8_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,NULL);
+  if(result!=0){printf("setup encode=%u\n",(unsigned)result);return 0;}
++ if(pc_root8_validate_no_issuer(bytes,used,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,NULL)!=PC_ROOT8_OK)return 0;
+  result=pc_root8_decode(bytes,used,&decoded,&complete,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,NULL);
+  return result==0&&complete==1&&!memcmp(&model,&decoded,sizeof(model));
+ }

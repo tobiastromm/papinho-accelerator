@@ -1,0 +1,132 @@
+/* Offline DATA model: public BODY/SHA routines, synthetic issuer anchor,
+ * epochs/approval and component callbacks. NOT native carrier/current proof. */
+#include "config_root8_v2.h"
+#include "server_config_root8_data_win32.h"
+#include "server_configuration_body05_win32.h"
+#include "issuer_codec.h"
+#include <stdio.h>
+#include <string.h>
+static PAPACC_CONFIGURATION_COMMIT owner;
+static PAPACC_CONFIG_VIEW view;
+static PC_LST1_MODEL lst;
+static PAPACC_U8 fields[PC_ROOT8_V2_FIELDS_MAX],original[PC_ROOT8_V2_FIELDS_MAX];
+static PAPACC_U8 encoded[PC_ROOT8_V2_MAX+1U],decoded[PC_ROOT8_V2_FIELDS_MAX],part[PC_SNT1_MAX];
+static PAPACC_SIZE prefix,used;static unsigned checks;static int deny_carrier,deny_association;
+#define CHECK(x) do{checks++;if(!(x)){printf("FAIL line=%u %s\n",(unsigned)__LINE__,#x);return 0;}}while(0)
+static void w16(PAPACC_U8 *p,unsigned v){p[0]=(PAPACC_U8)v;p[1]=(PAPACC_U8)(v>>8);}
+static void w32(PAPACC_U8 *p,PAPACC_U32 v){unsigned i;for(i=0;i<4U;i++)p[i]=(PAPACC_U8)(v>>(8U*i));}
+static void w64(PAPACC_U8 *p,PAPACC_U64 v){unsigned i;for(i=0;i<8U;i++)p[i]=(PAPACC_U8)(v>>(8U*i));}
+static PAPACC_U32 r32(const PAPACC_U8 *p){return (PAPACC_U32)p[0]|((PAPACC_U32)p[1]<<8)|((PAPACC_U32)p[2]<<16)|((PAPACC_U32)p[3]<<24);}
+static PAPACC_U64 r64(const PAPACC_U8 *p){PAPACC_U64 x=0;unsigned i;for(i=0;i<8U;i++)x|=(PAPACC_U64)p[i]<<(8U*i);return x;}
+static int hash(void *ctx,const PAPACC_U8 *b,PAPACC_SIZE n,PAPACC_U8 d[32])
+{return papacc_configuration_issuer_hash06(ctx,b,n,d);}
+static int fail_hash(void *ctx,const PAPACC_U8 *b,PAPACC_SIZE n,PAPACC_U8 d[32])
+{(void)ctx;(void)b;(void)n;(void)d;return 0;}
+static void config_init(unsigned index,PAPACC_U64 R)
+{
+ PAPACC_SERVER_CONFIG *c;PAPACC_SITE_TLS_CATALOG *t;
+ memset(&view,0,sizeof(view));c=&view.config;*c=(PAPACC_SERVER_CONFIG)PAPACC_SERVER_CONFIG_INITIALIZER;
+ view.domain[0]=7;view.revision=R;view.predecessor=R-1U;
+ c->control_port=(PAPACC_U16)(7443U+index);c->listener_profile=1;c->bind_selection.mode=PAPACC_BIND_SELECTION_ALL_INTERFACES;
+ c->security_configuration_ref_valid=1;c->security_configuration_ref_length=6;memcpy(c->security_configuration_ref,"source",6);
+ c->policy.present=1;c->policy.representation=4;c->policy.identity[0]=(PAPACC_U8)(1U+index);
+ c->policy.profile=1;c->policy.listener_port=c->control_port;c->policy.admission=PAPACC_ADMIN_OPEN;
+ c->policy.enabled_count=c->policy.rule_count=1;c->policy.enabled[0].id=2;c->policy.enabled[0].major=1;
+ c->policy.rules[0].key=c->policy.enabled[0];c->policy.rules[0].action=PAPACC_ADMIN_POLICY_DENY;
+ t=&c->site_tls;t->present=t->version=t->trust_system=t->hostname_required=t->sni_required=t->tls13_only=1;
+ t->identity[0]=1;t->profile_identity[0]=2;t->administrative_origin[0]=3;t->revision=t->profile_revision=1;t->reference=7;
+ t->not_before_utc_ms=1000;t->expires_utc_ms=2000;t->max_bytes=4096;t->max_duration_ms=1000;t->max_concurrent=1;
+ t->alpn_length=9;t->alpn[0]=8;memcpy(t->alpn+1,"http/1.1",8);
+}
+
+static PC_ROOT8_RESULT model_component(void *ctx,unsigned kind,const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
+{
+ PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RECORD r;PAPACC_U8 d[32];PAPACC_ISSUER_RESULT s;(void)ctx;
+ if(kind==5U)return papacc_root8_body05_data(NULL,kind,p,n,row,header);
+ if(deny_carrier||n!=16384U||(kind!=6U&&kind!=7U))return PC_ROOT8_UNSUPPORTED;
+ s=papacc_issuer_image_validate(p+8192,&v,hash,&owner);if(s!=PAPACC_ISSUER_OK)return PC_ROOT8_INVALID;
+ if(!hash(&owner,p,8192,d)||memcmp(d,p+8192+192,32)||memcmp(v.root,header+72,32)||v.revision!=r64(header+120))return PC_ROOT8_INVALID;
+ if(kind==6U)return PC_ROOT8_OK; /* SYNTHETIC anchor, not full ROOT06 native admission. */
+ if(deny_association||!row||memcmp(row+40,v.authority,16)||memcmp(row+56,v.generation,16)||memcmp(row+568,v.ca_spki_digest,32))return PC_ROOT8_INVALID;
+ if(row[22]>1U){
+  if(papacc_issuer_image_find(p+8192,row+72,&r,hash,&owner)!=PAPACC_ISSUER_OK||r.request.purpose!=PAPACC_ISSUER_SERVER||
+   memcmp(row+88,r.request.csr_digest,32)||memcmp(row+120,r.request.key_digest,32))return PC_ROOT8_INVALID;
+  if(row[22]==3U&&memcmp(row+152,r.certificate_digest,32))return PC_ROOT8_INVALID;
+ }
+ return PC_ROOT8_OK;
+}
+static int seal(void)
+{
+ PAPACC_SIZE n;CHECK(pc_root8_v2_snt_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_OK);
+ memcpy(fields+r32(fields+244),part,n);
+ CHECK(pc_root8_v2_encode(fields,prefix,encoded,sizeof(encoded),&used,hash,&owner,model_component,NULL)==PC_ROOT8_OK);return 1;
+}
+static int setup(unsigned N,unsigned B,unsigned stage)
+{
+ unsigned i;PAPACC_SIZE S=96U+768U*N,L=160U+512U*B,O=512U+1536U*N,Q=O+S+L+16384U,n;
+ PAPACC_U8 *q,*r,*image,*carrier,d[32];PAPACC_ISSUER_VIEW iv;PAPACC_ISSUER_RECORD rec;PAPACC_U8 cert[3]={1,2,3};
+ memset(fields,0,sizeof(fields));prefix=Q+512U;deny_carrier=deny_association=0;
+ memcpy(fields,"PACROOT8",8);w16(fields+8,2);w16(fields+10,512);w32(fields+12,(PAPACC_U32)(prefix+32U));w32(fields+16,3);
+ w16(fields+20,N);w16(fields+22,512);w16(fields+24,1024);w16(fields+26,1);w16(fields+28,512);w16(fields+30,1);
+ w32(fields+32,512);w32(fields+36,1536U*N);w32(fields+40,(PAPACC_U32)(O+S));w32(fields+44,(PAPACC_U32)L);
+ w32(fields+48,(PAPACC_U32)(O+S+L));w32(fields+52,16384);w32(fields+56,(PAPACC_U32)Q);w32(fields+60,512);w32(fields+64,(PAPACC_U32)(Q+512U));w32(fields+68,32);
+ fields[72]=7;w64(fields+104,2);w64(fields+112,1);w64(fields+136,1);w64(fields+144,8);w64(fields+152,9);w64(fields+160,7);w32(fields+168,15);fields[176]=1;fields[208]=2;
+ w32(fields+128,31);w16(fields+132,5);w16(fields+134,1);w16(fields+240,1);w16(fields+242,1);w32(fields+244,(PAPACC_U32)O);w32(fields+248,(PAPACC_U32)S);w16(fields+252,N);w16(fields+254,768);w16(fields+256,1);
+ for(i=0;i<N;i++){q=fields+512U+1536U*i;w32(q,127);q[4]=q[5]=q[6]=1;w16(q+8,7443U+i);w16(q+10,2);w16(q+12,6);w16(q+16,6);
+ q[24]='L';q[25]=(PAPACC_U8)('a'+i);memcpy(q+88,"source",6);memcpy(q+216,"policy",6);q[280]=(PAPACC_U8)(i+1);memcpy(q+344,"PACCD001",8);
+ config_init(i,2);CHECK(papacc_configuration_body05_encode(&view,q+512,1024)==PAPACC_RESULT_OK);CHECK(hash(&owner,q+512,1024,q+312));}
+ memset(&lst,0,sizeof(lst));memcpy(lst.fields,"PACLST01",8);w16(lst.fields+8,1);w16(lst.fields+10,128);w32(lst.fields+12,(PAPACC_U32)L);w16(lst.fields+16,B);w16(lst.fields+18,512);w32(lst.fields+20,31);
+ lst.fields[24]=7;w64(lst.fields+56,1);w64(lst.fields+64,8);w64(lst.fields+72,9);w64(lst.fields+80,7);w16(lst.fields+96,1);
+ for(i=0;i<B;i++){q=lst.fields+128U+512U*i;memcpy(q,fields+512,512);q[25]=(PAPACC_U8)('a'+i);memset(q+344,0,40);}
+ CHECK(pc_lst1_encode(&lst,fields+O+S,L,&n,hash,&owner)==PC_LST1_OK&&n==L);
+ carrier=fields+O+S+L;memcpy(carrier,"MODELANC",8);CHECK(hash(&owner,carrier,8192,d));image=carrier+8192;
+ memset(&iv,0,sizeof(iv));iv.root[0]=7;iv.authority[0]=2;iv.generation[0]=3;iv.prefix[0]=4;iv.policy[0]=5;iv.ca_spki_digest[0]=6;iv.revision=7;iv.high_water=1;iv.ca_not_after=2000000000;
+ CHECK(papacc_issuer_image_init(image,&iv,d,hash,&owner)==PAPACC_ISSUER_OK);
+ memset(&rec,0,sizeof(rec));rec.request.id[0]=11;rec.request.device[0]=12;rec.request.csr_digest[0]=13;rec.request.key_digest[0]=14;rec.request.purpose=PAPACC_ISSUER_SERVER;rec.request.not_before=1700000000;rec.request.not_after=1700003600;
+ memcpy(rec.authority,iv.authority,16);memcpy(rec.generation,iv.generation,16);memcpy(rec.policy,iv.policy,32);rec.approved_epoch=8;rec.state=PAPACC_ISSUER_PREPARED;
+ if(stage>1){CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);rec.state=PAPACC_ISSUER_SERIAL_RESERVED;memcpy(rec.serial,iv.prefix,8);rec.serial[15]=2;rec.counter=2;CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);}
+ if(stage==3){rec.state=PAPACC_ISSUER_SIGN_REQUESTED;CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);rec.state=PAPACC_ISSUER_ISSUED_UNPUBLISHED;rec.certificate_size=3;CHECK(hash(&owner,cert,3,rec.certificate_digest));CHECK(papacc_issuer_image_append(image,&rec,cert,3,hash,&owner)==PAPACC_ISSUER_OK);}
+ CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK);w64(fields+120,iv.revision);
+ q=fields+O;memcpy(q,"PACSNT01",8);w16(q+8,1);w16(q+10,64);w32(q+12,(PAPACC_U32)S);w16(q+16,N);w16(q+18,768);q[24]=7;w64(q+56,2);
+ for(i=0;i<N;i++){r=q+64U+768U*i;memcpy(r,"PACSNI01",8);w16(r+8,1);w16(r+10,768);w32(r+12,stage==1?15:stage==2?31:63);w16(r+16,i);r[18]=r[19]=1;w16(r+20,1);r[22]=(PAPACC_U8)stage;
+ w16(r+24,2);w16(r+26,6);w16(r+28,13);w64(r+32,2);memcpy(r+40,iv.authority,16);memcpy(r+56,iv.generation,16);r[184]='L';r[185]=(PAPACC_U8)('a'+i);memcpy(r+248,"source",6);memcpy(r+312,"accel.example",13);memcpy(r+568,iv.ca_spki_digest,32);
+ if(stage>1){memcpy(r+72,rec.request.id,16);memcpy(r+88,rec.request.csr_digest,32);memcpy(r+120,rec.request.key_digest,32);}if(stage==3)memcpy(r+152,rec.certificate_digest,32);}
+ return seal();
+}
+static int checkpoints(void)
+{
+ PAPACC_SIZE Q=r32(fields+56),n;PAPACC_U8 *c=fields+Q;
+ CHECK(pc_root8_v2_cp_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_OK&&n==512);
+ memcpy(c,"PACR8CP2",8);w16(c+8,2);w16(c+10,512);w32(c+12,1);memcpy(c+16,fields+72,32);w64(c+48,2);w64(c+56,1);w64(c+64,18);w64(c+72,9);w64(c+80,r64(fields+120));memcpy(c+120,fields+176,64);CHECK(hash(&owner,fields,Q,c+88));
+ CHECK(pc_root8_v2_cp_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_OK&&n==512);memcpy(c,part,512);
+ CHECK(pc_root8_v2_encode(fields,prefix,encoded,sizeof(encoded),&used,hash,&owner,model_component,NULL)==PC_ROOT8_OK);return 1;
+}
+static int run(void)
+{
+ unsigned N,B,stage,i;PAPACC_SIZE n,offset,S,Q;int complete;char path[MAX_PATH];DWORD len;PC_ROOT8_RESULT result;
+ len=GetFullPathNameA("root8-v2-unused-no-store",MAX_PATH,path,NULL);CHECK(len&&len<MAX_PATH);CHECK(papacc_configuration_commit_init03(&owner,path)==0);
+ for(N=1;N<=4;N++)for(B=1;B<=4;B++){CHECK(setup(N,B,1));CHECK(checkpoints());n=99;complete=99;CHECK(pc_root8_v2_decode(encoded,used,decoded,sizeof(decoded),&n,&complete,hash,&owner,model_component,NULL)==PC_ROOT8_OK&&complete&&n==prefix&&!memcmp(fields,decoded,prefix));}
+ for(stage=1;stage<=3;stage++){CHECK(setup(1,1,stage));CHECK(checkpoints());CHECK(pc_root8_v2_validate(encoded,used,hash,&owner,model_component,NULL)==PC_ROOT8_OK);}
+ CHECK(setup(1,1,2));memcpy(original,fields,prefix);offset=r32(fields+244)+64U;S=r32(fields+248);Q=r32(fields+56);
+ /* Every single-byte mutation and every truncation reject; no metadata success. */
+ for(i=0;i<used;i++){encoded[i]^=1;CHECK(pc_root8_v2_validate(encoded,used,hash,&owner,model_component,NULL)!=PC_ROOT8_OK);encoded[i]^=1;}
+ {PAPACC_SIZE unavailable=99;complete=99;CHECK(pc_root8_v2_decode(encoded,1,decoded,sizeof(decoded),&unavailable,&complete,hash,&owner,model_component,NULL)!=PC_ROOT8_OK&&!complete&&!unavailable);}
+ for(n=1;n<used;n++)CHECK(pc_root8_v2_validate(encoded,n,hash,&owner,model_component,NULL)!=PC_ROOT8_OK);
+ CHECK(pc_root8_v2_validate(encoded,used+1U,hash,&owner,model_component,NULL)!=PC_ROOT8_OK);
+ {static const unsigned bad[]={8,16,20,120,128,136,144,152,160,168,172,240,242,244,248,252,254,256,258};for(i=0;i<sizeof(bad)/sizeof(bad[0]);i++){memcpy(fields,original,prefix);fields[bad[i]]=255;n=99;CHECK(pc_root8_v2_encode(fields,prefix,encoded,sizeof(encoded),&n,hash,&owner,model_component,NULL)!=PC_ROOT8_OK&&!n);}}
+ memcpy(fields,original,prefix);fields[offset+312]='b';CHECK(seal()); /* candidate string is DATA only */
+ deny_association=1;CHECK(pc_root8_v2_validate(encoded,used,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID);deny_association=0;
+ memcpy(fields,original,prefix);fields[offset+40]^=1;CHECK(pc_root8_v2_snt_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_OK);memcpy(fields+r32(fields+244),part,S);CHECK(pc_root8_v2_encode(fields,prefix,encoded,sizeof(encoded),&n,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID);
+ memcpy(fields,original,prefix);CHECK(seal());CHECK(pc_root8_v2_validate(encoded,used,hash,&owner,papacc_root8_body05_data,NULL)==PC_ROOT8_UNSUPPORTED);
+ deny_carrier=1;CHECK(pc_root8_v2_validate(encoded,used,hash,&owner,model_component,NULL)==PC_ROOT8_UNSUPPORTED);deny_carrier=0;
+ CHECK(pc_root8_v2_validate(encoded,used,hash,&owner,NULL,NULL)==PC_ROOT8_INCOMPLETE);CHECK(pc_root8_v2_validate(encoded,used,fail_hash,NULL,model_component,NULL)==PC_ROOT8_HASH_FAILED);
+ complete=99;n=99;CHECK(pc_root8_v2_decode(encoded,used,encoded,sizeof(encoded),&n,&complete,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID&&n==99&&complete==99);
+ n=99;CHECK(pc_root8_v2_encode(fields,prefix,encoded,prefix,&n,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID&&n==99);
+ CHECK(setup(2,1,1));offset=r32(fields+244)+64U;fields[offset+768+312]='b';n=99;CHECK(pc_root8_v2_snt_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_INVALID&&!n);
+ CHECK(setup(1,1,1));offset=r32(fields+244)+64U;fields[offset+312]='*';n=99;CHECK(pc_root8_v2_snt_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_INVALID&&!n);
+ CHECK(setup(1,1,1));CHECK(checkpoints());Q=r32(fields+56);fields[Q+8]=1;n=99;CHECK(pc_root8_v2_cp_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_INVALID&&!n);
+ /* Runtime OLD version1 decoder rejects v2 rather than truncate/reinterpret. */
+ {static PC_ROOT8_MODEL old;complete=99;result=pc_root8_decode(encoded,used,&old,&complete,hash,&owner,model_component,NULL);CHECK(result!=PC_ROOT8_OK&&!complete);}
+ printf("PASS %u DATA_MODEL_ONLY NO_CURRENT NO_NATIVE_CARRIER NO_SIGNATURE arrays=%Iu\n",checks,sizeof(fields)+sizeof(original)+sizeof(encoded)+sizeof(decoded)+sizeof(part)+sizeof(lst)+sizeof(owner)+sizeof(view));return 1;
+}
+int main(void){return run()?0:1;}

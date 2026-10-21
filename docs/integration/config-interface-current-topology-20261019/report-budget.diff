@@ -1,0 +1,18 @@
+--- apps\server\server_configuration_root_transaction_win32.inc
++++ apps\server\server_configuration_root_transaction_win32.inc
+@@ -218,8 +218,13 @@
+     (o&&interface_report_overlaps(out,o,sizeof(*o)))||
+     (pin&&interface_report_overlaps(out,pin,sizeof(*pin))))return PAPACC_RESULT_INVALID_ARGUMENT;
+  memset(out,0,sizeof(*out));
+- if(!preparation_owned(o)||!pin||papacc_server_console_win32_stop_requested()==PAPACC_TRUE||
+-    papacc_server_launcher_configuration_current(o,pin)!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
++ if(!preparation_owned(o)||!pin||papacc_server_console_win32_stop_requested()==PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
++ /* Caller output plus the existing conservative synchronous-copy allowance;
++  * no quota/credit is changed and insufficient capacity fails closed. */
++ if(sizeof(*out)+16384U>PAPACC_LAUNCHER_MANAGED_LIMIT||
++    o->configuration_preparation.combined_reserved>PAPACC_LAUNCHER_MANAGED_LIMIT-sizeof(*out)-16384U)
++  return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(papacc_server_launcher_configuration_current(o,pin)!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
+  p=&o->configuration_preparation.participants;b=&p->interface_current;
+  if(!p->listener_prepared||p->invocation!=o->invocation||b->bound!=PAPACC_TRUE||
+     p->interface_snapshot.present!=PAPACC_TRUE||p->interface_snapshot.retained!=PAPACC_FALSE||

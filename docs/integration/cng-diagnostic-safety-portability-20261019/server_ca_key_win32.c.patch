@@ -1,0 +1,44 @@
+diff --git docs/integration/cng-diagnostic-safety-portability-20261019/preimages/apps__server__server_ca_key_win32.c apps/server/server_ca_key_win32.c
+index fcf745c..4747bbd 100644
+--- docs/integration/cng-diagnostic-safety-portability-20261019/preimages/apps__server__server_ca_key_win32.c
++++ apps/server/server_ca_key_win32.c
+@@ -115,8 +115,14 @@ retained:
+  o->state=PAPACC_CA_KEY_RETAINED;o->error=s;return s;
+ }
+ static SECURITY_STATUS ca_begin(PAPACC_CA_KEY *o,const BYTE *a,const BYTE *g,PSID admin,PSID service,int create) {
+- SECURITY_STATUS s;DWORD n,fn=create?CA_D_BEGIN_CREATE:CA_D_BEGIN_OPEN;BYTE sd[1024];LPWSTR as=NULL,ss=NULL;
++ SECURITY_STATUS s;DWORD fn=create?CA_D_BEGIN_CREATE:CA_D_BEGIN_OPEN;
++#ifndef PAPACC_CA_READ_ONLY_DIAGNOSTIC
++ DWORD n;BYTE sd[1024];LPWSTR as=NULL,ss=NULL;
+  PSECURITY_DESCRIPTOR converted=NULL;wchar_t text[512];int written;
++#else
++ /* Diagnostic build cannot create or set key properties, even via this API. */
++ if(create)return ca_local(o,fn,CA_D_ENTRY,NTE_NOT_SUPPORTED);
++#endif
+  if(!o||!a||!g||!admin||!service||o->state!=PAPACC_CA_KEY_EMPTY||o->key||o->provider||o->retained_token||
+     !ca_nonzero(a)||!ca_nonzero(g))return ca_local(o,fn,CA_D_ENTRY,NTE_INVALID_PARAMETER);
+  o->thread=GetCurrentThreadId();s=ca_identity(o,admin,service);if(s!=ERROR_SUCCESS)goto failure;
+@@ -126,6 +132,7 @@ static SECURITY_STATUS ca_begin(PAPACC_CA_KEY *o,const BYTE *a,const BYTE *g,PSI
+  ca_name(o->name,a,g);
+  s=ca_native(o,fn,CA_D_OPEN_PROVIDER,CA_API_OPEN_PROVIDER,NCryptOpenStorageProvider(&o->provider,MS_KEY_STORAGE_PROVIDER,0));if(s!=ERROR_SUCCESS)goto failure;
+  if(!create){s=ca_native(o,fn,CA_D_OPEN_KEY,CA_API_OPEN_KEY,NCryptOpenKey(o->provider,&o->key,o->name,0,NCRYPT_MACHINE_KEY_FLAG|NCRYPT_SILENT_FLAG));if(s!=ERROR_SUCCESS)goto failure;}
++#ifndef PAPACC_CA_READ_ONLY_DIAGNOSTIC
+  else {
+   /* No NCRYPT_OVERWRITE_KEY_FLAG. Existing key is never replaced. */
+   s=ca_native(o,fn,CA_D_CREATE_KEY,CA_API_CREATE_KEY,NCryptCreatePersistedKey(o->provider,&o->key,NCRYPT_RSA_ALGORITHM,o->name,0,NCRYPT_MACHINE_KEY_FLAG));
+@@ -144,12 +151,15 @@ static SECURITY_STATUS ca_begin(PAPACC_CA_KEY *o,const BYTE *a,const BYTE *g,PSI
+   s=ca_native(o,fn,CA_D_FINALIZE,CA_API_FINALIZE,NCryptFinalizeKey(o->key,NCRYPT_SILENT_FLAG));if(s!=ERROR_SUCCESS)goto failure;
+   o->diagnostic_finalization=2;
+  }
++#endif
+  s=papacc_ca_key_validate(o);if(s!=ERROR_SUCCESS)goto failure;
+  o->state=PAPACC_CA_KEY_READY;
+ failure:
++#ifndef PAPACC_CA_READ_ONLY_DIAGNOSTIC
+  if(as&&LocalFree(as)){o->retained_local[0]=(HLOCAL)as;o->state=PAPACC_CA_KEY_RETAINED;s=ca_local(o,fn,CA_D_LOCAL_FREE_ADMIN,NTE_FAIL);}
+  if(ss&&LocalFree(ss)){o->retained_local[1]=(HLOCAL)ss;o->state=PAPACC_CA_KEY_RETAINED;s=ca_local(o,fn,CA_D_LOCAL_FREE_SERVICE,NTE_FAIL);}
+  if(converted&&LocalFree(converted)){o->retained_local[2]=(HLOCAL)converted;o->state=PAPACC_CA_KEY_RETAINED;s=ca_local(o,fn,CA_D_LOCAL_FREE_SD,NTE_FAIL);}
++#endif
+  if(s!=ERROR_SUCCESS){o->error=s;if(o->retained_token)o->state=PAPACC_CA_KEY_RETAINED;else if(o->state!=PAPACC_CA_KEY_RETAINED)(void)papacc_ca_key_close(o);}
+  return s;
+ }

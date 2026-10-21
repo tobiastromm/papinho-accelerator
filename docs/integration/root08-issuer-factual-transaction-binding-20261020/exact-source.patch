@@ -1,0 +1,131 @@
+--- src/config/config_root8_v2.h
++++ src/config/config_root8_v2.h
+@@ -32,4 +32,13 @@
+  PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *);
+ PC_ROOT8_RESULT pc_root8_v2_cp_encode(const PAPACC_U8 *,PAPACC_SIZE,
+  PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *);
++/* Complete serialized v2->v2 predecessor relation ONLY, not CURRENT or source
++ * approval. Caller retains both complete immutable inputs; callbacks cannot
++ * mutate/reenter/retain them. Requires nonzero valid predecessor CP2, exact
++ * base collection and full issuer event-prefix/high-water continuity. v1
++ * adoption needs its separate qualified transition and returns INCOMPLETE.
++ * Changed approval rows return INCOMPLETE pending actual source/history proof;
++ * identical rows do not themselves establish their current authorization. */
++PC_ROOT8_RESULT pc_root8_v2_base_link(const PAPACC_U8 *,PAPACC_SIZE,
++ const PAPACC_U8 *,PAPACC_SIZE,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
+ #endif
+--- src/config/config_root8_v2.c
++++ src/config/config_root8_v2.c
+@@ -1,4 +1,5 @@
+ #include "config_root8_v2.h"
++#include "../issuer/issuer_codec.h"
+ #include <stdint.h>
+ #include <string.h>
+ static int range(const void *p,PAPACC_SIZE n){return p&&n&&n-1U<=UINTPTR_MAX-(uintptr_t)p;}
+@@ -136,3 +137,44 @@
+  if(zero(cp,512)){memset(out,0,512);*used=512;return PC_ROOT8_OK;}
+  if(!hash||!hash(hc,cp,480,d))return PC_ROOT8_HASH_FAILED;memcpy(out,cp,480);memcpy(out+480,d,32);*used=512;return PC_ROOT8_OK;
+ }
++
++/* No native store, pin or authority is created by this DATA relation. */
++PC_ROOT8_RESULT pc_root8_v2_base_link(const PAPACC_U8 *next,PAPACC_SIZE nn,
++ const PAPACC_U8 *base,PAPACC_SIZE bn,PC_LST1_HASH hash,void *hc,
++ PC_ROOT8_COMPONENT component,void *cc)
++{
++ PC_ROOT8_RESULT s;PAPACC_U8 d[32];const PAPACC_U8 *cp,*lst,*a,*b;
++ PAPACC_SIZE bq,bo,no;unsigned i,N,K;PAPACC_ISSUER_CHECKPOINT_REPORT report;
++ PAPACC_ISSUER_RESULT ir;
++ if(!range(next,nn)||nn<PC_ROOT8_V2_MIN||nn>PC_ROOT8_V2_MAX)return PC_ROOT8_INVALID;
++ if(!base)return bn?PC_ROOT8_INVALID:PC_ROOT8_INCOMPLETE;
++ if(!range(base,bn)||bn<PC_ROOT8_MIN||bn>PC_ROOT8_V2_MAX||cross(next,nn,base,bn))return PC_ROOT8_INVALID;
++ s=pc_root8_v2_validate(next,nn,hash,hc,component,cc);if(s)return s;
++ if(!memcmp(base,"PACROOT8",8)&&u16(base+8)==1U)return PC_ROOT8_INCOMPLETE;
++ s=pc_root8_v2_validate(base,bn,hash,hc,component,cc);if(s)return s;
++ if(u16(next+240)!=2U||memcmp(next+72,base+72,32)||u64(next+112)!=u64(base+104)||
++    u64(next+136)!=u64(base+104)||memcmp(next+208,base+bn-32U,32))return PC_ROOT8_INVALID;
++ bq=u32(base+56);cp=base+bq;
++ if(zero(cp,512))return PC_ROOT8_INCOMPLETE;
++ if(u64(next+144)!=u64(cp+64)||u64(next+152)!=u64(cp+72)||u64(next+160)!=u64(cp+80))return PC_ROOT8_INVALID;
++ if(!hash||!hash(hc,base,bq,d))return PC_ROOT8_HASH_FAILED;
++ if(memcmp(d,next+176,32))return PC_ROOT8_INVALID;
++ N=u16(base+20);lst=next+u32(next+40);
++ if(u32(next+44)!=160U+512U*N)return PC_ROOT8_INVALID;
++ for(i=0;i<N;i++){
++  a=base+512U+1536U*i;b=lst+128U+512U*i;
++  if(memcmp(a,b,344)||!zero(b+344,40)||memcmp(a+384,b+384,128))return PC_ROOT8_INVALID;
++ }
++ bo=u32(base+48);no=u32(next+48);
++ if(memcmp(base+bo,next+no,8192))return PC_ROOT8_INVALID;
++ ir=papacc_issuer_checkpoint_assess(next+no+8192,8192,base+bo+8192,8192,hash,hc,0,&report);
++ if(ir==PAPACC_ISSUER_UNCERTAIN)return PC_ROOT8_HASH_FAILED;
++ if(ir!=PAPACC_ISSUER_DENIED||report.state!=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED)return PC_ROOT8_INVALID;
++ /* Full approval rows are NOT carried by base LST1. No silent replacement or
++  * reconstruction: accept identical rows as DATA, defer any changed history. */
++ K=u16(base+252);
++ if(u16(next+252)!=K)return PC_ROOT8_INCOMPLETE;
++ a=base+u32(base+244)+64U;b=next+u32(next+244)+64U;
++ if(memcmp(a,b,768U*K))return PC_ROOT8_INCOMPLETE;
++ return PC_ROOT8_OK;
++}
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2736,7 +2736,7 @@
+     endif()
+     add_library(papacc_config_root8 STATIC src/config/config_root8.c src/config/config_root8_v2.c)
+     target_include_directories(papacc_config_root8 PUBLIC src/config include)
+-    target_link_libraries(papacc_config_root8 PUBLIC papacc_config_lst1)
++    target_link_libraries(papacc_config_root8 PUBLIC papacc_config_lst1 papacc_issuer)
+     set_target_properties(papacc_config_root8 PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+     papacc_enable_warnings(papacc_config_root8)
+     if(BUILD_TESTING)
+--- tests/config_root8_v2_test.c
++++ tests/config_root8_v2_test.c
+@@ -155,6 +155,40 @@
+  CHECK(papacc_configuration_finish(&owner)==PAPACC_RESULT_OK);
+  return 1;
+ }
++
++/* Complete predecessor fixtures remain synthetic, no CURRENT or file. */
++static int predecessor_cases(void)
++{
++ static PAPACC_U8 prior[PC_ROOT8_V2_MAX];
++ PAPACC_SIZE pn,L,n,Q;PAPACC_U8 *q,*c;unsigned i;
++ CHECK(setup(1,1,1));CHECK(checkpoints());pn=used;memcpy(prior,encoded,pn);
++ w64(fields+104,3);w64(fields+112,2);w64(fields+136,2);w64(fields+144,18);w64(fields+152,9);
++ w64(fields+160,r64(prior+120));w16(fields+240,2);
++ Q=r32(prior+56);memcpy(fields+176,prior+Q+88,32);memcpy(fields+208,prior+pn-32U,32);
++ memset(fields+r32(fields+56),0,512);
++ config_init(0,3);q=fields+512;CHECK(papacc_configuration_body05_encode(&view,q+512,1024)==PAPACC_RESULT_OK);
++ CHECK(hash(&owner,q+512,1024,q+312));
++ q=fields+r32(fields+244);w64(q+56,3);
++ L=r32(fields+44);c=fields+r32(fields+40);memcpy(lst.fields,c,L);
++ w64(lst.fields+56,2);w64(lst.fields+64,18);w64(lst.fields+72,9);w64(lst.fields+80,r64(prior+120));
++ memcpy(lst.fields+128,prior+512,512);memset(lst.fields+128+344,0,40);
++ CHECK(pc_lst1_encode(&lst,c,L,&n,hash,&owner)==PC_LST1_OK&&n==L);CHECK(seal());
++ CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_OK);
++ CHECK(pc_root8_v2_base_link(encoded,used,NULL,0,hash,&owner,model_component,NULL)==PC_ROOT8_INCOMPLETE);
++ CHECK(pc_root8_v2_base_link(encoded,used,prior,pn-1,hash,&owner,model_component,NULL)!=PC_ROOT8_OK);
++ CHECK(pc_root8_v2_base_link(encoded,used,encoded,used,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID);
++ CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,fail_hash,NULL,model_component,NULL)==PC_ROOT8_HASH_FAILED);
++ CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,NULL,NULL)==PC_ROOT8_INCOMPLETE);
++ for(i=0;i<32U;i++){
++  fields[176+i]^=1;CHECK(seal());CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID);fields[176+i]^=1;
++  fields[208+i]^=1;CHECK(seal());CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID);fields[208+i]^=1;
++ }
++ CHECK(seal());
++ /* Even a new valid SNT digest cannot silently replace a naming approval. */
++ q=fields+r32(fields+244)+64;w64(q+32,3);CHECK(seal());
++ CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_INCOMPLETE);
++ return 1;
++}
+ static int run(void)
+ {
+  unsigned N,B,stage,i;PAPACC_SIZE n,offset,S,Q;int complete;char path[MAX_PATH];DWORD len;PC_ROOT8_RESULT result;
+@@ -181,6 +215,7 @@
+  CHECK(setup(1,1,1));CHECK(checkpoints());Q=r32(fields+56);fields[Q+8]=1;n=99;CHECK(pc_root8_v2_cp_encode(fields,prefix,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_INVALID&&!n);
+  /* Runtime OLD version1 decoder rejects v2 rather than truncate/reinterpret. */
+  {static PC_ROOT8_MODEL old;complete=99;result=pc_root8_decode(encoded,used,&old,&complete,hash,&owner,model_component,NULL);CHECK(result!=PC_ROOT8_OK&&!complete);}
++ CHECK(predecessor_cases());
+  CHECK(canonical_carrier_cases());
+  printf("PASS %u DATA_MODEL_ONLY NO_CURRENT NO_NATIVE_CARRIER NO_SIGNATURE arrays=%Iu\n",checks,sizeof(fields)+sizeof(original)+sizeof(encoded)+sizeof(decoded)+sizeof(part)+sizeof(lst)+sizeof(owner)+sizeof(view));return 1;
+ }

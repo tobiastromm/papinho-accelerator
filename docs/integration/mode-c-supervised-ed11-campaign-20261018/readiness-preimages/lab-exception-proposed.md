@@ -1,0 +1,14 @@
+# Proposed Mode C laboratory uncertainty treatment
+Status: PROPOSED / NOT_ACCEPTED / NOT_EXECUTABLE. This document is a decision request, not an extension of ADR0052 or operational authorization.
+
+Requested scope, if owner later approves a fully bound manifest: only the exact canonical Release pair and one declared loopback HTTPS Mode C invocation in manifest-proposed.json; no production, external egress, additional operations, R2 or automatic retries. Existing administrative root/CURRENT/epoch/Principal/grants and Site TLS authority remain mandatory. No waiver of identity, certificate/hostname/ALPN, ED08, Model E or managed quota.
+
+Potential uncertainty accepted would be limited to explicitly enumerated opaque provider/kernel maxima that remain UNKNOWN, while using existing observable resource metrics and existing local credit/supervision mechanisms. Unknown is never zero, measured, bounded or qualified. Acceptance could enable experimental observation only; it would not qualify production or prove opaque resource bounds.
+
+The present proposal intentionally requests NO executable permit yet: duration_ms, numeric freshness/headroom, exact target machine/config/certificates/ports and actual measurement/supervision coverage remain unbound. These fields require supporting evidence and owner decision; importing C8 CONTROL1000ms/60s or512MiB is prohibited. A finite duration must be explicitly chosen and approved before execution, with factual mechanism for governed Stop; it is not teardown proof. If no safe quantitative envelope or explicitly justified laboratory treatment can be approved, do not run.
+
+Required observables: per-process phase baseline/current/observed peak/private commit/handles, host physical/commit availability with original API semantics, collection duration and local ages, local managed/shared/retained credits, exact identity and phase protocol receipts, owner closure/disposition and supervision health. A missing mandatory observable is not excepted. Browser resource sampling and Accelerator active-phase association are presently gaps.
+
+On any approved envelope breach, identity/policy/epoch/profile divergence, measurement loss, expiry/ambiguous clock, overflow, revocation, supervisor failure, cancel or duration exhaustion, use existing governed Stop, preserve reserved CONTROL/CANCEL/FINAL and retain uncertain dependencies/credits. No force release, alternate cleanup, destructive retry or process-exit teardown proof. All invocation outcomes including setup failures, aborts and retained graphs must be published without rerun-until-PASS.
+
+Owner review requested: determine whether this narrowly scoped opacity exception is acceptable in principle and which factual inputs/safety envelope must close before a separate exact acceptance/execution request. No automatic accepted ADR is created by this preparation. Current admission remains DISABLED/DENY/DENY.

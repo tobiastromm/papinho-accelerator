@@ -1,0 +1,110 @@
+[
+  {
+    "configuration": "Debug",
+    "case": "abort",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nPASS checks=35 case=abort NO_NETWORK NO_AUTHENTICATION NO_ADMISSION\n"
+  },
+  {
+    "configuration": "Debug",
+    "case": "retain",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nNATIVE_LOCAL_COMMIT_RESULT=0\nPASS checks=46 case=retain GRAPH_PRESERVED NO_REUSE NO_NETWORK NO_AUTHENTICATION\n"
+  },
+  {
+    "configuration": "Debug",
+    "case": "snapshot-stop",
+    "exit": 0,
+    "output": "SNAPSHOT_BUDGET combined=1974283 copy=5928 participant=6408 transient_guard=10504 limit=2097152\nSNAPSHOT_ROOT_LIFETIME=PASS checks=27 case=snapshot-stop NO_CURRENT NO_COMMIT NO_NETWORK\n"
+  },
+  {
+    "configuration": "Debug",
+    "case": "snapshot-retain",
+    "exit": 0,
+    "output": "SNAPSHOT_ROOT_RETAINED=PASS checks=42 NO_CURRENT NO_COMMIT NO_NETWORK\n"
+  },
+  {
+    "configuration": "Debug",
+    "case": "snapshot-consume-stop",
+    "exit": 0,
+    "output": "SNAPSHOT_BUDGET combined=1974299 copy=5928 participant=6408 transient_guard=10504 limit=2097152\nSNAPSHOT_ROOT_LIFETIME=PASS checks=39 case=snapshot-consume-stop NO_CURRENT NO_COMMIT NO_NETWORK\n"
+  },
+  {
+    "configuration": "Debug",
+    "case": "snapshot-consume-retain",
+    "exit": 0,
+    "output": "SNAPSHOT_ROOT_RETAINED=PASS checks=54 NO_CURRENT NO_COMMIT NO_NETWORK\n"
+  },
+  {
+    "configuration": "Debug",
+    "case": "catalog-live",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nNATIVE_LOCAL_COMMIT_RESULT=0\nCHECKPOINT_ROUNDTRIP R=2 A_PRESENT P_MATCH high_water=1 checks=32 RECOVERY_DENY\nCHECKPOINT_ROUNDTRIP R=3 A_PRESENT P_MATCH high_water=1 checks=36 RECOVERY_DENY\nCHECKPOINT_ROUNDTRIP R=4 A_PRESENT P_MATCH high_water=2 checks=38 RECOVERY_DENY\nPASS checks=134 LIVE_CURRENT_A_FACTUAL P_PRESERVED THREE_REVISIONS REAPER_PINS_RELEASED SYNTHETIC_REVOKED_SESSIONS NO_NETWORK\n"
+  },
+  {
+    "configuration": "Debug",
+    "case": "catalog-live-unknown",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nNATIVE_LOCAL_COMMIT_RESULT=0\nPASS checks=85 LIVE_FAILURE=catalog-live-unknown outcome=4 P_UNCHANGED OLD_SESSION_RETAINED NO_CURRENT_NO_RETRY NO_NETWORK\n"
+  },
+  {
+    "configuration": "Debug",
+    "case": "catalog-live-stop",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nNATIVE_LOCAL_COMMIT_RESULT=0\nPASS checks=83 LIVE_FAILURE=catalog-live-stop outcome=5 P_UNCHANGED OLD_SESSION_RETAINED NO_CURRENT_NO_RETRY NO_NETWORK\n"
+  },
+  {
+    "configuration": "Release",
+    "case": "abort",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nPASS checks=35 case=abort NO_NETWORK NO_AUTHENTICATION NO_ADMISSION\n"
+  },
+  {
+    "configuration": "Release",
+    "case": "retain",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nNATIVE_LOCAL_COMMIT_RESULT=0\nPASS checks=46 case=retain GRAPH_PRESERVED NO_REUSE NO_NETWORK NO_AUTHENTICATION\n"
+  },
+  {
+    "configuration": "Release",
+    "case": "snapshot-stop",
+    "exit": 0,
+    "output": "SNAPSHOT_BUDGET combined=1974283 copy=5928 participant=6408 transient_guard=10504 limit=2097152\nSNAPSHOT_ROOT_LIFETIME=PASS checks=27 case=snapshot-stop NO_CURRENT NO_COMMIT NO_NETWORK\n"
+  },
+  {
+    "configuration": "Release",
+    "case": "snapshot-retain",
+    "exit": 0,
+    "output": "SNAPSHOT_ROOT_RETAINED=PASS checks=42 NO_CURRENT NO_COMMIT NO_NETWORK\n"
+  },
+  {
+    "configuration": "Release",
+    "case": "snapshot-consume-stop",
+    "exit": 0,
+    "output": "SNAPSHOT_BUDGET combined=1974299 copy=5928 participant=6408 transient_guard=10504 limit=2097152\nSNAPSHOT_ROOT_LIFETIME=PASS checks=39 case=snapshot-consume-stop NO_CURRENT NO_COMMIT NO_NETWORK\n"
+  },
+  {
+    "configuration": "Release",
+    "case": "snapshot-consume-retain",
+    "exit": 0,
+    "output": "SNAPSHOT_ROOT_RETAINED=PASS checks=54 NO_CURRENT NO_COMMIT NO_NETWORK\n"
+  },
+  {
+    "configuration": "Release",
+    "case": "catalog-live",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nNATIVE_LOCAL_COMMIT_RESULT=0\nCHECKPOINT_ROUNDTRIP R=2 A_PRESENT P_MATCH high_water=1 checks=36 RECOVERY_DENY\nCHECKPOINT_ROUNDTRIP R=3 A_PRESENT P_MATCH high_water=1 checks=36 RECOVERY_DENY\nCHECKPOINT_ROUNDTRIP R=4 A_PRESENT P_MATCH high_water=2 checks=36 RECOVERY_DENY\nPASS checks=136 LIVE_CURRENT_A_FACTUAL P_PRESERVED THREE_REVISIONS REAPER_PINS_RELEASED SYNTHETIC_REVOKED_SESSIONS NO_NETWORK\n"
+  },
+  {
+    "configuration": "Release",
+    "case": "catalog-live-unknown",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nNATIVE_LOCAL_COMMIT_RESULT=0\nPASS checks=85 LIVE_FAILURE=catalog-live-unknown outcome=4 P_UNCHANGED OLD_SESSION_RETAINED NO_CURRENT_NO_RETRY NO_NETWORK\n"
+  },
+  {
+    "configuration": "Release",
+    "case": "catalog-live-stop",
+    "exit": 0,
+    "output": "COMBINED_RESERVED=1974283 MATERIAL_CREDIT=32768 RUNTIME_CREDIT=3203\nNATIVE_LOCAL_COMMIT_RESULT=0\nPASS checks=83 LIVE_FAILURE=catalog-live-stop outcome=5 P_UNCHANGED OLD_SESSION_RETAINED NO_CURRENT_NO_RETRY NO_NETWORK\n"
+  }
+]

@@ -1,0 +1,16 @@
+--- apps/server/server_config_source_binding_win32.h
++++ apps/server/server_config_source_binding_win32.h
+@@ -7,4 +7,13 @@
+  * return. Output owns value copies only; never a future admission ticket. */
+ PC_RESULT papacc_server_config_source_resolve(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,
+  const PAPACC_ROOT_CURRENT_PIN *,PAPACC_U64,const PC_DOCUMENT *,PC_MODEL_BINDING *,PC_DIAGNOSTIC *);
++/* Initial result is a bound candidate, never a historical CURRENT pin/epoch.
++ * root identity is copied, revision/epochs remain explicitly unavailable. */
++typedef struct PAPACC_BOOTSTRAP_RESOLUTION {
++ PC_MODEL_BINDING binding;
++ PAPACC_U64 invocation;
++ unsigned initial_resolved,epochs_present;
++} PAPACC_BOOTSTRAP_RESOLUTION;
++PC_RESULT papacc_server_config_initial_bootstrap_resolve(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,
++ const PC_DOCUMENT *,PAPACC_BOOTSTRAP_RESOLUTION *,PC_DIAGNOSTIC *);
+ #endif

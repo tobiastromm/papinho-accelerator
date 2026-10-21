@@ -1,0 +1,62 @@
+--- a/src/provisioning/shared_structure/m1.c
++++ b/src/provisioning/shared_structure/m1.c
+@@ -14,6 +14,13 @@
+ {
+  return b && b->perform && b->stopped && b->quiescent && b->wipe && b->publish;
+ }
++static int step_result(int result,int *detail)
++{
++ /* An unexpected nonnegative adapter result must never look like public
++  * SYNTHETIC_ONLY or another partial-success code in a consumer wrapper. */
++ if(result>=0 && result!=SP_M1_COMPLETE){*detail=SP_M1_INVALID_DETAIL;return SP_M1_DENIED;}
++ return result;
++}
+ int sp_m1_execute(SP_M1_STATE *s,const SP_M1_BINDING *b,void *owner)
+ {
+  static const SP_M1_STAGE order[]={SP_M1_SIGNATURE,SP_M1_TRUST,SP_M1_KDF,
+@@ -23,10 +30,10 @@
+  s->owner_identity=owner;s->binding_identity=b;
+  s->state=1;s->stage=SP_M1_STRUCTURE;s->first_failure_stage=SP_M1_NONE;s->first_failure_code=0;
+  s->kdf_invocations=s->aead_invocations=s->content_invocations=0;
+- detail=SP_M1_INVALID_DETAIL;result=b->perform(owner,s->stage,&detail);
++ detail=SP_M1_INVALID_DETAIL;result=step_result(b->perform(owner,s->stage,&detail),&detail);
+  if(s->state!=1 || s->stage!=SP_M1_STRUCTURE){s->stage=SP_M1_STRUCTURE;failure(s,SP_M1_INVALID_DETAIL);s->state=3;return SP_M1_INVALID;}
+  if(result!=SP_M1_COMPLETE){failure(s,detail);s->state=3;return result;}
+- s->stage=SP_M1_BUDGET;detail=SP_M1_INVALID_DETAIL;result=b->perform(owner,s->stage,&detail);
++ s->stage=SP_M1_BUDGET;detail=SP_M1_INVALID_DETAIL;result=step_result(b->perform(owner,s->stage,&detail),&detail);
+  if(s->state!=1 || s->stage!=SP_M1_BUDGET){s->stage=SP_M1_BUDGET;failure(s,SP_M1_INVALID_DETAIL);s->state=3;return SP_M1_INVALID;}
+  if(result!=SP_M1_COMPLETE){failure(s,detail);s->state=3;return result;}
+  /* Workspaces acquired only after structural and budget validation. */
+@@ -34,7 +41,7 @@
+  for(j=0;j<sizeof(order)/sizeof(order[0]);++j){
+   s->stage=order[j];
+   if(s->stage==SP_M1_CONTENT){
+-   detail=SP_M1_INVALID_DETAIL;result=b->perform(owner,SP_M1_CONTENT_PARSE,&detail);
++   detail=SP_M1_INVALID_DETAIL;result=step_result(b->perform(owner,SP_M1_CONTENT_PARSE,&detail),&detail);
+    if(s->state!=1 || s->stage!=SP_M1_CONTENT){s->state=1;s->stage=SP_M1_CONTENT;return abort_operation(s,b,owner,SP_M1_DENIED,SP_M1_INVALID_DETAIL);}
+    if(result!=SP_M1_COMPLETE)return abort_operation(s,b,owner,result,detail);
+   }
+@@ -42,7 +49,7 @@
+   if(s->stage==SP_M1_KDF)++s->kdf_invocations;
+   if(s->stage==SP_M1_AEAD)++s->aead_invocations;
+   if(s->stage==SP_M1_CONTENT)++s->content_invocations;
+-  detail=SP_M1_INVALID_DETAIL;result=b->perform(owner,s->stage,&detail);
++  detail=SP_M1_INVALID_DETAIL;result=step_result(b->perform(owner,s->stage,&detail),&detail);
+   /* Callbacks cannot advance/reset a running machine. */
+   if(s->state!=1 || s->stage!=order[j]){
+    s->state=1;s->stage=order[j];return abort_operation(s,b,owner,SP_M1_DENIED,SP_M1_INVALID_DETAIL);
+--- a/tests/shared_m1/m1_test.c
++++ b/tests/shared_m1/m1_test.c
+@@ -51,6 +51,12 @@
+  }
+  for(j=SP_M1_STRUCTURE;j<=SP_M1_BUDGET;++j){reset(&m);m.fail=(SP_M1_STAGE)j;m.result=j==SP_M1_BUDGET?SP_M1_LIMIT:SP_M1_INVALID;
+  C(sp_m1_execute(&m.flow,&binding,&m)==m.result);C(!m.wiped && !m.published && m.flow.state==3);}
++ /* Unknown/partial positive adapter results cannot escape as success. */
++ for(j=SP_M1_STRUCTURE;j<=SP_M1_RELEASE;++j)for(k=0;k<2;++k){
++  reset(&m);m.fail=(SP_M1_STAGE)j;m.result=k?2:0;
++  C(sp_m1_execute(&m.flow,&binding,&m)==SP_M1_DENIED);
++  C(!m.published && m.flow.state==3 && m.flow.first_failure_code==SP_M1_INVALID_DETAIL);
++ }
+  reset(&m);m.quiet=0;C(sp_m1_execute(&m.flow,&binding,&m)==SP_M1_RETAINED);C(!m.published);
+  m.quiet=1;C(sp_m1_finish(&m.flow,&binding,&m)==SP_M1_ABORTED && !m.published);
+  printf("PASS %u shared M1 CONTROL_ONLY checks state_size=%u binding_size=%u; no factual trust\n",checks,(unsigned)sizeof(SP_M1_STATE),(unsigned)sizeof(binding));return 0;

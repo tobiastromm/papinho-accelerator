@@ -1,0 +1,124 @@
+#include "../../src/core/ed11_process_profile.h"
+/* Fixed existing-root dispatch. No callbacks supplied by a client/fixture. */
+static PAPACC_U32 dispatch_ref(const PAPACC_U8 *p)
+{return ((PAPACC_U32)p[28]<<24)|((PAPACC_U32)p[29]<<16)|((PAPACC_U32)p[30]<<8)|p[31];}
+static int dispatch_owned(void *context)
+{
+ return context==&configuration_c2_participant&&preparation_owned(&root)&&
+ configuration_c2_participant.root==&root&&configuration_c2_participant.invocation==root.invocation&&
+ configuration_c2_participant.state==PAPACC_C2_PARTICIPANT_READY&&
+ configuration_c2.initialized&&!configuration_c2.stopping;
+}
+PAPACC_RESULT papacc_server_launcher_c2_open_policy(void *context,const PAPACC_C2_SESSION *session,
+ const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_BOOL *permit)
+{
+ PAPACC_SITE_TLS_CATALOG profile;PAPACC_SIZE cursor;PAPACC_RESULT r;unsigned i,occupied=0;int existing=0;
+ if(!permit)return PAPACC_RESULT_INVALID_ARGUMENT;*permit=PAPACC_FALSE;
+ if(!dispatch_owned(context)||!papacc_server_launcher_c2_session_current(session))return PAPACC_RESULT_INVALID_STATE;
+ r=papacc_c2_validate_payload(16,p,n,PAPACC_C2_CONTROL,PAPACC_C2_BROWSER);if(r!=PAPACC_RESULT_OK)return r;
+ r=papacc_server_launcher_site_profile(&root,&root.listener_composition.pin,dispatch_ref(p),root.config.site_tls.revision,&profile);
+ if(r!=PAPACC_RESULT_OK)return r;
+ cursor=40U+(((PAPACC_SIZE)p[24]<<8)|p[25])+(((PAPACC_SIZE)p[26]<<8)|p[27]);
+ if(cursor>n||papacc_site_tls_alpn_allowed(&profile,p+cursor,n-cursor)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<2;++i){PAPACC_C2_OPERATION *o=&configuration_c2.operations[i];
+  if(o->state!=PAPACC_C2_OP_EMPTY){++occupied;if(o->session==session&&p==o->open&&n==o->open_length)existing=1;}}
+ /* Retained and released-but-not-reclaimed slots still consume concurrency. */
+ if(!existing&&occupied>=profile.max_concurrent)return PAPACC_RESULT_LIMIT_EXCEEDED;
+ *permit=PAPACC_TRUE;return PAPACC_RESULT_OK; /* capacity/admission remain separate */
+}
+PAPACC_RESULT papacc_server_launcher_c2_capacity(void *context,PAPACC_SIZE bytes,PAPACC_BOOL *permit)
+{
+ PAPACC_RESULT r;
+ if(!permit)return PAPACC_RESULT_INVALID_ARGUMENT;*permit=PAPACC_FALSE;
+ if(!dispatch_owned(context)||bytes>root.configuration_preparation.combined_reserved||
+ root.configuration_preparation.combined_reserved>PAPACC_ED11_PROCESS_LIMIT)return PAPACC_RESULT_INVALID_STATE;
+ /* Manager/pools are already included: no second charge. UNKNOWN still denies. */
+ r=papacc_application_require_operational_admission();
+ if(r==PAPACC_RESULT_OK)*permit=PAPACC_TRUE;return r;
+}
+PAPACC_RESULT papacc_server_launcher_c2_deadline(const PAPACC_C2_SESSION *s,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U64 *out)
+{
+ PAPACC_SITE_TLS_CATALOG profile;PAPACC_U64 now;PAPACC_RESULT r;
+ if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;*out=0;
+ if(!dispatch_owned(&configuration_c2_participant)||!papacc_server_launcher_c2_session_current(s)||
+  papacc_c2_validate_payload(16,p,n,PAPACC_C2_CONTROL,PAPACC_C2_BROWSER)!=PAPACC_RESULT_OK)
+  return PAPACC_RESULT_INVALID_STATE;
+ r=papacc_server_launcher_site_profile(&root,&root.listener_composition.pin,dispatch_ref(p),root.config.site_tls.revision,&profile);
+ if(r!=PAPACC_RESULT_OK)return r;now=GetTickCount64();
+ if(profile.max_duration_ms>(PAPACC_U64)-1-now)return PAPACC_RESULT_LIMIT_EXCEEDED;
+ *out=now+profile.max_duration_ms;return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_server_launcher_c2_flow_limit(PAPACC_C2_OPERATION_MANAGER *m,PAPACC_C2_OPERATION *o,PAPACC_SIZE bytes)
+{
+ PAPACC_SITE_TLS_CATALOG profile;PAPACC_U64 used=0;unsigned i;int owned=0;PAPACC_RESULT r;
+ if(m!=&configuration_c2)return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<2;++i)if(o==&m->operations[i]&&o->state!=PAPACC_C2_OP_EMPTY)owned=1;
+ if(!owned||!papacc_server_launcher_c2_session_current(o->session))return PAPACC_RESULT_INVALID_STATE;
+ r=papacc_server_launcher_site_profile(&root,&root.listener_composition.pin,dispatch_ref(o->open),root.config.site_tls.revision,&profile);
+ if(r!=PAPACC_RESULT_OK)return r;
+ for(i=0;i<4;++i){if(o->flow[i].admitted>profile.max_bytes-used)return PAPACC_RESULT_LIMIT_EXCEEDED;used+=o->flow[i].admitted;}
+ return bytes<=profile.max_bytes-used?PAPACC_RESULT_OK:PAPACC_RESULT_LIMIT_EXCEEDED;
+}
+static PAPACC_RESULT configuration_site_prepare(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+{
+ PST_RESULT r;PAPACC_RESULT result;
+ if(!preparation_owned(o)||!o->configuration_preparation.dormant_applied)return PAPACC_RESULT_INVALID_STATE;
+ if(!o->config.site_tls.present)return PAPACC_RESULT_OK;
+ if(papacc_site_tls_catalog_validate(&o->config.site_tls)!=PAPACC_RESULT_OK||o->pst_system_trust||configuration_c3_manager.initialized)
+ return PAPACC_RESULT_INVALID_STATE;
+ memset(&o->pst_trust_source,0,sizeof(o->pst_trust_source));
+ o->pst_trust_source.struct_size=sizeof(o->pst_trust_source);o->pst_trust_source.api_version=PST_API_VERSION;
+ o->pst_trust_source.kind=PST_TRUST_SOURCE_SYSTEM;
+ r=pst_trust_create(&o->pst_trust_source,&o->pst_system_trust);
+ if(r!=PST_RESULT_OK||o->pst_system_trust==NULL){if(o->pst_system_trust)(void)papacc_server_launcher_configuration_preparation_retain(o);return PAPACC_RESULT_INTERNAL_ERROR;}
+ result=papacc_connection_manager_init(&configuration_c3_manager,configuration_c3_connections,2U);
+ return result; /* no child/transport/wait-set/socket created */
+}
+static PAPACC_RESULT configuration_site_cleanup(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+{
+ unsigned i;PAPACC_BOOL closed=PAPACC_FALSE;PAPACC_RESULT r;
+ for(i=0;i<2;++i){PAPACC_C3_BRIDGE *b=&configuration_c3_bridges[i];
+  if(b->initialized||b->retained||b->processor.connection||b->unconsumed_transport||b->peer_source||b->registered||
+  configuration_c3_connections[i].state!=PAPACC_CONNECTION_STATE_UNINITIALIZED)return PAPACC_RESULT_INVALID_STATE;}
+ if(configuration_c3_manager.initialized){
+  if(configuration_c3_manager.count)return PAPACC_RESULT_INVALID_STATE;
+  r=papacc_connection_manager_try_shutdown(&configuration_c3_manager,&closed);
+  if(r!=PAPACC_RESULT_OK||!closed)return PAPACC_RESULT_INVALID_STATE;
+ }
+ if(o->pst_system_trust){pst_trust_release(o->pst_system_trust);o->pst_system_trust=NULL;}
+ memset(&o->pst_trust_source,0,sizeof(o->pst_trust_source));
+ return PAPACC_RESULT_OK;
+}
+static PAPACC_RESULT configuration_site_wire(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+{
+ PST_CONNECTION_CONFIG config;PAPACC_ROOT_CURRENT_PIN *pin=&o->attachment_pin;PAPACC_SITE_TLS_CATALOG profile;PAPACC_RESULT r;
+ if(!o->config.site_tls.present)return PAPACC_RESULT_OK;
+ r=papacc_server_launcher_site_profile(o,pin,o->config.site_tls.reference,o->config.site_tls.revision,&profile);
+ if(r!=PAPACC_RESULT_OK||!o->pst_system_trust||!configuration_c3_manager.initialized)return PAPACC_RESULT_INVALID_STATE;
+ memset(&config,0,sizeof(config));config.struct_size=sizeof(config);config.api_version=PST_API_VERSION;
+ config.provider_selection.struct_size=sizeof(config.provider_selection);config.provider_selection.api_version=PST_API_VERSION;
+ config.provider_selection.mode=PST_BACKEND_SELECTION_EXACT;
+ config.provider_selection.exact_provider_id=o->security_composition.provider_id;
+ config.provider_selection.required_capabilities=PST_CAP_TLS_1_3|PST_CAP_ROLE_CLIENT|PST_CAP_PEER_CERT_AUTH|
+  PST_CAP_SYSTEM_TRUST|PST_CAP_PEER_NAME_VERIFY|PST_CAP_PEER_INFO|PST_CAP_NONBLOCKING|
+  PST_CAP_BACKEND_WAIT|PST_CAP_GRACEFUL_SHUTDOWN|PST_CAP_ALPN_CLIENT|PST_CAP_SNI_CONTROL;
+ config.local_identity.struct_size=sizeof(config.local_identity);config.local_identity.api_version=PST_API_VERSION;
+ config.peer_authentication.struct_size=sizeof(config.peer_authentication);config.peer_authentication.api_version=PST_API_VERSION;
+ config.tls.struct_size=sizeof(config.tls);config.tls.api_version=PST_API_VERSION;
+ config.alpn.struct_size=sizeof(config.alpn);config.alpn.api_version=PST_API_VERSION;
+ config.role=PST_CONNECTION_ROLE_CLIENT;config.local_identity.credentials=NULL;
+ config.peer_authentication.certificate_mode=PST_PEER_CERTIFICATE_REQUIRED;config.peer_authentication.trust=o->pst_system_trust;
+ config.tls.minimum_version=config.tls.maximum_version=PST_TLS_VERSION_1_3;
+ config.tls.resumption=config.tls.early_data=PST_FEATURE_DISABLED;config.tls.require_graceful_shutdown=PST_FEATURE_REQUIRED;
+ config.server_name_indication_mode=PST_SNI_MODE_EXPLICIT;config.alpn.mode=PST_FEATURE_REQUIRED;
+ return papacc_server_c2_owner_win32_configure_site(&configuration_c2_owner,o->security_composition.runtime,
+ &config,&configuration_c3_manager,configuration_c3_bridges,papacc_server_launcher_c2_capacity,&configuration_c2_participant);
+}
+PAPACC_RESULT papacc_server_launcher_dispatch_preflight(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_BOOL *policy,PAPACC_BOOL *site)
+{
+ if(!policy||!site)return PAPACC_RESULT_INVALID_ARGUMENT;*policy=*site=PAPACC_FALSE;
+ if(!preparation_owned(o))return PAPACC_RESULT_INVALID_STATE;
+ *policy=configuration_c2.initialized&&configuration_c2.policy==papacc_server_launcher_c2_open_policy&&configuration_c2.capacity==papacc_server_launcher_c2_capacity;
+ *site=o->config.site_tls.present&&o->pst_system_trust&&o->pst_trust_source.kind==PST_TRUST_SOURCE_SYSTEM&&configuration_c3_manager.initialized;
+ return PAPACC_RESULT_OK; /* prepared facts, never Session/grants/admission */
+}

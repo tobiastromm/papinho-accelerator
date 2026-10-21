@@ -1,0 +1,36 @@
+# Closeout — ED11 Windows 3 MiB profile
+
+Scoped normative revision and profile implementation completed. W1–W6 accepted through official executor approval before functional patching. Explicit Windows candidate opt-in selects3145728 bytes per PROCESS; default/legacy/other targets remain2097152. Individual client/Session/Connection quotas and production defaults are unchanged.
+
+[Accepted decision](../../adr/DECISION-ed11-windows-3mib-process-profile-20261020.md) · [Proof/handoff](profile-proof-and-handoff.md) · [Census](ed11-census.json) · [Validation](validation-summary.json) · [Hashes](final-manifest.json).
+
+ROOT08/issuer known future scenario fits the selected ceiling arithmetically. Actual worker capacities and factual source/lifetime integration were not changed; full activation/native ED11 qualification remains pending.
+
+```ini
+CURRENT_TASK_COMPLETED=YES
+ED11_WINDOWS_PROFILE=3145728_ACCEPTED_EXPLICIT_OPT_IN
+ED11_PER_PROCESS=YES
+ED11_PER_CLIENT=NO
+OTHER_TARGET_LIMITS=UNCHANGED
+SESSION_CONNECTION_QUOTAS=UNCHANGED
+ROOT08_ISSUER_READINESS=KNOWN_SCENARIO_FITS_PROFILE_WORKER_ADAPTER_AND_FULL_ACTIVATION_PENDING
+ED11_TOTAL_STATUS=PARTIAL
+CURRENT_PUBLICATION=DENY
+SIGNATURE_AUTHORITY=DENY
+AUTHORITATIVE_RECOVERY=DENY
+CLIENT_ADMISSION=DISABLED
+SITE_TLS_ADMISSION=DENY
+ED11_ADMISSION=DENY
+BUILDS=SELECTED_AND_LEGACY_DEBUG_RELEASE_PASS_ISOLATED_LEGACY_PARTICIPANT_PASS
+WARNINGS=0_FINAL_BUILDS_INITIAL_TEST_WARNING_PRESERVED_AND_FIXED
+OFFLINE_TESTS=16_SUITES_PER_PROFILE_CONFIGURATION_PLUS_NATIVE_AND_NEGATIVE_PROFILE_TESTS_PASS
+NETWORK_TESTS=NOT_RUN
+PST_CHANGED=NO
+BROWSER_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+PRODUCTION_PIN=0.6.4
+PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
+WIP_PRESERVED=YES
+FIRST_UNRESOLVED_DIVERGENCE=ROOT08_WORKER16896_CAPACITY_AND_FACTUAL_CURRENT_PIN_SOURCE_LIFETIME_NOT_INTEGRATED
+NEXT=ROOT08_ISSUER_WORKER_INTEGRATION_WITH_WINDOWS_3MIB_PROFILE
+```

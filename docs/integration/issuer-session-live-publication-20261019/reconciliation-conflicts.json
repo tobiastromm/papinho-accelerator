@@ -1,0 +1,23 @@
+[
+  {
+    "index": 15,
+    "file": "apps/server/server_configuration_root_transaction_win32.inc",
+    "reason": "Retained snapshot identity independent of CURRENT, while actual normative selected root, policy epoch, complete projection and source/leases still prove every operational use",
+    "count": 0,
+    "before": "static int root_snapshot_held(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)\n{\n PAPACC_CONFIG_VIEW v;PAPACC_U64 epoch;\n if(!preparation_owned(o)||!p||p->in"
+  },
+  {
+    "index": 24,
+    "file": "apps/server/server_listener_composition_win32.inc",
+    "reason": "Retain existing listener/leases across administrative R changes, no obsolete P or changed operational projection accepted",
+    "count": 0,
+    "before": " if(l->pin.view.predecessor!=t->model.predecessor||l->pin.view.predecessor!=c->view.predecessor||\r\n    l->pin.view.revision!=c->view.revision||memcmp(l->pin.view.domain,c->view.dom"
+  },
+  {
+    "index": 29,
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "reason": "Strict current P retained and current dynamic authentication/grants below unchanged; original R checked against own admitted pin, not listener R",
+    "count": 0,
+    "before": "    s->root_invocation!=root.invocation||s->policy_epoch!=root.listener_composition.pin.epoch||\r\n    s->root_revision!=root.listener_composition.pin.view.revision||\r\n    memcmp(s->"
+  }
+]

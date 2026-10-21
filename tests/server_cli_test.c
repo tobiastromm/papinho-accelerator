@@ -1,9 +1,20 @@
 #include "server_cli.h"
+#include <string.h>
 
 static int config_is_initializer(const PAPACC_SERVER_CONFIG *config)
 {
     return config->control_port == 0 &&
         config->allow_network_egress == PAPACC_FALSE &&
+        config->listener_profile ==
+            PAPACC_SERVER_LISTENER_PROFILE_LEGACY_ENDPOINT &&
+        config->security_configuration_ref_valid == PAPACC_FALSE &&
+        config->security_configuration_ref_length == 0U &&
+        config->egress_policy_ref_valid == PAPACC_FALSE &&
+        config->egress_policy_ref_length == 0U &&
+        config->egress_profile_ref_valid == PAPACC_FALSE &&
+        config->egress_profile_ref_length == 0U &&
+        config->outbound_tls_profile_ref_valid == PAPACC_FALSE &&
+        config->outbound_tls_profile_ref_length == 0U &&
         config->bind_selection.mode == PAPACC_BIND_SELECTION_UNSPECIFIED &&
         config->bind_selection.interface_persistent_ids == NULL &&
         config->bind_selection.interface_persistent_id_count == 0;
@@ -36,7 +47,10 @@ static int test_empty_and_all(void)
     };
     const char *all_egress[] = {
         "papacc_server.exe", "--allow-network-egress", "--all-interfaces",
-        "--port", "4433"
+        "--port", "4433", "--listener-profile", "secure-principal",
+        "--security-configuration-ref", "lab-security",
+        "--egress-policy-ref", "lab-policy", "--egress-profile-ref",
+        "default-route", "--outbound-tls-profile-ref", "system-tls13"
     };
     PAPACC_SERVER_CONFIG config;
     PAPACC_SIZE required;
@@ -55,8 +69,10 @@ static int test_empty_and_all(void)
         return 2;
     }
     if (papacc_server_cli_parse(
-            5, all_egress, NULL, 0, &config, &required) != PAPACC_RESULT_OK ||
-        config.allow_network_egress != PAPACC_TRUE || required != 0) {
+            15, all_egress, NULL, 0, &config, &required) != PAPACC_RESULT_OK ||
+        config.allow_network_egress != PAPACC_TRUE ||
+        config.egress_policy_ref_length != 10U ||
+        config.egress_profile_ref_length != 13U || required != 0) {
         return 3;
     }
     return 0;
@@ -108,6 +124,32 @@ static int test_selected(void)
         storage[0].value != UINT64_MAX) {
         return 4;
     }
+    return 0;
+}
+
+static int test_listener_profiles(void)
+{
+    const char *secure[] = { "x", "--port", "4433", "--all-interfaces",
+        "--listener-profile", "secure-principal",
+        "--security-configuration-ref", "nt4-lab-secure" };
+    const char *secure_missing_ref[] = { "x", "--port", "4433",
+        "--all-interfaces", "--listener-profile", "secure-principal" };
+    const char *legacy_with_ref[] = { "x", "--port", "4433",
+        "--all-interfaces", "--security-configuration-ref", "bad" };
+    PAPACC_SERVER_CONFIG config;
+    PAPACC_SIZE required;
+    if (papacc_server_cli_parse(8, secure, NULL, 0, &config, &required) !=
+            PAPACC_RESULT_OK || config.listener_profile !=
+            PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL ||
+        config.security_configuration_ref_valid != PAPACC_TRUE ||
+        config.security_configuration_ref_length != 14U ||
+        memcmp(config.security_configuration_ref, "nt4-lab-secure", 14U) != 0)
+        return 1;
+    if (expect_error(6, secure_missing_ref,
+            PAPACC_RESULT_INVALID_ARGUMENT) != 0 ||
+        expect_error(6, legacy_with_ref,
+            PAPACC_RESULT_INVALID_ARGUMENT) != 0)
+        return 2;
     return 0;
 }
 
@@ -312,6 +354,8 @@ int main(void)
     if (result != 0) return 50 + result;
     result = test_sizing();
     if (result != 0) return 60 + result;
+    result = test_listener_profiles();
+    if (result != 0) return 65 + result;
     result = test_request_actions();
     return (result == 0) ? 0 : 70 + result;
 }

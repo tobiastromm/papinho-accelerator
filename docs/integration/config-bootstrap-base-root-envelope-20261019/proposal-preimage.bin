@@ -1,0 +1,17 @@
+---
+status: proposed
+scope: configuration candidate/base-root linkage and future same-root envelope
+---
+# Exact focal decision proposed — not accepted
+
+D1. LST1 revision1 remains exactly as accepted: a historical provenance fragment for R_base/A_base/P_base/I_base and matching existing BODY05 snapshots. It is not the encoded new configuration and cannot supply R_next/A_next/P_next. An administrative source candidate must retain a distinct reference to this base and its expected CAS predecessor. No new operational identifier or epoch is created. Source intent, candidate and CURRENT are not interchangeable.
+
+D2. Do not weaken papacc_server_config_source_resolve: its RESOLVED result describes its matching actual CURRENT snapshot only. Do not directly feed it to the first-commit prepare_store entry as a writer. A future preparation adapter must use the SAME root and existing participants to validate the new candidate, with exact authorized source/material refs, target support, immutable copies/pins, resource reservation and Stop/revalidation. MODEL_BOUND never substitutes for those facts. Base CURRENT absence keeps this path DENY; bootstrap resolution requires an explicit separate source-of-authority decision, not a fabricated baseline. CURRENT/epochs never published during offline preparation. This proposal grants no new reference authority.
+
+D3. A collection persistence contract must be accepted before inserting LST1/candidate models into root storage. It must specify an explicit new same-root envelope discriminator/version/offsets/lengths/presence/digests/limits, the exact full models and their relations to LST1/base/predecessor, integration with existing three slots/reader pins/CAS/pending worker/retention/checkpoint, and strict historical dispatch. Reuse existing store, not a sidecar/registry/journal. BODY05/ROOT06/checkpoint existing versions are immutable. Until that byte-exact envelope is separately reviewed, serialization/persistence and PREPARED-as-complete-transaction remain denied. This direction does not accept a binary layout by inference.
+
+D4. If the desired next slice is data-only preparation before that envelope, its report may explicitly expose SOURCE/PARSED/VALIDATED/MODEL_BOUND and codec integrity, but must stop before claiming RESOLVED/PREPARED without the factual base and participant contract. Such an independent patch may reuse existing modules; it must not become an alternate transaction or another owner. This proposal is not approval of code, mandatory new architecture or another roadmap.
+
+D5. Named provider remains PENDING; SELECTED topology applicability DENY. CLOSED/certificate identity remains representable/unsupported by first codec, without implicit authentication/grants. Listeners remain a collection with explicit profile and runtime cardinality rejection, never truncation/Legacy fallback. CAS conflict/UNKNOWN, Stop, retained buffers/pins/credits and Session snapshots follow existing Model E/root/issuer-C2 rules. No quota increase; complete compiled joint pipeline census required. Provider/kernel UNKNOWN. CLIENT_ADMISSION=DISABLED, SITE_TLS_ADMISSION=DENY, ED11_ADMISSION=DENY. No network, Browser/PST/wire/production0.6.4 change or PST0.6.5 release.
+
+Owner decision needed: confirm the distinct historical-base/candidate interpretation D1-D2 and authorize exact envelope contract preparation under D3, or specify a different existing accepted contract/source that already supplies this composition. None is accepted by this document or by executor approval of its storage.

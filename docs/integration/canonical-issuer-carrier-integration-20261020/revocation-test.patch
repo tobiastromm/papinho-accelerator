@@ -1,0 +1,19 @@
+--- tests/config_root8_v2_test.c
++++ tests/config_root8_v2_test.c
+@@ -137,6 +137,16 @@
+  record.state=PAPACC_ISSUER_SIGN_REQUESTED;CHECK(papacc_issuer_image_append(image,&record,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
+  CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK);w64(fields+120,iv.revision);
+  CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_OK);
++ /* Revocation is persistent history; the bytes below are a model result,
++  * not a real certificate or private-signature operation. */
++ {PAPACC_U8 cert[3]={1,2,3};record.state=PAPACC_ISSUER_ISSUED_UNPUBLISHED;record.certificate_size=3;
++ CHECK(hash(&owner,cert,3,record.certificate_digest));CHECK(papacc_issuer_image_append(image,&record,cert,3,hash,&owner)==PAPACC_ISSUER_OK);}
++ record.state=PAPACC_ISSUER_PUBLISHED;record.published_epoch=10;CHECK(papacc_issuer_image_append(image,&record,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ record.state=PAPACC_ISSUER_REVOKED;CHECK(papacc_issuer_image_append(image,&record,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK);w64(fields+120,iv.revision);
++ CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_OK);
++ CHECK(papacc_issuer_image_find(image,record.request.id,&record,hash,&owner)==PAPACC_ISSUER_OK&&record.state==PAPACC_ISSUER_REVOKED&&iv.high_water==2);
++ CHECK(papacc_root8_issuer_carrier_data(&ctx,7,a,16384,fields+r32(fields+244)+64,fields)==PC_ROOT8_INVALID);
+  memcpy(original+off,a,16384);memcpy(image,encoded+off+8192,8192);CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK);w64(fields+120,iv.revision);
+  CHECK(papacc_root8_issuer_carrier_data(&ctx,6,a,16384,NULL,fields)==PC_ROOT8_INVALID);
+  CHECK(papacc_configuration_stop(&owner)==PAPACC_RESULT_OK);

@@ -1,0 +1,48 @@
+--- src/network/interface_snapshot_copy.c
++++ src/network/interface_snapshot_copy.c
+@@ -0,0 +1,45 @@
++#include "interface_snapshot_copy.h"
++#include <string.h>
++PAPACC_RESULT papacc_interface_snapshot_copy_prepare(PAPACC_INTERFACE_SNAPSHOT_COPY *out,
++ const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *source,PAPACC_U64 invocation,PAPACC_U64 revision)
++{
++ PAPACC_SIZE i,j;
++ if(!out||!source||!invocation)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(out->present||out->retained)return PAPACC_RESULT_INVALID_STATE;
++ if((source->interface_count&&!source->interfaces)||(source->address_count&&!source->addresses))return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(source->interface_count>PAPACC_INTERFACE_COPY_INTERFACES||source->address_count>PAPACC_INTERFACE_COPY_ADDRESSES)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ for(i=0;i<source->interface_count;++i){const PAPACC_NETWORK_INTERFACE *r=&source->interfaces[i];
++  if(!r->interface_instance_id||(r->persistent_id.is_valid!=PAPACC_FALSE&&r->persistent_id.is_valid!=PAPACC_TRUE)||
++     (r->is_up!=PAPACC_FALSE&&r->is_up!=PAPACC_TRUE)||(r->is_loopback!=PAPACC_FALSE&&r->is_loopback!=PAPACC_TRUE))return PAPACC_RESULT_INVALID_STATE;
++  for(j=0;j<i;++j)if(source->interfaces[j].interface_instance_id==r->interface_instance_id||
++    (r->persistent_id.is_valid==PAPACC_TRUE&&papacc_network_interface_persistent_id_equal(&r->persistent_id,&source->interfaces[j].persistent_id)==PAPACC_TRUE))return PAPACC_RESULT_INVALID_STATE;
++ }
++ for(i=0;i<source->address_count;++i){const PAPACC_NETWORK_INTERFACE_ADDRESS *r=&source->addresses[i];PAPACC_SIZE matches=0;
++  if((r->address.family!=PAPACC_IP_FAMILY_IPV4&&r->address.family!=PAPACC_IP_FAMILY_IPV6)||
++     (r->address.family==PAPACC_IP_FAMILY_IPV4&&r->scope_id))return PAPACC_RESULT_INVALID_STATE;
++  for(j=0;j<source->interface_count;++j)if(source->interfaces[j].interface_instance_id==r->interface_instance_id)++matches;
++  if(matches!=1)return PAPACC_RESULT_INVALID_STATE;
++ }
++ /* No queries/callbacks/reentrancy while copying exclusive input. Presence is
++  * written last. A distinct concurrent enumeration cannot mutate this storage. */
++ memset(out,0,sizeof(*out));
++ for(i=0;i<source->interface_count;++i){out->interfaces[i]=source->interfaces[i];
++  out->interfaces[i].presentation_name=(PAPACC_NETWORK_INTERFACE_PRESENTATION_NAME)PAPACC_NETWORK_INTERFACE_PRESENTATION_NAME_INITIALIZER;}
++ if(source->address_count)memcpy(out->addresses,source->addresses,source->address_count*sizeof(out->addresses[0]));
++ out->interface_count=source->interface_count;out->address_count=source->address_count;
++ out->invocation=invocation;out->preparation_revision=revision;out->present=PAPACC_TRUE;
++ return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_interface_snapshot_copy_view(const PAPACC_INTERFACE_SNAPSHOT_COPY *copy,
++ PAPACC_U64 invocation,PAPACC_U64 revision,PAPACC_NETWORK_DISCOVERY_SNAPSHOT *out)
++{
++ PAPACC_NETWORK_DISCOVERY_SNAPSHOT empty=PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
++ if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;*out=empty;
++ if(!copy||copy->present!=PAPACC_TRUE||copy->retained!=PAPACC_FALSE||!invocation||
++    invocation!=copy->invocation||revision!=copy->preparation_revision)return PAPACC_RESULT_INVALID_STATE;
++ /* Legacy snapshot type is mutable; this borrowed view is contractually const.
++  * No caller is allowed to write through it or infer administrative CURRENT. */
++ out->interfaces=(PAPACC_NETWORK_INTERFACE *)copy->interfaces;out->interface_count=copy->interface_count;
++ out->addresses=(PAPACC_NETWORK_INTERFACE_ADDRESS *)copy->addresses;out->address_count=copy->address_count;
++ return PAPACC_RESULT_OK;
++}

@@ -1,0 +1,3 @@
+# Proveniência do manifesto parcial
+
+O manifesto parcial inicial foi reconstituído a partir dos arquivos de entrada preservados e do closeout byte-exato anterior à resolução do delimitador. final-manifest-before-owner-delimiter-resolution.json preserva seus caminhos e hashes, incluindo o caminho closeout.md com o hash do texto histórico agora em closeout-before-owner-delimiter-resolution.md. Esta é reconstituição documental explícita, não uma evidência de nova execução ou prova nativa. O manifesto final corrente é separado e contém hashes das fontes/builds/testes atuais. Nenhum manifesto de SDK/binário/qualificação histórica externa foi alterado.

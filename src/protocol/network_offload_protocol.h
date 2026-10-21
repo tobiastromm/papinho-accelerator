@@ -1,0 +1,4 @@
+#ifndef PAPACC_INTERNAL_NETWORK_OFFLOAD_PROTOCOL_H_FORWARD_H
+#define PAPACC_INTERNAL_NETWORK_OFFLOAD_PROTOCOL_H_FORWARD_H
+#include <papacc/pacc/network_offload_protocol.h>
+#endif

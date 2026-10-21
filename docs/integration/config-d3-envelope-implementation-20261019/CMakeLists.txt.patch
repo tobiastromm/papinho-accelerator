@@ -1,0 +1,32 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2716,3 +2716,29 @@
+         add_test(NAME papacc.config_lst1.offline COMMAND papacc_config_lst1_test)
+     endif()
+ endif()
++
++
++# Accepted D3 private DATA codec only. No link into product root/runtime.
++option(PAPACC_ENABLE_OFFLINE_ROOT8 "Build private offline ROOT8 codec" OFF)
++if(PAPACC_ENABLE_OFFLINE_ROOT8)
++    if(NOT PAPACC_ENABLE_OFFLINE_LST1)
++        message(FATAL_ERROR "ROOT8 requires existing offline LST1 codec")
++    endif()
++    add_library(papacc_config_root8 STATIC src/config/config_root8.c)
++    target_include_directories(papacc_config_root8 PUBLIC src/config include)
++    target_link_libraries(papacc_config_root8 PUBLIC papacc_config_lst1)
++    set_target_properties(papacc_config_root8 PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++    papacc_enable_warnings(papacc_config_root8)
++    if(BUILD_TESTING)
++        if(NOT PAPACC_ENABLE_CONFIG_ADMIN_BINDING)
++            message(FATAL_ERROR "ROOT8 native data regression requires existing canonical config binding test profile")
++        endif()
++        add_executable(papacc_config_root8_test tests/config_root8_test.c apps/server/server_config_root8_data_win32.c)
++        target_include_directories(papacc_config_root8_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} src/config apps/server)
++        target_link_libraries(papacc_config_root8_test PRIVATE papacc_config_root8 papacc_server_run_win32 papacc_config_binding)
++        set_target_properties(papacc_config_root8_test PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++        papacc_enable_warnings(papacc_config_root8_test)
++        papacc_stage_pst_runtime(papacc_config_root8_test)
++        add_test(NAME papacc.config_root8.offline COMMAND papacc_config_root8_test)
++    endif()
++endif()

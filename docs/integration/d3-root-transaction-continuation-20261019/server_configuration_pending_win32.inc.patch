@@ -1,0 +1,51 @@
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -232,4 +232,47 @@
+  PAPACC_RESULT r;if(!owner(o)||o->pending_commit.packet_format!=8U)return PAPACC_RESULT_INVALID_STATE;
+  EnterCriticalSection(&o->lock);r=pending_poll06(o,out);LeaveCriticalSection(&o->lock);return r;
+ }
+-#endif
++static int d3_output_span(const void *p,PAPACC_SIZE n)
++{return p&&n&&n-1U<=(ULONG_PTR)-1-(ULONG_PTR)p;}
++PAPACC_RESULT papacc_configuration_d3_committed08(PAPACC_CONFIGURATION_COMMIT *o,
++ PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PAPACC_D3_COMMITTED_RECEIPT *receipt,
++ PAPACC_SIZE already_reserved)
++{
++ PAPACC_CONFIG_PENDING *p;PAPACC_U8 fields[9376],digest[32];
++ PAPACC_SIZE n,q;unsigned i;int complete;PAPACC_RESULT result=PAPACC_RESULT_INVALID_STATE;
++ if(!owner(o)||cap<PC_ROOT8_MIN||cap>PC_ROOT8_NO_ISSUER_MAX||!d3_output_span(out,cap)||
++    !d3_output_span(used,sizeof(*used))||!d3_output_span(receipt,sizeof(*receipt))||
++    pending_overlap(o,sizeof(*o),out,cap)||pending_overlap(o,sizeof(*o),used,sizeof(*used))||
++    pending_overlap(o,sizeof(*o),receipt,sizeof(*receipt))||pending_overlap(out,cap,used,sizeof(*used))||
++    pending_overlap(out,cap,receipt,sizeof(*receipt))||pending_overlap(used,sizeof(*used),receipt,sizeof(*receipt)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ *used=0;memset(receipt,0,sizeof(*receipt));
++ if(already_reserved<sizeof(*o)||already_reserved>2097152U||
++    sizeof(fields)+sizeof(digest)>2097152U-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ EnterCriticalSection(&o->lock);p=&o->pending_commit;
++ if(o->store02!=8||o->stopped||o->unresolved||o->recovery_selected||o->recovery_guard||
++    !o->committed_pending||!o->authority_lost||o->prepared||p->active||p->thread||
++    !p->thread_close_attempted||p->packet_format!=8U||!p->committed||p->result!=PAPACC_CAS_SUCCESS||
++    p->file!=INVALID_HANDLE_VALUE||p->transaction||p->close_error||o->issuer_stage_prepared||
++    !pending_d3_packet_valid(p)||o->committed_bytes!=p->previous_bytes||
++    memcmp(o->committed,p->previous,p->previous_bytes))goto done;
++ for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i]||o->slots[i].issuer_revision)goto done;
++ n=p->next_bytes;if(cap<n)goto done;
++ if(pc_root8_decode_no_issuer(p->next,n,fields,sizeof(fields),&complete,papacc_configuration_issuer_hash06,o,
++    papacc_root8_body05_data,NULL)!=PC_ROOT8_OK||memcmp(fields+72,o->domain,32)||
++    pc_root8_base_link(p->next,n,p->previous,p->previous_bytes,papacc_configuration_issuer_hash06,o,
++     papacc_root8_body05_data,NULL)!=PC_ROOT8_OK)goto done;
++ q=d3_u32(fields+56);for(i=0;i<512U;i++)if(fields[q+i])goto done;
++ if(!papacc_configuration_issuer_hash06(o,p->next,q,digest)||o->stopped||o->unresolved)goto done;
++ /* No input from the caller is borrowed by this copy. Existing packet and
++  * old slots remain untouched; no pin or credit is acquired/released. */
++ memcpy(out,p->next,n);
++ if(o->stopped||o->unresolved)goto done;
++ memcpy(receipt->root,fields+72,32);memcpy(receipt->commit_digest,digest,32);
++ memcpy(receipt->whole_digest,p->next+n-32U,32);receipt->revision=d3_u64(fields+104);
++ receipt->predecessor=d3_u64(fields+112);receipt->bytes=n;
++ receipt->listener_count=(unsigned)fields[20]|((unsigned)fields[21]<<8);
++ /* epochs_present remains0: CP absent; never synthesize A/P/I. */
++ *used=n;result=PAPACC_RESULT_OK;
++done:LeaveCriticalSection(&o->lock);return result;
++}
++#endif

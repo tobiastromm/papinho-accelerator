@@ -1,0 +1,47 @@
+*** Begin Patch
+*** Update File: apps/server/server_c8_resource_root_win32.inc
+@@
+- result=papacc_server_launcher_target_observation_binding(o,&b);
+- if(result!=PAPACC_RESULT_OK)return result;
+- if(o->network.is_active||o->secure_io.dispatch_active)return PAPACC_RESULT_INVALID_STATE;
+- return papacc_c8_target_process_provenance(&o->target_producer,&b,out);
++ /* Active export reads only an already collected by-value sample. It neither
++  * refreshes the producer nor walks listener/policy/Session/PST dependencies. */
++ if(o!=&root||GetCurrentThreadId()!=o->owner_thread||!o->invocation||
++    o->secure_io.dispatch_active)return PAPACC_RESULT_INVALID_STATE;
++ if(o->network.is_active){
++  if(papacc_server_launcher_owner_state()!=PAPACC_LAUNCHER_ACTIVE||
++     o->resource_admission.stopping||
++     o->secure_io.stop_state!=PAPACC_SERVER_SECURE_STOP_RUNNING||
++     o->configuration_preparation.state==PAPACC_ROOT_PREPARATION_RETAINED||
++     o->configuration_preparation.state==PAPACC_ROOT_PREPARATION_CLOSED||
++     o->configuration_preparation.state==PAPACC_ROOT_PREPARATION_ROLLED_BACK)
++   return PAPACC_RESULT_INVALID_STATE;
++  b=o->target_producer.binding;
++  if(b.phase!=PAPACC_C8_OBSERVATION_ACTIVE||b.stopping||b.retained||
++     !b.configured||!b.current||!b.revision||!b.epoch||
++     b.invocation!=o->invocation||b.owner!=o->owner_thread||
++     b.profile!=o->config.listener_profile||
++     !o->configuration_preparation.normative_committed||
++     o->configuration_preparation.invocation!=o->invocation||
++     b.epoch!=o->configuration_preparation.current_policy_epoch||
++     b.managed!=o->configuration_preparation.combined_reserved||
++     b.charged!=o->resource_admission.managed_used)
++   return PAPACC_RESULT_INVALID_STATE;
++  result=papacc_c8_target_process_provenance(&o->target_producer,&b,out);
++  /* Snapshot identity is historical; no live CURRENT check or authority. */
++  if(result==PAPACC_RESULT_OK)out->current=0U;
++  return result;
++ }
++ result=papacc_server_launcher_target_observation_binding(o,&b);
++ if(result!=PAPACC_RESULT_OK)return result;
++ if(o->network.is_active||o->secure_io.dispatch_active)return PAPACC_RESULT_INVALID_STATE;
++ return papacc_c8_target_process_provenance(&o->target_producer,&b,out);
+*** Update File: apps/server/server_c8_target_evidence_win32.c
+@@
+-    !binding_equal(&s->binding,b)||b->stopping||
+-    (b->phase!=PAPACC_C8_OBSERVATION_BASELINE&&b->phase!=PAPACC_C8_OBSERVATION_PREPARED)||
++    !binding_equal(&s->binding,b)||b->stopping||
++    (b->phase!=PAPACC_C8_OBSERVATION_BASELINE&&b->phase!=PAPACC_C8_OBSERVATION_PREPARED&&
++     b->phase!=PAPACC_C8_OBSERVATION_ACTIVE)||
+*** End Patch

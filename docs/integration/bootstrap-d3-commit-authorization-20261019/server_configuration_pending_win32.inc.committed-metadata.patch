@@ -1,0 +1,17 @@
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -121,7 +121,13 @@
+  p->thread=NULL;p->active=0;*out=p->result;
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+  if(p->packet_format==10U){
+-  if(p->result==PAPACC_CAS_SUCCESS&&p->committed){o->prepared=0;o->committed_pending=1;o->authority_lost=1;}
++  if(p->result==PAPACC_CAS_SUCCESS&&p->committed){
++   /* First native store fact only; no CURRENT slot, epoch or grant. The old
++    * seed path is not a store identity. Keep observed path + native file ID. */
++   memcpy(o->committed,p->next,p->next_bytes);o->committed_bytes=p->next_bytes;o->store02=8;
++   memcpy(o->path,p->previous+1536U,strlen((const char *)p->previous+1536U)+1U);
++   o->prepared=0;o->committed_pending=1;o->authority_lost=1;
++  }
+   else if(p->result==PAPACC_CAS_UNKNOWN||p->result==PAPACC_CAS_CONFLICT)o->authority_lost=1;
+   if(p->file!=INVALID_HANDLE_VALUE||p->transaction||p->close_error)o->unresolved=1;
+   return PAPACC_RESULT_OK;

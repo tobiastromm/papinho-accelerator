@@ -1,0 +1,109 @@
+{
+  "hunks": [
+    {
+      "id": "PST01",
+      "path": "apps/server/server_c2_dispatch_binding_win32.inc",
+      "function": "static PAPACC_RESULT configuration_site_wire(",
+      "line": 95,
+      "offset": 6587,
+      "old": " if(pst_connection_config_init(&config,sizeof(config))!=PST_RESULT_OK)return PAPACC_RESULT_INTERNAL_ERROR;",
+      "new": " memset(&config,0,sizeof(config));config.struct_size=sizeof(config);config.api_version=PST_API_VERSION;\r\n config.provider_selection.struct_size=sizeof(config.provider_selection);config.provider_selection.api_version=PST_API_VERSION;\r\n config.provider_selection.mode=PST_BACKEND_SELECTION_EXACT;\r\n config.provider_selection.exact_provider_id=o->security_composition.provider_id;\r\n config.provider_selection.required_capabilities=PST_CAP_TLS_1_3|PST_CAP_ROLE_CLIENT|PST_CAP_PEER_CERT_AUTH|\r\n  PST_CAP_SYSTEM_TRUST|PST_CAP_PEER_NAME_VERIFY|PST_CAP_PEER_INFO|PST_CAP_NONBLOCKING|\r\n  PST_CAP_BACKEND_WAIT|PST_CAP_GRACEFUL_SHUTDOWN|PST_CAP_ALPN_CLIENT|PST_CAP_SNI_CONTROL;\r\n config.local_identity.struct_size=sizeof(config.local_identity);config.local_identity.api_version=PST_API_VERSION;\r\n config.peer_authentication.struct_size=sizeof(config.peer_authentication);config.peer_authentication.api_version=PST_API_VERSION;\r\n config.tls.struct_size=sizeof(config.tls);config.tls.api_version=PST_API_VERSION;\r\n config.alpn.struct_size=sizeof(config.alpn);config.alpn.api_version=PST_API_VERSION;",
+      "rationale": "SDK API3 nested structs and exact provider/caps; replace absent API, no stub. Validate compile/link and fields."
+    },
+    {
+      "id": "GRACE01",
+      "path": "apps/server/server_c2_dispatch_binding_win32.inc",
+      "function": "static PAPACC_RESULT configuration_site_wire(",
+      "line": 99,
+      "offset": 7045,
+      "old": "config.tls.require_graceful_shutdown=PAPACC_TRUE;",
+      "new": "config.tls.require_graceful_shutdown=PST_FEATURE_REQUIRED;",
+      "rationale": "PST feature enum2 and C3 exact guard/ED08; no release order change. Validate Stop/retention and source."
+    },
+    {
+      "id": "DEADLINE01",
+      "path": "apps/server/server_c2_dispatch_binding_win32.inc",
+      "function": "PAPACC_RESULT papacc_server_launcher_c2_deadline(",
+      "line": 40,
+      "offset": 2634,
+      "old": " PAPACC_SITE_TLS_CATALOG profile;PAPACC_U64 now;PAPACC_BOOL permit=PAPACC_FALSE;PAPACC_RESULT r;",
+      "new": " PAPACC_SITE_TLS_CATALOG profile;PAPACC_U64 now;PAPACC_RESULT r;",
+      "rationale": "Remove local used by invalid second concurrency count; zero-warning compile."
+    },
+    {
+      "id": "DEADLINE02",
+      "path": "apps/server/server_c2_dispatch_binding_win32.inc",
+      "function": "PAPACC_RESULT papacc_server_launcher_c2_deadline(",
+      "line": 42,
+      "offset": 2786,
+      "old": " r=papacc_server_launcher_c2_open_policy(&configuration_c2_participant,s,p,n,&permit);if(r!=PAPACC_RESULT_OK||!permit)return PAPACC_RESULT_INVALID_STATE;",
+      "new": " if(!dispatch_owned(&configuration_c2_participant)||!papacc_server_launcher_c2_session_current(s)||\r\n  papacc_c2_validate_payload(16,p,n,PAPACC_C2_CONTROL,PAPACC_C2_BROWSER)!=PAPACC_RESULT_OK)\r\n  return PAPACC_RESULT_INVALID_STATE;",
+      "rationale": "C2 factual Session/grants/root revalidated, no second count of RESERVED slot. Preserve checked absolute deadline/live expiry. DENY negative and static expiry audit; native positive pending."
+    },
+    {
+      "id": "SITE01",
+      "path": "apps/server/server_c2_dispatch_binding_win32.inc",
+      "function": "static PAPACC_RESULT configuration_site_prepare(",
+      "line": 70,
+      "offset": 4872,
+      "old": " if(r!=PST_RESULT_OK){if(o->pst_system_trust)(void)papacc_server_launcher_configuration_preparation_retain(o);return PAPACC_RESULT_INTERNAL_ERROR;}",
+      "new": " if(r!=PST_RESULT_OK||o->pst_system_trust==NULL){if(o->pst_system_trust)(void)papacc_server_launcher_configuration_preparation_retain(o);return PAPACC_RESULT_INTERNAL_ERROR;}",
+      "rationale": "Model E factual trust acquisition; reject null success, preserve uncertain nonnull reference, no retry. Test local prepare/abort/retention."
+    },
+    {
+      "id": "GRACE02",
+      "path": "apps/server/server_launcher_owner_win32.c",
+      "function": "PAPACC_RESULT papacc_server_launcher_c2_site_template(",
+      "line": 975,
+      "offset": 59938,
+      "old": " !config->tls.require_graceful_shutdown||config->server_name_indication_mode!=PST_SNI_MODE_EXPLICIT||",
+      "new": " config->tls.require_graceful_shutdown!=PST_FEATURE_REQUIRED||config->server_name_indication_mode!=PST_SNI_MODE_EXPLICIT||",
+      "rationale": "PST/C3/ED08: reject OPTIONAL/disabled, preserve other authority checks. Source and Stop/retention regressions."
+    },
+    {
+      "id": "ALPN01",
+      "path": "apps/server/server_launcher_owner_win32.c",
+      "function": "PAPACC_RESULT papacc_server_launcher_c2_site_template(",
+      "line": 985,
+      "offset": 60803,
+      "old": "   if(!len||len>255U||len>sizeof(vector)-n-1U||!config->alpn.protocols[i].data){memset(out,0,sizeof(*out));return PAPACC_RESULT_INVALID_STATE;}",
+      "new": "   if(!len||len>255U||n>=sizeof(vector)||len>sizeof(vector)-n-1U||!config->alpn.protocols[i].data){memset(out,0,sizeof(*out));return PAPACC_RESULT_INVALID_STATE;}",
+      "rationale": "C2 bounded ALPN: guard before unsigned subtraction. Test limits/mismatch. Existing factual negotiated verifier unchanged."
+    },
+    {
+      "id": "SITE02",
+      "path": "apps/server/server_configuration_root_transaction_win32.inc",
+      "function": "static int root_dormant_owned(",
+      "line": 9,
+      "offset": 446,
+      "old": " return t->state==PAPACC_ROOT_PREPARATION_PARTIAL&&t->invocation==o->invocation&&",
+      "new": " return t->state==PAPACC_ROOT_PREPARATION_PARTIAL&&t->invocation==o->invocation&&\n  (!t->dormant_applied||!o->config.site_tls.present||\n   (o->pst_system_trust&&o->pst_trust_source.kind==PST_TRUST_SOURCE_SYSTEM&&\n    !o->pst_trust_source.anchors&&!o->pst_trust_source.anchor_count&&\n    configuration_c3_manager.initialized&&configuration_c3_manager.storage==configuration_c3_connections&&\n    configuration_c3_manager.capacity==2U&&!configuration_c3_manager.count&&\n    papacc_site_tls_catalog_validate(&o->config.site_tls)==PAPACC_RESULT_OK))&&",
+      "rationale": "ADR0044/0048 and Site decision: actual trust/owned empty C3 pool before commit after apply; no synthetic ready. Test missing trust DENY and local commit/abort."
+    }
+  ],
+  "source_applied": false,
+  "head": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+  "files": [
+    {
+      "path": "apps/server/server_c2_dispatch_binding_win32.inc",
+      "proposed": "apps__server__server_c2_dispatch_binding_win32.inc.proposed",
+      "before": "3FED423072B8572D900F31EAE52B72879D39BFA54BD79A8538D1355A08BE9509",
+      "preimage": "apps__server__server_c2_dispatch_binding_win32.inc.preimage",
+      "after": "5B36DB7B07310F671EA308A5D906DD4312413E312A5A6A0BF2AD32C0ABE1B5F3"
+    },
+    {
+      "path": "apps/server/server_launcher_owner_win32.c",
+      "proposed": "apps__server__server_launcher_owner_win32.c.proposed",
+      "before": "0530474CD525D8DE8940940096F1E1188B64378EC0E226180990B598DCAB93F6",
+      "preimage": "apps__server__server_launcher_owner_win32.c.preimage",
+      "after": "93F28E85E86CB241F36587AC26D124E6F765C821FB6ECF865FE8CF21337C8778"
+    },
+    {
+      "path": "apps/server/server_configuration_root_transaction_win32.inc",
+      "proposed": "apps__server__server_configuration_root_transaction_win32.inc.proposed",
+      "before": "D096C86A1F10090B6ACCB632342979D980EAFA3F2850D8E3D9DB68660998279E",
+      "preimage": "apps__server__server_configuration_root_transaction_win32.inc.preimage",
+      "after": "61C34C598CB38392075099AE289DB4B317F677A6DD4692AD2E11B7D34FC33C34"
+    }
+  ]
+}

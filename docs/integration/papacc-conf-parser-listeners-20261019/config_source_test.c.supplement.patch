@@ -1,0 +1,24 @@
+--- tests/config_source_test.c
++++ tests/config_source_test.c
+@@ -108,6 +108,21 @@
+  copy_text(buf,base);{char *at=strstr(buf,"SECURE_PRINCIPAL");size_t tail=strlen(at+16U);memmove(at+15U,at+16U,tail+1U);memcpy(at,"LEGACY_ENDPOINT",15U);at=strstr(buf," channel_tls_ref tls\n");memmove(at,at+21U,strlen(at+21U)+1U);}
+  r=pc_parse((const unsigned char *)buf,strlen(buf),&doc,&d);if(r==PC_OK)r=pc_validate(&doc,&t,&d);
+  check(r==PC_OK,"Legacy explicit offline support");if(r==PC_OK)check(doc.listeners[0].profile==2U&&doc.listeners[0].security==PC_NONE&&(doc.listeners[0].presence&128U)==0U,"Legacy absence preserved");
++ check(run("format_version 1\r",1U)==PC_INVALID,"bare terminal CR rejected");
++ check(run("format_version 1\n; ignored\n\tlistener a\nend\n",1U)==PC_REFERENCE,"visual indent and physical lines");
++ r=pc_parse((const unsigned char *)"format_version 1\n\tunknown a\n",strlen("format_version 1\n\tunknown a\n"),&doc,&d);
++ check(r!=PC_OK&&d.line==2U&&d.column>0U,"diagnostic location available");
++ copy_text(buf,"format_version 1\ncapability_policy many\n");
++ for(b=0U;b<95U;++b)append_text(buf," rule a DENY 2 1\n");
++ append_text(buf,"end\n");r=pc_parse((const unsigned char *)buf,strlen(buf),&doc,&d);
++ check(r==PC_LIMIT,"active line capacity");
++ check(run("format_version 1\ncapability_policy a\n rule a DENY 2 1 principal \"00000000000000000000000000000000\" extra extra\nend\n",1U)==PC_LIMIT,"token capacity");
++ copy_text(buf,"format_version 1\nchannel_tls a\n security_ref \"");n=strlen(buf);memset(buf+n,'x',64U);buf[n+64U]='\0';append_text(buf,"\"\nend\n");
++ check(run(buf,1U)==PC_OK,"exact string capacity");
++ check(run("format_version 1\nchannel_tls a\n security_ref \"a\"\nend\n",1U)==PC_OK,"owned copied strings");
++ check(doc.lines[2].tokens[1].text[0]=='a',"input lifetime not borrowed");
++ check(pc_parse(NULL,0U,&doc,&d)==PC_MISSING,"NULL empty safe");
++ check(pc_parse(NULL,1U,&doc,&d)==PC_INVALID,"NULL nonempty rejected");
+  if(argc==2){f=open_read(argv[1]);check(f!=NULL,"distributed sample present");if(f){n=fread(buf,1U,sizeof(buf),f);check(!ferror(f),"sample read");check(fclose(f)==0,"sample close");r=pc_parse((const unsigned char *)buf,n,&doc,&d);if(r==PC_OK)r=pc_validate(&doc,&t,&d);check(r==PC_OK&&doc.line_count==5U&&doc.listener_count==0U&&doc.block_count==0U,"distributed sample fail closed");}}
+  printf("CASES=%u FAILURES=%u\n",cases,failed);
+  printf("ED11_DOCUMENT=%lu LINE=%lu TOKEN=%lu LISTENER=%lu DIAGNOSTIC=%lu TARGET=%lu\n",(unsigned long)sizeof(PC_DOCUMENT),(unsigned long)sizeof(PC_LINE),(unsigned long)sizeof(PC_TOKEN),(unsigned long)sizeof(PC_LISTENER),(unsigned long)sizeof(PC_DIAGNOSTIC),(unsigned long)sizeof(PC_TARGET));

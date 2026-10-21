@@ -1,0 +1,19 @@
+# Consolidação canônica Phase 6 — estado factual
+
+Atualizado em 2026-10-18, sob a decisão accepted de consolidação canônica.
+
+Produção PST0.6.4/API2 permanece separada do candidato normal0.6.5/API3/SPI4 e R2 TEST_ONLY. O slice anterior de socket ownership preserva seus builds e20 testes nos escopos originais.
+
+O novo perfil opt-in PAPACC_ENABLE_CANONICAL_C8_ROOT incorpora uma root durável e reutiliza o participante C2 canônico, com material/leases Secure, configuração BODY0.4, commit local e CURRENT/epoch pós-commit. Debug/Release compilam com zero warnings finais. Quatorze execuções offline finais passaram: transação real local (commit/abort), retenção sem reuso, censo, manager vazio e fixtures sintéticas de ownership/Stop.
+
+O layout gerenciado declarado soma1539192 bytes. O caso offline registrou reserva combinada1796899, limite2097152 inalterado. Provider/kernel continuam UNKNOWN; ED11 total PARTIAL. Isso não comprova capacidade física ou admissão operacional.
+
+Hooks privados C2/CONTROL/roles e root binding foram incorporados e compilados. Attachment positivo cria wait-set/wake TCP e não foi executado. Startup continua negado; dispatch operacional C2/C3 e qualificação conjunta ainda não estão concluídos.
+
+MODE_C_SITE_TLS_CATALOG=ADMINISTRATIVE_AUTHORITY_ACCEPTED. A decisão mode-c-site-tls-profile-authority-20261018 registra a autoridade administrativa existente. Catálogo privado BODY0.5 e binding CURRENT/revisão/epoch foram integrados; templates S6 e Network Egress não fornecem autoridade. Site TLS permanece DENY. Nenhuma Session/Principal/grant factual foi fabricado. Preservados Model E, ED08 e fronteiras de fechamento factual, sem qualificação nativa nova de rede.
+
+[Closeout atual e limites](../integration/canonical-root-c2-c3-wiring-20261018/closeout.md) · [Slice anterior de socket ownership](../integration/canonical-socket-ownership-20261018/closeout.md). Nenhuma alteração PST, Browser, wire ou pin; PST0.6.5 só será publicado após o fechamento integral da Phase6. A direção futura de egress/policy não foi transformada em autoridade Site TLS.
+
+Atualização Site TLS: [closeout](../integration/mode-c-site-tls-authority-20261018/closeout.md). Builds isolados Debug/Release sem warnings e22 execuções offline finais passaram. Known managed1539192, reserva do caso1796899, limite2097152 inalterado. O dispatch continua parcial; ALPN/quotas/leases operacionais e trust Site deverão ser aplicados antes de habilitação. Nenhuma Session/TLS foi qualificada.
+
+Correção exata do dispatch em2026-10-18: [closeout](../integration/c2-c3-exact-correction-20261018/closeout.md). A revisão oficial aprovou8 hunks funcionais, com preimagens e hashes. Debug/Release e22 execuções offline passaram sem warnings finais. Reserva efetiva1796915, limite2097152 inalterado; provider/kernel UNKNOWN. Esta atualização supera apenas a falha de compilação do WIP parcial, não concede qualificação nativa do dispatch nem admissão.

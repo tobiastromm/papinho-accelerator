@@ -1,0 +1,149 @@
+{
+  "cases": [
+    {
+      "case": "negative-gates",
+      "exit": 0,
+      "output": "SOURCE=VALIDATED; MODEL_BOUND=NO; RESOLVED=NO; CURRENT=NOT_READ\nREFERENCES=NOT_APPLICABLE; VALIDATION_SCOPE=OFFLINE_ONLY; APPLY=DENY\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "empty",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=6 line=1 column=1 reason=version absent\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "comments",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=6 line=3 column=1 reason=version absent\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "disabled",
+      "exit": 0,
+      "output": "SOURCE=VALIDATED; MODEL_BOUND=NO; RESOLVED=NO; CURRENT=NOT_READ\nREFERENCES=NOT_APPLICABLE; VALIDATION_SCOPE=OFFLINE_ONLY; APPLY=DENY\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "inline-semicolon",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=1 line=1 column=17 reason=invalid bare token\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "unknown",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=2 line=2 column=1 reason=unknown or unsupported global\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "partial-block",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=6 line=2 column=1 reason=end required\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "utf8",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=1 line=2 column=2 reason=invalid UTF8 or control\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "nul-byte",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=1 line=6 column=1 reason=invalid UTF8 or control\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "too-large",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=4 line=1 column=1 reason=source limit\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "all-unresolved",
+      "exit": 2,
+      "output": "SOURCE=VALIDATED; MODEL_BOUND=NO; RESOLVED=NO; CURRENT=NOT_READ\nREFERENCES=UNRESOLVED line=2 column=1 reason=FACTUAL_ROOT_SOURCE_UNAVAILABLE\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "selected",
+      "exit": 2,
+      "output": "SOURCE=VALIDATED; MODEL_BOUND=NO; RESOLVED=NO; CURRENT=NOT_READ\nREFERENCES=DENY line=4 column=2 reason=INTERFACE_TOPOLOGY_NOT_QUALIFIED\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "provider",
+      "exit": 2,
+      "output": "SOURCE=VALIDATED; MODEL_BOUND=NO; RESOLVED=NO; CURRENT=NOT_READ\nREFERENCES=DENY line=10 column=2 reason=AUTH_PROVIDER_PENDING\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "legacy",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=3 line=15 column=1 reason=Legacy unsupported by target\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "profile-absent",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=6 line=15 column=1 reason=explicit profile required\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "diff-no-current",
+      "exit": 2,
+      "output": "SOURCE=VALIDATED; MODEL_BOUND=NO; RESOLVED=NO; CURRENT=NOT_READ\nREFERENCES=NOT_APPLICABLE; VALIDATION_SCOPE=OFFLINE_ONLY; APPLY=DENY\nDIFF=UNAVAILABLE; CURRENT_PIN=ABSENT; NO_COMPARISON_EMITTED\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "diff-invalid",
+      "exit": 1,
+      "output": "SOURCE=INVALID code=1 line=1 column=1 reason=format_version 1 required first\nDIFF=UNAVAILABLE; CURRENT_PIN=ABSENT; NO_COMPARISON_EMITTED\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "apply-denied",
+      "exit": 2,
+      "output": "APPLY=DENY_UNTIL_QUALIFIED; BOOTSTRAP=DENY; CURRENT_PUBLICATION=DENY; CARRIER_ISSUER=UNSUPPORTED\n",
+      "source_unchanged": true
+    },
+    {
+      "case": "show-no-current",
+      "exit": 2,
+      "output": "SHOW_EFFECTIVE=UNAVAILABLE; CURRENT_PIN=ABSENT; NO_EFFECTIVE_STATE_EMITTED\n"
+    },
+    {
+      "case": "apply-no-read",
+      "exit": 2,
+      "output": "APPLY=DENY_UNTIL_QUALIFIED; BOOTSTRAP=DENY; CURRENT_PUBLICATION=DENY; CARRIER_ISSUER=UNSUPPORTED\n"
+    },
+    {
+      "case": "missing-source",
+      "exit": 1,
+      "output": "SOURCE=UNAVAILABLE; CURRENT=NOT_READ\n"
+    },
+    {
+      "case": "invalid-args",
+      "exit": 1,
+      "output": "CONFIG=INVALID_COMMAND; EXPECTED=config validate|diff|apply --source <file> OR config show-effective\n"
+    },
+    {
+      "case": "unknown-command",
+      "exit": 1,
+      "output": "CONFIG=INVALID_COMMAND; EXPECTED=config validate|diff|apply --source <file> OR config show-effective\n"
+    },
+    {
+      "case": "no-extra-options",
+      "exit": 1,
+      "output": "CONFIG=INVALID_COMMAND; EXPECTED=config validate|diff|apply --source <file> OR config show-effective\n"
+    },
+    {
+      "case": "help",
+      "exit": 0,
+      "output": "PapinhoAccelerator Server\nUsage:\n  papacc_server.exe --help\n  papacc_server.exe config validate|diff|apply --source <file>\n  papacc_server.exe config show-effective\n  Configuration: offline validation only; CURRENT/apply unavailable\n  papacc_server.exe --list-interfaces\n  papacc_server.exe --port <port> --all-interfaces [--listener-profile legacy-endpoint] [--log-level <level>]\n  papacc_server.exe --port <port> --interface-id <id> [--interface-id <id> ...] [--listener-profile legacy-endpoint] [--log-level <level>]\n  papacc_server.exe --port <port> <bind-option> --listener-profile secure-principal --security-configuration-ref <reference> [--allow-network-egress --egress-policy-ref <reference> --egress-profile-ref <reference> --outbound-tls-profile-ref <reference>] [--log-level <level>]\nSecure Principal lab source environment:\n  PAPACC_SECURITY_CONFIGURATION_REF\n  PAPACC_SERVER_CERTIFICATE_DER_B64\n  PAPACC_SERVER_PRIVATE_KEY_PKCS8_DER_B64\n  PAPACC_CLIENT_CA_DER_B64\n  PAPACC_ALLOWED_CLIENT_CERT_SHA256\nLog levels: off, error, warn, info (default), debug, trace\n  off disables all PAPACC_LOGGER output\nExample: papacc_server.exe --port 39999 --all-interfaces --log-level info\n"
+    }
+  ],
+  "count": 25,
+  "scope": "real candidate CLI; no root/CURRENT/bootstrapping/network tested"
+}

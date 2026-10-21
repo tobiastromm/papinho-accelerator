@@ -1,0 +1,48 @@
+Internal ctest changing into directory: C:/Projetos/PapinhoAccelerator/build/root08-issuer-worker-integration-3mib-20261020/Selected/Debug
+Test project C:/Projetos/PapinhoAccelerator/build/root08-issuer-worker-integration-3mib-20261020/Selected/Debug
+      Start   1: papacc.issuer.offline
+ 1/16 Test   #1: papacc.issuer.offline ...............   Passed    0.02 sec
+      Start   2: papacc.issuer.production_gate
+ 2/16 Test   #2: papacc.issuer.production_gate .......   Passed    0.07 sec
+      Start   3: papacc.issuer.checkpoint
+ 3/16 Test   #3: papacc.issuer.checkpoint ............   Passed    0.04 sec
+      Start 102: papacc.canonical.root_layout
+ 4/16 Test #102: papacc.canonical.root_layout ........   Passed    0.05 sec
+      Start 106: papacc.config_lst1.offline
+ 5/16 Test #106: papacc.config_lst1.offline ..........   Passed    0.07 sec
+      Start 107: papacc.config_root8.offline
+ 6/16 Test #107: papacc.config_root8.offline .........***Failed    0.87 sec
+BOUNDED_CENSUS fields=9376 output=9408 total=18784 savings=32768 NO_ALIAS_NO_RELEASE_NO_AUTHORITY
+FAIL line=178 papacc_configuration_stop(&owner)==0&&papacc_configuration_finish(&owner)==0
+
+      Start 108: papacc.config_root8.v2_offline
+ 7/16 Test #108: papacc.config_root8.v2_offline ......***Failed    0.08 sec
+FAIL line=162 pc_root8_v2_decode(encoded,used,decoded,sizeof(decoded),&n,&complete,hash,&owner,model_component,NULL)==PC_ROOT8_OK&&complete&&n==prefix&&!memcmp(fields,decoded,prefix)
+
+      Start 109: papacc.issuer.windows_validation
+ 8/16 Test #109: papacc.issuer.windows_validation ....   Passed    0.04 sec
+      Start 110: papacc.phase6.memory_census
+ 9/16 Test #110: papacc.phase6.memory_census .........   Passed    0.05 sec
+      Start 111: papacc.issuer.cng_x509_model
+10/16 Test #111: papacc.issuer.cng_x509_model ........   Passed    0.04 sec
+      Start 112: papacc.issuer.cng_production_gate
+11/16 Test #112: papacc.issuer.cng_production_gate ...   Passed    0.05 sec
+      Start 113: papacc.ed11.profile_selected
+12/16 Test #113: papacc.ed11.profile_selected ........   Passed    0.02 sec
+      Start 114: papacc.ed11.profile_legacy
+13/16 Test #114: papacc.ed11.profile_legacy ..........   Passed    0.02 sec
+      Start 115: papacc.ed11.profile_other
+14/16 Test #115: papacc.ed11.profile_other ...........   Passed    0.03 sec
+      Start 116: papacc.ed11.credit_selected
+15/16 Test #116: papacc.ed11.credit_selected .........   Passed    0.02 sec
+      Start 117: papacc.ed11.credit_legacy
+16/16 Test #117: papacc.ed11.credit_legacy ...........   Passed    0.04 sec
+
+88% tests passed, 2 tests failed out of 16
+
+Total Test time (real) =   1.55 sec
+
+The following tests FAILED:
+	107 - papacc.config_root8.offline (Failed)
+	108 - papacc.config_root8.v2_offline (Failed)
+Errors while running CTest

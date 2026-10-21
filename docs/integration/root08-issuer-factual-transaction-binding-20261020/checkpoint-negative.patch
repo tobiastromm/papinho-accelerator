@@ -1,0 +1,16 @@
+--- tests/config_root8_v2_test.c
++++ tests/config_root8_v2_test.c
+@@ -177,6 +177,13 @@
+  memcpy(lst.fields+128,prior+512,512);memset(lst.fields+128+344,0,40);
+  CHECK(pc_lst1_encode(&lst,c,L,&n,hash,&owner)==PC_LST1_OK&&n==L);CHECK(seal());
+  CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_OK);
++ CHECK(pc_root8_v2_base_link(encoded,used,prior+r32(prior+48),16384,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID);
++ /* Valid complete bytes without predecessor CP are still insufficient. */
++ c=prior+r32(prior+56);memcpy(original,c,512);memset(c,0,512);
++ CHECK(hash(&owner,prior,pn-32U,prior+pn-32U));memcpy(fields+208,prior+pn-32U,32);CHECK(seal());
++ CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_INCOMPLETE);
++ memcpy(c,original,512);CHECK(hash(&owner,prior,pn-32U,prior+pn-32U));
++ memcpy(fields+208,prior+pn-32U,32);CHECK(seal());
+  CHECK(pc_root8_v2_base_link(encoded,used,NULL,0,hash,&owner,model_component,NULL)==PC_ROOT8_INCOMPLETE);
+  CHECK(pc_root8_v2_base_link(encoded,used,prior,pn-1,hash,&owner,model_component,NULL)!=PC_ROOT8_OK);
+  CHECK(pc_root8_v2_base_link(encoded,used,encoded,used,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID);

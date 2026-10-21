@@ -1,0 +1,17 @@
+/* Opt-in offline adapter, same worker and root. No initialization/publication. */
+#include "../../src/config/config_root8.h"
+#include "server_config_root8_data_win32.h"
+static PAPACC_U64 d3_u64(const PAPACC_U8 *p)
+{PAPACC_U64 x=0;unsigned i;for(i=0;i<8U;i++)x|=(PAPACC_U64)p[i]<<(8U*i);return x;}
+static unsigned d3_u32(const PAPACC_U8 *p)
+{return (unsigned)p[0]|((unsigned)p[1]<<8)|((unsigned)p[2]<<16)|((unsigned)p[3]<<24);}
+static int pending_d3_packet_valid(const PAPACC_CONFIG_PENDING *p)
+{
+ if(p->previous_bytes<PC_ROOT8_MIN||p->previous_bytes>PC_ROOT8_NO_ISSUER_MAX||
+    p->next_bytes<PC_ROOT8_MIN||p->next_bytes>PC_ROOT8_NO_ISSUER_MAX)return 0;
+ return !memcmp(p->previous,"PACROOT8",8)&&!memcmp(p->next,"PACROOT8",8)&&
+  p->previous[8]==1&&!p->previous[9]&&p->next[8]==1&&!p->next[9]&&
+  !(d3_u32(p->previous+16)&2U)&&!(d3_u32(p->next+16)&2U)&&
+  !d3_u32(p->previous+52)&&!d3_u32(p->next+52)&&
+  d3_u32(p->previous+12)==p->previous_bytes&&d3_u32(p->next+12)==p->next_bytes;
+}

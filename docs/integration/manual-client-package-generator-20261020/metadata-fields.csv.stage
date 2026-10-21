@@ -1,0 +1,22 @@
+component,tag,field,encoding,bytes
+config,1,ExpectedServerName,ASCII DNS,1..253
+config,2,port,u16 BE,2
+config,3,server leaf DER SHA256,bytes,32
+config,4,channel CA DER SHA256,bytes,32
+config,5,root domain,bytes,32
+config,6,config revision,u64 BE nonzero,8
+config,7,policy identity,bytes,32
+config,8,policy revision,u64 BE nonzero,8
+config,9,ALPN papacc/1,ASCII,8
+config,10,SecurePrincipal profile=1,u16 BE,2
+config,11,package identity,CSPRNG bytes,32
+config,12,client leaf DER SHA256,bytes,32
+config,13,recipient label,strict UTF8,1..128
+config,14,issued_at UTC seconds,u64 BE,8
+config,15,import_not_before UTC seconds,u64 BE,8
+config,16,import_expires UTC seconds,u64 BE,8
+issuance,1,existing CA SPKI SHA256,bytes; clarification C1,32
+issuance,2,issuer CA DER SHA256,bytes,32
+issuance,3,certificate serial magnitude,canonical unsigned BE; profile1 check,1..20 cap
+issuance,4,issuance correlation,strict UTF8,1..128
+issuance,5,renewed predecessor leaf SHA256,absent length0 or bytes32,0 or32

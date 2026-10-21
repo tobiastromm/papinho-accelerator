@@ -1,0 +1,80 @@
+--- a/src/provisioning/manual_package_crypto_openssl.c
++++ b/src/provisioning/manual_package_crypto_openssl.c
+@@ -1,4 +1,5 @@
+ #include "manual_package_crypto.h"
++#include "shared_structure/suite.h"
+ #include <string.h>
+ #include <stdint.h>
+ #include <limits.h>
+@@ -33,19 +34,14 @@
+ void mp_crypto_close(MP_CRYPTO *c){if(c){OSSL_PROVIDER_unload(c->provider);
+  OSSL_LIB_CTX_free(c->lib);OPENSSL_clear_free(c,sizeof(*c));}}
+ int mp_password_normalize(const unsigned char *p,size_t n,unsigned char out[32]){
+- unsigned char tmp[32];size_t i,j=0;int ok=1;
++ /* Preserve this adapter's preconditions; shared normalization is DATA only. */
+  if(!p||!out||n>128||overlap(p,n,out,32))return MP_INVALID;
+- memset(tmp,0,sizeof(tmp));
+- for(i=0;i<n;i++){unsigned char v=p[i];if(v==' '||v=='-')continue;
+- if(v>='a'&&v<='z')v=(unsigned char)(v-'a'+'A');
+- if(!((v>='A'&&v<='Z')||(v>='2'&&v<='7'))||j>=32){ok=0;break;}tmp[j++]=v;}
+- if(j!=32)ok=0;if(ok)memcpy(out,tmp,32);else OPENSSL_cleanse(out,32);
+- OPENSSL_cleanse(tmp,sizeof(tmp));return ok?MP_CRYPTO_ONLY:MP_INVALID;
++ return sp_password_normalize(p,n,out)==SP_DATA_ONLY?MP_CRYPTO_ONLY:MP_INVALID;
+ }
+ int mp_crypto_derive(MP_CRYPTO *c,const unsigned char *p,size_t pn,
+  const unsigned char *s,size_t sn,unsigned char out[32],MP_CANCEL stop,void *u){
+  EVP_KDF *k=NULL;EVP_KDF_CTX *x=NULL;OSSL_PARAM a[6];
+- unsigned char pw[32],key[32];unsigned int iterations=600000;int ok=0,pkcs5=0;
++ unsigned char pw[32],key[32];unsigned int iterations=(unsigned int)SP_SUITE1_ITERATIONS;int ok=0,pkcs5=0;
+  if(!c||!p||!s||!out||sn!=16||overlap(out,32,p,pn)||overlap(out,32,s,sn))return MP_INVALID;
+  memset(pw,0,32);memset(key,0,32);OPENSSL_cleanse(out,32);
+  if(cancelled(stop,u)){ok=MP_STOPPED;goto done;}
+@@ -110,11 +106,10 @@
+ }
+ static int signature_exact(MP_CRYPTO *c,const unsigned char *raw,size_t rn,
+  const unsigned char *approved,size_t sn){
+- MP_ENVELOPE env;const unsigned char *p;EVP_PKEY *key=NULL;EVP_MD_CTX *md=NULL;
++ SP_SIGNED_PARTS plan;const unsigned char *p;EVP_PKEY *key=NULL;EVP_MD_CTX *md=NULL;
+  EVP_PKEY_CTX *pc=NULL;unsigned char digest[32];size_t dn=0;int ok=0;
+- static const unsigned char domain[]="PAPACC-COMPLETE-MANUAL-V2";
+- if(!c||!approved||!sn||sn>1024||mp_envelope_inspect(raw,rn,&env,0)!=MP_DATA_ONLY)return MP_INVALID;
+- if(env.spki.size!=sn||CRYPTO_memcmp(approved,env.spki.data,sn))return MP_INVALID;
++ if(!c||!approved||!sn||sn>1024||sp_suite1_signed_parts(raw,rn,&plan,NULL,NULL)!=SP_DATA_ONLY)return MP_INVALID;
++ if(plan.spki.size!=sn||CRYPTO_memcmp(approved,plan.spki.data,sn))return MP_INVALID;
+  if(EVP_Q_digest(c->lib,"SHA256","provider=default",approved,sn,digest,&dn)!=1||dn!=32||
+  CRYPTO_memcmp(digest,raw+56,32))return MP_INVALID;
+  p=approved;key=d2i_PUBKEY_ex(NULL,&p,(long)sn,c->lib,"provider=default");
+@@ -125,9 +120,9 @@
+  md=EVP_MD_CTX_new();if(!md)goto done;
+  if(EVP_DigestVerifyInit_ex(md,&pc,"SHA256",c->lib,"provider=default",key,NULL)!=1||
+  EVP_PKEY_CTX_set_rsa_padding(pc,RSA_PKCS1_PADDING)<=0||
+- EVP_DigestVerifyUpdate(md,domain,sizeof(domain))!=1||
+- EVP_DigestVerifyUpdate(md,raw,rn-256)!=1)goto done;
+- ok=EVP_DigestVerifyFinal(md,env.signature.data,env.signature.size)==1;
++ EVP_DigestVerifyUpdate(md,plan.domain.data,plan.domain.size)!=1||
++ EVP_DigestVerifyUpdate(md,plan.prefix.data,plan.prefix.size)!=1)goto done;
++ ok=EVP_DigestVerifyFinal(md,plan.signature.data,plan.signature.size)==1;
+  done:EVP_MD_CTX_free(md);EVP_PKEY_free(key);return ok?MP_CRYPTO_ONLY:MP_INVALID;
+ }
+ int mp_crypto_verify_package(MP_CRYPTO *c,const unsigned char *raw,size_t rn,const unsigned char *approved,size_t sn){
+--- a/tests/manual_package_crypto/CMakeLists.txt
++++ b/tests/manual_package_crypto/CMakeLists.txt
+@@ -20,7 +20,8 @@
+  endif()
+ endforeach()
+ get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+-add_library(package_crypto STATIC "${ROOT}/src/provisioning/manual_package.c" "${ROOT}/src/provisioning/manual_package_crypto_openssl.c")
++add_library(package_crypto STATIC "${ROOT}/src/provisioning/manual_package.c" "${ROOT}/src/provisioning/manual_package_crypto_openssl.c"
++ "${ROOT}/src/provisioning/shared_structure/structure.c" "${ROOT}/src/provisioning/shared_structure/suite.c")
+ target_include_directories(package_crypto PUBLIC "${ROOT}/src/provisioning" PRIVATE "${PAPACC_PACKAGE_OPENSSL_ROOT}/include")
+ target_compile_options(package_crypto PRIVATE /W4 /WX)
+ target_link_libraries(package_crypto PUBLIC "${PAPACC_PACKAGE_OPENSSL_ROOT}/lib/libcrypto.lib")
+@@ -31,3 +32,8 @@
+ target_link_libraries(package_crypto_test PRIVATE package_crypto bcrypt)
+ add_custom_command(TARGET package_crypto_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PAPACC_PACKAGE_OPENSSL_ROOT}/runtime/libcrypto-3-x64.dll" "$<TARGET_FILE_DIR:package_crypto_test>")
+ add_test(NAME papacc.manual_package.real_crypto COMMAND package_crypto_test "${ROOT}/tests/fixtures/manual-package/upstream-public-test-key.pem" "${ROOT}/tests/fixtures/security/client-a.der.b64" "${ROOT}/tests/fixtures/security/client-a.pk8.b64" "${ROOT}/tests/fixtures/security/client-b.pk8.b64")
++
++# Explicit dependencies for localized /showIncludes hosts.
++set_property(SOURCE "${ROOT}/src/provisioning/manual_package_crypto_openssl.c"
++ "${ROOT}/src/provisioning/shared_structure/suite.c" APPEND PROPERTY OBJECT_DEPENDS
++ "${ROOT}/src/provisioning/shared_structure/suite.h;${ROOT}/src/provisioning/shared_structure/structure.h")

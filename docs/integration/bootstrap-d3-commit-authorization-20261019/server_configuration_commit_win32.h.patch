@@ -1,0 +1,15 @@
+--- apps/server/server_configuration_commit_win32.h
++++ apps/server/server_configuration_commit_win32.h
+@@ -141,6 +141,12 @@
+ PAPACC_RESULT papacc_configuration_bootstrap_custody_poll(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
+ PAPACC_BOOL papacc_configuration_bootstrap_custody_ready(PAPACC_CONFIGURATION_COMMIT *);
+ PAPACC_RESULT papacc_configuration_bootstrap_custody_close(PAPACC_CONFIGURATION_COMMIT *);
++/* Same worker, relative initial FILE_CREATE under retained custody. Durable
++ * success is COMMITTED_PENDING only, never CURRENT. Scope/identity native proof
++ * and token state are revalidated by worker before commit. */
++PAPACC_BOOL papacc_configuration_bootstrap_authority_valid(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_bootstrap_commit_begin(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,const char *,PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_bootstrap_commit_poll(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
+ /* Offline update only. No bootstrap/recovery/publication; actual current pin
+  * and native identity handle required. Last argument is factual already-reserved
+  * composition including root, caller and codec pair; extra scratch is checked

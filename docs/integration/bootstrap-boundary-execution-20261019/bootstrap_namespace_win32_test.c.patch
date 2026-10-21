@@ -1,0 +1,40 @@
+--- tests/bootstrap_namespace_win32_test.c
++++ tests/bootstrap_namespace_win32_test.c
+@@ -0,0 +1,37 @@
++#include "server_configuration_commit_win32.h"
++#include <stdio.h>
++#include <string.h>
++static PAPACC_CONFIGURATION_COMMIT o;
++#define CHECK(x) do{if(!(x)){printf("FAIL %u error=%lu\n",__LINE__,GetLastError());return 1;}}while(0)
++int main(int argc,char **argv)
++{
++ PAPACC_ISSUER_CAS_RESULT result;DWORD start;HANDLE h;char path[MAX_PATH];int stopped;
++ CHECK(argc==4);stopped=!strcmp(argv[3],"stop");
++ CHECK(papacc_configuration_commit_init03(&o,argv[1])==PAPACC_RESULT_OK);
++ CHECK(papacc_configuration_bootstrap_custody_begin(&o,argv[2],"production-must-deny",2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED);
++ o.pending_commit.checkpoint_only=91; /* compile-isolated native primitive test, NOT authority */
++ CHECK(papacc_configuration_bootstrap_custody_begin(&o,argv[2],argv[3],2089300U)==PAPACC_RESULT_OK);
++ if(stopped)CHECK(papacc_configuration_stop(&o)==PAPACC_RESULT_OK);
++ start=GetTickCount();do{
++  CHECK(papacc_configuration_bootstrap_custody_poll(&o,&result)==PAPACC_RESULT_OK);
++  if(result==PAPACC_COMMIT_PENDING)Sleep(1);
++ }while(result==PAPACC_COMMIT_PENDING&&GetTickCount()-start<10000U);
++ CHECK(result!=PAPACC_COMMIT_PENDING);
++ if(!stopped){
++  CHECK(result==PAPACC_CAS_SUCCESS&&o.pending_commit.bootstrap_created);
++  CHECK(!o.pending_commit.bootstrap_admin); /* filtered token never becomes approved admin */
++  CHECK(papacc_configuration_bootstrap_custody_ready(&o)==PAPACC_FALSE);
++  CHECK(snprintf(path,sizeof(path),"%s\\%s",argv[2],argv[3])>0);
++  h=CreateFileA(path,DELETE,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
++  CHECK(h==INVALID_HANDLE_VALUE); /* rename/delete cannot acquire DELETE */
++  CHECK(!RemoveDirectoryA(path));
++  CHECK(papacc_configuration_finish(&o)!=PAPACC_RESULT_OK);
++  CHECK(papacc_configuration_stop(&o)==PAPACC_RESULT_OK);
++ }
++ CHECK(papacc_configuration_bootstrap_custody_close(&o)==PAPACC_RESULT_OK);
++ CHECK(papacc_configuration_bootstrap_custody_ready(&o)==PAPACC_FALSE);
++ CHECK(!o.pending_commit.bootstrap_parent&&!o.pending_commit.bootstrap_container);
++ CHECK(!o.published&&!o.committed_pending&&!o.committed_bytes);
++ printf("PASS NATIVE_NAMESPACE_COMPONENT phase=%d created=%u admin=%u owner=%Iu pending=%Iu NO_CURRENT_NO_COMMIT_NO_OPERATIONAL_AUTHORITY\n",
++ result,o.pending_commit.bootstrap_created,o.pending_commit.bootstrap_admin,sizeof(o),sizeof(o.pending_commit));return 0;
++}

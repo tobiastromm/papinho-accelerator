@@ -1,0 +1,15 @@
+--- apps/server/server_configuration_bootstrap_commit_win32.inc
++++ apps/server/server_configuration_bootstrap_commit_win32.inc
+@@ -81,6 +81,12 @@
+   if(status==(NTSTATUS)0xc0000035L)p->result=PAPACC_CAS_CONFLICT;goto rollback;}
+  if(io.Information!=2U||!GetFileInformationByHandle(p->file,&identity)||
+     (identity.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))goto uncertain;
++ /* Snapshot metadata from THIS file handle; it is not used to reopen IO. */
++ p->expected_volume=identity.dwVolumeSerialNumber;p->expected_index_high=identity.nFileIndexHigh;p->expected_index_low=identity.nFileIndexLow;
++ n=GetFinalPathNameByHandleA(p->file,(char *)p->previous+1536U,MAX_PATH+4U,FILE_NAME_NORMALIZED|VOLUME_NAME_DOS);
++ if(n<7U||n>=MAX_PATH+4U||memcmp(p->previous+1536U,"\\\\?\\",4U)||
++    p->previous[1541U]!=':'||p->previous[1542U]!='\\')goto uncertain;
++ memmove(p->previous+1536U,p->previous+1540U,(size_t)n-3U);
+  verified=1;
+  if(InterlockedCompareExchange(&p->stop,0,0))goto rollback;
+  if(!WriteFile(p->file,p->next,p->next_bytes,&n,NULL)||n!=p->next_bytes||!FlushFileBuffers(p->file))goto uncertain;

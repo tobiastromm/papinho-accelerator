@@ -1,0 +1,183 @@
+#include "config_source.h"
+#include <string.h>
+#include <limits.h>
+static const char *const kinds[]={"","binding","listener","channel_tls","access_auth","capability_policy",
+ "destination_policy","egress_profile","outbound_tls","site_tls","provisioning","issuer","resources","audit"};
+static PC_RESULT fail(PC_DIAGNOSTIC *d,PC_RESULT r,unsigned l,unsigned c,const char *why)
+{ if(d){d->code=r;d->line=l;d->column=c;d->reason=why;}return r; }
+static int eq(const char *a,const char *b){return strcmp(a,b)==0;}
+static int alpha(unsigned char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z');}
+static int ident(const PC_TOKEN *t)
+{ const unsigned char *s=(const unsigned char *)t->text;
+ if(t->quoted||!alpha(*s))return 0;
+ for(++s;*s;++s)if(!alpha(*s)&&!(*s>='0'&&*s<='9')&&*s!='_'&&*s!='.'&&*s!='-')return 0;
+ return 1; }
+static int number(const PC_TOKEN *t,unsigned max,unsigned *v)
+{ const unsigned char *s=(const unsigned char *)t->text;unsigned n=0U,x;
+ if(t->quoted||!*s)return 0;
+ for(;*s;++s){if(*s<'0'||*s>'9')return 0;x=(unsigned)(*s-'0');if(n>max/10U||(n==max/10U&&x>max%10U))return 0;n=n*10U+x;}
+ *v=n;return 1; }
+/* Strict UTF8; excludes overlong/surrogates/out-of-range, NUL and controls.
+ * Every byte is checked even in disabled/commented lines. */
+static int utf8(const unsigned char *s,size_t n,size_t *bad)
+{ size_t i=0U,k;unsigned c,v,min,need;
+ while(i<n){c=s[i];if(c<128U){if((c==13U&&(i+1U>=n||s[i+1U]!=10U))||c==0U||(c<32U&&c!=9U&&c!=10U&&c!=13U)||c==127U){*bad=i;return 0;}++i;continue;}
+ if(c>=194U&&c<=223U){need=1U;v=c&31U;min=128U;}
+ else if(c>=224U&&c<=239U){need=2U;v=c&15U;min=2048U;}
+ else if(c>=240U&&c<=244U){need=3U;v=c&7U;min=65536U;}
+ else {*bad=i;return 0;}
+ if(n-i-1U<need){*bad=i;return 0;}
+ for(k=1U;k<=need;++k){if((s[i+k]&192U)!=128U){*bad=i+k;return 0;}v=(v<<6U)|(s[i+k]&63U);}
+ if(v<min||v>1114111U||(v>=55296U&&v<=57343U)||v==65279U){*bad=i;return 0;}i+=(size_t)need+1U;
+ }return 1; }
+static int field(unsigned kind,const char *s)
+{
+ switch(kind){
+ case 1U: return eq(s,"mode")||eq(s,"interface_ref");
+ case 2U: return eq(s,"binding_ref")||eq(s,"port")||eq(s,"transport")||eq(s,"channel_tls_ref")||eq(s,"admission")||eq(s,"authentication_ref")||eq(s,"policy_ref");
+ case 3U: return eq(s,"security_ref");
+ case 4U: return eq(s,"method")||eq(s,"provider_ref");
+ case 5U: return eq(s,"enable")||eq(s,"rule");
+ default:return 0;
+ }
+}
+PC_RESULT pc_parse(const unsigned char *s,size_t n,PC_DOCUMENT *doc,PC_DIAGNOSTIC *d)
+{
+ size_t i=0U,start,end,pos,j,bad,base=0U;unsigned line=1U,col=1U,cur=PAPACC_CONFIG_NO_INDEX,k,len,closed;
+ PC_LINE *r;PC_TOKEN *t;const char *name;PC_RESULT result;
+ if(!doc)return fail(d,PC_INVALID,0U,0U,"workspace required");
+ memset(doc,0,sizeof(*doc));if(d)memset(d,0,sizeof(*d));
+ if(!s&&n)return fail(d,PC_INVALID,0U,0U,"input absent");
+ if(n>PC_SOURCE_MAX)return fail(d,PC_LIMIT,1U,1U,"source limit");
+ if(n>=3U&&s[0]==239U&&s[1]==187U&&s[2]==191U)base=3U;
+ if(!utf8(s? s+base:s,n-base,&bad)){
+  for(j=base;j<base+bad;++j){if(s[j]==10U){++line;col=1U;}else ++col;}
+  return fail(d,PC_INVALID,line,col,"invalid UTF8 or control");}
+ i=base;
+ while(i<n){start=i;while(i<n&&s[i]!=10U)++i;end=i;if(i<n)++i;
+  if(end>start&&s[end-1U]==13U)--end;
+  pos=start;while(pos<end&&(s[pos]==' '||s[pos]=='\t'))++pos;
+  if(pos==end||s[pos]=='#'||s[pos]==';'){++line;continue;}
+  if(doc->line_count>=PC_LINES_MAX)return fail(d,PC_LIMIT,line,1U,"active line limit");
+  r=&doc->lines[doc->line_count];r->line=line;r->block=cur;
+  while(pos<end&&s[pos]!='#'){
+   if(s[pos]==' '||s[pos]=='\t'){++pos;continue;}
+   if(r->count>=PC_TOKENS_MAX)return fail(d,PC_LIMIT,line,(unsigned)(pos-start+1U),"token count");
+   t=&r->tokens[r->count++];t->column=(unsigned)(pos-start+1U);len=0U;closed=0U;
+   if(s[pos]=='"'){t->quoted=1U;++pos;
+    while(pos<end){unsigned char c=s[pos++];
+     if(c=='"'){closed=1U;break;}
+     if(c=='\\'){if(pos==end||(s[pos]!='\\'&&s[pos]!='"'))return fail(d,PC_INVALID,line,(unsigned)(pos-start),"invalid escape");c=s[pos++];}
+     if(c<32U||c==127U)return fail(d,PC_INVALID,line,(unsigned)(pos-start),"string control");
+     if(len>=PC_TEXT_MAX)return fail(d,PC_LIMIT,line,t->column,"string limit");t->text[len++]=(char)c;
+    }
+    if(!closed)return fail(d,PC_INVALID,line,t->column,"unterminated string");
+    if(pos<end&&s[pos]!=' '&&s[pos]!='\t'&&s[pos]!='#')return fail(d,PC_INVALID,line,(unsigned)(pos-start+1U),"token separator required");
+   }else{while(pos<end&&s[pos]!=' '&&s[pos]!='\t'&&s[pos]!='#'){
+     if(s[pos]==';'||s[pos]=='"'||s[pos]=='\\'||s[pos]<32U||s[pos]>=127U)return fail(d,PC_INVALID,line,(unsigned)(pos-start+1U),"invalid bare token");
+     if(len>=PC_TEXT_MAX)return fail(d,PC_LIMIT,line,t->column,"token limit");t->text[len++]=(char)s[pos++];
+   }}
+   t->text[len]='\0';
+  }
+  name=r->tokens[0].text;
+  if(r->tokens[0].quoted)return fail(d,PC_INVALID,line,1U,"quoted directive");
+  if(!doc->version){if(cur!=PAPACC_CONFIG_NO_INDEX||r->count!=2U||!eq(name,"format_version")||r->tokens[1].quoted||!eq(r->tokens[1].text,"1"))return fail(d,PC_INVALID,line,1U,"format_version 1 required first");doc->version=1U;}
+  else if(eq(name,"end")){
+   if(cur==PAPACC_CONFIG_NO_INDEX||r->count!=1U)return fail(d,PC_INVALID,line,1U,"unexpected end");doc->blocks[cur].end=doc->line_count;cur=PAPACC_CONFIG_NO_INDEX;
+  }else if(cur==PAPACC_CONFIG_NO_INDEX){
+   for(k=1U;k<sizeof(kinds)/sizeof(kinds[0]);++k)if(eq(name,kinds[k]))break;
+   if(k<sizeof(kinds)/sizeof(kinds[0])){
+    if(k>5U)return fail(d,PC_UNSUPPORTED,line,1U,"block unsupported in offline slice");
+    if(r->count!=2U||!ident(&r->tokens[1]))return fail(d,PC_INVALID,line,1U,"block identifier required");
+    if(doc->block_count>=PC_BLOCKS_MAX)return fail(d,PC_LIMIT,line,1U,"block limit");
+    for(j=0U;j<doc->block_count;++j)if(doc->blocks[j].kind==k&&eq(doc->lines[doc->blocks[j].opener].tokens[1].text,r->tokens[1].text))return fail(d,PC_DUPLICATE,line,1U,"duplicate object");
+    cur=doc->block_count++;doc->blocks[cur].kind=k;doc->blocks[cur].opener=doc->line_count;r->block=cur;
+   }else{
+    if(!eq(name,"client_admission")&&!eq(name,"site_tls_admission")&&!eq(name,"ed11_admission")&&!eq(name,"network_egress"))return fail(d,PC_UNKNOWN,line,1U,"unknown or unsupported global");
+    if(r->count!=2U||r->tokens[1].quoted||!eq(r->tokens[1].text,(eq(name,"client_admission")||eq(name,"network_egress"))?"DISABLED":"DENY"))return fail(d,PC_INVALID,line,1U,"negative gate required");
+    for(j=0U;j<doc->line_count;++j)if(doc->lines[j].block==PAPACC_CONFIG_NO_INDEX&&eq(doc->lines[j].tokens[0].text,name))return fail(d,PC_DUPLICATE,line,1U,"duplicate global");
+   }
+  }else{
+   if(!field(doc->blocks[cur].kind,name))return fail(d,PC_UNKNOWN,line,1U,"unknown or unsupported field");
+   if(!eq(name,"rule")&&!eq(name,"enable")&&!eq(name,"interface_ref"))for(j=doc->blocks[cur].opener+1U;j<doc->line_count;++j)if(eq(doc->lines[j].tokens[0].text,name))return fail(d,PC_DUPLICATE,line,1U,"duplicate field");
+  }
+  ++doc->line_count;++line;
+ }
+ if(cur!=PAPACC_CONFIG_NO_INDEX)return fail(d,PC_MISSING,doc->lines[doc->blocks[cur].opener].line,1U,"end required");
+ if(!doc->version)return fail(d,PC_MISSING,line,1U,"version absent");
+ result=PC_OK;doc->parsed=1U;return result;
+}
+static const PC_LINE *get(const PC_DOCUMENT *d,unsigned b,const char *name)
+{ unsigned i;for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i)if(eq(d->lines[i].tokens[0].text,name))return &d->lines[i];return NULL; }
+static unsigned ref(const PC_DOCUMENT *d,unsigned kind,const PC_LINE *r)
+{ unsigned i;if(!r||r->count!=2U||!ident(&r->tokens[1]))return PAPACC_CONFIG_NO_INDEX;
+ for(i=0U;i<d->block_count;++i)if(d->blocks[i].kind==kind&&eq(d->lines[d->blocks[i].opener].tokens[1].text,r->tokens[1].text))return i;return PAPACC_CONFIG_NO_INDEX; }
+static int strref(const PC_LINE *r){return r&&r->count==2U&&r->tokens[1].quoted&&r->tokens[1].text[0];}
+static int key(const PC_TOKEN *a,const PC_TOKEN *b,unsigned *v,unsigned *m)
+{return number(a,3U,v)&&*v>0U&&number(b,2U,m)&&((*v==1U&&(*m==1U||*m==2U))||(*v!=1U&&*m==1U));}
+static int hex16(const PC_TOKEN *t)
+{unsigned i;char c;if(!t->quoted||strlen(t->text)!=32U)return 0;for(i=0U;i<32U;++i){c=t->text[i];if(!((c>='0'&&c<='9')||(c>='a'&&c<='f')||(c>='A'&&c<='F')))return 0;}return 1;}
+PC_RESULT pc_validate(PC_DOCUMENT *d,const PC_TARGET *target,PC_DIAGNOSTIC *diag)
+{
+ unsigned b,i,j,v,m,v2,m2,count,kind;const PC_LINE *r,*q,*x;PC_LISTENER *l;unsigned enables,rules;
+ if(!d)return fail(diag,PC_INVALID,0U,0U,"document required");d->validated=0U;d->listener_count=0U;
+ if(!d->parsed||!target||target->max_listeners>PC_LISTENERS_MAX)return fail(diag,PC_INVALID,0U,0U,"parsed candidate and bounded target required");
+ for(b=0U;b<d->block_count;++b){kind=d->blocks[b].kind;r=&d->lines[d->blocks[b].opener];
+  for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i){q=&d->lines[i];
+   if(!eq(q->tokens[0].text,"rule")&&!eq(q->tokens[0].text,"enable")&&q->count!=2U)return fail(diag,PC_INVALID,q->line,q->tokens[0].column,"field arity");
+  }
+  if(kind==1U){q=get(d,b,"mode");if(!q||q->tokens[1].quoted||(!eq(q->tokens[1].text,"ALL")&&!eq(q->tokens[1].text,"SELECTED")))return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"explicit bind mode required");
+   count=0U;for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i){x=&d->lines[i];if(eq(x->tokens[0].text,"interface_ref")){if(!strref(x))return fail(diag,PC_INVALID,x->line,x->tokens[0].column,"interface reference required");++count;for(j=d->blocks[b].opener+1U;j<i;++j)if(eq(d->lines[j].tokens[0].text,"interface_ref")&&eq(d->lines[j].tokens[1].text,x->tokens[1].text))return fail(diag,PC_DUPLICATE,x->line,x->tokens[0].column,"duplicate interface");}}
+   if((eq(q->tokens[1].text,"ALL")&&count)||(eq(q->tokens[1].text,"SELECTED")&&!count))return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"bind refs inconsistent");
+  }else if(kind==3U){if(!strref(get(d,b,"security_ref")))return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"security reference required");
+  }else if(kind==4U){q=get(d,b,"method");if(!q||q->tokens[1].quoted)return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"authentication method required");
+   x=get(d,b,"provider_ref");if(eq(q->tokens[1].text,"NONE")){if(x)return fail(diag,PC_INVALID,x->line,x->tokens[0].column,"NONE forbids provider");}
+   else if(!eq(q->tokens[1].text,"CERTIFICATE_IDENTITY")||!strref(x))return fail(diag,PC_UNSUPPORTED,r->line,r->tokens[0].column,"authentication unsupported or unresolved");
+  }else if(kind==5U){enables=0U;rules=0U;
+   for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i){q=&d->lines[i];
+    if(eq(q->tokens[0].text,"enable")){
+     if(q->count!=3U||!key(&q->tokens[1],&q->tokens[2],&v,&m))return fail(diag,PC_UNSUPPORTED,q->line,q->tokens[0].column,"unsupported capability");
+     if(++enables>3U)return fail(diag,PC_LIMIT,q->line,q->tokens[0].column,"enabled key capacity");
+     for(j=d->blocks[b].opener+1U;j<i;++j)if(eq(d->lines[j].tokens[0].text,"enable")&&key(&d->lines[j].tokens[1],&d->lines[j].tokens[2],&v2,&m2)&&v==v2&&m==m2)return fail(diag,PC_DUPLICATE,q->line,q->tokens[0].column,"duplicate enable");
+    }else{
+     if((q->count!=5U&&q->count!=7U)||!ident(&q->tokens[1])||q->tokens[2].quoted||(!eq(q->tokens[2].text,"ACCEPT")&&!eq(q->tokens[2].text,"DENY"))||!key(&q->tokens[3],&q->tokens[4],&v,&m))return fail(diag,PC_INVALID,q->line,q->tokens[0].column,"incomplete rule or unsupported capability");
+     if(q->count==7U&&(q->tokens[5].quoted||!eq(q->tokens[5].text,"principal")||!hex16(&q->tokens[6])))return fail(diag,PC_UNSUPPORTED,q->line,q->tokens[0].column,"unsupported ACL");
+     if(++rules>4U)return fail(diag,PC_LIMIT,q->line,q->tokens[0].column,"rule capacity");
+     for(j=d->blocks[b].opener+1U;j<i;++j)if(eq(d->lines[j].tokens[0].text,"rule")&&eq(d->lines[j].tokens[1].text,q->tokens[1].text))return fail(diag,PC_DUPLICATE,q->line,q->tokens[0].column,"duplicate rule id");
+    }
+   }
+  }
+ }
+ for(b=0U;b<d->block_count;++b)if(d->blocks[b].kind==2U){r=&d->lines[d->blocks[b].opener];
+  if(d->listener_count>=target->max_listeners)return fail(diag,PC_LIMIT,r->line,r->tokens[0].column,"target listener capacity");
+  l=&d->listeners[d->listener_count];memset(l,0,sizeof(*l));l->block=b;l->security=PAPACC_CONFIG_NO_INDEX;
+  l->binding=ref(d,1U,get(d,b,"binding_ref"));l->authentication=ref(d,4U,get(d,b,"authentication_ref"));l->policy=ref(d,5U,get(d,b,"policy_ref"));
+  if(l->binding==PAPACC_CONFIG_NO_INDEX||l->authentication==PAPACC_CONFIG_NO_INDEX||l->policy==PAPACC_CONFIG_NO_INDEX)return fail(diag,PC_REFERENCE,r->line,r->tokens[0].column,"listener reference unresolved");
+  q=get(d,b,"port");if(!q||!number(&q->tokens[1],65535U,&l->port)||!l->port)return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"explicit valid port required");
+  q=get(d,b,"transport");if(!q||q->tokens[1].quoted)return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"explicit profile required");
+  if(eq(q->tokens[1].text,"SECURE_PRINCIPAL")){l->profile=1U;l->security=ref(d,3U,get(d,b,"channel_tls_ref"));if(l->security==PAPACC_CONFIG_NO_INDEX)return fail(diag,PC_REFERENCE,r->line,r->tokens[0].column,"Secure security ref required");}
+  else if(eq(q->tokens[1].text,"LEGACY_ENDPOINT")){if(!target->legacy_supported)return fail(diag,PC_UNSUPPORTED,r->line,r->tokens[0].column,"Legacy unsupported by target");if(get(d,b,"channel_tls_ref"))return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"Legacy forbids channel TLS ref");l->profile=2U;}
+  else return fail(diag,PC_UNSUPPORTED,q->line,q->tokens[0].column,"unknown profile");
+  q=get(d,b,"admission");if(!q||q->tokens[1].quoted||(!eq(q->tokens[1].text,"OPEN")&&!eq(q->tokens[1].text,"CLOSED")))return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"admission required");
+  l->admission=eq(q->tokens[1].text,"CLOSED")?2U:1U;
+  x=get(d,l->authentication,"method");if(l->admission==2U&&eq(x->tokens[1].text,"NONE"))return fail(diag,PC_INVALID,q->line,q->tokens[0].column,"CLOSED requires authentication");
+  /* Conservative ambiguity rejection until factual bind endpoint resolution. */
+  for(j=0U;j<d->listener_count;++j)if(d->listeners[j].port==l->port)return fail(diag,PC_CONFLICT,r->line,r->tokens[0].column,"same port needs endpoint resolution");
+  l->presence=127U|(l->profile==1U?128U:0U);++d->listener_count;
+ }
+ d->validated=1U;return fail(diag,PC_OK,0U,0U,"offline structural validation only; external resolution pending");
+}
+const PC_DOCUMENT *pc_view(const PC_DOCUMENT *d){return d&&d->validated?d:NULL;}
+static int principal_equal(const char *a,const char *b)
+{unsigned i;char x,y;if(strlen(a)!=32U||strlen(b)!=32U)return 0;
+ for(i=0U;i<32U;++i){x=a[i];y=b[i];if(x>='A'&&x<='F')x=(char)(x+('a'-'A'));if(y>='A'&&y<='F')y=(char)(y+('a'-'A'));if(x!=y)return 0;}return 1;}
+int pc_policy_accepts(const PC_DOCUMENT *d,unsigned b,unsigned wanted,unsigned major,const char *principal)
+{unsigned i,v,m,enabled=0U;const PC_LINE *q;
+ if(!pc_view(d)||b>=d->block_count||d->blocks[b].kind!=5U)return 0;
+ for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i){q=&d->lines[i];if(eq(q->tokens[0].text,"enable")&&key(&q->tokens[1],&q->tokens[2],&v,&m)&&v==wanted&&m==major)enabled=1U;}
+ if(!enabled)return 0;
+ for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i){q=&d->lines[i];if(!eq(q->tokens[0].text,"rule"))continue;
+  if(!key(&q->tokens[3],&q->tokens[4],&v,&m)||v!=wanted||m!=major)continue;
+  if(q->count==7U&&(!principal||!principal_equal(principal,q->tokens[6].text)))continue;
+  return eq(q->tokens[2].text,"ACCEPT");
+ }return 0;}

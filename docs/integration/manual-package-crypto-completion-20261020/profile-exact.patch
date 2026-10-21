@@ -1,0 +1,175 @@
+--- src/provisioning/manual_package_crypto.h
++++ src/provisioning/manual_package_crypto.h
+@@ -31,4 +31,11 @@
+ /* Correspondence only, NOT certificate profile/chain/validity authorization. */
+ int mp_crypto_key_match(MP_CRYPTO *,const unsigned char *,size_t,
+  const unsigned char *,size_t);
++/* Public direct-chain profile check. Expected IDs and reserved serial are
++ * immutable caller data from the existing administrative/issuer owner, not
++ * authority created here. Approved CA is independent of package contents.
++ * UTC must be supplied by its qualified clock; this API never selects time. */
++int mp_crypto_client_profile(MP_CRYPTO *,const unsigned char *,size_t,
++ const unsigned char *,size_t,const unsigned char [16],const unsigned char [16],
++ const unsigned char [16],unsigned long long);
+ #endif
+--- src/provisioning/manual_package_crypto_openssl.c
++++ src/provisioning/manual_package_crypto_openssl.c
+@@ -11,7 +11,10 @@
+ #include <openssl/x509.h>
+ #include <openssl/rsa.h>
+ #include <openssl/bn.h>
++#include <openssl/x509v3.h>
++#include <time.h>
+ struct MP_CRYPTO { OSSL_LIB_CTX *lib; OSSL_PROVIDER *provider; };
++static int canonical_cert(X509 *,const unsigned char *,size_t);
+ static int cancelled(MP_CANCEL f,void *u){return f && f(u);}
+ static int overlap(const void *a,size_t n,const void *b,size_t m){
+  uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;
+@@ -115,6 +118,9 @@
+  CRYPTO_memcmp(digest,raw+56,32))return MP_INVALID;
+  p=approved;key=d2i_PUBKEY_ex(NULL,&p,(long)sn,c->lib,"provider=default");
+  if(!key||p!=approved+sn||!rsa_profile(key))goto done;
++ {unsigned char *canonical=NULL;int len=i2d_PUBKEY(key,&canonical);
++  int exact=len>0&&(size_t)len==sn&&!CRYPTO_memcmp(canonical,approved,sn);
++  OPENSSL_free(canonical);if(!exact)goto done;}
+  md=EVP_MD_CTX_new();if(!md)goto done;
+  if(EVP_DigestVerifyInit_ex(md,&pc,"SHA256",c->lib,"provider=default",key,NULL)!=1||
+  EVP_PKEY_CTX_set_rsa_padding(pc,RSA_PKCS1_PADDING)<=0||
+@@ -129,11 +135,100 @@
+  EVP_PKEY *pub=NULL,*key=NULL;int ok=0;
+  if(!c||!cert||!cn||cn>16384||!private_der||!pn||pn>8192)return MP_INVALID;
+  x=X509_new_ex(c->lib,"provider=default");if(!x)goto done;
+- if(!d2i_X509(&x,&a,(long)cn)||a!=cert+cn)goto done;
++ if(!d2i_X509(&x,&a,(long)cn)||a!=cert+cn||!canonical_cert(x,cert,cn))goto done;
++ /* PKCS8v0 only: canonical outer DER length and exact version INTEGER 0. */
++ {size_t h=2,len;if(pn<5||private_der[0]!=0x30)goto done;
++  if(private_der[1]<128)len=private_der[1];
++  else if(private_der[1]==0x81&&pn>=6&&private_der[2]>=128){h=3;len=private_der[2];}
++  else if(private_der[1]==0x82&&pn>=7&&private_der[2]){h=4;len=(size_t)private_der[2]*256+private_der[3];}
++  else goto done;
++  if(len!=pn-h||len<3||private_der[h]!=2||private_der[h+1]!=1||private_der[h+2]!=0)goto done;}
+  info=d2i_PKCS8_PRIV_KEY_INFO(NULL,&b,(long)pn);if(!info||b!=private_der+pn)goto done;
++ {unsigned char *canonical=NULL;int len=i2d_PKCS8_PRIV_KEY_INFO(info,&canonical);
++  int exact=len>0&&(size_t)len==pn&&!CRYPTO_memcmp(canonical,private_der,pn);
++  OPENSSL_clear_free(canonical,len>0?(size_t)len:0);if(!exact)goto done;}
+  key=EVP_PKCS82PKEY_ex(info,c->lib,"provider=default");pub=X509_get_pubkey(x);
+  if(!rsa_profile(key)||!rsa_profile(pub))goto done;
+  ok=EVP_PKEY_eq(pub,key)==1;
+  done:EVP_PKEY_free(pub);EVP_PKEY_free(key);PKCS8_PRIV_KEY_INFO_free(info);X509_free(x);
+  return ok?MP_CRYPTO_ONLY:MP_INVALID;
+ }
++
++static int canonical_cert(X509 *x,const unsigned char *der,size_t n){
++ unsigned char *b=NULL;int len,ok;
++ if(i2d_re_X509_tbs(x,NULL)<=0)return 0;len=i2d_X509(x,&b);
++ ok=len>0&&(size_t)len==n&&CRYPTO_memcmp(b,der,n)==0;OPENSSL_free(b);return ok;
++}
++static int cn_matches(X509 *x,const char *prefix,const unsigned char id[16]){
++ static const char digits[]="0123456789abcdef";char expected[80];size_t n=strlen(prefix),i;
++ X509_NAME *name=X509_get_subject_name(x);X509_NAME_ENTRY *entry;ASN1_STRING *value;int at;
++ if(n+32>=sizeof(expected))return 0;memcpy(expected,prefix,n);
++ for(i=0;i<16;i++){expected[n+2*i]=digits[id[i]>>4];expected[n+2*i+1]=digits[id[i]&15];}
++ at=X509_NAME_get_index_by_NID(name,NID_commonName,-1);if(at<0||X509_NAME_get_index_by_NID(name,NID_commonName,at)>=0)return 0;
++ entry=X509_NAME_get_entry(name,at);value=X509_NAME_ENTRY_get_data(entry);
++ return ASN1_STRING_length(value)==(int)(n+32)&&CRYPTO_memcmp(ASN1_STRING_get0_data(value),expected,n+32)==0;
++}
++static int cert_algorithm(X509 *x){
++ return X509_get_version(x)==2&&X509_get_signature_nid(x)==NID_sha256WithRSAEncryption;
++}
++static int constraints(X509 *x,int ca){
++ BASIC_CONSTRAINTS *bc=NULL;ASN1_BIT_STRING *ku=NULL;EXTENDED_KEY_USAGE *eku=NULL;
++ int critical=-1,ok=0,i;bc=X509_get_ext_d2i(x,NID_basic_constraints,&critical,NULL);
++ if(!bc||critical!=1||((bc->ca!=0)!=(ca!=0)))goto done;
++ if(ca){if(!bc->pathlen||ASN1_INTEGER_get(bc->pathlen)!=0)goto done;}
++ else if(bc->pathlen)goto done;
++ critical=-1;ku=X509_get_ext_d2i(x,NID_key_usage,&critical,NULL);
++ if(!ku||critical!=1)goto done;
++ for(i=0;i<ASN1_STRING_length(ku)*8;i++){
++  int expected=ca?(i==5||i==6):(i==0);
++  if(ASN1_BIT_STRING_get_bit(ku,i)!=expected)goto done;
++ }
++ if(ASN1_STRING_length(ku)<1)goto done;
++ critical=-1;eku=X509_get_ext_d2i(x,NID_ext_key_usage,&critical,NULL);
++ if(ca){if(eku||critical!=-1)goto done;}
++ else if(!eku||critical!=0||sk_ASN1_OBJECT_num(eku)!=1||OBJ_obj2nid(sk_ASN1_OBJECT_value(eku,0))!=NID_client_auth)goto done;
++ /* No unknown critical semantics may be ignored. */
++ for(i=0;i<X509_get_ext_count(x);i++){
++  X509_EXTENSION *e=X509_get_ext(x,i);int nid=OBJ_obj2nid(X509_EXTENSION_get_object(e));
++  if(X509_EXTENSION_get_critical(e)&&nid!=NID_basic_constraints&&nid!=NID_key_usage)goto done;
++ }
++ ok=1;
++ done:BASIC_CONSTRAINTS_free(bc);ASN1_BIT_STRING_free(ku);EXTENDED_KEY_USAGE_free(eku);return ok;
++}
++int mp_crypto_client_profile(MP_CRYPTO *c,const unsigned char *cert,size_t cn,
++ const unsigned char *approved_ca,size_t an,const unsigned char device[16],const unsigned char authority[16],
++ const unsigned char serial[16],unsigned long long utc){
++ const unsigned char *p;X509 *leaf=NULL,*ca=NULL;EVP_PKEY *lk=NULL,*ck=NULL;
++ ASN1_OCTET_STRING *ski=NULL,*lski=NULL;AUTHORITY_KEYID *aki=NULL;BIGNUM *bn=NULL;
++ unsigned char serial_bytes[16];int days=0,seconds=0,critical=-1,ok=0;time_t now;
++ if(!c||!cert||!cn||cn>16384||!approved_ca||!an||an>16384||!device||!authority||!serial||!utc)return MP_INVALID;
++ now=(time_t)utc;if(now<0||(unsigned long long)now!=utc)return MP_INVALID;
++ leaf=X509_new_ex(c->lib,"provider=default");ca=X509_new_ex(c->lib,"provider=default");if(!leaf||!ca)goto done;
++ p=cert;if(!d2i_X509(&leaf,&p,(long)cn)||p!=cert+cn||!canonical_cert(leaf,cert,cn))goto done;
++ p=approved_ca;if(!d2i_X509(&ca,&p,(long)an)||p!=approved_ca+an||!canonical_cert(ca,approved_ca,an))goto done;
++ if(!cert_algorithm(leaf)||!cert_algorithm(ca)||!constraints(leaf,0)||!constraints(ca,1)||
++ !cn_matches(leaf,"Papinho Client ",device)||!cn_matches(ca,"Papinho CA ",authority))goto done;
++ lk=X509_get_pubkey(leaf);ck=X509_get_pubkey(ca);
++ if(!rsa_profile(lk)||!rsa_profile(ck)||EVP_PKEY_eq(lk,ck)!=0||
++ X509_NAME_cmp(X509_get_subject_name(ca),X509_get_issuer_name(ca))||
++ X509_NAME_cmp(X509_get_issuer_name(leaf),X509_get_subject_name(ca))||
++ X509_verify(ca,ck)!=1||X509_verify(leaf,ck)!=1)goto done;
++ if(X509_cmp_time(X509_get0_notBefore(ca),&now)!=-1||X509_cmp_time(X509_get0_notAfter(ca),&now)!=1||
++ X509_cmp_time(X509_get0_notBefore(leaf),&now)!=-1||X509_cmp_time(X509_get0_notAfter(leaf),&now)!=1)goto done;
++ if(!ASN1_TIME_diff(&days,&seconds,X509_get0_notBefore(ca),X509_get0_notAfter(ca))||days!=1825||seconds!=0)goto done;
++ if(!ASN1_TIME_diff(&days,&seconds,X509_get0_notBefore(leaf),X509_get0_notAfter(leaf))||days<0||days>90||seconds<0||
++ (days==0&&seconds==0)||(days==90&&seconds!=0))goto done;
++ if(ASN1_TIME_compare(X509_get0_notBefore(leaf),X509_get0_notBefore(ca))<0||
++ ASN1_TIME_compare(X509_get0_notAfter(leaf),X509_get0_notAfter(ca))>0)goto done;
++ bn=ASN1_INTEGER_to_BN(X509_get0_serialNumber(leaf),NULL);
++ if(!bn||BN_is_negative(bn)||BN_is_zero(bn)||BN_num_bytes(bn)>16||BN_bn2binpad(bn,serial_bytes,16)!=16||
++ CRYPTO_memcmp(serial_bytes,serial,16))goto done;
++ ski=X509_get_ext_d2i(ca,NID_subject_key_identifier,&critical,NULL);if(!ski||critical<0)goto done;
++ critical=-1;lski=X509_get_ext_d2i(leaf,NID_subject_key_identifier,&critical,NULL);if(!lski||critical<0)goto done;
++ critical=-1;aki=X509_get_ext_d2i(leaf,NID_authority_key_identifier,&critical,NULL);
++ if(!aki||critical<0||!aki->keyid||ASN1_STRING_length(ski)<=0||ASN1_STRING_length(lski)<=0||
++ ASN1_STRING_cmp(ski,aki->keyid))goto done;
++ ok=1;
++ done:BN_free(bn);AUTHORITY_KEYID_free(aki);ASN1_OCTET_STRING_free(ski);ASN1_OCTET_STRING_free(lski);
++ EVP_PKEY_free(lk);EVP_PKEY_free(ck);X509_free(leaf);X509_free(ca);return ok?MP_CRYPTO_ONLY:MP_INVALID;
++}
+--- tests/manual_package_crypto_test.c
++++ tests/manual_package_crypto_test.c
+@@ -26,7 +26,7 @@
+  unsigned char cipher[256],tag[16],q[256],out[256],pw[32],wrong[32];
+  const unsigned char plain[]="Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
+  size_t n=sizeof(plain)-1,used=9,i;int count;
+- unsigned char cert[16384],private_der[8192],other[8192];size_t cn,pn,on;
++ unsigned char cert[16384],private_der[8192],other[8192],ids[16]={0};size_t cn,pn,on;
+  FILE *f;BIO *bio;char pem[8192];size_t pemn;EVP_PKEY *signer;EVP_MD_CTX *md;EVP_PKEY_CTX *pc=NULL;
+  unsigned char spki[1024],*sp=spki,raw[2048],header[92],signature[256],hash[32];
+  size_t sn,siglen=256,hn=0,rn=0;MP_ENVELOPE env;
+@@ -36,6 +36,14 @@
+  CHECK(mp_crypto_derive(c,pw,32,salt,16,key,NULL,NULL)==MP_CRYPTO_ONLY);
+  CHECK(hex("cd9ead6a37c37227e0f1f521cfcb321504eaab5dc335824da45c2bb8f264a92e",expected)==32);
+  CHECK(!memcmp(key,expected,32));
++ memset(nonce,0,12);memset(aad,0,12);
++ CHECK(mp_crypto_seal(c,key,nonce,12,aad,12,plain,n,cipher,sizeof(cipher),tag)==MP_CRYPTO_ONLY);
++ memset(wrong,'B',32);CHECK(mp_crypto_derive(c,wrong,32,salt,16,key,NULL,NULL)==MP_CRYPTO_ONLY);
++ CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),out,sizeof(out),&used,NULL,NULL)==MP_INVALID);
++ CHECK(used==0);
++ memset(pw,'A',32);CHECK(mp_crypto_derive(c,pw,32,salt,16,key,NULL,NULL)==MP_CRYPTO_ONLY);
++ CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),out,sizeof(out),&used,NULL,NULL)==MP_CRYPTO_ONLY);
++ CHECK(used==n&&!memcmp(out,plain,n));
+  CHECK(mp_crypto_derive(c,pw,32,salt,15,key,NULL,NULL)==MP_INVALID);
+  count=1;CHECK(mp_crypto_derive(c,pw,32,salt,16,key,stop,&count)==MP_STOPPED);
+  for(i=0;i<32;i++)CHECK(key[i]==0);
+@@ -67,6 +75,9 @@
+  cn=fixture(argv[2],cert,sizeof(cert));pn=fixture(argv[3],private_der,sizeof(private_der));on=fixture(argv[4],other,sizeof(other));
+  CHECK(cn&&pn&&on);CHECK(mp_crypto_key_match(c,cert,cn,private_der,pn)==MP_CRYPTO_ONLY);
+  CHECK(mp_crypto_key_match(c,cert,cn,other,on)==MP_INVALID);
++ /* Historical mTLS fixture is NOT the newly accepted profile1 identity.
++  * It must never pass by being an otherwise usable client certificate. */
++ CHECK(mp_crypto_client_profile(c,cert,cn,cert,cn,ids,ids,ids,1792454400ULL)==MP_INVALID);
+  CHECK(mp_crypto_key_match(c,cert,cn-1,private_der,pn)==MP_INVALID);
+  CHECK(mp_crypto_key_match(c,cert,cn,private_der,pn-1)==MP_INVALID);
+  /* Public upstream RSA TEST KEY, never a delegated production signer. */

@@ -1,0 +1,30 @@
+--- apps/server/server_configuration_bootstrap_win32.inc
++++ apps/server/server_configuration_bootstrap_win32.inc
+@@ -29,7 +29,7 @@
+ {
+  HMODULE module;FARPROC address;BOOTSTRAP_NT_CREATE create;
+  WCHAR path[MAX_PATH+5],leaf[65];UNICODE_STRING name;OBJECT_ATTRIBUTES attr;IO_STATUS_BLOCK io;
+- NTSTATUS status;unsigned i,n;int admin;
++ NTSTATUS status;unsigned i,n,k;int admin;char drive[3],device[512];
+  admin=bootstrap_admin(p);p->bootstrap_admin=admin?1U:0U;
+ #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+  /* Native custody primitive only; not a production authority bypass. */
+@@ -38,9 +38,15 @@
+  if(!admin||p->close_error||InterlockedCompareExchange(&p->stop,0,0))return;
+  module=GetModuleHandleA("ntdll.dll");if(!module)return;address=GetProcAddress(module,"NtCreateFile");
+  if(!address)return;memcpy(&create,&address,sizeof(create));
+- path[0]='\\';path[1]='?';path[2]='?';path[3]='\\';
+- n=(unsigned)strlen(p->path);for(i=0;i<=n;i++)path[i+4U]=(WCHAR)(unsigned char)p->path[i];
+- memset(&attr,0,sizeof(attr));memset(&io,0,sizeof(io));name.Buffer=path;name.Length=(USHORT)((n+4U)*2U);name.MaximumLength=name.Length;
++ /* Resolve the DOS drive ONCE, then address the observed native device.
++  * OBJ_DONT_REPARSE also rejects the object-manager DOS-drive link itself. */
++ drive[0]=p->path[0];drive[1]=':';drive[2]=0;
++ if(!QueryDosDeviceA(drive,device,sizeof(device))||strncmp(device,"\\Device\\",8U)){p->native_error=GetLastError();return;}
++ k=(unsigned)strlen(device);n=(unsigned)strlen(p->path);
++ if(k+n-2U>=MAX_PATH+5U){p->native_error=ERROR_BUFFER_OVERFLOW;return;}
++ for(i=0;i<k;i++)path[i]=(WCHAR)(unsigned char)device[i];
++ for(i=2U;i<=n;i++)path[k+i-2U]=(WCHAR)(unsigned char)p->path[i];n=k+n-2U;
++ memset(&attr,0,sizeof(attr));memset(&io,0,sizeof(io));name.Buffer=path;name.Length=(USHORT)(n*2U);name.MaximumLength=name.Length;
+  attr.Length=sizeof(attr);attr.ObjectName=&name;attr.Attributes=OBJ_CASE_INSENSITIVE|OBJ_DONT_REPARSE;
+  status=create(&p->bootstrap_parent,FILE_LIST_DIRECTORY|FILE_TRAVERSE|FILE_ADD_SUBDIRECTORY|FILE_READ_ATTRIBUTES|SYNCHRONIZE,
+   &attr,&io,NULL,FILE_ATTRIBUTE_DIRECTORY,FILE_SHARE_READ,1U,0x00200021U,NULL,0U);

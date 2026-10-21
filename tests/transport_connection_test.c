@@ -88,6 +88,30 @@ static void papacc_test_close(void *opaque)
     ++context->close_calls;
 }
 
+typedef struct PAPACC_TEST_PRE_CLOSE_CONTEXT {
+    PAPACC_U32 calls;
+    PAPACC_U32 close_calls;
+    PAPACC_RESULT result;
+    PAPACC_BOOL ready;
+} PAPACC_TEST_PRE_CLOSE_CONTEXT;
+
+static PAPACC_RESULT papacc_test_pre_close(
+    void *opaque, PAPACC_BOOL *out_ready)
+{
+    PAPACC_TEST_PRE_CLOSE_CONTEXT *context =
+        (PAPACC_TEST_PRE_CLOSE_CONTEXT *)opaque;
+    ++context->calls;
+    *out_ready = context->ready;
+    return context->result;
+}
+
+static void papacc_test_pre_close_close(void *opaque)
+{
+    PAPACC_TEST_PRE_CLOSE_CONTEXT *context =
+        (PAPACC_TEST_PRE_CLOSE_CONTEXT *)opaque;
+    ++context->close_calls;
+}
+
 static PAPACC_TRANSPORT_CONNECTION papacc_test_make_transport(
     PAPACC_TEST_CONTEXT *context)
 {
@@ -215,6 +239,52 @@ static int papacc_test_close_and_validation(void)
     return 0;
 }
 
+static int papacc_test_pre_close_contract(void)
+{
+    PAPACC_TEST_PRE_CLOSE_CONTEXT context =
+        { 0, 0, PAPACC_RESULT_OK, PAPACC_FALSE };
+    PAPACC_TEST_CONTEXT io_context = {
+        { 0 }, 0, { 0 }, 0, 1, 1, 0, 0, 0,
+        PAPACC_TEST_MODE_PROGRESS, PAPACC_TEST_MODE_PROGRESS
+    };
+    PAPACC_TRANSPORT_CONNECTION transport =
+        papacc_test_make_transport(&io_context);
+    PAPACC_BOOL ready = PAPACC_FALSE;
+
+    if (papacc_transport_connection_prepare_close(&transport, &ready) !=
+            PAPACC_RESULT_OK || ready != PAPACC_TRUE ||
+        transport.context != &io_context || io_context.close_calls != 0) {
+        return 30;
+    }
+    transport.context = &context;
+    transport.pre_close_fn = papacc_test_pre_close;
+    transport.close_fn = papacc_test_pre_close_close;
+    context.ready = PAPACC_TRUE;
+    if (papacc_transport_connection_prepare_close(&transport, &ready) !=
+            PAPACC_RESULT_OK || ready != PAPACC_TRUE || context.calls != 1 ||
+        context.close_calls != 0 || transport.context != &context) {
+        return 31;
+    }
+    context.ready = PAPACC_FALSE;
+    if (papacc_transport_connection_prepare_close(&transport, &ready) !=
+            PAPACC_RESULT_OK || ready != PAPACC_FALSE || context.calls != 2 ||
+        context.close_calls != 0 || transport.context != &context) {
+        return 32;
+    }
+    context.result = PAPACC_RESULT_INTERNAL_ERROR;
+    context.ready = PAPACC_TRUE;
+    if (papacc_transport_connection_prepare_close(&transport, &ready) !=
+            PAPACC_RESULT_INTERNAL_ERROR || ready != PAPACC_FALSE ||
+        context.calls != 3 || context.close_calls != 0 ||
+        transport.context != &context ||
+        papacc_transport_connection_prepare_close(&transport, NULL) !=
+            PAPACC_RESULT_INVALID_ARGUMENT) {
+        return 33;
+    }
+    papacc_transport_connection_close(&transport);
+    return context.close_calls == 1 ? 0 : 34;
+}
+
 int main(void)
 {
     int result = papacc_test_partial_io();
@@ -223,6 +293,9 @@ int main(void)
     }
     if (result == 0) {
         result = papacc_test_close_and_validation();
+    }
+    if (result == 0) {
+        result = papacc_test_pre_close_contract();
     }
     return result;
 }

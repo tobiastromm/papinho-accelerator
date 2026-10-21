@@ -1,0 +1,2 @@
+from pathlib import Path
+p=Path('docs/integration/issuer-session-live-publication-20261019/prepare-operation.py');s=p.read_text().replace('before.decode().splitlines(True),after.decode().splitlines(True)','before.decode().replace("\\r\\n","\\n").splitlines(True),after.decode().replace("\\r\\n","\\n").splitlines(True)').replace("(d/'proposed.patch').write_text(''.join(diff))","(d/'proposed.patch').write_bytes(''.join(diff).encode())");p.write_bytes(s.encode())

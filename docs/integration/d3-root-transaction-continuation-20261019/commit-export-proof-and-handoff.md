@@ -1,0 +1,34 @@
+# Same-root confirmed COMMITTED export — implementation/lifetime proof
+
+Task PACC-PHASE6-D3-ROOT-TRANSACTION-CONTINUATION-1. D2/D4 and D3 accepted unchanged. Three exact source-operations.json hunks plus one native-readback-operation.json test hunk officially approved and applied with preimages/postimage hashes; no denial/bypass. This is an independent partial slice. Owner subsequently confirmed there is no approved positive first-initialization proof mechanism and required INITIAL_BOOTSTRAP=DENY. No procedure/marker/parallel authority is implemented.
+
+## Actual integration
+
+papacc_configuration_d3_committed08 is part of the SAME canonical configuration commit translation unit/owner and opt-in D3 adapter. Reads only confirmed same-worker packet. Requires initialized writer owner, format8, no Stop/unresolved/recovery/issuer, completed+closed thread, native committed flag and CAS_SUCCESS, closed file/transaction without close error, committed_pending/authority_lost disposition from the existing poll, and old committed bytes exactly matching packet.previous. It validates full next D3/no-carrier bytes, native BODY05 adapter, LST1/base relation and hashes again, then copies the WHOLE collection and returns its existing root/R/predecessor/C/W facts. Receipt is128 bytes on compiled x64 target, NOT serialized; listener_count preserves4 in tests. No new operational ID.
+
+A/P are explicitly absent (epochs_present0); I absent under no-issuer gate. Successful API return means a confirmed committed packet can be inspected, NOT RESOLVED, normative PREPARED, CURRENT, recovery, authentication, grants or admission. Does not clear authority_lost/committed_pending, select a slot, modify old revisions, issue epoch, release a pin/credit or change Stop. It does not make the root transactively published. Missing/current/bootstrap application pipeline and immutable multi-revision collection selection remain unimplemented.
+
+## Ownership and guard proof by function
+
+- begin08, existing worker and poll remain unchanged. Begin freezes full copies before worker creation; caller input pointer/identity handle never escape to the worker. Native commit handling and issuer/history refusal preserved.
+- committed08 requires caller-owned mutually disjoint output/used/receipt ranges also disjoint from the durable owner. Checked address/range/capacity preconditions before any output write. Invalid preconditions write none. Safe later failures clear used/receipt, never expose partial completion; old payload bytes cannot be reused as positive results after an error. No unbounded allocation.
+- Same writer thread/critical section protects access, no callback/borrower/pin is acquired or retired. Native SHA adapter remains synchronous/no-retain/no-reentry; no call installed on active owner event loop or Stop. This export is offline and makes no bounded-native-latency claim.
+- Export refuses active/pending worker before packet access, waits nowhere, and never runs a second worker. Close failure or UNKNOWN retains owner resources and denies export. Full validation precedes copy, and Stop/unresolved is rechecked before result exposure. Previously completed export is a caller-owned value, not a view into retained memory.
+- Caller may reuse its original encoded input buffer only AFTER begin returns, since the worker owns its separate embedded copies. Export accepts no caller input pointer. Tests clear original caller bytes and confirm repeated export unchanged; no worker/pinned/retained storage is overwritten. Caller model/pair remains fully charged. Existing packet images/old root/snapshot pins remain live and unchanged, even after export succeeds.
+- Source parser/AST/bridge statuses are not promoted by this function; no PC_OK -> RESOLVED path added. No new root constructor, issuer carrier, checkpoint producer, freshness rule, registry or journal.
+
+## ED11 actual scoped peak
+
+Previous ALL2089095 plus caller receipt128 =2089223, margin7929 under2097152. SELECTED2089239, margin7913. No fixed root growth or changed array/worker size. Preserve root1974219 +source caller85560 +bounded pair18784, plus receipt128. Begin extra scratch10532 remains reserved. Export explicit scratch fields9376+digest32=9408 fits within that existing phase maximum; peak is max(begin,export), not their sum. Owner thread, synchronous return and no-reentry contract prove these frames do not coexist; worker never calls export/begin. Caller buffer/model are NOT retired by this arithmetic. Existing16384 allowance/common native frames remain, and complete stack/provider/kernel are NOT qualified. Receipt128 conservatively coexists with both phases, including retention. Function checked-adds its9408 scratch before effects against factual caller reservation; no quota is raised.
+
+Unqualified future collection snapshots/pins/publication costs are not silently included in the margin. Any additional retained caller/worker generation needs actual credit; export does not release it. No total ED11/physical headroom/reservation PASS is claimed.
+
+## Validation and boundaries
+
+Debug/Release /W4 /WX build/link PASS, zero warnings.58 final offline invocations:22 selected CTests,12 dormant root cases,10 D3 component cases,14 historical ROOT06 cases. Added success receipt tests compare ALL encoded bytes to native file readback after TxF commit, exact R/predecessor/count/whole digest and explicit epoch absence. Tests reject conflict/UNKNOWN/failed Stop outcomes, post-Stop read, corrupt retained next image, overlapping owner output, insufficient credit; old selected bytes and held pin remain unchanged. Existing checks cover version/unknown/truncation/issuer/stale pin and ROOT06 snapshots/history.
+
+Real evidence: new local fixture files, TxF, full-byte mismatch conflict, readback and checked handle closes. Synthetic evidence: CURRENT/CP/policy/issuer context, explicit UNKNOWN and paused-worker injection. No native operational root qualification, positive authorized bootstrap, publication, mTLS/HTTPS, CA/key/certificate, listener/socket or network operation. Existing dormant tests keep NO_CURRENT NO_COMMIT NO_NETWORK scope. Process exit is not Model E destruction proof.
+
+## Remaining exact gates
+
+INITIAL_BOOTSTRAP stays DENY by explicit owner decision: file/CURRENT absence, CREATE_NEW and empty directory do not prove no installation history. See initial-bootstrap-proof-handoff-proposed.md; no procedure implemented or accepted by reference. Existing update entry continues to require actual CURRENT/base pin/CAS; fixtures do not establish this application-level selection in production. Root collection snapshots/selection, real participant/reference authority and postcommit CURRENT/EPOCH completion need their own exact implementation review and ED11 census. No generic CURRENT/epoch fallback or issuer/migration is introduced. CLI/issuer composition remain subsequent gates.

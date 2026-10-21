@@ -1,0 +1,37 @@
+--- tests/bootstrap_d3_commit_win32_test.c
++++ tests/bootstrap_d3_commit_win32_test.c
+@@ -8,7 +8,7 @@
+  PAPACC_ISSUER_CAS_RESULT outcome;DWORD start,n;HANDLE file,entered=NULL,release=NULL;
+  char actual[MAX_PATH],moved[MAX_PATH];int stop_case,unknown_case,conflict_case,identity_case,deny_case;
+  CHECK(argc==4);stop_case=!strcmp(argv[3],"stop");unknown_case=!strcmp(argv[3],"unknown");
+- conflict_case=!strcmp(argv[3],"conflict");identity_case=!strcmp(argv[3],"identity");deny_case=!strcmp(argv[3],"missing");
++ conflict_case=!strcmp(argv[3],"conflict");identity_case=!strcmp(argv[3],"identity");deny_case=!strcmp(argv[3],"missing")||!strcmp(argv[3],"revoked");
+  CHECK(papacc_configuration_commit_init03(&owner,argv[1])==PAPACC_RESULT_OK);
+  CHECK(setup(1,0));
+  /* Preserve actual component root domain, synthetic BODY model only. */
+@@ -25,7 +25,7 @@
+  /* Boolean alone cannot manufacture a native identity/scoped authority proof. */
+  owner.pending_commit.bootstrap_admin=1;
+  CHECK(papacc_configuration_bootstrap_authority_valid(&owner)==PAPACC_FALSE);owner.pending_commit.bootstrap_admin=0;
+- if(deny_case){owner.pending_commit.checkpoint_only=0;
++ if(deny_case){if(!strcmp(argv[3],"revoked"))CHECK(papacc_configuration_stop(&owner)==PAPACC_RESULT_OK);owner.pending_commit.checkpoint_only=0;
+   CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2078000U)!=PAPACC_RESULT_OK);
+   CHECK(!owner.pending_commit.active&&!owner.pending_commit.thread);
+   CHECK(papacc_configuration_stop(&owner)==PAPACC_RESULT_OK);
+@@ -38,6 +38,8 @@
+   CHECK(WriteFile(file,"existing",8U,&n,NULL)&&n==8U);CHECK(FlushFileBuffers(file));CHECK(CloseHandle(file));}
+  if(identity_case)owner.pending_commit.bootstrap_low^=1U;
+  CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED);
++ bytes[72]^=1U;
++ CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2078000U)!=PAPACC_RESULT_OK);bytes[72]^=1U;
+  bytes[used-1U]^=1U;CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2078000U)!=PAPACC_RESULT_OK);bytes[used-1U]^=1U;
+  if(stop_case||unknown_case){entered=CreateEventA(NULL,TRUE,FALSE,NULL);release=CreateEventA(NULL,TRUE,FALSE,NULL);CHECK(entered&&release);
+   owner.pending_commit.test_entered=entered;owner.pending_commit.test_release=release;owner.pending_commit.test_unknown=unknown_case;}
+@@ -55,6 +57,7 @@
+   CHECK(ReadFile(file,bytes,(DWORD)used,&n,NULL)&&n==used);CHECK(CloseHandle(file));CHECK(!memcmp(bytes,saved,used));}
+  if(conflict_case){file=CreateFileA(actual,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,0,NULL);CHECK(file!=INVALID_HANDLE_VALUE);
+   CHECK(ReadFile(file,bytes,sizeof(bytes),&n,NULL)&&n==8U&&!memcmp(bytes,"existing",8U));CHECK(CloseHandle(file));}
++ if(stop_case||identity_case){CHECK(GetFileAttributesA(actual)==INVALID_FILE_ATTRIBUTES&&GetLastError()==ERROR_FILE_NOT_FOUND);}
+  CHECK(papacc_configuration_stop(&owner)==PAPACC_RESULT_OK);
+  if(unknown_case){CHECK(owner.unresolved&&owner.pending_commit.file!=INVALID_HANDLE_VALUE&&owner.pending_commit.transaction);
+   CHECK(papacc_configuration_bootstrap_custody_close(&owner)!=PAPACC_RESULT_OK);}

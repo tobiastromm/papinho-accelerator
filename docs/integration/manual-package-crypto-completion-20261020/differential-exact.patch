@@ -1,0 +1,93 @@
+--- src/provisioning/manual_package_crypto_openssl.c
++++ src/provisioning/manual_package_crypto_openssl.c
+@@ -92,12 +92,13 @@
+  overlap(used,sizeof(*used),key,32)||overlap(used,sizeof(*used),cipher,cn)||
+  overlap(used,sizeof(*used),nonce,nn)||overlap(used,sizeof(*used),aad,an)||overlap(used,sizeof(*used),tag,tn))return MP_INVALID;
+  *used=0;if(cancelled(stop,u)){ok=MP_STOPPED;goto done;}
++ ok=MP_CRYPTO_UNAVAILABLE;
+  alg=EVP_CIPHER_fetch(c->lib,"CHACHA20-POLY1305","provider=default");x=EVP_CIPHER_CTX_new();
+- if(!alg||!x){ok=MP_CRYPTO_UNAVAILABLE;goto done;}
++ if(!alg||!x)goto done;
+  if(EVP_DecryptInit_ex2(x,alg,key,nonce,NULL)!=1||EVP_DecryptUpdate(x,NULL,&n,aad,(int)an)!=1||
+  EVP_DecryptUpdate(x,q,&n,cipher,(int)cn)!=1||n!=(int)cn||
+- EVP_CIPHER_CTX_ctrl(x,EVP_CTRL_AEAD_SET_TAG,16,(void *)tag)!=1||
+- EVP_DecryptFinal_ex(x,q+n,&t)!=1||t!=0)goto done;
++ EVP_CIPHER_CTX_ctrl(x,EVP_CTRL_AEAD_SET_TAG,16,(void *)tag)!=1)goto done;
++ ok=MP_INVALID;if(EVP_DecryptFinal_ex(x,q+n,&t)!=1||t!=0)goto done;
+  if(cancelled(stop,u)){ok=MP_STOPPED;goto done;}
+  memcpy(out,q,cn);*used=cn;ok=MP_CRYPTO_ONLY;
+  done:OPENSSL_cleanse(q,cn);EVP_CIPHER_CTX_free(x);EVP_CIPHER_free(alg);return ok;
+--- tests/manual_package_crypto_test.c
++++ tests/manual_package_crypto_test.c
+@@ -6,6 +6,28 @@
+ #include <openssl/pem.h>
+ #include <openssl/rsa.h>
+ #include <openssl/crypto.h>
++#include <windows.h>
++#include <bcrypt.h>
++#include <malloc.h>
++#include <stdint.h>
++/* Isolated serial test process only. Actual CRT allocation bytes include our
++ * 16-byte accounting header. Kernel/provider internals remain unqualified. */
++typedef struct ALLOCATION {size_t requested,actual;} ALLOCATION;
++static size_t live=0,peak=0;
++static void *tracked_alloc(size_t n,const char *file,int line){
++ ALLOCATION *a;(void)file;(void)line;if(n>SIZE_MAX-sizeof(*a))return NULL;
++ a=(ALLOCATION *)malloc(n+sizeof(*a));if(!a)return NULL;
++ a->requested=n;a->actual=_msize(a);live+=a->actual;if(live>peak)peak=live;return a+1;
++}
++static void tracked_free(void *p,const char *file,int line){
++ ALLOCATION *a;(void)file;(void)line;if(!p)return;a=(ALLOCATION *)p-1;live-=a->actual;free(a);
++}
++static void *tracked_realloc(void *p,size_t n,const char *file,int line){
++ ALLOCATION *a;void *next;if(!p)return tracked_alloc(n,file,line);
++ if(!n){tracked_free(p,file,line);return NULL;}a=(ALLOCATION *)p-1;
++ next=tracked_alloc(n,file,line);if(!next)return NULL;
++ memcpy(next,p,a->requested<n?a->requested:n);tracked_free(p,file,line);return next;
++}
+ static int checks=0;
+ #define CHECK(x) do{checks++;if(!(x)){fprintf(stderr,"failure line %d\n",__LINE__);return 1;}}while(0)
+ static int hex(const char *s,unsigned char *out){unsigned int v;int n=0;
+@@ -22,6 +44,7 @@
+  return decoded>=pad?(size_t)(decoded-pad):0;
+ }
+ int main(int argc,char **argv){
++ BCRYPT_ALG_HANDLE bcrypt=NULL;unsigned char native_key[32];
+  MP_CRYPTO *c;unsigned char key[32],expected[256],salt[16],nonce[12],aad[12];
+  unsigned char cipher[256],tag[16],q[256],out[256],pw[32],wrong[32];
+  const unsigned char plain[]="Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
+@@ -31,11 +54,14 @@
+  unsigned char spki[1024],*sp=spki,raw[2048],header[92],signature[256],hash[32];
+  size_t sn,siglen=256,hn=0,rn=0;MP_ENVELOPE env;
+  static const unsigned char domain[]="PAPACC-COMPLETE-MANUAL-V2";
+- CHECK(argc==5);c=mp_crypto_open();CHECK(c!=NULL);
++ CHECK(argc==5);CHECK(CRYPTO_set_mem_functions(tracked_alloc,tracked_realloc,tracked_free)==1);c=mp_crypto_open();CHECK(c!=NULL);
+  memset(pw,'A',32);for(i=0;i<16;i++)salt[i]=(unsigned char)i;
+  CHECK(mp_crypto_derive(c,pw,32,salt,16,key,NULL,NULL)==MP_CRYPTO_ONLY);
+  CHECK(hex("cd9ead6a37c37227e0f1f521cfcb321504eaab5dc335824da45c2bb8f264a92e",expected)==32);
+  CHECK(!memcmp(key,expected,32));
++ CHECK(BCryptOpenAlgorithmProvider(&bcrypt,BCRYPT_SHA256_ALGORITHM,NULL,BCRYPT_ALG_HANDLE_HMAC_FLAG)==0);
++ CHECK(BCryptDeriveKeyPBKDF2(bcrypt,pw,32,salt,16,600000,native_key,32,0)==0);
++ CHECK(!memcmp(native_key,key,32));CHECK(BCryptCloseAlgorithmProvider(bcrypt,0)==0);
+  memset(nonce,0,12);memset(aad,0,12);
+  CHECK(mp_crypto_seal(c,key,nonce,12,aad,12,plain,n,cipher,sizeof(cipher),tag)==MP_CRYPTO_ONLY);
+  memset(wrong,'B',32);CHECK(mp_crypto_derive(c,wrong,32,salt,16,key,NULL,NULL)==MP_CRYPTO_ONLY);
+@@ -105,6 +131,7 @@
+  spki[sn-1]^=1;CHECK(mp_crypto_verify_package(c,raw,rn,spki,sn)==MP_INVALID);
+  CHECK(mp_package_validate(raw,rn,0)==MP_CRYPTO_UNAVAILABLE);
+  OPENSSL_cleanse(private_der,sizeof(private_der));OPENSSL_cleanse(other,sizeof(other));
+- OPENSSL_cleanse(key,sizeof(key));mp_crypto_close(c);
++ OPENSSL_cleanse(key,sizeof(key));OPENSSL_cleanse(native_key,sizeof(native_key));mp_crypto_close(c);
++ printf("provider_test_crt_peak_bytes=%zu live_before_process_cleanup=%zu caller_main_arrays_excluded\n",peak,live);
+  printf("%d assertions: REAL OFFLINE CRYPTO, PUBLIC TEST FIXTURES; no trust/profile/operational authority\n",checks);return 0;
+ }
+--- tests/manual_package_crypto/CMakeLists.txt
++++ tests/manual_package_crypto/CMakeLists.txt
+@@ -28,6 +28,6 @@
+ target_include_directories(package_crypto_test PRIVATE "${PAPACC_PACKAGE_OPENSSL_ROOT}/include")
+ target_compile_definitions(package_crypto_test PRIVATE _CRT_SECURE_NO_WARNINGS)
+ target_compile_options(package_crypto_test PRIVATE /W4 /WX)
+-target_link_libraries(package_crypto_test PRIVATE package_crypto)
++target_link_libraries(package_crypto_test PRIVATE package_crypto bcrypt)
+ add_custom_command(TARGET package_crypto_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PAPACC_PACKAGE_OPENSSL_ROOT}/runtime/libcrypto-3-x64.dll" "$<TARGET_FILE_DIR:package_crypto_test>")
+ add_test(NAME papacc.manual_package.real_crypto COMMAND package_crypto_test "${ROOT}/tests/fixtures/manual-package/upstream-public-test-key.pem" "${ROOT}/tests/fixtures/security/client-a.der.b64" "${ROOT}/tests/fixtures/security/client-a.pk8.b64" "${ROOT}/tests/fixtures/security/client-b.pk8.b64")

@@ -1,0 +1,82 @@
+--- src/config/config_source.c
++++ src/config/config_source.c
+@@ -21,7 +21,7 @@
+  * Every byte is checked even in disabled/commented lines. */
+ static int utf8(const unsigned char *s,size_t n,size_t *bad)
+ { size_t i=0U,k;unsigned c,v,min,need;
+- while(i<n){c=s[i];if(c<128U){if(c==0U||(c<32U&&c!=9U&&c!=10U&&c!=13U)||c==127U){*bad=i;return 0;}++i;continue;}
++ while(i<n){c=s[i];if(c<128U){if((c==13U&&(i+1U>=n||s[i+1U]!=10U))||c==0U||(c<32U&&c!=9U&&c!=10U&&c!=13U)||c==127U){*bad=i;return 0;}++i;continue;}
+  if(c>=194U&&c<=223U){need=1U;v=c&31U;min=128U;}
+  else if(c>=224U&&c<=239U){need=2U;v=c&15U;min=2048U;}
+  else if(c>=240U&&c<=244U){need=3U;v=c&7U;min=65536U;}
+@@ -124,45 +124,45 @@
+  if(!d->parsed||!target||target->max_listeners>PC_LISTENERS_MAX)return fail(diag,PC_INVALID,0U,0U,"parsed candidate and bounded target required");
+  for(b=0U;b<d->block_count;++b){kind=d->blocks[b].kind;r=&d->lines[d->blocks[b].opener];
+   for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i){q=&d->lines[i];
+-   if(!eq(q->tokens[0].text,"rule")&&!eq(q->tokens[0].text,"enable")&&q->count!=2U)return fail(diag,PC_INVALID,q->line,1U,"field arity");
++   if(!eq(q->tokens[0].text,"rule")&&!eq(q->tokens[0].text,"enable")&&q->count!=2U)return fail(diag,PC_INVALID,q->line,q->tokens[0].column,"field arity");
+   }
+-  if(kind==1U){q=get(d,b,"mode");if(!q||q->tokens[1].quoted||(!eq(q->tokens[1].text,"ALL")&&!eq(q->tokens[1].text,"SELECTED")))return fail(diag,PC_INVALID,r->line,1U,"explicit bind mode required");
+-   count=0U;for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i){x=&d->lines[i];if(eq(x->tokens[0].text,"interface_ref")){if(!strref(x))return fail(diag,PC_INVALID,x->line,1U,"interface reference required");++count;for(j=d->blocks[b].opener+1U;j<i;++j)if(eq(d->lines[j].tokens[0].text,"interface_ref")&&eq(d->lines[j].tokens[1].text,x->tokens[1].text))return fail(diag,PC_DUPLICATE,x->line,1U,"duplicate interface");}}
+-   if((eq(q->tokens[1].text,"ALL")&&count)||(eq(q->tokens[1].text,"SELECTED")&&!count))return fail(diag,PC_INVALID,r->line,1U,"bind refs inconsistent");
+-  }else if(kind==3U){if(!strref(get(d,b,"security_ref")))return fail(diag,PC_MISSING,r->line,1U,"security reference required");
+-  }else if(kind==4U){q=get(d,b,"method");if(!q||q->tokens[1].quoted)return fail(diag,PC_MISSING,r->line,1U,"authentication method required");
+-   x=get(d,b,"provider_ref");if(eq(q->tokens[1].text,"NONE")){if(x)return fail(diag,PC_INVALID,x->line,1U,"NONE forbids provider");}
+-   else if(!eq(q->tokens[1].text,"CERTIFICATE_IDENTITY")||!strref(x))return fail(diag,PC_UNSUPPORTED,r->line,1U,"authentication unsupported or unresolved");
++  if(kind==1U){q=get(d,b,"mode");if(!q||q->tokens[1].quoted||(!eq(q->tokens[1].text,"ALL")&&!eq(q->tokens[1].text,"SELECTED")))return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"explicit bind mode required");
++   count=0U;for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i){x=&d->lines[i];if(eq(x->tokens[0].text,"interface_ref")){if(!strref(x))return fail(diag,PC_INVALID,x->line,x->tokens[0].column,"interface reference required");++count;for(j=d->blocks[b].opener+1U;j<i;++j)if(eq(d->lines[j].tokens[0].text,"interface_ref")&&eq(d->lines[j].tokens[1].text,x->tokens[1].text))return fail(diag,PC_DUPLICATE,x->line,x->tokens[0].column,"duplicate interface");}}
++   if((eq(q->tokens[1].text,"ALL")&&count)||(eq(q->tokens[1].text,"SELECTED")&&!count))return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"bind refs inconsistent");
++  }else if(kind==3U){if(!strref(get(d,b,"security_ref")))return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"security reference required");
++  }else if(kind==4U){q=get(d,b,"method");if(!q||q->tokens[1].quoted)return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"authentication method required");
++   x=get(d,b,"provider_ref");if(eq(q->tokens[1].text,"NONE")){if(x)return fail(diag,PC_INVALID,x->line,x->tokens[0].column,"NONE forbids provider");}
++   else if(!eq(q->tokens[1].text,"CERTIFICATE_IDENTITY")||!strref(x))return fail(diag,PC_UNSUPPORTED,r->line,r->tokens[0].column,"authentication unsupported or unresolved");
+   }else if(kind==5U){enables=0U;rules=0U;
+    for(i=d->blocks[b].opener+1U;i<d->blocks[b].end;++i){q=&d->lines[i];
+     if(eq(q->tokens[0].text,"enable")){
+-     if(q->count!=3U||!key(&q->tokens[1],&q->tokens[2],&v,&m))return fail(diag,PC_UNSUPPORTED,q->line,1U,"unsupported capability");
+-     if(++enables>3U)return fail(diag,PC_LIMIT,q->line,1U,"enabled key capacity");
+-     for(j=d->blocks[b].opener+1U;j<i;++j)if(eq(d->lines[j].tokens[0].text,"enable")&&key(&d->lines[j].tokens[1],&d->lines[j].tokens[2],&v2,&m2)&&v==v2&&m==m2)return fail(diag,PC_DUPLICATE,q->line,1U,"duplicate enable");
++     if(q->count!=3U||!key(&q->tokens[1],&q->tokens[2],&v,&m))return fail(diag,PC_UNSUPPORTED,q->line,q->tokens[0].column,"unsupported capability");
++     if(++enables>3U)return fail(diag,PC_LIMIT,q->line,q->tokens[0].column,"enabled key capacity");
++     for(j=d->blocks[b].opener+1U;j<i;++j)if(eq(d->lines[j].tokens[0].text,"enable")&&key(&d->lines[j].tokens[1],&d->lines[j].tokens[2],&v2,&m2)&&v==v2&&m==m2)return fail(diag,PC_DUPLICATE,q->line,q->tokens[0].column,"duplicate enable");
+     }else{
+-     if((q->count!=5U&&q->count!=7U)||!ident(&q->tokens[1])||q->tokens[2].quoted||(!eq(q->tokens[2].text,"ACCEPT")&&!eq(q->tokens[2].text,"DENY"))||!key(&q->tokens[3],&q->tokens[4],&v,&m))return fail(diag,PC_INVALID,q->line,1U,"incomplete rule or unsupported capability");
+-     if(q->count==7U&&(q->tokens[5].quoted||!eq(q->tokens[5].text,"principal")||!hex16(&q->tokens[6])))return fail(diag,PC_UNSUPPORTED,q->line,1U,"unsupported ACL");
+-     if(++rules>4U)return fail(diag,PC_LIMIT,q->line,1U,"rule capacity");
+-     for(j=d->blocks[b].opener+1U;j<i;++j)if(eq(d->lines[j].tokens[0].text,"rule")&&eq(d->lines[j].tokens[1].text,q->tokens[1].text))return fail(diag,PC_DUPLICATE,q->line,1U,"duplicate rule id");
++     if((q->count!=5U&&q->count!=7U)||!ident(&q->tokens[1])||q->tokens[2].quoted||(!eq(q->tokens[2].text,"ACCEPT")&&!eq(q->tokens[2].text,"DENY"))||!key(&q->tokens[3],&q->tokens[4],&v,&m))return fail(diag,PC_INVALID,q->line,q->tokens[0].column,"incomplete rule or unsupported capability");
++     if(q->count==7U&&(q->tokens[5].quoted||!eq(q->tokens[5].text,"principal")||!hex16(&q->tokens[6])))return fail(diag,PC_UNSUPPORTED,q->line,q->tokens[0].column,"unsupported ACL");
++     if(++rules>4U)return fail(diag,PC_LIMIT,q->line,q->tokens[0].column,"rule capacity");
++     for(j=d->blocks[b].opener+1U;j<i;++j)if(eq(d->lines[j].tokens[0].text,"rule")&&eq(d->lines[j].tokens[1].text,q->tokens[1].text))return fail(diag,PC_DUPLICATE,q->line,q->tokens[0].column,"duplicate rule id");
+     }
+    }
+   }
+  }
+  for(b=0U;b<d->block_count;++b)if(d->blocks[b].kind==2U){r=&d->lines[d->blocks[b].opener];
+-  if(d->listener_count>=target->max_listeners)return fail(diag,PC_LIMIT,r->line,1U,"target listener capacity");
++  if(d->listener_count>=target->max_listeners)return fail(diag,PC_LIMIT,r->line,r->tokens[0].column,"target listener capacity");
+   l=&d->listeners[d->listener_count];memset(l,0,sizeof(*l));l->block=b;l->security=PC_NONE;
+   l->binding=ref(d,1U,get(d,b,"binding_ref"));l->authentication=ref(d,4U,get(d,b,"authentication_ref"));l->policy=ref(d,5U,get(d,b,"policy_ref"));
+-  if(l->binding==PC_NONE||l->authentication==PC_NONE||l->policy==PC_NONE)return fail(diag,PC_REFERENCE,r->line,1U,"listener reference unresolved");
+-  q=get(d,b,"port");if(!q||!number(&q->tokens[1],65535U,&l->port)||!l->port)return fail(diag,PC_INVALID,r->line,1U,"explicit valid port required");
+-  q=get(d,b,"transport");if(!q||q->tokens[1].quoted)return fail(diag,PC_MISSING,r->line,1U,"explicit profile required");
+-  if(eq(q->tokens[1].text,"SECURE_PRINCIPAL")){l->profile=1U;l->security=ref(d,3U,get(d,b,"channel_tls_ref"));if(l->security==PC_NONE)return fail(diag,PC_REFERENCE,r->line,1U,"Secure security ref required");}
+-  else if(eq(q->tokens[1].text,"LEGACY_ENDPOINT")){if(!target->legacy_supported)return fail(diag,PC_UNSUPPORTED,r->line,1U,"Legacy unsupported by target");if(get(d,b,"channel_tls_ref"))return fail(diag,PC_INVALID,r->line,1U,"Legacy forbids channel TLS ref");l->profile=2U;}
+-  else return fail(diag,PC_UNSUPPORTED,q->line,1U,"unknown profile");
+-  q=get(d,b,"admission");if(!q||q->tokens[1].quoted||(!eq(q->tokens[1].text,"OPEN")&&!eq(q->tokens[1].text,"CLOSED")))return fail(diag,PC_MISSING,r->line,1U,"admission required");
++  if(l->binding==PC_NONE||l->authentication==PC_NONE||l->policy==PC_NONE)return fail(diag,PC_REFERENCE,r->line,r->tokens[0].column,"listener reference unresolved");
++  q=get(d,b,"port");if(!q||!number(&q->tokens[1],65535U,&l->port)||!l->port)return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"explicit valid port required");
++  q=get(d,b,"transport");if(!q||q->tokens[1].quoted)return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"explicit profile required");
++  if(eq(q->tokens[1].text,"SECURE_PRINCIPAL")){l->profile=1U;l->security=ref(d,3U,get(d,b,"channel_tls_ref"));if(l->security==PC_NONE)return fail(diag,PC_REFERENCE,r->line,r->tokens[0].column,"Secure security ref required");}
++  else if(eq(q->tokens[1].text,"LEGACY_ENDPOINT")){if(!target->legacy_supported)return fail(diag,PC_UNSUPPORTED,r->line,r->tokens[0].column,"Legacy unsupported by target");if(get(d,b,"channel_tls_ref"))return fail(diag,PC_INVALID,r->line,r->tokens[0].column,"Legacy forbids channel TLS ref");l->profile=2U;}
++  else return fail(diag,PC_UNSUPPORTED,q->line,q->tokens[0].column,"unknown profile");
++  q=get(d,b,"admission");if(!q||q->tokens[1].quoted||(!eq(q->tokens[1].text,"OPEN")&&!eq(q->tokens[1].text,"CLOSED")))return fail(diag,PC_MISSING,r->line,r->tokens[0].column,"admission required");
+   l->admission=eq(q->tokens[1].text,"CLOSED")?2U:1U;
+-  x=get(d,l->authentication,"method");if(l->admission==2U&&eq(x->tokens[1].text,"NONE"))return fail(diag,PC_INVALID,q->line,1U,"CLOSED requires authentication");
++  x=get(d,l->authentication,"method");if(l->admission==2U&&eq(x->tokens[1].text,"NONE"))return fail(diag,PC_INVALID,q->line,q->tokens[0].column,"CLOSED requires authentication");
+   /* Conservative ambiguity rejection until factual bind endpoint resolution. */
+-  for(j=0U;j<d->listener_count;++j)if(d->listeners[j].port==l->port)return fail(diag,PC_CONFLICT,r->line,1U,"same port needs endpoint resolution");
++  for(j=0U;j<d->listener_count;++j)if(d->listeners[j].port==l->port)return fail(diag,PC_CONFLICT,r->line,r->tokens[0].column,"same port needs endpoint resolution");
+   l->presence=127U|(l->profile==1U?128U:0U);++d->listener_count;
+  }
+  d->validated=1U;return fail(diag,PC_OK,0U,0U,"offline structural validation only; external resolution pending");

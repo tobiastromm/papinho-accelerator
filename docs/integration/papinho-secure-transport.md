@@ -2,6 +2,15 @@
 
 # PapinhoSecureTransport integration
 
+## Closeout da Phase 6
+
+O build PST-enabled compõe o runtime outbound produtivo pela API CLIENT pública
+do PST. A policy exige TLS 1.3, validação de cadeia e hostname/IP, trust
+server-owned, ALPN governado, 0-RTT/resumption/client certificate desabilitados
+e nenhum fallback plaintext. O Accelerator não inclui nem chama diretamente
+OpenSSL, NSS, NSPR ou Schannel. Detalhes e evidência final estão em
+[`docs/phase6-network-tls-offload.md`](../phase6-network-tls-offload.md).
+
 Status: current live integration contract for PapinhoAccelerator.
 
 This document records the current factual consumer integration state. It is not
@@ -9,16 +18,53 @@ an Integration Handoff, does not replace accepted ADRs, and does not make claims
 beyond the pinned dependency, implementation and validated project evidence.
 Historical versioned handoffs are preserved by Git history after consumption.
 
+## Consumer outbound da Phase 6.F
+
+`src/network_egress/pst_outbound_tls.[ch]` é a boundary privada para conexões
+externas `TLS_REQUIRED`. Ela usa somente a API pública 2.1 do SDK release
+fixado; não inclui internals de NSS/OpenSSL/Schannel e não depende do checkout
+fonte do PST.
+
+O socket conectado é transferido uma vez ao transporte Win32 PST. Após a
+aceitação, PST é a única close root. O stream só pode ser publicado depois de
+TLS 1.3, cadeia, autenticação do peer, nome e ALPN configurado serem confirmados
+pela API pública. O servidor fornece runtime, trust, provider e identidade
+validada por `papacc_server_io_loop_win32_set_outbound_tls`; endereço de rota
+não é promovido implicitamente a identidade criptográfica.
+
+### Production composition
+
+No composition root Win32, `allow_network_egress` origina um modelo
+normalizado com profile de rota default. Em builds PST-enabled, o mesmo gate
+cria runtime PST com o adapter de logging do consumidor e um trust object
+explicitamente `PST_TRUST_SOURCE_SYSTEM`. Falha de bootstrap/runtime/trust
+encerra o startup; ausencia de configuracao faz `TLS_REQUIRED` falhar fechado
+e nunca seleciona plaintext como fallback. Harnesses podem injetar custom
+trust test-only.
+
+A identidade de verificacao e derivada pelo estabelecimento do destino
+validado. Hostnames ASCII sao normalizados antes da resolucao, avaliados pela
+policy antes do DNS e preservados como Expected Peer Name/SNI; os endpoints
+numericos retornados sao novamente filtrados e o connect usa somente o endpoint
+aprovado, sem segunda resolucao. Para destino IP literal, a identidade IP exata
+e usada e exige SAN IP correspondente. Nao existe entrada separada para SNI
+arbitrario.
+
+A matriz hermetica da boundary outbound cobre TLS 1.3 valido, versao TLS
+incompativel, trust incorreto, nome incorreto, ALPN incorreto, stall com deadline
+e reset durante o handshake. Essa matriz e evidencia da boundary PST, nao
+substitui a prova PACC completa da Phase 6.F1.
+
 ## Current dependency baseline
 
 ```text
-PST_RELEASE_TAG=v0.6.1
-LIBRARY_VERSION=0.6.1
+PST_RELEASE_TAG=v0.6.4
+LIBRARY_VERSION=0.6.4
 API_VERSION=2.1.0
 SPI_VERSION=3.0
 TARGET=win32-x64-msvc-19.51-openssl3
-ASSET=papinho-secure-transport-0.6.1-win32-x64-msvc-19.51-openssl3.zip
-SHA256=e9965fbcaf6aaa0a96a71bbc38d0b37ca447459641a09a03f1c957a88d764e53
+ASSET=papinho-secure-transport-0.6.4-win32-x64-msvc-19.51-openssl3.zip
+SHA256=f1af50c077b10fecf099ea112c4f02f5eb761e6befb0578cc4f3061f23d3630c
 ```
 
 The machine-readable pin remains authoritative in:
@@ -171,7 +217,7 @@ The Phase 3 final audit records the integrated security baseline as complete for
 its defined scope, including:
 
 ```text
-PST 0.6.1 pin/hash validation
+PST 0.6.4 pin/hash validation
 TLS 1.3 mTLS
 required papacc/1 ALPN
 AuthN/AuthZ separation
@@ -218,12 +264,12 @@ remain governed by their own current documentation and implementation state.
 ## Handoff consumption provenance
 
 This live document absorbs the still-current integration knowledge from the
-consumed versioned handoffs for PST 0.5.0, 0.6.0 and 0.6.1.
+consumed versioned handoffs for PST 0.5.0, 0.6.0, 0.6.1 and 0.6.4.
 
 ```text
 0.5.0 handoff
 0.6.0 handoff
-0.6.1 handoff
+0.6.4 handoff
         ↓ consumed
 current durable/factual integration knowledge
         ↓

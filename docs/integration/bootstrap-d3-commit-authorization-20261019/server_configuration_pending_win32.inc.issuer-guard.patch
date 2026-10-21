@@ -1,0 +1,22 @@
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -301,7 +301,7 @@
+ {
+  PAPACC_CONFIG_PENDING *p;PAPACC_SIZE n,k;unsigned i;
+  if(!owner(o)||!parent||!leaf||o->published||o->prepared||o->committed_pending||
+-    o->committed_bytes||o->recovery_selected||o->recovery_guard||o->stopped||o->unresolved||
++    o->committed_bytes||o->issuer_stage_prepared||o->recovery_selected||o->recovery_guard||o->stopped||o->unresolved||
+     pending_blocks(o)||o->pending_commit.thread||o->pending_commit.bootstrap_created)
+   return PAPACC_RESULT_INVALID_STATE;
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->slots[i].readers||o->slots[i].retained||o->issuer_snapshot_valid[i])return PAPACC_RESULT_INVALID_STATE;
+@@ -385,8 +385,9 @@
+ #endif
+  if(!diagnostic&&papacc_configuration_bootstrap_authority_valid(o)!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
+  if(p->packet_format!=9U||p->active||p->thread||p->result!=PAPACC_CAS_SUCCESS||!p->bootstrap_ready||
+-    !p->bootstrap_parent||!p->bootstrap_container||o->published||o->committed_bytes||o->stopped||o->unresolved||
++    !p->bootstrap_parent||!p->bootstrap_container||o->published||o->committed_bytes||o->issuer_stage_prepared||o->stopped||o->unresolved||
+     p->close_error||p->committed||InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
++ for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i]||o->slots[i].issuer_revision)return PAPACC_RESULT_INVALID_STATE;
+  if(reserved>2097152U||10532U>2097152U-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  if(bytes<PC_ROOT8_MIN||bytes>PC_ROOT8_NO_ISSUER_MAX||pending_overlap(o,sizeof(*o),image,bytes))return PAPACC_RESULT_INVALID_ARGUMENT;
+  k=strlen(leaf);if(!k||k>64U||!strcmp(leaf,".")||!strcmp(leaf,"..")||leaf[k-1U]=='.')return PAPACC_RESULT_INVALID_ARGUMENT;

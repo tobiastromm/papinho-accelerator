@@ -1,0 +1,31 @@
+--- apps\server\server_issuer_cng_backend_win32.c
++++ apps\server\server_issuer_cng_backend_win32.c
+@@ -52,7 +52,8 @@
+  if(wcscmp(name,b->key->name))return PAPACC_ISSUER_DENIED;
+  b->native_error=papacc_ca_key_validate(b->key);if(b->native_error)return papacc_issuer_windows_key_result(b->key,b->native_error);
+  if(!public_match(b,&current)||!ready(b))return PAPACC_ISSUER_DENIED;
+- b->view=current;b->record=*r;b->active=1;*lease=b;return PAPACC_ISSUER_OK;
++ b->native_error=papacc_ca_key_borrow(b->key,b);if(b->native_error)return papacc_issuer_windows_key_result(b->key,b->native_error);
++ b->view=current;b->record=*r;b->leased_key=b->key->key;b->active=1;*lease=b;return PAPACC_ISSUER_OK;
+ }
+ static PAPACC_ISSUER_RESULT sign_request(void *ctx,void *lease,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *csr,PAPACC_SIZE size,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used)
+ {
+@@ -80,7 +81,7 @@
+  /* Last authority read before the ONE private operation; no size-query sign,
+   * retry, alternate key, key generation, property write or cleanup occurs. */
+  s=binding(b,r,PAPACC_ISSUER_SIGN,&current);if(s)return s;
+- if(current.revision!=b->view.revision||current.epoch!=b->view.epoch||!ready(b))return PAPACC_ISSUER_CONFLICT;
++ if(current.revision!=b->view.revision||current.epoch!=b->view.epoch||!ready(b)||b->key->borrower!=b||b->key->key!=b->leased_key)return PAPACC_ISSUER_CONFLICT;
+  b->native_error=papacc_ca_key_validate(b->key);if(b->native_error)return papacc_issuer_windows_key_result(b->key,b->native_error);
+  if(!ready(b))return PAPACC_ISSUER_STOPPED;
+  padding.pszAlgId=BCRYPT_SHA256_ALGORITHM;z=0;
+@@ -99,7 +100,8 @@
+ {
+  PAPACC_ISSUER_CNG_BACKEND *b=ctx;if(!b||lease!=b||b->thread!=GetCurrentThreadId())return PAPACC_ISSUER_INVALID;
+  if(b->retained||b->active==2)return PAPACC_ISSUER_RETAINED;
+- b->active=0;/* borrowed key ownership remains with existing PAPACC_CA_KEY owner */
++ b->native_error=papacc_ca_key_return(b->key,b);if(b->native_error){b->retained=1;return PAPACC_ISSUER_RETAINED;}
++ b->leased_key=0;b->active=0;/* actual native ownership remains with PAPACC_CA_KEY */
+  return PAPACC_ISSUER_OK;
+ }
+ PAPACC_ISSUER_RESULT papacc_issuer_cng_backend_init(PAPACC_ISSUER_CNG_BACKEND *b,const PAPACC_ISSUER_ROOT_PORT *root,

@@ -126,6 +126,13 @@ deve referenciar os ADRs que já limitam sua direção.
     `proposed`/ADR candidate conforme a governança vigente.
 -   Decisão explicitamente aprovada pelo owner pode ser registrada como
     `accepted` pelo processo autorizado.
+-   Quando uma decisão arquitetural durável for explicitamente aprovada pelo
+    mantenedor humano, registrá-la primeiro em ADR `accepted` ou documento
+    arquitetural normativo designado e somente então implementar código que
+    dependa dela. Histórico de chat, handoffs, relatórios de teste e notas
+    futuras não constituem armazenamento normativo suficiente. Esta regra não
+    autoriza aceitar decisões ainda não aprovadas: elas continuam ADR candidate
+    ou `proposed` e exigem aprovação humana.
 -   Capability Documents podem e devem ser atualizados quando estado,
     limitações, pendências, evidências ou decisões relacionadas mudarem.
 -   Future Architecture Directions devem ser atualizadas quando parte de

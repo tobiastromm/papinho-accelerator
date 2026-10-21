@@ -1,0 +1,27 @@
+#include "server_config_root8_data_win32.h"
+#include "server_configuration_body05_win32.h"
+#include <string.h>
+static unsigned le16(const PAPACC_U8 *p){return (unsigned)p[0]|((unsigned)p[1]<<8);}
+static PAPACC_U64 le64(const PAPACC_U8 *p)
+{PAPACC_U64 v=0;unsigned i;for(i=0;i<8U;++i)v|=(PAPACC_U64)p[i]<<(8U*i);return v;}
+PC_ROOT8_RESULT papacc_root8_body05_data(void *ctx,unsigned kind,const PAPACC_U8 *p,
+ PAPACC_SIZE n,const PAPACC_U8 *desc,const PAPACC_U8 *header)
+{
+ PAPACC_CONFIG_VIEW v;PAPACC_SIZE i;const PAPACC_SERVER_CONFIG *c;PAPACC_RESULT result;
+ (void)ctx;
+ if(kind==6U)return PC_ROOT8_UNSUPPORTED;
+ if(kind!=5U||!desc||!header||!p||n!=1024U)return PC_ROOT8_INVALID;
+ result=papacc_configuration_body05_decode(p,n,&v);
+ if(result!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
+ c=&v.config;
+ if(memcmp(v.domain,header+72,32)||v.revision!=le64(header+104)||v.predecessor!=le64(header+112)||v.policy_epoch||
+  c->control_port!=le16(desc+8)||(unsigned)c->listener_profile!=desc[4]||
+  c->policy.admission+1U!=desc[5]||(unsigned)c->bind_selection.mode!=desc[6]||
+  c->bind_selection.interface_persistent_id_count!=le16(desc+18)||
+  c->security_configuration_ref_length!=le16(desc+12)||
+  memcmp(c->security_configuration_ref,desc+88,c->security_configuration_ref_length)||
+  memcmp(c->policy.identity,desc+280,32))return PC_ROOT8_INVALID;
+ for(i=0;i<c->bind_selection.interface_persistent_id_count;++i)
+  if(!v.ids[i].is_valid||v.ids[i].value!=le64(desc+392U+16U*i))return PC_ROOT8_INVALID;
+ return PC_ROOT8_OK;
+}

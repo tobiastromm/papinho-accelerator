@@ -1,0 +1,11 @@
+--- apps/server/server_configuration_pending_win32.h
++++ apps/server/server_configuration_pending_win32.h
+@@ -4,7 +4,7 @@
+ #include "../../src/core/ed11_process_profile.h"
+ /* Storage capacity only: format/admission/authority guards remain independent.
+  * Historical codec constants and non-selected targets are unchanged. */
+-#if defined(PAPACC_ED11_WINDOWS_3MIB) && defined(PAPACC_OFFLINE_D3_WORKER)
++#if defined(PAPACC_ED11_WINDOWS_3MIB)
+ #include "../../src/config/config_root8_v2.h"
+ #define PAPACC_CONFIG_TRANSACTION_BYTES PC_ROOT8_V2_MAX
+ #else

@@ -1,0 +1,199 @@
+--- a/src/provisioning/shared_structure/trust.h
++++ b/src/provisioning/shared_structure/trust.h
+@@ -0,0 +1,45 @@
++/* Private C89 E0-E8 revision 2 interface, not wire or a binary ABI.
++ * Objects may only originate in reviewed factual existing-owner bindings.
++ * No constructors, layouts, decoded-data conversion or caller callbacks.
++ * Current build has NO producer: trust_unavailable.c always denies acquire.
++ * No positive acquire/revalidate/release qualification is implied.
++ */
++#ifndef PAPACC_SHARED_TRUST_H
++#define PAPACC_SHARED_TRUST_H
++#define SP_TRUST_CONTRACT_REVISION 2
++#include <stddef.h>
++typedef struct SP_TRUST_PACKAGE SP_TRUST_PACKAGE;
++typedef struct SP_ADMIN_OBSERVATION SP_ADMIN_OBSERVATION;
++typedef struct SP_INDEPENDENT_CONFIRMATION SP_INDEPENDENT_CONFIRMATION;
++typedef struct SP_TRUST_LEASE SP_TRUST_LEASE;
++typedef enum SP_TRUST_PHASE {
++ SP_TRUST_BEFORE_KDF=1, SP_TRUST_BEFORE_RELEASE=2
++} SP_TRUST_PHASE;
++typedef enum SP_TRUST_RESULT {
++ SP_TRUST_APPLICABLE=1, SP_TRUST_DENIED=-1,
++ SP_TRUST_RETAINED=-2, SP_TRUST_INVALID=-3
++} SP_TRUST_RESULT;
++/* Synchronous borrow-only; no native acquisition, allocation or pending work.
++ * Success requires complete prior factual protection by the original owners.
++ * Denied/invalid: output untouched, no ownership effects. Never RETAINED.
++ * Output must be valid/disjoint; no lease is issued by the unavailable binding.
++ */
++SP_TRUST_RESULT sp_trust_acquire(
++ const SP_TRUST_PACKAGE *,const SP_ADMIN_OBSERVATION *,
++ const SP_INDEPENDENT_CONFIRMATION *,const SP_TRUST_LEASE **);
++/* Known producer borrows only; never pass forged/stale/arbitrary pointers.
++ * Revalidation does not release dependencies. RETAINED prohibits M1 advance.
++ */
++SP_TRUST_RESULT sp_trust_revalidate(const SP_TRUST_LEASE *,SP_TRUST_PHASE);
++typedef enum SP_TRUST_RELEASE_RESULT {
++ SP_TRUST_RELEASED=1, SP_TRUST_RELEASE_RETAINED=-1,
++ SP_TRUST_RELEASE_INVALID=-2
++} SP_TRUST_RELEASE_RESULT;
++/* INVALID = no attempt/effect, ownership and known borrow preserved.
++ * After an effective attempt: RELEASED or RETAINED only. RETAINED permits
++ * query only, never a second release; no timeout/Stop implies closure.
++ * After RELEASED invalidate alias once and do not query again.
++ */
++SP_TRUST_RELEASE_RESULT sp_trust_release(const SP_TRUST_LEASE *);
++SP_TRUST_RELEASE_RESULT sp_trust_release_query(const SP_TRUST_LEASE *);
++#endif
+--- a/src/provisioning/shared_structure/trust_unavailable.c
++++ b/src/provisioning/shared_structure/trust_unavailable.c
+@@ -0,0 +1,30 @@
++/* Fixed SOURCE_ABSENT binding only. E8 forbids inventing a positive producer.
++ * This translation unit defines no opaque layout or lease factory. Replace
++ * only through separately reviewed real-owner integration, not a runtime
++ * provider/callback registry. It cannot issue APPLICABLE, RETAINED or RELEASED.
++ * It neither dereferences opaque inputs nor touches caller/external storage.
++ * Resources prepared earlier remain reachable and owned by their real owners;
++ * no SDK lease does NOT establish that these resources have been released.
++ */
++#include "trust.h"
++SP_TRUST_RESULT sp_trust_acquire(const SP_TRUST_PACKAGE *p,
++ const SP_ADMIN_OBSERVATION *a,const SP_INDEPENDENT_CONFIRMATION *c,
++ const SP_TRUST_LEASE **out){
++ (void)p;(void)a;(void)c;
++ if(!out)return SP_TRUST_INVALID;
++ return SP_TRUST_DENIED;
++}
++SP_TRUST_RESULT sp_trust_revalidate(const SP_TRUST_LEASE *l,SP_TRUST_PHASE phase){
++ (void)l;(void)phase;
++ /* This binding has never returned a known lease. No discovery by pointer. */
++ return SP_TRUST_INVALID;
++}
++SP_TRUST_RELEASE_RESULT sp_trust_release(const SP_TRUST_LEASE *l){
++ (void)l;
++ /* No attempt and no effect; no native ownership can be released here. */
++ return SP_TRUST_RELEASE_INVALID;
++}
++SP_TRUST_RELEASE_RESULT sp_trust_release_query(const SP_TRUST_LEASE *l){
++ (void)l;
++ return SP_TRUST_RELEASE_INVALID;
++}
+--- a/src/provisioning/manual_package_validation_openssl.c
++++ b/src/provisioning/manual_package_validation_openssl.c
+@@ -1,5 +1,6 @@
+ #include "manual_package_validation_internal.h"
+ #include "manual_package_pdg_internal.h"
++#include "shared_structure/trust.h"
+ /* No public source/callback injection. These missing source bindings CANNOT
+  * become trusted by caller booleans, fixture SPKI, password or enum PACKAGE.
+  * Concrete policy/attestation acquisition and full approved metadata/profile
+@@ -11,7 +12,15 @@
+   result=mp_crypto_verify_signature(c,i->package.data,i->package.size);
+   return result==MP_CRYPTO_ONLY?MP_AUTH_STEP_OK:result==MP_STOPPED?MP_AUTH_STOPPED:result==MP_CRYPTO_UNAVAILABLE?MP_AUTH_STEP_PROVIDER:MP_AUTH_STEP_INVALID;
+  case MP_AUTH_TRUST:case MP_AUTH_RECHECK_TRUST:
+-  return mp_auth_pdg_candidate(o,e);
++  result=mp_auth_pdg_candidate(o,e);
++  if(result!=MP_AUTH_STEP_SOURCE_ABSENT)return result;
++  {const SP_TRUST_LEASE *lease=NULL;
++   /* No factual producer exists. PDG diagnostics are DATA, never a lease.
++    * Native binding is fixed at build time, with no caller source injection. */
++   if(sp_trust_acquire(NULL,NULL,NULL,&lease)!=SP_TRUST_DENIED || lease)
++    return MP_AUTH_STEP_INVALID;
++  }
++  return MP_AUTH_STEP_SOURCE_ABSENT;
+  case MP_AUTH_KDF:
+   result=mp_crypto_derive(c,i->password.data,i->password.size,i->package.data+28,16,o->key,i->stopped,i->stop_context);
+   return result==MP_CRYPTO_ONLY?MP_AUTH_STEP_OK:result==MP_STOPPED?MP_AUTH_STOPPED:result==MP_CRYPTO_UNAVAILABLE?MP_AUTH_STEP_PROVIDER:MP_AUTH_STEP_INVALID;
+--- a/tests/manual_package_validation/CMakeLists.txt
++++ b/tests/manual_package_validation/CMakeLists.txt
+@@ -12,7 +12,7 @@
+  "${ROOT}/src/issuer/issuer_codec.c")
+ target_include_directories(package_pdg_codec PUBLIC "${ROOT}/include" "${ROOT}/src/config" "${ROOT}/src/issuer")
+ target_compile_options(package_pdg_codec PRIVATE /W4 /WX)
+-add_library(package_validation STATIC "${ROOT}/src/provisioning/manual_package_validation.c" "${ROOT}/src/provisioning/manual_package_validation_openssl.c" "${ROOT}/src/provisioning/manual_package_pdg.c" "${ROOT}/src/provisioning/shared_structure/m1.c")
++add_library(package_validation STATIC "${ROOT}/src/provisioning/manual_package_validation.c" "${ROOT}/src/provisioning/manual_package_validation_openssl.c" "${ROOT}/src/provisioning/manual_package_pdg.c" "${ROOT}/src/provisioning/shared_structure/m1.c" "${ROOT}/src/provisioning/shared_structure/trust_unavailable.c")
+ target_link_libraries(package_validation PUBLIC package_crypto package_pdg_codec)
+ target_compile_options(package_validation PRIVATE /W4 /WX)
+ add_library(package_validation_model STATIC "${ROOT}/src/provisioning/manual_package_validation.c" "${ROOT}/src/provisioning/manual_package.c" "${ROOT}/src/provisioning/shared_structure/m1.c")
+--- a/tests/shared_evidence/CMakeLists.txt
++++ b/tests/shared_evidence/CMakeLists.txt
+@@ -0,0 +1,15 @@
++cmake_minimum_required(VERSION 3.16)
++project(shared_evidence_unavailable C)
++enable_testing()
++get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
++add_executable(shared_evidence evidence_test.c
++ "${ROOT}/src/provisioning/shared_structure/trust_unavailable.c"
++ "${ROOT}/src/provisioning/shared_structure/m1.c")
++target_include_directories(shared_evidence PRIVATE "${ROOT}/src/provisioning/shared_structure")
++set_target_properties(shared_evidence PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++if(MSVC)
++ target_compile_options(shared_evidence PRIVATE /W4 /WX)
++else()
++ target_compile_options(shared_evidence PRIVATE -Wall -Wextra -Wpedantic -Werror)
++endif()
++add_test(NAME shared.evidence.source_absent COMMAND shared_evidence)
+--- a/tests/shared_evidence/evidence_test.c
++++ b/tests/shared_evidence/evidence_test.c
+@@ -0,0 +1,60 @@
++/* Negative interface/control tests. No producer, fabricated lease or authority.
++ * Existing M1 model suite covers positive sequence CONTROL_ONLY separately.
++ */
++#include "trust.h"
++#include "m1_internal.h"
++#include <stdio.h>
++#include <string.h>
++static unsigned checks;
++#define C(x) do{++checks;if(!(x)){printf("FAIL %u\n",(unsigned)__LINE__);return 1;}}while(0)
++typedef struct OWNER {SP_M1_STATE flow;unsigned seen[11],wipe,publish;int stop,quiet;} OWNER;
++static int step(void *p,SP_M1_STAGE stage,int *detail){
++ OWNER *o=p;const SP_TRUST_LEASE *lease=NULL;SP_TRUST_RESULT r;
++ ++o->seen[stage];
++ if(stage==SP_M1_TRUST || stage==SP_M1_RECHECK_TRUST){
++  r=sp_trust_acquire(NULL,NULL,NULL,&lease);
++  *detail=-102;
++  return r==SP_TRUST_DENIED && !lease?SP_M1_DENIED:SP_M1_INVALID;
++ }
++ *detail=1;return SP_M1_COMPLETE;
++}
++static int stopped(void *p){return ((OWNER *)p)->stop;}
++static int quiet(void *p){return ((OWNER *)p)->quiet;}
++static void wipe(void *p){++((OWNER *)p)->wipe;}
++static void publish(void *p){++((OWNER *)p)->publish;}
++static const SP_M1_BINDING binding={step,stopped,quiet,wipe,publish};
++int main(void){
++ OWNER o;const SP_TRUST_LEASE *lease=NULL;unsigned i;
++ C(SP_TRUST_CONTRACT_REVISION==2);
++ C(sp_trust_acquire(NULL,NULL,NULL,NULL)==SP_TRUST_INVALID);
++ for(i=0;i<3;++i){
++  C(sp_trust_acquire(NULL,NULL,NULL,&lease)==SP_TRUST_DENIED);
++  C(lease==NULL);
++ }
++ C(sp_trust_revalidate(NULL,SP_TRUST_BEFORE_KDF)==SP_TRUST_INVALID);
++ C(sp_trust_revalidate(NULL,SP_TRUST_BEFORE_RELEASE)==SP_TRUST_INVALID);
++ C(sp_trust_revalidate(NULL,(SP_TRUST_PHASE)0)==SP_TRUST_INVALID);
++ C(sp_trust_release(NULL)==SP_TRUST_RELEASE_INVALID);
++ C(sp_trust_release_query(NULL)==SP_TRUST_RELEASE_INVALID);
++ memset(&o,0,sizeof(o));o.quiet=1;
++ C(sp_m1_execute(&o.flow,&binding,&o)==SP_M1_DENIED);
++ C(o.flow.first_failure_stage==SP_M1_TRUST && o.flow.first_failure_code==-102);
++ C(o.seen[SP_M1_SIGNATURE]==1 && o.seen[SP_M1_TRUST]==1);
++ C(o.flow.kdf_invocations==0 && o.flow.aead_invocations==0 && o.flow.content_invocations==0);
++ C(!o.publish && o.flow.state==3);
++ C(sp_m1_execute(&o.flow,&binding,&o)==SP_M1_INVALID);
++ memset(&o,0,sizeof(o));o.stop=1;o.quiet=1;
++ C(sp_m1_execute(&o.flow,&binding,&o)==SP_M1_STOPPED);
++ C(!o.seen[SP_M1_TRUST] && !o.flow.kdf_invocations && !o.publish);
++ memset(&o,0,sizeof(o));
++ C(sp_m1_execute(&o.flow,&binding,&o)==SP_M1_RETAINED);
++ C(o.flow.state==2 && o.wipe==1 && !o.publish);
++ C(sp_m1_finish(&o.flow,&binding,&o)==SP_M1_RETAINED);
++ C(o.wipe==1 && o.seen[SP_M1_TRUST]==1);
++ o.quiet=1;
++ C(sp_m1_finish(&o.flow,&binding,&o)==SP_M1_ABORTED);
++ C(o.wipe==2 && o.seen[SP_M1_TRUST]==1 && !o.publish && !o.flow.kdf_invocations);
++ C(sp_m1_finish(&o.flow,&binding,&o)==SP_M1_INVALID);
++ printf("PASS %u SOURCE_ABSENT checks; no positive lease or factual trust; state=%u owner=%u pointer=%u\n",checks,(unsigned)sizeof(SP_M1_STATE),(unsigned)sizeof(OWNER),(unsigned)sizeof(lease));
++ return 0;
++}

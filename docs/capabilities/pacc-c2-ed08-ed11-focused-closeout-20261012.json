@@ -1,0 +1,610 @@
+{
+  "task": "PAPINHOACCELERATOR-PACC-C2-ED08-ED11-FOCUSED-CLOSEOUT",
+  "date": "2026-10-12",
+  "currentTaskCompleted": true,
+  "completedScope": "ENGINEERING_REVIEW_AND_REQUESTED_PREPARATION_DELIVERABLES_NOT_RUNTIME_QUALIFICATION",
+  "sliceCompleted": true,
+  "branch": "main",
+  "HEAD": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+  "ED08": {
+    "status": "PROPOSED_CLOSE_ORDER_DEFINED_UPSTREAM_OWNER_RUNTIME_PENDING",
+    "drainAuthority": "PST_COMPLETE_AND_DESTROYED_AND_EXTERNAL_ORDERED_EOF_CONDITIONAL_U08",
+    "BASeal": "PROPOSED_LOCAL_PRODUCER_FREEZE_AFTER_VALID_POST_COMPLETE_APP_AB_FENCE_BEFORE_PST_RELEASE",
+    "ABSeal": "PRODUCER_END_EXTERNAL_EOF_AND_PACC_PREFIX_SUBMITTED_THEN_SEPARATE_C1_ACCEPTED_ACK",
+    "providerOutputGuarantee": "UNCONFIRMED_U08_1",
+    "transportPreservationGuarantee": "UNCONFIRMED_U08_2",
+    "DAG": {
+      "edges": [
+        [
+          "APP_DELIVERY",
+          "PST_COMPLETE"
+        ],
+        [
+          "PST_COMPLETE",
+          "APP_AB_FENCE"
+        ],
+        [
+          "APP_AB_FENCE",
+          "BA_FREEZE"
+        ],
+        [
+          "BA_FREEZE",
+          "BA_PREFIX_ACK"
+        ],
+        [
+          "BA_PREFIX_ACK",
+          "PST_RELEASE"
+        ],
+        [
+          "PST_RELEASE",
+          "C3_EOF_DRAIN"
+        ],
+        [
+          "C3_EOF_DRAIN",
+          "AB_ACK"
+        ],
+        [
+          "AB_ACK",
+          "OWNER_FINAL"
+        ]
+      ],
+      "analyticalAcyclic": true,
+      "runtimeProof": false
+    },
+    "probes": "EP01_EP13_PREPARED_NOT_EXECUTED",
+    "nativeFaultInjected": false
+  },
+  "ED11": {
+    "status": "LEDGER_POLICY_CANDIDATES_COMPLETE_NOT_MEASURED_NOT_QUALIFIED",
+    "ledger": [
+      {
+        "resource": "Four APPLICATION/RECORD directional queues",
+        "scope": "Per op in each process",
+        "class": "U",
+        "boundOrCandidate": "Approved lab4*65536=262144; high48/low24KiB",
+        "measurementRequired": "Actual allocation + occupancy + retained ownership",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Two DATA role RX/TX frame staging",
+        "scope": "Per op",
+        "class": "U",
+        "boundOrCandidate": "Candidate2*2*(16+16384)=65600",
+        "measurementRequired": "Exact allocated versus borrowed spans; no extra frame queue",
+        "measuredBytes": null
+      },
+      {
+        "resource": "CONTROL normal RX/TX staging",
+        "scope": "Per Session",
+        "class": "U",
+        "boundOrCandidate": "803+819=1622",
+        "measurementRequired": "Allocations and partial-frame lifetime",
+        "measuredBytes": null
+      },
+      {
+        "resource": "CANCEL/FINAL reserves",
+        "scope": "Per admitted op, serialized Session owner",
+        "class": "U",
+        "boundOrCandidate": "56+92=148; not borrowed from saturated DATA",
+        "measurementRequired": "Full/partial write and first terminal ownership",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Role ACK/fence/event staging",
+        "scope": "Per op",
+        "class": "U",
+        "boundOrCandidate": "Candidate\u00e2\u2030\u00a48 pending fixed48-byte role-control slots inside op cap",
+        "measurementRequired": "Offset/state; no queue-growth on duplicate intents",
+        "measuredBytes": null
+      },
+      {
+        "resource": "C3 consumer peer I/O scratch/processor",
+        "scope": "Accelerator per op",
+        "class": "U",
+        "boundOrCandidate": "Candidate bounded caller scratch, charged inside op cap; no second hidden payload queue",
+        "measurementRequired": "Exact buffer aliases/sizes after implementation",
+        "measuredBytes": null
+      },
+      {
+        "resource": "C3 pair + setup listener",
+        "scope": "Accelerator per op",
+        "class": "K",
+        "boundOrCandidate": "2 live sockets plus transient one-accept listener",
+        "measurementRequired": "Kernel send/recv/TCP/handles; listener closes through own owner",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Browser site socket/C1 pump",
+        "scope": "Browser per op",
+        "class": "U+K",
+        "boundOrCandidate": "C1 zero payload queues; one pump/event/window; requested send/recv16KiB each",
+        "measurementRequired": "Pump sizeof, kernel overhead, owner thread/stack and retained refs",
+        "measuredBytes": null
+      },
+      {
+        "resource": "C2 CONTROL transport/PST wrapper",
+        "scope": "Per Session",
+        "class": "U+K",
+        "boundOrCandidate": "One Connection and socket/secure PST context",
+        "measurementRequired": "Core opaque object + provider handshake/record/state + kernel",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Two DATA transport/PST wrappers",
+        "scope": "Per op",
+        "class": "U+K",
+        "boundOrCandidate": "Two Connection/socket contexts, Secure uses two PST connections",
+        "measurementRequired": "Provider queues, decrypted/encrypted buffers and release retention",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Site TLS PST Connection",
+        "scope": "Accelerator per op",
+        "class": "U",
+        "boundOrCandidate": "One public CLIENT object using C3 PST-side socket",
+        "measurementRequired": "Provider/native queues, opaque state, copied config",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Unbound candidates before role claim",
+        "scope": "Accelerator global/Session",
+        "class": "U+K",
+        "boundOrCandidate": "Candidate4 global/2 Session, one BIND staging\u00e2\u2030\u00a484 each",
+        "measurementRequired": "Pre-auth TLS/credential parsing work and retained candidate ownership",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Runtime/provider global state",
+        "scope": "Process/runtime",
+        "class": "U",
+        "boundOrCandidate": "Shared once; lazy init charged before use",
+        "measurementRequired": "Normal package lazy initialization/global allocations and images",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Credentials/trust/lease/config",
+        "scope": "Process/Session/op as actual owner",
+        "class": "U",
+        "boundOrCandidate": "No alias duplication; borrowed owners retained",
+        "measurementRequired": "DER/key copies, anchors, chain/config/ALPN/name copies; secrets wiped only after borrowers",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Public peer-info snapshot",
+        "scope": "Per querying op",
+        "class": "U",
+        "boundOrCandidate": "Bounded snapshot lifetime, release after facts copied",
+        "measurementRequired": "Leaf/cert copies + internal provider allocations, not merely summary sizeof",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Wait-set/external sources/readiness lists",
+        "scope": "Runtime/process/Session",
+        "class": "U+K",
+        "boundOrCandidate": "One integration owner, finite assigned slots",
+        "measurementRequired": "Allocations, membership, wake event, FD/readiness arrays and platform handles",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Callbacks/late event/tombstones",
+        "scope": "Per op + Session",
+        "class": "U",
+        "boundOrCandidate": "Candidate\u00e2\u2030\u00a416 outstanding/op, fixed reservation before async submission",
+        "measurementRequired": "Struct/alignment/queue entries, old generation owners and borrow refs",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Timers",
+        "scope": "Per op + Session",
+        "class": "U",
+        "boundOrCandidate": "Candidate fixed\u00e2\u2030\u00a48/op within metadata; absolute budgets",
+        "measurementRequired": "Timer records/native timer handles if any; wake does not create timers",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Tokens/operation metadata",
+        "scope": "Per op",
+        "class": "U",
+        "boundOrCandidate": "32 bytes/role plus copies; proposed total metadata\u00e2\u2030\u00a416KiB/op",
+        "measurementRequired": "All copies/writer scratch/erase; owner/counters/generation/tuple",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Logs/trace ring",
+        "scope": "Process",
+        "class": "U",
+        "boundOrCandidate": "Fixed secret-safe ring inside shared managed cap",
+        "measurementRequired": "No arbitrary payload/token string or unbounded test trace in normal admission",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Thread/stack/module/allocator overhead",
+        "scope": "Process",
+        "class": "U+K",
+        "boundOrCandidate": "No extra parallel C2 runtime; inherited owner/C1 topology",
+        "measurementRequired": "Committed vs reserved stack, DLL shared/private pages, allocator fragmentation",
+        "measuredBytes": null
+      },
+      {
+        "resource": "WinSock/window/events/handles",
+        "scope": "Process/owner",
+        "class": "U+K",
+        "boundOrCandidate": "Owned ref/event/window/socket ledger",
+        "measurementRequired": "WSA references and module/driver state, process and system handle deltas",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Model E/C1 retained resources",
+        "scope": "Original scope, indefinitely held",
+        "class": "U+K",
+        "boundOrCandidate": "Consume full original quota/leases until confirmed destruction; no eviction",
+        "measurementRequired": "Actual retained child/kernel/credential state; not zero after release ATTEMPT",
+        "measuredBytes": null
+      },
+      {
+        "resource": "Site peer TCP/TLS/UI/HTTP consumer",
+        "scope": "Remote or app-owned",
+        "class": "X/U",
+        "boundOrCandidate": "Site remote not local RAM; Browser consumer storage charged in baseline/op actual owner",
+        "measurementRequired": "Separate application bound; no Site TCP delivery claim from C1 send",
+        "measuredBytes": null
+      }
+    ],
+    "controlledSubtotal": 329514,
+    "Browser": {
+      "managedProcessCandidate": 2097152,
+      "coreOpCandidate": 524288,
+      "appConsumerCandidate": 1048576,
+      "sessionCandidate": 16384,
+      "incrementalUserEnvelopeCandidate": 20971520,
+      "kernelEnvelopeCandidate": 2097152
+    },
+    "Accelerator": {
+      "managedProcessCandidate": 2097152,
+      "opCandidate": 524288,
+      "sessionCandidate": 16384,
+      "unboundCandidateManaged": 16384,
+      "incrementalUserEnvelopeCandidate": 33554432,
+      "kernelEnvelopeCandidate": 8388608
+    },
+    "normalOpaquePSTReservationHardEnforced": false,
+    "opaqueContextThresholdCandidate": 2097152,
+    "sharedBrowserThresholdCandidate": 8388608,
+    "sharedAcceleratorThresholdCandidate": 4194304,
+    "NT4": "REAL_TARGET_NOT_QUALIFIED_NO_MEASUREMENTS",
+    "retainedQuota": "FULL_ORIGINAL_OCCUPANCY_NO_EVICTION",
+    "measurementPlan": "PREPARED_P0_P8_PR_PC_AND_EXPLICIT_QUEUE_SWEEP"
+  },
+  "otherEDRecommendations": "ED01_ED07_ED09_ED10_ED12_ED14_BYTE_EXACT_PRESERVED_NOT_ACCEPTED",
+  "specification": "0.3_PRESERVED_PROPOSED_SUPPLEMENT0.3.2",
+  "wireReadyForApproval": false,
+  "proposedADR": "ADR-CANDIDATE-pacc-c2-ed08-record-end-and-ed11-admission",
+  "preservation": {
+    "C:\\Projetos\\PapinhoAccelerator": {
+      "fileCount": 461,
+      "allSHA256Unchanged": true,
+      "baselineDigest": "55737FD7B0E12E1948D38B79B1D63E22C5E0AAE54184ECC1EF3EC6390236989E",
+      "existingStatus": "UNCHANGED"
+    },
+    "C:\\Projetos\\PapinhoBrowser": {
+      "fileCount": 3142,
+      "allSHA256Unchanged": true,
+      "baselineDigest": "E4F908167BB8120AE55D25C3F6FD3D53380A1D04BBC095BA3FADAED0F02E9BCE",
+      "existingStatus": "UNCHANGED"
+    },
+    "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\source": {
+      "fileCount": 1566,
+      "allSHA256Unchanged": true,
+      "baselineDigest": "200BCC926E34ACCAB1608C25FE5186A9CAB07EAA2BB005B996E7508C84FD4E9C",
+      "existingStatus": "NO_GIT_AVAILABLE"
+    }
+  },
+  "C1HashesVerified": 7,
+  "normalSDKs": [
+    {
+      "root": "C:\\Projetos\\_tmp\\PapinhoAccelerator\\pst-api3-model-e-recertification-20261011\\sdk",
+      "normalPackage": true,
+      "verified": 44,
+      "hashes": {
+        "consumer-link.ini": "F2ACBDA2E5CE5799F6B405722BBBD6F96FF2B438028E4A9677C2B06507598FCE",
+        "docs/adr/ADR-0007-proveniencia-portavel-de-terminacao-do-transporte.md": "442053A763BF14C2A8C282765491BAC69FFC985A7FCE4373D52C303E2A0D391C",
+        "docs/adr/ADR-0008-lifecycle-failure-aware-de-fechamento-nativo.md": "A7B7D95C7A7FD78745D4AA65302F98EFC091F7E2C3755FFB38A1233ADA29F593",
+        "docs/api-1.3-to-2.0-migration.md": "268DB4F260F18A3B816319AD87B21EE7BAE64D0E3722A17A74B94E832D395F13",
+        "docs/api-2.0.md": "AC5142AF5A1FB8ED382A4FE79F5A41203F5E9521175770719DE6C775B66DFD3B",
+        "docs/client-server-lifecycle.md": "9AC6BB119D2DAB8B6C6EF62D47EE00925FE0777EDCA3156A57F0D36A97B25E19",
+        "docs/consumer-linking.md": "30DFF32DB5E0F443165273AF27AAB3FC29322B77FE799884E7A6EE54673E88C3",
+        "docs/en/getting-started.md": "2D8E4A3A86B70AEAC2F613454B560610BD764AB7BC7D1CE2EECA9781F06289D8",
+        "docs/en/README.md": "56D26084713EBA9CE82B9B668811A3E7367E0C7828680F5A79B18AD86BA72D1A",
+        "docs/lifecycle-ownership.md": "A075A2395F10B2FABBFE096EE92966E64E73EFEDFD54D17243699BCB1575DD2C",
+        "docs/native-close-failure-aware-design.md": "F0A5777F70BC46A39E96DD917DDE3903CA5C08E2B422E3CC86B6310D16D1B2D0",
+        "docs/providers.md": "C0A7AA5776CD5C4C6309D62804C16899B242252EC02D8A18D901A44A10A18C23",
+        "docs/provider-spi-3.0.md": "A81AEE0F142EA2FBBF166BFD75823811D7233054FEC5394363B1CC53671E106B",
+        "docs/provider-spi-4.0.md": "04E1CBDB834EDD8557CBB4D2087625EA5EBE84DDDF98AD826D4329180AC2847C",
+        "docs/pt-BR/getting-started.md": "70452DEBE4D3DBF0E1EFB055C56D8C213E60E9F2661A2DC31E094DF7D37194DE",
+        "docs/pt-BR/README.md": "6054F89B7794ECBE45C41100DCC0A8FE9CC94417EED39B80DA9523597E7B0880",
+        "docs/public-api-abi.md": "65F56EAF028ADBA421FCEB256A68FB600CF050E9BACAB0FDEC21693BDCACCDF1",
+        "docs/release-licensing.md": "EA87D588165EBD1B0EAB5E268FA32CED2FAB6A37E7A74C80B7B1942F6DC4CF4E",
+        "docs/release-notes-0.6.5.md": "DE0292311DF9265F07C4AADFE90CF91EBF3B46C520E995A8953718423F386097",
+        "docs/release-packaging.md": "C4513E7306D58BA90C8FAC018EA043607C5E6D8EAB8E9C347A317457FA4CE529",
+        "docs/security-and-limitations.md": "9DD8F2580D9B79B74FF4182883EC2E25E1DED9930278F873A1EEDB81B7780634",
+        "docs/security-lifecycle-negative-matrix.md": "58FAFB9260EB5AE7AF12A8A79A3A65A9EF6C8A16E761A4FDC83DF0EF8EF5C61E",
+        "docs/target-matrix.md": "7BAF4329C1F36610A3E1F5C6787B309FBED4D75A24A6112651913BD2D91B2338",
+        "examples/basic_client.c": "84C29EA67E9169C5CCB82370A4A400F82CBF6E9E697DF9A6BA7A950CE9C1E703",
+        "examples/basic_server.c": "40502697F20583370BDAAC41F2BEAE7FC70C7DD66051EBB270EE8CB52CBA626F",
+        "examples/custom_trust.c": "59F6A4B78704BAE588175F4F5B390781248F9C6B7F0CA079322FE8419CDD789A",
+        "examples/diagnostics_logging.c": "312ED432B3631291412D08A9977158D2CC601D6F89E80F25CEFB122DA36B885A",
+        "examples/mtls.c": "DB0C5422C190282EA37D2B12C1CEA366D1A611CE354B11C3691B0639086F0B13",
+        "examples/provider_selection.c": "F9F026F67F6AAC2CFD0967E546F1377A94A5CF456898122838793B2D525B8B2F",
+        "examples/README.md": "D17EC5097B2D9686AF2A4A6A0262617544A947A9C84541F4BD005820BC845B59",
+        "examples/system_trust.c": "4D6320423D931865A7B653C55EA01C456EDD0F80489F3189B48FB538BACEFA3A",
+        "include/papinho_secure_transport.h": "8F2255D53D0E59EA5D9DA7C999A536A9B0392EB25EFE20CA63E0C1A784C5CE8C",
+        "include/papinho_secure_transport_win32.h": "3CB297B887E80FDCD5DF75015E37829D7196032F990D9C3503CCB3266028D883",
+        "lib/win32-x64-msvc-19.51-openssl3/libcrypto.lib": "E6047DADBF2B9C85B3BD52598FD6DBAC78F9789DE9B1C0A837712584AC883509",
+        "lib/win32-x64-msvc-19.51-openssl3/libssl.lib": "E6D86B6FB9AD205F3B80BA80564B4AB8764C7BF45A793BC209385AD3C601A755",
+        "lib/win32-x64-msvc-19.51-openssl3/papinho_secure_transport.lib": "556431E3E5C15D321867BE5BC88610B7D1586749D2DFFF5E6DB6BD5E598182DB",
+        "LICENSE": "FAB3DD6BDAB226F1C08630B1DD917E11FCB4EC5E1E020E2C16F83A0A13863E85",
+        "licenses/openssl/LICENSE-APACHE-2.0.txt": "7D5450CB2D142651B8AFA315B5F238EFC805DAD827D91BA367D8516BC9D49E7A",
+        "manifest.ini": "F4FFA55319AA3CF6B9136DFDABCCD61813939EBEDD4D8BB4AE3A91881A7CA896",
+        "README.md": "631122226B327FB8EBE8CDF316BD527EA7AD12A01AE2319978BFD57BC3FF62AC",
+        "runtime/win32-x64-msvc-19.51-openssl3/libcrypto-3-x64.dll": "09EEC573C9ADEA156BA2073F8CD61720D0AABEB7562D8498B4ECD21B710A3044",
+        "runtime/win32-x64-msvc-19.51-openssl3/libssl-3-x64.dll": "3FB3CD7804DBE3216C801B470E14461D80214ECE99C637AE42EA3D8CAF75D7ED",
+        "THIRD_PARTY_NOTICES.md": "1711A6C7D1AE2FA05727E6E081C71B189BDC71C56BD4F6705306258C248AF41F",
+        "VERSION": "49D34EB92E8E7872B7772DE19B3354BD13CB89DE4A189853AF94939ACF51F762"
+      },
+      "manifestSHA256": "F4FFA55319AA3CF6B9136DFDABCCD61813939EBEDD4D8BB4AE3A91881A7CA896"
+    },
+    {
+      "root": "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\sdk",
+      "normalPackage": true,
+      "verified": 53,
+      "hashes": {
+        "consumer-link.ini": "061142162CE305AB020F04C039C950C2747A8674024D3A4BCA12006236B021BA",
+        "docs/adr/ADR-0007-proveniencia-portavel-de-terminacao-do-transporte.md": "442053A763BF14C2A8C282765491BAC69FFC985A7FCE4373D52C303E2A0D391C",
+        "docs/adr/ADR-0008-lifecycle-failure-aware-de-fechamento-nativo.md": "A7B7D95C7A7FD78745D4AA65302F98EFC091F7E2C3755FFB38A1233ADA29F593",
+        "docs/api-1.3-to-2.0-migration.md": "268DB4F260F18A3B816319AD87B21EE7BAE64D0E3722A17A74B94E832D395F13",
+        "docs/api-2.0.md": "AC5142AF5A1FB8ED382A4FE79F5A41203F5E9521175770719DE6C775B66DFD3B",
+        "docs/client-server-lifecycle.md": "9AC6BB119D2DAB8B6C6EF62D47EE00925FE0777EDCA3156A57F0D36A97B25E19",
+        "docs/consumer-linking.md": "30DFF32DB5E0F443165273AF27AAB3FC29322B77FE799884E7A6EE54673E88C3",
+        "docs/en/getting-started.md": "2D8E4A3A86B70AEAC2F613454B560610BD764AB7BC7D1CE2EECA9781F06289D8",
+        "docs/en/README.md": "56D26084713EBA9CE82B9B668811A3E7367E0C7828680F5A79B18AD86BA72D1A",
+        "docs/lifecycle-ownership.md": "A075A2395F10B2FABBFE096EE92966E64E73EFEDFD54D17243699BCB1575DD2C",
+        "docs/native-close-failure-aware-design.md": "F0A5777F70BC46A39E96DD917DDE3903CA5C08E2B422E3CC86B6310D16D1B2D0",
+        "docs/providers.md": "C0A7AA5776CD5C4C6309D62804C16899B242252EC02D8A18D901A44A10A18C23",
+        "docs/provider-spi-3.0.md": "A81AEE0F142EA2FBBF166BFD75823811D7233054FEC5394363B1CC53671E106B",
+        "docs/provider-spi-4.0.md": "04E1CBDB834EDD8557CBB4D2087625EA5EBE84DDDF98AD826D4329180AC2847C",
+        "docs/pt-BR/getting-started.md": "70452DEBE4D3DBF0E1EFB055C56D8C213E60E9F2661A2DC31E094DF7D37194DE",
+        "docs/pt-BR/README.md": "6054F89B7794ECBE45C41100DCC0A8FE9CC94417EED39B80DA9523597E7B0880",
+        "docs/public-api-abi.md": "65F56EAF028ADBA421FCEB256A68FB600CF050E9BACAB0FDEC21693BDCACCDF1",
+        "docs/release-licensing.md": "EA87D588165EBD1B0EAB5E268FA32CED2FAB6A37E7A74C80B7B1942F6DC4CF4E",
+        "docs/release-notes-0.6.5.md": "DE0292311DF9265F07C4AADFE90CF91EBF3B46C520E995A8953718423F386097",
+        "docs/release-packaging.md": "C4513E7306D58BA90C8FAC018EA043607C5E6D8EAB8E9C347A317457FA4CE529",
+        "docs/security-and-limitations.md": "9DD8F2580D9B79B74FF4182883EC2E25E1DED9930278F873A1EEDB81B7780634",
+        "docs/security-lifecycle-negative-matrix.md": "58FAFB9260EB5AE7AF12A8A79A3A65A9EF6C8A16E761A4FDC83DF0EF8EF5C61E",
+        "docs/target-matrix.md": "7BAF4329C1F36610A3E1F5C6787B309FBED4D75A24A6112651913BD2D91B2338",
+        "examples/basic_client.c": "84C29EA67E9169C5CCB82370A4A400F82CBF6E9E697DF9A6BA7A950CE9C1E703",
+        "examples/basic_server.c": "40502697F20583370BDAAC41F2BEAE7FC70C7DD66051EBB270EE8CB52CBA626F",
+        "examples/custom_trust.c": "59F6A4B78704BAE588175F4F5B390781248F9C6B7F0CA079322FE8419CDD789A",
+        "examples/diagnostics_logging.c": "312ED432B3631291412D08A9977158D2CC601D6F89E80F25CEFB122DA36B885A",
+        "examples/mtls.c": "DB0C5422C190282EA37D2B12C1CEA366D1A611CE354B11C3691B0639086F0B13",
+        "examples/provider_selection.c": "F9F026F67F6AAC2CFD0967E546F1377A94A5CF456898122838793B2D525B8B2F",
+        "examples/README.md": "D17EC5097B2D9686AF2A4A6A0262617544A947A9C84541F4BD005820BC845B59",
+        "examples/system_trust.c": "4D6320423D931865A7B653C55EA01C456EDD0F80489F3189B48FB538BACEFA3A",
+        "include/papinho_secure_transport.h": "8F2255D53D0E59EA5D9DA7C999A536A9B0392EB25EFE20CA63E0C1A784C5CE8C",
+        "include/papinho_secure_transport_win32.h": "3CB297B887E80FDCD5DF75015E37829D7196032F990D9C3503CCB3266028D883",
+        "lib/win32-x86-vc6-retrozilla-nss-md/papinho_secure_transport.lib": "21D14CCE462F813C7DCB898E67FB88226AC6E5AC9488CFEB435B2B16197BE4A2",
+        "LICENSE": "FAB3DD6BDAB226F1C08630B1DD917E11FCB4EC5E1E020E2C16F83A0A13863E85",
+        "licenses/retrozilla-nss/NSPR-license-evidence.h": "71A91753E5B19F8BBE30B97CC49A6099575BD9036710E4737E3C69DCD9120BEA",
+        "licenses/retrozilla-nss/NSS-MPL-2.0.txt": "A20C1A32D1F8102432360B42E932869F7C11C7CDBACF9CAC554C422132AF47F4",
+        "licenses/retrozilla-nss/RetroZilla-LEGAL.txt": "96F90F6E1DE54117A7C945FA05D183C2DEEF35ACFCC58D3FC294280DB92E5416",
+        "licenses/retrozilla-nss/RetroZilla-LICENSE.txt": "C2AA7D58CEBD24CB877BBF11D6B13A4BB7CD08B9D7DB5D3037CA06C46BF4CFD8",
+        "manifest.ini": "1EE3850C15A1301713F12BDA9302E1D0272580E043893C55574F28954BB1D07D",
+        "README.md": "631122226B327FB8EBE8CDF316BD527EA7AD12A01AE2319978BFD57BC3FF62AC",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/freebl3.chk": "122AEFEBBFD76EB68352EB23D59D4CAFF70183B520F81B5017BF299F7B745DAA",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/freebl3.dll": "12808C651528C9E08F5CCF86AF00F9061B19103C0C712D376755664F41EE474D",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/nspr4.dll": "1DDD21185278DB4F013295DB61C751AC95FA15CF5007AA1DE42599281A6F66A1",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/nss3.dll": "67634DF027FC416127BD5D4D6762EDF5BE5DCE5FA74EB006710C11621000D4A9",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/nssutil3.dll": "B6C6221FCCE382B363E4CF9E2CA8357F7C4F8DAA10970BDA06836DF6576D62D6",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/plc4.dll": "B244252D7E931D961B723E18A817831931CA7B5BE038BB5B8981BACD0DEB684C",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/plds4.dll": "7A4278ED168F9B6D6A958C6C404058553747C6F084671E5FD20E90C68DEE172D",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/softokn3.chk": "E6DDDE563C1ED8EBFBD43B228714DD3134FF4F458E70FCA148E2CA93DE546584",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/softokn3.dll": "EA59B260AC3F2E37CA63CE4AA50D470293C462D644ACCC27F3DBDB9A6B50FF70",
+        "runtime/win32-x86-vc6-retrozilla-nss-md/ssl3.dll": "A45ADB3CA8ABFAB4716315ACBA515F0DE1AD4C56B095C89F32042DFC120277DA",
+        "THIRD_PARTY_NOTICES.md": "1711A6C7D1AE2FA05727E6E081C71B189BDC71C56BD4F6705306258C248AF41F",
+        "VERSION": "49D34EB92E8E7872B7772DE19B3354BD13CB89DE4A189853AF94939ACF51F762"
+      },
+      "manifestSHA256": "1EE3850C15A1301713F12BDA9302E1D0272580E043893C55574F28954BB1D07D"
+    }
+  ],
+  "inputHashes": {
+    "C:\\Projetos\\PapinhoSecureTransport-release-065\\docs\\adr\\ADR-0008-lifecycle-failure-aware-de-fechamento-nativo.md": "A7B7D95C7A7FD78745D4AA65302F98EFC091F7E2C3755FFB38A1233ADA29F593",
+    "C:\\Projetos\\PapinhoSecureTransport-release-065\\docs\\adr\\ADR-0009-contrato-compartilhado-de-conformidade-model-e.md": "B7039B395BC8BB82563DFFF4A440C2DEFA97A882513C1E943FE3025EB32F5AB4",
+    "C:\\Projetos\\PapinhoSecureTransport-release-065\\docs\\model-e-consumer-lifecycle-contract.md": "93CD2B3AF67C9F3CBA2D32B6AAB45108C525CBC3B49D1E8A3AA2D0C3B8FD95C2",
+    "C:\\Projetos\\PapinhoSecureTransport-release-065\\src\\pst_runtime.c": "2D85093A6F5DF651A92380CA7BABAEFACB589B6FE917A367C321ED064B4BFC20",
+    "C:\\Projetos\\PapinhoSecureTransport-release-065\\src\\backends\\openssl\\pst_backend_openssl.c": "0115677D5C8D71FA8ADC8B200B173C9EFF8FEFE6E40B2D1C77E3687F76F0553D",
+    "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\C1-IMPLEMENTATION-EVIDENCE.txt": "FE49C3FA5252A0DAD70E15FBFF8B4160EEBA245918CE897C8494AE74066405AE",
+    "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\MODEL-E-CLOSEOUT-C1-HANDOFF.txt": "D921845E086E72F96FB798F900796AF020F2CD77B42BB073C2B3CAAAE7C871B5",
+    "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\C2-CONTRACT-REVIEW-EVIDENCE.txt": "488332E8486A63EF247C7C9BB0E4E5857DF1175DB008D2A0E0A065B920F0276A",
+    "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\source\\docs\\mode-c-c2-factual-handoff.md": "DBA4D7BD3F82B1FAFA6CEAE79932F08B585B4C12A533A411E7A45650703D0B77",
+    "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\source\\core\\networking\\papinho_site_pump.h": "48EABA3BA3983D656DC022448B95DFA375FE20349C1040A4127621E8CAD1BD1A",
+    "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\source\\platform\\win32\\papinho_site_pump_win32.c": "CC2E8C79C717EB66910F58042F730CA165E796B5BAB55CBB58EA6C5804CEB2A9",
+    "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\source\\src\\papinho_accelerator_client.h": "DE12F8A9CEE66C615BD51E72A569ADBDF0A224FDBD8AFFA2E6C4DD37520F246C",
+    "AGENTS.md": "289BA76D8FAB2CF1D19B3C14ADFDEBF41E39C2D835AC4D7F13539F8F7E3D47EC",
+    "dependencies/papinho-secure-transport.txt": "3D347A0606C7AD03D2ED02B593DABA8853A2C627F85A146F28FB90C94BA05C39",
+    "docs/adr/ADR-0001-secure-principal-e-legacy-endpoint.md": "E753036252807DD1C91F8951423DBA67EED482A929E696D331073DA019FA126B",
+    "docs/adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md": "6D1C45A069505B6332633E868C0FC8E0FF1AFE6926986E6216016115A1CE8448",
+    "docs/adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md": "0A865B530DA8D69D6EFA80CBC656DDD1DFCE041428CD349C4198F7F9D8CB7F4B",
+    "docs/adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md": "671061CF8F6330466CF24FE2E3BBBB0C744A2FE041A50F287D39CA0CBFE07CC0",
+    "docs/adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md": "19B2523C244080501530894C652195C4074C552B3A2336D8A8F8EF56E520B3F2",
+    "docs/adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md": "DA730E73AD68F675BE50DF7822146A7A60B3AA9E8B5386E949F7E723F0295F6C",
+    "docs/adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md": "746981D7B1C986DDFF977B1663C7CC8502C399E4671C2D6B407DA00CEF126F0A",
+    "docs/adr/ADR-0008-fixacao-de-dependencias-papinho-por-release.md": "46AAE3C102FBDB22B7CF2B180D5C1A1627D2CF9C14B1FECD0E65DCEA6000E4CC",
+    "docs/adr/ADR-0009-perfil-de-transporte-explicito-por-listener.md": "A5F71BE610C174AC71412D23B59C9539DB3CC3AB0B8FD942C3A66F67A8D275AB",
+    "docs/adr/ADR-0010-resolucao-de-configuracao-de-seguranca-do-servidor.md": "7A24418D578386A18948A41D997C703B9A26D3C98A703BE3B24338E53D657AFB",
+    "docs/adr/ADR-0011-identidade-de-capability-e-modelo-portatil-limitado.md": "758DC3D26A484B70226DEA28F85468F86CA5A8BC4694D3B9EF4764E61F2237FE",
+    "docs/adr/ADR-0012-snapshot-de-capabilities-e-enforcement-contextual.md": "8AB7F8E0750732FB3F2D498AC83DF9EC42A5BE7D06D93548D7B5515EE1237B9A",
+    "docs/adr/ADR-0013-lifecycle-de-job-ownership-de-session-e-cancelamento-cooperativo.md": "7C01E3C5EC10EAA09E2D7BD4DAB6E8D3F3831F222A227CB3C0CA31EF08DC8D13",
+    "docs/adr/ADR-0014-contrato-portatil-incremental-de-compute-backend.md": "301ED9F7A431798C83B5A1753E7D3807508E6BB845D203092A024D4E4E19D4B8",
+    "docs/adr/ADR-0015-establishment-jobs-e-lifecycle-de-network-stream.md": "33BD954EC85AB3688CC04CC2FE5FC644E504F6F37D7E498D283A39064B45894E",
+    "docs/adr/ADR-0016-negociacao-inicial-de-capabilities-no-wire.md": "062FC00B474F7616966A3F85CEF62424659A87C515147599E76707085CECFD59",
+    "docs/adr/ADR-0017-protocolo-wire-de-network-offload-em-data-channel-dedicado.md": "8E0B9B8848E560341CB30C857F876666A625DCB098AF20CF8B99D1A65A8C8B0D",
+    "docs/adr/ADR-0018-registry-de-capabilities-network-egress-e-tls-offload.md": "8E995B613C6EC8E653489BBD6A31305EB88C1E94E4E6618030CA25C3C899DEB2",
+    "docs/adr/ADR-0019-policy-de-egress-e-egress-profiles-server-owned.md": "C1DA5DAA10488AE555A89CF8A992592AF01B088E0953A568DFD36DBD6AE0B887",
+    "docs/adr/ADR-0020-normalizacao-dns-e-binding-de-endpoint-validado.md": "FE09DE903C3A1654DC188355A5543581ECFA6DF51B9690275BCFB4843DCE790A",
+    "docs/adr/ADR-0021-prevencao-de-abuso-e-destinos-sensiveis-de-egress.md": "4CF22AEE8218CAD93D21D72C34EF89775DCC193DAE1376529B55E6516FB9003F",
+    "docs/adr/ADR-0022-perfil-tls13-client-outbound-via-pst.md": "2D81C1B1968FFCE4070A808D50711A7D1398B90DDBE11AF8A87D3C6CE9D88596",
+    "docs/adr/ADR-0023-tls-required-v1-nao-suporta-network-half-close-direcional.md": "C3BF6713BD0184F806036AABDF00ECA029E0BC55A79A7187422C009A90F7C716",
+    "docs/adr/ADR-0024-boundary-concreta-de-policy-e-egress-profile.md": "881FB292172C58C487BD2C985F9601FBBD912AE8DB5C83E30FC783D1161B5EA9",
+    "docs/adr/ADR-0025-contrato-publico-portavel-papinhopacc.md": "4D6134142449689DBB6BF2F4F1E867C2799295C02819393A51E142DBD9DC77D3",
+    "docs/adr/ADR-0026-referencias-de-policy-profile-e-regras-exatas-de-egress.md": "6F9232FF9E6C3B373390CE512F73062153DA1B8A826DEA112158F4D81E96B521",
+    "docs/adr/ADR-0027-referencia-e-resolucao-de-outbound-tls-security-profile.md": "FD1AB0FC0C2FC75D6A66A24037AF327311D86265DE9265FBCE7E495D43D34A6D",
+    "docs/adr/ADR-0028-modelo-ortogonal-de-admissao-autenticacao-e-policies.md": "965E61A2A5AC768AACDF5CFDEEDF93CDA4680250229F95795130480DC71AD851",
+    "docs/adr/ADR-0029-contrato-mode-c-c2-e-autorizacao-laboratorial.md": "F55D4AC97469A2F9F9DCB106790F4F577F6F3AF86CDE17E922BFBA300DE2D2FD",
+    "docs/adr/ADR-0030-stop-global-phase-aware-para-teardown-outbound-pst.md": "BCC9F18B1D149DA0F76E97AEE41D6F24DD8464D07C13E2103B23E13C4F12DDAD",
+    "docs/adr/ADR-0031-secure-candidate-protocol-lifetime-reconciliation.md": "375E6B5260DF8D8D15931A53EAC20B51AE3522C345C23E7AA351A81F81E51835",
+    "docs/adr/ADR-0032-result-returning-pre-close-boundary.md": "0347BC91E023E924BC2952A2796F5FFB8346A83E27B224170885A2E8C85711A7",
+    "docs/adr/ADR-CANDIDATE-pacc-c2-exact-encoding-and-security.md": "4B1B269421CC83895ABC054CA0E1A64231B6705DD94F074B21179374EE094B06",
+    "docs/adr/ADR-CANDIDATE-pacc-c2-operation-and-progressive-specification.md": "A868A9DB226904FD81663BC94504BF55F05D664AB3122985CE5156694E90ABE5",
+    "docs/adr/DECISION-pacc-c2-conditional-semantic-approval-20261012.md": "C2EE349C47A16EB6160367E7DB8C9C332729D9C653663AFC1F286EB2F06D59CF",
+    "docs/capabilities/pacc-c2-exact-wire-security-review-20261011.json": "F52529C108B0C6884FF47778BBCA77D238AC7BDC2D8EB140E234E47D115074C7",
+    "docs/capabilities/pacc-c2-exact-wire-security-review-20261011.md": "1313CF567B0B41096599A4A98F54D01C812DFD48BEA80E4E31A0C73910A83C5B",
+    "docs/capabilities/pacc-c2-final-encoding-gate-review-20261012.json": "95F943E45E6B71F9518FF880184F12ACEEA86D00340A8805616B2694AC091941",
+    "docs/capabilities/pacc-c2-final-encoding-gate-review-20261012.md": "FC0D249D107798397B55C023DD21F8F9180B0949B85088077AA53AFFA0107039",
+    "docs/capabilities/pacc-c2-joint-review-20261011.json": "ED6747B1369ECC4E6E6381B164D2553AA184F9DABF11E9E871C77973020448FE",
+    "docs/capabilities/pacc-c2-joint-review-20261011.md": "882A2A92C7699F8162AAF0FB59AC1A875A08E762DDDF4CA262F3BE5A704E31B7",
+    "docs/capabilities/pacc-c2-revision2-closeout-20261011.json": "5DE8F8FD942600FD2F2F0851BA1E1B64E2DF43F462348582DDD2C74B00167A55",
+    "docs/capabilities/pacc-c2-revision2-closeout-20261011.md": "71B89C9616FB1ED479D8AF55DCD1BECFA0AC6B02312086AD0A64EBCB76034CAA",
+    "docs/capabilities/pacc-c2-revision3-conformance.md": "8E1CAC4362DA15F3B27FF078CD38461E7227BE85D1ECB988AC428CF9A78142FE",
+    "docs/future/pacc-c2-versioned-contract-proposal-revision-2.txt": "A45F9409CD94F0CEE443F4454E6ECB0661A68F4DF5D44EFC45EC57BB20FF2DEA",
+    "docs/future/pacc-c2-versioned-contract-proposal-revision-3.md": "D427ED8B42683B4BA2C1B317C159F81BD71B39844E4D44A52FBBD75D5E0BBDC9",
+    "docs/integration/pacc-c2-exact-wire-security-owner-handoff.md": "AA1B920EE8D12AA9BE42BB2ECFE4162677073F96B241B5306144166B8054B381",
+    "docs/integration/pacc-c2-final-gate-owner-decisions-20261012.md": "922BEDF70E0F87B420E5DCC4D358805DA127EE6C1CF3B0E8C50F1E55DDC3D4A6",
+    "docs/integration/pacc-c2-revision3-wire-approval-handoff.md": "F26BC7224976B40DED4BDF25F53CCAADDD0AA5811AF79F6DF70DCD6ABF802787",
+    "docs/protocol/pacc-c2-exact-wire-candidate-vectors.json": "958B151826E7D30349C9717F7376AA8D9D168B0580B1B12A310091D8889BFD50",
+    "docs/protocol/pacc-c2-exact-wire-layouts.json": "49DF70E2783683A64023227A19BDEB55AF5A3670A5FC5A22899CA9D952F1C8BD",
+    "docs/protocol/pacc-c2-final-gate-addendum-draft-0.3.1.md": "AF38E7713B0FAD8F6E4AB70949112880274C54ADEA1696F0D45A5923A6C31700",
+    "docs/protocol/pacc-c2-protocol-specification-draft-revision-0.2.md": "4F493F9BA0FEB8EBEC067176FA69BB965BA63CCDC160BCEC6A2CDBC89492524E",
+    "docs/protocol/pacc-c2-protocol-specification-draft-revision-0.3.md": "FEE409F2E71A0FC9ABDB57F657E1479B3926D73DED471A0CD63D566F4BDD9FF2",
+    "docs/protocol/pacc-c2-protocol-specification-draft.md": "D672B7E8E1375295CD5C08249C1EC70A551F2763EC39F0620730993C271F3D5F"
+  },
+  "outputs": {
+    "docs/capabilities/pacc-c2-ed08-record-close-order-proposal-20261012.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "960DF2D041B8A5D0D000D12CAFFC33BCBA4DC38DE2977530561F8D32720EAF27",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/capabilities/pacc-c2-ed08-probe-evidence-plan-20261012.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "3D691FD155F42CC8EDDF41030DF0D0F4C88E961778CFF55112E1227EF1DC730F",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/capabilities/pacc-c2-ed11-resource-ledger-admission-proposal-20261012.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "82BE991F20ED7ACC81C413AB07EFD224A4406359DC158F57D4392D86A17B2013",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/capabilities/pacc-c2-ed08-ed11-target-probe-plan-20261012.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "A1D0A79E9975729F1F6DBEB38675C5D76E5C5F9F14E6A3012E261589A213B2E1",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/integration/pacc-c2-ed08-ed11-upstream-and-owner-handoff-20261012.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "D9DBB29000ADFE16D77B624533F965676320518559E17825C71BC0D647449DE9",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/protocol/pacc-c2-ed08-ed11-rfc-supplement-draft-0.3.2.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "653328DBE7D73733EB908F0E3FFEA51FF1A70A976E66EA3441E8CF445A2F0FE2",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/capabilities/pacc-c2-ed08-ed11-focused-closeout-20261012.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "C7F7E77F28F696A340E1B2735DA94EC2DD140DFD7DD33A6117CF2E02C81C99D4",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/adr/ADR-CANDIDATE-pacc-c2-ed08-record-end-and-ed11-admission.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "0C2FFFBFC6932A2E49814763601C811F93484EE9BEE8A63855353230CF6300D0",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    }
+  },
+  "editHistory": [
+    {
+      "file": "docs/protocol/pacc-c2-ed08-ed11-rfc-supplement-draft-0.3.2.md",
+      "preSHA256": "43A10440178C054AFA948C6857B2CA73226AD6882CA363C40D231EA775F541D1",
+      "postSHA256": "AC24DC164A7A60182EF3BA40C58B40FD229E2E893107DDE2F30CE1650F883C41",
+      "cause": "Proposed ADR cross-reference added before focused cap refinement"
+    },
+    {
+      "file": "docs/capabilities/pacc-c2-ed11-resource-ledger-admission-proposal-20261012.md",
+      "preSHA256": "D83275ABBA16F0742E206C2DF240F323B3946D3E27A376AE7C0FB2D28D5C265B",
+      "postSHA256": "6BDCA8884839544C01B253875F44C0BBCBB0ED10CAD00A46FD09571C39050155",
+      "cause": "Charge bounded Browser application-consumer storage; refine candidate managed/user envelopes without lowering response bound"
+    },
+    {
+      "file": "docs/capabilities/pacc-c2-ed08-ed11-target-probe-plan-20261012.md",
+      "preSHA256": "6656A8FE4D7CE88A33AE93F625A0E059AE42C008B3EDED79CB660037328FF6CC",
+      "postSHA256": "A1D0A79E9975729F1F6DBEB38675C5D76E5C5F9F14E6A3012E261589A213B2E1",
+      "cause": "Charge bounded Browser application-consumer storage; refine candidate managed/user envelopes without lowering response bound"
+    },
+    {
+      "file": "docs/integration/pacc-c2-ed08-ed11-upstream-and-owner-handoff-20261012.md",
+      "preSHA256": "B57300B5C4E3C5BEDA619E7566DB5674C7339703D9230EB967F41070B4419A6D",
+      "postSHA256": "D9DBB29000ADFE16D77B624533F965676320518559E17825C71BC0D647449DE9",
+      "cause": "Charge bounded Browser application-consumer storage; refine candidate managed/user envelopes without lowering response bound"
+    },
+    {
+      "file": "docs/protocol/pacc-c2-ed08-ed11-rfc-supplement-draft-0.3.2.md",
+      "preSHA256": "AC24DC164A7A60182EF3BA40C58B40FD229E2E893107DDE2F30CE1650F883C41",
+      "postSHA256": "653328DBE7D73733EB908F0E3FFEA51FF1A70A976E66EA3441E8CF445A2F0FE2",
+      "cause": "Charge bounded Browser application-consumer storage; refine candidate managed/user envelopes without lowering response bound"
+    },
+    {
+      "file": "docs/capabilities/pacc-c2-ed08-ed11-focused-closeout-20261012.md",
+      "preSHA256": "35439E892D3457A28E29BFB1658A18597B1EEA3AAFE6E25B633CE8FE39F44909",
+      "postSHA256": "C7F7E77F28F696A340E1B2735DA94EC2DD140DFD7DD33A6117CF2E02C81C99D4",
+      "cause": "Charge bounded Browser application-consumer storage; refine candidate managed/user envelopes without lowering response bound"
+    },
+    {
+      "file": "docs/adr/ADR-CANDIDATE-pacc-c2-ed08-record-end-and-ed11-admission.md",
+      "preSHA256": "7E6B7609002D271B26B8EFEC68BB6B00987D17CC38D023FD654DD4B4A5E4B632",
+      "postSHA256": "0C2FFFBFC6932A2E49814763601C811F93484EE9BEE8A63855353230CF6300D0",
+      "cause": "Charge bounded Browser application-consumer storage; refine candidate managed/user envelopes without lowering response bound"
+    },
+    {
+      "file": "docs/capabilities/pacc-c2-ed11-resource-ledger-admission-proposal-20261012.md",
+      "preSHA256": "6BDCA8884839544C01B253875F44C0BBCBB0ED10CAD00A46FD09571C39050155",
+      "postSHA256": "82BE991F20ED7ACC81C413AB07EFD224A4406359DC158F57D4392D86A17B2013",
+      "cause": "Correct candidate Browser margin arithmetic and explicitly label core versus application-consumer op cap"
+    }
+  ],
+  "validation": {
+    "localLinks": 39,
+    "MermaidFencesChecked": 2,
+    "MermaidRendered": false,
+    "arithmetic": "PASS_DOCUMENTARY",
+    "schemaAndVectorPreservation": "PASS_12_AND_14",
+    "knownDAG": "PASS_ANALYTICAL_ONLY",
+    "gitDiffCheck": "PASS",
+    "newFileWhitespace": "PASS",
+    "runtime": "NOT_EXECUTED",
+    "E1E12": "NOT_EXECUTED"
+  },
+  "upstreamRequests": "PREPARED_NOT_SENT_NO_CODE_OR_API_CHANGE_AUTHORITY",
+  "PSTChanged": false,
+  "PACCWireChanged": false,
+  "BrowserChanged": false,
+  "functionalAcceleratorChanged": false,
+  "productionPin": "0.6.4",
+  "commitsPushTagsRelease": false,
+  "firstUnresolved": "U08_PUBLIC_COMPLETE_LACKS_DOCUMENTED_PROVIDER_OUTPUT_SUBMISSION_GUARANTEE",
+  "next": "UPSTREAM_U08_CONFIRMATION_OWNER_PHASE_CAP_POLICY_THEN_AUTHORIZED_PROBES"
+}

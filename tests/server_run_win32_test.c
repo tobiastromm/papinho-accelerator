@@ -9,6 +9,7 @@
 
 typedef struct PAPACC_TEST_RUN_CONTEXT {
     PAPACC_SERVER_NETWORK *network;
+    const PAPACC_SERVER_CONFIG *config;
     FILE *output;
     PAPACC_LOGGER *logger;
     PAPACC_RESULT result;
@@ -48,7 +49,8 @@ static DWORD WINAPI papacc_test_run_thread(void *opaque_context)
     PAPACC_TEST_RUN_CONTEXT *context =
         (PAPACC_TEST_RUN_CONTEXT *)opaque_context;
     context->result = papacc_server_run_win32(
-        context->network, context->output, context->output, context->logger);
+        context->network, context->config, context->output, context->output,
+        context->logger);
     return 0;
 }
 
@@ -118,6 +120,7 @@ static SOCKET papacc_test_connect(PAPACC_U16 port)
 
 int main(void)
 {
+    PAPACC_SERVER_CONFIG server_config = PAPACC_SERVER_CONFIG_INITIALIZER;
     PAPACC_SERVER_NETWORK network = PAPACC_SERVER_NETWORK_INITIALIZER;
     PAPACC_TCP_LISTENER_ENTRY_WIN32 entry =
         PAPACC_TCP_LISTENER_ENTRY_WIN32_INITIALIZER;
@@ -153,6 +156,8 @@ int main(void)
     int output_fd = -1;
     int result = 0;
 
+    server_config.allow_network_egress = PAPACC_FALSE;
+
     captured[0] = '\0';
     if (papacc_test_network_start(&network, &entry, &port) !=
             PAPACC_RESULT_OK ||
@@ -179,6 +184,7 @@ int main(void)
         goto cleanup;
     }
     run_context.network = &network;
+    run_context.config = &server_config;
     run_context.output = output;
     run_context.logger = &logger;
     run_context.result = PAPACC_RESULT_INTERNAL_ERROR;
@@ -324,7 +330,7 @@ int main(void)
         if (papacc_logger_init(&logger, papacc_test_log_sink, &log_capture,
                                PAPACC_LOG_LEVEL_OFF) != PAPACC_RESULT_OK ||
             papacc_server_run_win32(
-                &network, output, output, &logger) != PAPACC_RESULT_OK ||
+                &network, &server_config, output, output, &logger) != PAPACC_RESULT_OK ||
             log_capture.length != 0 || log_capture.text[0] != '\0') {
             result = 33;
         }

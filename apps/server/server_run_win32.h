@@ -22,6 +22,7 @@
  */
 PAPACC_RESULT papacc_server_run_win32(
     PAPACC_SERVER_NETWORK *server_network,
+    const PAPACC_SERVER_CONFIG *server_config,
     FILE *output,
     FILE *error_output,
     const PAPACC_LOGGER *logger);

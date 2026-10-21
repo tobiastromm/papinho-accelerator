@@ -14,6 +14,22 @@ static PAPACC_RESULT validate_all_port(
     PAPACC_SERVER_CONFIG config;
     set_all(&config, port);
     config.allow_network_egress = allow_network_egress;
+    if (allow_network_egress == PAPACC_TRUE) {
+        config.listener_profile =
+            PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL;
+        config.security_configuration_ref_valid = PAPACC_TRUE;
+        config.security_configuration_ref_length = 1U;
+        config.security_configuration_ref[0] = 's';
+        config.egress_policy_ref_valid = PAPACC_TRUE;
+        config.egress_policy_ref_length = 1U;
+        config.egress_policy_ref[0] = 'p';
+        config.egress_profile_ref_valid = PAPACC_TRUE;
+        config.egress_profile_ref_length = 1U;
+        config.egress_profile_ref[0] = 'r';
+        config.outbound_tls_profile_ref_valid = PAPACC_TRUE;
+        config.outbound_tls_profile_ref_length = 1U;
+        config.outbound_tls_profile_ref[0] = 't';
+    }
     return papacc_server_config_validate(&config);
 }
 
@@ -23,6 +39,16 @@ static int test_initializer_and_all(void)
 
     if (config.control_port != 0 ||
         config.allow_network_egress != PAPACC_FALSE ||
+        config.listener_profile !=
+            PAPACC_SERVER_LISTENER_PROFILE_LEGACY_ENDPOINT ||
+        config.security_configuration_ref_valid != PAPACC_FALSE ||
+        config.security_configuration_ref_length != 0U ||
+        config.egress_policy_ref_valid != PAPACC_FALSE ||
+        config.egress_policy_ref_length != 0U ||
+        config.egress_profile_ref_valid != PAPACC_FALSE ||
+        config.egress_profile_ref_length != 0U ||
+        config.outbound_tls_profile_ref_valid != PAPACC_FALSE ||
+        config.outbound_tls_profile_ref_length != 0U ||
         config.bind_selection.mode != PAPACC_BIND_SELECTION_UNSPECIFIED ||
         config.bind_selection.interface_persistent_ids != NULL ||
         config.bind_selection.interface_persistent_id_count != 0) {
@@ -39,9 +65,35 @@ static int test_initializer_and_all(void)
         return 3;
     }
     config.allow_network_egress = PAPACC_TRUE;
-    if (papacc_server_config_validate(&config) != PAPACC_RESULT_OK) {
+    if (papacc_server_config_validate(&config) != PAPACC_RESULT_INVALID_STATE) {
         return 4;
     }
+    config.listener_profile = PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL;
+    if (papacc_server_config_validate(&config) !=
+            PAPACC_RESULT_INVALID_STATE)
+        return 5;
+    config.security_configuration_ref_valid = PAPACC_TRUE;
+    config.security_configuration_ref_length = 3U;
+    config.security_configuration_ref[0] = 'l';
+    config.security_configuration_ref[1] = 'a';
+    config.security_configuration_ref[2] = 'b';
+    config.egress_policy_ref_valid = PAPACC_TRUE;
+    config.egress_policy_ref_length = 3U;
+    config.egress_policy_ref[0] = 'l';
+    config.egress_policy_ref[1] = 'a';
+    config.egress_policy_ref[2] = 'b';
+    config.egress_profile_ref_valid = PAPACC_TRUE;
+    config.egress_profile_ref_length = 3U;
+    config.egress_profile_ref[0] = 'l';
+    config.egress_profile_ref[1] = 'a';
+    config.egress_profile_ref[2] = 'b';
+    config.outbound_tls_profile_ref_valid = PAPACC_TRUE;
+    config.outbound_tls_profile_ref_length = 3U;
+    config.outbound_tls_profile_ref[0] = 'l';
+    config.outbound_tls_profile_ref[1] = 'a';
+    config.outbound_tls_profile_ref[2] = 'b';
+    if (papacc_server_config_validate(&config) != PAPACC_RESULT_OK)
+        return 6;
     return 0;
 }
 

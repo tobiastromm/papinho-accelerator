@@ -1,0 +1,48 @@
+--- src/config/config_lst1.c
++++ src/config/config_lst1.c
+@@ -27,17 +27,11 @@
+   for(k=0;k<need;++k){if((p[i]&192U)!=128U)return 0;v=(v<<6)|(p[i++]&63U);}
+   if(v<min||v>1114111U||(v>=55296U&&v<=57343U)||v==65279U)return 0;
+  }return zero(p+n,64U-n);}
+-static PC_LST1_RESULT structural(const PAPACC_U8 *p,PAPACC_SIZE n)
++PC_LST1_RESULT pc_lst1_record_shape(const PAPACC_U8 *q,PAPACC_SIZE n)
+ {
+- unsigned count,i,j,flags,profile,admission,auth,binding,id,sec,ar,pol,ids,k;
+- const PAPACC_U8 *q,*previous;PAPACC_U64 r;int unsupported=0;
+- if(n<PC_LST1_HEADER||memcmp(p,"PACLST01",8)||u16(p+8)!=1U||u16(p+10)!=128U||
+-  u16(p+18)!=512U||u16(p+96)!=1U||!zero(p+98,30))return PC_LST1_INVALID;
+- count=u16(p+16);if(count>4U||n!=128U+512U*count||u32(p+12)!=n+32U)return PC_LST1_INVALID;
+- flags=u32(p+20);r=u64(p+56);
+- if((flags!=15U&&flags!=31U)||zero(p+24,32)||!r||!u64(p+64)||!u64(p+72)||
+-  u64(p+88)!=r-1U||((flags&16U)?!u64(p+80):!zero(p+80,8)))return PC_LST1_INVALID;
+- for(i=0;i<count;++i){q=p+128U+512U*i;flags=u32(q);profile=q[4];admission=q[5];binding=q[6];auth=q[7];
++ unsigned flags,profile,admission,binding,auth,id,sec,ar,pol,ids,j,k;int unsupported=0;
++ if(!span(q,n)||n!=512U)return PC_LST1_INVALID;
++ flags=u32(q);profile=q[4];admission=q[5];binding=q[6];auth=q[7];
+   id=u16(q+10);sec=u16(q+12);ar=u16(q+14);pol=u16(q+16);ids=u16(q+18);
+   if((flags&63U)!=63U||(flags&~255U)||(profile!=1U&&profile!=2U)||
+    (admission!=1U&&admission!=2U)||(binding!=1U&&binding!=2U)||auth>1U||!u16(q+8)||
+@@ -52,6 +46,23 @@
+    if(j>=ids){if(!zero(entry,16))return PC_LST1_INVALID;}
+    else {if(entry[0]!=1U||!zero(entry+1,7))return PC_LST1_INVALID;
+     for(k=0;k<j;++k)if(u64(entry+8)==u64(q+392U+16U*k))return PC_LST1_INVALID;}}
++ return unsupported?PC_LST1_UNSUPPORTED:PC_LST1_OK;
++}
++static PC_LST1_RESULT structural(const PAPACC_U8 *p,PAPACC_SIZE n)
++{
++ unsigned count,i,j,flags,id;
++ const PAPACC_U8 *q,*previous;PAPACC_U64 r;int unsupported=0;
++ if(n<PC_LST1_HEADER||memcmp(p,"PACLST01",8)||u16(p+8)!=1U||u16(p+10)!=128U||
++  u16(p+18)!=512U||u16(p+96)!=1U||!zero(p+98,30))return PC_LST1_INVALID;
++ count=u16(p+16);if(count>4U||n!=128U+512U*count||u32(p+12)!=n+32U)return PC_LST1_INVALID;
++ flags=u32(p+20);r=u64(p+56);
++ if((flags!=15U&&flags!=31U)||zero(p+24,32)||!r||!u64(p+64)||!u64(p+72)||
++  u64(p+88)!=r-1U||((flags&16U)?!u64(p+80):!zero(p+80,8)))return PC_LST1_INVALID;
++ for(i=0;i<count;++i){q=p+128U+512U*i;
++  {PC_LST1_RESULT shape=pc_lst1_record_shape(q,512U);
++   if(shape==PC_LST1_INVALID)return shape;
++   if(shape==PC_LST1_UNSUPPORTED)unsupported=1;}
++  id=u16(q+10);
+   for(j=0;j<i;++j){previous=p+128U+512U*j;
+    if(id==u16(previous+10)&&!memcmp(q+24,previous+24,id))return PC_LST1_INVALID;}
+  }

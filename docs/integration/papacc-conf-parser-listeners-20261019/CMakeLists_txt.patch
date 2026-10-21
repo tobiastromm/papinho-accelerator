@@ -1,0 +1,23 @@
+--- CMakeLists.txt (preimage)
++++ CMakeLists.txt (proposed)
+@@ -2648,3 +2648,20 @@
+     "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_commit_win32.h"
+     "${CMAKE_CURRENT_SOURCE_DIR}/src/issuer/issuer_codec.h"
+     "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_c8_private_storage_layout_win32.h")
++
++# Offline papacc.conf candidates only. Never linked into papacc_server.
++option(PAPACC_ENABLE_OFFLINE_CONFIG_SOURCE "Build bounded offline configuration source" OFF)
++if(PAPACC_ENABLE_OFFLINE_CONFIG_SOURCE)
++    add_library(papacc_config_source STATIC src/config/config_source.c)
++    target_include_directories(papacc_config_source PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/config)
++    set_target_properties(papacc_config_source PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++    papacc_enable_warnings(papacc_config_source)
++    if(BUILD_TESTING)
++        add_executable(papacc_config_source_test tests/config_source_test.c)
++        target_link_libraries(papacc_config_source_test PRIVATE papacc_config_source)
++        set_target_properties(papacc_config_source_test PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++        papacc_enable_warnings(papacc_config_source_test)
++        add_test(NAME papacc.config_source.offline COMMAND papacc_config_source_test
++            ${CMAKE_CURRENT_SOURCE_DIR}/docs/integration/squid-inspired-configuration-contract-20261019/papacc.conf)
++    endif()
++endif()

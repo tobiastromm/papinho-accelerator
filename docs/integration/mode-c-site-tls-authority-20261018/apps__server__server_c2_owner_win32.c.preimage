@@ -1,0 +1,858 @@
+#include "server_c2_owner_win32.h"
+#if defined(PAPACC_C8_SUPERVISED_DIAGNOSTIC)
+#include "server_launcher_owner_win32.h"
+#endif
+#include "pal_time.h"
+#include <string.h>
+#include <stdio.h>
+/* Diagnostic metadata only: no tokens, payloads or secret principals. */
+static void causal_observe(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 sid,PAPACC_U64 channel,const char*event,PAPACC_U16 type,PAPACC_U16 fact){
+ static PAPACC_U64 sequence;unsigned i;PAPACC_CHANNEL*c;PAPACC_SERVER_PROTOCOL_SLOT_WIN32*slot;char enabled[8];
+ if(GetEnvironmentVariableA("PAPACC_C2_RESET_CAUSAL_TRACE",enabled,sizeof(enabled))!=1U||enabled[0]!='1')return;
+ c=papacc_channel_manager_find_control(&o->loop->channel_manager,sid);slot=c?papacc_server_io_loop_win32_find_connection_slot(o->loop,c->connection_instance_id):NULL;
+ for(i=0;i<2U;++i){PAPACC_C2_OPERATION*r=&o->manager->operations[i];if(r->state==PAPACC_C2_OP_EMPTY||r->session==NULL||r->session->incarnation!=sid)continue;
+  fprintf(stderr,"S6_OWNER_CAUSAL sequence=%llu owner=%lu session=%llu control_connection=%llu channel=%llu operation=%llu generation=%llu event=%s type=%u incoming_fact=%u first_cause=%u session_state=%u operation_state=%u site_ready=%d tls_ready=%d revoked=%d app_channel=%llu record_channel=%llu control_payload_received=%lu control_header_received=%lu control_parser_payload=%lu control_buffered=%lu\n",(unsigned long long)++sequence,(unsigned long)o->manager->owner,(unsigned long long)sid,(unsigned long long)(c?c->connection_instance_id:0),(unsigned long long)channel,(unsigned long long)r->id,(unsigned long long)r->generation,event,type,fact,r->first_cause,(unsigned)r->session->state,(unsigned)r->state,r->site_ready,r->tls_ready_written,r->revoked,(unsigned long long)r->tokens.channels[0],(unsigned long long)r->tokens.channels[1],(unsigned long)(slot?slot->post_control_processor.c2_received:0),(unsigned long)(slot?slot->post_control_processor.reader.parser.header_bytes_received:0),(unsigned long)(slot?slot->post_control_processor.reader.parser.payload_bytes_received:0),(unsigned long)(slot?slot->post_control_processor.reader.buffered_length:0));
+ }
+}
+static int c7_stall(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_C2_OPERATION*r,unsigned flow){
+ if(!o->c7_stall_event||flow!=o->c7_stall_flow||!r->tls_ready_written||r->revoked)return 0;
+ if(o->c7_stall_operation==0U){o->c7_stall_operation=r->id;o->c7_stall_generation=r->generation;}
+ return o->c7_stall_operation==r->id&&o->c7_stall_generation==r->generation&&WaitForSingleObject(o->c7_stall_event,0U)!=WAIT_OBJECT_0;
+}
+static PAPACC_U64 owner_read64(const PAPACC_U8*p){PAPACC_U64 v=0;unsigned i;for(i=0;i<8U;++i)v=(v<<8)|p[i];return v;}
+static int valid(const PAPACC_SERVER_C2_OWNER_WIN32*o){return o!=NULL&&o->initialized&&o->loop!=NULL&&o->loop->initialized&&o->secure!=NULL&&o->secure->initialized&&o->secure->protocol_loop==o->loop&&o->secure->c2_finish_role_fn!=NULL&&o->manager!=NULL&&o->manager->initialized&&o->secure->owner_thread_id==(PAPACC_U32)GetCurrentThreadId()&&o->manager->owner==o->secure->owner_thread_id;}
+static int index_of(const PAPACC_SERVER_C2_OWNER_WIN32*o,const PAPACC_C2_OPERATION*r){unsigned i;for(i=0;i<2U;++i)if(&o->manager->operations[i]==r&&r->state!=PAPACC_C2_OP_EMPTY)return (int)i;return -1;}
+#include "server_c2_e10_observe.inc"
+static void observe(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_C2_OWNER_WRITE*w,PAPACC_C2_PUBLICATION_EVENT_KIND kind,PAPACC_SIZE n,PAPACC_RESULT result){PAPACC_C2_PUBLICATION_EVENT event;if(o->observer==NULL&&!o->e10.enabled)return;memset(&event,0,sizeof(event));event.kind=kind;event.connection=w->connection;event.operation=w->operation;event.generation=w->generation;event.type=w->type;event.accepted=n;event.result=result;
+ if(w->record&&w->record->session)event.session=w->record->session->incarnation;
+ if(w->type==22U&&w->length>=44U){
+  PAPACC_CHANNEL*channel=papacc_channel_manager_find_by_connection(&o->loop->channel_manager,w->connection);
+  if(channel)event.bind_channel=channel->channel_instance_id;
+  event.incoming_operation=owner_read64(w->bytes+16U);event.incoming_generation=owner_read64(w->bytes+24U);
+  event.incoming_role=w->bytes[32];event.incoming_direction=w->bytes[33];event.offset=owner_read64(w->bytes+36U);event.data_length=w->length-44U;
+  if(kind==PAPACC_C2_PUBLICATION_LOWER_ACCEPTED&&w->offset>=n)event.progress_prefix=(PAPACC_U64)(w->offset-n);
+ }
+ e10_snapshot(o,&event);if(event.e10_snapshot_valid){
+ e10_store(o,&event);
+ /* Fixed public fact mirrors are independent of event capacity. This is the
+  * actual completion observation, not authority or proof of a complete capture.
+  * Overflow stays incomplete; no observer failure may gate harness progress. */
+ if(kind==PAPACC_C2_PUBLICATION_FRAME_COMPLETE&&
+    !o->e10.busy&&w->record!=NULL&&(w->type==21U||w->type==27U)){
+  unsigned slot;for(slot=0U;slot<2U;++slot)if(w->record==&o->manager->operations[slot]){
+   PAPACC_C2_E10_PUBLICATION_FACT*f=w->type==21U?&o->e10.tls_ready_fact[slot]:&o->e10.final_fact[slot];
+   if(w->length>=16U&&w->length-16U<=sizeof(f->bytes)&&
+      ((w->type==21U&&w->length>=48U)||(w->type==27U&&w->length==92U))){
+    f->sequence=o->e10.overflow?0U:event.sequence;f->connection=event.connection;f->operation=event.operation;f->generation=event.generation;
+    f->length=w->length-16U;memcpy(f->bytes,w->bytes+16U,f->length);f->valid=PAPACC_TRUE;
+   }
+  }
+ }
+}if(o->observer!=NULL&&!o->e10.enabled)o->observer(o->observer_context,&event);}
+static PAPACC_CHANNEL *channel_for(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 connection){PAPACC_CHANNEL*c=papacc_channel_manager_find_by_connection(&o->loop->channel_manager,connection);return c!=NULL&&c->state==PAPACC_CHANNEL_STATE_BOUND?c:NULL;}
+static int authority(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_C2_OWNER_WRITE*w){PAPACC_C2_OPERATION*r=w->record;PAPACC_CHANNEL*c;PAPACC_CONNECTION*connection;
+ if(!valid(o)||o->secure->stop_state==PAPACC_SERVER_SECURE_STOP_ERROR_TERMINAL)return 0;
+ if(r==NULL){PAPACC_C2_SESSION*s=w->denial_session;c=channel_for(o,w->connection);connection=papacc_connection_manager_find(o->loop->connection_manager,w->connection);return w->type==17U&&s!=NULL&&c!=NULL&&c->role==PAPACC_CHANNEL_ROLE_CONTROL&&c->session_instance_id==s->incarnation&&connection!=NULL&&connection->state==PAPACC_CONNECTION_STATE_ASSOCIATED&&papacc_c2_session_authorized(s,o->manager->owner,s->incarnation,s->principal,s->policy_epoch);}
+ if(index_of(o,r)<0||r->id!=w->operation||r->generation!=w->generation||r->session==NULL)return 0;
+ c=channel_for(o,w->connection);connection=papacc_connection_manager_find(o->loop->connection_manager,w->connection);
+ if(c==NULL||connection==NULL||connection->state!=PAPACC_CONNECTION_STATE_ASSOCIATED||c->session_instance_id!=r->session->incarnation)return 0;
+ if(w->type==27U){PAPACC_U8 payload[76];if(c->role!=PAPACC_CHANNEL_ROLE_CONTROL||r->final_written||(r->final_queued&&!w->pending))return 0;return papacc_c2_operation_final_payload(o->manager,r,payload)==0;}
+ if(w->type==26U&&w->length!=0U){const PAPACC_U8*p=w->bytes+16;return c->role==PAPACC_CHANNEL_ROLE_CONTROL&&p[1]==2U&&p[3]==r->first_cause&&r->first_cause>=1U&&r->first_cause<=3U&&owner_read64(p+16)==r->id&&owner_read64(p+24)==r->generation&&owner_read64(p+32)==r->epoch;}
+ if(!papacc_c2_operation_authorized(o->manager,r)||r->state==PAPACC_C2_OP_RETAINED)return 0;
+ if(w->type==17U||w->type==21U||w->type==26U)return c->role==PAPACC_CHANNEL_ROLE_CONTROL;
+ if(c->role!=PAPACC_CHANNEL_ROLE_DATA)return 0;
+ if(w->length!=0U){const PAPACC_U8*p=w->bytes+16;unsigned role=w->type==19U?p[24]:p[16],flow;
+  if(role<1U||role>2U||r->tokens.channels[role-1U]!=c->channel_instance_id)return 0;
+  if(w->type==19U)return r->state==PAPACC_C2_OP_RESERVED&&r->tokens.claimed[role-1U]&&!r->tokens.ack_written[role-1U];
+  flow=(role-1U)*2U+p[17];
+  if(w->type==22U){PAPACC_SIZE amount=w->length-44U;return r->site_ready&&(role==2U||r->tls_ready_written)&&!r->flow[flow].sealed&&owner_read64(p+20)==r->flow[flow].submitted&&amount<=r->flow[flow].size&&memcmp(p+28,r->flow[flow].bytes,amount)==0;}
+  if(w->type==24U)return r->flow[flow].fence_received&&!r->flow[flow].ack_written&&r->flow[flow].accepted==owner_read64(p+20)&&r->flow[flow].accepted==r->flow[flow].fence&&r->flow[flow].size==0U;
+  if(w->type==23U){PAPACC_C3_BRIDGE*b=o->bridges[index_of(o,r)];if(b==NULL||b->retained||r->flow[flow].fence_written||r->flow[flow].size||owner_read64(p+20)!=r->flow[flow].submitted)return 0;return role==1U?b->tls_complete:(b->child_destroyed&&b->ab_eof&&b->ab.size==0U&&b->ab.received==b->ab.accepted);}
+ }
+ return (r->tokens.channels[0]==c->channel_instance_id||r->tokens.channels[1]==c->channel_instance_id);
+}
+static void retire_write(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_C2_OWNER_WRITE*w){PAPACC_C2_OPERATION*r=w->record;
+ if(w->secret_borrow)(void)papacc_c2_tokens_quiescent(&r->tokens,o->manager->owner);
+ if(r!=NULL&&r->callbacks!=0U)--r->callbacks;SecureZeroMemory(w,sizeof(*w));
+}
+PAPACC_RESULT papacc_server_c2_owner_win32_install(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_SECURE_IO_WIN32*s,PAPACC_C2_OPERATION_MANAGER*m){
+ if(o==NULL||l==NULL||s==NULL||m==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ /* Administrative apply is not attachment permission. Preserve its leases;
+  * the old installer must not memset an applied/retained configuration. */
+ if(o->configuration.state!=PAPACC_C2_CONFIG_EMPTY)return PAPACC_RESULT_NOT_SUPPORTED;
+#endif
+ if(o->initialized||!l->initialized||!s->initialized||s->protocol_loop!=l||!m->initialized||s->owner_thread_id!=(PAPACC_U32)GetCurrentThreadId()||m->owner!=s->owner_thread_id||l->c2_owner!=NULL)return PAPACC_RESULT_INVALID_STATE;
+ {PAPACC_RESULT partition=papacc_pst_secure_scheduler_enable_partition(&s->scheduler);if(partition!=PAPACC_RESULT_OK)return partition;}
+ memset(o,0,sizeof(*o));o->loop=l;o->secure=s;o->manager=m;o->initialized=PAPACC_TRUE;o->wake_credits=8U;l->c2_owner=o;
+ {PAPACC_CAPABILITY_KEY key={3U,1U};PAPACC_RESULT result=papacc_capability_registry_register(&l->capability_registry,&key,"MODE_C_OPERATION");if(result==0)result=papacc_capability_set_insert(&l->supported_capabilities,&key);if(result==0)result=papacc_capability_set_insert(&l->enabled_capabilities,&key);if(result!=0){l->c2_owner=NULL;o->initialized=PAPACC_FALSE;return result;}}
+ return PAPACC_RESULT_OK;
+}
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+PAPACC_RESULT papacc_server_c2_owner_win32_attach_closed(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_SECURE_IO_WIN32*s)
+{
+ PAPACC_RESULT result;
+ if(!o||!l||!s||papacc_server_c2_configuration_validate(o)!=PAPACC_RESULT_OK||
+    o->configuration.state!=PAPACC_C2_CONFIG_CURRENT||!o->configuration.epoch||o->configuration.io_attached||
+    !l->initialized||l->acceptor!=NULL||l->c2_owner||!s->initialized||s->protocol_loop!=l||
+    !s->c2_finish_role_fn||s->security_composition!=o->configuration.secure_lease||
+    s->owner_thread_id!=GetCurrentThreadId()||!s->scheduler.initialized)return PAPACC_RESULT_INVALID_STATE;
+ result=papacc_pst_secure_scheduler_enable_partition(&s->scheduler);if(result!=PAPACC_RESULT_OK)return result;
+ o->loop=l;o->secure=s;o->wake_credits=8U;o->initialized=PAPACC_TRUE;l->c2_owner=o;o->configuration.io_attached=PAPACC_TRUE;
+ return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_server_c2_owner_win32_detach_closed(PAPACC_SERVER_C2_OWNER_WIN32*o)
+{
+ if(!o||!o->configuration.io_attached||!o->loop||!o->secure||o->loop->acceptor||
+    o->configuration.state!=PAPACC_C2_CONFIG_CURRENT||papacc_server_c2_owner_win32_has_dependencies(o))return PAPACC_RESULT_INVALID_STATE;
+ if(o->secure->initialized||o->secure->scheduler.initialized)return PAPACC_RESULT_INVALID_STATE;
+ o->loop->c2_owner=NULL;o->loop=NULL;o->secure=NULL;o->initialized=PAPACC_FALSE;o->configuration.io_attached=PAPACC_FALSE;
+ return PAPACC_RESULT_OK;
+}
+#endif
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+PAPACC_RESULT papacc_server_c2_owner_win32_wire_control(PAPACC_SERVER_C2_OWNER_WIN32 *o,PAPACC_POST_CONTROL_PROCESSOR *p)
+{
+ if(p==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+ /* Even missing ownership cannot fall back to the generic ALLOW callback. */
+ p->capability_inputs.principal_policy=papacc_server_c2_owner_win32_capability_policy;
+ p->capability_inputs.principal_policy_context=p;p->c2_control=NULL;p->c2_context=NULL;
+ if(!valid(o))return PAPACC_RESULT_INVALID_STATE;
+ p->c2_control=papacc_server_c2_owner_win32_control;p->c2_context=o;return PAPACC_RESULT_OK;
+}
+#endif
+PAPACC_RESULT papacc_server_c2_owner_win32_queue(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_C2_OPERATION*r,PAPACC_U64 generation,PAPACC_U64 connection,PAPACC_U16 type,const PAPACC_U8*p,PAPACC_SIZE n){PAPACC_C2_OWNER_WRITE candidate,*w=NULL;PAPACC_CHANNEL*c;PAPACC_C2_CHANNEL role;unsigned i;PAPACC_RESULT result;
+ if(!valid(o)||index_of(o,r)<0)return PAPACC_RESULT_INVALID_STATE;
+ memset(&candidate,0,sizeof(candidate));candidate.connection=connection;candidate.operation=r->id;candidate.generation=generation;candidate.type=type;candidate.record=r;
+ observe(o,&candidate,PAPACC_C2_PUBLICATION_ATTEMPT,0,0);
+ if(!authority(o,&candidate)){observe(o,&candidate,PAPACC_C2_PUBLICATION_REJECTED,0,PAPACC_RESULT_INVALID_STATE);return PAPACC_RESULT_INVALID_STATE;}
+ for(i=0;i<6U;++i){if((o->writes[i].pending||o->writes[i].quarantined)&&o->writes[i].connection==connection)return PAPACC_RESULT_INVALID_STATE;if(!o->writes[i].pending&&!o->writes[i].quarantined)w=&o->writes[i];}
+ if(w==NULL||r->callbacks>=16U)return PAPACC_RESULT_LIMIT_EXCEEDED;
+ c=channel_for(o,connection);role=c->role==PAPACC_CHANNEL_ROLE_CONTROL?PAPACC_C2_CONTROL:PAPACC_C2_ROLE_CHANNEL;
+ result=papacc_c2_encode_frame(type,p,n,role,PAPACC_C2_ACCELERATOR,candidate.bytes,sizeof(candidate.bytes),&candidate.length);if(result!=0)return result;
+ if(!authority(o,&candidate)){observe(o,&candidate,PAPACC_C2_PUBLICATION_REJECTED,0,PAPACC_RESULT_INVALID_STATE);SecureZeroMemory(&candidate,sizeof(candidate));return PAPACC_RESULT_INVALID_STATE;}
+ if(type==17U&&(r->tokens.grant_written||n!=108U||memcmp(p,r->result,108)!=0)){SecureZeroMemory(&candidate,sizeof(candidate));return PAPACC_RESULT_INVALID_STATE;}
+ if(type==21U){int bi=index_of(o,r);PAPACC_C3_BRIDGE*b=o->bridges[bi];if(b==NULL||!b->tls_verified||r->state!=PAPACC_C2_OP_HANDSHAKE||memcmp(p,r->tokens.identity,24)!=0||n!=32U+b->selected_alpn_size||memcmp(p+32,b->selected_alpn,b->selected_alpn_size)!=0){SecureZeroMemory(&candidate,sizeof(candidate));return PAPACC_RESULT_INVALID_STATE;}r->tls_fact=1U;}
+ if(type!=17U&&type!=27U&&type!=26U&&memcmp(p,r->tokens.identity,type==22U||type==23U||type==24U||type==25U?16U:24U)!=0){SecureZeroMemory(&candidate,sizeof(candidate));return PAPACC_RESULT_INVALID_STATE;}
+ if(type==27U){PAPACC_U8 final[76];if(papacc_c2_operation_final_payload(o->manager,r,final)!=0||memcmp(p,final,76)!=0){SecureZeroMemory(&candidate,sizeof(candidate));return PAPACC_RESULT_INVALID_STATE;}}
+
+ if(type==17U){result=papacc_c2_tokens_borrow(&r->tokens,o->manager->owner);if(result!=0){SecureZeroMemory(&candidate,sizeof(candidate));return result;}candidate.secret_borrow=PAPACC_TRUE;}
+ if(type==17U)o->control_connections[index_of(o,r)]=connection;
+ candidate.pending=PAPACC_TRUE;if(type==27U)r->final_queued=PAPACC_TRUE;++r->callbacks;*w=candidate;SecureZeroMemory(&candidate,sizeof(candidate));observe(o,w,PAPACC_C2_PUBLICATION_AUTHORIZED,0,0);return PAPACC_RESULT_OK;
+}
+#include "server_c2_owner_step_win32.inc"
+PAPACC_RESULT papacc_server_c2_owner_win32_bind_bridge(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_C2_OPERATION*r,PAPACC_C3_BRIDGE*b){int i;
+ if(!valid(o)||(i=index_of(o,r))<0||b==NULL||!b->initialized||b->owner_thread!=o->secure->owner_thread_id||b->operation!=r->id||b->generation!=r->generation||b->scheduler!=&o->secure->scheduler||o->bridges[i]!=NULL)return PAPACC_RESULT_INVALID_STATE;
+ {PAPACC_SIZE original=((PAPACC_SIZE)r->open[24]<<8)|r->open[25],canonical=((PAPACC_SIZE)r->open[26]<<8)|r->open[27],alpn=((PAPACC_SIZE)r->open[34]<<8)|r->open[35];
+  if(o->secure->dispatch_active||b->processor.connection==NULL||b->expected_name_size!=canonical||memcmp(b->expected_name,r->open+40+original,canonical)!=0||b->alpn_offer_bytes!=alpn||memcmp(b->alpn_offers,r->open+40+original+canonical,alpn)!=0||(r->open[32]!=0U&&!b->require_alpn))return PAPACC_RESULT_INVALID_STATE;
+ }
+ o->bridges[i]=b;r->resources_created=PAPACC_TRUE;return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_server_c2_owner_win32_stop(PAPACC_SERVER_C2_OWNER_WIN32*o){unsigned i;PAPACC_RESULT result,first=0;if(!valid(o))return PAPACC_RESULT_INVALID_STATE;
+ result=papacc_c2_operation_stop(o->manager);e10_boundary(o,NULL,0U,PAPACC_C2_E10_STOP_RETURN,0U,result,NULL,0U);if(result!=0)return result;
+ if(o->secure->dispatch_active)return PAPACC_RESULT_OK; /* Logical revoke only; defer native membership/release until dispatch quiescence. */
+ for(i=0;i<2U;++i){PAPACC_C3_BRIDGE*b=o->bridges[i];PAPACC_C2_OPERATION*r=&o->manager->operations[i];if(b==NULL)continue;
+  if(!b->retained&&!b->child_destroyed&&!o->child_release_attempted[i]){(void)papacc_c3_bridge_revoke(b);o->child_release_attempted[i]=PAPACC_TRUE;result=papacc_c3_bridge_release_child(b);e10_boundary(o,r,0U,PAPACC_C2_E10_RELEASE_RETURN,0U,result,NULL,0U);if(result!=0&&first==0)first=result;}
+  if(b->retained){r->ownership=3;r->state=PAPACC_C2_OP_RETAINED;(void)papacc_c2_tokens_revoke(&r->tokens,o->manager->owner,PAPACC_TRUE);o->secure->stop_state=PAPACC_SERVER_SECURE_STOP_ERROR_TERMINAL;if(o->secure->stop_last_remove_result==0)o->secure->stop_last_remove_result=PAPACC_RESULT_INTERNAL_ERROR;first=o->secure->stop_last_remove_result;}
+ }
+ return first;
+}
+PAPACC_BOOL papacc_server_c2_owner_win32_has_dependencies(const PAPACC_SERVER_C2_OWNER_WIN32*o){unsigned i;if(o==NULL||!o->initialized)return PAPACC_FALSE;
+ for(i=0;i<2U;++i){const PAPACC_C2_OPERATION *r=&o->manager->operations[i];
+  if(r->state!=PAPACC_C2_OP_EMPTY&&!(r->state==PAPACC_C2_OP_RELEASED&&
+   r->cleanup_confirmed&&r->ownership==1U&&(r->final_written||r->summary_unavailable)&&
+   r->callbacks==0U&&r->tokens.borrowers==0U))return PAPACC_TRUE;
+ }
+ for(i=0;i<6U;++i)if(o->writes[i].pending||o->writes[i].quarantined)return PAPACC_TRUE;
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ for(i=0U;i<4U;++i)if(o->sessions[i].initialized)return PAPACC_TRUE;
+#endif
+ return PAPACC_FALSE;
+}
+
+static PAPACC_RESULT owner_reap_completed(PAPACC_SERVER_C2_OWNER_WIN32 *o);
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+/* Quiescent operation metadata collection precedes Session retirement. Neither
+ * collector consumes readiness, calls PST/native close, clears a live operation,
+ * nor resolves retention. No new OPEN is required. */
+/* Metadata retirement only. Never consumes readiness, calls PST, closes a
+ * transport, clears a live operation, or resolves a Model E retention. */
+PAPACC_RESULT papacc_server_c2_owner_win32_retire_sessions(PAPACC_SERVER_C2_OWNER_WIN32 *o)
+{
+ PAPACC_SIZE i,j;PAPACC_RESULT result;
+ if(!valid(o)||o->secure->dispatch_active||!o->loop->session_manager.initialized||
+    !o->loop->channel_manager.initialized||o->configuration.state==PAPACC_C2_CONFIG_RETAINED||
+    o->secure->stop_state==PAPACC_SERVER_SECURE_STOP_ERROR_TERMINAL)return PAPACC_RESULT_INVALID_STATE;
+ result=owner_reap_completed(o);if(result!=PAPACC_RESULT_OK)return result;
+ for(i=0U;i<4U;++i){PAPACC_C2_SESSION *s=&o->sessions[i];int borrowed=0;
+  if(!s->initialized||s->state!=PAPACC_C2_SESSION_REVOKED||!s->incarnation||
+     papacc_session_manager_find(&o->loop->session_manager,s->incarnation))continue;
+  if(s->control_connection&&papacc_connection_manager_find(o->loop->connection_manager,s->control_connection))borrowed=1;
+  /* Even stale references in an EMPTY record block reuse until that record's
+   * governed cleanup has cleared them. Includes callbacks/token borrowers. */
+  for(j=0U;j<2U;++j)if(o->manager->operations[j].session==s)borrowed=1;
+  for(j=0U;j<6U;++j)if(o->writes[j].denial_session==s||
+    (o->writes[j].record&&o->writes[j].record->session==s))borrowed=1;
+  for(j=0U;j<o->loop->channel_manager.capacity;++j)
+   if(o->loop->channel_manager.storage[j].state!=PAPACC_CHANNEL_STATE_UNINITIALIZED&&
+      o->loop->channel_manager.storage[j].session_instance_id==s->incarnation)borrowed=1;
+  for(j=0U;j<o->loop->processor_capacity;++j){PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *p=&o->loop->processor_slots[j];
+   if(p->in_use&&((s->control_connection&&p->connection_instance_id==s->control_connection)||
+      (p->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL&&p->post_control_processor.session_instance_id==s->incarnation)))borrowed=1;
+  }
+  for(j=0U;j<o->secure->candidate_capacity;++j){PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c=&o->secure->candidates[j];
+   if(c->control_close_result.session_instance_id==s->incarnation||
+      (s->control_connection&&c->connection_instance_id==s->control_connection)){
+    if(c->state!=PAPACC_SERVER_SECURE_CANDIDATE_CLOSED||c->secure_processor.connection||
+       c->secure_processor.state==PAPACC_PST_SECURE_PROCESSOR_RETAINED_TERMINAL||
+       c->session_security.published||c->transport_adapter.registered||
+       papacc_connection_manager_find(o->loop->connection_manager,c->connection_instance_id))borrowed=1;
+   }
+  }
+  if(borrowed)continue;
+  for(j=0U;j<4U;++j)if(o->manager->sessions[j].session==s)
+   SecureZeroMemory(&o->manager->sessions[j],sizeof(o->manager->sessions[j]));
+  /* Native ID allocator and operation ID/generation counters are untouched.
+   * Only terminal, unreferenced logical metadata becomes reusable storage. */
+  SecureZeroMemory(s,sizeof(*s));
+ }
+ return PAPACC_RESULT_OK;
+}
+#endif
+
+#ifndef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+static PAPACC_RESULT owner_reap_retired_sessions(PAPACC_SERVER_C2_OWNER_WIN32 *o){
+ unsigned i,j;PAPACC_RESULT result=owner_reap_completed(o);if(result!=0)return result;
+ for(i=0;i<4U;++i){PAPACC_C2_SESSION*s=&o->sessions[i];PAPACC_BOOL borrowed=PAPACC_FALSE;
+  if(!s->initialized||s->state!=PAPACC_C2_SESSION_REVOKED||papacc_session_manager_find(&o->loop->session_manager,s->incarnation)!=NULL)continue;
+  for(j=0;j<2U;++j)if(o->manager->operations[j].state!=PAPACC_C2_OP_EMPTY&&o->manager->operations[j].session==s)borrowed=PAPACC_TRUE;
+  for(j=0;j<6U;++j)if((o->writes[j].pending||o->writes[j].quarantined)&&(o->writes[j].denial_session==s||(o->writes[j].record!=NULL&&o->writes[j].record->session==s)))borrowed=PAPACC_TRUE;
+  for(j=0;j<o->secure->candidate_capacity;++j){PAPACC_SERVER_SECURE_CANDIDATE_WIN32*c=&o->secure->candidates[j];
+   if(c->control_close_result.session_instance_id==s->incarnation&&(c->state!=PAPACC_SERVER_SECURE_CANDIDATE_CLOSED||c->secure_processor.connection!=NULL||c->session_security.published))borrowed=PAPACC_TRUE;
+  }
+  if(borrowed)continue;
+  for(j=0;j<4U;++j)if(o->manager->sessions[j].session==s)SecureZeroMemory(&o->manager->sessions[j],sizeof(o->manager->sessions[j]));
+  /* Native Session is gone; all operation generations/writes quiescent.
+   * Only logical metadata is retired. No PST call, close or ID reset here. */
+  if(o->observer!=NULL)fprintf(stderr,"ED11_C2_SESSION_METADATA_REAP incarnation=%llu native_session_absent=1 operation_refs=0 writer_refs=0 operation_id_counter=%llu\n",(unsigned long long)s->incarnation,(unsigned long long)o->manager->next_operation);
+  SecureZeroMemory(s,sizeof(*s));
+ }
+ return PAPACC_RESULT_OK;
+}
+#endif
+PAPACC_RESULT papacc_server_c2_owner_win32_adopt_session(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 connection){
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ /* The fixed root boundary consumes factual provenance only. Never enter
+  * the historical slot/epoch1/local-negotiation factory in private C8. */
+ return papacc_server_launcher_c2_adopt(o,connection);
+#else
+ PAPACC_SERVER_PROTOCOL_SLOT_WIN32*slot;PAPACC_SESSION_CAPABILITY_SNAPSHOT*snapshot;PAPACC_SERVER_SECURE_CANDIDATE_WIN32*candidate=NULL;PAPACC_C2_SESSION*session=NULL;PAPACC_CAPABILITY_KEY key={3U,1U};PAPACC_U8 result[14];PAPACC_SIZE n,i;PAPACC_RESULT r;
+ static const PAPACC_U8 offer[28]={0,2,0,2,0,0,0,2,0,1,0,0,0,3,0,1,0,0,0,2,0,1,0,0,0,3,0,1};
+ if(!valid(o))return PAPACC_RESULT_INVALID_STATE;r=owner_reap_retired_sessions(o);if(r!=0)return r;slot=papacc_server_io_loop_win32_find_connection_slot(o->loop,connection);
+ if(slot==NULL||slot->kind!=PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL||slot->post_control_processor.state!=PAPACC_POST_CONTROL_PROCESSOR_STATE_READY)return PAPACC_RESULT_INVALID_STATE;
+ snapshot=papacc_session_capability_store_find(&o->loop->capability_store,slot->post_control_processor.session_instance_id);
+ if(snapshot==NULL||!papacc_session_capability_snapshot_contains(snapshot,&key))return PAPACC_RESULT_OK;
+ if(!papacc_session_capability_snapshot_contains(snapshot,&PAPACC_CAPABILITY_TLS_OFFLOAD_V1))return PAPACC_RESULT_PROTOCOL_ERROR;
+ for(i=0;i<o->secure->candidate_capacity;++i)if(o->secure->candidates[i].connection_instance_id==connection&&o->secure->candidates[i].state==PAPACC_SERVER_SECURE_CANDIDATE_PROTOCOL)candidate=&o->secure->candidates[i];
+ if(candidate==NULL||!candidate->session_security.published||!candidate->session_security.principal.valid||candidate->connection_security.state!=PAPACC_SECURITY_CONTEXT_AUTHORIZED)return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<4U;++i){if(o->sessions[i].initialized&&o->sessions[i].incarnation==snapshot->session_instance_id)return PAPACC_RESULT_INVALID_STATE;if(!o->sessions[i].initialized)session=&o->sessions[i];}
+ if(session==NULL)return PAPACC_RESULT_LIMIT_EXCEEDED;
+ r=papacc_c2_session_init(session,o->manager->owner,snapshot->session_instance_id,(PAPACC_U64)(session-o->sessions)+1U,1U,1U,PAPACC_TRUE,PAPACC_TRUE,PAPACC_FALSE);
+ if(r==0)r=papacc_c2_server_negotiate(session,o->manager->owner,offer,28,result,sizeof(result),&n);
+ if(r==0)r=papacc_c2_server_result_written(session,o->manager->owner,PAPACC_TRUE,1U);
+ if(r==0)r=papacc_c2_operation_session_attach(o->manager,session,&candidate->session_security.principal);if(r==0)slot->post_control_processor.reader.parser.max_payload_length=803U;return r;
+#endif
+}
+
+PAPACC_BOOL papacc_server_c2_owner_win32_wants_write(const PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 connection){unsigned i;if(o==NULL||!o->initialized)return PAPACC_FALSE;for(i=0;i<6U;++i)if(o->writes[i].pending&&o->writes[i].connection==connection)return PAPACC_TRUE;return PAPACC_FALSE;}
+static PAPACC_RESULT denial(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_C2_SESSION*s,PAPACC_U64 connection,const PAPACC_U8*p){unsigned i;PAPACC_C2_OWNER_WRITE*w=NULL;PAPACC_RESULT result;
+ if(papacc_server_c2_owner_win32_wants_write(o,connection))return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<6U;++i)if(!o->writes[i].pending&&!o->writes[i].quarantined)w=&o->writes[i];if(w==NULL)return PAPACC_RESULT_LIMIT_EXCEEDED;
+ memset(w,0,sizeof(*w));w->connection=connection;w->type=17;w->denial_session=s;
+ result=papacc_c2_encode_frame(17,p,108,PAPACC_C2_CONTROL,PAPACC_C2_ACCELERATOR,w->bytes,sizeof(w->bytes),&w->length);
+ if(result!=0||!authority(o,w)){SecureZeroMemory(w,sizeof(*w));return result==0?PAPACC_RESULT_INVALID_STATE:result;}w->pending=PAPACC_TRUE;return PAPACC_RESULT_OK;
+}
+
+static PAPACC_RESULT owner_reap_completed(PAPACC_SERVER_C2_OWNER_WIN32 *o)
+{
+ unsigned i;PAPACC_RESULT result;PAPACC_C2_PUBLICATION_EVENT retired;
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ if(!valid(o)||o->secure->dispatch_active||o->configuration.state==PAPACC_C2_CONFIG_RETAINED||
+    o->secure->stop_state==PAPACC_SERVER_SECURE_STOP_ERROR_TERMINAL)return PAPACC_RESULT_INVALID_STATE;
+#endif
+ for(i=0;i<2U;++i){PAPACC_C2_OPERATION *r=&o->manager->operations[i];PAPACC_C3_BRIDGE *b=o->bridges[i];
+  if(r->state!=PAPACC_C2_OP_RELEASED||!r->cleanup_confirmed||r->callbacks||r->tokens.borrowers)continue;
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+  /* Validate every release_slot condition before resetting any bridge. A
+   * finished summary, retained ownership and outstanding writers are distinct. */
+  {unsigned j;int borrowed=0;
+   if(r->ownership!=1U||!r->revoked||(!r->final_written&&!r->summary_unavailable))continue;
+   for(j=0U;j<6U;++j)if(o->writes[j].record==r)borrowed=1;
+   if(borrowed)continue;
+   if(b!=NULL&&(b->retained||!b->child_acquired||!b->child_destroyed||
+      b->release_info.disposition!=PST_RELEASE_DISPOSITION_DESTROYED||
+      b->owner_thread!=GetCurrentThreadId()||!b->initialized||
+      b->processor.connection||b->connection||b->registered||b->adapter.registered||
+      b->peer_registered||b->peer_source||b->peer!=INVALID_SOCKET||
+      b->setup_connector!=INVALID_SOCKET||b->setup_listener!=INVALID_SOCKET))continue;
+  }
+#endif
+  memset(&retired,0,sizeof(retired));retired.operation=r->id;retired.generation=r->generation;e10_snapshot(o,&retired);
+  e10_boundary(o,r,0U,PAPACC_C2_E10_HISTORY_RETIRING,0U,0,NULL,0U);
+  if(b!=NULL){result=papacc_c3_bridge_reset_destroyed(b);if(result!=0)return result;}
+  result=papacc_c2_operation_release_slot(o->manager,r);if(result!=0)return result;
+  if(retired.e10_snapshot_valid){retired.kind=PAPACC_C2_E10_HISTORY_RETIRED;e10_store(o,&retired);o->e10.retired_operation[i]=retired.operation;o->e10.retired_generation[i]=retired.generation;}
+  o->bridges[i]=NULL;o->child_release_attempted[i]=PAPACC_FALSE;
+  o->child_ready_pending[i]=o->peer_ready_pending[i]=PAPACC_FALSE;o->control_connections[i]=0;
+ }
+ return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_server_c2_owner_win32_control(void*context,PAPACC_U64 sid,PAPACC_U16 type,const PAPACC_U8*p,PAPACC_SIZE n,PAPACC_BOOL header){PAPACC_SERVER_C2_OWNER_WIN32*o=(PAPACC_SERVER_C2_OWNER_WIN32*)context;PAPACC_C2_SESSION*s=NULL;PAPACC_C2_OPERATION*r=NULL;PAPACC_CHANNEL*channel;PAPACC_U8 response[108];PAPACC_RESULT result;unsigned i;
+ if(!valid(o))return PAPACC_RESULT_INVALID_STATE;for(i=0;i<4U;++i)if(o->sessions[i].initialized&&o->sessions[i].incarnation==sid)s=&o->sessions[i];
+ channel=papacc_channel_manager_find_control(&o->loop->channel_manager,sid);
+ if(s==NULL||channel==NULL||channel->state!=PAPACC_CHANNEL_STATE_BOUND||!papacc_c2_session_authorized(s,o->manager->owner,s->incarnation,s->principal,s->policy_epoch))return PAPACC_RESULT_PROTOCOL_ERROR;
+ causal_observe(o,sid,0,header?"CONTROL_HEADER_VALIDATED":"CONTROL_FULL_PAYLOAD_DISPATCH",type,0);
+ if(header)return PAPACC_RESULT_OK;
+#if defined(PAPACC_C8_SUPERVISED_DIAGNOSTIC)
+ if(type==16U&&papacc_server_launcher_supervision_control_only(o->secure))return PAPACC_RESULT_PROTOCOL_ERROR;
+#endif
+ if(type==16U){
+#ifndef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ result=owner_reap_completed(o);if(result!=0)return result;
+#endif
+ result=papacc_c2_operation_open(o->manager,s,p,n,response,&r);if(result==0)result=r==NULL?denial(o,s,channel->connection_instance_id,response):papacc_server_c2_owner_win32_queue(o,r,r->generation,channel->connection_instance_id,17U,response,108U);SecureZeroMemory(response,sizeof(response));return result;}
+ if(type==26U){e10_boundary(o,NULL,channel->connection_instance_id,PAPACC_C2_E10_CONTROL_BEFORE,type,0,p,n);result=papacc_c2_operation_cancel(o->manager,s,p,n);e10_boundary(o,NULL,channel->connection_instance_id,PAPACC_C2_E10_CONTROL_RETURN,type,result,p,n);causal_observe(o,sid,0,"CANCEL_RETURN",type,n==40U?p[3]:0U);return result;}
+ if(type==20U){
+  for(i=0;i<2U;++i)if(o->manager->operations[i].state!=PAPACC_C2_OP_EMPTY&&o->manager->operations[i].session==s)r=&o->manager->operations[i];
+  if(r==NULL)return PAPACC_RESULT_PROTOCOL_ERROR;
+  result=papacc_c2_operation_site_ready(o->manager,r,p,n);
+  if(result!=PAPACC_RESULT_OK){
+   /* External identity/state rejection is a CONTROL protocol violation. Do not
+    * leave its operation live until a later deadline masks the first cause. */
+   (void)papacc_c2_operation_revoke(o->manager,r,11U);
+   return result==PAPACC_RESULT_INVALID_STATE?PAPACC_RESULT_PROTOCOL_ERROR:result;
+  }
+  causal_observe(o,sid,0,"SITE_READY_ACCEPTED",type,0);
+  return PAPACC_RESULT_OK;
+ }
+ return PAPACC_RESULT_PROTOCOL_ERROR;
+}
+PAPACC_RESULT papacc_server_c2_owner_win32_session_lost(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 sid,PAPACC_U16 fact){unsigned i;if(!valid(o))return PAPACC_RESULT_INVALID_STATE;
+ causal_observe(o,sid,0,"SESSION_LOSS_BEFORE",0,fact);
+ for(i=0;i<2U;++i){PAPACC_C2_OPERATION*r=&o->manager->operations[i];if(r->state!=PAPACC_C2_OP_EMPTY&&r->session->incarnation==sid)(void)papacc_c2_operation_revoke(o->manager,r,fact);}
+ causal_observe(o,sid,0,"SESSION_LOSS_AFTER_REVOKE",0,fact);
+ for(i=0;i<4U;++i)if(o->sessions[i].initialized&&o->sessions[i].incarnation==sid)(void)papacc_c2_session_revoke(&o->sessions[i],o->manager->owner,PAPACC_FALSE);return PAPACC_RESULT_OK;
+}
+
+PAPACC_BOOL papacc_server_c2_owner_win32_has_session(const PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 sid){unsigned i;if(o==NULL||!o->initialized)return PAPACC_FALSE;for(i=0;i<4U;++i)if(o->sessions[i].initialized&&o->sessions[i].incarnation==sid)return PAPACC_TRUE;return PAPACC_FALSE;}
+PAPACC_RESULT papacc_server_c2_owner_win32_role(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 sid,PAPACC_U64 channel,PAPACC_U64 connection,PAPACC_U16 type,const PAPACC_U8*p,PAPACC_SIZE n){PAPACC_C2_SESSION*s=NULL;PAPACC_C2_OPERATION*r=NULL,*bound;PAPACC_SERVER_SECURE_CANDIDATE_WIN32*c=NULL;PAPACC_U8 ack[28];PAPACC_SIZE i;PAPACC_RESULT result;
+ if(!valid(o))return PAPACC_RESULT_INVALID_STATE;
+#if defined(PAPACC_C8_SUPERVISED_DIAGNOSTIC)
+ if(papacc_server_launcher_supervision_control_only(o->secure))return PAPACC_RESULT_PROTOCOL_ERROR;
+#endif
+ for(i=0;i<4U;++i)if(o->sessions[i].initialized&&o->sessions[i].incarnation==sid)s=&o->sessions[i];
+ for(i=0;i<o->secure->candidate_capacity;++i)if(o->secure->candidates[i].connection_instance_id==connection&&o->secure->candidates[i].state==PAPACC_SERVER_SECURE_CANDIDATE_PROTOCOL)c=&o->secure->candidates[i];
+ if(type==18U)e10_bind(o,s,c,sid,channel,connection,PAPACC_C2_E10_BIND_ATTEMPT,1U,0,p,n);
+ if(s==NULL||c==NULL||c->connection_security.state!=PAPACC_SECURITY_CONTEXT_AUTHORIZED){
+  if(type==18U)e10_bind(o,s,c,sid,channel,connection,PAPACC_C2_E10_BIND_RETURN,1U,PAPACC_RESULT_INVALID_STATE,p,n);
+  return PAPACC_RESULT_INVALID_STATE;
+ }
+ if(type==18U){
+  result=papacc_c2_operation_bind(o->manager,s,&c->connection_security.principal,channel,p,n,&bound);
+  e10_bind(o,s,c,sid,channel,connection,PAPACC_C2_E10_BIND_RETURN,2U,result,p,n);
+  if(result!=0)return result;
+  bound->resources_created=PAPACC_TRUE;memcpy(ack,bound->tokens.identity,24);ack[24]=p[32];ack[25]=ack[26]=ack[27]=0;
+  result=papacc_server_c2_owner_win32_queue(o,bound,bound->generation,connection,19U,ack,28U);
+  e10_bind(o,s,c,sid,channel,connection,PAPACC_C2_E10_BIND_ACK_QUEUE,3U,result,p,n);
+  return result;
+ }
+ for(i=0;i<2U;++i){PAPACC_C2_OPERATION*current=&o->manager->operations[i];if(current->state!=PAPACC_C2_OP_EMPTY&&current->session==s&&(current->tokens.channels[0]==channel||current->tokens.channels[1]==channel))r=current;}
+ if(r==NULL)return PAPACC_RESULT_PROTOCOL_ERROR;
+ causal_observe(o,sid,channel,"ROLE_FRAME_DISPATCH",type,type==25U&&n==32U?p[29]:0U);
+ if(type==22U){unsigned flow=r->tokens.channels[0]==channel?0U:2U;PAPACC_U64 before=r->flow[flow].admitted;PAPACC_SIZE queued=r->flow[flow].size;char enabled[8];
+  e10_boundary(o,r,connection,PAPACC_C2_E10_DATA_BEFORE,type,0,p,n);
+  result=papacc_c2_operation_data(o->manager,r,channel,p,n);
+  e10_boundary(o,r,connection,PAPACC_C2_E10_DATA_AFTER,type,result,p,n);
+  if(GetEnvironmentVariableA("PAPACC_C7_METRICS",enabled,sizeof(enabled))==1U&&enabled[0]=='1'&&n>=28U)fprintf(stderr,"E10_DATA_AUTHORITY pid=%lu owner=%lu session=%llu channel=%llu bound_operation=%llu bound_generation=%llu incoming_operation=%llu incoming_generation=%llu incoming_role=%u TLS_READY=%u SITE_READY=%u result=%d admitted_before=%llu admitted_after=%llu queue_before=%llu queue_after=%llu\n",GetCurrentProcessId(),GetCurrentThreadId(),(unsigned long long)sid,(unsigned long long)channel,(unsigned long long)r->id,(unsigned long long)r->generation,(unsigned long long)owner_read64(p),(unsigned long long)owner_read64(p+8),(unsigned)p[16],(unsigned)r->tls_ready_written,(unsigned)r->site_ready,(int)result,(unsigned long long)before,(unsigned long long)r->flow[flow].admitted,(unsigned long long)queued,(unsigned long long)r->flow[flow].size);
+ }
+ else if(type==23U||type==24U)result=papacc_c2_operation_fence(o->manager,r,channel,type,p,n);
+ else if(type==25U&&r->tokens.channels[1]==channel)result=papacc_c2_operation_record_event(o->manager,r,p,n);
+ else result=PAPACC_RESULT_PROTOCOL_ERROR;
+ if(result!=0)(void)papacc_c2_operation_revoke(o->manager,r,11U);e10_boundary(o,r,connection,PAPACC_C2_E10_ROLE_RETURN,type,result,NULL,0U);causal_observe(o,sid,channel,"ROLE_FRAME_RETURN",type,type==25U&&n==32U?p[29]:0U);return result;
+}
+
+PAPACC_RESULT papacc_server_c2_owner_win32_role_header(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 sid,PAPACC_U64 channel,PAPACC_U16 type){PAPACC_C2_OPERATION*r=NULL;PAPACC_SIZE i,j,unbound=0,session_unbound=0;
+ if(!valid(o))return PAPACC_RESULT_INVALID_STATE;
+ if(!papacc_server_c2_owner_win32_has_session(o,sid)){if(type==18U)e10_bind(o,NULL,NULL,sid,channel,0U,PAPACC_C2_E10_BIND_HEADER_RETURN,6U,PAPACC_RESULT_INVALID_STATE,NULL,0U);return PAPACC_RESULT_INVALID_STATE;}
+ for(i=0;i<2U;++i)if(o->manager->operations[i].state!=PAPACC_C2_OP_EMPTY&&o->manager->operations[i].session->incarnation==sid&&(o->manager->operations[i].tokens.channels[0]==channel||o->manager->operations[i].tokens.channels[1]==channel))r=&o->manager->operations[i];
+ if(type==18U){if(r!=NULL){e10_bind(o,NULL,NULL,sid,channel,0U,PAPACC_C2_E10_BIND_HEADER_RETURN,4U,PAPACC_RESULT_PROTOCOL_ERROR,NULL,0U);return PAPACC_RESULT_PROTOCOL_ERROR;}
+  for(i=0;i<o->loop->channel_manager.capacity;++i){PAPACC_CHANNEL*c=&o->loop->channel_manager.storage[i];int claimed=0;if(c->state==PAPACC_CHANNEL_STATE_UNINITIALIZED||c->role!=PAPACC_CHANNEL_ROLE_DATA||!papacc_server_c2_owner_win32_has_session(o,c->session_instance_id))continue;
+   for(j=0;j<2U;++j)if(o->manager->operations[j].state!=PAPACC_C2_OP_EMPTY&&(o->manager->operations[j].tokens.channels[0]==c->channel_instance_id||o->manager->operations[j].tokens.channels[1]==c->channel_instance_id))claimed=1;
+   if(!claimed){++unbound;if(c->session_instance_id==sid)++session_unbound;}
+  }{PAPACC_RESULT header_result=unbound<=4U&&session_unbound<=2U?PAPACC_RESULT_OK:PAPACC_RESULT_LIMIT_EXCEEDED;
+   e10_bind(o,NULL,NULL,sid,channel,0U,PAPACC_C2_E10_BIND_HEADER_RETURN,5U,header_result,NULL,0U);return header_result;}
+ }
+ if(r==NULL||!papacc_c2_operation_authorized(o->manager,r)||!r->site_ready)return PAPACC_RESULT_PROTOCOL_ERROR;
+ if(r->tokens.channels[0]==channel&&!r->tls_ready_written)return PAPACC_RESULT_PROTOCOL_ERROR;return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_server_c2_owner_win32_role_lost(PAPACC_SERVER_C2_OWNER_WIN32*o,PAPACC_U64 sid,PAPACC_U64 channel,PAPACC_U16 fact){unsigned i;if(!valid(o))return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<2U;++i){PAPACC_C2_OPERATION*r=&o->manager->operations[i];if(r->state!=PAPACC_C2_OP_EMPTY&&r->session->incarnation==sid&&(r->tokens.channels[0]==channel||r->tokens.channels[1]==channel)){PAPACC_RESULT result;causal_observe(o,sid,channel,"ROLE_LOSS_BEFORE",0,fact);result=papacc_c2_operation_revoke(o->manager,r,fact);causal_observe(o,sid,channel,"ROLE_LOSS_AFTER_REVOKE",0,fact);return result;}}
+ return PAPACC_RESULT_OK; /* An unbound candidate has no victim authority. */
+}
+
+PAPACC_RESULT papacc_server_c2_owner_win32_capability_policy(void*context,const PAPACC_CAPABILITY_KEY*key,PAPACC_CAPABILITY_POLICY_DECISION*decision){
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ return papacc_server_launcher_c2_capability_policy((PAPACC_POST_CONTROL_PROCESSOR *)context,key,decision);
+#else
+PAPACC_POST_CONTROL_PROCESSOR*p=(PAPACC_POST_CONTROL_PROCESSOR*)context;PAPACC_SERVER_C2_OWNER_WIN32*o;PAPACC_SIZE i;
+ static const PAPACC_U8 offer[28]={0,2,0,2,0,0,0,2,0,1,0,0,0,3,0,1,0,0,0,2,0,1,0,0,0,3,0,1};
+ if(p==NULL||key==NULL||decision==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+ *decision=PAPACC_CAPABILITY_POLICY_ALLOW;if(key->id!=3U)return PAPACC_RESULT_OK;*decision=PAPACC_CAPABILITY_POLICY_DENY;
+ o=(PAPACC_SERVER_C2_OWNER_WIN32*)p->c2_context;
+ if(!valid(o)||key->major!=1U||p->capability_payload_received!=28U||memcmp(p->capability_payload,offer,28)!=0)return PAPACC_RESULT_OK;
+ for(i=0;i<o->secure->candidate_capacity;++i){PAPACC_SERVER_SECURE_CANDIDATE_WIN32*c=&o->secure->candidates[i];if(c->state==PAPACC_SERVER_SECURE_CANDIDATE_PROTOCOL&&c->connection_instance_id==p->connection->connection_instance_id&&c->connection_security.state==PAPACC_SECURITY_CONTEXT_AUTHORIZED&&c->session_security.published==PAPACC_TRUE&&c->session_security.principal.valid==PAPACC_TRUE)*decision=PAPACC_CAPABILITY_POLICY_ALLOW;}
+ return PAPACC_RESULT_OK;
+
+#endif
+}
+
+/* Tokens are scheduler identities, not operation IDs. Match both live token and
+ * exact source before capturing flags. Never call PST or mutate membership here. */
+PAPACC_RESULT papacc_server_c2_owner_win32_collect_ready(
+ PAPACC_SERVER_C2_OWNER_WIN32 *o,const PAPACC_PST_READY_EVENT *event,
+ PAPACC_BOOL *handled)
+{
+ PAPACC_SIZE mi;unsigned i;PAPACC_PST_SCHEDULER_MEMBER *member=NULL;
+ if(handled==NULL||event==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+ *handled=PAPACC_FALSE;if(!valid(o))return PAPACC_RESULT_INVALID_STATE;
+ for(mi=0;mi<o->secure->scheduler.member_capacity;++mi){
+  PAPACC_PST_SCHEDULER_MEMBER *m=&o->secure->scheduler.members[mi];
+  if(m->registered&&m->token==event->token&&m->kind==event->kind){member=m;break;}
+ }
+ if(member==NULL)return PAPACC_RESULT_OK;
+ for(i=0;i<2U;++i){
+  PAPACC_C3_BRIDGE *b=o->bridges[i];PAPACC_C2_OPERATION *r=&o->manager->operations[i];
+  PAPACC_PST_READY_EVENT *saved;PAPACC_BOOL *pending;
+  if(b==NULL||!b->initialized||r->state==PAPACC_C2_OP_EMPTY||
+   b->operation!=r->id||b->generation!=r->generation)continue;
+  if(member->kind==PAPACC_PST_SCHEDULER_MEMBER_CONNECTION&&
+   member->source.connection==b->processor.connection){
+   saved=&o->child_ready[i];pending=&o->child_ready_pending[i];
+  }else if(member->kind==PAPACC_PST_SCHEDULER_MEMBER_EXTERNAL&&
+   member->source.external_source==b->peer_source){
+   saved=&o->peer_ready[i];pending=&o->peer_ready_pending[i];
+  }else continue;
+  *handled=PAPACC_TRUE;
+  /* Retention/Stop cannot regain authority from readiness. */
+  if(r->revoked||b->revoked||b->retained||!r->site_ready)return PAPACC_RESULT_OK;
+  if(!*pending||saved->token!=event->token){*saved=*event;*pending=PAPACC_TRUE;}
+  else{saved->read_ready|=event->read_ready;saved->write_ready|=event->write_ready;
+   saved->terminal|=event->terminal;if(saved->source_result==PST_RESULT_OK)
+    saved->source_result=event->source_result;}
+  return PAPACC_RESULT_OK;
+ }
+ return PAPACC_RESULT_OK;
+}
+
+static PAPACC_U64 owner_channel_connection(PAPACC_SERVER_C2_OWNER_WIN32 *o,
+ PAPACC_C2_OPERATION *r,unsigned role)
+{
+ PAPACC_CHANNEL *ch=role?papacc_channel_manager_find(&o->loop->channel_manager,
+  r->tokens.channels[role-1U]):papacc_channel_manager_find_control(
+  &o->loop->channel_manager,r->session->incarnation);
+ return ch!=NULL&&ch->state==PAPACC_CHANNEL_STATE_BOUND?
+  ch->connection_instance_id:0U;
+}
+static void owner_put64(PAPACC_U8 *p,PAPACC_U64 n)
+{unsigned i=8U;while(i--){p[i]=(PAPACC_U8)n;n>>=8;}}
+PAPACC_RESULT papacc_server_c2_owner_win32_configure_site(
+ PAPACC_SERVER_C2_OWNER_WIN32 *o,pst_runtime *runtime,
+ const PST_CONNECTION_CONFIG *config,PAPACC_CONNECTION_MANAGER *manager,
+ PAPACC_C3_BRIDGE *storage,PAPACC_C2_CAPACITY_GATE capacity,void *context)
+{
+ unsigned i;
+ if(!valid(o)||o->secure->dispatch_active||o->site_configured||runtime==NULL||
+  config==NULL||manager==NULL||!manager->initialized||storage==NULL||capacity==NULL)
+  return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<2U;++i)if(storage[i].initialized||o->bridges[i]!=NULL)
+  return PAPACC_RESULT_INVALID_STATE;
+ o->site_runtime=runtime;o->site_template=*config;o->site_manager=manager;
+ o->site_storage=storage;o->site_capacity=capacity;o->site_capacity_context=context;
+ o->site_configured=PAPACC_TRUE;return PAPACC_RESULT_OK;
+}
+static PAPACC_RESULT owner_activate(PAPACC_SERVER_C2_OWNER_WIN32 *o,
+ PAPACC_C2_OPERATION *r,unsigned index)
+{
+ PST_CONNECTION_CONFIG config;PAPACC_SIZE original,canonical,cursor,end,count=0;
+ PAPACC_BOOL capacity=PAPACC_FALSE;PAPACC_RESULT result;PAPACC_U64 now_ns,now_ms,remaining_ms;
+ if(!o->site_configured)return PAPACC_RESULT_OK; /* Default stays closed. */
+ result=o->site_capacity(o->site_capacity_context,sizeof(*o)+sizeof(*o->manager)+
+  2U*sizeof(PAPACC_C3_BRIDGE),&capacity);
+ if(result!=0||!capacity)return papacc_c2_operation_revoke(o->manager,r,12U);
+ if(!papacc_c2_operation_authorized(o->manager,r)||!r->site_ready||
+  !r->tokens.ack_written[0]||!r->tokens.ack_written[1])return PAPACC_RESULT_INVALID_STATE;
+ original=((PAPACC_SIZE)r->open[24]<<8)|r->open[25];
+ canonical=((PAPACC_SIZE)r->open[26]<<8)|r->open[27];
+ config=o->site_template;
+ config.peer_authentication.expected_peer_name=(const char*)r->open+40U+original;
+ config.peer_authentication.expected_peer_name_size=canonical;
+ config.server_name_indication=config.peer_authentication.expected_peer_name;
+ config.server_name_indication_size=canonical;config.server_name_indication_mode=PST_SNI_MODE_EXPLICIT;
+ cursor=40U+original+canonical;end=r->open_length;
+ while(cursor<end&&count<8U){PAPACC_SIZE size=r->open[cursor++];
+  if(size==0U||size>end-cursor)return PAPACC_RESULT_INVALID_STATE;
+  o->site_alpn[index][count].data=r->open+cursor;
+  o->site_alpn[index][count++].size=size;cursor+=size;
+ }
+ if(cursor!=end)return PAPACC_RESULT_INVALID_STATE;
+ config.alpn.protocols=o->site_alpn[index];config.alpn.protocol_count=count;
+ if(r->open[32])config.alpn.mode=PST_FEATURE_REQUIRED;
+ /* Processor deadlines are PAL/QPC nanoseconds, while operation absolute
+  * budgets use GetTickCount64 milliseconds. Translate only remaining duration. */
+ result=papacc_pal_monotonic_time_ns(&now_ns);if(result!=0)return result;
+ now_ms=(PAPACC_U64)GetTickCount64();
+ if(now_ms>=r->deadline_ms)return papacc_c2_operation_revoke(o->manager,r,3U);
+ remaining_ms=r->deadline_ms-now_ms;
+ if(remaining_ms>((PAPACC_U64)-1-now_ns)/1000000U)return PAPACC_RESULT_INVALID_STATE;
+ /* Install dependency ownership BEFORE any partial native acquisition. */
+ o->site_storage[index].peer=o->site_storage[index].setup_connector=o->site_storage[index].setup_listener=INVALID_SOCKET;
+ o->bridges[index]=&o->site_storage[index];r->resources_created=PAPACC_TRUE;
+ result=papacc_c3_bridge_init(o->bridges[index],o->site_runtime,&config,
+  &o->secure->scheduler,o->site_manager,r->id,r->generation,
+  now_ns+remaining_ms*1000000U);
+ if(result!=0){
+  PAPACC_RESULT revoked=papacc_c2_operation_revoke(o->manager,r,12U);
+  PAPACC_C3_BRIDGE *b=o->bridges[index];
+  /* A rejected private tuple belongs to this operation. Ownership of every
+   * partial acquisition was installed above; normal termination reconciles it.
+   * Do not convert this contained attach rejection into a root owner failure.
+   * Retention or unknown internal errors still propagate without fallback. */
+  if(revoked==PAPACC_RESULT_OK&&b->initialized&&b->child_acquired&&b->revoked&&
+   b->source_result==PST_RESULT_PROTOCOL_FAILURE&&!b->retained&&!b->bound&&
+   !b->registered&&!b->published)return PAPACC_RESULT_OK;
+ }
+ return result;
+}
+static PAPACC_RESULT owner_queue_data(PAPACC_SERVER_C2_OWNER_WIN32 *o,
+ PAPACC_C2_OPERATION *r,unsigned flow)
+{
+ PAPACC_U8 payload[16384];PAPACC_SIZE n=r->flow[flow].size;
+ PAPACC_U64 connection=owner_channel_connection(o,r,flow/2U+1U);
+ if(n==0U||connection==0U||c7_stall(o,r,flow)||papacc_server_c2_owner_win32_wants_write(o,connection))
+  return PAPACC_RESULT_OK;
+ if(n>16356U)n=16356U;
+ memset(payload,0,28U);memcpy(payload,r->tokens.identity,16U);
+ payload[16]=(PAPACC_U8)(flow/2U+1U);payload[17]=1U;
+ owner_put64(payload+20,r->flow[flow].submitted);
+ memcpy(payload+28,r->flow[flow].bytes,n);
+ return papacc_server_c2_owner_win32_queue(o,r,r->generation,connection,22U,payload,28U+n);
+}
+
+static PAPACC_RESULT owner_queue_fence(PAPACC_SERVER_C2_OWNER_WIN32 *o,
+ PAPACC_C2_OPERATION *r,unsigned flow,PAPACC_BOOL ack)
+{
+ PAPACC_U8 p[32];PAPACC_U64 connection=owner_channel_connection(o,r,flow/2U+1U);
+ /* Diagnostic fixture holds only the legitimate exact-prefix BA ACK; it never creates an ACK. */
+ if(ack&&flow==2U&&o->c7_stall_event&&o->c7_stall_flow==4U){
+  PAPACC_BOOL first=o->c7_stall_operation==0U;
+  if(c7_stall(o,r,4U)){if(first)fprintf(stderr,"ADR0037_BA_ACK_HELD operation=%llu generation=%llu prefix=%llu received=%llu accepted=%llu fence_received=%u\n",(unsigned long long)r->id,(unsigned long long)r->generation,(unsigned long long)r->flow[2].fence,(unsigned long long)r->flow[2].submitted,(unsigned long long)r->flow[2].accepted,(unsigned)r->flow[2].fence_received);return PAPACC_RESULT_OK;}
+ }
+ if(connection==0U||papacc_server_c2_owner_win32_wants_write(o,connection))return PAPACC_RESULT_OK;
+ memset(p,0,sizeof(p));memcpy(p,r->tokens.identity,16U);
+ p[16]=(PAPACC_U8)(flow/2U+1U);p[17]=(PAPACC_U8)(flow%2U);
+ owner_put64(p+20,ack?r->flow[flow].fence:r->flow[flow].submitted);
+ if(!ack)p[29]=1U;
+ return papacc_server_c2_owner_win32_queue(o,r,r->generation,connection,ack?24U:23U,p,sizeof(p));
+}
+static PAPACC_RESULT owner_close_pipeline(PAPACC_SERVER_C2_OWNER_WIN32 *o,
+ PAPACC_C2_OPERATION *r,PAPACC_C3_BRIDGE *b,unsigned index)
+{
+ PAPACC_RESULT result;PAPACC_BOOL closed=PAPACC_FALSE,all_closed=PAPACC_TRUE;unsigned role;
+ if(r->flow[0].fence_received&&!r->flow[0].ack_written&&
+  r->flow[0].size==0U&&r->flow[0].accepted==r->flow[0].fence){
+  result=owner_queue_fence(o,r,0U,PAPACC_TRUE);if(result!=0)return result;
+ }
+ if(b->processor.state==PAPACC_PST_SECURE_PROCESSOR_PEER_CLOSED){
+  if(b->processor.last_close_kind!=PST_CLOSE_CLEAN){(void)papacc_c2_operation_revoke(o->manager,r,9U);r->tls_fact=3U;return PAPACC_RESULT_OK;}
+  if(r->flow[0].size||o->plaintext_pending_size[index]){(void)papacc_c2_operation_revoke(o->manager,r,9U);return PAPACC_RESULT_OK;}
+  if(r->flow[0].ack_written&&r->flow[1].size==0U){
+   if(r->state!=PAPACC_C2_OP_SHUTDOWN){r->state=PAPACC_C2_OP_SHUTDOWN;r->deadline_ms=GetTickCount64()+5000U;}
+   result=papacc_c3_bridge_shutdown_once(b);if(result!=0)return result;
+  }
+ }else if(b->processor.state==PAPACC_PST_SECURE_PROCESSOR_SHUTTING_DOWN){
+  result=papacc_c3_bridge_shutdown_once(b);if(result!=0)return result;
+ }
+ if(b->tls_complete){r->reciprocal_complete=PAPACC_TRUE;r->tls_fact=2U;
+  if(b->registered&&!b->child_destroyed&&!b->retained){result=papacc_pst_secure_scheduler_suspend_complete(b->scheduler,b->processor.connection);if(result!=PAPACC_RESULT_OK)return result;}
+  if(r->flow[1].size==0U&&!r->flow[1].fence_written){result=owner_queue_fence(o,r,1U,PAPACC_FALSE);if(result!=0)return result;}
+ }
+ if(r->reciprocal_complete&&r->flow[1].fence_written&&r->flow[2].fence_received&&
+  r->flow[2].accepted==r->flow[2].fence&&r->flow[2].size==0U){
+  if(!b->ba_frozen){result=papacc_c3_bridge_freeze_ba(b);if(result!=0)return result;}
+  if(!r->flow[2].ack_written){result=owner_queue_fence(o,r,2U,PAPACC_TRUE);if(result!=0)return result;}
+  else if(!b->ba_ack_written){result=papacc_c3_bridge_ba_ack_written(b);if(result!=0)return result;}
+ }
+ if(b->ba_ack_written&&r->flow[0].ack_written&&r->flow[1].ack_received&&
+  !b->child_destroyed&&!o->child_release_attempted[index]){
+  o->child_release_attempted[index]=PAPACC_TRUE;result=papacc_c3_bridge_release_child(b);e10_boundary(o,r,0U,PAPACC_C2_E10_RELEASE_RETURN,0U,result,NULL,0U);
+  if(b->release_info.disposition==PST_RELEASE_DISPOSITION_CLOSE_UNRESOLVED_RETAINED||
+   b->release_info.disposition==PST_RELEASE_DISPOSITION_PRECONDITION_RETAINED){
+   (void)papacc_c2_operation_revoke(o->manager,r,13U);
+   r->ownership=b->release_info.disposition==PST_RELEASE_DISPOSITION_CLOSE_UNRESOLVED_RETAINED?3U:2U;
+   r->state=PAPACC_C2_OP_RETAINED;
+   (void)papacc_c2_tokens_revoke(&r->tokens,o->manager->owner,PAPACC_TRUE);
+   return PAPACC_RESULT_OK;
+  }
+  if(result!=0)return result;
+ }
+ if(b->child_destroyed)r->child_destroyed=PAPACC_TRUE;
+ if(b->child_destroyed&&b->ab_eof&&b->ab.size==0U&&b->ab.accepted==b->ab.received){
+  r->ordered_eof=PAPACC_TRUE;
+  if(!b->ab_sealed){result=papacc_c3_bridge_seal_ab(b,r->id,r->generation);if(result!=0)return result;}
+  if(!r->flow[3].fence_written){result=owner_queue_fence(o,r,3U,PAPACC_FALSE);if(result!=0)return result;}
+ }
+ if(r->ordered_eof&&r->flow[3].ack_received&&r->flow[1].ack_received&&
+  r->flow[2].ack_written&&r->flow[0].ack_written){
+  if(b->peer!=INVALID_SOCKET||b->peer_source!=NULL||b->setup_connector!=INVALID_SOCKET||b->setup_listener!=INVALID_SOCKET){result=papacc_c3_bridge_close_peer(b);if(result!=0)return result;}
+  for(role=1U;role<=2U;++role){
+   PAPACC_CHANNEL *ch=papacc_channel_manager_find(&o->loop->channel_manager,r->tokens.channels[role-1U]);
+   if(ch==NULL)continue;
+   result=o->secure->c2_finish_role_fn(o->secure,ch->connection_instance_id,&closed);
+   if(result!=0)return result;if(!closed)all_closed=PAPACC_FALSE;
+  }
+  if(!all_closed)return PAPACC_RESULT_OK;
+  /* No independent owner lease may be inferred from child destruction. */
+  if(r->callbacks==0U&&r->tokens.borrowers==0U&&b->connection==NULL&&!b->registered&&!b->adapter.registered&&
+   b->processor.connection==NULL&&b->peer_source==NULL&&b->peer==INVALID_SOCKET){
+   PAPACC_U8 final[76];PAPACC_U64 control=owner_channel_connection(o,r,0U);
+   r->cleanup_confirmed=PAPACC_TRUE;r->ownership=1U;
+   if(!r->final_queued&&!r->final_written&&control){
+    result=papacc_c2_operation_final_payload(o->manager,r,final);
+    if(result==0)result=papacc_server_c2_owner_win32_queue(o,r,r->generation,control,27U,final,sizeof(final));
+    return result;
+   }
+  }
+ }
+ return PAPACC_RESULT_OK;
+}
+
+static PAPACC_RESULT owner_terminate(PAPACC_SERVER_C2_OWNER_WIN32 *o,
+ PAPACC_C2_OPERATION *r,PAPACC_C3_BRIDGE *b,unsigned index)
+{
+ unsigned i,role;PAPACC_RESULT result;PAPACC_BOOL closed=PAPACC_FALSE,all_closed=PAPACC_TRUE;
+ for(i=0;i<6U;++i){PAPACC_C2_OWNER_WRITE *w=&o->writes[i];
+  if(w->record!=r||w->type==27U)continue;
+  if(w->pending){if(w->transport_attempted){w->pending=PAPACC_FALSE;w->quarantined=PAPACC_TRUE;}else retire_write(o,w);}
+ }
+ if(b!=NULL&&!b->child_acquired&&b->processor.connection==NULL&&
+  !b->bound&&b->peer==INVALID_SOCKET&&b->setup_connector==INVALID_SOCKET&&
+  b->setup_listener==INVALID_SOCKET&&b->peer_source==NULL){
+  o->bridges[index]=NULL;b=NULL; /* No PST child was acquired; no DESTROYED fact. */
+ }
+ if(b!=NULL&&!b->child_destroyed&&!o->child_release_attempted[index]){
+  result=papacc_c3_bridge_revoke(b);if(result!=0)return result;
+  o->child_release_attempted[index]=PAPACC_TRUE;result=papacc_c3_bridge_release_child(b);e10_boundary(o,r,0U,PAPACC_C2_E10_RELEASE_RETURN,0U,result,NULL,0U);
+  if(b->release_info.disposition==PST_RELEASE_DISPOSITION_CLOSE_UNRESOLVED_RETAINED||
+   b->release_info.disposition==PST_RELEASE_DISPOSITION_PRECONDITION_RETAINED){
+   r->ownership=b->release_info.disposition==PST_RELEASE_DISPOSITION_CLOSE_UNRESOLVED_RETAINED?3U:2U;
+   r->state=PAPACC_C2_OP_RETAINED;(void)papacc_c2_tokens_revoke(&r->tokens,o->manager->owner,PAPACC_TRUE);
+   return PAPACC_RESULT_OK;
+  }
+  if(result!=0)return result;
+ }
+ if(b!=NULL){if(!b->child_destroyed)return PAPACC_RESULT_OK;
+  r->child_destroyed=PAPACC_TRUE;
+  if(b->peer!=INVALID_SOCKET||b->peer_source!=NULL||b->setup_connector!=INVALID_SOCKET||b->setup_listener!=INVALID_SOCKET){result=papacc_c3_bridge_close_peer(b);if(result!=0)return result;}
+  SecureZeroMemory(o->plaintext_pending[index],sizeof(o->plaintext_pending[index]));o->plaintext_pending_size[index]=0U;
+ }
+ for(role=1U;role<=2U;++role){PAPACC_CHANNEL *ch=papacc_channel_manager_find(&o->loop->channel_manager,r->tokens.channels[role-1U]);
+  if(ch==NULL)continue;result=o->secure->c2_finish_role_fn(o->secure,ch->connection_instance_id,&closed);
+  if(result!=0)return result;if(!closed)all_closed=PAPACC_FALSE;
+ }
+ if(!all_closed)return PAPACC_RESULT_OK;
+ /* Only factual lower destruction plus Slot absence releases quarantined input. */
+ for(i=0;i<6U;++i){PAPACC_C2_OWNER_WRITE *w=&o->writes[i];
+  if(w->record!=r||!w->quarantined)continue;
+  if(papacc_connection_manager_find(o->loop->connection_manager,w->connection)!=NULL||
+   papacc_server_io_loop_win32_find_connection_slot(o->loop,w->connection)!=NULL)return PAPACC_RESULT_OK;
+  retire_write(o,w);
+ }
+ if(r->callbacks==0U&&r->tokens.borrowers==0U){
+  PAPACC_U8 final[76];PAPACC_U64 control=owner_channel_connection(o,r,0U);
+  r->cleanup_confirmed=PAPACC_TRUE;r->ownership=1U;
+  if(control==0U&&o->control_connections[index]!=0U&&
+   papacc_connection_manager_find(o->loop->connection_manager,o->control_connections[index])==NULL&&
+   papacc_server_io_loop_win32_find_connection_slot(o->loop,o->control_connections[index])==NULL){
+   PAPACC_SIZE ci;PAPACC_BOOL control_closed=PAPACC_TRUE;
+   for(ci=0;ci<o->secure->candidate_capacity;++ci){PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c=&o->secure->candidates[ci];
+    if(c->connection_instance_id==o->control_connections[index]&&
+     (c->state!=PAPACC_SERVER_SECURE_CANDIDATE_CLOSED||c->secure_processor.connection!=NULL))control_closed=PAPACC_FALSE;
+   }
+   if(control_closed){r->summary_unavailable=PAPACC_TRUE;r->state=PAPACC_C2_OP_RELEASED;}
+  }
+  if(!r->final_queued&&!r->final_written&&control){
+   result=papacc_c2_operation_final_payload(o->manager,r,final);
+   if(result==0)result=papacc_server_c2_owner_win32_queue(o,r,r->generation,control,27U,final,sizeof(final));
+   return result;
+  }
+ }
+ return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_server_c2_owner_win32_progress(PAPACC_SERVER_C2_OWNER_WIN32 *o)
+{
+ unsigned index,credits;PAPACC_C2_OPERATION *r;PAPACC_C3_BRIDGE *b;
+ PAPACC_RESULT result;PAPACC_SIZE n,skip,transferred=0U;PAPACC_U64 before;
+ PAPACC_PST_SECURE_STEP step;PAPACC_U8 payload[287],plaintext[16356];
+ if(!valid(o)||o->secure->dispatch_active)return PAPACC_RESULT_INVALID_STATE;
+ if(o->wake_progress_done)return PAPACC_RESULT_OK;o->wake_progress_done=PAPACC_TRUE;
+ e10_boundary(o,NULL,0U,PAPACC_C2_E10_OWNER_SNAPSHOT,0U,0,NULL,0U);
+ index=o->next_bridge++%2U;r=&o->manager->operations[index];b=o->bridges[index];
+ {char enabled[8];if(GetEnvironmentVariableA("PAPACC_C7_METRICS",enabled,sizeof(enabled))==1U&&enabled[0]=='1')
+  fprintf(stderr,"E3_SERVICE_SELECT slot=%u session=%llu operation=%llu generation=%llu state=%u credits=%u\n",index,(unsigned long long)(r->session?r->session->incarnation:0U),(unsigned long long)r->id,(unsigned long long)r->generation,(unsigned)r->state,o->wake_credits);}
+ if(r->state==PAPACC_C2_OP_RETAINED&&!r->final_queued&&!r->final_written){
+  PAPACC_U64 control=owner_channel_connection(o,r,0U);PAPACC_U8 final[76];
+  if(control&&r->callbacks==0U&&papacc_c2_operation_final_payload(o->manager,r,final)==0)
+   return papacc_server_c2_owner_win32_queue(o,r,r->generation,control,27U,final,sizeof(final));
+  return PAPACC_RESULT_OK;
+ }
+ if(r->revoked&&r->state!=PAPACC_C2_OP_RETAINED&&r->state!=PAPACC_C2_OP_RELEASED)
+  return owner_terminate(o,r,b,index);
+ if(r->state==PAPACC_C2_OP_EMPTY||!r->site_ready||r->revoked||
+  !papacc_c2_operation_authorized(o->manager,r))return PAPACC_RESULT_OK;
+ if(b==NULL){result=owner_activate(o,r,index);if(result!=0)return result;b=o->bridges[index];}
+ if(b==NULL)return PAPACC_RESULT_OK;
+ /* Activation can factually revoke a partially constructed child. Re-enter
+  * its governed terminal path before any live-child checks or I/O. */
+ if(r->revoked)return owner_terminate(o,r,b,index);
+ if(b->retained||b->revoked||b->operation!=r->id||b->generation!=r->generation)
+  return PAPACC_RESULT_INVALID_STATE;
+ /* Reserve only calls possible in this state. Charging five unconditionally
+  * starves RECORD ingress behind blocked APPLICATION output. Peer send/recv
+  * need two; handshake/read/write and reciprocal shutdown are state bounded. */
+ credits=2U;
+ if(r->record_events[0]&&!b->ba_input_ended&&!b->child_destroyed)++credits;
+ if(r->state==PAPACC_C2_OP_HANDSHAKE&&!b->tls_verified)++credits;
+ if(r->tls_ready_written&&b->processor.state==PAPACC_PST_SECURE_PROCESSOR_ESTABLISHED){
+  if(r->flow[0].size)++credits;
+  if(!r->flow[1].paused&&!r->flow[1].sealed&&r->flow[1].size<=49152U)++credits;
+  /* A read can observe peer close and initiate shutdown in this same slice. */
+  if(r->flow[0].ack_written&&r->flow[1].size==0U)++credits;
+ }else if(b->processor.state==PAPACC_PST_SECURE_PROCESSOR_SHUTTING_DOWN||
+  (b->processor.state==PAPACC_PST_SECURE_PROCESSOR_PEER_CLOSED&&
+   r->flow[0].ack_written&&r->flow[1].size==0U))++credits;
+ if(o->wake_credits<credits)return PAPACC_RESULT_OK;o->wake_credits-=credits;
+ /* Keep operation storage until the ACTUAL C3 send boundary accepts it. */
+ if(b->ba.received<r->flow[2].accepted||b->ba.received>r->flow[2].admitted)
+  return PAPACC_RESULT_INTERNAL_ERROR;
+ skip=(PAPACC_SIZE)(b->ba.received-r->flow[2].accepted);
+ n=r->flow[2].size-skip;if(n>16384U)n=16384U;
+ if(n&&!b->ba_frozen){result=papacc_c3_bridge_accept_ba(b,r->id,r->generation,
+   b->ba.received,r->flow[2].bytes+skip,n);if(result!=0)return result;}
+ b->c7_hold_ba=c7_stall(o,r,2U)?PAPACC_TRUE:PAPACC_FALSE;
+ before=b->ba.accepted;result=b->ab_sealed?PAPACC_RESULT_OK:papacc_c3_bridge_step(b);if(result!=0)goto failed;
+ n=(PAPACC_SIZE)(b->ba.accepted-before);
+ if(n){result=papacc_c2_operation_downstream(o->manager,r,2U,n);if(result!=0)return result;}
+ if(r->record_events[0]&&!b->ba_input_ended&&!b->child_destroyed&&r->flow[2].size==0U&&r->flow[2].accepted==r->flow[2].admitted&&b->ba.size==0U&&b->ba.accepted==b->ba.received){
+  result=papacc_c3_bridge_end_ba_input(b,r->id,r->generation);if(result!=0)goto failed;
+ }
+ if(!b->child_destroyed&&r->state==PAPACC_C2_OP_HANDSHAKE&&!b->tls_verified){
+  result=papacc_pst_secure_processor_handshake_once(&b->processor,&step);
+  if(result!=0||step==PAPACC_PST_SECURE_STEP_FAILED||step==PAPACC_PST_SECURE_STEP_CLOSED){
+   /* Preserve the actual public handshake source error before teardown. */
+   b->source_result=b->processor.source_result;if(b->first_failure==PST_RESULT_OK)b->first_failure=b->source_result;
+   goto failed;
+  }
+  if(step==PAPACC_PST_SECURE_STEP_COMPLETE){result=papacc_c3_bridge_publish(b);if(result!=0)goto failed;}
+ }
+ if(b->tls_verified&&!r->tls_ready_written){
+  PAPACC_U64 connection=owner_channel_connection(o,r,0U);
+  if(connection&&!papacc_server_c2_owner_win32_wants_write(o,connection)){
+   memset(payload,0,32U);memcpy(payload,r->tokens.identity,24U);
+   payload[24]=3U;payload[25]=4U;payload[27]=7U;
+   payload[28]=(PAPACC_U8)(b->selected_alpn_size>>8);payload[29]=(PAPACC_U8)b->selected_alpn_size;
+   memcpy(payload+32,b->selected_alpn,b->selected_alpn_size);
+   result=papacc_server_c2_owner_win32_queue(o,r,r->generation,connection,21U,
+    payload,32U+b->selected_alpn_size);if(result!=0)return result;
+  }
+ }
+ if(r->tls_ready_written&&b->processor.state==PAPACC_PST_SECURE_PROCESSOR_ESTABLISHED){
+  if(r->flow[0].size&&!c7_stall(o,r,0U)){
+   /* SSL WANT retries require identical, persistent input pointer AND length. */
+   if(o->plaintext_pending_size[index]==0U){n=r->flow[0].size;if(n>16356U)n=16356U;
+    memcpy(o->plaintext_pending[index],r->flow[0].bytes,n);o->plaintext_pending_size[index]=n;}
+   result=papacc_pst_secure_processor_write_once(&b->processor,
+    o->plaintext_pending[index],o->plaintext_pending_size[index],&transferred,&step);
+   if(result!=0||step==PAPACC_PST_SECURE_STEP_FAILED||step==PAPACC_PST_SECURE_STEP_CLOSED)goto failed;
+   if(transferred){if(transferred>o->plaintext_pending_size[index])return PAPACC_RESULT_INTERNAL_ERROR;
+    result=papacc_c2_operation_downstream(o->manager,r,0U,transferred);if(result!=0)return result;
+    o->plaintext_pending_size[index]=0U;SecureZeroMemory(o->plaintext_pending[index],16356U);}
+  }
+  {char enabled[8];if(GetEnvironmentVariableA("PAPACC_C7_METRICS",enabled,sizeof(enabled))==1U&&enabled[0]=='1')fprintf(stderr,"E3_TLS_READ_POLICY session=%llu operation=%llu generation=%llu occupancy=%llu paused=%d allowed=%d\n",(unsigned long long)r->session->incarnation,(unsigned long long)r->id,(unsigned long long)r->generation,(unsigned long long)r->flow[1].size,r->flow[1].paused,!r->flow[1].paused&&!r->flow[1].sealed&&r->flow[1].size<=49152U);}
+  if(!r->flow[1].paused&&!r->flow[1].sealed&&r->flow[1].size<=49152U){
+   result=papacc_pst_secure_processor_read_once(&b->processor,plaintext,sizeof(plaintext),&transferred,&step);
+   if(result!=0||step==PAPACC_PST_SECURE_STEP_FAILED)goto failed;
+   if(transferred){result=papacc_c2_operation_output(o->manager,r,1U,plaintext,transferred);if(result!=0)return result;}
+  }
+ }
+ /* AB producer bytes stay in C3 until a full corresponding DATA write. */
+ if(r->flow[3].admitted<b->ab.accepted||r->flow[3].admitted>b->ab.received)
+  return PAPACC_RESULT_INTERNAL_ERROR;
+ skip=(PAPACC_SIZE)(r->flow[3].admitted-b->ab.accepted);
+ n=b->ab.size-skip;if(n>16356U)n=16356U;
+ if(n&&!r->flow[3].paused){result=papacc_c2_operation_output(o->manager,r,3U,b->ab.bytes+skip,n);if(result!=0)return result;}
+ /* Rotate outgoing role priority per operation. Both bounded opportunities
+  * retain their independent channel/offset and publication checks. */
+ {
+  unsigned first=(o->next_output_role[index]++&1U)?1U:3U;
+  unsigned second=first==1U?3U:1U;char enabled[8];
+  if(GetEnvironmentVariableA("PAPACC_C2_FAIRNESS_TRACE",enabled,sizeof(enabled))==1U&&enabled[0]=='1')
+   fprintf(stderr,"C5_OWNER_ROLE_ORDER operation=%llu generation=%llu slot=%u first=%u second=%u credits_remaining=%u\n",(unsigned long long)r->id,(unsigned long long)r->generation,index,first,second,o->wake_credits);
+  if(first==3U||r->tls_ready_written){result=owner_queue_data(o,r,first);if(result!=0)return result;}
+  if(second==3U||r->tls_ready_written){result=owner_queue_data(o,r,second);if(result!=0)return result;}
+ }
+ return owner_close_pipeline(o,r,b,index);
+failed:
+ /* Direct public plaintext read/write failures are recorded by the processor.
+  * Preserve that first source result before release overwrites source_result.
+  * A private bridge failure already captured above must not be rewritten. */
+ if(b->first_failure==PST_RESULT_OK&&b->processor.source_result!=PST_RESULT_OK){
+  b->first_failure=b->processor.source_result;b->source_result=b->processor.source_result;
+ }
+ r->tls_fact=b->first_failure==PST_RESULT_TRUNCATED?3U:4U;
+ (void)papacc_c2_operation_revoke(o->manager,r,b->first_failure==PST_RESULT_TRUNCATED?9U:10U);
+ /* The failure is now owned by this operation. Keep driving its governed
+  * cleanup; a failed TLS operation is never turned into clean completion. */
+ return PAPACC_RESULT_OK;
+}
+
+PAPACC_BOOL papacc_server_c2_owner_win32_read_allowed(const PAPACC_SERVER_C2_OWNER_WIN32 *o,PAPACC_U64 connection)
+{
+ PAPACC_CHANNEL *ch;unsigned i,role;
+ if(o==NULL||!o->initialized)return PAPACC_TRUE;
+ ch=papacc_channel_manager_find_by_connection(&o->loop->channel_manager,connection);
+ if(ch==NULL||ch->role!=PAPACC_CHANNEL_ROLE_DATA)return PAPACC_TRUE;
+ for(i=0;i<2U;++i){const PAPACC_C2_OPERATION *r=&o->manager->operations[i];
+  if(r->state==PAPACC_C2_OP_EMPTY||r->session->incarnation!=ch->session_instance_id)continue;
+  for(role=0;role<2U;++role)if(r->tokens.channels[role]==ch->channel_instance_id)
+   return r->revoked||r->state==PAPACC_C2_OP_RETAINED||r->flow[role*2U].paused?PAPACC_FALSE:PAPACC_TRUE;
+ }
+ return PAPACC_TRUE;
+}
+
+PAPACC_BOOL papacc_server_c2_owner_win32_take_opportunity(PAPACC_SERVER_C2_OWNER_WIN32 *o)
+{if(o==NULL)return PAPACC_TRUE;if(!valid(o)||o->wake_credits==0U)return PAPACC_FALSE;--o->wake_credits;return PAPACC_TRUE;}
+PAPACC_RESULT papacc_server_c2_owner_win32_begin_wake(PAPACC_SERVER_C2_OWNER_WIN32 *o)
+{
+ unsigned i;PAPACC_RESULT result;
+ if(!valid(o)||o->secure->dispatch_active)return PAPACC_RESULT_INVALID_STATE;
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ {PAPACC_RESULT retirement=papacc_server_c2_owner_win32_retire_sessions(o);if(retirement!=PAPACC_RESULT_OK)return retirement;}
+#endif
+ o->wake_credits=8U;o->wake_progress_done=PAPACC_FALSE;
+ for(i=0;i<6U;++i)if(o->writes[i].pending){PAPACC_CHANNEL *c=channel_for(o,o->writes[i].connection);
+  if(c!=NULL&&c->role==PAPACC_CHANNEL_ROLE_CONTROL){result=papacc_server_c2_owner_win32_step(o,o->writes[i].connection);if(result!=0)return result;}
+ }
+ /* CONTROL precedes a reserved C3 slice, so blocked DATA cannot starve the
+  * plaintext producer/consumer. The later progress hook is idempotent per wake. */
+ return papacc_server_c2_owner_win32_progress(o);
+}

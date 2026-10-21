@@ -1,0 +1,11 @@
+--- tests/ed11_process_credit_test.c
++++ tests/ed11_process_credit_test.c
+@@ -18,7 +18,7 @@
+  context.target[0]=context.sdk_sha256[0]=context.provenance[0]=1;
+  state.listener_reserved=1;state.connection_limit=4;state.connection_managed=65536;state.connection_user=state.connection_kernel=1;
+  state.base_managed=PAPACC_C8_RESOURCE_LIMIT-2U*65536U;state.host_physical_credit=state.host_commit_credit=1048576;state.user_limit=33554432;state.kernel_limit=8388608;
+- state.evidence.version=0x605;state.evidence.api=0x30000;state.evidence.spi=0x400;state.evidence.origin=state.evidence.profile=state.evidence.source_id=state.evidence.phase=1;
++ state.evidence.version=0x605;state.evidence.api=0x30000;state.evidence.spi=0x400;state.evidence.origin=state.evidence.phase=1;state.evidence.profile=state.evidence.source_id=1;
+  state.evidence.sampled_ms=100;state.evidence.expires_ms=200;state.evidence.peak=100;state.evidence.concurrency=4;
+  state.evidence.target[0]=state.evidence.sdk_sha256[0]=state.evidence.provenance[0]=1;
+  for(i=0;i<PAPACC_C8_RESOURCE_METRICS;i++){state.evidence.metrics[i].kind=i+1;state.evidence.metrics[i].classification=2;state.evidence.metrics[i].value=i<2?1048576:1;}

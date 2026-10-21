@@ -1,0 +1,39 @@
+/* Synthetic facts exercise the EXISTING ledger; never target qualification. */
+#if defined(ED11_TEST_LEGACY)
+#undef PAPACC_ED11_WINDOWS_3MIB
+#endif
+#include "server_c8_resource_admission_win32.h"
+#include <string.h>
+#include <stdio.h>
+#include "../apps/server/server_c8_resource_admission_win32.inc"
+static PAPACC_C8_RESOURCE_ADMISSION state;
+static PAPACC_C8_RESOURCE_CONTEXT context;
+#define CHECK(x) do{if(!(x)){printf("FAIL %u %s\n",(unsigned)__LINE__,#x);return 1;}}while(0)
+int main(void)
+{
+ PAPACC_C8_RESOURCE_KEY a,b,c;unsigned i;PAPACC_SIZE charged;
+ memset(&state,0,sizeof(state));memset(&context,0,sizeof(context));
+ state.invocation=context.invocation=1;state.owner=context.owner=2;state.revision=context.revision=3;state.epoch=context.epoch=4;state.domain[0]=context.domain[0]=1;
+ context.connection=context.generation=context.profile=context.source_id=context.origin=context.phase=context.policy_current=context.connection_state=1;
+ context.target[0]=context.sdk_sha256[0]=context.provenance[0]=1;
+ state.listener_reserved=1;state.connection_limit=4;state.connection_managed=65536;state.connection_user=state.connection_kernel=1;
+ state.base_managed=PAPACC_C8_RESOURCE_LIMIT-2U*65536U;state.host_physical_credit=state.host_commit_credit=1048576;state.user_limit=33554432;state.kernel_limit=8388608;
+ state.evidence.version=0x605;state.evidence.api=0x30000;state.evidence.spi=0x400;state.evidence.origin=state.evidence.profile=state.evidence.source_id=state.evidence.phase=1;
+ state.evidence.sampled_ms=100;state.evidence.expires_ms=200;state.evidence.peak=100;state.evidence.concurrency=4;
+ state.evidence.target[0]=state.evidence.sdk_sha256[0]=state.evidence.provenance[0]=1;
+ for(i=0;i<PAPACC_C8_RESOURCE_METRICS;i++){state.evidence.metrics[i].kind=i+1;state.evidence.metrics[i].classification=2;state.evidence.metrics[i].value=i<2?1048576:1;}
+ CHECK(papacc_c8_resource_check(&state,&context,150)==PAPACC_C8_RESOURCE_OK);
+ CHECK(papacc_c8_resource_reserve(&state,&context,150,&a)==PAPACC_C8_RESOURCE_OK);
+ CHECK(papacc_c8_resource_commit(&state,&context,150,&a)==PAPACC_C8_RESOURCE_OK);
+ context.connection=2;CHECK(papacc_c8_resource_reserve(&state,&context,150,&b)==PAPACC_C8_RESOURCE_OK);
+ context.connection=3;CHECK(papacc_c8_resource_reserve(&state,&context,150,&c)==PAPACC_C8_RESOURCE_CAPACITY);CHECK(state.managed_used==131072&&state.connection_managed==65536);
+ context.connection=2;CHECK(papacc_c8_resource_observe_acquisition(&state,&context,&b,NATIVE_SOCKET_NOT_ACQUIRED,PST_CHILD_NOT_CREATED)==PAPACC_C8_RESOURCE_OK);
+ CHECK(papacc_c8_resource_rollback(&state,&context,&b)==PAPACC_C8_RESOURCE_OK);CHECK(state.managed_used==65536);
+ CHECK(papacc_c8_resource_rollback(&state,&context,&b)!=PAPACC_C8_RESOURCE_OK);
+ context.connection=1;CHECK(papacc_c8_resource_retain(&state,&context,&a)==PAPACC_C8_RESOURCE_OK);charged=state.managed_used;
+ CHECK(papacc_c8_resource_rollback(&state,&context,&a)!=PAPACC_C8_RESOURCE_OK&&state.managed_used==charged);
+ CHECK(papacc_c8_resource_stop(&state,state.invocation,state.owner)==PAPACC_C8_RESOURCE_OK);
+ CHECK(state.managed_used==charged);CHECK(papacc_c8_resource_reserve(&state,&context,150,&c)!=PAPACC_C8_RESOURCE_OK);
+ state.stopping=0;state.base_managed=PAPACC_C8_RESOURCE_LIMIT+1U;CHECK(papacc_c8_resource_check(&state,&context,150)==PAPACC_C8_RESOURCE_CAPACITY);
+ puts("PASS SHARED_PROCESS_CREDIT_EXACT_CAP_PRESSURE_ROLLBACK_ONCE_RETAIN_STOP_INDIVIDUAL_UNCHANGED SYNTHETIC_ONLY");return 0;
+}

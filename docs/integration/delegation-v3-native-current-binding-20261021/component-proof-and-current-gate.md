@@ -1,0 +1,21 @@
+# kind8 público DATA e limite de integração CURRENT
+
+Autoridades F1–F5/G0–G7 e E0–E8 accepted preservadas. G3 e config_root8_v3.h exigem certificado/perfil/CA/SPKI no componente8; isso permite o adapter público implementado com os codecs/verificador X509 existentes. Não exige nova decisão normativa para repetir os mesmos campos/algoritmos/formatos. Nenhuma nova autoridade, registry ou persistência foi criada. Hunks exatos e correção de compilação tiveram aprovação oficial antes de aplicação; operações/preimagens/hashes preservadas.
+
+## Implementação independente entregue
+
+server_config_root8_signer_win32.c/.h fornece papacc_root8_signer_data na assinatura PC_ROOT8_COMPONENT, exclusivamente para kind8/version3. PAPACC_ROOT8_SIGNER_DATA contém CA pública emprestada, workspace existente, scratch DER do caller, port SHA256 do codec e limite inferior contábil já reservado. Não é produtor E0, fonte de trust ou owner de chave. Não há callback booleano de confiança, mapa de handles, owner/worker paralelo ou alocação interna.
+
+O callback valida capacidades/alias/contexto/bounds; ausência de CA/workspace/hash retorna INCOMPLETE. Verifica header v3, linha PDG1, imagem issuer íntegra e registro PACKAGE; vincula root/I, issuer/generation/CA, ID/cert/SPKI e intervalo de delegação ao registro. Copia DER pelo codec issuer existente para scratch disjunto e chama papacc_issuer_x509_verify. Esse verificador recompõe o perfil accepted (RSA2048/e65537, SHA256, serial, CN Package, BC/KU/EKU codeSigning/AKI/SKI/validade/CA) e verifica assinatura pública contra a CA emprestada. Digest final deve corresponder ao registro/linha. Nenhum store de confiança do sistema é consultado/alterado.
+
+OK significa SOMENTE integridade/correlação/perfil/assinatura DATA sob a CA recebida. CA fornecida não é trust anchor autorizado automaticamente. A validação temporal no instante corrente, revogação/status aplicáveis, provenance de CA/CURRENT/ROOT e delegação policy ainda exigem fontes/owner. Linhas históricas revogadas e certificado REVOKED continuam representáveis como DATA; OK não os transforma em delegação aprovada. Outros kinds continuam UNSUPPORTED por esta função; a composição completa deve manter os componentes canônicos BODY/LST/SNT/carrier/história já existentes. O componente não valida sozinho uma root inteira ou seu predecessor.
+
+Compatibilidade: BODY0.5, ROOT06, ROOT08v1/v2, LST1/SNT1, PDG1/CP3/v3 e codecs não mudaram. O adapter histórico server_config_root8_data_win32.c também NÃO foi alterado: ele continua UNSUPPORTED para kind8. O NOVO adapter kind8 está disponível como componente público DATA isolado, ainda não anexado àquele dispatch ou ao runtime. Build.ninja confirma que papacc_server não liga a nova biblioteca; testes compilam o código e vinculam a rotina real de assinatura pública onde indicado.
+
+## Gate de integração dependente
+
+Não está concluído CURRENT_V3_BINDING. O owner canônico continua sem snapshot v3/PDG1/SNT1 completo sob pin/proveniência e backings CA/DER/fontes reais demonstrados. Capacidade selecionada do worker permanece28960, inferior ao máximo v330592; slots/pins atuais preservam sua configuração/issuer existentes, sem novo armazenamento de PDG1. Não compartilhar committed ou scratch com um pin antigo, nem sobrescrever retidos para acomodar v3. Não elevar versão, criar CURRENT/pin/epoch ou conceder status a partir de codec OK.
+
+G4 exige PREPARE/VALIDATE com fontes factuais e predecessor completo, COMMIT pelo mesmo worker/CAS, CURRENT factual só depois, CP3 só após publicação e checkpoint-only CAS. F2/E6/E8 exigem owner/backings protegidos antes da ligação síncrona E0. Ainda não há ambiente CURRENT positivo qualificado (owner já confirmou); não criar instalação ou recibo sintético para suprir ausência. A nova biblioteca pública não muda esses fatos.
+
+Não foi ampliado buffer/slot do worker nem alterado CURRENT/CAS. Não preparar hunk dependente como se estivesse seguro sem censo de snapshots/CA/backings/coexistência/retidos e prova de preparação/resolução/autorização da policy. O cenário conservador anterior de pacote excede3MiB e os custos completos permanecem desconhecidos; isso não prova que o novo callback isolado excedeu a quota, mas impede presumir autorização da composição operacional. Componentes independentes preservados; DELEGATION_AUTHORITY, M1_TRUST e E0 fonte positiva DENY.

@@ -1,0 +1,53 @@
+--- tests\manual_package_crypto_test.c
++++ tests\manual_package_crypto_test.c
+@@ -28,6 +28,7 @@
+  next=tracked_alloc(n,file,line);if(!next)return NULL;
+  memcpy(next,p,a->requested<n?a->requested:n);tracked_free(p,file,line);return next;
+ }
++static void phase(const char *name){printf("memory_phase=%s peak_crt_bytes=%zu live_crt_bytes=%zu\n",name,peak,live);}
+ static int checks=0;
+ #define CHECK(x) do{checks++;if(!(x)){fprintf(stderr,"failure line %d\n",__LINE__);return 1;}}while(0)
+ static int hex(const char *s,unsigned char *out){unsigned int v;int n=0;
+@@ -55,10 +56,10 @@
+  size_t sn,siglen=256,hn=0,rn=0;MP_ENVELOPE env;
+  static const unsigned char domain[]="PAPACC-COMPLETE-MANUAL-V2";
+  CHECK(argc==5);CHECK(CRYPTO_set_mem_functions(tracked_alloc,tracked_realloc,tracked_free)==1);c=mp_crypto_open();CHECK(c!=NULL);
+- memset(pw,'A',32);for(i=0;i<16;i++)salt[i]=(unsigned char)i;
++ phase("private_provider_open");memset(pw,'A',32);for(i=0;i<16;i++)salt[i]=(unsigned char)i;
+  CHECK(mp_crypto_derive(c,pw,32,salt,16,key,NULL,NULL)==MP_CRYPTO_ONLY);
+  CHECK(hex("cd9ead6a37c37227e0f1f521cfcb321504eaab5dc335824da45c2bb8f264a92e",expected)==32);
+- CHECK(!memcmp(key,expected,32));
++ CHECK(!memcmp(key,expected,32));phase("exact_kdf_before_native_comparison");
+  CHECK(BCryptOpenAlgorithmProvider(&bcrypt,BCRYPT_SHA256_ALGORITHM,NULL,BCRYPT_ALG_HANDLE_HMAC_FLAG)==0);
+  CHECK(BCryptDeriveKeyPBKDF2(bcrypt,pw,32,salt,16,600000,native_key,32,0)==0);
+  CHECK(!memcmp(native_key,key,32));CHECK(BCryptCloseAlgorithmProvider(bcrypt,0)==0);
+@@ -98,6 +99,7 @@
+  count=2;CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),out,sizeof(out),&used,stop,&count)==MP_STOPPED);
+  CHECK(used==0&&q[0]==0);
+  CHECK(mp_crypto_unseal(c,key,nonce,12,aad,12,cipher,n,tag,16,q,sizeof(q),q,sizeof(q),&used,NULL,NULL)==MP_INVALID);
++ phase("kdf_aead_stop_and_corruption_complete");
+  cn=fixture(argv[2],cert,sizeof(cert));pn=fixture(argv[3],private_der,sizeof(private_der));on=fixture(argv[4],other,sizeof(other));
+  CHECK(cn&&pn&&on);CHECK(mp_crypto_key_match(c,cert,cn,private_der,pn)==MP_CRYPTO_ONLY);
+  CHECK(mp_crypto_key_match(c,cert,cn,other,on)==MP_INVALID);
+@@ -106,6 +108,7 @@
+  CHECK(mp_crypto_client_profile(c,cert,cn,cert,cn,ids,ids,ids,1792454400ULL)==MP_INVALID);
+  CHECK(mp_crypto_key_match(c,cert,cn-1,private_der,pn)==MP_INVALID);
+  CHECK(mp_crypto_key_match(c,cert,cn,private_der,pn-1)==MP_INVALID);
++ phase("client_material_checks_complete");
+  /* Public upstream RSA TEST KEY, never a delegated production signer. */
+  f=fopen(argv[1],"rb");CHECK(f!=NULL);pemn=fread(pem,1,sizeof(pem),f);fclose(f);CHECK(pemn>0&&pemn<sizeof(pem));
+  bio=BIO_new_mem_buf(pem,(int)pemn);CHECK(bio!=NULL);
+@@ -124,11 +127,12 @@
+  CHECK(EVP_DigestSignUpdate(md,domain,sizeof(domain))==1);
+  CHECK(EVP_DigestSignUpdate(md,raw,rn-256)==1);
+  CHECK(EVP_DigestSignFinal(md,raw+rn-256,&siglen)==1&&siglen==256);
+- EVP_MD_CTX_free(md);EVP_PKEY_free(signer);
++ EVP_MD_CTX_free(md);EVP_PKEY_free(signer);phase("test_only_global_signing_context_complete");
+  CHECK(mp_crypto_verify_package(c,raw,rn,spki,sn)==MP_CRYPTO_ONLY);
+  for(i=0;i<rn;i++){raw[i]^=1;CHECK(mp_crypto_verify_package(c,raw,rn,spki,sn)==MP_INVALID);raw[i]^=1;}
+  CHECK(mp_crypto_verify_package(c,raw,rn-1,spki,sn)==MP_INVALID);
+  spki[sn-1]^=1;CHECK(mp_crypto_verify_package(c,raw,rn,spki,sn)==MP_INVALID);
++ phase("package_public_signature_checks_complete");
+  CHECK(mp_package_validate(raw,rn,0)==MP_CRYPTO_UNAVAILABLE);
+  OPENSSL_cleanse(private_der,sizeof(private_der));OPENSSL_cleanse(other,sizeof(other));
+  OPENSSL_cleanse(key,sizeof(key));OPENSSL_cleanse(native_key,sizeof(native_key));mp_crypto_close(c);

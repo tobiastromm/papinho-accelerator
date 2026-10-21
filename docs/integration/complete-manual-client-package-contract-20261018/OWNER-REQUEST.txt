@@ -1,0 +1,385 @@
+# PAPINHOACCELERATOR — Provisionamento manual completo e importação simplificada
+
+TASK=PACC-PHASE6-PRODUCTION-MANUAL-CLIENT-PACKAGE-CONTRACT-2
+
+MODE=GOVERNED_CANONICAL_CONTRACT_REVISION_AND_IMPLEMENTATION_PREPARATION
+
+CANONICAL_ACCELERATOR=C:\Projetos\PapinhoAccelerator
+BROWSER_REFERENCE=C:\Projetos\PapinhoBrowser
+
+OWNER_DECISION=APPROVED_MANUAL_SERVER_GENERATED_COMPLETE_PACKAGE
+
+## 1. Objetivo
+
+Consolidar o contrato definitivo de provisionamento manual de clientes PapinhoBrowser.
+
+O administrador deve conseguir gerar diretamente no PapinhoAccelerator um pacote completo para um computador ainda não configurado.
+
+O usuário do Browser deve conseguir importar esse pacote em uma única operação.
+
+A importação avançada existente, com seleção separada de CA, certificado e chave, deve permanecer disponível e funcional.
+
+Esta tarefa deve preparar o contrato exato, resolver as escolhas técnicas de formato e produzir handoff implementável para ambos os produtos.
+
+Não implementar código funcional antes da aceitação normativa do contrato.
+
+## 2. Decisões já aprovadas pelo owner
+
+São requisitos obrigatórios:
+
+- Geração do pacote completo no servidor.
+- Geração de chave privada individual para o novo cliente.
+- Certificado de cliente correspondente.
+- CA/trust do canal Accelerator.
+- Identidade esperada do servidor.
+- Configuração necessária para o Browser.
+- Proteção criptográfica do pacote.
+- Senha ou mecanismo equivalente de desbloqueio.
+- Importação simplificada em uma operação.
+- Importação granular avançada preservada.
+- Cadastro sem reiniciar o serviço.
+- Revogação e renovação administrativas.
+- Compatibilidade C89/VC6/NT4 do Browser.
+- Mesmo cadastro e autoridade para provisionamento manual e automático.
+
+O modo automático permanece uma entrega separada da Phase 6, com:
+
+- endereço do Accelerator;
+- confirmação de código;
+- servidor OPEN/CLOSED;
+- autenticação usuário/senha quando CLOSED;
+- aprovação AUTO/MANUAL;
+- geração de chave local no Browser;
+- publicação administrativa sem reinício.
+
+Não reabrir essas decisões.
+
+## 3. Autoridades
+
+Ler integralmente:
+
+- docs/integration/manual-client-package-issuer-contract-20261018/CONTRACT-PROPOSED.md;
+- BROWSER-IMPLEMENTATION-HANDOFF.md;
+- CLOSEOUT.md;
+- decisão accepted de provisionamento;
+- ADR-0006;
+- ADR-0028;
+- contratos de CredentialGeneration/Reference;
+- Model E;
+- ED08/ED11;
+- root/policy/CURRENT/epoch;
+- contratos de issuer e credenciais;
+- fontes reais do Browser credential importer/store.
+
+Confirmar HEAD, WIP, SDKs e hashes.
+
+Não presumir que PCP1 público já foi aceito.
+
+## 4. Formato do pacote
+
+O owner prefere um único arquivo ZIP, protegido por senha.
+
+Avaliar:
+
+A. ZIP com perfil de criptografia forte e interoperável.
+
+B. Envelope criptográfico autenticado e versionado contendo ZIP interno.
+
+Selecionar a solução que preserve segurança, interoperabilidade VC6/NT4, limites ED11 e facilidade de uso.
+
+Não utilizar ZipCrypto.
+
+Não aceitar criptografia sem autenticação.
+
+Não inventar primitivas criptográficas.
+
+Não assumir que senha do pacote autentica o emissor.
+
+Se o ZIP criptografado não satisfizer os requisitos, recomendar formato .papacc com ZIP interno e justificar a diferença.
+
+## 5. Conteúdo lógico
+
+O pacote deverá conter os equivalentes a:
+
+- ca.der;
+- cliente.der;
+- cliente.pk8;
+- configuração versionada;
+- identidade esperada do servidor;
+- referências públicas de emissão e validade;
+- metadados de integridade e autenticidade.
+
+A chave privada nunca deve aparecer desprotegida no arquivo distribuído.
+
+Não incluir chave privada da CA, tokens de autorização, senhas ou grants operacionais.
+
+A configuração do pacote não concede Principal ou autoridade operacional por si.
+
+## 6. Segurança criptográfica
+
+Definir e justificar:
+
+- criptografia autenticada;
+- KDF de senha;
+- salt;
+- nonce;
+- autenticação do emissor;
+- verificação independente da identidade do servidor;
+- limites de tentativas;
+- limites de tamanho;
+- proteção contra replay e substituição;
+- expiração;
+- versão;
+- tratamento de formato desconhecido.
+
+Preferir primitivas consolidadas e bibliotecas já disponíveis.
+
+Verificar compatibilidade real com VC6 e NT4.
+
+Não aceitar downgrade silencioso.
+
+## 7. Custódia da chave privada
+
+O servidor gera a chave privada individual do cliente.
+
+Definir o ciclo:
+
+GENERATE
+→ ISSUE
+→ PROTECT
+→ PACKAGE
+→ EXPORT
+→ IMPORT
+→ VALIDATE
+→ COMMIT
+
+Definir também:
+
+- proteção durante geração;
+- memória temporária;
+- armazenamento temporário;
+- eliminação de buffers;
+- falha de exportação;
+- pacote perdido;
+- pacote copiado;
+- comprometimento;
+- revogação;
+- renovação.
+
+Não prometer apagamento físico absoluto.
+
+Não registrar material secreto em logs.
+
+Não passar senha por argumento de CLI.
+
+## 8. Issuer
+
+Reutilizar a autoridade emissora aprovada.
+
+Não criar CA de fixture.
+
+Não usar a chave TLS do servidor como CA.
+
+Não exportar chave da CA.
+
+Definir interface de emissão, consulta, revogação e reconciliação após resultados incertos.
+
+Se não existir issuer operacional, identificar a menor integração necessária sem fabricar autoridade.
+
+## 9. Administração
+
+Preparar CLI administrativa:
+
+papacc-admin client create
+papacc-admin client export
+papacc-admin client list
+papacc-admin client revoke
+papacc-admin client renew
+
+O administrador deve conseguir gerar o pacote sem preparar previamente o Browser.
+
+A senha deve ser solicitada de forma segura ou fornecida por mecanismo protegido aprovado, nunca como argumento exposto no histórico do shell.
+
+Definir permissões administrativas, auditoria e recuperação.
+
+## 10. Atualização dinâmica
+
+O cadastro de novos clientes não deve exigir reinício do Accelerator.
+
+Reutilizar a transação administrativa existente.
+
+Exigir:
+
+- preparação;
+- validação;
+- commit durável;
+- publicação CURRENT;
+- epoch factual;
+- revogação;
+- coexistência com Sessions existentes;
+- retenção Model E.
+
+Não criar segundo registry, root ou listener.
+
+Não editar diretamente o store.
+
+Não fabricar CURRENT ou epoch.
+
+## 11. Browser — experiência do usuário
+
+Preservar a tela atual:
+
+Configurar segurança — importação local
+
+Adicionar uma opção principal:
+
+"Importar pacote de configuração..."
+
+Fluxo:
+
+1. Selecionar arquivo.
+2. Informar senha, quando aplicável.
+3. Validar integridade e autenticidade.
+4. Confirmar identidade do servidor.
+5. Validar CA, certificado e chave.
+6. Preparar configuração.
+7. Confirmar importação.
+8. Publicar pela geração existente.
+
+Manter opção:
+
+"Importação avançada"
+
+Essa opção continua permitindo selecionar separadamente CA, certificado e chave, como atualmente.
+
+Não eliminar recursos existentes.
+
+Não duplicar stores ou mecanismos de commit.
+
+## 12. Segurança da importação
+
+Exigir:
+
+- parser limitado;
+- ausência de path traversal;
+- rejeição de arquivos inesperados;
+- proteção contra decompression bombs;
+- rejeição de duplicações;
+- autenticação antes do uso de dados;
+- staging seguro;
+- rollback;
+- tratamento de cancelamento;
+- ausência de extração insegura para disco;
+- preservação de CredentialGeneration/Reference;
+- leases;
+- safe retirement.
+
+Não confiar automaticamente na CA incluída no próprio pacote.
+
+O bootstrap de confiança deve possuir confirmação independente.
+
+## 13. ED11
+
+Contabilizar:
+
+- geração de chave;
+- issuer;
+- criptografia;
+- KDF;
+- buffers;
+- ZIP;
+- parser;
+- staging;
+- store;
+- journal;
+- retenção;
+- coexistência de gerações.
+
+Não aumentar quotas.
+
+Provider/kernel UNKNOWN permanece UNKNOWN.
+
+## 14. Roadmap
+
+Manter os seis gates de provisionamento OPEN até implementação e qualificação.
+
+O gerador manual e a importação simplificada fazem parte do fechamento da Phase 6.
+
+O modo automático também permanece obrigatório.
+
+Não declarar Phase 6 concluída antes desses gates ou de decisão normativa explícita de alteração de escopo.
+
+## 15. Governança
+
+Trabalhar exclusivamente no Accelerator canônico.
+
+Browser somente leitura.
+
+Preparar handoff específico para o Codex Browser.
+
+Não modificar PST ou PACC wire.
+
+Não alterar produção 0.6.4.
+
+Não executar rede.
+
+Não gerar certificados ou chaves reais nesta tarefa.
+
+Não criar clones ou worktrees.
+
+Não fazer commit, push, tag ou release.
+
+Preservar WIP e evidências.
+
+## 16. Entregas
+
+Produzir:
+
+- contrato versionado do pacote completo;
+- decisão técnica de formato e criptografia;
+- contrato de custódia;
+- contrato issuer;
+- interface CLI;
+- matriz de segurança;
+- matriz de compatibilidade VC6/NT4;
+- handoff Browser;
+- plano mínimo de implementação.
+
+Registrar como PROPOSED.
+
+Não criar ADR accepted sem autorização específica.
+
+## 17. Resultado
+
+CURRENT_TASK_COMPLETED=YES|NO
+
+MANUAL_PACKAGE=SERVER_GENERATED_COMPLETE
+PACKAGE_FORMAT=...
+PACKAGE_ENCRYPTION=...
+PASSWORD_KDF=...
+PACKAGE_AUTHENTICITY=...
+PRIVATE_KEY_CUSTODY=...
+ISSUER_CONTRACT=...
+ADMIN_CLI=...
+HOT_UPDATE=REQUIRED
+
+BROWSER_SIMPLE_IMPORT=PROPOSED
+BROWSER_ADVANCED_IMPORT=PRESERVED
+BROWSER_HANDOFF=...
+
+PHASE6_PROVISIONING_GATES=OPEN
+IMPLEMENTATION_AUTHORIZED=NO
+
+CLIENT_ADMISSION=DISABLED
+SITE_TLS_ADMISSION=DENY
+ED11_ADMISSION=DENY
+
+PST_CHANGED=NO
+BROWSER_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+PRODUCTION_PIN=0.6.4
+PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
+
+WIP_PRESERVED=...
+FIRST_UNRESOLVED_DIVERGENCE=...
+NEXT=OWNER_ACCEPTANCE_OF_COMPLETE_MANUAL_PACKAGE_CONTRACT

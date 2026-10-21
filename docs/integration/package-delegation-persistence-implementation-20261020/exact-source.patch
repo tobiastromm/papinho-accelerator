@@ -1,0 +1,395 @@
+--- a/src/config/config_root8_v2.c
++++ b/src/config/config_root8_v2.c
+@@ -1,4 +1,5 @@
+ #include "config_root8_v2.h"
++#include "config_root8_internal.h"
+ #include "../issuer/issuer_codec.h"
+ #include <stdint.h>
+ #include <string.h>
+@@ -49,7 +50,7 @@
+  for(j=0;j<i;j++){old=p+512U+1536U*j;if(u16(q+10)==u16(old+10)&&!memcmp(q+24,old+24,u16(q+10)))return PC_ROOT8_INVALID;}}
+  return PC_ROOT8_OK;
+ }
+-static PC_ROOT8_RESULT snt(const PAPACC_U8 *p,int integrity,PC_LST1_HASH hash,void *ctx)
++PC_ROOT8_RESULT pc_root8_snt_data(const PAPACC_U8 *p,int integrity,PC_LST1_HASH hash,void *ctx)
+ {
+  const PAPACC_U8 *s=p+u32(p+244),*r,*q,*old;unsigned i,j,ordinal,stage,seen=0,secure=0;int h;
+  PAPACC_SIZE S=u32(p+248);unsigned K=u16(p+252);PC_ROOT8_RESULT result=descriptors(p);if(result)return result;
+@@ -86,10 +87,9 @@
+  if(integrity){h=digest(c,480,c+480,hash,ctx);if(h<0)return PC_ROOT8_HASH_FAILED;if(!h)return PC_ROOT8_INVALID;}
+  return PC_ROOT8_OK;
+ }
+-static PC_ROOT8_RESULT shape(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++PC_ROOT8_RESULT pc_root8_components_data(const PAPACC_U8 *p,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
+ {
+  PC_ROOT8_RESULT s;PC_LST1_MODEL lst;PC_LST1_RESULT lr;int complete,h;unsigned i;const PAPACC_U8 *q,*table;
+- s=header(p,n);if(s)return s;s=snt(p,1,hash,hc);if(s)return s;s=checkpoint(p,1,hash,hc);if(s)return s;
+  lr=pc_lst1_decode(p+u32(p+40),u32(p+44),&lst,&complete,hash,hc);
+  if(lr==PC_LST1_HASH_FAILED)return PC_ROOT8_HASH_FAILED;if(lr==PC_LST1_UNSUPPORTED)return PC_ROOT8_UNSUPPORTED;
+  if(lr!=PC_LST1_OK||!complete||memcmp(lst.fields+24,p+72,32)||u64(lst.fields+56)!=u64(p+136)||u64(lst.fields+64)!=u64(p+144)||
+@@ -100,6 +100,11 @@
+  s=component(cc,6U,p+u32(p+48),16384,NULL,p);if(s)return s;
+  table=p+u32(p+244);for(i=0;i<u16(p+252);i++){q=table+64U+768U*i;s=component(cc,7U,p+u32(p+48),16384,q,p);if(s)return s;}
+  return PC_ROOT8_OK;
++}
++static PC_ROOT8_RESULT shape(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{
++ PC_ROOT8_RESULT s;s=header(p,n);if(s)return s;s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;
++ s=checkpoint(p,1,hash,hc);if(s)return s;return pc_root8_components_data(p,hash,hc,component,cc);
+ }
+ PC_ROOT8_RESULT pc_root8_v2_validate(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
+ {
+@@ -127,13 +132,13 @@
+ PC_ROOT8_RESULT pc_root8_v2_snt_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc)
+ {
+  PC_ROOT8_RESULT s;PAPACC_SIZE S;PAPACC_U8 d[32];if(!outputs(p,n,out,cap,used))return PC_ROOT8_INVALID;*used=0;
+- s=header(p,n);if(s)return s;S=u32(p+248);if(cap<S)return PC_ROOT8_INVALID;s=snt(p,0,hash,hc);if(s)return s;
++ s=header(p,n);if(s)return s;S=u32(p+248);if(cap<S)return PC_ROOT8_INVALID;s=pc_root8_snt_data(p,0,hash,hc);if(s)return s;
+  if(!hash||!hash(hc,p+u32(p+244),S-32U,d))return PC_ROOT8_HASH_FAILED;memcpy(out,p+u32(p+244),S-32U);memcpy(out+S-32U,d,32);*used=S;return PC_ROOT8_OK;
+ }
+ PC_ROOT8_RESULT pc_root8_v2_cp_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc)
+ {
+  PC_ROOT8_RESULT s;PAPACC_U8 d[32];const PAPACC_U8 *cp;if(!outputs(p,n,out,cap,used)||cap<512U)return PC_ROOT8_INVALID;*used=0;
+- s=header(p,n);if(s)return s;s=snt(p,1,hash,hc);if(s)return s;s=checkpoint(p,0,hash,hc);if(s)return s;cp=p+u32(p+56);
++ s=header(p,n);if(s)return s;s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;s=checkpoint(p,0,hash,hc);if(s)return s;cp=p+u32(p+56);
+  if(zero(cp,512)){memset(out,0,512);*used=512;return PC_ROOT8_OK;}
+  if(!hash||!hash(hc,cp,480,d))return PC_ROOT8_HASH_FAILED;memcpy(out,cp,480);memcpy(out+480,d,32);*used=512;return PC_ROOT8_OK;
+ }
+--- a/src/config/config_root8_internal.h
++++ b/src/config/config_root8_internal.h
+@@ -0,0 +1,9 @@
++#ifndef PAPACC_CONFIG_ROOT8_INTERNAL_H
++#define PAPACC_CONFIG_ROOT8_INTERNAL_H
++#include "config_root8.h"
++/* Private shared DATA routines. Caller MUST first validate the exact version's
++ * complete header/ranges/offsets/counts. No allocation, mutation, retained
++ * borrow or authority; same synchronous nonreentrant component contract. */
++PC_ROOT8_RESULT pc_root8_snt_data(const PAPACC_U8 *,int,PC_LST1_HASH,void *);
++PC_ROOT8_RESULT pc_root8_components_data(const PAPACC_U8 *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++#endif
+--- a/src/config/config_root8_v3.h
++++ b/src/config/config_root8_v3.h
+@@ -0,0 +1,29 @@
++#ifndef PAPACC_CONFIG_ROOT8_V3_H
++#define PAPACC_CONFIG_ROOT8_V3_H
++#include "config_root8_v2.h"
++#define PC_ROOT8_V3_MIN 20608U
++#define PC_ROOT8_V3_MAX 30592U
++#define PC_ROOT8_V3_FIELDS_MAX 30560U
++#define PC_PDG1_MAX 1632U
++/* Offline DATA codec only. No CURRENT, grants, trust, store, pins or epoch.
++ * Caller serializes immutable inputs and disjoint outputs through return;
++ * hash/component callbacks are synchronous, nonreentrant, do not retain.
++ * Existing component kinds5/6/7 unchanged. Kind8 requires vetted public signer
++ * certificate/profile DATA validation: p=full carrier16384, desc=PDG row384,
++ * header=complete checked outer header. Missing adapter is INCOMPLETE.
++ * A fixture callback never establishes delegation authority or Browser trust.
++ * Never invoke synchronous hashing/native validation on owner Stop path. */
++PC_ROOT8_RESULT pc_root8_v3_validate(const PAPACC_U8 *,PAPACC_SIZE,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++PC_ROOT8_RESULT pc_root8_v3_encode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++PC_ROOT8_RESULT pc_root8_v3_decode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,int *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++/* Seal one fragment from complete containing prefix context; never publish
++ * approval/status or invent CP3. CP input must already contain factual values.
++ * Zero CP remains absent. Caller retains all borrowed backing through return. */
++PC_ROOT8_RESULT pc_root8_v3_snt_encode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *);
++PC_ROOT8_RESULT pc_root8_v3_pdg_encode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *);
++PC_ROOT8_RESULT pc_root8_v3_cp_encode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *);
++/* Full v2/v3 predecessor DATA relation, never actual CAS/current/history proof.
++ * Changed SNT/delegation rows return INCOMPLETE pending source approval history.
++ * Even OK grants no authority; D0 is structural absence, never trusted signer. */
++PC_ROOT8_RESULT pc_root8_v3_base_link(const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,PAPACC_SIZE,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++#endif
+--- a/src/config/config_root8_v3.c
++++ b/src/config/config_root8_v3.c
+@@ -0,0 +1,144 @@
++#include "config_root8_v3.h"
++#include "config_root8_internal.h"
++#include "../issuer/issuer_codec.h"
++#include <stdint.h>
++#include <string.h>
++static unsigned u16(const PAPACC_U8 *p){return (unsigned)p[0]|((unsigned)p[1]<<8);}
++static PAPACC_U32 u32(const PAPACC_U8 *p){return (PAPACC_U32)p[0]|((PAPACC_U32)p[1]<<8)|((PAPACC_U32)p[2]<<16)|((PAPACC_U32)p[3]<<24);}
++static PAPACC_U64 u64(const PAPACC_U8 *p){PAPACC_U64 x=0;unsigned j;for(j=0;j<8U;j++)x|=(PAPACC_U64)p[j]<<(8U*j);return x;}
++static int range(const void *p,PAPACC_SIZE n){return p&&n&&n-1U<=UINTPTR_MAX-(uintptr_t)p;}
++static int cross(const void *a,PAPACC_SIZE n,const void *b,PAPACC_SIZE m){uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<n:x-y<m;}
++static int zero(const PAPACC_U8 *p,PAPACC_SIZE n){PAPACC_SIZE j;for(j=0;j<n;j++)if(p[j])return 0;return 1;}
++static PC_ROOT8_RESULT digest(const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *expected,PC_LST1_HASH hash,void *ctx)
++{PAPACC_U8 d[32];if(!hash||!hash(ctx,p,n,d))return PC_ROOT8_HASH_FAILED;return memcmp(d,expected,32)?PC_ROOT8_INVALID:PC_ROOT8_OK;}
++static PC_ROOT8_RESULT header(const PAPACC_U8 *p,PAPACC_SIZE n)
++{
++ unsigned N,K,D,B;PAPACC_SIZE O,S,U,V,L,Q;PAPACC_U64 pre;
++ if(!range(p,n)||n<PC_ROOT8_V3_MIN-32U||n>PC_ROOT8_V3_FIELDS_MAX||memcmp(p,"PACROOT8",8)||u16(p+8)!=3U||
++ u16(p+10)!=512U||u32(p+12)!=n+32U||u32(p+16)!=3U||u16(p+22)!=512U||u16(p+24)!=1024U||u16(p+26)!=1U||
++ u16(p+28)!=512U||u16(p+30)!=1U||zero(p+72,32)||u32(p+128)!=31U||u16(p+132)!=5U||u16(p+134)!=1U||
++ u32(p+168)!=15U||!zero(p+172,4)||(u16(p+240)!=2U&&u16(p+240)!=3U)||u16(p+242)!=1U||u16(p+254)!=768U||
++ u16(p+256)!=1U||u16(p+258)!=1U||u16(p+270)!=384U||u16(p+272)!=1U||!zero(p+274,238))return PC_ROOT8_INVALID;
++ N=u16(p+20);K=u16(p+252);D=u16(p+268);L=u32(p+44);
++ if(!N||N>4U||!K||K>N||D>K||L<672U||L>2208U||(L-160U)%512U)return PC_ROOT8_INVALID;
++ B=(unsigned)((L-160U)/512U);if(!B||B>4U)return PC_ROOT8_INVALID;
++ O=512U+1536U*N;S=96U+768U*K;U=O+S;V=96U+384U*D;Q=U+V+L+16384U;
++ if(Q+512U!=n||u32(p+32)!=512U||u32(p+36)!=1536U*N||u32(p+40)!=U+V||u32(p+48)!=U+V+L||
++ u32(p+52)!=16384U||u32(p+56)!=Q||u32(p+60)!=512U||u32(p+64)!=Q+512U||u32(p+68)!=32U||u32(p+244)!=O||
++ u32(p+248)!=S||u32(p+260)!=U||u32(p+264)!=V)return PC_ROOT8_INVALID;
++ pre=u64(p+112);if(!pre||pre==(PAPACC_U64)-1||u64(p+104)!=pre+1U||u64(p+136)!=pre||
++ !u64(p+144)||!u64(p+152)||!u64(p+160)||!u64(p+120)||u64(p+120)<u64(p+160))return PC_ROOT8_INVALID;
++ return PC_ROOT8_OK;
++}
++static const PAPACC_U8 *association(const PAPACC_U8 *p,unsigned ordinal)
++{unsigned j;const PAPACC_U8 *s=p+u32(p+244)+64U;for(j=0;j<u16(p+252);j++,s+=768U)if(u16(s+16)==ordinal)return s;return NULL;}
++static PC_ROOT8_RESULT pdg(const PAPACC_U8 *p,int integrity,PC_LST1_HASH hash,void *hc)
++{
++ const PAPACC_U8 *s=p+u32(p+260),*a,*q,*sn;unsigned j,ordinal,len;PAPACC_SIZE V=u32(p+264);
++ if(memcmp(s,"PACPDG01",8)||u16(s+8)!=1U||u16(s+10)!=64U||u32(s+12)!=V||u16(s+16)!=u16(p+268)||
++ u16(s+18)!=384U||u32(s+20)||memcmp(s+24,p+72,32)||u64(s+56)!=u64(p+104))return PC_ROOT8_INVALID;
++ for(j=0;j<u16(s+16);j++){
++ a=s+64U+384U*j;ordinal=u16(a+22);len=u16(a+192);
++ if(memcmp(a,"PACPDL01",8)||u16(a+8)!=1U||u16(a+10)!=384U||u32(a+12)!=1U||
++ (u16(a+16)!=1U&&u16(a+16)!=2U)||u16(a+18)!=1U||u16(a+20)!=1U||ordinal>=u16(p+20)||
++ (j&&ordinal<=u16(a-384U+22U))||!u64(a+24)||u64(a+24)>u64(p+104)||zero(a+32,32)||zero(a+64,16)||
++ zero(a+80,16)||zero(a+96,16)||zero(a+112,32)||zero(a+144,32)||!u64(a+176)||u64(a+184)<=u64(a+176)||
++ !len||len>64U||!zero(a+194,2)||!zero(a+196+len,64U-len)||zero(a+260,32)||!zero(a+292,92))return PC_ROOT8_INVALID;
++ q=p+512U+1536U*ordinal;sn=association(p,ordinal);
++ if(q[4]!=1U||!sn||u16(q+10)!=len||memcmp(q+24,a+196,64)||memcmp(q+280,a+32,32)||
++ memcmp(sn+40,a+64,32)||memcmp(sn+568,a+260,32))return PC_ROOT8_INVALID;
++ }
++ return integrity?digest(s,V-32U,s+V-32U,hash,hc):PC_ROOT8_OK;
++}
++static PC_ROOT8_RESULT checkpoint(const PAPACC_U8 *p,int integrity,PC_LST1_HASH hash,void *hc)
++{
++ const PAPACC_U8 *c=p+u32(p+56);PC_ROOT8_RESULT s;if(zero(c,512))return PC_ROOT8_OK;
++ if(memcmp(c,"PACR8CP3",8)||u16(c+8)!=3U||u16(c+10)!=512U||u32(c+12)!=1U||memcmp(c+16,p+72,32)||
++ u64(c+48)!=u64(p+104)||u64(c+56)!=u64(p+112)||!u64(c+64)||!u64(c+72)||u64(c+80)!=u64(p+120)||
++ memcmp(c+120,p+176,64)||!zero(c+184,296))return PC_ROOT8_INVALID;
++ s=digest(p,u32(p+56),c+88,hash,hc);if(s)return s;return integrity?digest(c,480,c+480,hash,hc):PC_ROOT8_OK;
++}
++static PC_ROOT8_RESULT records(const PAPACC_U8 *p,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{
++ const PAPACC_U8 *carrier=p+u32(p+48),*a;PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RECORD r;PAPACC_ISSUER_RESULT ir;
++ PC_ROOT8_RESULT s;unsigned j;if(!u16(p+268))return PC_ROOT8_OK;
++ ir=papacc_issuer_image_validate(carrier+8192,&v,hash,hc);
++ if(ir==PAPACC_ISSUER_UNCERTAIN)return PC_ROOT8_HASH_FAILED;
++ if(ir!=PAPACC_ISSUER_OK||memcmp(v.root,p+72,32)||v.revision!=u64(p+120))return PC_ROOT8_INVALID;
++ for(j=0;j<u16(p+268);j++){
++ a=p+u32(p+260)+64U+384U*j;
++ ir=papacc_issuer_image_find(carrier+8192,a+96,&r,hash,hc);
++ if(ir==PAPACC_ISSUER_UNCERTAIN)return PC_ROOT8_HASH_FAILED;
++ if(ir!=PAPACC_ISSUER_OK||r.request.purpose!=PAPACC_ISSUER_PACKAGE||memcmp(a+64,v.authority,16)||memcmp(a+80,v.generation,16)||
++ memcmp(a+260,v.ca_spki_digest,32)||memcmp(a+112,r.certificate_digest,32)||memcmp(a+144,r.request.key_digest,32)||!r.certificate_size||
++ (r.state!=PAPACC_ISSUER_ISSUED_UNPUBLISHED&&r.state!=PAPACC_ISSUER_PUBLISHED&&r.state!=PAPACC_ISSUER_REVOKED)||
++ u64(a+176)<r.request.not_before||u64(a+184)>r.request.not_after||u64(a+184)>v.ca_not_after)return PC_ROOT8_INVALID;
++ /* Full certificate/profile/SPKI/CA validity source is mandatory, not inferred
++  * from digests, enum PACKAGE, policy ID or mathematical RSA. DATA ONLY. */
++ s=component(cc,8U,carrier,16384,a,p);if(s)return s;
++ }
++ return PC_ROOT8_OK;
++}
++static PC_ROOT8_RESULT shape(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{
++ PC_ROOT8_RESULT s;s=header(p,n);if(s)return s;s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;
++ s=pdg(p,1,hash,hc);if(s)return s;s=checkpoint(p,1,hash,hc);if(s)return s;
++ s=pc_root8_components_data(p,hash,hc,component,cc);if(s)return s;return records(p,hash,hc,component,cc);
++}
++static int outputs(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used)
++{return range(p,n)&&range(out,cap)&&range(used,sizeof(*used))&&!cross(p,n,out,cap)&&!cross(p,n,used,sizeof(*used))&&!cross(out,cap,used,sizeof(*used));}
++PC_ROOT8_RESULT pc_root8_v3_validate(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{PC_ROOT8_RESULT s;if(!range(p,n)||n<PC_ROOT8_V3_MIN||n>PC_ROOT8_V3_MAX)return PC_ROOT8_INVALID;s=header(p,n-32U);if(s)return s;
++ s=digest(p,n-32U,p+n-32U,hash,hc);if(s)return s;return shape(p,n-32U,hash,hc,component,cc);}
++PC_ROOT8_RESULT pc_root8_v3_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{PAPACC_U8 d[32];PC_ROOT8_RESULT s;if(!outputs(p,n,out,cap,used)||n>PC_ROOT8_V3_FIELDS_MAX||cap<n+32U)return PC_ROOT8_INVALID;
++ *used=0;s=shape(p,n,hash,hc,component,cc);if(s)return s;if(!hash||!hash(hc,p,n,d))return PC_ROOT8_HASH_FAILED;
++ memcpy(out,p,n);memcpy(out+n,d,32);*used=n+32U;return PC_ROOT8_OK;}
++PC_ROOT8_RESULT pc_root8_v3_decode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,int *complete,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{PC_ROOT8_RESULT s;if(!outputs(p,n,out,cap,used)||!range(complete,sizeof(*complete))||cross(complete,sizeof(*complete),p,n)||cross(complete,sizeof(*complete),out,cap)||cross(complete,sizeof(*complete),used,sizeof(*used)))return PC_ROOT8_INVALID;
++ *used=0;*complete=0;if(n<PC_ROOT8_V3_MIN||n>PC_ROOT8_V3_MAX||cap<n-32U)return PC_ROOT8_INVALID;
++ s=pc_root8_v3_validate(p,n,hash,hc,component,cc);if(s)return s;memcpy(out,p,n-32U);*used=n-32U;*complete=1;return PC_ROOT8_OK;}
++/* No owned view escapes the synchronous fragment call. */
++static PC_ROOT8_RESULT fragment(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc,unsigned kind)
++{
++ PC_ROOT8_RESULT s;PAPACC_SIZE off,len;PAPACC_U8 d[32];if(!outputs(p,n,out,cap,used))return PC_ROOT8_INVALID;*used=0;
++ s=header(p,n);if(s)return s;
++ if(kind==1U){off=u32(p+244);len=u32(p+248);s=pc_root8_snt_data(p,0,hash,hc);}
++ else if(kind==2U){s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;off=u32(p+260);len=u32(p+264);s=pdg(p,0,hash,hc);}
++ else{s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;s=pdg(p,1,hash,hc);if(s)return s;off=u32(p+56);len=512;s=checkpoint(p,0,hash,hc);}
++ if(s)return s;if(cap<len)return PC_ROOT8_INVALID;if(kind==3U&&zero(p+off,512)){memset(out,0,512);*used=512;return PC_ROOT8_OK;}
++ if(!hash||!hash(hc,p+off,len-32U,d))return PC_ROOT8_HASH_FAILED;memcpy(out,p+off,len-32U);memcpy(out+len-32U,d,32);*used=len;return PC_ROOT8_OK;
++}
++PC_ROOT8_RESULT pc_root8_v3_snt_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc)
++{return fragment(p,n,out,cap,used,hash,hc,1U);}
++PC_ROOT8_RESULT pc_root8_v3_pdg_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc)
++{return fragment(p,n,out,cap,used,hash,hc,2U);}
++PC_ROOT8_RESULT pc_root8_v3_cp_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc)
++{return fragment(p,n,out,cap,used,hash,hc,3U);}
++PC_ROOT8_RESULT pc_root8_v3_base_link(const PAPACC_U8 *next,PAPACC_SIZE nn,const PAPACC_U8 *base,PAPACC_SIZE bn,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{
++ PC_ROOT8_RESULT s;const PAPACC_U8 *cp,*a,*b,*lst;PAPACC_U8 d[32];unsigned version,j,N,K,D;PAPACC_SIZE bo,no;
++ PAPACC_ISSUER_CHECKPOINT_REPORT report;PAPACC_ISSUER_RESULT ir;
++ if(!range(next,nn)||nn<PC_ROOT8_V3_MIN||nn>PC_ROOT8_V3_MAX)return PC_ROOT8_INVALID;
++ if(!base)return bn?PC_ROOT8_INVALID:PC_ROOT8_INCOMPLETE;
++ if(!range(base,bn)||bn<PC_ROOT8_V2_MIN||bn>PC_ROOT8_V3_MAX||cross(next,nn,base,bn))return PC_ROOT8_INVALID;
++ s=pc_root8_v3_validate(next,nn,hash,hc,component,cc);if(s)return s;
++ if(memcmp(base,"PACROOT8",8))return PC_ROOT8_INVALID;version=u16(base+8);
++ if(version==2U)s=pc_root8_v2_validate(base,bn,hash,hc,component,cc);
++ else if(version==3U)s=pc_root8_v3_validate(base,bn,hash,hc,component,cc);else return PC_ROOT8_UNSUPPORTED;
++ if(s)return s;if(u16(next+240)!=version||memcmp(next+72,base+72,32)||u64(next+112)!=u64(base+104)||u64(next+136)!=u64(base+104)||memcmp(next+208,base+bn-32U,32))return PC_ROOT8_INVALID;
++ cp=base+u32(base+56);if(zero(cp,512))return PC_ROOT8_INCOMPLETE;
++ if(u64(next+144)!=u64(cp+64)||u64(next+152)!=u64(cp+72)||u64(next+160)!=u64(cp+80))return PC_ROOT8_INVALID;
++ if(!hash||!hash(hc,base,u32(base+56),d))return PC_ROOT8_HASH_FAILED;if(memcmp(d,next+176,32))return PC_ROOT8_INVALID;
++ N=u16(base+20);lst=next+u32(next+40);if(u32(next+44)!=160U+512U*N)return PC_ROOT8_INVALID;
++ for(j=0;j<N;j++){a=base+512U+1536U*j;b=lst+128U+512U*j;if(memcmp(a,b,344)||!zero(b+344,40)||memcmp(a+384,b+384,128))return PC_ROOT8_INVALID;}
++ bo=u32(base+48);no=u32(next+48);if(memcmp(base+bo,next+no,8192))return PC_ROOT8_INVALID;
++ ir=papacc_issuer_checkpoint_assess(next+no+8192,8192,base+bo+8192,8192,hash,hc,0,&report);
++ if(ir==PAPACC_ISSUER_UNCERTAIN)return PC_ROOT8_HASH_FAILED;
++ if(ir!=PAPACC_ISSUER_DENIED||report.state!=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED)return PC_ROOT8_INVALID;
++ K=u16(base+252);if(u16(next+252)!=K)return PC_ROOT8_INCOMPLETE;
++ if(memcmp(base+u32(base+244)+64U,next+u32(next+244)+64U,768U*K))return PC_ROOT8_INCOMPLETE;
++ D=version==3U?u16(base+268):0;if(D!=u16(next+268))return PC_ROOT8_INCOMPLETE;
++ if(D&&memcmp(base+u32(base+260)+64U,next+u32(next+260)+64U,384U*D))return PC_ROOT8_INCOMPLETE;
++ return PC_ROOT8_OK;
++}
+--- a/tests/config_root8_v3_test.c
++++ b/tests/config_root8_v3_test.c
+@@ -0,0 +1,111 @@
++/* Reuse the existing v2 DATA fixtures/builders, never native CURRENT/trust.
++ * Public three-byte "certificate" is explicitly a MODEL, not X509 evidence. */
++#define main v2_fixture_entry_not_run
++#include "config_root8_v2_test.c"
++#undef main
++#include "config_root8_v3.h"
++static PAPACC_U8 f3[PC_ROOT8_V3_FIELDS_MAX],save3[PC_ROOT8_V3_FIELDS_MAX];
++static PAPACC_U8 e3[PC_ROOT8_V3_MAX+1U],d3[PC_ROOT8_V3_FIELDS_MAX],p3[PC_PDG1_MAX];
++static PAPACC_U8 base3[PC_ROOT8_V3_MAX];
++static PAPACC_SIZE n3,z3;static int reject_signer;
++static PC_ROOT8_RESULT component3(void *ctx,unsigned kind,const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
++{if(kind==8U){(void)ctx;(void)p;(void)row;(void)header;return reject_signer?PC_ROOT8_INCOMPLETE:n==16384U?PC_ROOT8_OK:PC_ROOT8_INVALID;}return model_component(ctx,kind,p,n,row,header);}
++static int seal3(void)
++{
++ PAPACC_SIZE n;CHECK(pc_root8_v3_snt_encode(f3,n3,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_OK);memcpy(f3+r32(f3+244),part,n);
++ CHECK(pc_root8_v3_pdg_encode(f3,n3,p3,sizeof(p3),&n,hash,&owner)==PC_ROOT8_OK);memcpy(f3+r32(f3+260),p3,n);
++ CHECK(pc_root8_v3_encode(f3,n3,e3,sizeof(e3),&z3,hash,&owner,component3,NULL)==PC_ROOT8_OK);return 1;
++}
++static int setup3(unsigned N,unsigned B,unsigned D)
++{
++ PAPACC_SIZE U,V=96U+384U*D,off;PAPACC_U8 *pg,*a,*image;PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RECORD rec;
++ PAPACC_U8 cert[3]={1,2,3};unsigned j;
++ CHECK(setup(N,B,1));memset(f3,0,sizeof(f3));U=r32(fields+40);n3=prefix+V;
++ memcpy(f3,fields,U);memcpy(f3+U+V,fields+U,prefix-U);
++ w16(f3+8,3);w16(f3+240,2);w32(f3+12,(PAPACC_U32)(n3+32U));w32(f3+40,(PAPACC_U32)(U+V));
++ w32(f3+48,r32(fields+48)+(PAPACC_U32)V);w32(f3+56,r32(fields+56)+(PAPACC_U32)V);w32(f3+64,r32(fields+64)+(PAPACC_U32)V);
++ w16(f3+258,1);w32(f3+260,(PAPACC_U32)U);w32(f3+264,(PAPACC_U32)V);w16(f3+268,D);w16(f3+270,384);w16(f3+272,1);
++ pg=f3+U;memcpy(pg,"PACPDG01",8);w16(pg+8,1);w16(pg+10,64);w32(pg+12,(PAPACC_U32)V);w16(pg+16,D);w16(pg+18,384);pg[24]=7;w64(pg+56,2);
++ off=r32(f3+48);image=f3+off+8192;CHECK(papacc_issuer_image_validate(image,&v,hash,&owner)==PAPACC_ISSUER_OK);
++ if(D){
++ memset(&rec,0,sizeof(rec));rec.request.id[0]=15;rec.request.device[0]=16;rec.request.csr_digest[0]=17;rec.request.key_digest[0]=18;
++ rec.request.purpose=PAPACC_ISSUER_PACKAGE;rec.request.not_before=1700000000;rec.request.not_after=1700003600;rec.approved_epoch=8;
++ memcpy(rec.authority,v.authority,16);memcpy(rec.generation,v.generation,16);memcpy(rec.policy,v.policy,32);rec.state=PAPACC_ISSUER_PREPARED;
++ CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ rec.state=PAPACC_ISSUER_SERIAL_RESERVED;rec.counter=2;memcpy(rec.serial,v.prefix,8);rec.serial[15]=2;
++ CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);rec.state=PAPACC_ISSUER_SIGN_REQUESTED;
++ CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);rec.state=PAPACC_ISSUER_ISSUED_UNPUBLISHED;rec.certificate_size=3;
++ CHECK(hash(&owner,cert,3,rec.certificate_digest));CHECK(papacc_issuer_image_append(image,&rec,cert,3,hash,&owner)==PAPACC_ISSUER_OK);
++ rec.state=PAPACC_ISSUER_PUBLISHED;rec.published_epoch=18;CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_image_validate(image,&v,hash,&owner)==PAPACC_ISSUER_OK);w64(f3+120,v.revision);
++ for(j=0;j<D;j++){
++ a=pg+64U+384U*j;memcpy(a,"PACPDL01",8);w16(a+8,1);w16(a+10,384);w32(a+12,1);w16(a+16,1);w16(a+18,1);w16(a+20,1);w16(a+22,j);w64(a+24,2);
++ memcpy(a+32,f3+512U+1536U*j+280U,32);memcpy(a+64,v.authority,16);memcpy(a+80,v.generation,16);memcpy(a+96,rec.request.id,16);
++ memcpy(a+112,rec.certificate_digest,32);memcpy(a+144,rec.request.key_digest,32);w64(a+176,1700000100);w64(a+184,1700003000);
++ w16(a+192,2);memcpy(a+196,f3+512U+1536U*j+24U,64);memcpy(a+260,v.ca_spki_digest,32);
++ }}
++ return seal3();
++}
++static int cp3(void)
++{
++ PAPACC_U8 *c=f3+r32(f3+56);PAPACC_SIZE n;memset(c,0,512);memcpy(c,"PACR8CP3",8);w16(c+8,3);w16(c+10,512);w32(c+12,1);
++ memcpy(c+16,f3+72,32);w64(c+48,r64(f3+104));w64(c+56,r64(f3+112));w64(c+64,18);w64(c+72,9);w64(c+80,r64(f3+120));memcpy(c+120,f3+176,64);
++ CHECK(hash(&owner,f3,r32(f3+56),c+88));CHECK(pc_root8_v3_cp_encode(f3,n3,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_OK&&n==512);memcpy(c,part,512);return seal3();
++}
++static int next3(unsigned version,PAPACC_SIZE bn)
++{
++ PAPACC_U8 *q,*b;PAPACC_SIZE n,L;unsigned j,N=(unsigned)base3[20];
++ w16(f3+240,version);w64(f3+104,3);w64(f3+112,2);w64(f3+136,2);w64(f3+144,18);w64(f3+152,9);w64(f3+160,r64(base3+120));
++ memcpy(f3+176,base3+r32(base3+56)+88,32);memcpy(f3+208,base3+bn-32U,32);memset(f3+r32(f3+56),0,512);
++ w64(f3+r32(f3+244)+56,3);w64(f3+r32(f3+260)+56,3);
++ for(j=0;j<(unsigned)f3[20];j++){q=f3+512U+1536U*j;config_init(j,3);CHECK(papacc_configuration_body05_encode(&view,q+512,1024)==PAPACC_RESULT_OK);CHECK(hash(&owner,q+512,1024,q+312));}
++ L=r32(f3+44);b=f3+r32(f3+40);memset(&lst,0,sizeof(lst));memcpy(lst.fields,b,L-32U);w64(lst.fields+56,2);w64(lst.fields+88,1);w64(lst.fields+64,18);w64(lst.fields+72,9);w64(lst.fields+80,r64(base3+120));
++ for(j=0;j<N;j++){memcpy(lst.fields+128U+512U*j,base3+512U+1536U*j,512);memset(lst.fields+128U+512U*j+344U,0,40);}
++ CHECK(pc_lst1_encode(&lst,b,L,&n,hash,&owner)==PC_LST1_OK);return seal3();
++}
++static int run3(void)
++{
++ unsigned N,B,D,j;PAPACC_SIZE n,bn;int complete;PAPACC_U8 *a,*image;PAPACC_ISSUER_RECORD rec;PAPACC_ISSUER_VIEW iv;
++ PAPACC_CONFIG_PIN pin={0};char path[MAX_PATH];DWORD len;
++ len=GetFullPathNameA("v3-data-unused-no-store",MAX_PATH,path,NULL);CHECK(len&&len<MAX_PATH);CHECK(papacc_configuration_commit_init03(&owner,path)==PAPACC_RESULT_OK);
++ for(N=1;N<=4;N++)for(B=1;B<=4;B++)for(D=0;D<=N;D++){
++ CHECK(setup3(N,B,D));CHECK(pc_root8_v3_decode(e3,z3,d3,sizeof(d3),&n,&complete,hash,&owner,component3,NULL)==PC_ROOT8_OK&&complete&&n==n3&&!memcmp(f3,d3,n));CHECK(cp3());
++ }
++ CHECK(setup3(1,1,1));memcpy(save3,f3,n3);a=f3+r32(f3+260)+64U;
++ w16(a+16,2);CHECK(seal3()); /* revoked DATA remains representable, never trust */
++ memcpy(f3,save3,n3);CHECK(seal3());
++ for(j=0;j<z3;j++){e3[j]^=1;CHECK(pc_root8_v3_validate(e3,z3,hash,&owner,component3,NULL)!=PC_ROOT8_OK);e3[j]^=1;}
++ for(n=1;n<z3;n++)CHECK(pc_root8_v3_validate(e3,n,hash,&owner,component3,NULL)!=PC_ROOT8_OK);
++ CHECK(pc_root8_v3_validate(e3,z3+1,hash,&owner,component3,NULL)!=PC_ROOT8_OK);
++ {static const unsigned bad[]={0,8,10,12,16,18,20,22,24,32,64,80,96,112,144,192,194,196,260,292};
++ for(j=0;j<sizeof(bad)/sizeof(bad[0]);j++){
++ memcpy(f3,save3,n3);a=f3+r32(f3+260)+64U;a[bad[j]]^=255;
++ if(pc_root8_v3_pdg_encode(f3,n3,p3,sizeof(p3),&n,hash,&owner)==PC_ROOT8_OK){memcpy(f3+r32(f3+260),p3,n);CHECK(pc_root8_v3_encode(f3,n3,e3,sizeof(e3),&n,hash,&owner,component3,NULL)!=PC_ROOT8_OK);}
++ else CHECK(n==0);
++ }}
++ memcpy(f3,save3,n3);a=f3+r32(f3+260)+64U;w64(a+176,1699999999);CHECK(pc_root8_v3_pdg_encode(f3,n3,p3,sizeof(p3),&n,hash,&owner)==PC_ROOT8_OK);memcpy(f3+r32(f3+260),p3,n);CHECK(pc_root8_v3_encode(f3,n3,e3,sizeof(e3),&n,hash,&owner,component3,NULL)==PC_ROOT8_INVALID);
++ memcpy(f3,save3,n3);a=f3+r32(f3+260)+64U;w64(a+184,1700003601);CHECK(pc_root8_v3_pdg_encode(f3,n3,p3,sizeof(p3),&n,hash,&owner)==PC_ROOT8_OK);memcpy(f3+r32(f3+260),p3,n);CHECK(pc_root8_v3_encode(f3,n3,e3,sizeof(e3),&n,hash,&owner,component3,NULL)==PC_ROOT8_INVALID);
++ memcpy(f3,save3,n3);CHECK(seal3());reject_signer=1;CHECK(pc_root8_v3_validate(e3,z3,hash,&owner,component3,NULL)==PC_ROOT8_INCOMPLETE);reject_signer=0;
++ CHECK(pc_root8_v3_validate(e3,z3,hash,&owner,model_component,NULL)==PC_ROOT8_UNSUPPORTED);
++ CHECK(pc_root8_v3_validate(e3,z3,hash,&owner,NULL,NULL)==PC_ROOT8_INCOMPLETE);
++ CHECK(pc_root8_v3_validate(e3,z3,fail_hash,NULL,component3,NULL)==PC_ROOT8_HASH_FAILED);
++ CHECK(pc_root8_v2_validate(e3,z3,hash,&owner,component3,NULL)!=PC_ROOT8_OK);
++ n=99;complete=99;CHECK(pc_root8_v3_decode(e3,z3,e3,sizeof(e3),&n,&complete,hash,&owner,component3,NULL)==PC_ROOT8_INVALID&&n==99&&complete==99);
++ CHECK(cp3());memcpy(base3,e3,z3);bn=z3;CHECK(next3(3,bn));CHECK(pc_root8_v3_base_link(e3,z3,base3,bn,hash,&owner,component3,NULL)==PC_ROOT8_OK);
++ CHECK(pc_root8_v3_base_link(e3,z3,NULL,0,hash,&owner,component3,NULL)==PC_ROOT8_INCOMPLETE);
++ CHECK(pc_root8_v3_base_link(e3,z3,e3,z3,hash,&owner,component3,NULL)==PC_ROOT8_INVALID);
++ f3[176]^=1;CHECK(seal3());CHECK(pc_root8_v3_base_link(e3,z3,base3,bn,hash,&owner,component3,NULL)==PC_ROOT8_INVALID);f3[176]^=1;
++ a=f3+r32(f3+260)+64U;w16(a+16,2);w64(a+24,3);CHECK(seal3());CHECK(pc_root8_v3_base_link(e3,z3,base3,bn,hash,&owner,component3,NULL)==PC_ROOT8_INCOMPLETE);
++ /* v2 adoption absent delegation is DATA-only; no approval can be inferred. */
++ CHECK(setup3(1,1,0));CHECK(checkpoints());memcpy(base3,encoded,used);bn=used;CHECK(next3(2,bn));CHECK(pc_root8_v3_base_link(e3,z3,base3,bn,hash,&owner,component3,NULL)==PC_ROOT8_OK);
++ /* Complete issuer status/high-water survives codec; no serial allocation. */
++ CHECK(setup3(1,1,1));image=f3+r32(f3+48)+8192;memset(&rec,0,sizeof(rec));rec.request.id[0]=15;
++ CHECK(papacc_issuer_image_find(image,rec.request.id,&rec,hash,&owner)==PAPACC_ISSUER_OK);rec.state=PAPACC_ISSUER_REVOKED;
++ CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK&&iv.high_water==2);w64(f3+120,iv.revision);CHECK(seal3());
++ CHECK(papacc_configuration_d3_begin08(&owner,&pin,e3,z3,INVALID_HANDLE_VALUE,0)!=PAPACC_RESULT_OK); /* no CURRENT; no worker started */
++ CHECK(!owner.pending_commit.active&&!owner.pending_commit.thread&&!owner.published);
++ CHECK(papacc_configuration_stop(&owner)==PAPACC_RESULT_OK);CHECK(papacc_configuration_d3_begin08(&owner,&pin,e3,z3,INVALID_HANDLE_VALUE,0)!=PAPACC_RESULT_OK);
++ CHECK(papacc_configuration_finish(&owner)==PAPACC_RESULT_OK);
++ printf("PASS %u V3_DATA_MODEL_ONLY NO_TRUST NO_CURRENT NO_SIGNATURE operation_buffers=%Iu max=%u\n",checks,sizeof(f3)+sizeof(save3)+sizeof(e3)+sizeof(d3)+sizeof(base3)+sizeof(p3),PC_ROOT8_V3_MAX);return 1;
++}
++int main(void){return run3()?0:1;}
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2748,7 +2748,7 @@
+     if(NOT PAPACC_ENABLE_OFFLINE_LST1)
+         message(FATAL_ERROR "ROOT8 requires existing offline LST1 codec")
+     endif()
+-    add_library(papacc_config_root8 STATIC src/config/config_root8.c src/config/config_root8_v2.c)
++    add_library(papacc_config_root8 STATIC src/config/config_root8.c src/config/config_root8_v2.c src/config/config_root8_v3.c)
+     target_include_directories(papacc_config_root8 PUBLIC src/config include)
+     target_link_libraries(papacc_config_root8 PUBLIC papacc_config_lst1 papacc_issuer)
+     set_target_properties(papacc_config_root8 PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+@@ -2771,6 +2771,21 @@
+         papacc_enable_warnings(papacc_config_root8_v2_test)
+         papacc_stage_pst_runtime(papacc_config_root8_v2_test)
+         add_test(NAME papacc.config_root8.v2_offline COMMAND papacc_config_root8_v2_test)
++        if(PAPACC_ENABLE_OFFLINE_D3_WORKER)
++            add_executable(papacc_config_root8_v3_test tests/config_root8_v3_test.c apps/server/server_config_root8_data_win32.c)
++            target_include_directories(papacc_config_root8_v3_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} src/config src/issuer apps/server)
++            target_compile_definitions(papacc_config_root8_v3_test PRIVATE PAPACC_OFFLINE_D3_WORKER=1)
++            target_link_libraries(papacc_config_root8_v3_test PRIVATE papacc_config_root8 papacc_server_run_win32 papacc_config_binding papacc_issuer)
++            set_target_properties(papacc_config_root8_v3_test PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++            papacc_enable_warnings(papacc_config_root8_v3_test)
++            papacc_stage_pst_runtime(papacc_config_root8_v3_test)
++            add_test(NAME papacc.config_root8.v3_offline COMMAND papacc_config_root8_v3_test)
++        endif()
++        set_property(SOURCE src/config/config_root8_v2.c src/config/config_root8_v3.c APPEND PROPERTY OBJECT_DEPENDS
++            "${CMAKE_CURRENT_SOURCE_DIR}/src/config/config_root8_internal.h;${CMAKE_CURRENT_SOURCE_DIR}/src/config/config_root8_v3.h")
++        set_property(SOURCE tests/config_root8_v3_test.c APPEND PROPERTY OBJECT_DEPENDS
++            "${CMAKE_CURRENT_SOURCE_DIR}/tests/config_root8_v2_test.c;${CMAKE_CURRENT_SOURCE_DIR}/src/config/config_root8_v3.h")
++
+     endif()
+ endif()
+ 

@@ -1,0 +1,17 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2764,3 +2764,14 @@
+  set_property(SOURCE apps/server/server_configuration_commit_win32.c APPEND PROPERTY OBJECT_DEPENDS
+   "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_d3_worker_win32.inc")
+ endif()
++
++# Candidate-only config frontend, before runtime acquisition; no second CLI.
++option(PAPACC_ENABLE_CONFIG_ADMIN_CLI "Build candidate configuration diagnostics" OFF)
++if(PAPACC_ENABLE_CONFIG_ADMIN_CLI)
++    if(NOT WIN32 OR NOT PAPACC_ENABLE_CANONICAL_API3_CANDIDATE OR NOT PAPACC_ENABLE_OFFLINE_CONFIG_SOURCE)
++        message(FATAL_ERROR "Config CLI requires Windows API3 candidate and existing source parser")
++    endif()
++    target_sources(papacc_server PRIVATE apps/server/server_config_cli.c)
++    target_link_libraries(papacc_server PRIVATE papacc_config_source)
++    target_compile_definitions(papacc_server PRIVATE PAPACC_ENABLE_CONFIG_ADMIN_CLI=1)
++endif()

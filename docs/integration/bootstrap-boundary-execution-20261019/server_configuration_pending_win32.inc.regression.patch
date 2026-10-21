@@ -1,0 +1,26 @@
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -314,11 +314,11 @@
+   {if(p->close_error)o->unresolved=1;return PAPACC_RESULT_INVALID_STATE;}
+  }
+ #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+- {int diagnostic=p->checkpoint_only==91;
++ {int diagnostic=p->checkpoint_only==91;HANDLE entered=p->test_entered,release=p->test_release;int uncertain=p->test_unknown;
+ #endif
+  memset(p,0,sizeof(*p));
+ #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+- if(diagnostic)p->checkpoint_only=91;}
++ if(diagnostic){p->checkpoint_only=91;p->test_entered=entered;p->test_release=release;p->test_unknown=uncertain;}}
+ #endif
+  p->packet_format=9U;p->file=INVALID_HANDLE_VALUE;
+  memcpy(p->path,parent,n+1U);memcpy(p->previous,leaf,k+1U);
+@@ -343,6 +343,9 @@
+  if(p->packet_format!=9U||p->active||p->thread)return PAPACC_RESULT_INVALID_STATE;
+  p->bootstrap_ready=0;
+  if(p->bootstrap_container){if(p->bootstrap_close_attempts&1U)return PAPACC_RESULT_INVALID_STATE;p->bootstrap_close_attempts|=1U;
++#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
++  if(p->test_unknown==2){p->close_error=ERROR_INVALID_HANDLE;o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}
++#endif
+   if(!CloseHandle(p->bootstrap_container)){p->close_error=GetLastError();o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}p->bootstrap_container=NULL;}
+  if(p->bootstrap_parent){if(p->bootstrap_close_attempts&2U)return PAPACC_RESULT_INVALID_STATE;p->bootstrap_close_attempts|=2U;
+   if(!CloseHandle(p->bootstrap_parent)){p->close_error=GetLastError();o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}p->bootstrap_parent=NULL;}

@@ -1,0 +1,42 @@
+{
+  "origins": [
+    {
+      "project": "Accelerator",
+      "path": "src/provisioning/manual_package.c",
+      "sha256": "9376ec1bbc5364e3a85370d0497ed0ea7e7c2af455a3711a4810a5d52d124399"
+    },
+    {
+      "project": "Accelerator",
+      "path": "src/provisioning/manual_package.h",
+      "sha256": "69c4baeb9b5c53db9fc4f48dcaf30c3e78de63b6d1aea569139b46f2d5f73531"
+    },
+    {
+      "project": "Browser",
+      "path": "src/papinho_papacc_content.c",
+      "sha256": "4b4e93478f8f2353868a415c487683744dbf6d91f8beb21c23da6c06a4913622"
+    },
+    {
+      "project": "Browser",
+      "path": "src/papinho_papacc_crypto.c",
+      "sha256": "de3174c35a28bb459152efef4aa6201c4d9fdb922dd5a6674be1ea712e6c7873"
+    },
+    {
+      "project": "Browser",
+      "path": "src/papinho_c2_secret.c",
+      "sha256": "53529b721d9394195123fc19e8351368d3858db530dd2e04b628de21e5fd8de3"
+    },
+    {
+      "project": "Browser",
+      "path": "src/papinho_papacc_frame.c",
+      "sha256": "bc59c9bd3073baee584dac1901e142403b8473a612df9d84b032943113eedd88"
+    }
+  ],
+  "transforms": [
+    "Browser M3 exact helper/reader bodies: namespaces/types/result labels, explicit LIMIT category; unchanged grammar",
+    "M2 original Accelerator reader: unchanged grammar, local output until success and observational Stop",
+    "Browser normalizer: same loop, constants and wipe; DATA result labels; same flat-address overlap helper",
+    "Oracles frozen; unused hash include removed from Browser parser prefix, public hash/provenance tail excluded; test-only wrappers expose existing metadata predicate",
+    "No KDF/AEAD/trust/install/nativecrypto or rejected fixture generation"
+  ],
+  "sample_bytes": 1024
+}

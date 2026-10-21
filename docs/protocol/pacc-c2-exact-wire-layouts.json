@@ -1,0 +1,831 @@
+{
+  "status": "PROPOSED_NOT_ALLOCATED",
+  "semanticRevision": 3,
+  "encodingCandidate": 1,
+  "capability": {
+    "id": 3,
+    "major": 1,
+    "requires": {
+      "id": 2,
+      "major": 1
+    }
+  },
+  "registrySources": {
+    "include\\papacc\\pacc\\message_types.h": "7B3A63AEFBC259E5E77905CFCAD87D3C7EBB10FE8402778EC54A57E2377003D4",
+    "src/capability/builtin_capabilities.c": "29AEF7A01D2B0440E50EA11536121E308940F407F71BCC2470182E980EBB52C0"
+  },
+  "existingTypes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "existingCapabilityKeys": [
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      2,
+      1
+    ]
+  ],
+  "messages": [
+    {
+      "name": "C2_OPEN",
+      "candidateId": 16,
+      "candidateHex": "0x10",
+      "channel": "CONTROL",
+      "sender": "B>A",
+      "fixedPrefix": 40,
+      "minPayload": 42,
+      "maxPayload": 803,
+      "tail": "original[1..254], canonical[1..253], ALPN vector[0..256]",
+      "fields": [
+        {
+          "field": "request_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "attempt_generation",
+          "offset": 8,
+          "bytes": 4,
+          "encoding": "U32BE"
+        },
+        {
+          "field": "resolution_generation",
+          "offset": 12,
+          "bytes": 4,
+          "encoding": "U32BE"
+        },
+        {
+          "field": "family",
+          "offset": 16,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "name_kind",
+          "offset": 17,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "port",
+          "offset": 18,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "ipv4",
+          "offset": 20,
+          "bytes": 4,
+          "encoding": "octets"
+        },
+        {
+          "field": "original_length",
+          "offset": 24,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "canonical_length",
+          "offset": 26,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "tls_profile_ref",
+          "offset": 28,
+          "bytes": 4,
+          "encoding": "U32BE"
+        },
+        {
+          "field": "require_alpn",
+          "offset": 32,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "alpn_count",
+          "offset": 33,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "alpn_bytes",
+          "offset": 34,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 36,
+          "bytes": 4,
+          "encoding": "octets"
+        }
+      ]
+    },
+    {
+      "name": "C2_OPEN_RESULT",
+      "candidateId": 17,
+      "candidateHex": "0x11",
+      "channel": "CONTROL",
+      "sender": "A>B",
+      "fixedPrefix": 108,
+      "minPayload": 108,
+      "maxPayload": 108,
+      "tail": "none",
+      "fields": [
+        {
+          "field": "request_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "operation_id",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 16,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "policy_epoch",
+          "offset": 24,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "attempt_generation",
+          "offset": 32,
+          "bytes": 4,
+          "encoding": "U32BE"
+        },
+        {
+          "field": "resolution_generation",
+          "offset": 36,
+          "bytes": 4,
+          "encoding": "U32BE"
+        },
+        {
+          "field": "status",
+          "offset": 40,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "assurance",
+          "offset": 42,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 43,
+          "bytes": 1,
+          "encoding": "octets"
+        },
+        {
+          "field": "application_token",
+          "offset": 44,
+          "bytes": 32,
+          "encoding": "octets"
+        },
+        {
+          "field": "record_token",
+          "offset": 76,
+          "bytes": 32,
+          "encoding": "octets"
+        }
+      ]
+    },
+    {
+      "name": "C2_BIND",
+      "candidateId": 18,
+      "candidateHex": "0x12",
+      "channel": "DATA accepted/unbound",
+      "sender": "B>A",
+      "fixedPrefix": 68,
+      "minPayload": 68,
+      "maxPayload": 68,
+      "tail": "none",
+      "fields": [
+        {
+          "field": "operation_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "policy_epoch",
+          "offset": 16,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "attempt_generation",
+          "offset": 24,
+          "bytes": 4,
+          "encoding": "U32BE"
+        },
+        {
+          "field": "resolution_generation",
+          "offset": 28,
+          "bytes": 4,
+          "encoding": "U32BE"
+        },
+        {
+          "field": "role",
+          "offset": 32,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 33,
+          "bytes": 3,
+          "encoding": "octets"
+        },
+        {
+          "field": "token",
+          "offset": 36,
+          "bytes": 32,
+          "encoding": "octets"
+        }
+      ]
+    },
+    {
+      "name": "C2_BIND_ACK",
+      "candidateId": 19,
+      "candidateHex": "0x13",
+      "channel": "role DATA",
+      "sender": "A>B",
+      "fixedPrefix": 28,
+      "minPayload": 28,
+      "maxPayload": 28,
+      "tail": "none",
+      "fields": [
+        {
+          "field": "operation_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "policy_epoch",
+          "offset": 16,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "role",
+          "offset": 24,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "status",
+          "offset": 25,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 26,
+          "bytes": 2,
+          "encoding": "octets"
+        }
+      ]
+    },
+    {
+      "name": "C2_SITE_READY",
+      "candidateId": 20,
+      "candidateHex": "0x14",
+      "channel": "CONTROL",
+      "sender": "B>A",
+      "fixedPrefix": 32,
+      "minPayload": 32,
+      "maxPayload": 32,
+      "tail": "none",
+      "fields": [
+        {
+          "field": "operation_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "policy_epoch",
+          "offset": 16,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "attempt_generation",
+          "offset": 24,
+          "bytes": 4,
+          "encoding": "U32BE"
+        },
+        {
+          "field": "resolution_generation",
+          "offset": 28,
+          "bytes": 4,
+          "encoding": "U32BE"
+        }
+      ]
+    },
+    {
+      "name": "C2_TLS_READY",
+      "candidateId": 21,
+      "candidateHex": "0x15",
+      "channel": "CONTROL",
+      "sender": "A>B",
+      "fixedPrefix": 32,
+      "minPayload": 32,
+      "maxPayload": 287,
+      "tail": "selected ALPN[0..255]",
+      "fields": [
+        {
+          "field": "operation_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "policy_epoch",
+          "offset": 16,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "tls_version",
+          "offset": 24,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "verification_mask",
+          "offset": 26,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "alpn_length",
+          "offset": 28,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 30,
+          "bytes": 2,
+          "encoding": "octets"
+        }
+      ]
+    },
+    {
+      "name": "C2_DATA",
+      "candidateId": 22,
+      "candidateHex": "0x16",
+      "channel": "role DATA",
+      "sender": "both",
+      "fixedPrefix": 28,
+      "minPayload": 29,
+      "maxPayload": 16384,
+      "tail": "opaque payload[1..16356]",
+      "fields": [
+        {
+          "field": "operation_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "role",
+          "offset": 16,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "direction",
+          "offset": 17,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 18,
+          "bytes": 2,
+          "encoding": "octets"
+        },
+        {
+          "field": "offset",
+          "offset": 20,
+          "bytes": 8,
+          "encoding": "U64BE"
+        }
+      ]
+    },
+    {
+      "name": "C2_FENCE",
+      "candidateId": 23,
+      "candidateHex": "0x17",
+      "channel": "role DATA",
+      "sender": "both",
+      "fixedPrefix": 32,
+      "minPayload": 32,
+      "maxPayload": 32,
+      "tail": "none",
+      "fields": [
+        {
+          "field": "operation_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "role",
+          "offset": 16,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "direction",
+          "offset": 17,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 18,
+          "bytes": 2,
+          "encoding": "octets"
+        },
+        {
+          "field": "prefix_count",
+          "offset": 20,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "kind",
+          "offset": 28,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "reserved_tail",
+          "offset": 30,
+          "bytes": 2,
+          "encoding": "octets"
+        }
+      ]
+    },
+    {
+      "name": "C2_FENCE_ACK",
+      "candidateId": 24,
+      "candidateHex": "0x18",
+      "channel": "role DATA",
+      "sender": "both (ack opposite direction)",
+      "fixedPrefix": 32,
+      "minPayload": 32,
+      "maxPayload": 32,
+      "tail": "none",
+      "fields": [
+        {
+          "field": "operation_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "role",
+          "offset": 16,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "direction",
+          "offset": 17,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 18,
+          "bytes": 2,
+          "encoding": "octets"
+        },
+        {
+          "field": "prefix_count",
+          "offset": 20,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "status",
+          "offset": 28,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "reserved_tail",
+          "offset": 30,
+          "bytes": 2,
+          "encoding": "octets"
+        }
+      ]
+    },
+    {
+      "name": "C2_RECORD_EVENT",
+      "candidateId": 25,
+      "candidateHex": "0x19",
+      "channel": "RECORD DATA",
+      "sender": "B>A",
+      "fixedPrefix": 32,
+      "minPayload": 32,
+      "maxPayload": 32,
+      "tail": "none",
+      "fields": [
+        {
+          "field": "operation_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "role",
+          "offset": 16,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "direction",
+          "offset": 17,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 18,
+          "bytes": 2,
+          "encoding": "octets"
+        },
+        {
+          "field": "prefix_count",
+          "offset": 20,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "event",
+          "offset": 28,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "reserved_tail",
+          "offset": 30,
+          "bytes": 2,
+          "encoding": "octets"
+        }
+      ]
+    },
+    {
+      "name": "C2_CANCEL",
+      "candidateId": 26,
+      "candidateHex": "0x1a",
+      "channel": "CONTROL",
+      "sender": "both",
+      "fixedPrefix": 40,
+      "minPayload": 40,
+      "maxPayload": 40,
+      "tail": "none",
+      "fields": [
+        {
+          "field": "target_kind",
+          "offset": 0,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "fact",
+          "offset": 2,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "action",
+          "offset": 4,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "reserved",
+          "offset": 6,
+          "bytes": 2,
+          "encoding": "octets"
+        },
+        {
+          "field": "request_id",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "operation_id",
+          "offset": 16,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 24,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "policy_epoch",
+          "offset": 32,
+          "bytes": 8,
+          "encoding": "U64BE"
+        }
+      ]
+    },
+    {
+      "name": "C2_FINAL",
+      "candidateId": 27,
+      "candidateHex": "0x1b",
+      "channel": "CONTROL",
+      "sender": "A>B",
+      "fixedPrefix": 76,
+      "minPayload": 76,
+      "maxPayload": 76,
+      "tail": "none",
+      "fields": [
+        {
+          "field": "request_id",
+          "offset": 0,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "operation_id",
+          "offset": 8,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "generation",
+          "offset": 16,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "policy_epoch",
+          "offset": 24,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "fact",
+          "offset": 32,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "action",
+          "offset": 34,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "outcome",
+          "offset": 36,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "tls_fact",
+          "offset": 38,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "ownership",
+          "offset": 40,
+          "bytes": 2,
+          "encoding": "U16BE"
+        },
+        {
+          "field": "fence_mask",
+          "offset": 42,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "assurance",
+          "offset": 43,
+          "bytes": 1,
+          "encoding": "U8BE"
+        },
+        {
+          "field": "app_ba_count",
+          "offset": 44,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "app_ab_count",
+          "offset": 52,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "record_ba_count",
+          "offset": 60,
+          "bytes": 8,
+          "encoding": "U64BE"
+        },
+        {
+          "field": "record_ab_count",
+          "offset": 68,
+          "bytes": 8,
+          "encoding": "U64BE"
+        }
+      ]
+    }
+  ]
+}

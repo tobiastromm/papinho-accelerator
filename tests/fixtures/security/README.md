@@ -16,3 +16,10 @@ Fixture roles:
 - `client-a`: enrolled credential used for ALLOW and policy-DENY cases;
 - `client-b`: TLS-valid credential intentionally not enrolled;
 - `client-c`: distinct TLS-valid credential mapped to the same test Principal as `client-a` to prove certificate rotation.
+
+The separate `mode-a-*` fixtures are also test-only. They form an RSA-2048,
+SHA-256 LAB hierarchy for the controlled TLS-1.2-only origin named
+`localhost`. They are not part of the Secure Principal or
+Mode B identities. Browser Mode A currently suppresses an untrusted-anchor
+result, so use of this structurally valid hierarchy does not claim governed
+Browser certificate-chain trust.

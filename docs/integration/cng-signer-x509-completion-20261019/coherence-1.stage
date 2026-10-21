@@ -1,0 +1,131 @@
+#define _WIN32_WINNT 0x0600
+#include "server_issuer_x509_win32.h"
+#include <bcrypt.h>
+#include <string.h>
+#include <stdint.h>
+static int disjoint(const void *a,PAPACC_SIZE an,const void *c,PAPACC_SIZE cn)
+{uintptr_t x=(uintptr_t)a,y=(uintptr_t)c;return an<=UINTPTR_MAX-x&&cn<=UINTPTR_MAX-y&&!(x<y+cn&&y<x+an);}
+static int req_equal(const PAPACC_ISSUER_REQUEST *a,const PAPACC_ISSUER_REQUEST *b)
+{return !memcmp(a->id,b->id,16)&&!memcmp(a->device,b->device,16)&&!memcmp(a->csr_digest,b->csr_digest,32)&&!memcmp(a->key_digest,b->key_digest,32)&&!memcmp(a->predecessor,b->predecessor,16)&&a->purpose==b->purpose&&a->not_before==b->not_before&&a->not_after==b->not_after;}
+static int ready(PAPACC_ISSUER_CNG_BACKEND *b)
+{return b&&b->initialized&&b->thread==GetCurrentThreadId()&&!b->stopped&&!b->retained&&b->owner&&!b->owner->stopped;}
+static PAPACC_ISSUER_RESULT binding(PAPACC_ISSUER_CNG_BACKEND *b,const PAPACC_ISSUER_RECORD *r,unsigned action,PAPACC_ISSUER_VIEW *v)
+{
+ PAPACC_ISSUER_RECORD actual;int found=0;PAPACC_ISSUER_RESULT s;
+ if(!ready(b))return b&&b->retained?PAPACC_ISSUER_RETAINED:PAPACC_ISSUER_DENIED;
+ s=b->root.read(b->root.ctx,r->request.id,v,&actual,&found);if(s)return s;
+ if(!found||(v->proofs&PAPACC_ISSUER_ROOT_PROOFS)!=PAPACC_ISSUER_ROOT_PROOFS||!v->revision||!v->epoch||!req_equal(&actual.request,&r->request)||
+   memcmp(actual.authority,r->authority,16)||memcmp(actual.generation,r->generation,16)||memcmp(actual.serial,r->serial,16)||
+   memcmp(actual.policy,r->policy,32)||actual.counter!=r->counter||actual.approved_epoch!=r->approved_epoch||actual.state!=r->state||
+   memcmp(v->authority,r->authority,16)||memcmp(v->generation,r->generation,16)||memcmp(v->policy,r->policy,32)||r->counter>v->high_water)return PAPACC_ISSUER_DENIED;
+ s=b->administrative->authorize(b->administrative->ctx,v,&r->request,action);return ready(b)?s:PAPACC_ISSUER_STOPPED;
+}
+static PAPACC_ISSUER_RESULT auth(void *ctx,const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_REQUEST *q,unsigned action)
+{PAPACC_ISSUER_CNG_BACKEND *b=ctx;PAPACC_ISSUER_RESULT s;if(!ready(b))return PAPACC_ISSUER_DENIED;s=b->administrative->authorize(b->administrative->ctx,v,q,action);return ready(b)?s:PAPACC_ISSUER_STOPPED;}
+static PAPACC_ISSUER_RESULT utc(void *ctx,PAPACC_U64 *now)
+{PAPACC_ISSUER_CNG_BACKEND *b=ctx;if(!ready(b))return PAPACC_ISSUER_STOPPED;return b->administrative->utc(b->administrative->ctx,now);}
+static PAPACC_ISSUER_RESULT request(void *ctx,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *csr,PAPACC_SIZE n)
+{PAPACC_ISSUER_CNG_BACKEND *b=ctx;if(!ready(b))return PAPACC_ISSUER_STOPPED;return papacc_issuer_windows_verify_request(&b->workspace,r,csr,n);}
+static int public_match(PAPACC_ISSUER_CNG_BACKEND *b,const PAPACC_ISSUER_VIEW *v)
+{
+ CERT_PUBLIC_KEY_INFO *info;BYTE *encoded,digest[32];DWORD n=0,k,z=32;
+ if(!CryptExportPublicKeyInfoEx(b->key->key,0,X509_ASN_ENCODING,(LPSTR)szOID_RSA_RSA,0,NULL,NULL,&n))return 0;
+ if(n>0xfffffff8U)return 0;n=(n+7U)&~7U;if(n>b->workspace.capacity)return 0;info=b->workspace.bytes;k=n;
+ if(!CryptExportPublicKeyInfoEx(b->key->key,0,X509_ASN_ENCODING,(LPSTR)szOID_RSA_RSA,0,NULL,info,&k))return 0;
+ encoded=(BYTE *)b->workspace.bytes+n;k=(DWORD)b->workspace.capacity-n;
+ if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_PUBLIC_KEY_INFO,info,0,NULL,encoded,&k)||
+  !CryptHashCertificate2(BCRYPT_SHA256_ALGORITHM,0,NULL,encoded,k,digest,&z)||z!=32)return 0;
+ return !memcmp(digest,v->ca_spki_digest,32);
+}
+static PAPACC_ISSUER_RESULT acquire(void *ctx,const PAPACC_ISSUER_VIEW *expected,const PAPACC_ISSUER_RECORD *r,void **lease)
+{
+ PAPACC_ISSUER_CNG_BACKEND *b=ctx;PAPACC_ISSUER_VIEW current;PAPACC_ISSUER_RESULT s;
+ wchar_t name[96];static const wchar_t prefix[]=L"PapinhoAccelerator.CA.",hex[]=L"0123456789abcdef";unsigned i,k=0;
+ if(!lease)return PAPACC_ISSUER_INVALID;*lease=NULL;
+ if(!ready(b)||b->active||!expected||!r||r->state!=PAPACC_ISSUER_SIGN_REQUESTED)return PAPACC_ISSUER_DENIED;
+ s=binding(b,r,PAPACC_ISSUER_SIGN,&current);if(s)return s;
+ if(current.revision!=expected->revision||current.epoch!=expected->epoch||memcmp(current.root,expected->root,32)||memcmp(current.ca_spki_digest,expected->ca_spki_digest,32))return PAPACC_ISSUER_CONFLICT;
+ if(!b->key)return PAPACC_ISSUER_ABSENT;
+ if(b->key->state!=PAPACC_CA_KEY_READY||!b->key->key||!b->key->provider||b->key->thread!=GetCurrentThreadId())return PAPACC_ISSUER_DENIED;
+ while(prefix[k]){name[k]=prefix[k];k++;}for(i=0;i<16;i++){name[k++]=hex[current.authority[i]>>4];name[k++]=hex[current.authority[i]&15];}name[k++]=L'.';
+ for(i=0;i<16;i++){name[k++]=hex[current.generation[i]>>4];name[k++]=hex[current.generation[i]&15];}name[k]=0;
+ if(wcscmp(name,b->key->name))return PAPACC_ISSUER_DENIED;
+ b->native_error=papacc_ca_key_validate(b->key);if(b->native_error)return papacc_issuer_windows_key_result(b->key,b->native_error);
+ if(!public_match(b,&current)||!ready(b))return PAPACC_ISSUER_DENIED;
+ b->native_error=papacc_ca_key_borrow(b->key,b);if(b->native_error)return papacc_issuer_windows_key_result(b->key,b->native_error);
+ b->view=current;b->record=*r;b->leased_key=b->key->key;b->active=1;*lease=b;return PAPACC_ISSUER_OK;
+}
+static PAPACC_ISSUER_RESULT sign_request(void *ctx,void *lease,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *csr,PAPACC_SIZE size,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used)
+{
+ PAPACC_ISSUER_CNG_BACKEND *b=ctx;PAPACC_ISSUER_VIEW current;PAPACC_ISSUER_RESULT s;
+ CERT_SIGNED_CONTENT_INFO *signed_csr,signed_cert;CERT_REQUEST_INFO *q;
+ DWORD a=0,d=0,n,z=32;BYTE *tbs,digest[32],signature[256];BCRYPT_PKCS1_PADDING_INFO padding;
+ if(!used||!b||!disjoint(used,sizeof(*used),b,sizeof(*b))||!disjoint(used,sizeof(*used),csr,size)||!disjoint(used,sizeof(*used),r,r?sizeof(*r):0))return PAPACC_ISSUER_INVALID;*used=0;
+ if(!ready(b)||lease!=b||b->active!=1||!r||r->state!=PAPACC_ISSUER_SIGN_REQUESTED||!out||!cap||cap>0xffffffffU||size>0xffffffffU||
+  !disjoint(out,cap,b,sizeof(*b))||!disjoint(out,cap,b->workspace.bytes,b->workspace.capacity)||!disjoint(out,cap,r,sizeof(*r))||
+  !disjoint(out,cap,csr,size)||!disjoint(out,cap,used,sizeof(*used))||!disjoint(out,cap,b->owner,sizeof(*b->owner))||
+  (b->key&&!disjoint(out,cap,b->key,sizeof(*b->key))))return PAPACC_ISSUER_DENIED;
+ if(b->reserved>2097152U||size>2097152U-b->reserved||cap>2097152U-b->reserved-size)return PAPACC_ISSUER_LIMIT;
+ s=binding(b,r,PAPACC_ISSUER_SIGN,&current);if(s)return s;
+ if(current.revision!=b->view.revision||current.epoch!=b->view.epoch||!req_equal(&b->record.request,&r->request)||memcmp(b->record.serial,r->serial,16))return PAPACC_ISSUER_CONFLICT;
+ s=request(b,r,csr,size);if(s)return s;
+ if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT,csr,(DWORD)size,CRYPT_DECODE_NOCOPY_FLAG,NULL,NULL,&a))return PAPACC_ISSUER_INVALID;
+ if(a>0xfffffff8U)return PAPACC_ISSUER_LIMIT;a=(a+7U)&~7U;if(a>b->workspace.capacity)return PAPACC_ISSUER_LIMIT;signed_csr=b->workspace.bytes;n=a;
+ if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT,csr,(DWORD)size,CRYPT_DECODE_NOCOPY_FLAG,NULL,signed_csr,&n)||
+  !CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_REQUEST_TO_BE_SIGNED,signed_csr->ToBeSigned.pbData,signed_csr->ToBeSigned.cbData,CRYPT_DECODE_NOCOPY_FLAG,NULL,NULL,&d))return PAPACC_ISSUER_INVALID;
+ if(d>0xfffffff8U)return PAPACC_ISSUER_LIMIT;d=(d+7U)&~7U;if(d>b->workspace.capacity-a)return PAPACC_ISSUER_LIMIT;q=(CERT_REQUEST_INFO *)((BYTE *)b->workspace.bytes+a);n=d;
+ if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_REQUEST_TO_BE_SIGNED,signed_csr->ToBeSigned.pbData,signed_csr->ToBeSigned.cbData,CRYPT_DECODE_NOCOPY_FLAG,NULL,q,&n))return PAPACC_ISSUER_INVALID;
+ tbs=(BYTE *)b->workspace.bytes+a+d;
+ s=papacc_issuer_x509_tbs(&current,r,b->ca,&q->SubjectPublicKeyInfo,tbs,(DWORD)b->workspace.capacity-a-d,&n);if(s)return s;
+ if(!CryptHashCertificate2(BCRYPT_SHA256_ALGORITHM,0,NULL,tbs,n,digest,&z)||z!=32)return PAPACC_ISSUER_INVALID;
+ /* Last authority read before the ONE private operation; no size-query sign,
+  * retry, alternate key, key generation, property write or cleanup occurs. */
+ s=binding(b,r,PAPACC_ISSUER_SIGN,&current);if(s)return s;
+ if(current.revision!=b->view.revision||current.epoch!=b->view.epoch||!ready(b)||b->key->borrower!=b||b->key->key!=b->leased_key)return PAPACC_ISSUER_CONFLICT;
+ b->native_error=papacc_ca_key_validate(b->key);if(b->native_error)return papacc_issuer_windows_key_result(b->key,b->native_error);
+ if(!ready(b))return PAPACC_ISSUER_STOPPED;
+ padding.pszAlgId=BCRYPT_SHA256_ALGORITHM;z=0;
+ b->active=2; /* uncertain until complete result/encoding; lease cannot escape */
+ b->native_error=NCryptSignHash(b->key->key,&padding,digest,32,signature,sizeof(signature),&z,NCRYPT_PAD_PKCS1_FLAG|NCRYPT_SILENT_FLAG);
+ if(b->native_error||z!=256||!ready(b)){b->retained=1;return b->native_error==NTE_PERM?PAPACC_ISSUER_DENIED:PAPACC_ISSUER_UNCERTAIN;}
+ memset(&signed_cert,0,sizeof(signed_cert));signed_cert.ToBeSigned.pbData=tbs;signed_cert.ToBeSigned.cbData=n;
+ signed_cert.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA256RSA;signed_cert.SignatureAlgorithm.Parameters.pbData=(BYTE *)"\x05\x00";signed_cert.SignatureAlgorithm.Parameters.cbData=2;
+ signed_cert.Signature.pbData=signature;signed_cert.Signature.cbData=256;z=(DWORD)cap;
+ if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_cert,CRYPT_ENCODE_NO_SIGNATURE_BYTE_REVERSAL_FLAG,NULL,out,&z)){b->retained=1;return PAPACC_ISSUER_UNCERTAIN;}
+ b->active=1;*used=z;return PAPACC_ISSUER_OK;
+}
+static PAPACC_ISSUER_RESULT certificate(void *ctx,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE n,PAPACC_U8 digest[32])
+{PAPACC_ISSUER_CNG_BACKEND *b=ctx;PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RESULT s;if(!r||n>0xffffffffU)return PAPACC_ISSUER_INVALID;s=binding(b,r,PAPACC_ISSUER_QUERY,&v);if(s)return s;return papacc_issuer_x509_verify(&v,r,b->ca,der,(DWORD)n,&b->workspace,digest);}
+static PAPACC_ISSUER_RESULT release(void *ctx,void *lease)
+{
+ PAPACC_ISSUER_CNG_BACKEND *b=ctx;SECURITY_STATUS status;if(!b||lease!=b||b->thread!=GetCurrentThreadId())return PAPACC_ISSUER_INVALID;
+ if(b->retained||b->active==2)return PAPACC_ISSUER_RETAINED;
+ status=papacc_ca_key_return(b->key,b);if(status){if(!b->native_error)b->native_error=status;b->retained=1;return PAPACC_ISSUER_RETAINED;}
+ b->leased_key=0;b->active=0;/* actual native ownership remains with PAPACC_CA_KEY */
+ return PAPACC_ISSUER_OK;
+}
+PAPACC_ISSUER_RESULT papacc_issuer_cng_backend_init(PAPACC_ISSUER_CNG_BACKEND *b,const PAPACC_ISSUER_ROOT_PORT *root,
+ const PAPACC_ISSUER_BACKEND *administrative,PAPACC_ISSUER_CORE *owner,PAPACC_CA_KEY *key,const CERT_INFO *ca,void *scratch,PAPACC_SIZE capacity,PAPACC_SIZE reserved)
+{
+ PAPACC_SIZE extra;
+ if(!b||b->initialized||!root||!root->ctx||!root->read||!root->cas||!administrative||!owner||owner->initialized||!administrative->authorize||!administrative->utc||!ca||!scratch||capacity>0xffffffffU||((uintptr_t)scratch&7U)||!disjoint(b,sizeof(*b),scratch,capacity)||!disjoint(b,sizeof(*b),root,sizeof(*root))||
+  !disjoint(b,sizeof(*b),administrative,sizeof(*administrative))||!disjoint(b,sizeof(*b),owner,sizeof(*owner))||!disjoint(b,sizeof(*b),ca,sizeof(*ca))||
+  !disjoint(scratch,capacity,root,sizeof(*root))||!disjoint(scratch,capacity,administrative,sizeof(*administrative))||
+  !disjoint(scratch,capacity,owner,sizeof(*owner))||!disjoint(scratch,capacity,ca,sizeof(*ca))||(key&&(!disjoint(b,sizeof(*b),key,sizeof(*key))||!disjoint(scratch,capacity,key,sizeof(*key)))))return PAPACC_ISSUER_INVALID;
+#ifndef PAPACC_ISSUER_CNG_OFFLINE_TEST
+ if(root->test_only||administrative->test_only)return PAPACC_ISSUER_DENIED;
+#endif
+ /* Caller reserved includes all other live/retained inputs, CA backing bytes,
+  * callbacks and complete transitive stack. This adds data objects only; it
+  * does not approve opaque resources or permit caller-selected authority. */
+ extra=sizeof(*b)+sizeof(PAPACC_ISSUER_CORE)+sizeof(PAPACC_CA_KEY);
+ if(reserved>2097152U||extra>2097152U-reserved||capacity>2097152U-reserved-extra)return PAPACC_ISSUER_LIMIT;
+ memset(b,0,sizeof(*b));b->root=*root;b->administrative=administrative;b->key=key;b->owner=owner;b->ca=ca;
+ b->workspace.bytes=scratch;b->workspace.capacity=capacity;b->reserved=reserved+extra+capacity;b->thread=GetCurrentThreadId();b->initialized=1;
+ b->ports.ctx=b;b->ports.test_only=root->test_only||administrative->test_only;
+ b->ports.authorize=auth;b->ports.utc=utc;b->ports.verify_request=request;b->ports.acquire=acquire;
+ b->ports.sign=sign_request;b->ports.verify_certificate=certificate;b->ports.release=release;
+ return PAPACC_ISSUER_OK;
+}
+void papacc_issuer_cng_backend_stop(PAPACC_ISSUER_CNG_BACKEND *b)
+{if(b&&b->thread==GetCurrentThreadId()){b->stopped=1;b->workspace.stopped=1;}}

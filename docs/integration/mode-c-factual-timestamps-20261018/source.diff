@@ -1,0 +1,209 @@
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\apps__server__server_c8_target_evidence_win32.h" b/apps/server/server_c8_target_evidence_win32.h
+index 6654689..769be88 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\apps__server__server_c8_target_evidence_win32.h"
++++ b/apps/server/server_c8_target_evidence_win32.h
+@@ -51,6 +51,9 @@ typedef struct PAPACC_C8_TARGET_PRODUCER {
+  * No new collector/storage/operational authority, no file handles or file I/O. */
+ typedef struct PAPACC_C8_PROCESS_PROVENANCE {
+  PAPACC_U64 creation,invocation,sequence,revision,epoch;
++ /* Presence bits describe observations, never a Mode C freshness policy. */
++ PAPACC_U64 observed_ms,validated_ms,valid_until_ms;
++ PAPACC_U32 time_presence,clock_source;
+  PAPACC_U32 process,thread,configured,current,phase,build_debug;
+  PAPACC_U8 domain[32],sdk_inventory[32];
+  WCHAR image_path[MAX_PATH],mapped_path[MAX_PATH];
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\apps__server__server_c8_target_evidence_win32.c" b/apps/server/server_c8_target_evidence_win32.c
+index f4486aa..8efb5d4 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\apps__server__server_c8_target_evidence_win32.c"
++++ b/apps/server/server_c8_target_evidence_win32.c
+@@ -190,6 +190,12 @@ PAPACC_RESULT papacc_c8_target_process_provenance(const PAPACC_C8_TARGET_PRODUCE
+  if(!n||n>=MAX_PATH||lstrcmpiW(process_path,f.mapped_path))return PAPACC_RESULT_INVALID_STATE;
+  f.process=s->process;f.creation=creation;f.thread=s->thread;f.invocation=b->invocation;
+  f.sequence=s->sequence;f.revision=b->revision;f.epoch=b->epoch;f.configured=b->configured;f.current=b->current;f.phase=b->phase;
++ /* Copy the existing producer observation, existing validation instant and
++  * recorded expiry exactly. Clock1 denotes the existing local PAL ns/ms
++  * conversion, scoped by actual process/creation; not a new clock identity.
++  * No Mode C applicability/approval is inferred from recorded C8 validity. */
++ f.observed_ms=s->evidence.sampled_ms;f.validated_ms=now;f.valid_until_ms=s->evidence.expires_ms;
++ f.time_presence=7U;f.clock_source=1U;
+  f.build_debug=PAPACC_OBSERVED_BUILD_DEBUG;
+  memcpy(f.domain,b->domain,32U);memcpy(f.sdk_inventory,s->evidence.sdk_sha256,32U);
+  *out=f;return PAPACC_RESULT_OK;
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\tests__process_provenance_offline_test.c" b/tests/process_provenance_offline_test.c
+index e51ba7e..f2a09f5 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\tests__process_provenance_offline_test.c"
++++ b/tests/process_provenance_offline_test.c
+@@ -17,6 +17,9 @@ int main(void){
+  CHECK(papacc_server_launcher_target_process_provenance(o,&p)==PAPACC_RESULT_OK);
+  CHECK(p.process==GetCurrentProcessId()&&p.thread==GetCurrentThreadId()&&p.creation&&p.invocation==o->invocation);
+  CHECK(!p.current&&!p.configured&&!p.epoch&&!p.revision);
++ CHECK(p.time_presence==7U&&p.clock_source==1U);
++ CHECK(p.observed_ms==o->target_producer.evidence.sampled_ms&&p.valid_until_ms==o->target_producer.evidence.expires_ms);
++ CHECK(p.observed_ms<=p.validated_ms&&p.validated_ms<=p.valid_until_ms);
+  prior=p;CHECK(papacc_server_launcher_target_observation_binding(o,&b)==PAPACC_RESULT_OK);
+  ++b.invocation;CHECK(papacc_c8_target_process_provenance(&o->target_producer,&b,&p)!=PAPACC_RESULT_OK&&!memcmp(&p,&prior,sizeof(p)));--b.invocation;
+  saved=o->target_producer.process;o->target_producer.process++;CHECK(papacc_server_launcher_target_process_provenance(o,&p)!=PAPACC_RESULT_OK);o->target_producer.process=saved;
+@@ -28,7 +31,8 @@ int main(void){
+  CHECK(papacc_server_launcher_target_process_provenance(o,(PAPACC_C8_PROCESS_PROVENANCE*)o)!=PAPACC_RESULT_OK);
+  CHECK(papacc_server_launcher_target_process_provenance(o,&p)==PAPACC_RESULT_OK);
+  printf("{\"format\":\"C8_OWN_PROCESS_PROVENANCE\",\"version\":1,\"origin\":\"NATIVE\",\"process\":%u,\"creation\":%llu,\"thread\":%u,\"invocation\":%llu,\"sequence\":%llu,\"revision\":%llu,\"epoch\":%llu,\"configured\":%u,\"current\":%u,\"phase\":%u,\"build_debug\":%u,\"sdk_inventory\":\"",p.process,(unsigned long long)p.creation,p.thread,(unsigned long long)p.invocation,(unsigned long long)p.sequence,(unsigned long long)p.revision,(unsigned long long)p.epoch,p.configured,p.current,p.phase,p.build_debug);
+- for(i=0;i<32U;++i)printf("%02x",p.sdk_inventory[i]);printf("\",\"image_path\":");path_json(p.image_path);printf(",\"mapped_path\":");path_json(p.mapped_path);
++ for(i=0;i<32U;++i)printf("%02x",p.sdk_inventory[i]);
++ printf("\",\"timestamps\":{\"observed_ms\":%llu,\"validated_ms\":%llu,\"valid_until_ms\":%llu,\"clock\":{\"source\":\"PAL_MONOTONIC_NS_TO_MS\",\"process\":%u,\"creation\":%llu},\"recorded_validity\":{\"producer\":\"PAPACC_C8_TARGET_EVIDENCE\",\"sequence\":%llu,\"invocation\":%llu},\"mode_c_policy_ref\":null}",(unsigned long long)p.observed_ms,(unsigned long long)p.validated_ms,(unsigned long long)p.valid_until_ms,p.process,(unsigned long long)p.creation,(unsigned long long)p.sequence,(unsigned long long)p.invocation);printf(",\"image_path\":");path_json(p.image_path);printf(",\"mapped_path\":");path_json(p.mapped_path);
+  printf(",\"ed11\":{\"private\":%llu,\"baseline\":%llu,\"peak\":%llu,\"handles\":%llu,\"physical\":%llu,\"commit\":%llu},\"provenance_size\":%llu,\"provider\":\"UNKNOWN\",\"kernel\":\"UNKNOWN\",\"admission\":\"DENY\"}\n",(unsigned long long)o->target_producer.evidence.metrics[2].value,(unsigned long long)o->target_producer.evidence.baseline,(unsigned long long)o->target_producer.evidence.peak,(unsigned long long)o->target_producer.evidence.metrics[3].value,(unsigned long long)o->target_producer.evidence.metrics[0].value,(unsigned long long)o->target_producer.evidence.metrics[1].value,(unsigned long long)sizeof(p));
+  CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)==PAPACC_RESULT_OK);
+  return 0;
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\tools__offline__mode_c_pair.py" b/tools/offline/mode_c_pair.py
+index cc21cce..b418547 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\tools__offline__mode_c_pair.py"
++++ b/tools/offline/mode_c_pair.py
+@@ -208,6 +208,51 @@ def consume_mode_c(browser_raw, accelerator_raw, artifacts):
+ 
+ 
+ 
++def recorded_time_coherence(p):
++    """Recorded local facts only. No Mode C freshness policy is installed.
++    Coherence with a recorded expiry is NOT approval of that expiry for Mode C.
++    No threshold or comparison of Browser and Accelerator clocks is made.
++    """
++    result = {'freshness_policy':'NOT_ESTABLISHED','validity_result':'INCOMPLETE',
++              'temporal_coherence':'ABSENT','clock_domain':None,
++              'observed_ms':None,'validated_ms':None,'valid_until_ms':None}
++    t = p.get('timestamps')
++    if t is None:
++        return result
++    keys(t, 'observed_ms validated_ms valid_until_ms clock recorded_validity mode_c_policy_ref')
++    for name in ('observed_ms','validated_ms','valid_until_ms'):
++        if t[name] is not None:
++            integer(t[name])
++        result[name] = t[name]
++    if t['clock'] is None:
++        return result
++    clock = t['clock']; keys(clock, 'source process creation')
++    integer(clock['process'], True); integer(clock['creation'], True)
++    require(clock['process'] == p['process'] and clock['creation'] == p['creation'], 'CLOCK_DOMAIN_DIVERGENCE')
++    result['clock_domain'] = clock
++    if clock['source'] != 'PAL_MONOTONIC_NS_TO_MS':
++        result['temporal_coherence'] = 'UNVERIFIED_CLOCK_SOURCE'
++        return result
++    if t['recorded_validity'] is None:
++        result['temporal_coherence'] = 'VALIDITY_REFERENCE_ABSENT'
++        return result
++    ref = t['recorded_validity']; keys(ref, 'producer sequence invocation')
++    integer(ref['sequence'], True); integer(ref['invocation'], True)
++    require(ref['producer'] == 'PAPACC_C8_TARGET_EVIDENCE' and ref['sequence'] == p['sequence'] and ref['invocation'] == p['invocation'], 'VALIDITY_REFERENCE_DIVERGENCE')
++    if any(t[k] is None for k in ('observed_ms','validated_ms','valid_until_ms')):
++        return result
++    if t['validated_ms'] < t['observed_ms']:
++        result['temporal_coherence'] = 'REGRESSIVE'
++    elif t['valid_until_ms'] < t['observed_ms']:
++        result['temporal_coherence'] = 'INVERTED_RECORDED_INTERVAL'
++    elif t['validated_ms'] > t['valid_until_ms']:
++        result['temporal_coherence'] = 'OUTSIDE_RECORDED_VALIDITY'
++    else:
++        result['temporal_coherence'] = 'COHERENT'
++    # Even a supplied non-null policy reference cannot create an approved rule.
++    # No approved Mode C applicability registry/authority is implemented here.
++    return result
++
+ def validate_producer_binding(receipt_raw, process_raw, launch_raw, build_raw):
+     """Consistency of existing receipt, native self-observation and controlled
+     launcher/build evidence. Does not authenticate arbitrary supplied JSON.
+@@ -215,7 +260,8 @@ def validate_producer_binding(receipt_raw, process_raw, launch_raw, build_raw):
+     """
+     out = {'status': 'INCOMPLETE', 'reason': 'MISSING_PRODUCER',
+            'admission': 'DENY', 'ED11_PASS': False, 'native_qualified': False,
+-           'provenance': 'CONSISTENCY_ONLY_NOT_REMOTE_ATTESTATION'}
++           'provenance': 'CONSISTENCY_ONLY_NOT_REMOTE_ATTESTATION',
++           'freshness_policy':'NOT_ESTABLISHED','validity_result':'INCOMPLETE'}
+     try:
+         b = unpack(receipt_raw)
+         if process_raw is None or launch_raw is None or build_raw is None or 'producer_ref' not in b:
+@@ -253,13 +299,14 @@ def validate_producer_binding(receipt_raw, process_raw, launch_raw, build_raw):
+         for name in ('private','baseline','peak','handles','physical','commit'):
+             integer(p['ed11'][name])
+         require(p['ed11']['baseline'] <= p['ed11']['peak'] and p['ed11']['private'] <= p['ed11']['peak'], 'BASELINE_PEAK')
++        out.update(recorded_time_coherence(p))
+         # A real baseline is useful provenance, NOT a current operation epoch.
+         # Keep the process association and resource scope distinct from grants.
+         if b['join'] is None or not p['configured'] or not p['current'] or not p['revision'] or not p['epoch']:
+             out.update(reason='PROCESS_BOUND_BASELINE_ONLY', process_binding='CONSISTENT_REPORTED_OS_OBSERVATION')
+             return out
+         require(p['epoch'] == b['join']['epoch'], 'PRODUCER_EPOCH')
+-        out.update(status='CORRELATED', reason='CONSISTENT_REPORTED_PRODUCER', process_binding='CONSISTENT_REPORTED_OS_OBSERVATION')
++        out.update(reason='MODE_C_VALIDITY_NOT_ESTABLISHED', process_binding='CONSISTENT_REPORTED_OS_OBSERVATION')
+         return out
+     except (Invalid, ValueError, KeyError, TypeError, OverflowError, UnicodeError, RecursionError) as exc:
+         out.update(status='INVALID', reason=str(exc)[:120] if isinstance(exc, Invalid) else type(exc).__name__)
+@@ -272,6 +319,7 @@ def consume_provenanced_mode_c(browser_raw, accelerator_raw, artifacts, producer
+     Old reported-only entry remains available without stronger claims.
+     """
+     result = consume_mode_c(browser_raw, accelerator_raw, artifacts)
++    result.update(freshness_policy='NOT_ESTABLISHED',validity_result='INCOMPLETE')
+     if result['status'] == 'INVALID':
+         return result
+     if type(producers) is not dict or set(producers) != {'BROWSER','ACCELERATOR'}:
+diff --git "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\tests__process_provenance_consumer_test.py" b/tests/process_provenance_consumer_test.py
+index 848e553..889ad03 100644
+--- "a/C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\mode-c-factual-timestamps-20261018\\preimages\\tests__process_provenance_consumer_test.py"
++++ b/tests/process_provenance_consumer_test.py
+@@ -32,7 +32,7 @@ class Cases(unittest.TestCase):
+         if drop:bindings.pop(drop)
+         return m.consume_provenanced_mode_c(prior.pack(b[0]),prior.pack(b[1]),a,bindings)
+     def test_valid_synthetic(self):
+-        r=self.run_case();self.assertEqual(r['status'],'CORRELATED');self.assertFalse(r['native_qualified']);self.assertEqual(r['admission'],'DENY')
++        r=self.run_case();self.assertEqual(r['status'],'INCOMPLETE');self.assertFalse(r['native_qualified']);self.assertEqual(r['admission'],'DENY');self.assertEqual(r['freshness_policy'],'NOT_ESTABLISHED')
+     def test_pid_reuse(self):
+         self.assertEqual(self.run_case(lambda b,a,p:p['BROWSER'][0].update(creation=999))['status'],'INVALID')
+     def test_image(self):
+@@ -64,4 +64,49 @@ class Cases(unittest.TestCase):
+     def test_native_claim_from_fixture(self):
+         self.assertEqual(self.run_case(lambda b,a,p:p['ACCELERATOR'][0].update(origin='NATIVE'))['status'],'INVALID')
+ 
++
++class TimeCases(unittest.TestCase):
++    def proof(self):
++        b,a,p=producer_fixture();q=p['ACCELERATOR'][0]
++        q['timestamps']=dict(observed_ms=2000,validated_ms=2100,valid_until_ms=2500,
++            clock=dict(source='PAL_MONOTONIC_NS_TO_MS',process=q['process'],creation=q['creation']),
++            recorded_validity=dict(producer='PAPACC_C8_TARGET_EVIDENCE',sequence=q['sequence'],invocation=q['invocation']),mode_c_policy_ref=None)
++        return q
++    def test_coherent_not_approved(self):
++        r=m.recorded_time_coherence(self.proof());self.assertEqual(r['temporal_coherence'],'COHERENT');self.assertEqual(r['validity_result'],'INCOMPLETE');self.assertEqual(r['freshness_policy'],'NOT_ESTABLISHED')
++    def test_absent_not_zero(self):
++        q=self.proof();q.pop('timestamps');r=m.recorded_time_coherence(q);self.assertIsNone(r['observed_ms']);self.assertEqual(r['temporal_coherence'],'ABSENT')
++    def test_partial_absence(self):
++        q=self.proof();q['timestamps']['valid_until_ms']=None;r=m.recorded_time_coherence(q);self.assertIsNone(r['valid_until_ms']);self.assertEqual(r['validity_result'],'INCOMPLETE')
++    def test_regression(self):
++        q=self.proof();q['timestamps']['validated_ms']=1900;self.assertEqual(m.recorded_time_coherence(q)['temporal_coherence'],'REGRESSIVE')
++    def test_outside_recorded_expiry(self):
++        q=self.proof();q['timestamps']['validated_ms']=2600;self.assertEqual(m.recorded_time_coherence(q)['temporal_coherence'],'OUTSIDE_RECORDED_VALIDITY')
++    def test_wrong_domain(self):
++        q=self.proof();q['timestamps']['clock']['creation']+=1
++        with self.assertRaises(m.Invalid):m.recorded_time_coherence(q)
++    def test_wrong_source_reference(self):
++        q=self.proof();q['timestamps']['recorded_validity']['sequence']+=1
++        with self.assertRaises(m.Invalid):m.recorded_time_coherence(q)
++    def test_large_recorded_interval_no_new_threshold(self):
++        q=self.proof();q['timestamps'].update(validated_ms=999999,valid_until_ms=1000001);r=m.recorded_time_coherence(q);self.assertEqual(r['temporal_coherence'],'COHERENT');self.assertEqual(r['validity_result'],'INCOMPLETE')
++    def test_zero_is_not_absent_when_observed(self):
++        q=self.proof();q['timestamps'].update(observed_ms=0,validated_ms=0,valid_until_ms=0);r=m.recorded_time_coherence(q);self.assertEqual(r['observed_ms'],0);self.assertEqual(r['temporal_coherence'],'COHERENT');self.assertEqual(r['validity_result'],'INCOMPLETE')
++    def test_claimed_policy_does_not_approve(self):
++        q=self.proof();q['timestamps']['mode_c_policy_ref']='unverified-reference';self.assertEqual(m.recorded_time_coherence(q)['freshness_policy'],'NOT_ESTABLISHED')
++    def test_unknown_clock_not_compared(self):
++        q=self.proof();q['timestamps']['clock']['source']='UNAVAILABLE';self.assertEqual(m.recorded_time_coherence(q)['temporal_coherence'],'UNVERIFIED_CLOCK_SOURCE')
++    def test_inverted_interval(self):
++        q=self.proof();q['timestamps']['valid_until_ms']=1999;self.assertEqual(m.recorded_time_coherence(q)['temporal_coherence'],'INVERTED_RECORDED_INTERVAL')
++    def test_participant_clocks_never_compared(self):
++        bodies,artifacts,records=producer_fixture();bindings={}
++        for b in bodies:
++            p,l,build=records[b['role']];observed=900000 if b['role']=='BROWSER' else 5
++            p['timestamps']=dict(observed_ms=observed,validated_ms=observed+1,valid_until_ms=observed+2,
++                clock=dict(source='PAL_MONOTONIC_NS_TO_MS',process=p['process'],creation=p['creation']),
++                recorded_validity=dict(producer='PAPACC_C8_TARGET_EVIDENCE',sequence=p['sequence'],invocation=p['invocation']),mode_c_policy_ref=None)
++            raw=m.canonical(p);b['producer_ref']=hashlib.sha256(raw).hexdigest();bindings[b['role']]=(raw,m.canonical(l),m.canonical(build))
++        r=m.consume_provenanced_mode_c(prior.pack(bodies[0]),prior.pack(bodies[1]),artifacts,bindings)
++        self.assertEqual(r['status'],'INCOMPLETE')
++        self.assertTrue(all(x['temporal_coherence']=='COHERENT' for x in r['producer_bindings'].values()))
+ if __name__=='__main__':unittest.main(verbosity=2)
+\ No newline at end of file

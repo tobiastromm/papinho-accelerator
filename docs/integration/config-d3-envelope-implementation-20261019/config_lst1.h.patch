@@ -1,0 +1,11 @@
+--- src/config/config_lst1.h
++++ src/config/config_lst1.h
+@@ -16,6 +16,8 @@
+ /* Same signature as existing papacc_configuration_issuer_hash06 adapter.
+  * No crypto implementation or platform dependency in this library. */
+ typedef int (*PC_LST1_HASH)(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8[32]);
++/* Private shared record shape, no header/epoch/authority. Exactly512 bytes. */
++PC_LST1_RESULT pc_lst1_record_shape(const PAPACC_U8 *,PAPACC_SIZE);
+ PC_LST1_RESULT pc_lst1_encode(const PC_LST1_MODEL *,PAPACC_U8 *,PAPACC_SIZE,
+  PAPACC_SIZE *,PC_LST1_HASH,void *);
+ PC_LST1_RESULT pc_lst1_decode(const PAPACC_U8 *,PAPACC_SIZE,PC_LST1_MODEL *,

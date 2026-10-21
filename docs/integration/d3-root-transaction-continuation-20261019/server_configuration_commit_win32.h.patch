@@ -1,0 +1,21 @@
+--- apps/server/server_configuration_commit_win32.h
++++ apps/server/server_configuration_commit_win32.h
+@@ -140,5 +140,18 @@
+ PAPACC_RESULT papacc_configuration_d3_begin08(PAPACC_CONFIGURATION_COMMIT *,
+  const PAPACC_CONFIG_PIN *,const PAPACC_U8 *,PAPACC_SIZE,HANDLE,PAPACC_SIZE);
+ PAPACC_RESULT papacc_configuration_d3_poll08(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++/* Factual native commit result, NOT CURRENT/recovery/authorization. Epochs
++ * explicitly absent; caller owns full collection copy, no borrowed pointers. */
++typedef struct PAPACC_D3_COMMITTED_RECEIPT {
++ PAPACC_U8 root[32],commit_digest[32],whole_digest[32];
++ PAPACC_U64 revision,predecessor;
++ PAPACC_SIZE bytes;
++ unsigned listener_count,epochs_present;
++} PAPACC_D3_COMMITTED_RECEIPT;
++/* Same owner/offline/no-reentry contract as begin08. already_reserved includes
++ * the caller receipt+buffers; separate9408 scratch is checked. Original begin
++ * input may be reused only after it returned: worker owns frozen copies. */
++PAPACC_RESULT papacc_configuration_d3_committed08(PAPACC_CONFIGURATION_COMMIT *,
++ PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PAPACC_D3_COMMITTED_RECEIPT *,PAPACC_SIZE);
+ #endif
+ #endif

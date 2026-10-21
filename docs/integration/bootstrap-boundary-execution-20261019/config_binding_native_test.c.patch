@@ -1,0 +1,24 @@
+--- tests/config_binding_native_test.c
++++ tests/config_binding_native_test.c
+@@ -3,6 +3,9 @@
+ #include <string.h>
+ static PC_DOCUMENT doc;static PC_MODEL_BINDING out;
+ static PAPACC_SERVER_LAUNCHER_OWNER_WIN32 fake_owner;static PAPACC_ROOT_CURRENT_PIN fake_pin;
++#ifdef PAPACC_OFFLINE_D3_WORKER
++static PAPACC_BOOTSTRAP_RESOLUTION initial;
++#endif
+ int main(void)
+ {PAPACC_INTERFACE_CURRENT_REPORT report;PC_DIAGNOSTIC d;unsigned checks=0U;const char *text="format_version 1\n";PC_TARGET t={1U,0};
+ #define CHECK(x) do{++checks;if(!(x)){printf("FAIL line=%u\n",(unsigned)__LINE__);return 1;}}while(0)
+@@ -24,6 +27,11 @@
+  CHECK(papacc_server_config_source_resolve(&fake_owner,&fake_pin,2U,&doc,&out,&d)!=PC_OK&&!out.resolved);
+  papacc_server_console_win32_request_stop();CHECK(papacc_server_console_win32_stop_requested()==PAPACC_TRUE);
+  CHECK(papacc_server_config_source_resolve(&fake_owner,&fake_pin,1U,&doc,&out,&d)!=PC_OK&&!out.resolved);
++#ifdef PAPACC_OFFLINE_D3_WORKER
++ CHECK(papacc_server_config_initial_bootstrap_resolve(NULL,&doc,&initial,&d)!=PC_OK&&!initial.initial_resolved);
++ CHECK(papacc_server_config_initial_bootstrap_resolve(&fake_owner,&doc,&initial,&d)!=PC_OK&&!initial.initial_resolved);
++ CHECK(!initial.epochs_present&&!initial.binding.resolved);
++#endif
+  CHECK(!fake_owner.configuration_commit.current&&!fake_owner.configuration_commit.published);
+  printf("NATIVE_GUARD_CHECKS=%u NO_CURRENT_NO_RESOLUTION_NO_NETWORK RESOLVED_STORAGE=%lu\n",checks,(unsigned long)sizeof(out));return 0;
+ }

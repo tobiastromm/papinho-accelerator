@@ -1,0 +1,11 @@
+--- src/config/config_source.h
++++ src/config/config_source.h
+@@ -11,7 +11,7 @@
+ #define PC_TEXT_MAX 64U
+ #define PC_BLOCKS_MAX 16U
+ #define PC_LISTENERS_MAX 4U
+-#define PC_NONE 0xffffffffU
++#define PAPACC_CONFIG_NO_INDEX 0xffffffffU
+ typedef enum PC_RESULT { PC_OK=0, PC_INVALID, PC_UNKNOWN, PC_UNSUPPORTED,
+  PC_LIMIT, PC_DUPLICATE, PC_MISSING, PC_REFERENCE, PC_CONFLICT } PC_RESULT;
+ typedef struct PC_DIAGNOSTIC { PC_RESULT code; unsigned line,column;

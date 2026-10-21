@@ -1,0 +1,221 @@
+#include "server_security_source_win32.h"
+
+#include <windows.h>
+#include <wincrypt.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "pst_provider_bootstrap_win32.h"
+
+typedef struct PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE {
+    PAPACC_U8 *certificate;
+    PAPACC_SIZE certificate_size;
+    PAPACC_U8 *private_key;
+    PAPACC_SIZE private_key_size;
+    PAPACC_U8 *client_ca;
+    PAPACC_SIZE client_ca_size;
+    PAPACC_SECURITY_DER_ITEM certificate_item;
+    PAPACC_SECURITY_DER_ITEM ca_item;
+    PAPACC_U8 allowed_client_certificate_sha256[
+        PAPACC_CREDENTIAL_SHA256_SIZE];
+} PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE;
+
+static void papacc_server_security_zero(void *data, PAPACC_SIZE size)
+{
+    volatile PAPACC_U8 *bytes = (volatile PAPACC_U8 *)data;
+    while (bytes != NULL && size != 0U) {
+        *bytes++ = 0U;
+        --size;
+    }
+}
+
+static void papacc_server_security_environment_release(void *context)
+{
+    PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *storage =
+        (PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *)context;
+    if (storage == NULL) return;
+    papacc_server_security_zero(storage->private_key,
+        storage->private_key_size);
+    free(storage->certificate);
+    free(storage->private_key);
+    free(storage->client_ca);
+    papacc_server_security_zero(storage, sizeof(*storage));
+    free(storage);
+}
+
+static int papacc_server_security_load_base64(const char *path,
+    PAPACC_U8 **data, PAPACC_SIZE *size)
+{
+    FILE *file = NULL;
+    char *encoded = NULL;
+    long length;
+    DWORD needed = 0U, written;
+    if (path == NULL || path[0] == '\0' || data == NULL || size == NULL ||
+        fopen_s(&file, path, "rb") != 0 || file == NULL)
+        return 0;
+    if (fseek(file, 0, SEEK_END) != 0 || (length = ftell(file)) <= 0 ||
+        length > 16L * 1024L * 1024L || fseek(file, 0, SEEK_SET) != 0)
+        goto fail;
+    encoded = (char *)malloc((size_t)length + 1U);
+    if (encoded == NULL || fread(encoded, 1U, (size_t)length, file) !=
+            (size_t)length)
+        goto fail;
+    fclose(file);
+    file = NULL;
+    encoded[length] = '\0';
+    if (!CryptStringToBinaryA(encoded, (DWORD)length, CRYPT_STRING_BASE64,
+            NULL, &needed, NULL, NULL) || needed == 0U)
+        goto fail;
+    *data = (PAPACC_U8 *)malloc((size_t)needed);
+    if (*data == NULL) goto fail;
+    written = needed;
+    if (!CryptStringToBinaryA(encoded, (DWORD)length, CRYPT_STRING_BASE64,
+            *data, &written, NULL, NULL)) {
+        free(*data);
+        *data = NULL;
+        goto fail;
+    }
+    free(encoded);
+    *size = (PAPACC_SIZE)written;
+    return 1;
+fail:
+    if (file != NULL) fclose(file);
+    free(encoded);
+    return 0;
+}
+
+static PAPACC_RESULT papacc_server_lab_principal_resolve(void *context,
+    const PAPACC_PEER_EVIDENCE *evidence,
+    PAPACC_PRINCIPAL_RESOLUTION *resolution, PAPACC_PRINCIPAL *principal)
+{
+    PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *storage =
+        (PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *)context;
+    if (evidence == NULL || resolution == NULL || principal == NULL)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    *principal = (PAPACC_PRINCIPAL)PAPACC_PRINCIPAL_INITIALIZER;
+    if (storage == NULL || evidence->certificate_present != PAPACC_TRUE ||
+        evidence->chain_validated != PAPACC_TRUE ||
+        evidence->peer_authenticated != PAPACC_TRUE ||
+        evidence->certificate_sha256_valid != PAPACC_TRUE) {
+        *resolution = PAPACC_PRINCIPAL_NOT_ENROLLED;
+        return PAPACC_RESULT_OK;
+    }
+    if (memcmp(evidence->certificate_sha256,
+            storage->allowed_client_certificate_sha256,
+            PAPACC_CREDENTIAL_SHA256_SIZE) != 0) {
+        *resolution = PAPACC_PRINCIPAL_NOT_ENROLLED;
+        return PAPACC_RESULT_OK;
+    }
+    memcpy(principal->value, evidence->certificate_sha256,
+        PAPACC_PRINCIPAL_VALUE_SIZE);
+    principal->valid = PAPACC_TRUE;
+    *resolution = PAPACC_PRINCIPAL_RESOLVED;
+    return PAPACC_RESULT_OK;
+}
+
+static int papacc_server_security_parse_hex_sha256(const char *text,
+    PAPACC_U8 output[PAPACC_CREDENTIAL_SHA256_SIZE])
+{
+    PAPACC_SIZE index;
+    if (text == NULL || strlen(text) != PAPACC_CREDENTIAL_SHA256_SIZE * 2U)
+        return 0;
+    for (index = 0U; index < PAPACC_CREDENTIAL_SHA256_SIZE; ++index) {
+        int high = text[index * 2U];
+        int low = text[index * 2U + 1U];
+        high = high >= '0' && high <= '9' ? high - '0' :
+            high >= 'a' && high <= 'f' ? high - 'a' + 10 :
+            high >= 'A' && high <= 'F' ? high - 'A' + 10 : -1;
+        low = low >= '0' && low <= '9' ? low - '0' :
+            low >= 'a' && low <= 'f' ? low - 'a' + 10 :
+            low >= 'A' && low <= 'F' ? low - 'A' + 10 : -1;
+        if (high < 0 || low < 0) return 0;
+        output[index] = (PAPACC_U8)((high << 4) | low);
+    }
+    return 1;
+}
+
+static PAPACC_RESULT papacc_server_lab_authorize(void *context,
+    const PAPACC_PRINCIPAL *principal, PAPACC_AUTHORIZATION_ACTION action,
+    PAPACC_AUTHORIZATION_DECISION *decision)
+{
+    (void)context;
+    if (principal == NULL || decision == NULL || principal->valid !=
+            PAPACC_TRUE || action < PAPACC_AUTHORIZATION_ACCESS_ACCELERATOR ||
+        action > PAPACC_AUTHORIZATION_ASSOCIATE_DATA)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    *decision = PAPACC_AUTHORIZATION_ALLOW;
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_server_security_environment_resolve(
+    void *context, const PAPACC_SECURITY_CONFIGURATION_REF *reference,
+    PAPACC_SECURITY_CONFIGURATION_RESOLUTION *resolution,
+    PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION *configuration)
+{
+    PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *storage;
+    const char *expected = getenv("PAPACC_SECURITY_CONFIGURATION_REF");
+    const char *certificate = getenv("PAPACC_SERVER_CERTIFICATE_DER_B64");
+    const char *private_key = getenv("PAPACC_SERVER_PRIVATE_KEY_PKCS8_DER_B64");
+    const char *client_ca = getenv("PAPACC_CLIENT_CA_DER_B64");
+    const char *allowed_client = getenv("PAPACC_ALLOWED_CLIENT_CERT_SHA256");
+    PAPACC_SIZE expected_size;
+    (void)context;
+    if (reference == NULL || resolution == NULL || configuration == NULL)
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    *resolution = PAPACC_SECURITY_CONFIGURATION_RESOLVER_ERROR;
+    if (expected == NULL) {
+        *resolution = PAPACC_SECURITY_CONFIGURATION_UNAVAILABLE;
+        return PAPACC_RESULT_OK;
+    }
+    expected_size = strlen(expected);
+    if (reference->valid != PAPACC_TRUE || expected_size != reference->length ||
+        memcmp(reference->value, expected, expected_size) != 0) {
+        *resolution = PAPACC_SECURITY_CONFIGURATION_NOT_FOUND;
+        return PAPACC_RESULT_OK;
+    }
+    storage = (PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *)calloc(
+        1U, sizeof(*storage));
+    if (storage == NULL) return PAPACC_RESULT_OUT_OF_MEMORY;
+    if (!papacc_server_security_parse_hex_sha256(allowed_client,
+            storage->allowed_client_certificate_sha256) ||
+        !papacc_server_security_load_base64(certificate,
+            &storage->certificate, &storage->certificate_size) ||
+        !papacc_server_security_load_base64(private_key,
+            &storage->private_key, &storage->private_key_size) ||
+        !papacc_server_security_load_base64(client_ca,
+            &storage->client_ca, &storage->client_ca_size)) {
+        papacc_server_security_environment_release(storage);
+        *resolution = PAPACC_SECURITY_CONFIGURATION_INVALID;
+        return PAPACC_RESULT_OK;
+    }
+    storage->certificate_item.data = storage->certificate;
+    storage->certificate_item.size = storage->certificate_size;
+    storage->ca_item.data = storage->client_ca;
+    storage->ca_item.size = storage->client_ca_size;
+    configuration->composition_inputs.local_certificate_chain =
+        &storage->certificate_item;
+    configuration->composition_inputs.local_certificate_count = 1U;
+    configuration->composition_inputs.local_private_key_pkcs8_der =
+        storage->private_key;
+    configuration->composition_inputs.local_private_key_pkcs8_der_size =
+        storage->private_key_size;
+    configuration->composition_inputs.peer_trust_anchors = &storage->ca_item;
+    configuration->composition_inputs.peer_trust_anchor_count = 1U;
+    configuration->composition_inputs.secure_principal_alpn =
+        (const PAPACC_U8 *)PAPACC_SECURITY_ALPN_PAPACC_1;
+    configuration->composition_inputs.secure_principal_alpn_size =
+        PAPACC_SECURITY_ALPN_PAPACC_1_SIZE;
+    configuration->composition_inputs.provider_id = "openssl";
+    configuration->composition_inputs.provider_bootstrap =
+        papacc_pst_provider_bootstrap_win32;
+    configuration->composition_inputs.logger = (const PAPACC_LOGGER *)context;
+    configuration->principal_resolve = papacc_server_lab_principal_resolve;
+    configuration->principal_resolve_context = storage;
+    configuration->authorize = papacc_server_lab_authorize;
+    configuration->release = papacc_server_security_environment_release;
+    configuration->release_context = storage;
+    configuration->valid = PAPACC_TRUE;
+    *resolution = PAPACC_SECURITY_CONFIGURATION_RESOLVED;
+    return PAPACC_RESULT_OK;
+}

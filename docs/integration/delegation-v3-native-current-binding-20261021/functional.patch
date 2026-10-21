@@ -1,0 +1,269 @@
+--- a/apps/server/server_config_root8_signer_win32.h
++++ b/apps/server/server_config_root8_signer_win32.h
+@@ -0,0 +1,28 @@
++#ifndef PAPACC_ROOT8_SIGNER_DATA_WIN32_H
++#define PAPACC_ROOT8_SIGNER_DATA_WIN32_H
++#include "config_root8_v3.h"
++#include "issuer_codec.h"
++#include "server_issuer_x509_win32.h"
++/* PRIVATE synchronous kind8 DATA adapter, no factual observation or source.
++ * Caller owns immutable complete carrier/row/header/CA and ALL deep CA backing,
++ * disjoint context/workspace/certificate scratch until return. Serialize Stop;
++ * never call from a Stop path. No retained pointers, allocation, I/O or handles.
++ * hash is the existing codec's SHA256 port, not an authority callback.
++ * All buffers/CA backing/frames/coexistence need prior caller accounting.
++ * already_reserved is a lower-bound guard, not proof of reserved credit.
++ */
++typedef struct PAPACC_ROOT8_SIGNER_DATA {
++ const CERT_INFO *ca;
++ PAPACC_ISSUER_WINDOWS_WORKSPACE *workspace;
++ PAPACC_U8 *certificate;PAPACC_SIZE certificate_capacity;
++ PC_LST1_HASH hash;void *hash_context;
++ PAPACC_SIZE already_reserved;
++} PAPACC_ROOT8_SIGNER_DATA;
++/* ONLY kind8, version3. Full codec still validates BODY/LST/SNT/issuer/history
++ * through its existing component composition. This result is DATA only:
++ * no UTC/status freshness, CURRENT/pin/provenance, delegation grant or TRUST.
++ * Missing protected CA/workspace => INCOMPLETE. Historical adapters unchanged.
++ */
++PC_ROOT8_RESULT papacc_root8_signer_data(void *,unsigned,const PAPACC_U8 *,
++ PAPACC_SIZE,const PAPACC_U8 *,const PAPACC_U8 *);
++#endif
+--- a/apps/server/server_config_root8_signer_win32.c
++++ b/apps/server/server_config_root8_signer_win32.c
+@@ -0,0 +1,56 @@
++#include "server_config_root8_signer_win32.h"
++#include "../../src/core/ed11_process_profile.h"
++#include <stdint.h>
++#include <string.h>
++static unsigned k16(const PAPACC_U8 *p){return (unsigned)p[0]|((unsigned)p[1]<<8);}
++static PAPACC_U64 k64(const PAPACC_U8 *p){PAPACC_U64 v=0;unsigned j;for(j=0;j<8;j++)v|=(PAPACC_U64)p[j]<<(8*j);return v;}
++static int krange(const void *p,PAPACC_SIZE n){return p&&n&&n-1U<=UINTPTR_MAX-(uintptr_t)p;}
++static int kover(const void *a,PAPACC_SIZE n,const void *b,PAPACC_SIZE m){uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<n:x-y<m;}
++PC_ROOT8_RESULT papacc_root8_signer_data(void *ctx,unsigned kind,const PAPACC_U8 *p,
++ PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
++{
++ PAPACC_ROOT8_SIGNER_DATA *c=ctx;PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RECORD r;
++ PAPACC_ISSUER_RESULT result;PAPACC_SIZE used,known;BYTE digest[32];
++ const void *input[5];PAPACC_SIZE size[5];unsigned j;
++ if(kind!=8U)return PC_ROOT8_UNSUPPORTED;
++ if(!krange(c,sizeof(*c))||!krange(p,n)||n!=16384U||!krange(row,384)||!krange(header,512))return PC_ROOT8_INVALID;
++ if(!c->ca||!c->workspace||!c->certificate||!c->hash)return PC_ROOT8_INCOMPLETE;
++ if(!krange(c->ca,sizeof(*c->ca))||!krange(c->workspace,sizeof(*c->workspace))||
++    !krange(c->workspace->bytes,c->workspace->capacity)||!krange(c->certificate,c->certificate_capacity)||
++    c->certificate_capacity>8192U||c->workspace->capacity>PAPACC_ED11_PROCESS_LIMIT)return PC_ROOT8_INVALID;
++ input[0]=p;size[0]=n;input[1]=row;size[1]=384;input[2]=header;size[2]=512;
++ input[3]=c;size[3]=sizeof(*c);input[4]=c->ca;size[4]=sizeof(*c->ca);
++ for(j=0;j<5;j++)if(kover(input[j],size[j],c->workspace->bytes,c->workspace->capacity)||
++    kover(input[j],size[j],c->certificate,c->certificate_capacity)||
++    kover(input[j],size[j],c->workspace,sizeof(*c->workspace)))return PC_ROOT8_INVALID;
++ if(kover(c->workspace->bytes,c->workspace->capacity,c->certificate,c->certificate_capacity)||
++    kover(c->workspace->bytes,c->workspace->capacity,c->workspace,sizeof(*c->workspace))||
++    kover(c->certificate,c->certificate_capacity,c->workspace,sizeof(*c->workspace)))return PC_ROOT8_INVALID;
++ known=n+384U+512U+sizeof(*c)+sizeof(*c->ca)+sizeof(*c->workspace)+c->certificate_capacity;
++ if(known>PAPACC_ED11_PROCESS_LIMIT||c->workspace->capacity>PAPACC_ED11_PROCESS_LIMIT-known)return PC_ROOT8_INCOMPLETE;
++ known+=c->workspace->capacity;
++ if(c->already_reserved<known||c->already_reserved>PAPACC_ED11_PROCESS_LIMIT||
++    sizeof(v)+sizeof(r)+sizeof(digest)>PAPACC_ED11_PROCESS_LIMIT-c->already_reserved)return PC_ROOT8_INCOMPLETE;
++ if(c->workspace->stopped)return PC_ROOT8_INCOMPLETE;
++ if(memcmp(header,"PACROOT8",8)||k16(header+8)!=3U||k16(header+10)!=512U||
++    memcmp(row,"PACPDL01",8)||k16(row+8)!=1U||k16(row+10)!=384U||
++    (k16(row+16)!=1U&&k16(row+16)!=2U)||k16(row+18)!=1U)return PC_ROOT8_INVALID;
++ result=papacc_issuer_image_validate(p+8192,&v,c->hash,c->hash_context);
++ if(result==PAPACC_ISSUER_UNCERTAIN)return PC_ROOT8_HASH_FAILED;
++ if(result!=PAPACC_ISSUER_OK||memcmp(v.root,header+72,32)||v.revision!=k64(header+120))return PC_ROOT8_INVALID;
++ result=papacc_issuer_image_find(p+8192,row+96,&r,c->hash,c->hash_context);
++ if(result==PAPACC_ISSUER_UNCERTAIN)return PC_ROOT8_HASH_FAILED;
++ if(result!=PAPACC_ISSUER_OK||r.request.purpose!=PAPACC_ISSUER_PACKAGE||
++    (r.state!=PAPACC_ISSUER_ISSUED_UNPUBLISHED&&r.state!=PAPACC_ISSUER_PUBLISHED&&r.state!=PAPACC_ISSUER_REVOKED)||
++    memcmp(row+64,v.authority,16)||memcmp(row+80,v.generation,16)||memcmp(row+260,v.ca_spki_digest,32)||
++    memcmp(row+112,r.certificate_digest,32)||memcmp(row+144,r.request.key_digest,32)||
++    k64(row+176)<r.request.not_before||k64(row+184)>r.request.not_after||k64(row+184)<=k64(row+176))return PC_ROOT8_INVALID;
++ used=0;result=papacc_issuer_image_certificate(p+8192,row+96,c->certificate,c->certificate_capacity,&used,c->hash,c->hash_context);
++ if(result==PAPACC_ISSUER_UNCERTAIN)return PC_ROOT8_HASH_FAILED;
++ if(result==PAPACC_ISSUER_LIMIT)return PC_ROOT8_INCOMPLETE;
++ if(result!=PAPACC_ISSUER_OK||used!=r.certificate_size||!used||used>8192U)return PC_ROOT8_INVALID;
++ result=papacc_issuer_x509_verify(&v,&r,c->ca,c->certificate,(DWORD)used,c->workspace,digest);
++ if(result==PAPACC_ISSUER_STOPPED||result==PAPACC_ISSUER_LIMIT)return PC_ROOT8_INCOMPLETE;
++ if(result!=PAPACC_ISSUER_OK||memcmp(digest,row+112,32))return PC_ROOT8_INVALID;
++ return c->workspace->stopped?PC_ROOT8_INCOMPLETE:PC_ROOT8_OK; /* DATA, including historical revoked rows */
++}
+--- a/tests/root8_kind8_model_test.c
++++ b/tests/root8_kind8_model_test.c
+@@ -0,0 +1,61 @@
++/* Isolated existing synthetic-signature X509 test extended for kind8 DATA.
++ * No keygen/private signature, fixture files or production trust result. */
++#include "server_issuer_x509_win32.h"
++#ifdef PAPACC_KIND8_NATIVE_NEGATIVE
++#define papacc_issuer_x509_tbs kind8_model_papacc_issuer_x509_tbs
++#define papacc_issuer_x509_verify kind8_model_papacc_issuer_x509_verify
++#define papacc_issuer_x509_server_tbs kind8_model_papacc_issuer_x509_server_tbs
++#define papacc_issuer_x509_server_verify kind8_model_papacc_issuer_x509_server_verify
++#endif
++#define main existing_x509_model_main
++#include "issuer_cng_x509_test.c"
++#undef main
++#ifdef PAPACC_KIND8_NATIVE_NEGATIVE
++#undef papacc_issuer_x509_tbs
++#undef papacc_issuer_x509_verify
++#undef papacc_issuer_x509_server_tbs
++#undef papacc_issuer_x509_server_verify
++#define EXPECT_KIND8 PC_ROOT8_INVALID
++#else
++#define EXPECT_KIND8 PC_ROOT8_OK
++#endif
++#include "../apps/server/server_config_root8_signer_win32.c"
++static void put16(BYTE *p,unsigned n){p[0]=(BYTE)n;p[1]=(BYTE)(n>>8);}
++static void put64(BYTE *p,PAPACC_U64 n){unsigned j;for(j=0;j<8;j++){p[j]=(BYTE)n;n>>=8;}}
++static int hash_data(void *ctx,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 d[32]){(void)ctx;return n<=0xffffffffU&&xhash(p,(DWORD)n,d);}
++static BYTE carrier[16384],row[384],header[512],certificate[8192];
++int main(int argc,char **argv){
++ PCCERT_CONTEXT caf,client;PAPACC_ISSUER_VIEW initial,observed;PAPACC_ISSUER_RECORD event,issued;
++ PAPACC_ROOT8_SIGNER_DATA data;BYTE anchor[32]={1};unsigned start,i;PAPACC_SIZE oldcap;
++ CHECK(argc==3);caf=fixture(argv[1]);client=fixture(argv[2]);CHECK(caf&&client);ca_public=caf->pCertInfo->SubjectPublicKeyInfo;
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_PACKAGE;
++ CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK);
++ issued=record;initial=v;initial.high_water=1;initial.revision=1;
++ CHECK(papacc_issuer_image_init(carrier+8192,&initial,anchor,hash_data,NULL)==PAPACC_ISSUER_OK);
++ event=issued;event.state=PAPACC_ISSUER_PREPARED;event.counter=0;memset(event.serial,0,16);event.certificate_size=0;memset(event.certificate_digest,0,32);
++ CHECK(papacc_issuer_image_append(carrier+8192,&event,NULL,0,hash_data,NULL)==PAPACC_ISSUER_OK);
++ event.counter=issued.counter;memcpy(event.serial,issued.serial,16);event.state=PAPACC_ISSUER_SERIAL_RESERVED;
++ CHECK(papacc_issuer_image_append(carrier+8192,&event,NULL,0,hash_data,NULL)==PAPACC_ISSUER_OK);
++ event.state=PAPACC_ISSUER_SIGN_REQUESTED;CHECK(papacc_issuer_image_append(carrier+8192,&event,NULL,0,hash_data,NULL)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_image_append(carrier+8192,&issued,out,issued.certificate_size,hash_data,NULL)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_image_validate(carrier+8192,&observed,hash_data,NULL)==PAPACC_ISSUER_OK);
++ memcpy(header,"PACROOT8",8);put16(header+8,3);put16(header+10,512);memcpy(header+72,observed.root,32);put64(header+120,observed.revision);
++ memcpy(row,"PACPDL01",8);put16(row+8,1);put16(row+10,384);put16(row+16,1);put16(row+18,1);
++ memcpy(row+64,observed.authority,16);memcpy(row+80,observed.generation,16);memcpy(row+96,issued.request.id,16);
++ memcpy(row+112,issued.certificate_digest,32);memcpy(row+144,issued.request.key_digest,32);memcpy(row+260,observed.ca_spki_digest,32);
++ put64(row+176,issued.request.not_before);put64(row+184,issued.request.not_after);
++ memset(&data,0,sizeof(data));data.ca=&ca;data.workspace=&backend.workspace;data.certificate=certificate;data.certificate_capacity=sizeof(certificate);data.hash=hash_data;
++ data.already_reserved=sizeof(carrier)+sizeof(row)+sizeof(header)+sizeof(certificate)+sizeof(workspace)+sizeof(data)+sizeof(ca)+sizeof(backend)+sizeof(core)+sizeof(record)+sizeof(v)+sizeof(csr)+sizeof(out)+sizeof(tbs)+sizeof(pubder)+sizeof(subject)+sizeof(root_serial)+sizeof(ski_bytes)+sizeof(extensions)+sizeof(ext)+sizeof(key)+sizeof(initial)+sizeof(observed)+sizeof(event)+sizeof(issued)+sizeof(anchor);
++ start=private_calls;CHECK(papacc_root8_signer_data(&data,8,carrier,sizeof(carrier),row,header)==EXPECT_KIND8);CHECK(private_calls==start);
++ data.ca=NULL;CHECK(papacc_root8_signer_data(&data,8,carrier,sizeof(carrier),row,header)==PC_ROOT8_INCOMPLETE);data.ca=&ca;
++ data.workspace->stopped=1;CHECK(papacc_root8_signer_data(&data,8,carrier,sizeof(carrier),row,header)==PC_ROOT8_INCOMPLETE);data.workspace->stopped=0;
++ oldcap=data.already_reserved;data.already_reserved=PAPACC_ED11_PROCESS_LIMIT;CHECK(papacc_root8_signer_data(&data,8,carrier,sizeof(carrier),row,header)==PC_ROOT8_INCOMPLETE);data.already_reserved=oldcap;
++ CHECK(papacc_root8_signer_data(&data,7,carrier,sizeof(carrier),row,header)==PC_ROOT8_UNSUPPORTED);
++ CHECK(papacc_root8_signer_data(&data,8,carrier,sizeof(carrier)-1,row,header)==PC_ROOT8_INVALID);
++ for(i=0;i<384;i++)if((i>=64&&i<176)||(i>=260&&i<292)||i==18){row[i]^=1;CHECK(papacc_root8_signer_data(&data,8,carrier,sizeof(carrier),row,header)!=PC_ROOT8_OK);row[i]^=1;}
++ carrier[8200]^=1;CHECK(papacc_root8_signer_data(&data,8,carrier,sizeof(carrier),row,header)==PC_ROOT8_INVALID);carrier[8200]^=1;
++ bad_signature=1;CHECK(papacc_root8_signer_data(&data,8,carrier,sizeof(carrier),row,header)==PC_ROOT8_INVALID);bad_signature=0;
++ put16(row+16,2);CHECK(papacc_root8_signer_data(&data,8,carrier,sizeof(carrier),row,header)==EXPECT_KIND8); /* historical revocation remains DATA, never approval */
++ CHECK(private_calls==start);CHECK(CertFreeCertificateContext(client));CHECK(CertFreeCertificateContext(caf));
++ printf("PASS %u KIND8_DATA_MODEL_OR_NATIVE_NEGATIVE_ONLY context=%u workspace=%u caller_named=%Iu NO_CURRENT_NO_TRUST_NO_NATIVE_PRIVATE_SIGNATURE\n",checks,(unsigned)sizeof(data),(unsigned)sizeof(*data.workspace),data.already_reserved);return 0;
++}
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2923,42 +2923,73 @@
+   add_test(NAME papacc.ed11.credit_${profile} COMMAND papacc_ed11_credit_${profile}_test)
+  endforeach()
+ endif()
+-
+-
+-# Accepted enrollment DATA components. No sockets/registration/authority.
+-option(PAPACC_ENABLE_OFFLINE_ENROLLMENT "Build private offline enrollment components only" OFF)
+-if(PAPACC_ENABLE_OFFLINE_ENROLLMENT)
+- add_library(papacc_enrollment STATIC src/provisioning/enrollment.c src/protocol/c2_token_compare.c)
+- target_include_directories(papacc_enrollment PUBLIC src/provisioning include)
+- set_target_properties(papacc_enrollment PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+- papacc_enable_warnings(papacc_enrollment)
+- if(WIN32)
+-  add_library(papacc_enrollment_windows STATIC src/provisioning/enrollment_windows.c)
+-  target_link_libraries(papacc_enrollment_windows PUBLIC papacc_enrollment bcrypt)
+-  papacc_enable_warnings(papacc_enrollment_windows)
+- endif()
+- if(BUILD_TESTING)
+-  add_executable(papacc_enrollment_test tests/enrollment_test.c)
+-  target_link_libraries(papacc_enrollment_test PRIVATE papacc_enrollment)
+-  if(WIN32)
+-   target_link_libraries(papacc_enrollment_test PRIVATE papacc_enrollment_windows)
+-  endif()
+-  papacc_enable_warnings(papacc_enrollment_test)
+-  add_test(NAME papacc.enrollment.data_offline COMMAND papacc_enrollment_test)
+- endif()
+- if(TARGET papacc_security_composition)
+-  add_library(papacc_enrollment_pst STATIC src/provisioning/enrollment_pst.c)
+-  target_link_libraries(papacc_enrollment_pst PUBLIC papacc_enrollment papacc_pst_consumer)
+-  papacc_enable_warnings(papacc_enrollment_pst)
+-  if(BUILD_TESTING)
+-   add_executable(papacc_enrollment_pst_test tests/enrollment_pst_test.c)
+-   target_link_libraries(papacc_enrollment_pst_test PRIVATE papacc_enrollment_pst papacc_security_composition papacc_pst_consumer)
+-   papacc_enable_warnings(papacc_enrollment_pst_test)
+-   papacc_stage_pst_runtime(papacc_enrollment_pst_test)
+-   add_test(NAME papacc.enrollment.pst_profile_data COMMAND papacc_enrollment_pst_test)
+-  endif()
+- endif()
+- set_source_files_properties(src/provisioning/enrollment.c src/provisioning/enrollment_windows.c
+-  src/provisioning/enrollment_pst.c tests/enrollment_test.c tests/enrollment_pst_test.c PROPERTIES OBJECT_DEPENDS
+-  "${CMAKE_CURRENT_SOURCE_DIR}/src/provisioning/enrollment.h;${CMAKE_CURRENT_SOURCE_DIR}/src/provisioning/enrollment_pst.h;${CMAKE_CURRENT_SOURCE_DIR}/src/core/ed11_process_profile.h")
+-endif()
++
++
++# Accepted enrollment DATA components. No sockets/registration/authority.
++option(PAPACC_ENABLE_OFFLINE_ENROLLMENT "Build private offline enrollment components only" OFF)
++if(PAPACC_ENABLE_OFFLINE_ENROLLMENT)
++ add_library(papacc_enrollment STATIC src/provisioning/enrollment.c src/protocol/c2_token_compare.c)
++ target_include_directories(papacc_enrollment PUBLIC src/provisioning include)
++ set_target_properties(papacc_enrollment PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++ papacc_enable_warnings(papacc_enrollment)
++ if(WIN32)
++  add_library(papacc_enrollment_windows STATIC src/provisioning/enrollment_windows.c)
++  target_link_libraries(papacc_enrollment_windows PUBLIC papacc_enrollment bcrypt)
++  papacc_enable_warnings(papacc_enrollment_windows)
++ endif()
++ if(BUILD_TESTING)
++  add_executable(papacc_enrollment_test tests/enrollment_test.c)
++  target_link_libraries(papacc_enrollment_test PRIVATE papacc_enrollment)
++  if(WIN32)
++   target_link_libraries(papacc_enrollment_test PRIVATE papacc_enrollment_windows)
++  endif()
++  papacc_enable_warnings(papacc_enrollment_test)
++  add_test(NAME papacc.enrollment.data_offline COMMAND papacc_enrollment_test)
++ endif()
++ if(TARGET papacc_security_composition)
++  add_library(papacc_enrollment_pst STATIC src/provisioning/enrollment_pst.c)
++  target_link_libraries(papacc_enrollment_pst PUBLIC papacc_enrollment papacc_pst_consumer)
++  papacc_enable_warnings(papacc_enrollment_pst)
++  if(BUILD_TESTING)
++   add_executable(papacc_enrollment_pst_test tests/enrollment_pst_test.c)
++   target_link_libraries(papacc_enrollment_pst_test PRIVATE papacc_enrollment_pst papacc_security_composition papacc_pst_consumer)
++   papacc_enable_warnings(papacc_enrollment_pst_test)
++   papacc_stage_pst_runtime(papacc_enrollment_pst_test)
++   add_test(NAME papacc.enrollment.pst_profile_data COMMAND papacc_enrollment_pst_test)
++  endif()
++ endif()
++ set_source_files_properties(src/provisioning/enrollment.c src/provisioning/enrollment_windows.c
++  src/provisioning/enrollment_pst.c tests/enrollment_test.c tests/enrollment_pst_test.c PROPERTIES OBJECT_DEPENDS
++  "${CMAKE_CURRENT_SOURCE_DIR}/src/provisioning/enrollment.h;${CMAKE_CURRENT_SOURCE_DIR}/src/provisioning/enrollment_pst.h;${CMAKE_CURRENT_SOURCE_DIR}/src/core/ed11_process_profile.h")
++endif()
++
++# Isolated native public kind8 DATA component. Never attached to root/runtime.
++if(TARGET papacc_config_root8 AND TARGET papacc_issuer_cng_windows)
++ add_library(papacc_root8_signer_data STATIC apps/server/server_config_root8_signer_win32.c)
++ target_include_directories(papacc_root8_signer_data PUBLIC apps/server src/config src/issuer include)
++ target_link_libraries(papacc_root8_signer_data PUBLIC papacc_config_root8 papacc_issuer_cng_windows)
++ papacc_enable_warnings(papacc_root8_signer_data)
++ if(PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE)
++  target_compile_definitions(papacc_root8_signer_data PRIVATE PAPACC_ED11_WINDOWS_3MIB=1)
++ endif()
++ if(BUILD_TESTING)
++  add_executable(papacc_root8_kind8_model_test tests/root8_kind8_model_test.c src/issuer/issuer_core.c src/issuer/issuer_codec.c)
++  target_include_directories(papacc_root8_kind8_model_test PRIVATE apps/server src/config src/issuer include)
++  target_compile_definitions(papacc_root8_kind8_model_test PRIVATE PAPACC_ISSUER_OFFLINE_TEST=1)
++  if(PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE)
++   target_compile_definitions(papacc_root8_kind8_model_test PRIVATE PAPACC_ED11_WINDOWS_3MIB=1)
++  endif()
++  target_link_libraries(papacc_root8_kind8_model_test PRIVATE crypt32)
++  papacc_enable_warnings(papacc_root8_kind8_model_test)
++  add_test(NAME papacc.root8.kind8_data_model COMMAND papacc_root8_kind8_model_test "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/ca.der.b64" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/client-a.der.b64")
++  add_executable(papacc_root8_kind8_native_gate_test tests/root8_kind8_model_test.c src/issuer/issuer_core.c src/issuer/issuer_codec.c)
++  target_include_directories(papacc_root8_kind8_native_gate_test PRIVATE apps/server src/config src/issuer include)
++  target_compile_definitions(papacc_root8_kind8_native_gate_test PRIVATE PAPACC_ISSUER_OFFLINE_TEST=1 PAPACC_KIND8_NATIVE_NEGATIVE=1)
++  if(PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE)
++   target_compile_definitions(papacc_root8_kind8_native_gate_test PRIVATE PAPACC_ED11_WINDOWS_3MIB=1)
++  endif()
++  target_link_libraries(papacc_root8_kind8_native_gate_test PRIVATE papacc_issuer_cng_windows)
++  papacc_enable_warnings(papacc_root8_kind8_native_gate_test)
++  add_test(NAME papacc.root8.kind8_native_gate COMMAND papacc_root8_kind8_native_gate_test "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/ca.der.b64" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/client-a.der.b64")
++ endif()
++endif()

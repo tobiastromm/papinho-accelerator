@@ -19,7 +19,9 @@ Ela não define uma API, wire format ou formato futuro de configuração.
 | Selecionar uma interface | `papacc_server.exe --port 4433 --interface-id 123` |
 | Selecionar várias interfaces | `papacc_server.exe --port 4433 --interface-id 123 --interface-id 456` |
 | Usar log DEBUG | `papacc_server.exe --port 4433 --all-interfaces --log-level debug` |
-| Registrar a flag administrativa de egress | `papacc_server.exe --port 4433 --all-interfaces --allow-network-egress` |
+| Habilitar egress com policy/profile explícitos | `papacc_server.exe --port 4433 --all-interfaces --listener-profile secure-principal --security-configuration-ref production --allow-network-egress --egress-policy-ref controlled --egress-profile-ref default-route` |
+| Iniciar Legacy Endpoint explicitamente | `papacc_server.exe --port 4433 --all-interfaces --listener-profile legacy-endpoint` |
+| Iniciar Secure Principal | `papacc_server.exe --port 4433 --all-interfaces --listener-profile secure-principal --security-configuration-ref nt4-lab-secure` |
 
 Todos os números dessa tabela são exemplos. `4433` não é porta default,
 reservada ou oficialmente recomendada.
@@ -158,6 +160,61 @@ administrativa/policy flag no Configuration Model atual:
 A opção pode aparecer uma única vez. O estado e as limitações estão no
 [Capability Document de Network Egress](capabilities/network-egress.md).
 
+Ela somente é válida em `secure-principal` e exige simultaneamente
+`--egress-policy-ref` e `--egress-profile-ref`. As referências são identidades
+opacas do Configuration Model; precisam ser resolvidas antes de RUN e não
+representam callbacks nem caminhos implícitos. Referência ausente ou desconhecida
+faz o startup falhar fechado. `legacy-endpoint` continua sem Network Egress.
+
+### `--egress-policy-ref` e `--egress-profile-ref`
+
+```text
+--egress-policy-ref <reference>
+--egress-profile-ref <reference>
+--outbound-tls-profile-ref <reference>
+```
+
+As opções selecionam, respectivamente, a Destination Policy e o Egress Profile.
+Elas não são defaults implícitos e não podem ser usadas sem
+`--allow-network-egress`. A source de laboratório Win32 resolve as referências
+pelas variáveis `PAPACC_EGRESS_POLICY_REF` e `PAPACC_EGRESS_PROFILE_REF`; regras
+exatas bounded são fornecidas por índices `PAPACC_EGRESS_RULE_<n>_HOST`,
+`PAPACC_EGRESS_RULE_<n>_IPV4` e `PAPACC_EGRESS_RULE_<n>_PORT` (`0 <= n < 16`).
+Esse formato é uma Configuration Source factual, não uma linguagem arquitetural
+congelada.
+
+`--outbound-tls-profile-ref` seleciona separadamente o profile de segurança TLS
+CLIENT usado em `TLS_REQUIRED`. `system-tls13` usa o trust store do sistema. Um
+profile lab privado deve coincidir com `PAPACC_OUTBOUND_TLS_PROFILE_REF` e usa
+`PAPACC_OUTBOUND_TLS_CA_DER_B64` como trust anchor explícita. Esse material não
+pertence à Destination Policy e nunca reutiliza implicitamente a CA inbound.
+
+### `--listener-profile <profile>`
+
+Valores implementados:
+
+```text
+legacy-endpoint
+secure-principal
+```
+
+O default compatível é `legacy-endpoint`. A escolha é explícita e nunca é
+inferida por porta, certificado ou bytes recebidos. Não existe fallback entre
+perfis. Legacy é plaintext. Secure Principal exige PST, TLS 1.3, mTLS e ALPN
+`papacc/1` antes de publicar uma Connection PACC.
+
+### `--security-configuration-ref <reference>`
+
+Obrigatória com `secure-principal` e proibida com `legacy-endpoint`. A
+referência possui de 1 a 64 bytes e identifica inputs resolvidos por uma
+Configuration Source application-owned; ela não contém certificado, private
+key ou senha.
+
+A fonte Win32 atualmente disponível é lab-only e resolve a referência e os
+caminhos de credenciais por environment variables. Consulte
+[Secure Principal listener — operação de laboratório](secure-principal-operation.md)
+para os nomes exatos, provisioning e higiene de chaves.
+
 ### `--log-level <level>`
 
 Valores implementados:
@@ -187,6 +244,9 @@ O parser e os testes atuais rejeitam:
 - `--all-interfaces` combinado com qualquer `--interface-id`;
 - repetição de `--port`, `--all-interfaces`, `--allow-network-egress` ou
   `--log-level`;
+- perfil desconhecido ou repetido;
+- Secure Principal sem `--security-configuration-ref`;
+- Legacy Endpoint com `--security-configuration-ref`;
 - Persistent IDs numericamente duplicados;
 - porta ausente, zero, não decimal ou fora de `1..65535`;
 - Persistent ID ausente, com sinal, hexadecimal, não decimal ou maior que
@@ -233,7 +293,10 @@ arquivo, Registry, precedência entre sources ou implementação de GUI.
 ## Sincronização com `--help`
 
 O texto atual de ajuda cobre `--help`, `--list-interfaces`, `--port`,
-`--all-interfaces`, `--interface-id`, `--allow-network-egress`, `--log-level`
+`--all-interfaces`, `--interface-id`, `--listener-profile`,
+`--security-configuration-ref`, `--allow-network-egress`,
+`--egress-policy-ref`, `--egress-profile-ref`,
+`--outbound-tls-profile-ref`, `--log-level`
 e todos os níveis de log implementados. A sintaxe resumida também informa que
 `--interface-id` pode ser repetido para selecionar múltiplas interfaces.
 
@@ -246,3 +309,4 @@ o texto atual de `--help`.
 - [Logging e diagnóstico operacional](capabilities/logging.md)
 - [Network Egress](capabilities/network-egress.md)
 - [Arquitetura](architecture.md)
+- [Secure Principal listener — operação de laboratório](secure-principal-operation.md)

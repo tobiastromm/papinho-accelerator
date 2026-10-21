@@ -1,0 +1,14 @@
+--- tests/network_discovery_win32_test.c
++++ tests/network_discovery_win32_test.c
+@@ -32,6 +32,11 @@
+  {PAPACC_PERSISTENT_BIND_SELECTION selected=PAPACC_PERSISTENT_BIND_SELECTION_INITIALIZER;PAPACC_BOOL matches=PAPACC_FALSE;
+   selected.mode=PAPACC_BIND_SELECTION_SELECTED_INTERFACES;selected.interface_persistent_ids=&interface_record.persistent_id;selected.interface_persistent_id_count=1U;
+   if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_OK||!matches)return 19;
++  selected.interface_persistent_id_count=9U;
++  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_LIMIT_EXCEEDED||matches)return 25;
++  selected.interface_persistent_id_count=1U;source.address_count=PAPACC_INTERFACE_COPY_ADDRESSES+1U;
++  if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_LIMIT_EXCEEDED||matches)return 26;
++  source.address_count=1U;
+   interface_record.interface_instance_id=19U;address.interface_instance_id=19U;address.interface_index=321U;
+   if(papacc_interface_snapshot_copy_matches(&copy,&source,&selected,&matches)!=PAPACC_RESULT_OK||!matches)return 20;
+   address.address.bytes[3]=2U;

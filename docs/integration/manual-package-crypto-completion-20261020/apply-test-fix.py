@@ -1,0 +1,2 @@
+import pathlib,hashlib,json
+r=pathlib.Path.cwd();d=r/'docs/integration/manual-package-crypto-completion-20261020';o=json.loads((d/'test-fix.json').read_text());p=r/o['target'];b=(d/'staged/manual_package_crypto_test.c').read_bytes();assert hashlib.sha256(p.read_bytes()).hexdigest()==o['preimage'];assert hashlib.sha256(b).hexdigest()==o['postimage'];p.write_bytes(b);print('Exact fixture loader correction applied')

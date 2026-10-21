@@ -1,0 +1,365 @@
+#include "server_run_win32.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <ws2tcpip.h>
+
+#include "papacc/version.h"
+#include "server_egress_source_win32.h"
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+#include "papinho_secure_transport.h"
+#include "pst_log_adapter.h"
+#include "pst_provider_bootstrap_win32.h"
+#include "server_secure_io_win32.h"
+#include "server_security_source_win32.h"
+#include "server_outbound_tls_source_win32.h"
+#endif
+
+static PAPACC_RESULT papacc_server_print_listeners(
+    FILE *output,
+    const PAPACC_SERVER_NETWORK *network)
+{
+    PAPACC_SIZE index;
+
+    fputs("PapinhoAccelerator Server\n", output);
+    fprintf(output, "Software version %s\n\n", papacc_version_string());
+    fputs("Server network started.\n\nListening:\n", output);
+    for (index = 0; index < network->listener_set.count; ++index) {
+        const PAPACC_TCP_LISTENER_ENTRY_WIN32 *entry =
+            &network->listener_set.entries[index];
+        char address_text[40];
+        PAPACC_RESULT result = papacc_ip_address_format(
+            &entry->target.address, address_text, sizeof(address_text));
+        if (result != PAPACC_RESULT_OK) {
+            return result;
+        }
+        if (entry->target.address.family == PAPACC_IP_FAMILY_IPV6) {
+            fprintf(output, "  IPv6 [%s]:%u", address_text,
+                    (unsigned int)network->listener_set.bound_port);
+            if (entry->target.scope_id != 0) {
+                fprintf(output, "  Scope ID: %lu",
+                        (unsigned long)entry->target.scope_id);
+            }
+        } else {
+            fprintf(output, "  IPv4 %s:%u", address_text,
+                    (unsigned int)network->listener_set.bound_port);
+        }
+        if (entry->target.interface_instance_id != 0) {
+            fprintf(output, "  Runtime Interface ID: %lu",
+                    (unsigned long)entry->target.interface_instance_id);
+        }
+        fputc('\n', output);
+    }
+    fputs("\nPress Ctrl+C to stop.\n", output);
+    return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_server_run_win32(
+    PAPACC_SERVER_NETWORK *server_network,
+    const PAPACC_SERVER_CONFIG *server_config,
+    FILE *output,
+    FILE *error_output,
+    const PAPACC_LOGGER *logger)
+{
+    const PAPACC_SIZE capacity =
+        (PAPACC_SIZE)PAPACC_SERVER_INITIAL_CONNECTION_CAPACITY;
+    PAPACC_SERVER_ACCEPTOR_WIN32 acceptor =
+        PAPACC_SERVER_ACCEPTOR_WIN32_INITIALIZER;
+    PAPACC_SERVER_IO_LOOP_WIN32 io_loop =
+        PAPACC_SERVER_IO_LOOP_WIN32_INITIALIZER;
+    PAPACC_CONNECTION *connection_storage = NULL;
+    PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *context_storage = NULL;
+    PAPACC_SESSION *session_storage = NULL;
+    PAPACC_CHANNEL *channel_storage = NULL;
+    PAPACC_DATA_ASSOCIATION_ENTRY *association_storage = NULL;
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *processor_storage = NULL;
+    PAPACC_RESULT result = PAPACC_RESULT_OK;
+    PAPACC_SERVER_EGRESS_SOURCE_WIN32 egress_source=
+        PAPACC_SERVER_EGRESS_SOURCE_WIN32_INITIALIZER;
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+    PST_RUNTIME_OPTIONS pst_options;
+    PST_LOG_CONFIG pst_log_config;
+    PST_TRUST_SOURCE pst_trust_source;
+    PST_DER_ITEM pst_trust_anchor;
+    PAPACC_RESOLVED_OUTBOUND_TLS_PROFILE resolved_outbound_tls=
+        PAPACC_RESOLVED_OUTBOUND_TLS_PROFILE_INITIALIZER;
+    PAPACC_PST_LOG_ADAPTER pst_log_adapter=PAPACC_PST_LOG_ADAPTER_INITIALIZER;
+    pst_runtime *pst_runtime_instance=NULL;
+    pst_trust *pst_system_trust=NULL;
+    PAPACC_OUTBOUND_TLS_POLICY outbound_tls_policy;
+    PAPACC_SERVER_LISTENER_CONFIGURATION secure_listener =
+        PAPACC_SERVER_LISTENER_CONFIGURATION_INITIALIZER;
+    PAPACC_SERVER_LISTENER_CONFIGURATION_SET secure_listener_set =
+        PAPACC_SERVER_LISTENER_CONFIGURATION_SET_INITIALIZER;
+    PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION resolved_security =
+        PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION_INITIALIZER;
+    PAPACC_SECURITY_CONFIGURATION_RESOLUTION security_resolution =
+        PAPACC_SECURITY_CONFIGURATION_RESOLVER_ERROR;
+    PAPACC_SECURITY_COMPOSITION security_composition =
+        PAPACC_SECURITY_COMPOSITION_INITIALIZER;
+    PAPACC_SERVER_SECURE_IO_WIN32 secure_io =
+        PAPACC_SERVER_SECURE_IO_WIN32_INITIALIZER;
+    PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *secure_candidates = NULL;
+    PAPACC_PST_SCHEDULER_MEMBER *secure_members = NULL;
+    PST_WAIT_EVENT *secure_events = NULL;
+    pst_external_source **listener_sources = NULL;
+    pst_wait_token *listener_tokens = NULL;
+    PAPACC_SIZE secure_scheduler_capacity = 0U;
+    PAPACC_BOOL secure_cleanup_allowed = PAPACC_TRUE;
+    PAPACC_RESULT secure_shutdown_result = PAPACC_RESULT_OK;
+#endif
+    PAPACC_SIZE index;
+
+    if (server_network == NULL || server_config == NULL || output == NULL || error_output == NULL ||
+        logger == NULL) {
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    }
+    if (capacity > SIZE_MAX / sizeof(*connection_storage) ||
+        capacity > SIZE_MAX / sizeof(*context_storage) ||
+        capacity > SIZE_MAX / sizeof(*session_storage) ||
+        capacity > SIZE_MAX / sizeof(*channel_storage) ||
+        capacity > SIZE_MAX / sizeof(*association_storage) ||
+        capacity > SIZE_MAX / sizeof(*processor_storage)) {
+        return PAPACC_RESULT_LIMIT_EXCEEDED;
+    }
+    connection_storage = (PAPACC_CONNECTION *)malloc(
+        capacity * sizeof(*connection_storage));
+    context_storage =
+        (PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT *)malloc(
+            capacity * sizeof(*context_storage));
+    session_storage = (PAPACC_SESSION *)malloc(
+        capacity * sizeof(*session_storage));
+    channel_storage = (PAPACC_CHANNEL *)malloc(
+        capacity * sizeof(*channel_storage));
+    association_storage = (PAPACC_DATA_ASSOCIATION_ENTRY *)malloc(
+        capacity * sizeof(*association_storage));
+    processor_storage = (PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *)malloc(
+        capacity * sizeof(*processor_storage));
+    if (connection_storage == NULL || context_storage == NULL ||
+        session_storage == NULL || channel_storage == NULL ||
+        association_storage == NULL || processor_storage == NULL) {
+        result = PAPACC_RESULT_OUT_OF_MEMORY;
+        goto cleanup;
+    }
+    for (index = 0; index < capacity; ++index) {
+        context_storage[index] =
+            (PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT)
+                PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT_INITIALIZER;
+    }
+    result = papacc_server_acceptor_win32_init(
+        &acceptor, server_network, connection_storage, capacity,
+        context_storage, capacity);
+    if (result != PAPACC_RESULT_OK) {
+        goto cleanup;
+    }
+    result = papacc_server_io_loop_win32_init(
+        &io_loop, server_network, &acceptor, session_storage, capacity,
+        channel_storage, capacity, association_storage, capacity,
+        processor_storage, capacity,
+        (PAPACC_U64)PAPACC_SERVER_ESTABLISHMENT_TIMEOUT_NS);
+    if (result != PAPACC_RESULT_OK) goto cleanup;
+    papacc_server_io_loop_win32_set_logger(&io_loop, logger);
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+    if (server_config->listener_profile ==
+            PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL) {
+        if (server_network->listener_set.count > SIZE_MAX - capacity) {
+            result = PAPACC_RESULT_LIMIT_EXCEEDED;
+            goto cleanup;
+        }
+        secure_scheduler_capacity = capacity +
+            server_network->listener_set.count +
+            PAPACC_SERVER_NETWORK_STREAM_CAPACITY;
+        secure_candidates = (PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *)calloc(
+            capacity, sizeof(*secure_candidates));
+        secure_members = (PAPACC_PST_SCHEDULER_MEMBER *)calloc(
+            secure_scheduler_capacity, sizeof(*secure_members));
+        secure_events = (PST_WAIT_EVENT *)calloc(
+            secure_scheduler_capacity, sizeof(*secure_events));
+        listener_sources = (pst_external_source **)calloc(
+            server_network->listener_set.count, sizeof(*listener_sources));
+        listener_tokens = (pst_wait_token *)calloc(
+            server_network->listener_set.count, sizeof(*listener_tokens));
+        if (secure_candidates == NULL || secure_members == NULL ||
+            secure_events == NULL || listener_sources == NULL ||
+            listener_tokens == NULL) {
+            result = PAPACC_RESULT_OUT_OF_MEMORY;
+            goto cleanup;
+        }
+        secure_listener.bind_selection = server_config->bind_selection;
+        secure_listener.port = server_config->control_port;
+        secure_listener.transport_profile =
+            PAPACC_LISTENER_TRANSPORT_PROFILE_SECURE_PRINCIPAL;
+        result = papacc_security_configuration_ref_set(
+            &secure_listener.security_configuration_ref,
+            server_config->security_configuration_ref,
+            server_config->security_configuration_ref_length);
+        if (result != PAPACC_RESULT_OK) goto cleanup;
+        secure_listener_set.listeners = &secure_listener;
+        secure_listener_set.count = 1U;
+        result = papacc_server_security_configuration_resolve_and_compose(
+            &secure_listener.security_configuration_ref,
+            papacc_server_security_environment_resolve, (void *)logger,
+            &security_resolution, &resolved_security,
+            &security_composition);
+        if (result != PAPACC_RESULT_OK || security_resolution !=
+                PAPACC_SECURITY_CONFIGURATION_RESOLVED) {
+            result = PAPACC_RESULT_INVALID_STATE;
+            goto cleanup;
+        }
+        result = papacc_server_secure_io_win32_init(&secure_io,
+            server_network, &secure_listener_set, &io_loop,
+            &security_composition, &resolved_security, secure_candidates,
+            capacity, secure_members, secure_events,
+            secure_scheduler_capacity, listener_sources, listener_tokens,
+            server_network->listener_set.count,
+            (PAPACC_U64)PAPACC_SERVER_ESTABLISHMENT_TIMEOUT_NS);
+        if (result != PAPACC_RESULT_OK) goto cleanup;
+    }
+#else
+    if (server_config->listener_profile ==
+            PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL) {
+        result = PAPACC_RESULT_NOT_SUPPORTED;
+        goto cleanup;
+    }
+#endif
+    if(server_config->allow_network_egress==PAPACC_TRUE){
+        result=papacc_server_egress_environment_resolve(server_config,
+            &egress_source);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+        result=papacc_server_io_loop_win32_set_egress_config(
+            &io_loop,&egress_source.runtime);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+        result=papacc_server_io_loop_win32_set_dns_resolver(
+            &io_loop,&egress_source.resolver);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+        result=papacc_pst_provider_bootstrap_win32(NULL);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+        result=papacc_pst_log_adapter_init(&pst_log_adapter,logger);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+        result=papacc_pst_log_adapter_make_config(&pst_log_adapter,
+            &pst_log_config);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+        memset(&pst_options,0,sizeof(pst_options));
+        pst_options.struct_size=(pst_u32)sizeof(pst_options);
+        pst_options.api_version=PST_API_VERSION;
+        if(pst_runtime_create_with_logging(&pst_options,&pst_log_config,
+            &pst_runtime_instance,NULL)!=PST_RESULT_OK){
+            result=PAPACC_RESULT_INTERNAL_ERROR;goto cleanup;
+        }
+        result=papacc_server_outbound_tls_environment_resolve(server_config,
+            &resolved_outbound_tls);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+        memset(&pst_trust_source,0,sizeof(pst_trust_source));
+        pst_trust_source.struct_size=(pst_u32)sizeof(pst_trust_source);
+        pst_trust_source.api_version=PST_API_VERSION;
+        if(resolved_outbound_tls.trust_kind==
+                PAPACC_OUTBOUND_TLS_TRUST_CUSTOM_CA_DER){
+            pst_trust_anchor.data=resolved_outbound_tls.custom_ca_der;
+            pst_trust_anchor.size=resolved_outbound_tls.custom_ca_der_size;
+            pst_trust_source.kind=PST_TRUST_SOURCE_CUSTOM_CA_DER;
+            pst_trust_source.anchors=&pst_trust_anchor;
+            pst_trust_source.anchor_count=1U;
+        }else pst_trust_source.kind=PST_TRUST_SOURCE_SYSTEM;
+        if(pst_trust_create(&pst_trust_source,&pst_system_trust)!=
+            PST_RESULT_OK){result=PAPACC_RESULT_INTERNAL_ERROR;goto cleanup;}
+        memset(&outbound_tls_policy,0,sizeof(outbound_tls_policy));
+        outbound_tls_policy.runtime=pst_runtime_instance;
+        outbound_tls_policy.trust=pst_system_trust;
+        outbound_tls_policy.provider_id=resolved_outbound_tls.provider_id;
+        result=papacc_server_io_loop_win32_set_outbound_tls(&io_loop,
+            &outbound_tls_policy);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+#endif
+    }
+    result = papacc_server_print_listeners(output, server_network);
+    if (result != PAPACC_RESULT_OK) {
+        goto cleanup;
+    }
+    fprintf(output, "Listener profile: %s\n",
+        server_config->listener_profile ==
+            PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL ?
+            "SECURE_PRINCIPAL" : "LEGACY_ENDPOINT");
+    fputs("Accepting Control establishment connections.\n", output);
+    papacc_log_event(logger, PAPACC_LOG_INFO, PAPACC_LOG_EVENT_SERVER_STARTED,
+        PAPACC_LOG_CATEGORY_NETWORK, PAPACC_LOG_COMPONENT_SERVER,
+        PAPACC_LOG_OPERATION_STARTUP, PAPACC_TRUE, PAPACC_RESULT_OK, NULL,
+        "Listener started; accepting Phase 2 connections");
+    (void)fflush(output);
+    while (papacc_server_console_win32_stop_requested() == PAPACC_FALSE) {
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+        if (server_config->listener_profile ==
+                PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL)
+            result = papacc_server_secure_io_win32_poll_once(
+                &secure_io, PAPACC_SERVER_IO_LOOP_POLL_TIMEOUT_MS);
+        else
+#endif
+        result = papacc_server_io_loop_win32_poll_once(
+            &io_loop, PAPACC_SERVER_IO_LOOP_POLL_TIMEOUT_MS);
+        if (result != PAPACC_RESULT_OK) {
+            fprintf(error_output, "Server I/O Loop failed: %d\n", (int)result);
+            (void)fflush(error_output);
+            break;
+        }
+    }
+
+cleanup:
+    papacc_log_event(logger, PAPACC_LOG_INFO, PAPACC_LOG_EVENT_SERVER_STOPPING,
+        PAPACC_LOG_CATEGORY_RUNTIME, PAPACC_LOG_COMPONENT_SERVER,
+        PAPACC_LOG_OPERATION_SHUTDOWN, PAPACC_TRUE, result, NULL,
+        "Server stopping");
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+    if (secure_io.initialized == PAPACC_TRUE) {
+        secure_shutdown_result =
+            papacc_server_secure_io_win32_request_stop(&secure_io);
+        for (index = 0U; index < 400U &&
+                papacc_server_secure_io_win32_is_stopped(&secure_io) !=
+                    PAPACC_TRUE &&
+                secure_io.stop_state !=
+                    PAPACC_SERVER_SECURE_STOP_ERROR_TERMINAL; ++index) {
+            PAPACC_RESULT poll_result =
+                papacc_server_secure_io_win32_poll_once(&secure_io, 25U);
+            if (poll_result != PAPACC_RESULT_OK)
+                secure_shutdown_result = poll_result;
+        }
+        if (papacc_server_secure_io_win32_is_stopped(&secure_io) ==
+                PAPACC_TRUE)
+            secure_shutdown_result =
+                papacc_server_secure_io_win32_try_shutdown(&secure_io);
+        else if (secure_shutdown_result == PAPACC_RESULT_OK)
+            secure_shutdown_result = PAPACC_RESULT_INVALID_STATE;
+        if (secure_shutdown_result != PAPACC_RESULT_OK) {
+            if (result == PAPACC_RESULT_OK) result = secure_shutdown_result;
+            secure_cleanup_allowed = PAPACC_FALSE;
+        }
+    } else if (secure_io.scheduler.initialized == PAPACC_TRUE) {
+        secure_shutdown_result =
+            papacc_server_secure_io_win32_try_shutdown(&secure_io);
+        if (secure_shutdown_result != PAPACC_RESULT_OK) {
+            if (result == PAPACC_RESULT_OK) result = secure_shutdown_result;
+            secure_cleanup_allowed = PAPACC_FALSE;
+        }
+    }
+    if (secure_cleanup_allowed != PAPACC_TRUE) return result;
+    papacc_security_composition_release(&security_composition);
+    papacc_resolved_server_security_configuration_release(&resolved_security);
+    if(pst_system_trust!=NULL)pst_trust_release(pst_system_trust);
+    if(pst_runtime_instance!=NULL)pst_runtime_release(pst_runtime_instance);
+    papacc_resolved_outbound_tls_profile_release(&resolved_outbound_tls);
+    papacc_pst_log_adapter_release(&pst_log_adapter);
+    free(listener_tokens);
+    free(listener_sources);
+    free(secure_events);
+    free(secure_members);
+    free(secure_candidates);
+#endif
+    papacc_server_io_loop_win32_shutdown(&io_loop);
+    papacc_server_acceptor_win32_shutdown(&acceptor);
+    free(processor_storage);
+    free(association_storage);
+    free(channel_storage);
+    free(session_storage);
+    free(context_storage);
+    free(connection_storage);
+    return result;
+}

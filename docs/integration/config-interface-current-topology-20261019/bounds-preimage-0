@@ -1,0 +1,81 @@
+#include "interface_snapshot_copy.h"
+#include <string.h>
+#include "bind_target.h"
+PAPACC_RESULT papacc_interface_snapshot_copy_prepare(PAPACC_INTERFACE_SNAPSHOT_COPY *out,
+ const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *source,PAPACC_U64 invocation,PAPACC_U64 revision)
+{
+ PAPACC_SIZE i,j;
+ if(!out||!source||!invocation)return PAPACC_RESULT_INVALID_ARGUMENT;
+ if(out->present||out->retained)return PAPACC_RESULT_INVALID_STATE;
+ if((source->interface_count&&!source->interfaces)||(source->address_count&&!source->addresses))return PAPACC_RESULT_INVALID_ARGUMENT;
+ if(source->interface_count>PAPACC_INTERFACE_COPY_INTERFACES||source->address_count>PAPACC_INTERFACE_COPY_ADDRESSES)return PAPACC_RESULT_LIMIT_EXCEEDED;
+ for(i=0;i<source->interface_count;++i){const PAPACC_NETWORK_INTERFACE *r=&source->interfaces[i];
+  if(!r->interface_instance_id||(r->persistent_id.is_valid!=PAPACC_FALSE&&r->persistent_id.is_valid!=PAPACC_TRUE)||
+     (r->is_up!=PAPACC_FALSE&&r->is_up!=PAPACC_TRUE)||(r->is_loopback!=PAPACC_FALSE&&r->is_loopback!=PAPACC_TRUE))return PAPACC_RESULT_INVALID_STATE;
+  for(j=0;j<i;++j)if(source->interfaces[j].interface_instance_id==r->interface_instance_id||
+    (r->persistent_id.is_valid==PAPACC_TRUE&&papacc_network_interface_persistent_id_equal(&r->persistent_id,&source->interfaces[j].persistent_id)==PAPACC_TRUE))return PAPACC_RESULT_INVALID_STATE;
+ }
+ for(i=0;i<source->address_count;++i){const PAPACC_NETWORK_INTERFACE_ADDRESS *r=&source->addresses[i];PAPACC_SIZE matches=0;
+  if((r->address.family!=PAPACC_IP_FAMILY_IPV4&&r->address.family!=PAPACC_IP_FAMILY_IPV6)||
+     (r->address.family==PAPACC_IP_FAMILY_IPV4&&r->scope_id))return PAPACC_RESULT_INVALID_STATE;
+  for(j=0;j<source->interface_count;++j)if(source->interfaces[j].interface_instance_id==r->interface_instance_id)++matches;
+  if(matches!=1)return PAPACC_RESULT_INVALID_STATE;
+ }
+ /* No queries/callbacks/reentrancy while copying exclusive input. Presence is
+  * written last. A distinct concurrent enumeration cannot mutate this storage. */
+ memset(out,0,sizeof(*out));
+ for(i=0;i<source->interface_count;++i){out->interfaces[i]=source->interfaces[i];
+  out->interfaces[i].presentation_name=(PAPACC_NETWORK_INTERFACE_PRESENTATION_NAME)PAPACC_NETWORK_INTERFACE_PRESENTATION_NAME_INITIALIZER;}
+ if(source->address_count)memcpy(out->addresses,source->addresses,source->address_count*sizeof(out->addresses[0]));
+ out->interface_count=source->interface_count;out->address_count=source->address_count;
+ out->invocation=invocation;out->preparation_revision=revision;out->present=PAPACC_TRUE;
+ return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_interface_snapshot_copy_view(const PAPACC_INTERFACE_SNAPSHOT_COPY *copy,
+ PAPACC_U64 invocation,PAPACC_U64 revision,PAPACC_NETWORK_DISCOVERY_SNAPSHOT *out)
+{
+ PAPACC_NETWORK_DISCOVERY_SNAPSHOT empty=PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
+ if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;*out=empty;
+ if(!copy||copy->present!=PAPACC_TRUE||copy->retained!=PAPACC_FALSE||!invocation||
+    invocation!=copy->invocation||revision!=copy->preparation_revision)return PAPACC_RESULT_INVALID_STATE;
+ /* Legacy snapshot type is mutable; this borrowed view is contractually const.
+  * No caller is allowed to write through it or infer administrative CURRENT. */
+ out->interfaces=(PAPACC_NETWORK_INTERFACE *)copy->interfaces;out->interface_count=copy->interface_count;
+ out->addresses=(PAPACC_NETWORK_INTERFACE_ADDRESS *)copy->addresses;out->address_count=copy->address_count;
+ return PAPACC_RESULT_OK;
+}
+
+PAPACC_RESULT papacc_interface_snapshot_copy_matches(const PAPACC_INTERFACE_SNAPSHOT_COPY *copy,
+ const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *observed,const PAPACC_PERSISTENT_BIND_SELECTION *selected,PAPACC_BOOL *matches)
+{
+ PAPACC_NETWORK_DISCOVERY_SNAPSHOT before=PAPACC_NETWORK_DISCOVERY_SNAPSHOT_INITIALIZER;
+ PAPACC_PERSISTENT_BIND_SELECTION one=PAPACC_PERSISTENT_BIND_SELECTION_INITIALIZER;
+ PAPACC_BIND_SELECTION left=PAPACC_BIND_SELECTION_INITIALIZER,right=PAPACC_BIND_SELECTION_INITIALIZER;
+ PAPACC_BIND_TARGET a[8],b[8];PAPACC_U32 li,ri;PAPACC_SIZE i,j,k,an,bn,required;PAPACC_RESULT result;
+ const PAPACC_NETWORK_INTERFACE *old_record,*new_record;
+ if(!matches)return PAPACC_RESULT_INVALID_ARGUMENT;*matches=PAPACC_FALSE;
+ if(!copy||!observed||!selected)return PAPACC_RESULT_INVALID_ARGUMENT;
+ if(selected->mode!=PAPACC_BIND_SELECTION_SELECTED_INTERFACES)return PAPACC_RESULT_NOT_SUPPORTED;
+ if(papacc_persistent_bind_selection_validate(selected)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_ARGUMENT;
+ if(selected->interface_persistent_id_count>8U)return PAPACC_RESULT_LIMIT_EXCEEDED;
+ result=papacc_interface_snapshot_copy_view(copy,copy->invocation,copy->preparation_revision,&before);
+ if(result!=PAPACC_RESULT_OK)return result;
+ one.mode=PAPACC_BIND_SELECTION_SELECTED_INTERFACES;one.interface_persistent_id_count=1U;
+ for(i=0;i<selected->interface_persistent_id_count;++i){one.interface_persistent_ids=&selected->interface_persistent_ids[i];
+  if(papacc_persistent_bind_selection_resolve(&one,&before,&li,1U,&left,&required)!=PAPACC_RESULT_OK||
+     papacc_persistent_bind_selection_resolve(&one,observed,&ri,1U,&right,&required)!=PAPACC_RESULT_OK)return PAPACC_RESULT_OK;
+  old_record=NULL;new_record=NULL;
+  for(j=0;j<before.interface_count;++j)if(before.interfaces[j].interface_instance_id==li)old_record=&before.interfaces[j];
+  for(j=0;j<observed->interface_count;++j)if(observed->interfaces[j].interface_instance_id==ri)new_record=&observed->interfaces[j];
+  if(!old_record||!new_record||old_record->is_up!=new_record->is_up||old_record->is_loopback!=new_record->is_loopback)return PAPACC_RESULT_OK;
+  result=papacc_bind_targets_resolve(&left,&before,a,8U,&an,&required);
+  if(result==PAPACC_RESULT_LIMIT_EXCEEDED)return result;if(result!=PAPACC_RESULT_OK)return PAPACC_RESULT_OK;
+  result=papacc_bind_targets_resolve(&right,observed,b,8U,&bn,&required);
+  if(result==PAPACC_RESULT_LIMIT_EXCEEDED)return result;if(result!=PAPACC_RESULT_OK||an!=bn)return PAPACC_RESULT_OK;
+  for(j=0;j<an;++j){PAPACC_BOOL found=PAPACC_FALSE;
+   for(k=0;k<bn;++k)if(a[j].scope_id==b[k].scope_id&&papacc_ip_address_equal(&a[j].address,&b[k].address)==PAPACC_TRUE)found=PAPACC_TRUE;
+   if(found!=PAPACC_TRUE)return PAPACC_RESULT_OK;
+  }
+ }
+ *matches=PAPACC_TRUE;return PAPACC_RESULT_OK;
+}

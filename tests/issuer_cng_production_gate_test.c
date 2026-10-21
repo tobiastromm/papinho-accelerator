@@ -1,0 +1,16 @@
+#include "../src/core/ed11_process_profile.h"
+#include "server_issuer_x509_win32.h"
+#include <stdio.h>
+#include <string.h>
+static PAPACC_ISSUER_RESULT a(void *p,const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_REQUEST *r,unsigned op){(void)p;(void)v;(void)r;(void)op;return PAPACC_ISSUER_DENIED;}
+static PAPACC_ISSUER_RESULT u(void *p,PAPACC_U64 *n){(void)p;(void)n;return PAPACC_ISSUER_DENIED;}
+static PAPACC_ISSUER_RESULT rd(void *p,const PAPACC_U8 id[16],PAPACC_ISSUER_VIEW *v,PAPACC_ISSUER_RECORD *r,int *f){(void)p;(void)id;(void)v;(void)r;(void)f;return PAPACC_ISSUER_DENIED;}
+static PAPACC_ISSUER_RESULT cs(void *p,const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *a0,const PAPACC_ISSUER_RECORD *a1,PAPACC_U64 n,const PAPACC_U8 *d,PAPACC_SIZE z,int q){(void)p;(void)v;(void)a0;(void)a1;(void)n;(void)d;(void)z;(void)q;return PAPACC_ISSUER_DENIED;}
+int main(void){PAPACC_ISSUER_CNG_BACKEND b;PAPACC_ISSUER_CORE owner;PAPACC_ISSUER_BACKEND admin;PAPACC_ISSUER_ROOT_PORT root;CERT_INFO ca;PAPACC_CA_KEY key;union{ULONGLONG align;BYTE bytes[4096];}w;
+ memset(&b,0,sizeof(b));memset(&owner,0,sizeof(owner));memset(&admin,0,sizeof(admin));memset(&root,0,sizeof(root));memset(&ca,0,sizeof(ca));admin.authorize=a;admin.utc=u;root.ctx=&root;root.read=rd;root.cas=cs;root.test_only=1;
+ if(papacc_issuer_cng_backend_init(&b,&root,&admin,&owner,NULL,&ca,w.bytes,sizeof(w.bytes),0)!=PAPACC_ISSUER_DENIED||b.initialized)return 1;
+ root.test_only=0;if(papacc_issuer_cng_backend_init(&b,&root,&admin,&owner,NULL,&ca,w.bytes,sizeof(w.bytes),PAPACC_ED11_PROCESS_LIMIT)!=PAPACC_ISSUER_LIMIT)return 1;
+ memset(&key,0,sizeof(key));key.thread=GetCurrentThreadId();key.state=PAPACC_CA_KEY_READY;key.key=101;key.provider=202;
+ if(papacc_ca_key_borrow(&key,&owner)!=0||papacc_ca_key_close(&key)!=NTE_BAD_KEY_STATE||key.close_attempted||key.borrower!=&owner)return 1;
+ if(papacc_ca_key_return(&key,&b)!=NTE_BAD_KEY_STATE||papacc_ca_key_return(&key,&owner)!=0||key.borrower)return 1;
+ puts("PASS test_backend_rejected_quota_guard_and_actual_borrow_close_guard_NO_NATIVE_KEY_CALL");return 0;}

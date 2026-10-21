@@ -1,0 +1,35 @@
+{
+  "task": "PACC-PHASE6-CANONICAL-V3-UPDATE-COHORT-1",
+  "before_source_patch": true,
+  "probe_compilation": "MSVC_W4_WX_static_assert_80_PASS",
+  "descriptor_bytes": 80,
+  "owner": "existing configuration_commit embedded in sole root",
+  "fields": {
+    "predecessor_pin": "32 existing canonical ticket transferred; no new pin table",
+    "candidate_serial": "8 existing slot generation",
+    "source_ticket": "8 existing published source borrow; not another source",
+    "invocation": "8 same root invocation",
+    "reserved": "8 lower-bound accounting, not a credit grant",
+    "phase_candidate_index_prior_pending": "12 plus 4 alignment"
+  },
+  "candidate_storage": "existing free G7 slot packet30592/CA8192; serial0 prevents exported G7 borrow; no candidate pin",
+  "predecessor_storage": "same current G7 pin + complete existing committed + existing pending.previous copied; none overwritten",
+  "new_arrays_heap_workers_handles": 0,
+  "lifetimes": {
+    "pin": "acquired factually by canonical root then transfer into cohort; released only candidate quiescence; failed unpin remains reachable",
+    "candidate": "copied by value; no references exported before validation; protected by prepared phase and mutator guards",
+    "source": "existing source borrower ticket; owner keeps original source; abort unborrows before final cohort release",
+    "Stop": "flag only; no cleanup; cohort remains reachable; abort separately establishes no worker/borrow",
+    "commit": "DENY until factual references/history/reservation resolved; packet11 not opened by unresolved cohort"
+  },
+  "known_fixed_before": 1948576,
+  "predicted_fixed_after": 1948656,
+  "legacy_fixed_unchanged": 1790872,
+  "explicit_Windows_limit": 3145728,
+  "prior_named_capture_dispatch_plus_descriptor": 2371223,
+  "full_package_conservative_plus_descriptor": 3747601,
+  "full_package_excess": 601873,
+  "scope_gate": "permit unresolved ownership/staging only; dependent validation/commit/activation DENY; no quota increase",
+  "unknown": "transitive stack/provider/kernel not zero; no operational peak qualification",
+  "contracts": "G0 update-only v2/v3; this bounded first cohort accepts protected v3 base only, rejects unsupported v2 rather than infers source; G7 uses existing owner storage/pins; E0 unchanged DENY"
+}

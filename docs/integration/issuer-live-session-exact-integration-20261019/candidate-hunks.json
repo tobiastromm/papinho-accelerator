@@ -1,0 +1,236 @@
+[
+  {
+    "file": "apps/server/server_configuration_commit_win32.h",
+    "before": "    PAPACC_U64 context_epoch; /* Root-issued after commit, not a persisted proof. */",
+    "after": "    PAPACC_U64 context_epoch; /* A: same-root post-commit administrative context. */\n    PAPACC_U64 operational_epoch; /* P: independently bound current C2 policy. */",
+    "reason": "Accepted P1/P3: explicit A/P distinction, no historical reinterpretation on recovery"
+  },
+  {
+    "file": "apps/server/server_configuration_commit_win32.h",
+    "before": "PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_VIEW *,PAPACC_U64 *);",
+    "after": "PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_VIEW *,PAPACC_U64 *,PAPACC_U64 *);\nint papacc_configuration_issuer_projection06(const PAPACC_SERVER_CONFIG *,const PAPACC_SERVER_CONFIG *);",
+    "reason": "Typed A/P read and pure complete semantic projection"
+  },
+  {
+    "file": "apps/server/server_launcher_owner_win32.h",
+    "before": " PAPACC_CONFIG_PIN pin;PAPACC_CONFIG_VIEW view;PAPACC_U64 epoch,invocation;",
+    "after": " PAPACC_CONFIG_PIN pin;PAPACC_CONFIG_VIEW view;PAPACC_U64 epoch,invocation; /* epoch is P, never A. */\n PAPACC_U64 administrative_epoch,issuer_revision;PAPACC_BOOL issuer_present;",
+    "reason": "R/I/A/P separately captured in already-existing root Session pin containers"
+  },
+  {
+    "file": "apps/server/server_launcher_owner_win32.h",
+    "before": "    PAPACC_ROOT_CURRENT_PIN session_revision_pins[4];",
+    "after": "    PAPACC_ROOT_CURRENT_PIN session_revision_pins[4];\n    PAPACC_BOOL issuer_projection_validated;\n    PAPACC_U64 issuer_expected_revision,issuer_expected_policy_epoch;",
+    "reason": "Bound pending ISSUER_ONLY proof belongs to same root, no separate authority"
+  },
+  {
+    "file": "apps/server/server_launcher_owner_win32.h",
+    "before": "PAPACC_RESULT papacc_server_launcher_configuration_issuer_prepare_dormant(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,const PAPACC_U8*,PAPACC_U64,PAPACC_U64);",
+    "after": "PAPACC_RESULT papacc_server_launcher_configuration_issuer_prepare_dormant(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,const PAPACC_U8*,PAPACC_U64,PAPACC_U64);\nPAPACC_RESULT papacc_server_launcher_configuration_issuer_prepare_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,const PAPACC_U8*,const PAPACC_SERVER_CONFIG*,PAPACC_U64,PAPACC_U64);\nPAPACC_RESULT papacc_server_launcher_configuration_issuer_publish_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);",
+    "reason": "New scoped same-root administrative transaction; operational changes rejected, no admission enablement"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "before": "static int issuer06_binding(",
+    "after": "/* Pure semantic projection: all current config members, never padding or\n * a digest alone. Schema changes must extend this comparison and its tests. */\nint papacc_configuration_issuer_projection06(const PAPACC_SERVER_CONFIG *x,const PAPACC_SERVER_CONFIG *y)\n{\n unsigned i;const PAPACC_ADMIN_POLICY_RULE *a,*b;\n if(!x||!y||papacc_server_config_validate(x)!=PAPACC_RESULT_OK||papacc_server_config_validate(y)!=PAPACC_RESULT_OK)return 0;\n#define EQ(f) if(x->f!=y->f)return 0\n EQ(control_port);\n EQ(allow_network_egress);\n EQ(listener_profile);\n EQ(bind_selection.mode);\n EQ(bind_selection.interface_persistent_id_count);\n EQ(security_configuration_ref_valid);\n EQ(security_configuration_ref_length);\n EQ(egress_policy_ref_valid);\n EQ(egress_policy_ref_length);\n EQ(egress_profile_ref_valid);\n EQ(egress_profile_ref_length);\n EQ(outbound_tls_profile_ref_valid);\n EQ(outbound_tls_profile_ref_length);\n EQ(policy.present);\n EQ(policy.representation);\n EQ(policy.profile);\n EQ(policy.admission);\n EQ(policy.listener_port);\n EQ(policy.enabled_count);\n EQ(policy.rule_count);\n EQ(site_tls.present);\n EQ(site_tls.version);\n EQ(site_tls.reference);\n EQ(site_tls.trust_system);\n EQ(site_tls.hostname_required);\n EQ(site_tls.sni_required);\n EQ(site_tls.tls13_only);\n EQ(site_tls.revoked);\n EQ(site_tls.revision);\n EQ(site_tls.profile_revision);\n EQ(site_tls.not_before_utc_ms);\n EQ(site_tls.expires_utc_ms);\n EQ(site_tls.max_bytes);\n EQ(site_tls.max_duration_ms);\n EQ(site_tls.max_concurrent);\n EQ(site_tls.alpn_length);\n#undef EQ\n if(memcmp(x->security_configuration_ref,y->security_configuration_ref,sizeof(x->security_configuration_ref)))return 0;\n if(memcmp(x->egress_policy_ref,y->egress_policy_ref,sizeof(x->egress_policy_ref)))return 0;\n if(memcmp(x->egress_profile_ref,y->egress_profile_ref,sizeof(x->egress_profile_ref)))return 0;\n if(memcmp(x->outbound_tls_profile_ref,y->outbound_tls_profile_ref,sizeof(x->outbound_tls_profile_ref)))return 0;\n if(memcmp(x->policy.identity,y->policy.identity,sizeof(x->policy.identity)))return 0;\n if(memcmp(x->site_tls.identity,y->site_tls.identity,sizeof(x->site_tls.identity)))return 0;\n if(memcmp(x->site_tls.profile_identity,y->site_tls.profile_identity,sizeof(x->site_tls.profile_identity)))return 0;\n if(memcmp(x->site_tls.administrative_origin,y->site_tls.administrative_origin,sizeof(x->site_tls.administrative_origin)))return 0;\n if(memcmp(x->site_tls.alpn,y->site_tls.alpn,sizeof(x->site_tls.alpn)))return 0;\n for(i=0;i<x->bind_selection.interface_persistent_id_count;i++)if(x->bind_selection.interface_persistent_ids[i].is_valid!=y->bind_selection.interface_persistent_ids[i].is_valid||x->bind_selection.interface_persistent_ids[i].value!=y->bind_selection.interface_persistent_ids[i].value)return 0;\n for(i=0;i<PAPACC_ADMIN_POLICY_KEYS;i++)if(x->policy.enabled[i].id!=y->policy.enabled[i].id||x->policy.enabled[i].major!=y->policy.enabled[i].major)return 0;\n for(i=0;i<PAPACC_ADMIN_POLICY_RULES;i++){\n  a=&x->policy.rules[i];b=&y->policy.rules[i];\n  if(a->key.id!=b->key.id||a->key.major!=b->key.major||a->action!=b->action||a->conditions!=b->conditions||\n     a->principal16.type!=b->principal16.type||a->principal16.length!=b->principal16.length||\n     memcmp(a->principal,b->principal,sizeof(a->principal))||memcmp(a->principal16.value,b->principal16.value,sizeof(a->principal16.value)))return 0;\n }\n return 1;\n}\n/* No address-addition overflow; outputs cannot overwrite owner or pin. */\nstatic int issuer06_overlap(const void *a,PAPACC_SIZE na,const void *b,PAPACC_SIZE nb)\n{ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;return na&&nb&&(x<=y?y-x<na:x-y<nb);}\nstatic int issuer06_binding(",
+    "reason": "Complete pure projection + alias protection, no new crypto/Win32 queries"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "before": " if(!owner(o)||!p||!out||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS)return PAPACC_RESULT_INVALID_ARGUMENT;",
+    "after": " if(!owner(o)||!p||!out||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS||issuer06_overlap(out,PAPACC_ISSUER_IMAGE_BYTES,o,sizeof(*o))||issuer06_overlap(out,PAPACC_ISSUER_IMAGE_BYTES,p,sizeof(*p)))return PAPACC_RESULT_INVALID_ARGUMENT;",
+    "reason": "H03 reconciled output alias guard"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "before": "PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *p,PAPACC_CONFIG_VIEW *v,PAPACC_U64 *epoch)",
+    "after": "PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *p,PAPACC_CONFIG_VIEW *v,PAPACC_U64 *administrative_epoch,PAPACC_U64 *policy_epoch)",
+    "reason": "H04 typed A/P, no same-number substitution"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "before": " if(!owner(o)||!p||!v||!epoch||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS)return PAPACC_RESULT_INVALID_ARGUMENT;",
+    "after": " if(!owner(o)||!p||!v||!administrative_epoch||!policy_epoch||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS||\n    issuer06_overlap(v,sizeof(*v),o,sizeof(*o))||issuer06_overlap(administrative_epoch,sizeof(*administrative_epoch),o,sizeof(*o))||issuer06_overlap(policy_epoch,sizeof(*policy_epoch),o,sizeof(*o))||\n    issuer06_overlap(v,sizeof(*v),p,sizeof(*p))||issuer06_overlap(administrative_epoch,sizeof(*administrative_epoch),p,sizeof(*p))||issuer06_overlap(policy_epoch,sizeof(*policy_epoch),p,sizeof(*p))||\n    issuer06_overlap(v,sizeof(*v),administrative_epoch,sizeof(*administrative_epoch))||issuer06_overlap(v,sizeof(*v),policy_epoch,sizeof(*policy_epoch))||\n    issuer06_overlap(administrative_epoch,sizeof(*administrative_epoch),policy_epoch,sizeof(*policy_epoch)))return PAPACC_RESULT_INVALID_ARGUMENT;",
+    "reason": "All output/input/owner alias cases rejected before copy"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "before": " *v=o->slots[p->index].view;fix(v);*epoch=o->slots[p->index].context_epoch;r=PAPACC_RESULT_OK;",
+    "after": " *v=o->slots[p->index].view;fix(v);*administrative_epoch=o->slots[p->index].context_epoch;*policy_epoch=o->slots[p->index].operational_epoch;r=PAPACC_RESULT_OK;",
+    "reason": "Return factual slot tags only, no proof flags or CURRENT grant"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "before": " if(o->store02!=6||!o->committed_pending||o->prepared||o->stopped||o->unresolved||o->recovery_selected||\n    !o->issuer_snapshot_valid[o->pending]||o->slots[o->pending].readers||o->slots[o->pending].retained)goto done;",
+    "after": " if(o->store02!=6||!o->committed_pending||o->prepared||o->stopped||o->unresolved||o->recovery_selected||\n    !o->slots[o->current].operational_epoch||\n    !papacc_configuration_issuer_projection06(&o->slots[o->current].view.config,&o->slots[o->pending].view.config)||\n    !o->issuer_snapshot_valid[o->pending]||o->slots[o->pending].readers||o->slots[o->pending].retained)goto done;",
+    "reason": "Only same operational projection and existing factual P can accompany new administrative selection"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "before": " o->slots[o->pending].context_epoch=epoch;o->current=o->pending;o->committed_pending=0;o->published=1;r=PAPACC_RESULT_OK;",
+    "after": " o->slots[o->pending].operational_epoch=o->slots[o->current].operational_epoch;\n o->slots[o->pending].context_epoch=epoch;o->current=o->pending;o->committed_pending=0;o->published=1;r=PAPACC_RESULT_OK;",
+    "reason": "P preserved, A issued post-commit in same locked selection; no caller epoch"
+  },
+  {
+    "file": "apps/server/server_configuration_commit_win32.h",
+    "before": "    PAPACC_U64 operational_epoch; /* P: independently bound current C2 policy. */",
+    "after": "    PAPACC_U64 operational_epoch; /* P: independently bound current C2 policy. */\n    PAPACC_U64 issuer_revision; /* I: absent unless issuer_snapshot_valid. */",
+    "reason": "Explicit I presence, no deriving I from R in readers"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "before": " slot->view.predecessor=expected;slot->view.revision=expected+1;slot->serial=++o->next_serial;",
+    "after": " slot->view.predecessor=expected;slot->view.revision=expected+1;slot->serial=++o->next_serial;slot->issuer_revision=v.revision;",
+    "reason": "I taken from validated issuer image, not inferred from root revision"
+  },
+  {
+    "file": "apps/server/server_configuration_root_transaction_win32.inc",
+    "before": "  c->slots[c->current].context_epoch=t->current_policy_epoch;",
+    "after": "  c->slots[c->current].context_epoch=t->current_policy_epoch;\n  c->slots[c->current].operational_epoch=t->current_policy_epoch;",
+    "reason": "Initial root authority factual binding may have equal numeric A/P, tags remain separate; no recovered values promoted"
+  },
+  {
+    "file": "apps/server/server_configuration_root_transaction_win32.inc",
+    "before": "static int root_snapshot_held(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)\n{\n PAPACC_CONFIG_VIEW v;PAPACC_U64 epoch;\n if(!preparation_owned(o)||!p||p->invocation!=o->invocation||!p->epoch||\n    papacc_configuration_pin_read(&o->configuration_commit,&p->pin,&v,&epoch)!=PAPACC_RESULT_OK)return 0;\n return epoch==p->epoch&&v.revision==p->view.revision&&v.predecessor==p->view.predecessor&&\n  !memcmp(v.domain,p->view.domain,32)&&root_snapshot_model_equal(&v,&p->view)&&\n  root_snapshot_model_equal(&v,&o->configuration_commit.slots[o->configuration_commit.current].view);\n}\nstatic int root_snapshot_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)\n{\n PAPACC_CONFIGURATION_COMMIT *c=&o->configuration_commit;PAPACC_ROOT_CONFIGURATION_PREPARATION *t=&o->configuration_preparation;\n unsigned i;PAPACC_CONFIG_VIEW *v=&c->slots[c->current].view;\n if(!t->administrative_published||!t->normative_committed||t->state!=PAPACC_ROOT_PREPARATION_PARTIAL||\n    p->invocation!=o->invocation||!p->epoch||p->epoch!=t->current_policy_epoch||\n    p->pin.issuer!=c||p->pin.index!=c->current||p->view.revision!=v->revision||\n    memcmp(p->view.domain,v->domain,32U)||!root_snapshot_model_equal(&p->view,v))return 0;\n for(i=0U;i<32U;++i)if(c->tickets[i].ticket==p->pin.ticket&&p->pin.ticket&&\n    c->tickets[i].serial==p->pin.serial&&c->tickets[i].index==p->pin.index)\n  return papacc_configuration_current(c,&p->view)==PAPACC_TRUE;\n return 0;\n}\n",
+    "after": "/* A held pin proves its own lifetime/provenance, never CURRENT alone. */\nstatic int root_snapshot_held(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)\n{\n PAPACC_CONFIG_VIEW v;PAPACC_U64 administrative,policy;PAPACC_CONFIGURATION_COMMIT *c;\n if(!preparation_owned(o)||!p||p->invocation!=o->invocation||!p->epoch||!p->administrative_epoch)return 0;c=&o->configuration_commit;\n if(papacc_configuration_pin_read(c,&p->pin,&v,&administrative,&policy)!=PAPACC_RESULT_OK)return 0;\n return policy==p->epoch&&administrative==p->administrative_epoch&&v.revision==p->view.revision&&v.predecessor==p->view.predecessor&&\n  !memcmp(v.domain,p->view.domain,32)&&papacc_configuration_issuer_projection06(&v.config,&p->view.config)&&\n  p->issuer_present==(c->issuer_snapshot_valid[p->pin.index]?PAPACC_TRUE:PAPACC_FALSE)&&\n  (!p->issuer_present||p->issuer_revision==c->slots[p->pin.index].issuer_revision);\n}\n/* CURRENT operational projection is checked independently of the held R.\n * Issuer-only pending bytes cannot alter P or the selected operational graph. */\nstatic int root_operational_reference_current(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)\n{\n PAPACC_CONFIGURATION_COMMIT *c;PAPACC_ROOT_CONFIGURATION_PREPARATION *t;\n if(!root_snapshot_held(o,p))return 0;c=&o->configuration_commit;t=&o->configuration_preparation;\n if(!t->normative_committed||!t->administrative_published||t->state!=PAPACC_ROOT_PREPARATION_PARTIAL||\n    !t->current_policy_epoch||!c->published||c->stopped||c->unresolved||c->recovery_selected||\n    p->epoch!=t->current_policy_epoch||c->slots[c->current].operational_epoch!=t->current_policy_epoch||\n    !c->slots[c->current].context_epoch||t->model.revision!=c->slots[c->current].view.revision||\n    memcmp(t->model.domain,c->slots[c->current].view.domain,32)||\n    configuration_c2_owner.configuration.state!=PAPACC_C2_CONFIG_CURRENT||\n    configuration_c2_owner.configuration.epoch!=t->current_policy_epoch||\n    papacc_server_c2_configuration_authority_current(&configuration_c2_owner)!=PAPACC_RESULT_OK)return 0;\n if(!papacc_configuration_issuer_projection06(&p->view.config,&c->slots[c->current].view.config)||\n    !papacc_configuration_issuer_projection06(&o->config,&c->slots[c->current].view.config)||\n    !papacc_configuration_issuer_projection06(&t->model.config,&c->slots[c->current].view.config)||\n    !papacc_configuration_issuer_projection06(&configuration_c2_owner.configuration.view.config,&c->slots[c->current].view.config))return 0;\n if(c->committed_pending&&(!o->issuer_projection_validated||\n    o->issuer_expected_revision!=c->slots[c->current].view.revision||o->issuer_expected_policy_epoch!=t->current_policy_epoch||\n    !c->issuer_snapshot_valid[c->pending]||!papacc_configuration_issuer_projection06(&c->slots[c->pending].view.config,&c->slots[c->current].view.config)))return 0;\n return 1;\n}\nstatic int root_snapshot_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)\n{\n PAPACC_CONFIGURATION_COMMIT *c=&o->configuration_commit;\n return !c->committed_pending&&root_operational_reference_current(o,p)&&p->pin.index==c->current&&\n  p->view.revision==c->slots[c->current].view.revision&&p->administrative_epoch==c->slots[c->current].context_epoch;\n}\n",
+    "reason": "Retained snapshot identity independent of CURRENT, while actual normative selected root, policy epoch, complete projection and source/leases still prove every operational use"
+  },
+  {
+    "file": "apps/server/server_configuration_root_transaction_win32.inc",
+    "before": " if(!t->administrative_published||!t->normative_committed||t->state!=PAPACC_ROOT_PREPARATION_PARTIAL){LeaveCriticalSection(&c->lock);return PAPACC_RESULT_INVALID_STATE;}",
+    "after": " if(!t->administrative_published||!t->normative_committed||t->state!=PAPACC_ROOT_PREPARATION_PARTIAL||c->slots[c->current].operational_epoch!=t->current_policy_epoch||!c->slots[c->current].context_epoch){LeaveCriticalSection(&c->lock);return PAPACC_RESULT_INVALID_STATE;}",
+    "reason": "New Session/reference can acquire only actual root CURRENT, with separate factual A and P"
+  },
+  {
+    "file": "apps/server/server_configuration_root_transaction_win32.inc",
+    "before": " if(result==PAPACC_RESULT_OK){out->epoch=t->current_policy_epoch;out->invocation=o->invocation;}",
+    "after": " if(result==PAPACC_RESULT_OK){out->epoch=c->slots[c->current].operational_epoch;out->administrative_epoch=c->slots[c->current].context_epoch;out->invocation=o->invocation;out->issuer_present=c->issuer_snapshot_valid[c->current]?PAPACC_TRUE:PAPACC_FALSE;out->issuer_revision=out->issuer_present?c->slots[c->current].issuer_revision:0;}",
+    "reason": "Acquire I only with explicit presence; no absent-zero authority, no admin epoch in wire P"
+  },
+  {
+    "file": "apps/server/server_configuration_root_transaction_win32.inc",
+    "before": "/* Same normative application's durable owner. Staging only; no live/current",
+    "after": "/* Existing owner, same policy/source participants; no general live policy\n * reload. This route rejects changed operational projection before staging. */\nstatic int issuer_root_live_ready(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)\n{\n PAPACC_CONFIGURATION_COMMIT *c;PAPACC_ROOT_CONFIGURATION_PREPARATION *t;\n if(!preparation_owned(o))return 0;c=&o->configuration_commit;t=&o->configuration_preparation;\n return c->initialized&&c->published&&!c->stopped&&!c->unresolved&&!c->recovery_selected&&\n  t->normative_committed&&t->administrative_published&&t->state==PAPACC_ROOT_PREPARATION_PARTIAL&&\n  t->dormant_applied&&t->participants.c2_prepared&&t->participants.listener_prepared&&t->participants.capabilities_prepared&&\n  t->participants.invocation==o->invocation&&t->current_policy_epoch&&\n  c->slots[c->current].operational_epoch==t->current_policy_epoch&&t->model.revision==c->slots[c->current].view.revision&&\n  !memcmp(t->model.domain,c->domain,32)&&configuration_c2_owner.configuration.state==PAPACC_C2_CONFIG_CURRENT&&\n  configuration_c2_owner.configuration.epoch==t->current_policy_epoch&&\n  !configuration_c2_owner.manager->stopping&&!o->secure_io.dispatch_active&&\n  (!configuration_c2_owner.configuration.io_attached||o->secure_io.stop_state==PAPACC_SERVER_SECURE_STOP_RUNNING)&&\n  o->security_composition.state==PAPACC_SECURITY_COMPOSITION_READY&&\n  papacc_server_c2_configuration_authority_current(&configuration_c2_owner)==PAPACC_RESULT_OK&&\n  root_policy_model_valid(o)&&root_policy_inputs_valid(t)&&t->combined_reserved<=2097152U&&\n  papacc_configuration_issuer_projection06(&o->config,&t->model.config)&&\n  papacc_configuration_issuer_projection06(&t->model.config,&c->slots[c->current].view.config)&&\n  papacc_configuration_issuer_projection06(&configuration_c2_owner.configuration.view.config,&c->slots[c->current].view.config);\n}\nPAPACC_RESULT papacc_server_launcher_configuration_issuer_prepare_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_U8 *image,const PAPACC_SERVER_CONFIG *projection,PAPACC_U64 expected,PAPACC_U64 high)\n{\n PAPACC_CONFIGURATION_COMMIT *c;PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RECORD tip;PAPACC_SIZE pos=256,last=0,used;PAPACC_U32 len;PAPACC_RESULT result;\n if(!image||!projection||!issuer_root_live_ready(o)||o->issuer_projection_validated)return PAPACC_RESULT_INVALID_STATE;c=&o->configuration_commit;\n if(c->prepared||c->committed_pending||!papacc_configuration_issuer_projection06(projection,&c->slots[c->current].view.config)||\n    expected!=c->slots[c->current].view.revision)return PAPACC_RESULT_INVALID_STATE;\n if(papacc_issuer_image_validate(image,&v,papacc_configuration_issuer_hash06,c)!=PAPACC_ISSUER_OK||memcmp(v.policy,o->config.policy.identity,32))return PAPACC_RESULT_INVALID_STATE;\n used=(PAPACC_SIZE)(((PAPACC_U32)image[12]<<24)|((PAPACC_U32)image[13]<<16)|((PAPACC_U32)image[14]<<8)|image[15]);\n while(pos<used){last=pos;len=((PAPACC_U32)image[pos+8]<<24)|((PAPACC_U32)image[pos+9]<<16)|((PAPACC_U32)image[pos+10]<<8)|image[pos+11];pos+=len;}\n if(last&&(papacc_issuer_image_find(image,image+last+48,&tip,papacc_configuration_issuer_hash06,c)!=PAPACC_ISSUER_OK||tip.approved_epoch!=o->configuration_preparation.current_policy_epoch))return PAPACC_RESULT_INVALID_STATE;\n result=papacc_configuration_issuer_prepare06(c,image,expected,high);\n if(result==PAPACC_RESULT_OK){o->issuer_expected_revision=expected;o->issuer_expected_policy_epoch=o->configuration_preparation.current_policy_epoch;o->issuer_projection_validated=PAPACC_TRUE;}\n return result;\n}\nPAPACC_RESULT papacc_server_launcher_configuration_issuer_publish_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)\n{\n PAPACC_CONFIGURATION_COMMIT *c;PAPACC_ROOT_CONFIGURATION_PREPARATION *t;PAPACC_RESULT result;\n if(!issuer_root_live_ready(o)||!o->issuer_projection_validated)return PAPACC_RESULT_INVALID_STATE;c=&o->configuration_commit;t=&o->configuration_preparation;\n if(o->issuer_expected_revision!=c->slots[c->current].view.revision||o->issuer_expected_policy_epoch!=t->current_policy_epoch||\n    (!c->issuer_stage_prepared&&!c->committed_pending)||!papacc_configuration_issuer_projection06(&c->slots[c->pending].view.config,&c->slots[c->current].view.config))return PAPACC_RESULT_INVALID_STATE;\n /* Serialize commit/selection/ack on the existing owner, outside dispatch;\n  * no callback observes a half-published application model. No retry loop. */\n EnterCriticalSection(&c->lock);\n result=c->committed_pending?PAPACC_RESULT_OK:papacc_configuration_commit(c);\n if(result==PAPACC_RESULT_OK)result=papacc_configuration_issuer_publish06(c);\n if(result==PAPACC_RESULT_OK){\n  t->model=c->slots[c->current].view;t->model.config.bind_selection.interface_persistent_ids=t->model.config.bind_selection.interface_persistent_id_count?t->model.ids:NULL;\n  o->issuer_projection_validated=PAPACC_FALSE;o->issuer_expected_revision=0;o->issuer_expected_policy_epoch=0;\n }\n LeaveCriticalSection(&c->lock);\n if(c->unresolved)(void)papacc_server_launcher_configuration_preparation_retain(o);\n return result;\n}\n\n/* Same normative application's durable owner. Staging only; no live/current",
+    "reason": "Complete same-root prepare/validate/CAS/commit/CURRENT/A; preserve P only under full projection, original dormant guard untouched, no grants/admission changed"
+  },
+  {
+    "file": "apps/server/server_launcher_owner_win32.h",
+    "before": " PAPACC_U64 administrative_epoch,issuer_revision;PAPACC_BOOL issuer_present;",
+    "after": " PAPACC_U64 administrative_epoch,issuer_revision,session_incarnation;PAPACC_BOOL issuer_present;",
+    "reason": "Bind factual Session incarnation to its root-owned reference; no new ID minted"
+  },
+  {
+    "file": "apps/server/server_configuration_root_transaction_win32.inc",
+    "before": "  !configuration_c2_owner.manager->stopping&&!o->secure_io.dispatch_active&&",
+    "after": "  configuration_c2_owner.manager&&!configuration_c2_owner.manager->stopping&&!o->secure_io.dispatch_active&&",
+    "reason": "Null-safe actual participant check before dereference"
+  },
+  {
+    "file": "apps/server/server_configuration_root_transaction_win32.inc",
+    "before": "/* Existing owner, same policy/source participants; no general live policy",
+    "after": "static PAPACC_ROOT_CURRENT_PIN *root_session_reference(const PAPACC_C2_SESSION *s)\n{\n unsigned i;for(i=0;i<4;i++)if(s==&configuration_c2_owner.sessions[i])return &root.session_revision_pins[i];return NULL;\n}\n/* Existing owner, same policy/source participants; no general live policy",
+    "reason": "Same owned Session address; no peer-selected index, no new registry"
+  },
+  {
+    "file": "apps/server/server_admission_preflight_win32.inc",
+    "before": "    root_snapshot_held(o,pin)&&",
+    "after": "    root_operational_reference_current(o,pin)&&",
+    "reason": "Reconcile H01: require actual normative CURRENT policy projection/P/source; held pin alone never sets authority"
+  },
+  {
+    "file": "apps/server/server_admission_preflight_win32.inc",
+    "before": "  report->checked|=PAPACC_ADMISSION_CURRENT;report->revision=pin->view.revision;",
+    "after": "  report->checked|=PAPACC_ADMISSION_CURRENT;report->revision=o->configuration_commit.slots[o->configuration_commit.current].view.revision;",
+    "reason": "Report actual root CURRENT R, never label historical admitted R as CURRENT; original strict P condition unchanged"
+  },
+  {
+    "file": "apps/server/server_listener_composition_win32.inc",
+    "before": " if(l->pin.view.predecessor!=t->model.predecessor||l->pin.view.predecessor!=c->view.predecessor||\r\n    l->pin.view.revision!=c->view.revision||memcmp(l->pin.view.domain,c->view.domain,32U)||",
+    "after": " /* R may advance only through the separately proven same-P projection.\r\n  * Cohort preflight above checks actual CURRENT authority, source and leases. */\r\n if(memcmp(l->pin.view.domain,c->view.domain,32U)||\r\n    !papacc_configuration_issuer_projection06(&l->pin.view.config,&c->view.config)||",
+    "reason": "Retain existing listener/leases across administrative R changes, no obsolete P or changed operational projection accepted"
+  },
+  {
+    "file": "apps/server/server_launcher_owner_win32.c",
+    "before": " if(!preparation_owned(o)||!pin||!papacc_server_launcher_configuration_current(o,pin)||",
+    "after": " if(!preparation_owned(o)||!pin||!root_operational_reference_current(o,pin)||",
+    "reason": "Site TLS keeps actual current P, current profile equality and time validation; admitted R may be protected old generation"
+  },
+  {
+    "file": "apps/server/server_launcher_owner_win32.c",
+    "before": " r=papacc_server_launcher_site_profile(&root,&root.listener_composition.pin,ref,",
+    "after": " r=papacc_server_launcher_site_profile(&root,root_session_reference(session),ref,",
+    "reason": "Site profile validated through the exact admitted Session reference, not another Session/listener snapshot"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": " PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c;PAPACC_SESSION_CAPABILITY_SNAPSHOT *snapshot;unsigned i;int owned=0;",
+    "after": " PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c;PAPACC_SESSION_CAPABILITY_SNAPSHOT *snapshot;PAPACC_ROOT_CURRENT_PIN *admitted=NULL;unsigned i;int owned=0;",
+    "reason": "Use existing per-Session root pin storage"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": " for(i=0U;i<4U;++i)if(s==&o->sessions[i])owned=1;",
+    "after": " for(i=0U;i<4U;++i)if(s==&o->sessions[i]){owned=1;admitted=&root.session_revision_pins[i];}",
+    "reason": "Factual Session membership before any reference identity reads"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": "    s->root_invocation!=root.invocation||s->policy_epoch!=root.listener_composition.pin.epoch||\r\n    s->root_revision!=root.listener_composition.pin.view.revision||\r\n    memcmp(s->root_domain,root.listener_composition.pin.view.domain,32U))return PAPACC_FALSE;",
+    "after": "    !admitted||!root_operational_reference_current(&root,admitted)||admitted->session_incarnation!=s->incarnation||\r\n    s->root_invocation!=root.invocation||s->policy_epoch!=root.configuration_preparation.current_policy_epoch||s->policy_epoch!=admitted->epoch||\r\n    s->root_revision!=admitted->view.revision||\r\n    memcmp(s->root_domain,admitted->view.domain,32U))return PAPACC_FALSE;",
+    "reason": "Strict current P retained and current dynamic authentication/grants below unchanged; original R checked against own admitted pin, not listener R"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": " PAPACC_SESSION_CAPABILITY_SNAPSHOT *snapshot;PAPACC_C2_SESSION *s=NULL;PAPACC_RESULT result;unsigned i;",
+    "after": " PAPACC_SESSION_CAPABILITY_SNAPSHOT *snapshot;PAPACC_C2_SESSION *s=NULL;PAPACC_ROOT_CURRENT_PIN *admitted;PAPACC_RESULT result;unsigned i;",
+    "reason": "No new actor/Principal factory or callback"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": " if(!s)return PAPACC_RESULT_LIMIT_EXCEEDED;",
+    "after": " if(!s)return PAPACC_RESULT_LIMIT_EXCEEDED;\n admitted=&root.session_revision_pins[(unsigned)(s-o->sessions)];\n if(admitted->pin.ticket)return PAPACC_RESULT_INVALID_STATE;\n result=papacc_server_launcher_configuration_current_pin(&root,admitted);if(result!=PAPACC_RESULT_OK)return result;\n if(!papacc_server_launcher_configuration_current(&root,admitted)||!root_operational_reference_current(&root,admitted)){\n  if(papacc_server_launcher_configuration_current_unpin(&root,admitted)==PAPACC_RESULT_OK)memset(admitted,0,sizeof(*admitted));\n  return PAPACC_RESULT_INVALID_STATE;\n }\n admitted->session_incarnation=snapshot->session_instance_id;",
+    "reason": "Acquire exact root CURRENT before exposing Session; unused failed-release pin remains owned, capacity cannot be reused"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": " s->policy_epoch=root.listener_composition.pin.epoch;",
+    "after": " s->policy_epoch=admitted->epoch;",
+    "reason": "Explicit P proven current; A is captured separately and never used as wire/Session epoch"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": " memcpy(s->root_domain,root.listener_composition.pin.view.domain,32U);",
+    "after": " memcpy(s->root_domain,admitted->view.domain,32U);",
+    "reason": "Capture exact protected root domain"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": " s->root_invocation=root.invocation;s->root_revision=root.listener_composition.pin.view.revision;",
+    "after": " s->root_invocation=root.invocation;s->root_revision=admitted->view.revision;",
+    "reason": "Capture factual R; original Principal and grant publication unchanged"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": " if(result!=PAPACC_RESULT_OK){SecureZeroMemory(s,sizeof(*s));return result;}",
+    "after": " if(result!=PAPACC_RESULT_OK){\n  if(papacc_server_launcher_configuration_current_unpin(&root,admitted)!=PAPACC_RESULT_OK){s->state=PAPACC_C2_SESSION_RETAINED;return result;}\n  memset(admitted,0,sizeof(*admitted));SecureZeroMemory(s,sizeof(*s));return result;\n }",
+    "reason": "No loss of Session/pin on attach/unpin failure; no release retry"
+  },
+  {
+    "file": "apps/server/server_c2_owner_win32.h",
+    "before": "PAPACC_BOOL papacc_server_launcher_c2_session_current(const PAPACC_C2_SESSION *);",
+    "after": "PAPACC_BOOL papacc_server_launcher_c2_session_current(const PAPACC_C2_SESSION *);\nPAPACC_RESULT papacc_server_launcher_c2_session_unpin(PAPACC_SERVER_C2_OWNER_WIN32 *,const PAPACC_C2_SESSION *);",
+    "reason": "Private ownership-only release entrypoint, no public API/wire"
+  },
+  {
+    "file": "apps/server/server_c2_owner_win32.c",
+    "before": "  if(borrowed)continue;\n  for(j=0U;j<4U;++j)if(o->manager->sessions[j].session==s)\n   SecureZeroMemory(&o->manager->sessions[j],sizeof(o->manager->sessions[j]));\n  /* Native ID allocator",
+    "after": "  if(borrowed)continue;\n  result=papacc_server_launcher_c2_session_unpin(o,s);if(result!=PAPACC_RESULT_OK)return result;\n  for(j=0U;j<4U;++j)if(o->manager->sessions[j].session==s)\n   SecureZeroMemory(&o->manager->sessions[j],sizeof(o->manager->sessions[j]));\n  /* Native ID allocator",
+    "reason": "All original reaper guards precede unpin; failure returns before manager/Session erasure"
+  },
+  {
+    "file": "apps/server/server_c2_root_binding_win32.inc",
+    "before": "EOF",
+    "after": "\n/* Exact old-reference cleanup only; no admission or DATA authority. */\nPAPACC_RESULT papacc_server_launcher_c2_session_unpin(PAPACC_SERVER_C2_OWNER_WIN32 *o,const PAPACC_C2_SESSION *s)\n{\n unsigned i,j;PAPACC_ROOT_CURRENT_PIN *p;PAPACC_CONFIG_VIEW view;PAPACC_U64 administrative,policy;PAPACC_RESULT result;\n if(o!=&configuration_c2_owner||!preparation_owned(&root)||!s||!o->initialized||!o->manager||!o->loop||!o->secure||\n    !o->manager->initialized||!o->loop->initialized||!o->loop->connection_manager||!o->secure->initialized||o->manager->owner!=GetCurrentThreadId()||\n    o->secure->dispatch_active||o->configuration.state==PAPACC_C2_CONFIG_RETAINED||o->secure->stop_state==PAPACC_SERVER_SECURE_STOP_ERROR_TERMINAL||\n    !o->loop->session_manager.initialized||!o->loop->channel_manager.initialized)return PAPACC_RESULT_INVALID_STATE;\n for(i=0;i<4;i++)if(s==&o->sessions[i])break;\n if(i==4||!s->initialized||s->state!=PAPACC_C2_SESSION_REVOKED||!s->incarnation||papacc_session_manager_find(&o->loop->session_manager,s->incarnation))return PAPACC_RESULT_INVALID_STATE;\n if(s->control_connection&&papacc_connection_manager_find(o->loop->connection_manager,s->control_connection))return PAPACC_RESULT_INVALID_STATE;\n for(j=0;j<2;j++)if(o->manager->operations[j].session==s)return PAPACC_RESULT_INVALID_STATE;\n for(j=0;j<6;j++)if(o->writes[j].denial_session==s||(o->writes[j].record&&o->writes[j].record->session==s))return PAPACC_RESULT_INVALID_STATE;\n for(j=0;j<o->loop->channel_manager.capacity;j++)if(o->loop->channel_manager.storage[j].state!=PAPACC_CHANNEL_STATE_UNINITIALIZED&&o->loop->channel_manager.storage[j].session_instance_id==s->incarnation)return PAPACC_RESULT_INVALID_STATE;\n for(j=0;j<o->loop->processor_capacity;j++){\n  PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *slot=&o->loop->processor_slots[j];\n  if(slot->in_use&&((s->control_connection&&slot->connection_instance_id==s->control_connection)||(slot->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL&&slot->post_control_processor.session_instance_id==s->incarnation)))return PAPACC_RESULT_INVALID_STATE;\n }\n for(j=0;j<o->secure->candidate_capacity;j++){\n  PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c=&o->secure->candidates[j];\n  if(c->control_close_result.session_instance_id==s->incarnation||(s->control_connection&&c->connection_instance_id==s->control_connection)){\n   if(c->state!=PAPACC_SERVER_SECURE_CANDIDATE_CLOSED||c->secure_processor.connection||c->secure_processor.state==PAPACC_PST_SECURE_PROCESSOR_RETAINED_TERMINAL||c->session_security.published||c->transport_adapter.registered||papacc_connection_manager_find(o->loop->connection_manager,c->connection_instance_id))return PAPACC_RESULT_INVALID_STATE;\n  }\n }\n p=&root.session_revision_pins[i];\n if(!s->root_bound||p->session_incarnation!=s->incarnation||p->invocation!=s->root_invocation||\n    papacc_configuration_pin_read(&root.configuration_commit,&p->pin,&view,&administrative,&policy)!=PAPACC_RESULT_OK||\n    !administrative||administrative!=p->administrative_epoch||!policy||policy!=p->epoch||policy!=s->policy_epoch||\n    view.revision!=s->root_revision||view.revision!=p->view.revision||memcmp(view.domain,s->root_domain,32)||memcmp(view.domain,p->view.domain,32))return PAPACC_RESULT_INVALID_STATE;\n result=papacc_server_launcher_configuration_current_unpin(&root,p);\n if(result==PAPACC_RESULT_OK)memset(p,0,sizeof(*p));return result;\n}\n",
+    "reason": "H17 reconciled: typed A/P plus exact incarnation and every native/reaper quiescence guard; no CURRENT requirement for destruction-only release"
+  }
+]

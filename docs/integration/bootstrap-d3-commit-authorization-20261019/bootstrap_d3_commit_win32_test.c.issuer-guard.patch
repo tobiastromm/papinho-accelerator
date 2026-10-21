@@ -1,0 +1,12 @@
+--- tests/bootstrap_d3_commit_win32_test.c
++++ tests/bootstrap_d3_commit_win32_test.c
+@@ -37,6 +37,9 @@
+  if(conflict_case){file=CreateFileA(actual,GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(file!=INVALID_HANDLE_VALUE);
+   CHECK(WriteFile(file,"existing",8U,&n,NULL)&&n==8U);CHECK(FlushFileBuffers(file));CHECK(CloseHandle(file));}
+  if(identity_case)owner.pending_commit.bootstrap_low^=1U;
++ owner.issuer_stage_prepared=1;
++ CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2078000U)!=PAPACC_RESULT_OK);
++ owner.issuer_stage_prepared=0;
+  CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED);
+  bytes[72]^=1U;
+  CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2078000U)!=PAPACC_RESULT_OK);bytes[72]^=1U;

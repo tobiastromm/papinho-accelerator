@@ -1,0 +1,238 @@
+TASK=PACC-PHASE6-INTERNAL-CERTIFICATE-ISSUER-AND-MANUAL-CUSTODY-DECISION-1
+
+MODE=GOVERNED_NORMATIVE_DECISION_AND_IMPLEMENTATION_HANDOFF
+
+CANONICAL_PROJECT=C:\Projetos\PapinhoAccelerator
+BROWSER_REFERENCE=C:\Projetos\PapinhoBrowser
+
+OWNER_DECISION=ACCELERATOR_MANAGED_INTERNAL_CERTIFICATE_AUTHORITY
+
+## 1. Decisão do owner
+
+O PapinhoAccelerator deverá possuir sua própria autoridade privada de emissão e gerenciamento de certificados de clientes.
+
+Não depender de uma CA externa para o provisionamento normal.
+
+A autoridade interna deve:
+
+- emitir certificados;
+- assinar certificados de clientes;
+- administrar identidades;
+- manter registro persistente;
+- renovar;
+- revogar;
+- consultar status;
+- preservar histórico e auditoria.
+
+A futura integração com PapinhoTrustStore deverá ser possível sem redesenhar o provisionamento.
+
+PapinhoTrustStore não é dependência da Phase 6.
+
+## 2. Custódia
+
+Autorizar a preparação da exceção normativa específica ao ADR-0006:
+
+MANUAL:
+O Accelerator gera a chave privada individual do cliente e a entrega exclusivamente dentro de pacote autenticado e criptografado.
+
+AUTOMATIC:
+O Browser gera sua chave privada local e envia CSR/prova de posse após o pareamento autorizado.
+
+A exceção manual não modifica a regra do modo automático.
+
+Registrar explicitamente o risco adicional de comprometimento durante geração e entrega.
+
+Não modificar ADR accepted sem autorização específica para o texto exato.
+
+## 3. Autoridade interna
+
+Definir o menor componente emissor reutilizando os mecanismos criptográficos e administrativos existentes.
+
+Exigir:
+
+- chave CA própria;
+- certificado CA próprio;
+- identidade persistente da autoridade;
+- proteção de chave;
+- separação entre emissão e atendimento operacional;
+- serial único;
+- política de validade;
+- EKU e KeyUsage apropriados;
+- emissão auditável;
+- revogação persistente;
+- renovação;
+- recuperação após falhas.
+
+Não reutilizar a chave TLS do servidor como chave CA.
+
+Não exportar chave privada da CA para clientes.
+
+Não criar uma CA nova a cada reinício.
+
+Não usar fixtures TEST_ONLY como autoridade produtiva.
+
+## 4. Inicialização administrativa
+
+Definir procedimento explícito para inicializar a CA privada na instalação ou configuração inicial do Accelerator.
+
+A criação deve exigir autorização administrativa.
+
+Não gerar CA silenciosamente ao iniciar o serviço.
+
+Preservar backup, recuperação, rotação e identidade da autoridade.
+
+Não gerar chaves reais nesta tarefa.
+
+## 5. Publicação dinâmica
+
+Clientes emitidos devem ser registrados na mesma autoridade administrativa existente.
+
+Reutilizar:
+
+- root;
+- configuração;
+- policy;
+- CURRENT;
+- epoch;
+- Principal;
+- leases;
+- Model E.
+
+Não criar segundo registry ou listener.
+
+Cadastro, renovação e revogação não devem exigir reinício do Accelerator.
+
+Não alterar Sessions existentes sem política de revogação aprovada.
+
+## 6. Pacote manual
+
+Preservar o contrato proposto de pacote `.papacc` autenticado e criptografado, com ZIP interno restrito.
+
+O pacote deve incluir os materiais necessários para configurar o Browser sem CSR prévio.
+
+Preservar importação simplificada e avançada.
+
+Não alterar algoritmos, limites ou formato sem justificativa e aprovação normativa.
+
+## 7. Modo automático
+
+Preservar:
+
+- endereço do Accelerator;
+- verificação da identidade do servidor;
+- código de confirmação;
+- OPEN/CLOSED;
+- autenticação usuário/senha em CLOSED;
+- aprovação AUTO/MANUAL;
+- chave privada gerada no Browser;
+- CSR/prova de posse;
+- mesma CA interna e registro administrativo.
+
+Não implementar o automático nesta tarefa.
+
+## 8. PapinhoTrustStore futuro
+
+Definir fronteiras substituíveis para:
+
+- emissão;
+- assinatura;
+- validação;
+- revogação;
+- status;
+- trust;
+- rotação.
+
+Não acoplar o formato de certificados a uma implementação interna irreversível.
+
+Preservar certificados já emitidos durante uma futura migração, respeitando validade, cadeia e revogação.
+
+Não implementar PapinhoTrustStore agora.
+
+## 9. Segurança e ED11
+
+Contabilizar futuramente:
+
+- chaves;
+- armazenamento protegido;
+- emissão;
+- assinatura;
+- registro;
+- revogação;
+- journal;
+- retenção;
+- recuperação;
+- coexistência de gerações.
+
+Não aumentar quotas.
+
+Provider/kernel UNKNOWN permanece UNKNOWN.
+
+Não criar mecanismos de criptografia próprios.
+
+## 10. Governança
+
+Reconciliar:
+
+- ADR-0006;
+- ADR-0028;
+- decisão accepted de provisionamento;
+- CONTRACT-PROPOSED revision 2;
+- BROWSER-HANDOFF-AND-VALIDATION;
+- roadmap Phase 6.
+
+Preparar o texto exato da exceção manual e da autoridade interna.
+
+Não registrar ADR accepted automaticamente.
+
+Não implementar código nesta tarefa.
+
+Não modificar Browser, PST ou PACC wire.
+
+Não alterar produção 0.6.4.
+
+Não executar rede ou gerar certificados reais.
+
+Preservar WIP.
+
+## 11. Entregas
+
+Produzir:
+
+- decisão normativa proposta;
+- contrato da CA interna;
+- contrato de custódia;
+- integração com root/policy;
+- interfaces substituíveis para futuro PapinhoTrustStore;
+- matriz de segurança;
+- handoff de implementação.
+
+## 12. Resultado
+
+CURRENT_TASK_COMPLETED=YES|NO
+
+INTERNAL_CA=PROPOSED
+EXTERNAL_CA_REQUIRED=NO
+MANUAL_SERVER_KEY_CUSTODY=PROPOSED_SCOPED_EXCEPTION
+AUTOMATIC_CLIENT_KEY_CUSTODY=PRESERVED
+
+CERTIFICATE_ISSUANCE=...
+CERTIFICATE_REVOCATION=...
+LIVE_CLIENT_PUBLICATION=...
+FUTURE_TRUSTSTORE_BOUNDARY=...
+
+NORMATIVE_STATUS=PROPOSED
+IMPLEMENTATION_AUTHORIZED=NO
+
+CLIENT_ADMISSION=DISABLED
+SITE_TLS_ADMISSION=DENY
+ED11_ADMISSION=DENY
+
+PST_CHANGED=NO
+BROWSER_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+PRODUCTION_PIN=0.6.4
+PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
+
+WIP_PRESERVED=...
+FIRST_UNRESOLVED_DIVERGENCE=...
+NEXT=OWNER_ACCEPTANCE_OF_INTERNAL_ISSUER_AND_MANUAL_CUSTODY_CONTRACT

@@ -1,0 +1,44 @@
+## T6 — Limites prévios ao código e recursos propostos
+
+### T6.1 Valores exatos por processo/lifetime
+
+Todos prazos abaixo absolutos em monotônico local com checked arithmetic; erro/regressão/overflow nega. Não comparar timestamps de peers. Progress bytes/WOULD_BLOCK/readiness não prorrogam prazos. Pausa de usuário/admin não reinicia relógios.
+
+|Limite|Valor candidato / início|
+|---|---|
+|Conexão TCP do Browser|10000ms desde início da tentativa; sem reconnect automático|
+|Handshake TLS de cada ponta|10000ms desde conexão TCP factual/accept, respectivamente|
+|Primeiro BEGIN completo no server|5000ms desde handshake/ALPN aceitos, incluindo HEADER/body|
+|Resposta CONTEXT ou ERROR|5000ms desde BEGIN completo, ainda sob prazo global|
+|Frame parcialmente iniciado|5000ms desde primeiro byte desse frame até conclusão; não estender por novos bytes|
+|Escrita de frame pendente|5000ms desde primeira tentativa de escrita, não cada sufixo|
+|Espera código/aprovação/CSR|deadline absoluto P3 de300000ms desde geração do código, incluindo claim/autenticação/admin/geração local e CSR completo|
+|Resposta após CSR/handoff|15000ms desde CSR completo, limitado pelo prazo global; timeout não cancela issuer|
+|Tentativa inteira server|330000ms desde accept, teto adicional sem prolongar prazos menores|
+|Tentativa inteira client|340000ms desde início de connect, teto adicional; P3 sempre menor quando aplicável|
+|Graceful shutdown|até2000ms desde início de shutdown, sem novo I/O aplicativo; expiração não prova release|
+|Conexões/contextos pendentes+retidos|máximo2 globalmente, incluindo handshakes, claims, aprovação, CSR/issuer e fechamento; não2por etapa|
+|Frames/body/bytes|HEADER16/body<=16384,8frames e32768bytes por direção; DER CSR/leaf/CA<=4096cada|
+|Submissões de código neste perfil|UMA; sem retries na mesma conexão; erro termina e não reabre código|
+
+Prazo global encerra novos efeitos aplicativos, não força destruição; shutdown2000ms é tentativa de encerramento bounded, não extensão de autoridade/TTL. ISSUER_PENDING/status remoto não atualiza qualquer prazo. Server/client aplicam somente seus relógios e deadlines locais; remaining_ms do CONTEXT informa UX, nunca cria nova autoridade temporal.
+
+### T6.2 Limiter pré-handshake
+
+Antes de accept, reservar capacidade do único owner existente para um socket e lifetime; máximo2inclui retidos. Se cheio, suspender accept interest sem evict/novo worker. Backlog solicitado ao OS:2; backlog não é garantia de memória kernel nem limite de tentativas recebidas. Rejeições ainda exigem tratamento factual do handle aceito; não aceitar mais para depois esconder recursos não contabilizados.
+
+Após accept e leitura do endpoint remoto factual, antes de criar conexão PST/handshake, admitir no máximo6tentativas globais em qualquer janela móvel60000ms e3por origem na mesma janela. Guardar timestamps de tentativas ADMITIDAS antes de efeitos; excedentes negam sem geração/handshake/código. Eventos de idade exatamente60000ms expiram. Origem é IP observado pelo socket, não certificado/Principal/header/proxy/DNS/nome do dispositivo; porta remota não compõe a chave. IPv4-mapped IPv6 normaliza para IPv4; IPv4 usa4bytes, IPv6 usa16bytes e scope nativo quando necessário, associado ao listener. NAT compartilha limite, não cria identificação de pessoa. Não reutilizar esse índice volátil como PersistentID ou autoridade de interface.
+
+Tabela bounded de16origens com no máximo3timestamps cada; global6timestamps. Entrada só pode ser reciclada com janela vencida e nenhuma referência/lifetime pendente ou retida; se tabela cheia, negar origem nova. Não criar blacklist/registry persistente. Sem alocação por origem ilimitada. Limites têm alcance por processo contínuo; restart invalida contextos, não recupera saldo/autoridade nem comprova proteção global. Instalações/processos múltiplos exigem exclusividade administrativa factual própria ou DENY, sem presumir mutex/lock como fencing de restauração.
+
+Após BEGIN, P4 continua impondo2gerações de código/60000ms e máximo2contextos vivos/retidos; não multiplicar os limites porque existem duas fases. Contadores de TLS não substituem contadores do código. Um erro de login/código/provider não restaura tentativa/contexto. Sem waits/sleeps no caminho Stop; limiter rejeita imediatamente, logging sem secrets bounded e sem responder plaintext.
+
+### T6.3 Crédito e retenção
+
+Sublimite candidato managed de enrollment inteiro:262144bytes por processo, dentro do limite já selecionado; NÃO é reserva adicional, aumento de quota ou memória por cliente. Teto por lifetime de conexão/contexto:98304bytes, incluindo RX/TX, CSR/resultados, estruturas, referências e sua memória atribuível simultânea/retida. Listener+limiter+state global+scratch/stack atribuíveis completam o mesmo sublimit, sem dupla cobrança de partes embutidas. Duas conexões não ganham dois pools262144. Apenas um CSR/issuer work de enrollment pode estar em execução por vez; segunda conexão aguarda dentro do TTL, sem worker adicional, e retidos conservam crédito.
+
+Buffers de parsing candidatos mínimos: um RX16400 e um TX16400 por conexão (header+body), metadados e copies/CSR/DER/stack/provider cobrados além desses conforme coexistência. Toda fonte/adapter informa custo factual necessário antes dos efeitos; custo UNKNOWN ou censo acima do teto/limite global => DENY. Não mover para caller/heap/stack/processo externo para escapar da conta. Reutilização somente com prova de fim factual da fase; especialmente RX que contém password/CSR e backing de objetos decodificados não podem ser reusados enquanto emprestados.
+
+Conexão em Stop/expiry/erro lógico para novos efeitos; owner registra causa e retém até fatos de membership/PST/close. Fechamento e limpeza de segredos seguem Model E: PRECONDITION_RETAINED permite só correção/retry governados; CLOSE_UNRESOLVED_RETAINED só consulta, sem novo I/O/rebind/release alternativo. Só DESTROYED factual permite limpar referência e devolver crédito exatamente uma vez. Nunca tratar timeout, FINAL/EOF remoto ou saída do processo como destruição.
+
+Windows3MiB exige seleção explícita; demais perfis/quotas preservados. Nenhum target é declarado capaz por estes tetos. Sem censo transitivo/recursos opacos/host headroom, ativação permanece DENY. Box/ISA/NT4/VC6 necessitam capacidades, relógios, CSPRNG, TLS/trust e lifecycle equivalentes e medição real; nenhuma dependência Win32/CNG no contrato comum.

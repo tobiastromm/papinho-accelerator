@@ -1,0 +1,117 @@
+---
+status: proposed
+revision: 2
+scope: replacement of T2 and T6 only; initial enrollment application candidate
+---
+
+# T2/T6 byte-exatos — Revision2 proposta
+
+Substituições propostas somente de T2/T6 do complemento original. P0–P9 e T0/T1/T3/T4/T5/T7 originais permanecem intactos. A decisão complementar accepted do listener separado prevalece sobre o antigo impedimento arquitetural de T0/T2; não aceita os bytes/parâmetros abaixo. Novo perfil aplicativo proposto sob TLS padrão PST; nenhum byte de PACC papacc/1 ou fonte funcional é alterado nesta tarefa.
+
+## T2 — Endpoint, perfil de aplicação e framing propostos
+
+### T2.1 Seleção anterior ao handshake
+
+Usar listener ENROLLMENT da coleção canônica, com binding e porta administrativamente explícitos (porta1..65535), endpoint distinto do OPERATIONAL e conflitos/wildcard/bind dual-stack rejeitados. Não há porta default, descoberta confiável implícita, multiplexação ou sniffer. O socket aceito já pertence ao perfil ENROLLMENT antes de criar a conexão PST. Reutilizar owner/scheduler/worker/root existentes; nenhuma segunda autoridade. Limite inicial: no máximo UM listener ENROLLMENT configurado ativo por processo, sujeito à capacidade da coleção/runtime e reserva factual. Não remover listeners existentes para acomodá-lo.
+
+TLS1.3 somente. Browser CLIENT exige servidor autenticado por CA/trust, hostname/SAN/ExpectedServerName, SNI e fingerprint exatos de T1; verifica identidade independente antes de BEGIN, password, código ou CSR. Server SERVER apresenta credencial serverAuth aprovada e não solicita certificado de cliente neste listener. Não aceitar client certificate como login CLOSED ou bypass do código; eventual certificado espontâneo não concede autoridade. Não alterar mTLS do listener OPERATIONAL. Sem0-RTT/resumption/downgrade/provider fallback; TLS truncado/fatal/perda do canal nega e conserva fatos incertos. Site TLS não participa.
+
+### T2.2 ALPN e versão exatos
+
+Única oferta/seleção permitida: string ASCII de15bytes `papacc-enroll/1`, hex `70 61 70 61 63 63 2d 65 6e 72 6f 6c 6c 2f 31`, sem NUL. Configuração local de cada ponta contém exatamente UM item e é REQUIRED: Browser oferece somente esse item; servidor só seleciona esse item. A codificação da extensão ALPN pertence ao TLS/PST; aplicativo fornece somente esses15bytes. Ausência de seleção, seleção papacc/1, mismatch ou seleção desconhecida: falhar handshake/policy, nunca tentar outro endpoint/perfil automaticamente. Nenhum byte aplicativo é processado antes de verificar ALPN negociado. Ofertas extras de um peer não autorizam selecionar outro item nem mudar a política pré-fixada; o contrato não exige API de inspeção do ClientHello ou novo parser TLS.
+
+Protocolo aplicativo candidato v1.0 fechado, sem negociação/minor downgrade. Versão ALPN1 não autoriza futuras versões de framing. `papacc/1` e seus parsers, IDs e tickets ficam inalterados; bytes de enrollment nunca entram no dispatcher PACC operacional.
+
+### T2.3 Cabeçalho de frame e regras de parsing
+
+Dentro do stream TLS autenticado, cada frame é HEADER16 seguido por exatamente payload_length bytes. Todos inteiros multibyte unsigned big-endian; nenhum padding implícito ou serialização de struct.
+
+| Offset | Bytes | Campo/valor |
+|---:|---:|---|
+|0|4|magic ASCII PAE1, hex50 41 45 31|
+|4|1|major1|
+|5|1|minor0|
+|6|1|kind1..8 conforme tabela|
+|7|1|flags0|
+|8|4|payload_length,1..16384 e tamanho específico do kind|
+|12|4|sequence,1..8 por direção|
+
+Sequence começa1 em cada direção e cresce exatamente1 por frame; sem reset, wrap, repetição ou ordenação cruzada entre direções. No máximo8frames por direção, inclusive erro/cancelamento. Uma conexão contém uma única tentativa, um único código/contexto e no máximo um CSR. Sem pipelining de mensagens cliente, compressão, fragmentação aplicativo, batching implícito ou bytes externos aos frames. Fragmentos de leitura/escrita TLS são normais: reter prefixos/sufixos até frame completo. Após HEADER16 validar magic/versão/kind/flags/seq/len/estado antes de ler/copiar body; nenhum allocation por tamanho remoto sem crédito prévio.
+
+Ler exatamente body declarado e consumir um frame por vez. Byte adicional só pode iniciar próximo frame autorizado; trailing bytes dentro do body, campos duplicados, tamanho incompatível ou bytes depois de terminal são erro. Quantidade cumulativa de bytes aplicativos HEADER+payload: no máximo32768 por direção durante todo lifetime, incluindo tentativas/erro. Ultrapassagem nega antes de processar novo body. Sem extensões/TLV desconhecidas ou campos opcionais inferidos.
+
+### T2.4 Mensagens permitidas e payloads
+
+Offsets de payload abaixo são relativos ao início do body. Vetores têm tamanho exato; todos inteiros BE. IDs/nonces são correlações públicas com origem factual, não Principal/grants/epoch. Não enviar root CURRENT/R/A/P/I pelo wire nem aceitar proof flags recebidos como autoridade.
+
+|kind|Nome/direção|Payload byte-exato|
+|---:|---|---|
+|1|BEGIN C→S|nonce_cliente32 em0; fingerprint_servidor_SHA25632 em32; name_length u16 em64; ExpectedServerName ASCII em66, comprimento1..253. Total66+name_length. Nome exatamente o já aprovado/verificado por T1; não normalizar remotamente.|
+|2|CONTEXT S→C|request_id16 em0; eco nonce_cliente32 em16; nonce_servidor32 em48; fingerprint_servidor32 em80; enrollment_access u8 em112 (0OPEN/1CLOSED); approval_mode u8 em113 (0AUTO/1MANUAL); zeros2 em114; remaining_ms u32 em116 (1..300000). Total120. Não contém código/senha.|
+|3|CONFIRM C→S|request_id16 em0; nonce_servidor32 em16; código canônico10bytes P1 em48; username_length u16 em58; password_length u16 em60; username em62, seguido por password. Total62+U+P. OPEN exigeU=P=0; CLOSED exige1..128bytes cada. UTF-8 estrito, sem BOM/NUL/controles U+0000..001F/U+007F, sem normalização. Segredos apenas sob TLS autenticado; provider governado continua obrigatório.|
+|4|STATUS S→C|request_id16 em0; status u8 em16 (1WAIT_APPROVAL,2PAIRING_APPROVED,3ISSUER_PENDING); zeros3 em17. Total20. No máximo um de cada status e somente na ordem1opcional→2→3opcional. WAIT não é aprovação; APPROVED só autoriza envio CSR, não emissão/admissão.|
+|5|CSR C→S|request_id16 em0; nonce_servidor32 em16; csr_length u32 em48,1..4096; CSR DER exato em52. Total52+csr_length; sem chave privada, PEM, extras ou atributos fora do suporte aceito do validador.|
+|6|CREDENTIALS S→C|request_id16 em0; leaf_length u32 em16,1..4096; ca_length u32 em20,1..4096; certificado cliente DER em24; CA pública DER logo depois. Total24+leaf_length+ca_length, máximo8216. Uma leaf CLIENT profile1 e uma CA direta; nenhuma chave privada/grant/signer de pacote.|
+|7|CANCEL C→S|request_id16 em0; nonce_servidor32 em16. Total48. Permitido após CONTEXT e antes de terminal; id/nonce devem corresponder.|
+|8|ERROR S→C|request_id16 em0 (todos zero se CONTEXT ainda não foi emitido); reason u16 em16; zeros2 em18. Total20, sem texto arbitrário ou segredos.|
+
+Reason fechado:1DENIED (código/auth/policy/ator/referência/CSR sem discriminar usuário/código existentes),2VERSION_UNSUPPORTED,3LIMIT,4STOPPING,5EXPIRED,6RESULT_UNKNOWN,7MALFORMED. No máximo um ERROR, terminal. Antes de TLS/ALPN autenticado não há erro aplicativo; fechar pela autoridade/lifecycle nativos. Magic inválido/seq incorreta/flags/size inválidos fecham sem tentar outro parser. Um ERROR pós-TLS só pode ser emitido se houver crédito e capacidade sem prolongar deadline; falha de envio não altera resultado factual.
+
+### T2.5 Ordem, claim, aprovação e resultado
+
+BEGIN somente após T1/TLS/ALPN, antes do deadline de primeira mensagem. Server verifica sua identidade/current/listener/policy, geração de nonce/id/código P1 e P4 antes de CONTEXT. Falta de fonte/entropia/capacidade: DENY; nenhuma autoridade inventada. Código é entregue somente ao operador e ao destinatário por canal independente T3, nunca no CONTEXT.
+
+Cliente envia uma única CONFIRM canônica neste perfil. Primeiro acerto faz claim irrevogável T5 para conexão/owner/request; segunda CONFIRM é replay e não compara nem autentica de novo. Falha de código/AuthN/CLOSED ou formato encerra a tentativa com ERROR genérico e invalida o código, mesmo havendo saldo P4. Isto restringe para UMA submissão no transporte inicial; cinco em P4 continua teto máximo geral, não direito a cinco retries. Não alterar P1/P4 originais; para futura aceitação esta restrição deve ter precedência explícita somente no perfil inicial v1. Sem indicar qual comparação falhou.
+
+Código e password não substituem um ao outro. CLOSED provider ausente continua DENY; em OPEN não há login implícito. Após claim, servidor pode emitir WAIT_APPROVAL uma vez, sem polls do cliente. Aprovação AUTO é policy factual; MANUAL é ação do ator autenticado vinculada ao request. Somente PAIRING_APPROVED após ambas as verificações permite Browser gerar/manter chave local e enviar CSR. Nenhum CSR antes de aprovação, CSR repetido ou troca de chave/request é aceito.
+
+CSR permanece na mesma conexão TLS/owner/geração, sem retomada por nonce/token. Validar DER/perfil/PoP e correlacionar CSR/SPKI com resultado imutável derivado, sem mutar preparação original. Handoff somente para o mesmo issuer/root transacional e correlação exata, conforme P6. Fonte factual ausente mantém DENY, sem assinatura ou CURRENT sintéticos.
+
+CREDENTIALS somente se certificado/publicação issuer forem factuais e autorizados, material cliente corresponder ao CSR e todos os gates de emissão/release estiverem satisfeitos. Não reportar sucesso por SIGN_REQUESTED, write/CAS_UNKNOWN ou assinatura parcial. Resultado ainda incerto após handoff: um ISSUER_PENDING opcional e ERROR6 quando possível, retenção/consulta interna governada; nenhum retry/reserva/assinatura automática nem nova mensagem de query. Frame recebido não instala configuração: Browser valida chain/clientAuth/serial/identidade/key match e decide instalação local transacional; nenhuma permissão operacional nasce do enrollment. Nesta tarefa tudo isso permanece não implementado/negado.
+
+ERROR/CANCEL/CREDENTIALS são terminais: nenhum novo dado/app side effect; shutdown/release incremental sob T6/Model E. Resultado limpo exige frame integral autenticado e conclusão de validação, não mero EOF; truncamento/loss dá resultado desconhecido/não clean. Nenhuma promoção da conexão de enrollment para OPERATIONAL; reconexão futura mTLS é separada e sujeita à admissão.
+
+## T6 — Limites prévios ao código e recursos propostos
+
+### T6.1 Valores exatos por processo/lifetime
+
+Todos prazos abaixo absolutos em monotônico local com checked arithmetic; erro/regressão/overflow nega. Não comparar timestamps de peers. Progress bytes/WOULD_BLOCK/readiness não prorrogam prazos. Pausa de usuário/admin não reinicia relógios.
+
+|Limite|Valor candidato / início|
+|---|---|
+|Conexão TCP do Browser|10000ms desde início da tentativa; sem reconnect automático|
+|Handshake TLS de cada ponta|10000ms desde conexão TCP factual/accept, respectivamente|
+|Primeiro BEGIN completo no server|5000ms desde handshake/ALPN aceitos, incluindo HEADER/body|
+|Resposta CONTEXT ou ERROR|5000ms desde BEGIN completo, ainda sob prazo global|
+|Frame parcialmente iniciado|5000ms desde primeiro byte desse frame até conclusão; não estender por novos bytes|
+|Escrita de frame pendente|5000ms desde primeira tentativa de escrita, não cada sufixo|
+|Espera código/aprovação/CSR|deadline absoluto P3 de300000ms desde geração do código, incluindo claim/autenticação/admin/geração local e CSR completo|
+|Resposta após CSR/handoff|15000ms desde CSR completo, limitado pelo prazo global; timeout não cancela issuer|
+|Tentativa inteira server|330000ms desde accept, teto adicional sem prolongar prazos menores|
+|Tentativa inteira client|340000ms desde início de connect, teto adicional; P3 sempre menor quando aplicável|
+|Graceful shutdown|até2000ms desde início de shutdown, sem novo I/O aplicativo; expiração não prova release|
+|Conexões/contextos pendentes+retidos|máximo2 globalmente, incluindo handshakes, claims, aprovação, CSR/issuer e fechamento; não2por etapa|
+|Frames/body/bytes|HEADER16/body<=16384,8frames e32768bytes por direção; DER CSR/leaf/CA<=4096cada|
+|Submissões de código neste perfil|UMA; sem retries na mesma conexão; erro termina e não reabre código|
+
+Prazo global encerra novos efeitos aplicativos, não força destruição; shutdown2000ms é tentativa de encerramento bounded, não extensão de autoridade/TTL. ISSUER_PENDING/status remoto não atualiza qualquer prazo. Server/client aplicam somente seus relógios e deadlines locais; remaining_ms do CONTEXT informa UX, nunca cria nova autoridade temporal.
+
+### T6.2 Limiter pré-handshake
+
+Antes de accept, reservar capacidade do único owner existente para um socket e lifetime; máximo2inclui retidos. Se cheio, suspender accept interest sem evict/novo worker. Backlog solicitado ao OS:2; backlog não é garantia de memória kernel nem limite de tentativas recebidas. Rejeições ainda exigem tratamento factual do handle aceito; não aceitar mais para depois esconder recursos não contabilizados.
+
+Após accept e leitura do endpoint remoto factual, antes de criar conexão PST/handshake, admitir no máximo6tentativas globais em qualquer janela móvel60000ms e3por origem na mesma janela. Guardar timestamps de tentativas ADMITIDAS antes de efeitos; excedentes negam sem geração/handshake/código. Eventos de idade exatamente60000ms expiram. Origem é IP observado pelo socket, não certificado/Principal/header/proxy/DNS/nome do dispositivo; porta remota não compõe a chave. IPv4-mapped IPv6 normaliza para IPv4; IPv4 usa4bytes, IPv6 usa16bytes e scope nativo quando necessário, associado ao listener. NAT compartilha limite, não cria identificação de pessoa. Não reutilizar esse índice volátil como PersistentID ou autoridade de interface.
+
+Tabela bounded de16origens com no máximo3timestamps cada; global6timestamps. Entrada só pode ser reciclada com janela vencida e nenhuma referência/lifetime pendente ou retida; se tabela cheia, negar origem nova. Não criar blacklist/registry persistente. Sem alocação por origem ilimitada. Limites têm alcance por processo contínuo; restart invalida contextos, não recupera saldo/autoridade nem comprova proteção global. Instalações/processos múltiplos exigem exclusividade administrativa factual própria ou DENY, sem presumir mutex/lock como fencing de restauração.
+
+Após BEGIN, P4 continua impondo2gerações de código/60000ms e máximo2contextos vivos/retidos; não multiplicar os limites porque existem duas fases. Contadores de TLS não substituem contadores do código. Um erro de login/código/provider não restaura tentativa/contexto. Sem waits/sleeps no caminho Stop; limiter rejeita imediatamente, logging sem secrets bounded e sem responder plaintext.
+
+### T6.3 Crédito e retenção
+
+Sublimite candidato managed de enrollment inteiro:262144bytes por processo, dentro do limite já selecionado; NÃO é reserva adicional, aumento de quota ou memória por cliente. Teto por lifetime de conexão/contexto:98304bytes, incluindo RX/TX, CSR/resultados, estruturas, referências e sua memória atribuível simultânea/retida. Listener+limiter+state global+scratch/stack atribuíveis completam o mesmo sublimit, sem dupla cobrança de partes embutidas. Duas conexões não ganham dois pools262144. Apenas um CSR/issuer work de enrollment pode estar em execução por vez; segunda conexão aguarda dentro do TTL, sem worker adicional, e retidos conservam crédito.
+
+Buffers de parsing candidatos mínimos: um RX16400 e um TX16400 por conexão (header+body), metadados e copies/CSR/DER/stack/provider cobrados além desses conforme coexistência. Toda fonte/adapter informa custo factual necessário antes dos efeitos; custo UNKNOWN ou censo acima do teto/limite global => DENY. Não mover para caller/heap/stack/processo externo para escapar da conta. Reutilização somente com prova de fim factual da fase; especialmente RX que contém password/CSR e backing de objetos decodificados não podem ser reusados enquanto emprestados.
+
+Conexão em Stop/expiry/erro lógico para novos efeitos; owner registra causa e retém até fatos de membership/PST/close. Fechamento e limpeza de segredos seguem Model E: PRECONDITION_RETAINED permite só correção/retry governados; CLOSE_UNRESOLVED_RETAINED só consulta, sem novo I/O/rebind/release alternativo. Só DESTROYED factual permite limpar referência e devolver crédito exatamente uma vez. Nunca tratar timeout, FINAL/EOF remoto ou saída do processo como destruição.
+
+Windows3MiB exige seleção explícita; demais perfis/quotas preservados. Nenhum target é declarado capaz por estes tetos. Sem censo transitivo/recursos opacos/host headroom, ativação permanece DENY. Box/ISA/NT4/VC6 necessitam capacidades, relógios, CSPRNG, TLS/trust e lifecycle equivalentes e medição real; nenhuma dependência Win32/CNG no contrato comum.

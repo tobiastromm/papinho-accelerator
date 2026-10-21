@@ -1,0 +1,10 @@
+--- apps/server/server_launcher_owner_win32.c
++++ apps/server/server_launcher_owner_win32.c
+@@ -887,6 +887,7 @@
+         LeaveCriticalSection(&o->configuration_commit.lock);
+     }
+     t->participants.interface_snapshot.retained=PAPACC_TRUE;
++    t->participants.interface_current.bound=PAPACC_FALSE;
+     result=papacc_server_security_source_retain(&t->source);
+     if(result==PAPACC_RESULT_OK)t->state=PAPACC_ROOT_PREPARATION_RETAINED;
+     return result;

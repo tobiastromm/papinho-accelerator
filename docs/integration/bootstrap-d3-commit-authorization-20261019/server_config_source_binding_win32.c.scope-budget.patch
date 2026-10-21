@@ -1,0 +1,24 @@
+--- apps/server/server_config_source_binding_win32.c
++++ apps/server/server_config_source_binding_win32.c
+@@ -97,13 +97,20 @@
+  const PC_DOCUMENT *doc,const PAPACC_U8 *image,PAPACC_SIZE bytes,const char *leaf,PAPACC_SIZE reserved)
+ {
+  PAPACC_BOOTSTRAP_RESOLUTION resolved;PC_DIAGNOSTIC diagnostic;PAPACC_CONFIG_VIEW expected;
+- PAPACC_CONFIGURATION_COMMIT *c;const PC_LINE *line;unsigned length;
++ PAPACC_CONFIGURATION_COMMIT *c;const PC_LINE *line;unsigned length;PAPACC_SIZE minimum;
+  if(!o||!image||bytes<PC_ROOT8_MIN||bytes>PC_ROOT8_NO_ISSUER_MAX)return PAPACC_RESULT_INVALID_ARGUMENT;
+  if((ULONG_PTR)image<=(ULONG_PTR)o? (ULONG_PTR)o-(ULONG_PTR)image<bytes:
+     (ULONG_PTR)image-(ULONG_PTR)o<sizeof(*o))return PAPACC_RESULT_INVALID_ARGUMENT;
+  if(papacc_server_config_initial_bootstrap_resolve(o,doc,&resolved,&diagnostic)!=PC_OK||!resolved.initial_resolved||resolved.epochs_present)
+   return PAPACC_RESULT_INVALID_STATE;
+  c=&o->configuration_commit;
++ /* Retain full input/AST, source-resolution stack allowance, bounded codec
++  * pair, receipt and native scratch. No omitted retained caller graph. */
++ minimum=sizeof(PC_DOCUMENT)+PC_SOURCE_MAX+sizeof(PAPACC_BOOTSTRAP_RESOLUTION)+
++  sizeof(PC_DIAGNOSTIC)+sizeof(const PAPACC_SERVER_CONFIG *)+16384U+
++  PC_ROOT8_NO_ISSUER_FIELDS+PC_ROOT8_NO_ISSUER_MAX+128U+4096U;
++ if(minimum>2097152U||o->configuration_preparation.combined_reserved>2097152U-minimum||
++    reserved<o->configuration_preparation.combined_reserved+minimum)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  /* Enforce the current one-listener target, never truncate a collection. */
+  if(image[20]!=1U||image[21]||!doc||doc->listener_count!=1U)return PAPACC_RESULT_NOT_SUPPORTED;
+  expected=o->configuration_preparation.model;memcpy(expected.domain,c->domain,32U);

@@ -1,5 +1,10 @@
 # PapinhoAccelerator
 
+The post-Phase-6 I.0 work extracts the public portable PACC contract as
+[PapinhoPACC](docs/integration/papinhopacc.md), governed by
+[ADR-0025](docs/adr/ADR-0025-contrato-publico-portavel-papinhopacc.md).
+This is protocol-only; Browser integration and Phase 7 are not started.
+
 PapinhoAccelerator é um projeto independente para transferir tarefas computacionalmente pesadas de clientes para outro dispositivo. PapinhoBrowser será o primeiro cliente oficial, mas não define nem limita o protocolo, o servidor, os transports ou os backends.
 
 ## Decisões arquiteturais locais
@@ -18,6 +23,7 @@ PapinhoAccelerator é um projeto independente para transferir tarefas computacio
 - [ADR-0012 — Snapshot de capabilities e enforcement contextual](docs/adr/ADR-0012-snapshot-de-capabilities-e-enforcement-contextual.md)
 - [ADR-0013 — Lifecycle de Job, ownership de Session e cancelamento cooperativo](docs/adr/ADR-0013-lifecycle-de-job-ownership-de-session-e-cancelamento-cooperativo.md)
 - [ADR-0014 — Contrato portátil incremental de Compute Backend](docs/adr/ADR-0014-contrato-portatil-incremental-de-compute-backend.md)
+- [ADRs da Phase 6 — Network/TLS Offload](docs/phase6-network-tls-offload.md#conformidade-com-adrs)
 
 ## Estado atual
 
@@ -37,12 +43,12 @@ Transport Security. As Phases 3.C–3.E agora fornecem AuthN/AuthZ, Secure DATA 
 o controller de servidor seguro opt-in. A 3.F também concluiu a prova de
 interoperabilidade com cliente de referência em processo separado; exposição
 operacional no executável permanece futura.
-O Accelerator fixa e valida a release PST `v0.6.1` (API 2.1/SPI 3.0) por
+O Accelerator fixa e valida a release PST `v0.6.4` (API 2.1/SPI 3.0) por
 manifesto de dependência e possui uma prova opt-in isolada de TLS 1.3 outbound
 para `google.com:443`, migrada para role CLIENT explícito.
-Essa prova reutiliza a mesma boundary CMake privada reservada às futuras
-unidades de segurança, mas não implementa a capability geral `TLS_OFFLOAD`,
-network egress de produção, proxy ou integração com Browser. A Phase 3.B
+Essa prova evoluiu na Phase 6 para Network Offload produtivo no build
+PST-enabled, com `TCP_PLAIN` e `TLS_REQUIRED` Mode B. Não implementa proxy
+genérico, integração com Browser ou os Modes C/D completos. A Phase 3.B
 implementou a composition privada e failure-atomic de runtime, credencial,
 trust e perfil Secure Principal SERVER. O adapter privado de logging PST também
 está implementado. A boundary privada de scheduling usa o wait-set PST para
@@ -61,12 +67,14 @@ servidor Win32 estruturalmente operacional:
 | PST readiness/scheduler integration | ✅; privada e integrada ao controller seguro opt-in |
 | Authentication/Authorization foundation | ✅; unidade, TLS 1.3 mTLS real e integração no controller seguro |
 | Secure DATA association binding | ✅; integrada ao caminho DATA do controller seguro opt-in |
-| `TLS_OFFLOAD` general capability | 🟨 incompleta; veja o Capability Document |
-| Network Egress production | ⬜ não implementado |
+| `TLS_OFFLOAD` capability | ✅ parcial produtiva; Mode B implementado e validado |
+| Network Egress production | ✅ Phase 6 READY; policy/profile/DNS/SSRF fail-closed |
 | Transport Security server integration | ✅; listener real e harness mTLS, ainda opt-in |
 | Secure Principal | ✅ Phase 3 READY; server e reference-client interoperability auditados |
 | Capability Framework & Policy Engine | ✅ Phase 4 READY; framework portátil, sem wire/workloads |
 | Compute Offload Framework | ✅ Phase 5 READY; Jobs bounded e backend portátil, sem workload/wire |
+| Network & TLS Offload | ✅ Phase 6 READY; wire, runtime, cliente de referência e matriz adversarial |
+| Image Acceleration | ⬜ Phase 7 não iniciada |
 
 - listeners TCP reais em um único `control_port` explícito;
 - seleção de todas as interfaces ou de interfaces por identidade persistente local;
@@ -80,18 +88,23 @@ servidor Win32 estruturalmente operacional:
 Ainda não estão implementados:
 
 - exposição operacional/CLI do listener Secure Principal;
-- workloads concretos de computação, incluindo `TLS_OFFLOAD`;
-- protocolo de aplicação ou processamento de payload após `DATA_ACCEPT`;
-- network egress, proxy ou conexões externas;
+- workloads de imagem/mídia/web;
+- integração PapinhoBrowser ↔ PapinhoAccelerator para consumir Network Offload;
+- Mode C (network local + TLS remoto), failover explícito de egress e IDNA;
+- proxy HTTP genérico, firewall/router/NAT ou TLS interception;
 - GUI, arquivo de configuração ou backend POSIX.
 
-O protocolo entregue na Phase 2 é somente a base estrutural de transporte, framing, estabelecimento e associação. Session `ACTIVE` não significa autenticada, autorizada, confiável ou segura. A próxima fase deve introduzir autenticação, autorização e Transport Security sem alterar implicitamente esse significado por negociação de capability.
+O protocolo entregue na Phase 2 permanece a base estrutural. As Phases 3–6
+adicionaram segurança, capabilities, Jobs e Network Offload sem redefinir
+silenciosamente o significado histórico de Session `ACTIVE` ou enfraquecer
+Transport Security por negociação de capability.
 
 ## Escopo arquitetural
 
 - Core e modelos de rede portáteis sem tipos Win32/Winsock.
 - PAL, backend de discovery e backend TCP Win32 como primeira implementação de plataforma.
-- Control/Data Channels, Sessions, Capability Framework e Compute Offload Framework genérico entregues; workloads concretos permanecem futuros.
+- Control/Data Channels, Sessions, Capability/Job frameworks e Network Offload
+  entregues; workloads de imagem, mídia e web permanecem futuros.
 - Transport Security protege conceitualmente os canais do próprio PapinhoAccelerator e é independente da capability futura `TLS_OFFLOAD`, voltada a conexões externas do cliente.
 - Secure Principal consumirá PapinhoSecureTransport; Legacy Endpoint permanece
   plaintext explicitamente configurado e não passa pelo PST.
@@ -104,15 +117,21 @@ papacc_server --list-interfaces
 papacc_server --port <porta> --all-interfaces
 papacc_server --port <porta> --interface-id <persistent-id>
 papacc_server --port <porta> --all-interfaces --log-level info
+papacc_server --port <porta> --all-interfaces --listener-profile secure-principal --security-configuration-ref <reference>
 ```
 
-Não existe porta oficial ou default. O modo RUN exige `--port` e uma decisão explícita de bind. `--allow-network-egress` registra somente policy; egress ainda não foi implementado.
+Não existe porta oficial ou default. O modo RUN exige `--port` e uma decisão
+explícita de bind. `--allow-network-egress` preserva o master gate: `FALSE`
+nega; `TRUE` apenas habilita a avaliação da policy e do Egress Profile
+server-owned e nunca significa allow-all.
 
 `--log-level` aceita `off`, `error`, `warn`, `info` (default), `debug` e `trace`. `off` desabilita somente toda saída do `PAPACC_LOGGER`; saídas funcionais de `--help` e `--list-interfaces` permanecem disponíveis. INFO registra lifecycle estrutural de listeners, Connections, Sessions, tickets e DATA attachment. Eventos possuem identificador estável, categoria, componente, operação, resultado normalizado e contexto seguro limitado. Tickets completos e payloads nunca são registrados, inclusive em TRACE. IDs mostrados são somente IDs runtime locais e não são serializados no Wire Protocol.
 
 Consulte a [CLI Reference](docs/cli.md) para todas as opções implementadas,
 regras de combinação, formato de inspeção e exemplos. Os valores usados nos
-exemplos não são defaults oficiais.
+exemplos são ilustrativos. O procedimento de credenciais lab-only do perfil
+Secure Principal está em [Secure Principal listener — operação de
+laboratório](docs/secure-principal-operation.md).
 
 ## Validação com consumidor real
 
@@ -131,6 +150,7 @@ O primeiro consumidor real foi validado: PapinhoBrowser em Windows NT 4.0 acesso
 - [Closeout final de segurança da Phase 3](docs/phase3-security-final-audit.md)
 - [Capability Framework & Policy Engine da Phase 4](docs/phase4-capability-framework-policy-engine.md)
 - [Compute Offload Framework da Phase 5](docs/phase5-compute-offload-framework.md)
+- [Network & TLS Offload — fechamento da Phase 6](docs/phase6-network-tls-offload.md)
 - [Perfil inicial de Transport Security e credenciais](docs/phase3-transport-security-profile.md)
 - [Spike de backend TLS e compatibilidade legada](docs/phase3-tls-backend-spike.md)
 - [Prova final RetroZilla NSS mTLS/NT4](docs/phase3-nss-mtls-nt4-proof.md)

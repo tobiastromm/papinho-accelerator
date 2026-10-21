@@ -1,0 +1,28 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2694,3 +2694,25 @@
+         add_test(NAME papacc.config_binding.native_guard COMMAND papacc_config_binding_native_test)
+     endif()
+ endif()
++
++
++# LST1 accepted private OFFLINE fragment. Never linked into product targets.
++option(PAPACC_ENABLE_OFFLINE_LST1 "Build private offline LST1 codec" OFF)
++if(PAPACC_ENABLE_OFFLINE_LST1)
++    add_library(papacc_config_lst1 STATIC src/config/config_lst1.c)
++    target_include_directories(papacc_config_lst1 PUBLIC src/config include)
++    set_target_properties(papacc_config_lst1 PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++    papacc_enable_warnings(papacc_config_lst1)
++    if(BUILD_TESTING)
++        if(NOT PAPACC_ENABLE_CONFIG_ADMIN_BINDING)
++            message(FATAL_ERROR "LST1 native SHA regression requires existing canonical config binding test profile")
++        endif()
++        add_executable(papacc_config_lst1_test tests/config_lst1_test.c)
++        target_include_directories(papacc_config_lst1_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} src/config)
++        target_link_libraries(papacc_config_lst1_test PRIVATE papacc_config_lst1 papacc_server_run_win32 papacc_config_binding)
++        set_target_properties(papacc_config_lst1_test PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++        papacc_enable_warnings(papacc_config_lst1_test)
++        papacc_stage_pst_runtime(papacc_config_lst1_test)
++        add_test(NAME papacc.config_lst1.offline COMMAND papacc_config_lst1_test)
++    endif()
++endif()

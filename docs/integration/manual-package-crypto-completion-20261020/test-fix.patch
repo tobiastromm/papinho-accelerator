@@ -1,0 +1,22 @@
+--- tests\manual_package_crypto_test.c
++++ tests\manual_package_crypto_test.c
+@@ -27,7 +27,7 @@
+  const unsigned char plain[]="Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
+  size_t n=sizeof(plain)-1,used=9,i;int count;
+  unsigned char cert[16384],private_der[8192],other[8192];size_t cn,pn,on;
+- FILE *f;EVP_PKEY *signer;EVP_MD_CTX *md;EVP_PKEY_CTX *pc=NULL;
++ FILE *f;BIO *bio;char pem[8192];size_t pemn;EVP_PKEY *signer;EVP_MD_CTX *md;EVP_PKEY_CTX *pc=NULL;
+  unsigned char spki[1024],*sp=spki,raw[2048],header[92],signature[256],hash[32];
+  size_t sn,siglen=256,hn=0,rn=0;MP_ENVELOPE env;
+  static const unsigned char domain[]="PAPACC-COMPLETE-MANUAL-V2";
+@@ -70,7 +70,9 @@
+  CHECK(mp_crypto_key_match(c,cert,cn-1,private_der,pn)==MP_INVALID);
+  CHECK(mp_crypto_key_match(c,cert,cn,private_der,pn-1)==MP_INVALID);
+  /* Public upstream RSA TEST KEY, never a delegated production signer. */
+- f=fopen(argv[1],"rb");CHECK(f!=NULL);signer=PEM_read_PrivateKey(f,NULL,NULL,NULL);fclose(f);CHECK(signer!=NULL);
++ f=fopen(argv[1],"rb");CHECK(f!=NULL);pemn=fread(pem,1,sizeof(pem),f);fclose(f);CHECK(pemn>0&&pemn<sizeof(pem));
++ bio=BIO_new_mem_buf(pem,(int)pemn);CHECK(bio!=NULL);
++ signer=PEM_read_bio_PrivateKey(bio,NULL,NULL,NULL);BIO_free(bio);OPENSSL_cleanse(pem,sizeof(pem));CHECK(signer!=NULL);
+  sn=(size_t)i2d_PUBKEY(signer,&sp);CHECK(sn<=1024);
+  memset(header,0,sizeof(header));memcpy(header,"PACCMP02",8);header[9]=2;header[11]=1;
+  be32(header+16,364+sn+1);be32(header+20,1);be32(header+24,600000);be32(header+88,sn);

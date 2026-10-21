@@ -1,0 +1,44 @@
+--- apps/server/server_config_source_binding_win32.c
++++ apps/server/server_config_source_binding_win32.c
+@@ -45,3 +45,41 @@
+  if(diag)diag->reason="resolved value snapshot; publication and operational authority remain denied";
+  return PC_OK;
+ }
++
++#ifdef PAPACC_OFFLINE_D3_WORKER
++PC_RESULT papacc_server_config_initial_bootstrap_resolve(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,
++ const PC_DOCUMENT *doc,PAPACC_BOOTSTRAP_RESOLUTION *out,PC_DIAGNOSTIC *diag)
++{
++ PAPACC_ROOT_CONFIGURATION_PREPARATION *t;PAPACC_CONFIGURATION_COMMIT *c;
++ const PAPACC_SERVER_CONFIG *models[1];PAPACC_ROOT_POLICY_REPORT report;PC_RESULT result;
++ if(!out)return PC_INVALID;memset(out,0,sizeof(*out));
++ if(!o||GetCurrentThreadId()!=o->owner_thread||!o->invocation)return deny(&out->binding,diag,"initial owner/invocation absent");
++ c=&o->configuration_commit;t=&o->configuration_preparation;
++ if(c->published||c->committed_bytes||c->committed_pending||c->recovery_selected||c->recovery_guard||
++    t->administrative_published||t->normative_committed||t->invocation!=o->invocation||
++    o->network.is_active||papacc_server_console_win32_stop_requested()||
++    papacc_configuration_bootstrap_custody_ready(c)!=PAPACC_TRUE)
++  return deny(&out->binding,diag,"initial mode requires native administrative custody; update/recovery forbidden");
++ if(!pc_view(doc)||doc->listener_count!=1U||t->state!=PAPACC_ROOT_PREPARATION_PARTIAL||
++    papacc_server_security_source_validate(&t->source)!=PAPACC_RESULT_OK||
++    papacc_server_launcher_configuration_policy_report(o,&report)!=PAPACC_RESULT_OK||
++    !report.prepared||!report.model_source||report.retained)
++  return deny(&out->binding,diag,"initial governed participants/policy/source unavailable");
++ if(t->model.config.bind_selection.mode!=PAPACC_BIND_SELECTION_ALL_INTERFACES)
++  return deny(&out->binding,diag,"SELECTED topology unqualified");
++ if(!t->source.reference.valid||t->source.reference.length!=t->model.config.security_configuration_ref_length||
++    memcmp(t->source.reference.value,t->model.config.security_configuration_ref,t->source.reference.length))
++  return deny(&out->binding,diag,"initial security reference mismatch");
++ if(t->combined_reserved>2097152U||sizeof(*out)+2048U>2097152U-t->combined_reserved)
++  return deny(&out->binding,diag,"initial resolver reservation insufficient");
++ models[0]=&t->model.config;result=pc_bind_existing_models(doc,models,1U,&out->binding,diag);
++ if(result!=PC_OK)return result;
++ if(papacc_configuration_bootstrap_custody_ready(c)!=PAPACC_TRUE||papacc_server_console_win32_stop_requested())
++  return deny(&out->binding,diag,"Stop or custody invalidated during initial resolution");
++ /* Do not set the CURRENT-oriented binding.resolved/revision/epochs fields. */
++ memcpy(out->binding.root,c->domain,32U);out->invocation=o->invocation;
++ out->initial_resolved=1U;out->epochs_present=0U;
++ if(diag)diag->reason="initial references resolved; no CURRENT, epoch, grants or commit";
++ return PC_OK;
++}
++#endif

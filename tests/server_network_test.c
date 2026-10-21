@@ -209,7 +209,7 @@ static int test_all_rollback_and_reuse(void)
         return 1;
     }
     config.control_port = port;
-    config.allow_network_egress = PAPACC_TRUE;
+    config.allow_network_egress = PAPACC_FALSE;
     config.bind_selection.mode = PAPACC_BIND_SELECTION_ALL_INTERFACES;
     result = papacc_server_network_start(&network, &config);
     if (result == PAPACC_RESULT_OK || !network_is_inactive(&network)) {

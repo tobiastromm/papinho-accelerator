@@ -1,0 +1,1751 @@
+PAPINHOACCELERATOR-P10-EDITOR-POLICY-RECONCILIATION-AND-AUTONOMOUS-RESUME
+Date: 2026-10-09. Live evidence report; no normative decision.
+Branch: main; HEAD c50b8fb. Existing WIP preserved. No commit/push/tag/release.
+
+EDITOR_POLICY_EFFECTIVE=GOVERNED_PROGRAMMATIC_EDITING_EXPLICITLY_AUTHORIZED
+PROGRAMMATIC_EDIT_ALLOWED=YES
+apply_patch attempted first; executor returned false reparse errors.
+Physical ancestor paths checked; no reparse points. PowerShell byte writes
+used inside writable workspace, preserving strict UTF8 without BOM and LF.
+External diagnostic execution approved by effective executor review.
+
+TRACE_PATH_FIX=PASS
+File: tests/reference_client/secure_reference_client.c
+Before SHA256 C1D09672F3EAF219C291FBBE8B1BEF262A87630CC3ACB103C485709D2A2B533F
+After  SHA256 8ACBD3640A8D4A2596521695326D1B259C817A45CA438D18C63AE85F7B9D5D91
+Only stage41 filename made absolute in C:\Projetos\_tmp\PapinhoAccelerator.
+Trace remains durable after child and owner exit; 39 sequence records.
+Passing trace: papacc-p10-stage41-13764-2303972379703.trace
+SHA256 4EAA7D4A294AFEA17B8F8A0DB24507E43FA26D63F73BEF26B0C60FC330CA452E
+
+R1_RESULT=PASS (exit 0)
+PAPACC_ADR0032_P10=off
+PST_TEST_ONLY_OPENSSL_SHUTDOWN_WRITE_GATE=BLOCK
+CLI --isolated-tls-shutdown-cancel
+Ungated reproduction: exit112, stage41 exit41, NETWORK_CLOSE type13 size0.
+Cause: reciprocal TLS close_notify completed because gate was not BLOCK.
+Correct configured run: real NEED_WRITE, owner Stop, no wire terminal,
+exactly one PST release/socket close/Stream destroy/DATA detach.
+No oracle/protocol change to accept NETWORK_CLOSE.
+Sandboxed external run could not create trace; approved external execution
+created trace successfully. No evidence claimed from failed trace creation.
+
+Harness fixes: tests/server_secure_io_win32_integration_test.c
+Before SHA256 05D3232C01B7A4DF3CBB038673FC3374E5BB8D8F03D3A48A1FDC986F11D486B9
+After  SHA256 39A3EEFF7BF4621D38F88162B902095DAB00119003C7EE24FE568A4093774BDB
+Observe cause preservation from actual owner stop cause/state after marker ack.
+Expand both P10 env buffers16->32 to fit normal-persistent plus terminator.
+MSVC Debug rebuild passed without compiler warnings. git diff --check passed.
+Focal tests: P1 real PST pre-close, secure owner unit, resource oracle selftest,
+transport connection, connection lifecycle: 5/5 pass.
+P10 once with BLOCK: exit0; selected failure1, retry1, 12/12 negatives pass.
+Normal-once and normal-persistent with PASS: exit0; 10/10 oracle negatives
+and 7/7 reporting negatives pass; no Stop-scoped failure on normal removal.
+Using BLOCK on normal-close scenario is incorrect: transfer cannot complete.
+
+P10_PROGRESS=PARTIAL; NOT QUALIFIED
+FIRST_UNRESOLVED_DIVERGENCE=INTEGRITY_RISK_STOP_PENDING_NORMAL_REMOVE_BYPASS
+persistent with BLOCK: exit115 (legacy D oracle fallback).
+Evidence owner trace papacc-p10-owner-poll-p10-29828-2305075865948.trace:
+P10_INJECTED_FAILURES=1; P10_STOP_REMOVE_ATTEMPTS=1;
+P10_NORMAL_REMOVE_ATTEMPTS=39; P10_NORMAL_REMOVE_SUCCESSES=39;
+P10_PST_RELEASE_ATTEMPTS=1; cause and deadline unchanged.
+Code: poll_once resumes NORMAL unregister while REMOVE_PENDING before owner
+retry due time. Normal-origin seam bypass removes retained target and enables
+release despite persistent Stop-removal fault. No ERROR_TERMINAL qualification.
+This conflicts with ADR0030 preservation/owner retry obligations. Existing
+runtime is factual evidence of nonconformance, not authority to weaken ADR.
+Work stopped per explicit user integrity-risk STOP condition. Runtime untouched.
+
+Additional qualification gaps, not hidden by passing exit codes:
+The once marker-ack fixture explicitly requires diagnostic_shutdown_started=0.
+Thus it proves pending waitset removal, not the entire ADR0032 P10 pre-close
+pending scenario. Legacy D output after once also claims TLS NEED_WRITE and
+clean peer close without factual observation on this path; those strings are
+not accepted as proof. Persistent mode lacks its own final oracle and falls
+through to D. No full P10 or native-close correlation qualification claimed.
+
+NEXT=Isolate owner REMOVE_PENDING from normal unregister/dispatch, preserve
+membership/resources until governed retry or ERROR_TERMINAL; then qualify
+persistent retention/deadline with factual oracle and negative mutations.
+Reconcile once/pre-close evidence and remove unsupported D reporting before
+full integrated P10 qualification. Keep ADR0030/0031/0032 unchanged.
+
+Governance reviewed: accepted applicable organization/family/local ADRs,
+network-egress and TLS live docs, relevant future directions, architecture,
+phase/build docs; production pin remains0.6.4, qualification SDK0.6.5 TEST_ONLY.
+Future directions remain directions, not implementation evidence.
+Live-doc historical0.6.1 baseline/TLS half-close wording needs reconciliation
+with active pin and ADR0023; no accepted ADR revised.
+
+Documentation checkpoint: network-egress.md appended live status and report link.
+Before SHA256 4D25E1DB65F096762515DC20B28125B44D5EBA5B0618B9FC5BDD7755CAFD2672
+After SHA256 A0B82B72E561FFF4856974E77F5AE4C54136CC86268A406C6974CF2BA5C34EC8
+Original bytes preserved; UTF8 and existing line endings retained.
+Normal git diff --check final exit0. An extra check with core.autocrlf=false
+reported existing CRLF as whitespace in unrelated integration WIP; no edits
+made there. Effective repository configuration check remains PASS.
+
+===============================================================================
+TASK=PAPINHOACCELERATOR-ADR0032-P10-PERSISTENT-NORMAL-REMOVE-BYPASS-FIX
+Checkpoint date: 2026-10-09. Supersedes the prior NEXT/STOP checkpoint for this
+cause-specific fix; retains all historical evidence above.
+
+Baseline: main, HEAD c50b8fb9a7e3293b5e6355fc08459bf85b56857a.
+All prior WIP retained. No accepted ADR, public header, API/ABI/SPI, PST source,
+PACC wire, Browser, or production pin modified by this task.
+Production pin SHA256:
+3D347A0606C7AD03D2ED02B593DABA8853A2C627F85A146F28FB90C94BA05C39
+
+ROOT_CAUSE:
+poll_once returned to NORMAL unregister before the Stop retry due time while
+REMOVE_PENDING. NORMAL origin bypassed the Stop-scoped fault, cleared membership,
+then protocol/Stream maintenance reached destructive close. Repeated Stop itself
+was idempotent but did not prevent this independent path.
+
+FIX_APPLIED:
+The private owner derives retention from the existing STOP_REQUESTED,
+REMOVE_PENDING and ERROR_TERMINAL states. No second state machine or ownership
+copy was added. NORMAL owner removal rejects retention and inactive/wrong owner
+authority. Pending poll progress stays exclusively in the existing bounded Stop
+retry; it preserves the factual non-OK result and waits up to the earlier retry,
+deadline or requested timeout without dispatch/normal maintenance. Millisecond
+round-up avoids sub-millisecond retry spin; each poll still does at most one round.
+The existing candidate transport pre_close_fn is bound to an owner-aware wrapper
+using the adapter embedded in that candidate. Transport context/layout/signatures
+stay unchanged. Manager removal cannot clear the transport or publish CLOSED
+during retained Stop or active dispatch. Owner reconciliation picks up a factual
+Connection CLOSING intent after dispatch, then applies the same existing close
+authority. Late ready callbacks are ignored while retention is active.
+DRAINING starts only after Stop removals succeed. ERROR_TERMINAL is not cleanup.
+No wait-set/PST semantics changed; no fault was converted to runtime success.
+
+EDITOR REVIEW:
+apply_patch first encountered the known false reparse errors. Verified real
+paths and byte/hash checkpoints allowed PowerShell/Python writes within workspace.
+Automatic review rejected a draft adding adapter struct fields because of the
+API/ABI restriction. That draft was not applied and was not bypassed. The safe
+implementation uses the pre-existing callback and changes no header/layout.
+Diagnostic-only probe symbols are compiled under the existing owner-test macro.
+dumpbin of the production owner library found zero test probe/set/get symbols.
+
+HARNESS:
+Stop now begins after a real Connection manager pre-close attempt returns
+FAILED_RETAINED and leaves Connection CLOSING, transport/manager/PST intact.
+Active-dispatch guard is explicitly TEST_ONLY injection; provider/PST results
+are not mocked. The flag is restored before request_stop.
+Normal-origin removal, late inbound/outbound ready delivery, candidate close,
+manager try_remove, repeated Stop and try_shutdown/wrapper are explicitly probed.
+Selected wait-set token, Stream generation, Connection identity, cause, absolute
+deadline, normal-removal accounting and native counters are checked throughout.
+Persistent mode continues owner progress even if the reference client exits.
+At real monotonic deadline it requires ERROR_TERMINAL, repeated bounded failure,
+zero destructive counters, and retained owners. Reference child cancellation
+exit252 is diagnostic cancellation, not a successful remote terminal oracle.
+The integration process returns test PASS only after the retention oracle passes;
+production runtime still returns its preserved shutdown error and retains owners
+until process exit. No destructor fallback is called.
+Removed unsupported legacy D shutdown/clean-close reporting on the once path.
+Hooks-OFF build errors in prior WIP were fixed by guarding only diagnostic fields
+and trace code. Generic tests remain enabled with their original oracles.
+
+VALIDATION (normal MSVC19.51 x64 Debug Ninja target, immutable SDK identity):
+Production full build:
+build/p10-bypass-production, pinned PST0.6.4, hooks OFF, no qualification/test SDK.
+Diagnostic full build:
+build/pst065-p10-correlated-native-close, governed qualification0.6.5 SDK and
+existing TEST_ONLY correlation artifact. PST archive/header/library untouched.
+Both final full builds PASS, zero compiler/link warnings. Final log:
+build/p10-bypass-checkpoints/qualified-final-build.log
+Exploratory hooks-OFF failures were corrected rather than warnings suppressed.
+The comparison build of old WIP emitted old C4100/LNK4098 warnings; these are
+retained in the external baseline logs and not counted as final build success.
+
+Final matrix logs are in C:\Projetos\_tmp\PapinhoAccelerator:
+p10-final-off.log: Stop no removal injection, real pending TLS gate BLOCK, exit0.
+p10-qualified-normal.log: NORMAL alias, gate PASS, exit0.
+p10-final-normal-once.log / p10-final-normal-persistent.log: normal removal
+under both Stop-scoped fault modes, exit0 and zero injected normal failures.
+p10-qualified-once.log: FAIL_ONCE, gate BLOCK, exit0, recovery only by Stop.
+p10-qualified-persistent.log: FAIL_PERSISTENT, gate BLOCK, exit0 for the
+retention test, factual runtime ERROR_TERMINAL, 611 preservation observations.
+
+Actual per-token results:
+NORMAL token00006B80D01EA6CE, PST connection3/socket lifetime3:
+release/provider destroy/native close/transport destroy all exactly1; order valid.
+NORMAL performed524 successful normal removes; injected failures0.
+ONCE token00003918CC355F6F, PST connection4/socket lifetime4:
+release/provider destroy/native close/transport destroy all exactly1; order valid.
+PERSISTENT token00007B98CD0D3123, PST connection3/socket lifetime3:
+release/provider destroy/native close/transport destroy all0; native failures0;
+same membership/token/Stream generation retained through ERROR_TERMINAL.
+
+A-J evidence mapping:
+A RUNNING normal remove PASS (selected membership; CONTROL/DATA also complete).
+B Stop without removal fault PASS (R1).
+C FAIL_ONCE retention/recovery PASS.
+D/E persistent NORMAL bypass rejected; identity/cause/deadline retained PASS.
+F late ready callbacks/candidate close/manager remove rejected PASS.
+G repeated Stop during failure and after success leaves counters unchanged PASS.
+H deadline ERROR_TERMINAL and rejected destructive shutdown PASS.
+I fail-once recovery plus repeated Stop has no second native release PASS.
+No recovery after ERROR_TERMINAL is invented.
+J normal connections remain functional in RUNNING; global Stop deliberately
+quiesces the owner domain under ADR0030, not a selected-connection side machine.
+
+NEGATIVES:
+12 native retention mutations PASS; 6 cause/deadline/generation/state/membership/
+dispatch retention mutations PASS; 12 native completion mutations PASS;
+12 pre-existing once negatives PASS; 10 normal oracle and7 reporting negatives
+PASS. No negative or test disabled.
+Focal final pre-close/scheduler/owner/resource-oracle/transport/Connection:
+6/6 PASS, p10-qualified-focal.log.
+Owner, scheduler, TLS lifecycle, generic IO, interop, owner hooks and fixture
+regressions:18/19 PASS in concurrent final group. Fixture B failed with
+HTTPS operation1/source0 and then passed serially; concurrency instability is
+still reported, not erased. Logs p10-bypass-impacted-final.log and
+p10-bypass-fixture-b-serial.log.
+
+BROADER BASELINE LIMITS (outside cause-specific fix, not hidden):
+Diagnostic full CTest:89/92 PASS. Failures phase6.portable,
+secure_fixture_launcher, runtime.data_association (segfault). Ninja dependency
+queries show these binaries do not link the modified secure-owner library.
+PST0.6.4 normal integration/interop fails TLS transfer with NETWORK_ABORT type14,
+stage18/check99 (isolated check112). A separately compiled exact pre-task owner
+snapshot SHA256 A5A70ACD34D499C0998EF03B90548816DAEA75CBC1E88AFC615130C6AEF48F5C,
+same current normal harness/compiler/SDK/libs, reproduces the same isolated
+exit112/type14/stage18 before this fix. Current corrected owner reproduces it
+too. Logs p10-production-baseline-transfer.log and
+p10-production-isolated-transfer.log; source/binary comparison artifacts in
+C:\Projetos\_tmp\PapinhoAccelerator\p10-bypass-baseline.
+No switch of production pin/SDK/backend to hide this failure was made.
+The broad CTest finished before inspection; only the still-running production
+CTest process was stopped after verifying its command. Its incomplete run is not
+claimed as a final PASS.
+
+RESULT:
+CURRENT_TASK_COMPLETED=NO (functional fix complete; full qualification gates open)
+SLICE_COMPLETED=YES
+ROOT_CAUSE=REMOVE_PENDING_NORMAL_REMOVE_BYPASS
+FIX_APPLIED=YES
+CLOSE_AUTHORITY=EXISTING_SECURE_OWNER_STOP_LIFECYCLE_AND_PRE_CLOSE
+NORMAL_REMOVE=PASS_IN_GOVERNED_065_DIAGNOSTIC
+STOP_NORMAL=PASS_R1_REMOVAL_INJECTION_OFF
+FAIL_ONCE=PASS
+FAIL_PERSISTENT=PASS_ERROR_TERMINAL_RETAINED
+PRESERVATION_INVARIANTS=PASS
+NO_BYPASS=PASS
+NO_DOUBLE_RELEASE=PASS_PER_TOKEN
+NO_RESURRECTION=PASS
+P10_NEGATIVES=PASS
+P10_QUALIFIED=NO (all global gates cannot be declared passed)
+PRODUCTION_BUILD=PASS_PIN064_HOOKS_OFF
+DIAGNOSTIC_BUILD=PASS_GOVERNED065_CORRELATED
+WARNINGS=0_FINAL_BUILDS
+P1_TO_P9=PRESERVED (focused regressions PASS; no new full P1-P9 qualification claim)
+P11_TO_P12=NOT_EXECUTED_AS_SEPARATE_SLICES
+ADR0032_QUALIFIED=NO
+PRODUCTION_PIN=0.6.4
+PST_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+BROWSER_CHANGED=NO
+WIP_PRESERVED=YES
+DIFF_CHECK=PASS
+FIRST_UNRESOLVED_DIVERGENCE=PST064_TLS_TRANSFER_BASELINE_NETWORK_ABORT
+NEXT=Separate governed investigation of that baseline transfer divergence and
+concurrent fixture B, then close remaining qualification gates. Do not alter PST,
+pin/public contracts or unrelated WIP within this cause-specific task.
+This pause is the user-requested scope STOP, not a tooling or editor blockage.
+
+Each code/test/CMake edit: real path/reparse checks, expected pre-hash, preserved
+UTF8/newlines/WIP snapshot, post-hash, inspected current-turn diff, repository
+git diff --check, subsequent focal build/test. Snapshots and ordered edit ledger
+are in build/p10-bypass-checkpoints. Full SHA256 ledger follows:
+{"file": "C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_secure_io_win32.c", "before": "A5A70ACD34D499C0998EF03B90548816DAEA75CBC1E88AFC615130C6AEF48F5C", "after": "6CB36875CD67166104A1A09235FA3A69BD3A3FC915279AD8FE430329D5F02997", "description": "Stop retention authority and bounded pending polling"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_secure_io_win32.c", "before": "6CB36875CD67166104A1A09235FA3A69BD3A3FC915279AD8FE430329D5F02997", "after": "E428757E4E9EA80EC8DD7A9184D5A76BE2BA1DC0F365E84113DDCA9064802AED", "description": "Bind existing pre-close callback to candidate owner without any layout/signature change"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_secure_io_win32.c", "before": "E428757E4E9EA80EC8DD7A9184D5A76BE2BA1DC0F365E84113DDCA9064802AED", "after": "0E32B4174CE2DFA8764561C85D084DDAFEFAE14D5829B812C9FE64E544C36C6A", "description": "Diagnostic-only probe normal removal/candidate close/late readiness; no structure or public signature changes"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\CMakeLists.txt", "before": "EF6A0A5B23829CE35A6585E4D3830435CD750BED7873DCC6A0451759F2C0261F", "after": "651B9C368F3E969D6639AEA3B3764AC403539C43D5E5A8F7318FFC7E5AAEE65E", "description": "Diagnostic-only include path for existing immutable correlation SDK header"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\tests\\server_secure_io_win32_integration_test.c", "before": "39A3EEFF7BF4621D38F88162B902095DAB00119003C7EE24FE568A4093774BDB", "after": "12D905D52C124240F16A6646806640D4E5305F0AF6B6235C2F2443153CDF63CB", "description": "Token-specific retention/native oracle, pending-error handling, terminal-safe persistent qualification and remove unsupported D claims"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_secure_io_win32.c", "before": "0E32B4174CE2DFA8764561C85D084DDAFEFAE14D5829B812C9FE64E544C36C6A", "after": "5A64E2EBDEF595FE51FFF1A37E18FF8A765D7EF510331949C0E712E7EC48E77B", "description": "Correlate all diagnostic P10 modes, preserving production ABI and PST"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\tests\\server_secure_io_win32_integration_test.c", "before": "12D905D52C124240F16A6646806640D4E5305F0AF6B6235C2F2443153CDF63CB", "after": "46C5D9CCF3282D3C89958B910B006984FD566185F5674C712CBD7CEC04C82B1E", "description": "Correct literal newline escaping in new persistent diagnostics"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\tests\\server_secure_io_win32_integration_test.c", "before": "46C5D9CCF3282D3C89958B910B006984FD566185F5674C712CBD7CEC04C82B1E", "after": "EA58A30B2F66D20DAA60D01213B40EBE6A6866764DBB18B03CB67EF45CA2ADA3", "description": "Keep owner progressing to normative persistent deadline independently of reference-client completion"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\tests\\server_secure_io_win32_integration_test.c", "before": "EA58A30B2F66D20DAA60D01213B40EBE6A6866764DBB18B03CB67EF45CA2ADA3", "after": "338A760675324C84CCA77AA02912C33255FCBB7D276F034A049B82A1E8A5F3E2", "description": "Exercise actual pending pre-close before Stop; native exactly-once completion oracle and 12 negatives for recovery/normal modes"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\tests\\server_secure_io_win32_integration_test.c", "before": "338A760675324C84CCA77AA02912C33255FCBB7D276F034A049B82A1E8A5F3E2", "after": "1F770DDD654898FC70FE17E21DB1F6E63E41D0A18882DAE0D6D14F82824DCD65", "description": "Restore hooks-OFF test compilation by guarding only diagnostic references; preserve normal scenarios and truthful reporting"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\tests\\server_secure_io_win32_integration_test.c", "before": "1F770DDD654898FC70FE17E21DB1F6E63E41D0A18882DAE0D6D14F82824DCD65", "after": "D77242A0E6A985458CA4DA9DD582AB3254C09E86DC60CA60D1268F5511C33948", "description": "Guard diagnostic fixture metadata in hooks-OFF builds without disabling normal tests"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_secure_io_win32.c", "before": "5A64E2EBDEF595FE51FFF1A37E18FF8A765D7EF510331949C0E712E7EC48E77B", "after": "8EA58A6423B8D7F3BAE243E143C24A1B6336F45880F33E8C00E2FF66BA7CDE77", "description": "Owner progresses Connection CLOSING intent after dispatch, still gated by Stop retention"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_secure_io_win32.c", "before": "8EA58A6423B8D7F3BAE243E143C24A1B6336F45880F33E8C00E2FF66BA7CDE77", "after": "9EA7DE6D32EFE86735367F95E0EBFEB64637B10D4F25F89DB78424576F8A1010", "description": "Support documented NORMAL alias in diagnostic correlation and avoid sub-millisecond retry spin"}
+{"file": "C:\\Projetos\\PapinhoAccelerator\\tests\\server_secure_io_win32_integration_test.c", "before": "D77242A0E6A985458CA4DA9DD582AB3254C09E86DC60CA60D1268F5511C33948", "after": "D0F7A5DFC08F739BFDB5C78907CCA3B5B497004C4E2464E240D080A41CA5F096", "description": "Require unchanged normal-removal accounting, bounded persistent retries, real elapsed deadline, and six retention-state negatives"}
+
+Final documentation checkpoint:
+network-egress.md before A0B82B72E561FFF4856974E77F5AE4C54136CC86268A406C6974CF2BA5C34EC8
+after 96CAFA47013781FACA9DBE283B62D5883D2383B226D02258495FC56AF5D298FE
+cumulative report first append before BA99CF5BBB8A8387BA8DAFFB5134BABF3477CBB995D26C1BCAD7E54755302F69
+after 193B542CDB58483AA8FB678F9D85F568AD94ADBEB96A8D65B958B9E58643B6FF
+TEST_PROCESSES_REMAINING=0
+Final source hashes and complete current-task-only diff are verified in
+build/p10-bypass-checkpoints/current-task.patch and edits.jsonl.
+Historical WIP prefixes of both documents retained byte-for-byte.
+
+TASK=PAPINHOACCELERATOR-P10-BASELINE-REGRESSION-RECONCILIATION-AND-QUALIFICATION
+CHECKPOINT=2026-10-09_BASELINE_RECONCILIATION
+BRANCH=main
+HEAD=c50b8fb9a7e3293b5e6355fc08459bf85b56857a
+WIP=Preserved; no checkout/commit/push/tag/release; previous P10 code, harness,
+CMake, trace client and production pin hashes match the preceding checkpoint.
+Prior governance audit remains valid. Relevant future/network-egress-policy
+reviewed; fixture correction does not implement or change that direction.
+
+A. PST064_TLS_TRANSFER_BASELINE_NETWORK_ABORT
+CLASSIFICATION=CONTRACT_MISMATCH (preexisting relative to the P10 bypass fix)
+Expected: ADR0023 peer close_notify -> real incremental reciprocal shutdown ->
+exactly one NETWORK_CLOSE, preserving delivered application data.
+Observed: peer_close_read api_result=0 operation=4(CLOSED) source=0
+close_kind=1; shutdown_before interest_result=2(INVALID_STATE); subsequent
+pst_connection_shutdown api_result=2 source=2, processor FAILED, stream
+shutdown result=4, stream transport closed, NETWORK_ABORT type14/size0.
+Operation identity=2 (DATA channel, the existing owner-observer mapping);
+Stream generation=1; session=1; DATA Connection instance=2.
+Trace A1 proves upstream TLS ready; A2 first upstream byte at elapsed54739us.
+Actual order: upstream data -> clean peer terminal -> reciprocal shutdown
+rejected -> transport cleanup -> PACC abort -> reference stage18/check112.
+The stream is removed on error before A4-A9 tracing; their absence is reported,
+not taken as absence of the PACC abort. Reference header verifies type14.
+First divergent public boundary: PST0.6.4 cannot execute shutdown after read
+returns CLOSED. Immutable release v0.6.4 commit
+9e32c84dad6d8a84d6f1119ddde88ffe57583c89 source confirms read changes core state
+to C_CLOSED, while shutdown accepts only C_ESTABLISHED/C_SHUTTING.
+Local current PST source has C_PEER_CLOSED support; that different version is
+not evidence that the pinned SDK has it, and was not compiled/changed here.
+Controlled pre-P10-owner comparison from the previous checkpoint has the same
+SDK/compiler/harness/other libs and reproduces exit112/type14/stage18.
+Baseline comparison compile/link warnings remain disclosed; it is corroboration,
+not a zero-warning qualified build. Current pinned build is warning-free.
+Independent current public trace confirms the exact rejected boundary.
+Logs: pst064-baseline-instrumented.log, pst064-baseline-terminal.trace,
+pst064-source-failure.log in build/p10-bypass-checkpoints.
+No conversion of INVALID_STATE or NETWORK_ABORT into success. No change to PST,
+pin, oracle, API/ABI/SPI, PACC wire, accepted ADR or production owner.
+STOP_REASON=Production repair would require changing a forbidden dependency/
+contract or asserting reciprocal completion without evidence. Safe independent
+fixture and validation work was completed. No recovery requiring apply_patch
+exclusivity exists; fallback editing is explicitly authorized and permitted.
+P10 causal relation: existing before its bypass correction; no demonstrated
+causal P10 regression. It remains relevant to full production qualification.
+
+B. FIXTURE_B_CONCURRENT_INSTABILITY
+CLASSIFICATION=TEST_HARNESS_DEFECT
+Expected: B handshake completes -> actual READ wait event -> explicit Stop ->
+bounded error join, no response. Genuine listener errors remain errors.
+First divergent boundary: listener reads iErrorCode[FD_ACCEPT_BIT] even when
+WSAEnumNetworkEvents returns no FD_ACCEPT bit. That slot is untouched by Winsock.
+Accept-before-event-enumeration permits a signalled event with empty mask.
+Uninitialized/stale stack value was treated as listener failure. Listener then
+sets Stop and cancels worker during handshake; client reports transport failure
+or truncation. The generic HTTPS failure hid this causal order.
+Unchanged baseline concurrent A/B/C failed in A; instrumented repetitions also
+failed B/C before any functional fixture fix. Exact sentinel experiment:
+ready=1 enum=0 events=0 accept_error=1515870810(0x5A5A5A5A);
+listener result1 -> HANDSHAKE before_wait cancellation -> server failure ->
+client failure operation5 source7, observed in B within0.33sec.
+Evidence: baseline-fixture-repeat.log, instrumented-fixture-repeat.log,
+instrumented-server-fixture-repeat.log, exact-wait-fixture-repeat.log,
+listener-frontier-fixture-repeat.log, event-mask-fixture-B.log.
+Microsoft contract (only matching error slots written):
+https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsaenumnetworkevents
+Fix: initialize event record and examine FD_ACCEPT error only with FD_ACCEPT bit;
+retain genuine wait/enum/accept failures and the original Stop/event authority.
+No timeout increase, new sleep, teardown fallback or oracle weakening.
+Diagnostic first-failure lines retained in client/server to identify actual
+operation/phase; transient sentinel removed from the implementation.
+Four independent event cases check empty mask/stale error, unrelated event/stale
+error, true FD_ACCEPT failure, and true FD_ACCEPT success. All PASS.
+D/E worker failure/timeout negatives retain expected exit4 and handle-after-exit
+semantics. Existing fixture cancellation/graceful conditions unchanged.
+Qualified repetition: diagnostic A/B/C100 each with j3 =300/300 PASS (54.21sec);
+production pin064 B100 =100/100 PASS (3.22sec).
+Full normal+diagnostic suites additionally pass A/B/C/F.
+No P10 owner/Stop dependency in fixture defect; preexisting test harness defect.
+
+VALIDATION:
+Normal and diagnostic full builds PASS; final logs
+baseline-reconciliation-build.log and reconciliation-final-build.log, zero
+warnings. Exploratory event diagnostic emitted C4701; fixed initialization,
+not suppression. A premature relink while a repeat was running gave LNK1168;
+repeat completed and subsequent full rebuild succeeded. No process was killed
+to hide a failing result.
+Six P10 modes normal/off/once/persistent/normal-once/normal-persistent all exit0:
+reconciled-p10-<mode>.log. Original guarded065 SDK and correlation/native observer
+retained. Normal modes use shutdown gatePASS; off/once/persistent use BLOCK.
+FAIL_ONCE: native completion12 negatives and original once12 negatives PASS,
+same cause/deadline/identity, remove-before-release, exactly-once and no
+resurrection. PERSISTENT:611 retention checks, ERROR_TERMINAL factual state,
+no normal-remove bypass, late callback/manager remove rejected, repeatedStop
+factual error, native12+state6 negatives PASS, zero destructive actions.
+NORMAL_REMOVE and Stop normal: PASS. Both normal aliases PASS with existing
+normal10/reporting7/completion12 negatives preserved.
+Exploratory outbound runtime logging was reverted byte-for-byte to pre-task WIP
+SHA3D089CFC0D95C4A6A22471AF4377B02C4A7DDD7A8C84417EB4F7C0F0EB5AB3FF.
+Final builds use that restored source. It has no remaining task change.
+Focused regressions3/3 plus owner/P1/transport/lifecycle/F5/5 PASS, including
+scheduler, real P1 pre-close, native resource oracle and Connection lifecycle.
+Full diagnostic:88/92 PASS (42.54sec): phase6.portable, fixture_launcher,
+runtime.data_association SEGFAULT (all previously observed), and owner IO
+concurrent failure exit48 stage2 expected512 actual-1 socket_error10060.
+Owner IO isolated serial retry PASS5.32sec; flaky failure remains open,
+not erased or repaired without cause.
+Full production:84/91 PASS (50.71sec): same three independent baseline failures,
+browser tls_clean_close, browser tls_terminal_matrix, server secure integration,
+secure reference interop. Last four include pinned064 clean-close contract
+failure. Configurations are not considered equivalent.
+CTest logs reconciled-diagnostic-ctest.log / reconciled-production-ctest.log;
+focal logs reconciliation-focused-regressions.log,
+reconciliation-focused-owner.log and reconciled-owner-serial.log.
+No disabled tests/negatives/warnings. Full tests completed, no aborted run
+represented as PASS. P1-P9 whole qualification is not inferred from focal PASS.
+
+FINAL TASK RESULT:
+CURRENT_TASK_COMPLETED=NO
+SLICE_COMPLETED=YES (root classification and fixture fix/qualification complete)
+PST064_BASELINE_CLASSIFICATION=CONTRACT_MISMATCH_PREEXISTING_TO_P10_FIX
+PST064_NETWORK_ABORT_CAUSE=SHUTDOWN_AFTER_CLOSED_REJECTED_BY_PINNED_PST064
+PST064_BASELINE_RESULT=RECONCILED_CAUSE_CONFIRMED_TEST_REMAINS_FAIL
+FIXTURE_B_CLASSIFICATION=TEST_HARNESS_DEFECT
+FIXTURE_B_ROOT_CAUSE=ABSENT_FD_ACCEPT_ERROR_SLOT_READ
+FIXTURE_B_RESULT=PASS_100_DIAGNOSTIC_CONCURRENT_PLUS_100_PRODUCTION
+P10_REGRESSION_FOUND=NOT_PROVEN (six P10 modes preserved; wider IO flake open)
+FIXES_APPLIED=FIXTURE_LISTENER_EVENT_MASK_VALIDATION_AND_FAILURE_DIAGNOSTICS
+EDITED_FILES=tests/secure_fixture_server_win32.c;
+tests/secure_fixture_lifetime_win32_test.c; cumulative report; network-egress live doc
+P10_NORMAL_STOP=PASS
+P10_FAIL_ONCE=PASS
+P10_FAIL_PERSISTENT=PASS_ERROR_TERMINAL_RETAINED
+NO_BYPASS=PASS
+NO_DOUBLE_RELEASE=PASS
+NO_RESURRECTION=PASS
+P10_NEGATIVES=PASS
+P10_QUALIFIED=NO
+PRODUCTION_BUILD=PASS_PIN064_HOOKS_OFF
+DIAGNOSTIC_BUILD=PASS_GOVERNED065_CORRELATED
+WARNINGS=0_FINAL_BUILDS
+P1_TO_P9=PRESERVED_FOCAL_PASS_FULL_QUALIFICATION_NOT_ASSERTED
+P11_TO_P12=NOT_EXECUTED
+ADR0032_QUALIFIED=NO
+PRODUCTION_PIN=0.6.4
+PST_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+BROWSER_CHANGED=NO
+WIP_PRESERVED=YES
+DIFF_CHECK=PASS
+TEST_PROCESSES_REMAINING=0
+FIRST_UNRESOLVED_DIVERGENCE=PST064_RECIPROCAL_SHUTDOWN_CONTRACT_MISMATCH
+NEXT=Owner-governed reconciliation of pinned064 behavior with ADR0023 reciprocal
+requirement; resolve independent baseline gates and owner IO concurrent flake
+under a cause-proven authorized scope. Fixture B requires no further fix.
+
+PRE_POST_SHA256:
+fixture server E8B66FDCF4705E34A925896A590A79711D46247AE021B4E1EE7F6AB33D098FBB
+->34FD683CD69945ABF57D3B9961102149F18059BCA64C6972C2E1E2B76AC58F1F
+fixture lifetime 935F62B02FABC42EB8CDFB42441F4E9B231F731E16FAEE1C522C87DB8934A1F9
+->00AA0B0D604604D2C20ECDA86462C8AD37C9DA7668DE5DDB7D76E2C7A5FE11B4
+All intermediate edits, temporary diagnostics and restoration hashes:
+build/p10-bypass-checkpoints/edits.jsonl. Each edit real path/no unexpected
+reparse, expected prehash, UTF8/newlines preserved, exact WIP backup, audited
+diff, git diff --check and focused build/test. Current task-only patch and
+evidence manifest: reconciliation-task.patch / reconciliation-evidence.json.
+
+TASK=PAPINHOACCELERATOR-P10-REMAINING-REGRESSION-TRIAGE-AND-QUALIFICATION-BOUNDARY
+CHECKPOINT=2026-10-09_REMAINING_REGRESSION_TRIAGE
+BRANCH=main
+HEAD=c50b8fb9a7e3293b5e6355fc08459bf85b56857a
+Read prior checkpoint from line289; no completed P10/Fixture-B qualification
+was repeated. Applicable governance audit remains valid; ADR0023/0030/0032
+requirements and immutable PST064 lifecycle were inspected for this boundary.
+No accepted ADR changed. Previous entries remain historical evidence.
+
+COUNTS AND GROUPING:
+The recorded diagnostic4 + production7 failures are11 suite observations,
+8 unique test identities, and5 causal groups. Three identities occur in both
+suites. They are not11 independent defects.
+H1 data-association optional-hook initialization, H2 portable owner-finalization
+test sequencing, H3 fixture launcher application precondition, H4 owner IO test
+progress synchronization, and P1 pinned064 terminal/shutdown integration.
+All H groups are TEST_HARNESS_DEFECT and corrected below. No independent
+Accelerator production defect or causal P10 regression was demonstrated.
+P1 is PREEXISTING_PST064_INTEGRATION_DEFECT with a contract mismatch.
+
+FAILURE AUDIT (exact identities):
+1. papacc.runtime.data_association (#50 both suites), group H1.
+Expected: generic DATA association lifecycle completes with an optional absent
+pre-close hook; close exactly once. Observed SEGFAULT; direct original diagnostic
+binary exit -1073741819/C0000005, user screenshot points at invalid -1 address.
+First divergent boundary: tests/data_association_test.c declares an uninitialized
+PAPACC_TRANSPORT_CONNECTION, sets only context/read/write/close, then manager
+publish copies the untouched pre_close_fn. Connection close calls that invalid
+function pointer. The transaction harness uses the full initializer and passes.
+Contract: ADR0032 absent hook=READY; transport_connection.h initializer zeros all
+five fields. This is harness construction, not a return/result policy defect.
+Historical: both preceding full suites and earlier diagnostic baseline crash.
+Reproduced directly in this run before correction; wrong fixture executable
+argument in the same exploratory shell was discarded, not qualification evidence.
+Fix: complete transport initializer. 20 diagnostic repetitions PASS; normal focal
+PASS; data association transaction impacted regression PASS.
+P10 relationship: same generic pre-close boundary is relevant; incorrect harness
+caller predates the P10 owner bypass correction and does not execute secure
+Stop/removal. Corrected caller eliminates the invalid callback without changing
+runtime/API/ABI. Link graph and fake callbacks prove no PST native TLS lifecycle.
+PST064 relationship: none. Shared cause with other H groups: none.
+Resource-integrity risk here was the test's invalid callback, contained and fixed;
+no provider close or production fallback was added.
+
+2. papacc.phase6.portable (#3 both), group H2.
+Expected: incremental shutdown and deadline paths have exactly-once owner cleanup.
+Original oracle expected low-level Stream progress itself to remove the Stream
+immediately upon TLS shutdown completion/deadline.
+Observed original exit94 reproducible in this run. First divergent boundary:
+CHECK94 expects closed1/count0 after second shutdown. Actual low-level progress
+keeps the Stream reachable for owner terminal publication: successful shutdown
+returns OPEN/remote_half_closed/remote_half_close_signalled; deadline preserves
+terminal_pending and SHUTDOWN_DEADLINE after the transport close.
+Contract: ADR0023 incremental shutdown then terminal publication/cleanup;
+server_io_loop progress_network_control and close_bound_stream own finalization.
+Tests used an earlier lifecycle sequence, not a broken Stop implementation.
+Historical: both preceding suites and earlier diagnostic baseline fail.
+Fix: add explicit retention/state/cause assertions and owner close_channel
+finalization; retain original CHECK94/CHECK96 for idempotence/no-double-close.
+Neither assertion was deleted, disabled or relaxed. Deadline is unchanged.
+New CHECK940/941 and960/961 prove retention then one close, while previous tests
+still reject enqueue while CLOSING and test deadline/no shutdown invocation.
+20 diagnostic repetitions PASS; normal focal PASS.
+P10 relationship: fake callback low-level Stream path shares lifecycle concepts,
+but no secure owner, wait-set, pre-close Connection, native PST or Stop executes.
+Source/graph and unchanged runtime bytes demonstrate noninterference.
+PST064 relationship: no provider called. No shared H root.
+Auto-review rejected an initial assertion-removal-only patch for weakening the
+oracle; that action did not execute. Safer expanded coverage retaining both old
+checks was used. No approval remains pending for the rejected deletion.
+
+3. papacc_secure_fixture_launcher_test (#25 both), group H3.
+Expected: each fixture publishes correct ready metadata, actual required scenario
+work executes, then Stop/join succeeds and ready file is removed.
+Observed reproducible exit40 at mode-b-egress, not a metadata/port race.
+Controlled empty application launch publishes the correct version2 ready fields
+and child exit1 after Stop. Fixture source requires response_count>=1 for
+MODE_B_EGRESS; launcher requested Stop immediately after ready without any client.
+First divergent boundary: test composition fails the fixture's application
+precondition. Readiness cannot prove egress response. This is distinct from the
+repaired FD_ACCEPT fixture-B root, whose full pass evidence remains preserved.
+Contract: fixture README/application expectation, fixture response_count check,
+Mode-B run_case real HTTP/client/ready/Stop oracle; no protocol-oracle change.
+Historical: preceding both suites and earlier diagnostic baseline launcher fail.
+Fix: launcher composes the existing integration harness with real reference
+client in --launcher-egress-only case. Ready metadata and complete real HTTP
+response plus clean Stop remain required. CMake passes dependencies/paths.
+Existing positive/stall/data-failure/name-failure launcher cases remain present.
+The outer bounded60sec covers the reused helper's existing30sec client and15sec
+fixture budgets; it does not change an I/O timeout or substitute a sleep for
+readiness. Actual successful application/Stop marker is mandatory.
+Normal and diagnostic focal launcher PASS; Mode-B full and protocol/auth/
+transport/egress fallback negatives and100 protocol-error repetitions PASS in
+impacted regression run. No response-count or error exit was accepted as success.
+P10 relationship: executes real secure owner Stop, therefore relevant regression;
+the cause is missing test application work, not P10 Stop. Other real Mode-B
+integration already exercised the required work and passed in both configurations.
+After composition correction both SDK variants pass. This demonstrates causal
+noninterference rather than excluding a failure because of age.
+PST064 relationship: startup-only failure also occurred with065. HTTP case used
+here is not the separate peer-initiated clean terminal oracle described in P1.
+No shared root with P1 or other H groups.
+
+4. papacc.server.io_loop.win32 (#72 diagnostic only), group H4.
+Expected: exact32KiB fragmented binary roundtrip and receive-negative matrix.
+Observed concurrent exit48 stage2 expected512 actual-1, total5632,
+socket_error10060, Stream OPEN/state2, DATA ACTIVE/state3, no accepted terminal;
+prior isolated retry passed. First divergent boundary: test send helper executes
+16 tight process_connection calls +8 maintenance calls then stops the only
+owner thread in blocking peer recv, without proving the fragmented frame arrived
+and upstream write occurred. TCP scheduling can leave data unprocessed.
+Contract: owner poll/progress is explicit; fairness is not a promise that16 calls
+complete transport delivery; existing three-second receive budget applies.
+Historical: prior concurrent failure and serial pass; no P10 failure injection,
+PST shutdown or secure-owner pre-close occurs in this test's TCP_PLAIN route.
+Fix: keep real owner poll progressing until bytes_to_remote confirms the entire
+frame; same3sec bound; Stream disappearance or deadline remains failure.
+No sleeps, increased socket budget, fake readiness or accepted short read.
+Diagnostic focal PASS,10 repetitions PASS (51.37sec), normal focal PASS.
+Receive N1-N8 assertions remain and execute in every owner test run.
+P10 noninterference: no secure_owner library in the link graph; plain fake/Win32
+TCP transports and TCP_PLAIN-only profile select the exercised path. The optional
+outbound security composition may be linked, but linking is not executing PST;
+do not infer independence only from filenames or an absent direct dependency.
+No runtime server IO or Stream function changed. Relevant regression fixed.
+Classification TEST_HARNESS_DEFECT supported by original unconfirmed delivery
+sequence, exact stalled boundary, factual replacement and positive/negative PASS.
+No shared H root. No claim that the earlier flaky failure was erased.
+
+5. papacc.browser_fixture.tls_clean_close (#30 production), group P1.
+Expected: complete HTTP payload and exactly one NETWORK_CLOSE, real reciprocal
+TLS completion, no truncation. Observed client stage33, fixture source13 truncated
+after application response; prior diagnostic same case PASS.
+Current-run verbose public trace triage-pst064-clean-close.log:
+read api0 operation4 CLOSED source0 close_kind1 -> get_interest2 ->
+shutdown api2 INVALID_STATE/source2 -> processor FAILED -> stream result4 ->
+transport close -> fixture TLS_TRUNCATED13 -> client stage33.
+Trace triage-pst064-clean-close.trace identifies session1/DATA2/Connection2,
+operation2 via existing owner mapping, Stream generation1, TLS ready and first
+upstream byte. Failure remains reproducible after harness fixes.
+Contract ADR0023 clean peer close -> real bounded reciprocal shutdown -> CLOSE.
+P10 relationship: shared TLS_REQUIRED lifecycle is a production compatibility
+gate; dependency independence is not demonstrated for the exact pinned scenario.
+
+6. papacc.browser_fixture.tls_terminal_matrix (#31 production), group P1.
+Expected: eight clean/truncated/framing/fragmentation scenarios keep their own
+terminal oracles. Observed the shared tls-clean-close member reaches stage33 and
+fixture source13 after the preceding truncated cases pass. Same rc_network_http_
+terminal(clean=TRUE), same run_case fixture and upstream lifecycle as #30.
+First divergent boundary/root and governing contract as #30, not eight new bugs.
+Historical preceding production FAIL, same diagnostic matrix PASS. Reproducible
+member is #30 current trace; entire previously failed matrix was not needlessly
+rerun. No weakened terminal matching or skipped matrix case.
+
+7. papacc_server_secure_io_win32_integration_test (#37 production), group P1.
+Expected NETWORK_TLS_TRANSFER_REFERENCE_FIXTURE exact DATA transfer then legal
+terminal. Observed check99/stage18, read frame type14 NETWORK_ABORT size0 where
+type11 NETWORK_DATA expected. Current isolated public trace from prior checkpoint
+shows same CLOSED/INVALID_STATE before removal of stream and PACC abort.
+Pre-P10 owner WIP snapshot in isolated comparison reproduced exact exit112/
+stage18/type14 with same normal SDK/compiler/harness/other libs.
+First divergent boundary/root #30, before pre-close Stop/fault scenarios.
+Historical diagnostic integration PASS; production FAIL. Isolated reproduction
+already completed and not invalidated; preserved rather than rerun.
+
+8. papacc_secure_reference_client_interop (#38 production), group P1.
+CTest command uses the same integration executable as #37. This is a second
+suite identity for the same executed cause/oracle, not an independent defect.
+Observed same check99/stage18/type14; historical diagPASS/prodFAIL. Exact CTest
+composition and source establish shared root; no new reproduction needed.
+
+PST064 CLOSED/INVALID_STATE RESPONSIBILITY:
+Provider read legitimately classifies received close_notify as CLOSED/CLEAN.
+No evidence of an earlier provider authentication/I/O/transport contract failure.
+Release v0.6.4 core read sets C_CLOSED; shutdown accepts only C_ESTABLISHED/
+C_SHUTTING and get_interest likewise rejects the terminal state.
+The consumer processor interprets CLOSED as PEER_CLOSED with reciprocal work
+still possible, then calls shutdown. That terminal-state interpretation does
+not match064 core lifecycle. The ensuing call is outside the published release's
+accepted sequence. INVALID_STATE is factual, not clean shutdown completion.
+Thus first consumer-contract violation is terminal-state interpretation/call
+sequencing; the underlying integration incompatibility is064 core's terminal
+closure before the needed reciprocal step. It is not a proved provider failure.
+PACC publication maps the actual failure to NETWORK_ABORT; that mapping must not
+be changed to conceal missing completion. A cleanup callback/release cannot prove
+that reciprocal close_notify was sent.
+Immutable source/contract artifacts: triage-pst064-runtime-source.txt and
+triage-pst064-runtime-contract.txt, release commit9e32c84dad6d8a84d6f1119ddde88ffe57583c89.
+No public064 consumer operation exists here that reopens a terminal connection.
+Proactively declaring completion, using provider internals, sending raw TLS bytes,
+or treating API misuse as success would violate the constraints. Calling shutdown
+earlier based only on guessed application completion is not a generic TLS stream
+correction. No independently justified consumer-only correction was found.
+Required repair boundary is upstream PST core lifecycle/its supported reciprocal
+semantics or an owner-approved dependency reconciliation; no API layout change
+is presumed necessary. PST source and production pin changes are forbidden.
+STOP applies to that repair, not the contained H-group corrections above.
+
+P10 EVIDENCE MATRIX (preserved exact scope; no six-mode rerun):
+Evidence aliases O/N/F/T/NO/NP = reconciled-p10-off/normal/once/persistent/
+normal-once/normal-persistent.log in build/p10-bypass-checkpoints.
+Hashes, existing external trace identities and native tokens:
+triage-preserved-p10-evidence.json. P10 source hash9EA7DE6D32EFE86735367F95E0EBFEB64637B10D4F25F89DB78424576F8A1010;
+harness hashD0F7A5DFC08F739BFDB5C78907CCA3B5B497004C4E2464E240D080A41CA5F096,
+unchanged. All are governed065/test-only evidence, not a064 execution claim.
+
+| Normative requirement | Positive test | Negative test | Identity/evidence | Result | Remaining dependency |
+| ADR0032 P10 Stop while actual pre-close pending | F/T manager_try_remove real callback -> FAILED_RETAINED before Stop | DATA destructive root/manager attempt rejected while retaining | F/T PRE_CLOSE_BEFORE_STOP; DATA Connection2; dispatch injection explicitly TEST_ONLY | PASS065 | Reproduce supported precondition for pinned064 target not proven |
+| ADR0030 owner authority/no dispatch mutation | F/T owner progress after injected dispatch flag restored | late readiness and candidate-close/normal-removal probe rejected; state negative dispatch flag | T owner-thread check, actual callback probes | PASS065 | No H group still open |
+| Absolute monotonic deadline not restarted | F recovery; T original deadline actually elapsed -> ERROR_TERMINAL | deadline/cause mutation, repeatedStop x3 rejected/factual error | T611 retention checks; state6 negatives | PASS065 |064 configuration equivalence remains unproved |
+| First factual cause preserved | O/F/T original SERVER_STOP_REQUESTED | cause mutation negative | original cause/deadline unchanged F/T | PASS065 | Shared TLS terminal compatibility gate P1 |
+| No destructive fallback during pending/error | T repeated shutdown and void wrapper retain owners and membership | normal remove/manager remove/late callbacks denied; native12 mutations | T token000023C2FD7DDDF3, native release/provider/native/transport all0 | PASS065 | Native token is outbound PST resource; not blanket P12 proof for all resources |
+| Remove-before-release and bounded recovery | F fail-once then STOPPED; N/NO/NP real NORMAL removal | missing successful removal/order invalid and double counters rejected | F token00002CBEFCB52137, all four destructive counts1/order valid | PASS065 | Production same pending-TLS path not qualified |
+| Repeated Stop idempotence/no resurrection | F after completion; T error repeated, same identity/generation | generation/member/STOPPED mutations; actual late callback rejected | F original12 and completion12; T state6+native12 | PASS065 | No H group still open |
+| NORMAL removal unaffected by Stop-specific faults | N/NO/NP genuine NORMAL removal | normal10/report7/completion12 reject invalid evidence | N token000066E2F4F20054; NO00002D93008C60D7; NP0000704F0196CD97 | PASS065 | Normal production build alone is not a064 P10 positive |
+| Stop without selected removal fault and no invented wire terminal | O gateBLOCK; exactly-once observer and zero PACC terminal | strict Stage41 oracle preserved; false clean/extra terminal not accepted | O durable Stage41-14588-2331999391610 trace | PASS065 | gate relies on supported reciprocal behavior absent in pinned064 clean path |
+
+Qualification boundary:
+The six scenario PASS results and fixture-B400 PASS remain qualified evidence
+for their declared065/064 test configurations. P10 positive/negative methods
+are not invalidated by these harness-only edits.
+H1-H4 were mandatory regression investigations; all now pass. Their causal
+noninterference was demonstrated by source/graphs, isolated corrected tests and
+both SDK configurations; age alone was not used to exclude them.
+P1 remains a mandatory blocker to project P10 qualification for production064:
+ADR0032 compatibility explicitly includes ADR0023 shutdown semantics, and the
+pending real TLS-required precondition used by the diagnostic P10 flow cannot be
+assumed equivalent on064, whose first clean read becomes core-terminal. No same-
+target production evidence demonstrates that equivalence. A065-only safety/
+retention PASS is not a064 production qualification.
+This is one shared compatibility/target-evidence blocker, not four independent
+P10 failures. No conclusion of a causal P10 code regression is warranted.
+Separate P11/P12 and full ADR0032 qualification are not inferred from this matrix.
+Do not add unrelated future/G-matrix work as new standalone P10 requirements.
+
+VALIDATION THIS RUN:
+triage-build.log and triage-composition-build.log normal+diagnostic full builds
+PASS, zero warnings. All runtime/secure-owner/PST source preserved.
+triage-focal.log: diagnostic portable/data/owner3/3 PASS.
+triage-launcher.log: diagnostic launcher1/1 PASS.
+triage-production-focal.log: normal same four identities4/4 PASS.
+triage-portable-data-repeat.log:20 each =40/40 PASS.
+triage-owner-repeat.log:10/10 PASS,51.37sec, includes receive N1-N8.
+triage-impacted.log: Mode-B integration, association transaction, fallback negative
+matrix and100 protocol-error repetitions4/4 PASS.
+The completed six P10 modes and fixture-B400 were not rerun.
+No full CTest rerun was needed merely to repeat the unaffected completed tests.
+Diagnostic original88 PASS retained, four formerly failed identities now focal
+PASS. Production original84 PASS retained, three formerly failed identities
+now focal PASS; four remaining identities share P1. These are combined evidence
+sets, not claims of a newly executed92/92 or87/91 whole-suite run.
+Current-run preserved public clean-close reproduction still FAIL as required.
+No production consumer, PST, API/ABI/SPI, pin, wire or normative oracle altered.
+User closed the access-violation dialog; no test process remains. Crash was
+recorded as failure, not converted to PASS or blamed on infrastructure.
+
+RESULT:
+CURRENT_TASK_COMPLETED=YES (triage and qualification boundary established)
+SLICE_COMPLETED=YES (four contained harness groups corrected and validated)
+DIAGNOSTIC_REGRESSIONS=ORIGINAL88_PASS_PRESERVED_PLUS4_PREVIOUS_FAILURES_FOCAL_PASS
+PRODUCTION_REGRESSIONS=ORIGINAL84_PASS_PRESERVED_PLUS3_FIXED;4_FAIL_ONE_ROOT_REMAIN
+FAILURE_GROUPS=5 (8 unique identities,11 recorded suite failures)
+P10_RELATED_FAILURES=PRODUCTION_P1_COMPATIBILITY_AND_TARGET_EVIDENCE_GATE
+P10_INDEPENDENT_FAILURES=H1_H2_H3_H4_TEST_HARNESS_CAUSES_RESOLVED
+UNRESOLVED_FAILURES=PRODUCTION_TESTS30_31_37_38_SHARED_PST064_ROOT
+PST064_CLOSED_INVALID_STATE_CLASSIFICATION=PREEXISTING_PST064_INTEGRATION_DEFECT
+PST064_FIX_REQUIRED_IN=UPSTREAM_CORE_RECIPROCAL_LIFECYCLE_OR_OWNER_DEPENDENCY_RECONCILIATION
+P10_EVIDENCE_MATRIX=TABLE_ABOVE_WITH_EXPLICIT065_SCOPE_AND_NATIVE_TOKEN_LIMIT
+P10_MANDATORY_BLOCKERS=PIN064_RECIPROCAL_CONTRACT_COMPATIBILITY_AND_SAME_TARGET_PENDING_EVIDENCE
+P10_QUALIFIED=NO
+FIXES_APPLIED=DATA_HOOK_INITIALIZER;PORTABLE_OWNER_FINALIZATION_COVERAGE;
+OWNER_IO_FACTUAL_DELIVERY_PROGRESS;LAUNCHER_REAL_APPLICATION_COMPOSITION
+EDITED_FILES=CMakeLists.txt;tests/data_association_test.c;
+tests/phase6_portable_test.c;tests/server_io_loop_win32_test.c;
+tests/secure_fixture_launcher_win32_test.c;
+tests/mode_b_fixture_integration_win32_test.c;this report;network-egress live doc
+PRODUCTION_BUILD=PASS
+DIAGNOSTIC_BUILD=PASS
+WARNINGS=0
+PRODUCTION_PIN=0.6.4
+PST_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+BROWSER_CHANGED=NO
+WIP_PRESERVED=YES
+DIFF_CHECK=PASS
+TEST_PROCESSES_REMAINING=0
+FIRST_UNRESOLVED_DIVERGENCE=PIN064_CLOSED_TO_PEER_CLOSED_INTERPRETATION_AND_INVALID_SHUTDOWN_SEQUENCE
+NEXT=Owner/upstream reconciliation of that supported lifecycle boundary; retain
+all six065 P10 positives/negatives and fixture-B evidence. Then prove pending
+pre-close Stop compatibility for the production target before claiming P10.
+No autonomous pin change, dependency rebuild or oracle relaxation is authorized.
+
+PRE_POST_SHA256 (full current-run code/test hashes):
+CMakeLists.txt:
+651B9C368F3E969D6639AEA3B3764AC403539C43D5E5A8F7318FFC7E5AAEE65E
+->34A46DD638CFDC5F7BD75B4F88EF481F105D4DCBC89987C90D7C8728C0DC00F6
+tests/data_association_test.c:
+46E461C7B9CA4243F741503FDBE4D9AEB8462F23B26D481EF47566C70DA740C7
+->2699EC6AFE24680FBBB256020F897495AC02F3CDD36BCDF82DE70E158F1EFD40
+tests/phase6_portable_test.c:
+AFDF6CF49D1AA0BC640B3B45992EA78D83EFBED412C0A0CEC7894370B6D493D9
+->0B888A49A6FB35A96BDCCF9D56B386D4816CBC35E48BF53C965E85D80642B6F8
+tests/server_io_loop_win32_test.c:
+683CAE01C058FB61B8F9EF1EE6A57F755A969F01892149DF1A1109DFEB7115E1
+->C3AD860BF4643DC50A550CBEFF59CBAAD6AFCABB0B14A14810E170735CE8442F
+tests/secure_fixture_launcher_win32_test.c:
+65A05AA8AF2FE1C8B88D539AE825717D29275A73274AD4FC286226A67598FB0E
+->545E14208A0E12CB1E76B640E707F7E7B5468E0DD1AB27B21A4C16E5273D7BA7
+tests/mode_b_fixture_integration_win32_test.c:
+0266C20E164B1583A7ED2B0A2FD98D58B622EF878D21FD8208F4C113EBBD3C38
+->A77869CC5B28DF219F8719741FB8310C0FE4BDBD9027BF278EB87140502EEE6A
+Documents before hashes2CC35DD84A68362AEFC4887301CE6D3654785C3F7A8584C628985CE38FF9AC8B
+(report) and4C3A3797E9B67873638BA4070EFF830F010D2EC64C4E91044E1C16F1AC6839C9
+(network-egress). Post-document hashes and full current-run evidence hashes:
+build/p10-bypass-checkpoints/triage-evidence.json; edit ledger edits.jsonl;
+task-only audited diff triage-task.patch. All old documentation prefixes retained
+byte-for-byte. No WIP reset, checkout, commit, push, tag or release.
+
+===============================================================================
+2026-10-09 PST065 NORMAL PRODUCTION CANDIDATE RECONCILIATION (NO PROMOTION)
+TASK=PAPINHOACCELERATOR-PST065-NORMAL-PRODUCTION-CANDIDATE-RECONCILIATION
+
+Baseline: main, HEAD=c50b8fb9a7e3293b5e6355fc08459bf85b56857a.
+Prior cumulative entries, WIP, Fixture-B400 and six correlated P10 scenario
+qualifications retained. Applicable governance audited in previous slices was
+not needlessly repeated. Upstream accepted ADR0006/0007, public-api-abi,
+client-server-lifecycle, consumer-linking, tls-runtime, release notes and
+packaging were consulted for this candidate. No new architectural decision.
+README/build and existing private qualification boundary used without changes.
+
+PACKAGE IDENTITY (NORMAL; NOT THE CORRELATION/SHUTDOWN-GATE LIBRARY):
+Origin: C:/Projetos/PapinhoSecureTransport/dist/packages/0.6.5/
+Archive: papinho-secure-transport-0.6.5-win32-x64-msvc-19.51-openssl3.zip
+SHA256=0C134E0FC842E22E80DD6B35F6E7F207A7859F097F0BE5B7D0BE9C08D9D05C67
+Extracted: build/pst065-qualification-msvc/sdk-normal.
+Manifest source_commit=6cbfeeb2a5d3473d296e9119bd5775ae0333a5e8,
+also current upstream HEAD on fix/idle-connection-waitset-close. Upstream WIP
+test_connection_failures.c and three untracked paths left untouched.
+package/library=0.6.5; API=2.2.0; SPI=3.0; OpenSSL3.5.8 LTS; static PST library.
+Target=win32-x64-msvc-19.51-openssl3.
+Toolchain=MSVC19.51.36256.0/toolset14.51.36231/WindowsSDK10.0.26100.0.
+CRT=dynamic-/MD, independently confirmed COFF /DEFAULTLIB:MSVCRT.
+Source package SHA256=CD67EDF6020C6194F872C7EC085C05B509DDEC0D6648BA4BC025DC361DBCC7B0
+(from governed package index; source archive was not rebuilt or edited).
+All38 internal SDK SHA256SUMS entries verified:
+pst065-normal-package-files.json. Public header/API2.1 existing layouts preserved,
+API2.2 additive termination snapshot; no public SPI vtable change. Current
+public ABI and SPI tests executed with /MD /W4 /WX against normal static library.
+This is targeted x64 candidate evidence, not external NT4/Browser/clean-machine
+release certification or publisher-authenticity proof.
+
+Complete component hashes:
+include/papinho_secure_transport.h
+E3C682C97C98A67EF228BCEBE3B8EE3D39607A51DBE0B40587667ED7E0CC0DC6
+include/papinho_secure_transport_win32.h
+3CB297B887E80FDCD5DF75015E37829D7196032F990D9C3503CCB3266028D883
+papinho_secure_transport.lib
+DCA90F3AE869B19738EE259BCB0E620AF8F31C9842C9EC15A47BBB04BA4038E1
+libssl.lib
+E6D86B6FB9AD205F3B80BA80564B4AB8764C7BF45A793BC209385AD3C601A755
+libcrypto.lib
+E6047DADBF2B9C85B3BD52598FD6DBAC78F9789DE9B1C0A837712584AC883509
+libssl-3-x64.dll
+3FB3CD7804DBE3216C801B470E14461D80214ECE99C637AE42EA3D8CAF75D7ED
+libcrypto-3-x64.dll
+09EEC573C9ADEA156BA2073F8CD61720D0AABEB7562D8498B4ECD21B710A3044
+No PST test-only gate/correlation symbols in normal library link-member audit.
+New normal trees have empty TEST_ONLY SDK/library/header selections:
+pst065-normal-candidate (Debug, consumer hooksOFF),
+pst065-normal-release (Release /MD, consumer hooksOFF),
+pst065-normal-owner-diagnostic (Release /MD, consumer-only hooksON).
+Existing correlated tree remains separate and is never a normal package claim.
+Debug /MDd results are supplemental; candidate CRT qualification uses /MD.
+The Release tree was built specifically to match the SDK CRT, not silently
+substituted for the comparative Debug target.
+
+COMPARATIVE REPRODUCTION:
+Same source/current WIP, compiler, Debug flags, consumer hooksOFF, identical
+fixture code, static test PKI, TLS1.3/mTLS, ALPNpapacc/1, provideropenssl,
+TLS_REQUIRED policy, HTTP body/framing, strict NETWORK_CLOSE expectation,
+and PAPACC_PST_RECIPROCAL_TRACE=1 for both normal064 and normal065.
+Initial ephemeral-port runs were exploratory. Final sequential comparison uses
+the exact same CONTROL/DATA=127.0.0.1:49301 and target=127.0.0.1:49302.
+Only intended variable is the governed normal SDK/header/library version.
+Fixture opt-in PAPACC_TEST_CLOSED_COMPARISON_PORTS applies exclusively to
+tls-clean-close; absent variable retains original port0 behavior. No oracle,
+deadline, wire or TLS setting changed. Eight malformed/wrong-scenario negatives
+exit2 before setup. Certificates are immutable .b64 fixtures, not regenerated;
+their complete hashes are in pst065-normal-reconciliation-evidence.json.
+
+Normal064 evidence: pst064-normal-fixed-comparison.log:
+read apiOK/opCLOSED/closeCLEAN -> get_interest INVALID_STATE ->
+shutdown apiINVALID_STATE/sourceINVALID_STATE -> stream INTERNAL_ERROR,
+transport closes as failure, fixture TLS truncation/source13, client stage33.
+The matching stream transfer legacy evidence maps this failure to NETWORK_ABORT;
+that mapping is not changed or converted into success.
+Normal065 evidence: pst065-normal-fixed-comparison.log:
+same readOK/CLOSED/CLEAN -> get_interestOK/READ -> shutdownOK/COMPLETE ->
+stream shutdownOK/done1 -> fixtureTLSGRACEFUL ->
+client NETWORK_CLOSE, strict oracle PASS, terminal signalled1.
+Processor state numbers in these traces are Accelerator's private processor
+states, not PST core-state IDs. Post-completion interestINVALID_STATE is expected:
+final CLOSED does not permit continued lifecycle operations.
+
+CONTRACT AND CLASSIFICATION:
+Upstream ADR0006 requires normal incremental reciprocal shutdown; release is
+bounded local cleanup and never substitutes for reciprocal close_notify.
+Current client-server-lifecycle/public-api-abi explicitly preserve interest and
+reciprocal shutdown after readCLOSED/CLEAN while application read/write become
+invalid. Availability ends at final shutdownCOMPLETE/CLOSED. This is conditioned
+on the intermediate peer-close state, shared by CLIENT and SERVER; shutdown
+after final CLOSED/FAILED is prohibited, not a general idempotent OK operation.
+No role-specific exception or permissive error-to-success mapping was inferred.
+Immutable064 core read maps operationCLOSED directly to C_CLOSED; its shutdown
+guard accepts only ESTABLISHED/SHUTTING. That premature core terminal transition
+makes promised peer-first reciprocal shutdown unavailable. It precedes the
+consumer call error; INVALID_STATE is nevertheless factual under064's guard.
+065 core uses private C_PEER_CLOSED, keeps get_interest/shutdown callable there,
+and enters final C_CLOSED only after provider shutdownCOMPLETE.
+PST064_DEFECT=CORE_LIFECYCLE_PEER_CLOSE_COLLAPSED_BEFORE_RECIPROCAL_SHUTDOWN
+PST065_BEHAVIOR=PEER_CLOSE_THEN_REAL_RECIPROCAL_COMPLETE_THEN_NETWORK_CLOSE
+PST065_CONTRACT_CONFORMANCE=PASS_FOR_THIS_NORMAL_OPENSSL_X64_BOUNDARY
+PST065_FIX_REQUIRED_IN=NONE_FOR_CLOSED_SHUTDOWN; NORMAL_P10_EVIDENCE_STILL_OPEN
+No PST source fix or public contract change was made in this task.
+
+VALIDATION:
+Normal065 Debug complete CTest91/91 PASS (51.57sec).
+Normal065 Release /MD complete CTest91/91 PASS (51.35sec).
+All four former production064 failure identities pass on normal065:
+tls_clean_close, tls_terminal_matrix, server_secure_io_integration, interop.
+Normal065 impacted fixture/lifecycle/terminal/integration7/7 PASS.
+Normal065 diagnostic relevant negatives5/5 PASS, repeated after final edit:
+no negotiation, bad TLS name, TCP reset, resource oracle, TLS truncation.
+Existing correlated diagnostic impacted integration+resourceoracle2/2 PASS.
+Seven upstream tests against NORMAL SDK library, /MD /W4 /WX, all PASS:
+public_abi, public_header, public_builtin_bootstrap, provider_spi_abi,
+tls_policy, security_lifecycle_negative, transport_termination_api.
+The last three use upstream internal test headers only in an isolated test
+executable; no internal header enters Accelerator production composition.
+The lifecycle negative suite verifies accepted transport one-close/no double
+close, no leak, terminal no-resurrection, immutable cause and no fallback.
+It does not replace a real native token oracle in Accelerator P10.
+All normal/consumer-diagnostic/correlated builds PASS, zero compiler/link warnings.
+
+P10 NORMAL-PACKAGE BOUNDARY:
+NORMAL removal: consumer normal mode PASS,10 normal negatives+7 reporting
+negatives; Stop-only removal injection never affects NORMAL path.
+Initial once/persistent trials were harness composition defects: actual
+pre-close setup and expected retained nonOK handling were incorrectly tied to
+PST native-correlation compilation. Corrections enable consumer-only pre-close
+and accept a nonOK poll only with actual selected fault, retained DATA CLOSING,
+selected registered PST connection, zero consumer release/destructive-close
+attempts, original cause/deadline, and inactive dispatch. No PST error mocked.
+A further harness correction continues bounded owner observation after a child
+exits while persistent removal remains pending; EOF/WAIT_FAILED is not proof
+of teardown or persistent qualification.
+
+Final normal-SDK fail-once:
+pst065-normal-p10-qualified-once.log, exit0; real pre-close FAILED_RETAINED,
+target Stop attempts2/injected1/real remove1/success1, membership cleared only
+after recovery, STOPPED, cause/deadline preserved, existing12 negativesPASS.
+This is consumer logical proof; actual provider/native-close counts are not
+available from the normal package. Printed legacy SOCKET_CLOSE_EXACTLY_ONCE
+describes the consumer oracle, not the missing correlation oracle.
+Final persistent:
+pst065-normal-p10-persistent-boundary.log,5.48sec, owner reachesERROR_TERMINAL;
+membership4->4, retained DATA CLOSING/PST/processor, releaseattempts0,
+cause5->5, deadline235823532950200 unchanged. Parent cancels reference child252
+at process boundary and preserves owner resources until process exit.
+Harness exit112 remains NOT QUALIFIED; it emits NATIVE_ORACLE=UNAVAILABLE.
+Reference Stage41 PASS alone is explicitly NOT persistent qualification.
+Stage41-7804-2358184360573.trace SHA256:
+C82EE3053C6AA66FF9158FBC6D5B42C08B1E6DC742C0FB6F32C665A8C7929ABD
+Final once Stage41-15788-2359652303947.trace SHA256:
+9B9C0B90B22783D91A8A4DABF411A180BC4B7C6A1B57FE01F8DFD1855C38ABB2
+All current owner/fixture traces and exploratory failures with full hashes:
+pst065-normal-reconciliation-evidence.json. First unprivileged OFF trace was
+not created; separately authorized durable rerun retains actual failure.
+Durable OFF run receives NETWORK_CLOSE (type13/size0) before the old D Stop
+trigger and fails Stage41. Normal SDK has no test-only BIO write gate, so that
+legacy pending-NEED_WRITE setup is not equivalent to correlated D.
+This is a harness/precondition boundary, not a new normal065 contract defect.
+
+Preserved old six P10 qualifications:
+pst065-preserved-p10-preprocessor.json proves actual correlated preprocessed
+behavior identical to D0F7... source after normal-SDK-only edits; normalization
+removes blank lines and ONLY CHECK diagnostic __LINE__ values. Normalized SHA:
+2EA443399546AC3F8817D5AB4C5C81BB1BECEDA141F523B4B3AE82368595B54B
+No behavioral oracle removed, no six-mode/Fixture-B400 rerun necessary. Fixture
+change preserves default port0/mask logic; focused impacted regressions cover it.
+P11/P12, Browser and whole-PST cross-provider release gates are not claimed.
+
+| P10 requirement | normal065 evidence | result | dependency |
+| Real pre-close before Stop | fail-once/persistent actual manager root | PASS consumer | no provider result mocked |
+| Recovery remove-before-release | final fail-once+12 negatives | PASS consumer | real native counts not observed |
+| Bounded persistent deadline/retained owners | ERROR_TERMINAL owner trace | OBSERVED consumer | native zero-destroy oracle unavailable |
+| Normal removal unaffected | normal+10/7 negatives | PASS consumer | native lifetime oracle unavailable |
+| OFF Stop while TLS shutdown actually pending | legacy D normalSDK trial | NOT QUALIFIED | deterministic normal-package precondition needed |
+| Actual provider/native exactly-once and persistent zero close | prior correlated tokens retained | PASS prior diagnostic ONLY | not normal SDK evidence |
+
+Mandatory candidate/P10 blockers: normal-package equivalent OFF/pending-Stop
+precondition and actual per-resource native lifetime evidence for recovery and
+persistent retention. Treating old correlation/gate library as the normal
+candidate, accepting childEOF as cleanup proof, or deleting these oracles would
+be unsupported. STOP applies to full qualification for insufficient evidence,
+not ordinary tooling; contained harness defects above were corrected.
+The064 CLOSED blocker is resolved on normal065, but pin064 remains unchanged;
+project P10 cannot be marked qualified by an unpromoted alternate SDK.
+
+EDITOR_POLICY_EFFECTIVE=WORKSPACE_WRITE_WITH_GOVERNED_FALLBACK
+PROGRAMMATIC_EDIT_ALLOWED=YES
+apply_patch was attempted first for each change; false reparse-point failures
+were followed by realpath/scope checks and byte-preserving Python edits.
+Pre/post hashes, backups, diff and ledger recorded; git diff --check PASS.
+
+Edited source hashes (current task only; all prior WIP preserved):
+tests/secure_fixture_server_win32.c
+PRE=34FD683CD69945ABF57D3B9961102149F18059BCA64C6972C2E1E2B76AC58F1F
+POST=06358EE0863FBC6D1D223C735D5CEAAEAEDB172BDCAA3B9D7675643FC4E43C96
+tests/server_secure_io_win32_integration_test.c
+PRE=D0F7A5DFC08F739BFDB5C78907CCA3B5B497004C4E2464E240D080A41CA5F096
+POST=A1215502F7311790859A4E0B2B2467C19FD84A2C058B64581072A34E15D98D26
+Intermediate complete hashes remain in edits.jsonl. No production code changed.
+Cumulative report prehash:
+24C348C2FD5E2A441C80AADC9CA0DDB1D52E0FA125469B987AADB3968A17BBDD
+Network capability prehash:
+6275D83497D8CD8D791B8A7B43B465AAB64CA458D66B8F1E8FFCB200999B4679
+Post-document hashes are in candidate evidence manifest/ledger, avoiding a
+self-referential in-file hash. Existing document prefixes retained byte-for-byte.
+Relevant future direction unchanged: no implementation/promotion decision frozen.
+
+RESULT:
+CURRENT_TASK_COMPLETED=NO (full normal candidate P10 gates remain open)
+SLICE_COMPLETED=YES (identity/contract/comparison/normal regressions reconciled)
+PST064_BEHAVIOR=CLOSED_CLEAN_THEN_INVALID_STATE_THEN_ACCELERATOR_ABORT
+PST065_NORMAL_BEHAVIOR=CLOSED_CLEAN_THEN_RECIPROCAL_COMPLETE_THEN_NETWORK_CLOSE
+PST065_PACKAGE_IDENTITY=GOVERNED_NORMAL_065_OPENSSL_X64_HASH_VERIFIED
+PST065_API_SPI=2.2.0_3.0
+PST065_CRT_COMPATIBILITY=PASS_RELEASE_MD; DEBUG_MDD_SUPPLEMENTAL_ONLY
+CLOSED_SHUTDOWN_CONTRACT=AVAILABLE_AFTER_PEER_CLOSED_UNTIL_FINAL_CLOSED_BOTH_ROLES
+PST065_CONTRACT_CONFORMANCE=PASS_TARGETED_NORMAL_OPENSSL
+PST065_P10_NORMAL_STOP=NOT_QUALIFIED_EQUIVALENT_PENDING_TLS_PRECONDITION_OPEN
+PST065_P10_FAIL_ONCE=PASS_CONSUMER; NATIVE_ORACLE_NOT_QUALIFIED
+PST065_P10_FAIL_PERSISTENT=ERROR_TERMINAL_RETENTION_OBSERVED; NATIVE_ORACLE_NOT_QUALIFIED
+PST065_PRODUCTION_CANDIDATE_QUALIFIED=NO
+PST065_PROMOTED=NO
+P10_QUALIFIED=NO
+PRODUCTION_PIN=0.6.4
+PST_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+BROWSER_CHANGED=NO
+WIP_PRESERVED=YES
+DIFF_CHECK=PASS
+TEST_PROCESSES_REMAINING=0
+FIRST_UNRESOLVED_DIVERGENCE=NORMAL_PACKAGE_P10_PENDING_STOP_AND_NATIVE_LIFETIME_EVIDENCE
+NEXT=Establish normal-package pending-Stop fixture and noninvasive native lifetime
+proof preserving the existing oracle; keep qualification/promotion blocked.
+
+===============================================================================
+TASK=PAPINHOACCELERATOR-PST065-P10-NORMAL-PENDING-STOP-AND-NATIVE-LIFETIME-QUALIFICATION
+DATE=2026-10-09
+BRANCH=main
+HEAD=c50b8fb9a7e3293b5e6355fc08459bf85b56857a
+MODE=GOVERNED_AUTONOMOUS_ENGINEERING
+CURRENT_TASK_COMPLETED=NO
+SLICE_COMPLETED=YES
+SLICE=Normal-SDK pending precondition, external native observation and qualification-boundary audit.
+No qualification or promotion is inferred from the auxiliary observation gate.
+
+BASELINE_AND_GOVERNANCE
+The section starting at line 775 and its following evidence were preserved.
+ADR-0023, ADR-0030, ADR-0031 and ADR-0032 were reviewed. Previous organization,
+family and local accepted-ADR audit remains applicable; no ADR was edited.
+PST065_NORMAL_REGRESSIONS=91_OF_91_PASS_DEBUG_AND_RELEASE_PRESERVED_NOT_REPEATED
+PST065_NORMAL_WARNINGS=0_PRESERVED
+PST065_API=2.2.0
+PST065_SPI=3.0
+PRODUCTION_PIN=0.6.4
+WIP baseline: build/p10-bypass-checkpoints/p10-normal-native-baseline.json,
+353 existing tracked/untracked nonignored file hashes. Only CMakeLists.txt,
+the integration harness, its new private include and this append are in scope.
+No runtime consumer correction was applied in this slice.
+
+NORMAL_PACKAGE_IDENTITY
+Origin: governed normal release zip in PapinhoSecureTransport/dist/packages/0.6.5.
+Archive: papinho-secure-transport-0.6.5-win32-x64-msvc-19.51-openssl3.zip
+Archive SHA256=0C134E0FC842E22E80DD6B35F6E7F207A7859F097F0BE5B7D0BE9C08D9D05C67
+Source commit=6cbfeeb2a5d3473d296e9119bd5775ae0333a5e8
+Normal library SHA256=DCA90F3AE869B19738EE259BCB0E620AF8F31C9842C9EC15A47BBB04BA4038E1
+SDK=build/pst065-qualification-msvc/sdk-normal
+SDK_SHA256SUMS=38_OF_38_VERIFIED
+Toolchain=MSVC 19.51.36256.0, toolset 14.51.36231, Windows SDK 10.0.26100.0.
+CRT=dynamic-/MD, x64 static library; observation harness Release /MD.
+API/SPI, headers, OpenSSL DLLs and pin are unchanged.
+Normal diagnostic cache has all PST_TEST_ONLY root/archive/library/header fields empty.
+No correlation test-only package was used in the current three observations.
+
+METHOD_AND_FACTUAL_BARRIERS
+New private CMake option PAPACC_ENABLE_P10_NORMAL_NATIVE_OBSERVER defaults OFF.
+It requires MSVC, consumer hooks and the qualified normal SDK, rejects correlation,
+and affects only the integration harness target: private macro and /MAP /DYNAMICBASE:NO.
+The production build keeps the option OFF and remains pinned to 0.6.4.
+Private CLI cases:
+ --isolated-p10-normal-stop
+ --isolated-p10-normal-once
+ --isolated-p10-normal-persistent
+They reuse the actual reference client and fixture marker/owner-Stop events.
+The fixture receives/validates the marker and waits for owner Stop acknowledgement.
+On the owner thread, before Stop, the harness requests Stream close and invokes
+its original shutdown callback. The real normal PST operation returns pending:
+done=FALSE, SHUTTING_DOWN, source=OK, interest READ=TRUE, WRITE=FALSE.
+The same PST pointer, Connection instance, operation and Stream generation remain.
+Zero pre-Stop publication attempts are checked before the pending checkpoint.
+Only afterward does the existing real pre-close root encounter TEST_ONLY dispatch
+deferral/failure; the dispatch flag is restored before the actual request_stop.
+No sleeps manufacture the pending precondition. Owner polling remains deadline bounded.
+The old reciprocal NEED_WRITE oracle is not replaced or weakened.
+
+External observer: build/p10-bypass-checkpoints/p10-normal-native-gdb.py.
+GDB 14.2 stops first at the consumer main, deletes that software breakpoint, then
+uses the private consumer checkpoint and four HARDWARE breakpoints in the normal
+PST/native path. Software breakpoints are restricted to consumer harness code.
+No PST or WS2 code bytes are patched. The normal library on disk is untouched.
+Arming during the loader gave zero release hits and was rejected as evidence;
+arming after main produced a functional positive control.
+The target tuple binds PID + Connection instance + operation + generation +
+PST pointer + backend pointer + transport pointer + native SOCKET.
+Socket identity is scoped from association through process exit, not a global count.
+Native function addresses come from the MSVC MAP and the runtime closesocket IAT.
+Per-target function entry/return hardware points observe actual completion.
+Exactly four hardware slots are used: entry points are temporarily replaced by
+their corresponding return points on the owner thread, then rearmed.
+At target PST release, external memory inspection sees wait_set=NULL and the
+selected target real-remove call/success counters equal one with matching identity.
+This is a confirmed-remove checkpoint, not a directly intercepted remove return.
+
+CURRENT_OBSERVATIONS
+NORMAL_STOP and FAIL_ONCE:
+ pending checkpoint -> Stop intent -> WAITSET_REMOVE_CONFIRMED -> PST_RELEASE entry
+ -> PROVIDER_DESTROY entry -> NATIVE_CLOSESOCKET entry/return SUCCESS
+ -> PROVIDER_DESTROY return -> TRANSPORT_DESTROY entry/return -> PST_RELEASE return.
+All four target destructive operations have one entry and one return, with no
+target event before Stop, no native failure, and no repeated target destroy afterward.
+FAIL_ONCE target injection=1, target real-remove call=1 and success=1.
+NORMAL_STOP target injection=0, target real-remove call=1 and success=1.
+Both reference clients retain the strict Stage41 wire oracle and report PASS:
+DATA closes without receiving a PACC terminal. Both fixtures exit successfully.
+However both harnesses return 125 at the strict final consumer oracle:
+owner PUBLICATION_ATTEMPT=1, SUCCESS=0, FAILURE=1, operation=0, generation=0.
+Final owner cause=SERVER_STOP_REQUESTED and its absolute deadline are retained.
+This failed publication is not treated as clean success or silently excluded.
+
+FAIL_PERSISTENT:
+ real pending -> Stop -> REMOVE_PENDING -> absolute deadline -> ERROR_TERMINAL.
+Target real-remove calls/successes=0; injected failures remain factual.
+Target PST/backend/native socket/transport destructive entries and returns=0.
+The same PST pointer, instance, operation, generation, wait-set membership,
+SHUTTING_DOWN state and scheduler membership=4 remain at terminal checkpoint.
+Three repeated Stop calls preserve non-OK result, original cause and deadline.
+No forced target close is used. Consumer exits at the retained process boundary;
+the reference child is cancelled with 252 and is not counted as a wire PASS.
+Consumer retention gate and external native observation gate PASS.
+Full FAIL_PERSISTENT qualification is not claimed: integrated late-callback and
+pre-close/native causality coverage beyond these checkpoints remain incomplete.
+
+FIRST_UNRESOLVED_DIVERGENCE
+POST_STOP_PUBLICATION_ATTEMPT_WITH_ZERO_OPERATION_AND_GENERATION_AFTER_TARGET_RELEASE.
+Observed publication event follows target release and belongs to
+progress_network_control. The framed writer rejects the attempt; zero frames
+are delivered. Source paths in server_io_loop_win32.c drive_active_streams and
+progress_stream_to_client can construct/drain clean-close control when shutdown
+completes. The exact queue construction/quiesce/cascade ordering is not yet traced.
+Do not infer an upstream PST defect or a safe consumer correction from this alone.
+Classification=INSUFFICIENT_EVIDENCE_FOR_SAFE_CONSUMER_CORRECTION.
+Qualification is withheld at this identity/quiesce boundary; no oracle weakening
+or additional destructive path is authorized by successful native counts.
+The old consumer-only FAIL_ONCE PASS is narrower evidence and does not establish
+PASS for the new real-pending scenario with its strict owner-publication oracle.
+
+NORMATIVE_QUALIFICATION_BOUNDARY
+ADR-0023: pending cancellation preserves cause and no false graceful terminal.
+ADR-0030: confirmed remove before release; ERROR_TERMINAL retains resources;
+first cause/deadline immutable; late callbacks cannot resurrect/reuse objects.
+ADR-0031: slot/Connection/adapter/provider absence before candidate reuse.
+ADR-0032: SLOT_QUIESCE -> CLOSING -> pre-close READY -> confirmed removal ->
+destructive root -> release/native close -> remove/reconciliation.
+Pending evidence here is NEED_READ. ADR-0030 S7 explicitly lists NEED_WRITE;
+the normal READ case is additional evidence and does not close that normative gate.
+No claim that normal READ and correlation-only reciprocal WRITE are equivalent.
+A library modification is neither needed nor authorized for current observation.
+A complete normal S7 WRITE fixture without altering the normal package remains open.
+
+EVIDENCE_MATRIX
+Requirement | Positive | Negative | Evidence | Result | Dependency
+Real normal pending before Stop | three new CLIs/checkpoint 2 then 3 |
+ pending/state/identity/pre-Stop-terminal mutations |
+ p10-normal-native-{0,1,2}.json | PASS_NEED_READ_ONLY | S7 WRITE still open
+Remove before native release | normal/once checkpoint + wait_set NULL |
+ unconfirmed remove/wrong generation/missing success/premature release |
+ native-{0,1}.json | PASS_AUXILIARY | full pre-close/slot causality open
+Native destructive exactly-once | four target entries and returns |
+ duplicate release/close/missing return/native failure/wrong order |
+ native-{0,1}.json | PASS_OBSERVED_ASSOCIATION_TO_EXIT | consumer gate fails
+Persistent retention | checkpoint 5 ERROR_TERMINAL |
+ fake STOPPED/release/resurrection/deadline reset/real removal |
+ native-2.json | PASS_RETENTION | integrated late callback not completed
+No false PACC terminal | strict Stage41, zero terminal received |
+ existing resource/AI/owner/authorization negatives |
+ current Stage41 traces | PASS_WIRE_ONLY | zero-identity attempt unresolved
+Prior six P10 scenarios | unchanged correlated preprocessed token stream |
+ existing prior qualification negatives retained |
+ p10-normal-native-preservation.json | PRESERVED | not normal-SDK qualification
+
+VALIDATION
+PRODUCTION_BUILD=PASS_PINNED_064
+DIAGNOSTIC_BUILD=PASS_NORMAL_065_RELEASE_MD_CONSUMER_HOOKS
+WARNINGS=0
+Focused existing tests: 9/9 PASS (scheduler, secure_io, owner terminal hook,
+AI/resource oracle selftests, no negotiation, missing TLS, denied destination,
+TLS hostname negative). Log: p10-normal-native-focal-negatives.log.
+Auxiliary native oracle: 3/3 recorded traces accepted, 23/23 invalid variants rejected.
+Negatives file: p10-normal-native-oracle-negatives.json; it is auxiliary evidence,
+not a substitute for integration callbacks or a P10 PASS.
+Previous six correlated P10 qualifications were not rerun. Their preprocessed
+behavioral token stream is identical; normalization removes only whitespace
+outside string/char literals and CHECK diagnostic __LINE__ values.
+Preservation SHA256=30BE3AA0D8B6014E133CECC44C7AB181F3F15B5AB0372C458E2927C28D465B4D
+
+EDIT_LEDGER
+CMakeLists.txt:
+ PRE=34A46DD638CFDC5F7BD75B4F88EF481F105D4DCBC89987C90D7C8728C0DC00F6
+ POST=0D0AB928819B2ECDC8F8CB1B9008704F8E237BBAE27BA70F0F4CCFE165E64ACE
+tests/server_secure_io_win32_integration_test.c:
+ PRE=A1215502F7311790859A4E0B2B2467C19FD84A2C058B64581072A34E15D98D26
+ POST=A1F665EB586DAA9D2113312117D07A427BB927C708B8D93E8D1D82D57732A338
+tests/p10_normal_native_observer.inc:
+ PRE=NEW
+ POST=F0ECC4C524741278F0001FB7CF67C92A819222688966CA527222B71BDF10BBE6
+Cumulative report PRE=BCDAB2779B72CD5AA18E4886EECD72BCF92965091BA501233FF50630B7376807
+Full post hash, SDK file hashes, current artifact/executable/MAP/trace hashes and
+intermediate edit ledger are recorded in p10-normal-native-evidence.json,
+p10-normal-native-sdk-hashes.json, p10-normal-native-current-traces.json and edits.jsonl.
+UTF-8/LF and unrelated WIP are preserved. Paths stay within the authorized
+workspace; native traces use the previously authorized absolute trace directory.
+apply_patch succeeded for CMake; new include write failed and permitted Python
+fallback was used after path/identity checks. No executor policy was bypassed.
+
+RESULT
+PST065_NORMAL_IDENTITY=VERIFIED_GOVERNED_NORMAL_38_OF_38
+PENDING_SHUTDOWN_PRECONDITION=PASS_REAL_NEED_READ
+STOP_AFTER_PENDING=PASS
+NO_PRE_STOP_TERMINAL=PASS
+P10_NORMAL_STOP=FAIL_STRICT_POST_STOP_PUBLICATION_ORACLE
+P10_FAIL_ONCE=FAIL_STRICT_POST_STOP_PUBLICATION_ORACLE
+P10_FAIL_PERSISTENT=RETENTION_AND_NATIVE_OBSERVATION_PASS_FULL_GATE_OPEN
+TARGET_WAITSET_REMOVE=NORMAL_1_ONCE_1_PERSISTENT_0
+TARGET_PST_RELEASE=NORMAL_1_ONCE_1_PERSISTENT_0
+TARGET_PROVIDER_DESTROY=NORMAL_1_ONCE_1_PERSISTENT_0
+TARGET_NATIVE_CLOSE=NORMAL_1_SUCCESS_ONCE_1_SUCCESS_PERSISTENT_0
+TARGET_TRANSPORT_DESTROY=NORMAL_1_ONCE_1_PERSISTENT_0
+NATIVE_LIFETIME_IDENTITY=PID_INSTANCE_OPERATION_GENERATION_PST_BACKEND_TRANSPORT_SOCKET
+NATIVE_EXACTLY_ONCE=PASS_OBSERVED_INTERVAL_NORMAL_ONCE_PERSISTENT_RETAINED
+P10_NEGATIVES=9_FOCAL_EXISTING_PASS_23_AUXILIARY_NATIVE_REJECTIONS_PASS
+P10_QUALIFIED=NO
+PST_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+BROWSER_CHANGED=NO
+PST065_PROMOTED=NO
+WIP_PRESERVED=YES
+DIFF_CHECK=PASS
+TEST_PROCESSES_REMAINING=0
+NEXT=Trace SLOT_QUIESCE/control-queue/cascade construction and validate a safe
+consumer correction consistent with ADR-0023/0030/0031/0032 before retrying the
+two failed strict oracles; close normal S7 NEED_WRITE and integrated late-callback
+coverage without modifying PST normal or weakening any oracle. Keep P10 and
+production-candidate qualification blocked; keep production pin 0.6.4.
+
+
+TASK=PAPINHOACCELERATOR-ADR0032-P10-POST-STOP-PUBLICATION-AUTHORITY-RESOLUTION
+DATE=2026-10-09
+BRANCH=main
+HEAD=c50b8fb9a7e3293b5e6355fc08459bf85b56857a
+MODE=GOVERNED_AUTONOMOUS_ENGINEERING
+CURRENT_TASK_COMPLETED=YES
+SLICE_COMPLETED=YES
+QUALIFICATION_SCOPE=P10_ON_IMMUTABLE_PST065_NORMAL_CANDIDATE_ONLY
+PST065_PROMOTED=NO
+
+BASELINE_AND_GOVERNANCE
+Prior report bytes and 376 baseline WIP file hashes preserved. The 40 previous
+native-report referenced artifacts/traces were verified and copied before builds:
+build/p10-post-stop-authority/historical-preservation.json.
+Accepted organization/family/local ADR audit remains applicable. ADR-0023,
+ADR-0030, ADR-0031 and ADR-0032 constrain this correction; none was edited.
+Related live TLS-offload documentation was updated. Relevant future network
+egress direction was reviewed and left unchanged: this implements existing
+lifecycle/publication constraints, not a new policy, wire or architectural decision.
+Fixture B400 evidence remains historical PASS, not rerun as a new400 claim.
+Common consumer source changed, so the six old correlated modes were revalidated;
+their old executable/cache and test-only library identity were preserved first.
+
+EDITOR_POLICY_EFFECTIVE=WORKSPACE_WRITE_WITH_PATH_HASH_ENCODING_WIP_CHECKS
+PROGRAMMATIC_EDIT_ALLOWED=YES_USER_EXPLICIT_AUTHORIZATION_NO_EXCLUSIVE_APPLY_PATCH_POLICY
+apply_patch reparse-point false positives did not prevent governed Python writes.
+All changed source paths resolve within the workspace; no unexpected link/junction
+was followed. UTF-8/LF and unrelated WIP were preserved. Complete edit checkpoints
+and diffs remain in build/p10-bypass-checkpoints/edits.jsonl and .before files.
+
+POST_STOP_PUBLICATION_ROOT_CAUSE
+The first violation was the missing-Stream fallback in drive_active_streams.
+It ran before reap removed the DATA slot and created NETWORK_ABORT (decimal14,
+0x0E), although target Connection2 was already CLOSED (state4).
+The initial NETWORK_CLOSE attribution in the prior investigation was wrong.
+before-once.trace proves CREATE -> ENQUEUE -> DEQUEUE_DISPATCH, all on that CLOSED
+Connection, with Stream=NULL, generation0. The observer derived both operation
+and generation from NULL Stream, yielding event identity0/0 despite slot operation2.
+Writer invocation then failed against the cleared transport; wire success stayed0.
+The subsequent fallback close was redundant after the real owner destruction.
+This was new publication creation after revocation, not a valid pre-Stop queue
+item, late callback or upstream PST failure. Classification=P10_CONSUMER_AUTHORITY_DEFECT.
+
+FIX_APPLIED
+Publication creation and dispatch require active Connection PENDING/ASSOCIATED
+plus the bound operation/generation. The queue snapshots Connection ID, operation
+and generation and validates all three before its writer runs. CLOSING/CLOSED,
+missing identity, stale generation and mismatched operations reject authority.
+An invalid pending queue is preserved until owner reconciliation; no destructive
+fallback or release is introduced. Missing-Stream fallback cannot create a
+terminal on a revoked Connection. Real runtime terminal callbacks also validate
+the active binding before acceptance. Diagnostic publication events use the queue
+identity even if Stream is absent. Publication attempt is emitted once per frame,
+including WOULD_BLOCK retries, instead of using payload offset as a duplicate gate.
+The standalone legacy observer fixture exception is TEST_ONLY/uninitialized-loop
+only; new queue negatives use an actual Connection manager and valid endpoints.
+
+SLOT_QUIESCE=PUBLICATION_AND_CALLBACK_AUTHORITY_REVOKED_BY_CONNECTION_CLOSING
+The owner-thread Connection transition gates new scheduling/acceptance at these
+boundaries before pre-close callbacks and destructive root can advance. CLOSED
+does not restore authority while the slot awaits reap. No public quiesce API added.
+QUEUE_AUTHORITY=REVALIDATE_IMMUTABLE_CONNECTION_OPERATION_GENERATION_AT_DISPATCH
+CANCEL_CASCADE=EXISTING_OWNER_ROOT_PRESERVED_NO_POST_CLOSE_FALLBACK
+A queue item is not authority merely because it was accepted before Stop.
+The integrated B case queues CLOSE with Connection2/operation2/generation1 while
+Connection is ASSOCIATED (state2), then requests real owner Stop after pending
+shutdown/pre-close failure. Dispatch after Stop sees CLOSING (state3), returns
+INVALID_STATE, preserves the entire slot/queue, and emits zero publication attempts.
+Creation after Stop rejects; the empty revoked-Connection case independently
+tests creation authority. The positive active-binding case still emits one exact
+16-byte PACC CLOSE. This is not blanket suppression of all events after Stop.
+
+PST065_NORMAL_IDENTITY
+Origin=C:\Projetos\PapinhoSecureTransport\dist\packages\0.6.5
+Package=papinho-secure-transport-0.6.5-win32-x64-msvc-19.51-openssl3.zip
+Package_SHA256=0C134E0FC842E22E80DD6B35F6E7F207A7859F097F0BE5B7D0BE9C08D9D05C67
+PST_source_commit=6cbfeeb2a5d3473d296e9119bd5775ae0333a5e8
+PST_VERSION=0.6.5
+API=2.2.0
+SPI=3.0
+Normal_library_SHA256=DCA90F3AE869B19738EE259BCB0E620AF8F31C9842C9EC15A47BBB04BA4038E1
+Normal_SDK=build/pst065-qualification-msvc/sdk-normal
+SDK_FILES_VERIFIED=38_OF_38_UNCHANGED
+Toolchain=MSVC19.51_x64_Ninja_WindowsSDK10.0.26100.0_OpenSSL3.5.8
+Native_qualification=Release_MD_normal_SDK_MD_no_test_only_library_or_correlation_header
+Debug91 uses the existing MDd consumer configuration; it is additional integration
+coverage, not a new claim that the SDK contains an MDd production variant.
+Production pin064, toolchain, public API/ABI/SPI and PACC wire remain unchanged.
+
+NORMAL_NATIVE_EVIDENCE
+Frozen final normal diagnostic executable SHA256:
+4C022E54A268273D4B2C3C852780AB8F00F99D51C12249FE7CA4FD30A197606D
+Final external observer data: build/p10-post-stop-authority/final-native.
+Consumer-only main/checkpoint breakpoints bootstrap observation. Provider/core,
+transport and closesocket entries/returns use hardware breakpoints. No normal
+PST disk bytes, provider source, behavior or package were instrumented/modified.
+Identity is PID + Connection instance + operation + Stream generation + PST
+connection + provider + transport + native socket, from association to exit.
+Numeric socket472 is scoped by PID/lifetime, never a global correlation token.
+WAITSET_REMOVE is confirmed on the selected Connection via per-identity removal
+observation and actual cleared PST wait-set pointer before release entry.
+Order: REMOVE_CONFIRMED -> RELEASE -> PROVIDER_DESTROY -> NATIVE_CLOSESOCKET
+-> native return -> provider return -> TRANSPORT_DESTROY -> transport return
+-> release return. Every entry and return is exactly1 on completed lifetimes.
+ERROR_TERMINAL retains the selected wait-set/PST/provider/transport/socket;
+all four destructive counts stay0 through final callbacks and process boundary.
+Reference child cancellation252 is not a remote clean-terminal success.
+No owner destructor fallback is called to obtain the persistent PASS.
+
+Final cases, all Connection2/operation2/generation1:
+stop PID23868 socket472: each destruction entry/return1; consumer exit0.
+once PID30016 socket472: one injected Stop remove failure, real remove1, each1; exit0.
+persistent PID31556 socket472: ERROR_TERMINAL, real remove0, each0; exit0.
+need-write PID5348 socket472: genuine pending WRITE, real remove1, each1; exit0.
+queued-stop PID9920 socket472: revoked queued dispatch, real remove1, each1; exit0.
+Complete pointer/thread identities and preserved Stage41/owner/fixture traces:
+final-native/run-identities.json
+SHA256=C9BE20BB05575C828989ED29E09B34B2EBBA7BCC272CE7786C0D7ABB7FF330B7
+
+S7_NEED_WRITE
+The normal provider is unchanged. A bounded TLS application-write sequence while
+the peer waits at the factual owner-Stop acknowledgement barrier creates real
+socket backpressure: 168 calls, 2736128 completed bytes, then actual NEED_WRITE.
+Actual shutdown result OK/operation2/source0/step2/state6/interestWRITE2 is traced,
+and repeated shutdown remains NEED_WRITE until selected wait-set removal.
+Stop follows that pending checkpoint; no pre-Stop PACC terminal is present.
+After owner acknowledgement the peer makes actual TLS read progress2736128 bytes.
+Its terminal remains FAILED(operation5)/TRUNCATED(source13), not clean completion.
+The 100-byte old drain exhausted without terminal (initial exit114); the fixture
+now drains bounded16KiB chunks only for S7, with unchanged terminal criteria.
+No sleeps manufacture readiness, no result is clamped, and no failure maps to OK.
+S7_NEED_WRITE=PASS_REAL_NORMAL_PACKAGE_WITH_PROGRESS_CANCEL_AND_GOVERNED_CLOSE
+
+LATE_CALLBACK_INTEGRATED
+Five real post-Stop callback probes reject old/mismatched/other/zero identities.
+Per-target processor and Stream snapshots, removal observation, membership,
+Connection/Stream counts, release/close counts, publication, cause and deadline
+remain unchanged. Completed lifetimes additionally run the existing integrated
+P9 oracle: fresh Stream generation2 on operation2 rejects old generation1;
+no new PST association, publication, release or membership change.9/9 negatives
+PASS. The retained persistent owner stays unchanged without allocating/reusing it.
+LATE_CALLBACK_INTEGRATED=PASS
+NATIVE_EXACTLY_ONCE=PASS
+NO_PREMATURE_CLOSE=PASS
+NO_DOUBLE_RELEASE=PASS
+NO_RESURRECTION=PASS
+NO_POST_STOP_PUBLICATION=PASS
+
+P10_EVIDENCE_MATRIX (positive | negative | evidence | result/dependency)
+A valid normal terminal | transport error/duplicate | final-owner-negatives.log | PASS; active binding preserved.
+B queued before real Stop | revoked dispatch after Stop | final-native/queued-stop/run.log + authority.trace | PASS; queue preserved/no writer.
+C new creation after Stop | empty CLOSED queue + integrated creation retry | queue-oracle.log + queued-stop | PASS; no new publication.
+D old generation | old1 after fresh2 | final-native/stop,once,need-write,queued-stop P9 logs | PASS; no resurrection.
+E other operation | independent operation mismatch | memory queue + integrated five probes/P9 | PASS; no target mutation.
+F zero operation/generation | INVALID_ARGUMENT before dispatch | memory queue + integrated probes | PASS; no wire.
+G duplicate terminal | suppression and one wire frame | 10 memory queue cases + original7 negatives | PASS; no second publication.
+H normal pending Stop | no pre-Stop terminal/early release | final-native/stop | PASS; NEED_READ actual, one governed close.
+I once pending Stop | retained failed pre-close/repeated Stop | final-native/once | PASS; cause/deadline immutable, recovery owner-only.
+J persistent Stop | NORMAL bypass/destructive fallback forbidden | final-native/persistent | PASS; ERROR_TERMINAL/resources retained.
+K queue/cancel concurrency | non-owner drain rejected | memory event-barrier worker + real owner Stop | PASS; owner serialization.
+L forbidden wire terminal | writer attempts0 after revocation | Stage41, owner events, queue memory sink | PASS; no unauthorized terminal.
+S7 pending WRITE | READ cannot satisfy strict WRITE gate | final-native/need-write | PASS; real WRITE/interest/progress/cancel.
+Native lifetime | 23 evidence mutations | final-native/oracle-negatives.py/json | PASS5 positives/23 negatives.
+No remaining failure is excluded merely by age. The production064 reciprocal
+CLOSED->INVALID_STATE blocker stays outside the065-candidate execution identity
+and remains unresolved for promotion of that pin. No production064 P10 claim.
+Separate P11/P12, Browser, whole-PST cross-provider and complete ADR0032 release
+qualification are not claimed. P10 mandatory gates for this normal065 candidate
+are closed; no global ADR0032 qualification or automatic progression is inferred.
+
+VALIDATION
+Initial impacted diagnostic regressions=12_OF_12_PASS.
+Full normal065 diagnostic suite=97_OF_97_PASS (92 existing +5 private normal gates).
+Full normal065 Debug suite=91_OF_91_PASS,140.49 seconds.
+Full normal065 Release suite=91_OF_91_PASS,140.19 seconds.
+Full suites were revalidated because common consumer authority/layout changed.
+Only a const-prototype warning correction followed diagnostic full97; all final
+normal/native/queue probes were reexecuted against the rebuilt zero-warning binary.
+Normal package external native positives=5_OF_5_PASS.
+Native oracle negatives=23_OF_23_PASS; its final retained-state checkpoint check
+was strengthened after a negative exposed the earlier validator gap.
+Memory queue cases=10_OF_10_PASS; original owner negatives=7_OF_7_PASS.
+Integrated P9 negatives=9_OF_9_PASS on each completed final target.
+Auxiliary old correlation scenarios=6_OF_6_PASS:
+off/BLOCK, normal/PASS, normal-once/PASS, normal-persistent/PASS,
+once/BLOCK, persistent/BLOCK. Gate choice is explicit and not normal-package proof.
+Auxiliary normal10/reporting7/native-completion12 and persistent-native12/state6
+negatives remain PASS. Its staged PST library is unchanged:
+FDB17091923CDAC094BC58793115C52A62860661799F3C68DEC4E9D3FD954CD7.
+Production064 full build, normal065 Debug/Release full builds, normal065 diagnostic
+full build and auxiliary correlated consumer target build all PASS, warnings0.
+Earlier harness endpoint/enum/drain failures and C4028 prototype warning are
+preserved in exploratory logs; corrected, never disabled, hidden or waived.
+
+RESULT
+POST_STOP_PUBLICATION_ROOT_CAUSE=CLOSED_CONNECTION_MISSING_STREAM_FALLBACK_AND_NULL_EVENT_IDENTITY
+FIX_APPLIED=YES
+P10_NORMAL_STOP=PASS
+P10_FAIL_ONCE=PASS
+P10_FAIL_PERSISTENT=PASS
+POST_STOP_PUBLICATION_NEGATIVES=PASS_10_MEMORY_CASES_7_OWNER_NEGATIVES_AND_INTEGRATED_B_C
+P10_NEGATIVES=PASS_23_NATIVE_9_INTEGRATED_P9_PLUS_RETENTION_ORACLES
+P10_MANDATORY_BLOCKERS=NONE_IN_PST065_NORMAL_CANDIDATE_SCOPE
+P10_QUALIFIED=YES
+PRODUCTION_BUILD=PASS_PIN064_HOOKS_OFF
+DIAGNOSTIC_BUILD=PASS_NORMAL065_AND_SEPARATE_AUXILIARY_CORRELATION
+WARNINGS=0_FINAL_BUILDS
+PRODUCTION_PIN=0.6.4
+PST_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+BROWSER_CHANGED=NO
+PST065_PROMOTED=NO
+WIP_PRESERVED=YES
+DIFF_CHECK=PASS
+TEST_PROCESSES_REMAINING=0
+FIRST_UNRESOLVED_DIVERGENCE=NONE_IN_CURRENT_P10_NORMAL065_TASK
+NEXT=Review immutable P10 candidate evidence. Separate P11/P12 and dependency
+promotion require their own scope/gates; keep production pin0.6.4 unchanged.
+
+EDITED_FILES_AND_COMPLETE_PRE_POST_SHA256
+tests/p10_normal_native_observer.inc
+PRE_SHA256=F0ECC4C524741278F0001FB7CF67C92A819222688966CA527222B71BDF10BBE6
+POST_SHA256=756B3FBB5BB179BDF7CCBC39495785F838E30DFE4C9C629655A346523A2D5908
+tests/server_owner_terminal_hook_test.c
+PRE_SHA256=7FC4E3C64C7CC7092FD1597E6BEBEA8105EB33EC2ED7DF038E0D4BC2D1CC8F1E
+POST_SHA256=F65A751A118498B83F105B6F34422D02C1E7DDDB2A6A2F523964C94E569E1DA6
+CMakeLists.txt
+PRE_SHA256=0D0AB928819B2ECDC8F8CB1B9008704F8E237BBAE27BA70F0F4CCFE165E64ACE
+POST_SHA256=0F12D9E0B41899E1DC191C652CEFA7DA657122CCFDF8FC923CA711C290A5D9EA
+apps/server/server_io_loop_win32.c
+PRE_SHA256=349AFDBD0765199176970A20359600A6376691B4D9BCE6E28DF260883CE52082
+POST_SHA256=314886082A1ADAF7DF45D52C781A7B1DBB8293F1BB2B217810EFA5A98FC546C4
+apps/server/server_io_loop_win32.h
+PRE_SHA256=90A9E13D23C24EFD4CF64703DC72B8A0F02450F97B01A8D0F9619BD12A74A035
+POST_SHA256=C11EA7EC4A378DB0052C175F13B92EC3AD9A3748F8BF46E59E37F25CDCE1E473
+docs/capabilities/tls-offload.md
+PRE_SHA256=5B73B6B48F040F65D4E07656B96BBAF4DE1B3957F5405378E65CC609FC23F8B3
+POST_SHA256=EC8B0CC2B85D63DF1DF0E1D5B540D78C751BFA6CAB707EA7EE892F1734645077
+tests/server_secure_io_win32_integration_test.c
+PRE_SHA256=A1F665EB586DAA9D2113312117D07A427BB927C708B8D93E8D1D82D57732A338
+POST_SHA256=D8559F5B0ECD0501AA8224518D9748849BA8E69EE29E1BD7F5EA6EFB43E1F5E5
+tests/p10_publication_authority_cases.inc
+PRE_SHA256=NEW
+POST_SHA256=2CCFA6482C19EF87EF6FD7D3D46F89B2C5A42E1513A0197E0D0913385BA1F88D
+REPORT_PRE_SHA256=54DD38A49052C842318A26F0FDB2B8CF0BC5600BE8A055B15EA735094B040DD4
+REPORT_POST_SHA256=Recorded externally in final-evidence.json to avoid a circular self-hash.
+Full current artifact hashes, source checksums and trace identities: build/p10-post-stop-authority/final-evidence.json
+
+======================================================================
+2026-10-10 — P10 FREEZE / P11-P12 GOVERNED QUALIFICATION: PARTIAL, SAFE STOP
+TASK=PAPINHOACCELERATOR-ADR0032-P10-FREEZE-P11-P12-GOVERNED-QUALIFICATION
+Branch=main
+HEAD=c50b8fb9a7e3293b5e6355fc08459bf85b56857a
+Baseline=build/p11-p12-qualification/baseline.json (417 preexisting files).
+Authority: accepted ADR-0023/0030/0031/0032; applicable governance and
+future direction reviewed. No accepted ADR modified or new norm inferred.
+
+P10 FREEZE
+Manifest=build/p11-p12-qualification/p10-freeze.json
+SHA256=512D6FFFAB7965053B8F8004F7033B0E37702F9AB15950C09202595646FF3F5E
+183/183 preserved references verified (135 artifacts, 38 SDK, 9 sources).
+Original artifacts copied byte-exactly into p10-frozen-originals; mutable
+build outputs rebuilt later are NOT substituted for frozen executed artifacts.
+Original final-evidence.json SHA256:
+11537577549A4A9529CBFB75B4F60C00D02C5B02BEC7919B287FD21C232C360D
+Historical P10 NORMAL_STOP, FAIL_ONCE, FAIL_PERSISTENT, NEED_WRITE,
+integrated late callback and native lifetime proofs remain qualified in
+PST065_NORMAL_CANDIDATE scope. Historical diagnostic 97/97, normal Debug
+91/91, Release 91/91, auxiliary correlation 6/6, native negatives 23/23
+and Fixture B 400 executions were NOT rerun or relabeled as current runs.
+Affected focal tests were rerun because common consumer code changed.
+
+PACKAGE IDENTITY
+Normal package=papinho-secure-transport-0.6.5-win32-x64-msvc-19.51-openssl3.zip
+Origin=C:/Projetos/PapinhoSecureTransport/dist/packages/0.6.5
+SHA256=0C134E0FC842E22E80DD6B35F6E7F207A7859F097F0BE5B7D0BE9C08D9D05C67
+Normal library SHA256:
+DCA90F3AE869B19738EE259BCB0E620AF8F31C9842C9EC15A47BBB04BA4038E1
+API=2.2.0; SPI=3.0; MSVC 19.51 x64 /MD; toolset 14.51.36231;
+Windows SDK 10.0.26100.0; OpenSSL 3.5.8.
+Normal SDK and DLLs remain byte-exact; no test-only correlation library
+linked into current normal candidate executions.
+
+FACTUAL CORRECTIONS / FIRST DIVERGENT BOUNDARIES
+1. candidate_try_close returned CLOSED while the same Connection ID still
+had a Protocol Slot. Reproduction: p11-slot-guard-before.log, unit exit101.
+The manager entry was already absent and adapter closed; slot absence was
+not checked. ADR-0031 forbids reuse with that same-generation slot present.
+Correction: defer candidate completion while exact Protocol Slot remains.
+
+2. Candidate ID8 could authorize close of a live Connection whose transport
+context belonged to candidate ID7. Valid fake-transport reproduction:
+p11-wrong-candidate-valid-before.log, close-root spy=1, Connection CLOSED,
+unit exit201. This is a consumer identity/binding violation, not a PST fault.
+Correction: require actual owner thread, exact owner-pool membership,
+nonzero published identity and live Connection transport-adapter binding
+before destructive root. A manager entry already CLOSED is not closed again.
+A preliminary malformed fake transport was corrected before the valid
+reproduction; its result is not used as evidence of a production defect.
+
+3. Isolated normal-transfer CLI completed protocol assertions but let CONTROL
+reach generic cleanup without final owner reconciliation. External observer
+made this harness composition gap visible. Correction: after transfer oracle,
+request Stop and poll owner to bounded completion, assert manager empty and
+every candidate UNUSED/CLOSED, unregistered and PST connection absent, then
+require successful owner shutdown. No protocol oracle changed.
+
+PRIVATE UNIT EVIDENCE
+p11-focused-final.log executes actual candidate_try_close through a hooks-only
+private wrapper, without acquiring native/PST resources. It covers live Slot
+deferral then absence completion, wrong candidate binding, duplicate outside
+pool, zero/revoked identity, registered adapter, FAILED candidate, dispatch
+deferral, pending Stop/deadline preservation, actual nonowner CreateThread,
+old ID7 versus distinct current ID8 and repeat CLOSED/no second root.
+These manually composed identities do not prove integrated native pool reuse,
+actual candidate cancellation or candidate-specific late callback delivery.
+Production hooks absence verified by actual dumpbin symbols in both libs.
+No public ABI/API/SPI or candidate structure layout changed.
+
+P11 C1-C12 MATRIX (ADR-0031, NOT REPLACEMENT ACCEPTANCE CRITERIA)
+C1 eligible candidate: QUALIFIED_FOR_SCOPE. Six final observed published
+CONTROL/DATA lifetimes reach CLOSED only after same-ID manager/Slot absence,
+adapter closed/unregistered, processor absent, dispatch inactive.
+C2 active Slot: PARTIAL. Actual boundary unit and external active membership
+preservation; full integrated active Slot/Connection negative not completed.
+C3 physical-slot reuse/new generation: PARTIAL. Unit old ID7/current ID8
+noninterference; preserved P9 Stream generation evidence is another resource
+scope. No new integrated candidate physical-slot reuse qualification.
+C4 factual candidate wait-set removal failure: PARTIAL. P10 fault targets
+outbound site PST; inbound candidates are factually retained during owner
+failure. Do not claim direct fault injection on inbound candidate membership.
+C5 candidate late callback: NOT_EXECUTED in integrated candidate scope.
+Preserved Stream P9 callback evidence cannot substitute for this gate.
+C6 real CONTROL-loss cascade with dependent DATA/Streams: NOT_EXECUTED.
+Normal DATA transfer close plus final Stop is not CONTROL-loss qualification.
+C7 owner Stop/deadline: QUALIFIED_FOR_SCOPE for observed global Stop and
+persistent retention; direct candidate-removal-failure variant remains partial.
+C8 bounded multi-candidate maintenance/starvation: PARTIAL. Two real published
+candidates observed per run; prescribed multi-generation window not qualified.
+C9 all eight legitimately active pool slots: NOT_EXECUTED.
+C10 full pool recovery/new-generation accept: NOT_EXECUTED.
+C11 native exactly-once: QUALIFIED_FOR_SCOPE for six completed normal-package
+lifetimes; two persistent lifetimes correctly remain outside destroyed count.
+C12 late readiness/frame/retry after CLOSED and physical-slot reuse:
+PARTIAL; identity unit guards and observed no duplicate cleanup do not prove
+the complete adversarial integrated matrix.
+
+P11 prompt negatives:
+Old generation, wrong Connection, duplicate, early reuse, nonowner Stop,
+terminal and revoked identity: executed private unit, limited scope above.
+Operation mismatch and late callback: preserved Stream evidence only.
+Cancelled candidate: FAILED-state preservation unit, not actual cancellation.
+Integrated candidate old callback/cancellation/replacement remain mandatory.
+P11_QUALIFIED=NO.
+
+FINAL EXTERNAL NORMAL-PACKAGE OBSERVATIONS
+Directory=build/p11-p12-qualification/final-native-ready
+Executed integration EXE SHA256:
+5AA992F7274BC71A7B6303BBAF60F4F5E9BEA77541DC3FFFC8F30F535758B225
+MAP SHA256:
+160B75D48326AA00A978689687AABDB9FF01E2C0426A978D67298661B92B4694
+Reference client EXE SHA256:
+68280DBC30614C012F84090A7DD0773AB2009E76710B26802BB8A59B92AA5B11
+libcrypto SHA256:
+09EEC573C9ADEA156BA2073F8CD61720D0AABEB7562D8498B4ECD21B710A3044
+libssl SHA256:
+3FB3CD7804DBE3216C801B470E14461D80214ECE99C637AE42EA3D8CAF75D7ED
+External GDB 14.2: consumer breakpoints plus four hardware entry/return
+points for PST release/provider destroy/transport destroy/WS2 closesocket.
+Normal PST/DLL instructions and package bytes were not patched.
+Private layout offsets come from the same compiled diagnostic configuration.
+Lifetimes are PID+SECURE_CANDIDATE+ConnectionID+PST object, with candidate,
+provider, transport, socket and owner thread identities recorded per target.
+A numeric socket or pointer alone is not treated as generation identity.
+
+normal-close PID6312, Connection IDs1/2: two completed lifetimes.
+JSON SHA256=0143B0B3583D061EEBA6D35E5B5440F90868D362B82D668791CECB398FE6D158
+stop PID25596, Connection IDs1/2: two completed lifetimes.
+JSON SHA256=C6B56E8574553A083966589A1DE6F1AE96228B3E36B5693DE8FBBE890E44F4F2
+once PID25504, Connection IDs1/2: two completed lifetimes.
+JSON SHA256=F13A3AF6156E3A3A65A16EB2F1FB5135AC75A8F86FC842208C605F0FECC05190
+persistent PID29004, Connection IDs1/2: two retained lifetimes.
+JSON SHA256=5FCDE6B8043679AB8F2349B7C71C9FD3E3A1457B4CF69D5D78053E01F114D508
+All four actual inferiors exit0. See run-identities.json for complete per-target
+addresses, owner threads and current-run trace source/copy/SHA identities.
+Normal-close emits no P10 owner trace; its external event JSON/run.log are the
+direct native observations. No nonexistent trace is claimed.
+
+Observed order for each of six completed lifetimes:
+actual pre-close OK/READY with membership absent and dispatch inactive
+-> wait-set removal confirmed
+-> PST_RELEASE entry -> PROVIDER_DESTROY entry -> NATIVE_CLOSESOCKET entry
+-> native return0 -> provider return -> TRANSPORT_DESTROY entry consumed=1
+-> transport return -> PST release return -> successful manager removal
+-> owner candidate CLOSED with exact same ID and Slot/Connection absent.
+Void provider/transport returns mean completion observed, not independent
+success codes. Native return0 is actual closesocket success. Failed initial
+manager-removal/pre-close attempts remain separate events, not success.
+Persistent: same candidate/PST/Connection identities, registered membership,
+Slot and manager entries retained at checkpoints5 and7, owner ERROR_TERMINAL;
+zero destructive entry/return, zero manager removal, no CLOSED/reuse.
+Process-exit retention test is not successful graceful teardown.
+
+P12 MATRIX
+Normal close / Stop / FAIL_ONCE / FAIL_PERSISTENT retention:
+QUALIFIED_FOR_SCOPE (four final external cases above).
+Repeated Stop and late callback: preserved P10/Stream evidence; candidate
+specific complete scenario matrix remains PARTIAL.
+Active membership release refusal: normal PST scheduler focal includes actual
+try_release INVALID_STATE with object retained, then release after removal.
+This separate resource negative is not a candidate native-failure experiment.
+Duplicate cleanup: actual repeat-CLOSED unit plus identity-preserving external
+oracle negatives, not an induced duplicate destructive native call.
+Replaced generation: PARTIAL unit/Stream scope, full native candidate reuse
+NOT_EXECUTED.
+Native failure controlled: BLOCKED; no live failed closesocket induced.
+No fallback destruction: PASS for two factually retained target lifetimes.
+Oracle: 4/4 positive cases, 28/28 invalid evidence mutations rejected.
+Mutations include native failure, wrong generation/owner/PST/socket, duplicate
+release/close, missing READY/remove/returns, consumed0, manager/Slot retained,
+wrong order and persistent destructive/reuse cases.
+Evidence mutation is NOT execution of a native failure or native duplicate.
+Oracle SHA256:
+DC0EC1BA8D843A1C7558A0C5DED7B9FDCFE7AC1E2FFB9620544BF0F5C196C3F7
+P12_QUALIFIED=NO.
+
+NATIVE FAILURE SAFE STOP / NO LIVE FAILURE REPRODUCED
+PST commit=6cbfeeb2a5d3473d296e9119bd5775ae0333a5e8.
+Read-only upstream snapshots and full source hashes:
+build/p11-p12-qualification/native-failure-boundary.json.
+Provider ossl_connection_destroy calls closesocket, ignores its return and
+frees backend. Runtime try_release invokes void provider destroy, transport
+destroy consumed=1, frees connection and returns OK. Win32 transport consumed1
+frees wrapper without another close.
+Microsoft contract:
+https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-closesocket
+Nonblocking positive-linger WSAEWOULDBLOCK can leave socket valid; retaining
+ownership for recovery would be essential in such an injected branch.
+Current source exposes no governed safe native-failure retention seam.
+Inducing this fault could abandon a valid native resource after opaque owner
+release. No live injection performed, no ordinary production failure claimed.
+Test-only correlation is observational and cannot prove a safe normal-package
+failure protocol. No PST edit, interposition or second consumer cleanup used.
+STOP follows task sections1/9/12: resource integrity risk and no PST authority.
+Classification=INSUFFICIENT_EVIDENCE_FOR_SAFE_NATIVE_FAILURE_INJECTION.
+A separate upstream error/ownership contract review and explicitly authorized
+safe fault-injection plan are required before this mandatory gate.
+
+VALIDATION / CURRENT RUNS
+Production064 hooksOFF build PASS; normal065 Release hooksOFF build PASS;
+normal065 owner diagnostic hooksON build PASS; all compile logs zero warnings.
+impacted-diagnostic.log: 9/9 PASS (scheduler, secure I/O unit, five P10 owner
+scenarios, integration default, owner terminal hook).
+production-focal.log: 2/2 PASS. normal-release-focal.log: 2/2 PASS.
+normal-release-transfer.log: PASS with final owner reconciliation.
+Final external cases: 4/4 PASS. Native evidence mutation negatives: 28/28 PASS.
+Default/P10 regression run followed functional fix; later harness change is
+isolated to normal-transfer CLI and validated there and in final external run.
+No full historical regression suite rerun; no auxiliary result relabeled.
+Production dumpbin hook absence: PASS, both actual libraries.
+MIXED_SDK_REFERENCES=NONE for isolated configured normal/test-only roots.
+Full final logs/SDK identity/WIP checks and hashes in final-evidence.json.
+
+ADR0032 CLOSEOUT
+P1 READY: QUALIFIED_FOR_SCOPE historical and six actual current pre-close returns.
+P2 FAILED: QUALIFIED_FOR_SCOPE historical P10 outbound target, no expansion
+to direct candidate removal fault.
+P3 DEFERRED: QUALIFIED_FOR_SCOPE historical owner + actual candidate unit.
+P4 idempotence: QUALIFIED_FOR_SCOPE preserved evidence and repeat-CLOSED unit.
+P5 no early close: QUALIFIED_FOR_SCOPE historical and persistent target zeros.
+P6 handle preserved: QUALIFIED_FOR_SCOPE historical + two retained identities.
+P7 Connection preserved: QUALIFIED_FOR_SCOPE historical + target membership.
+P8 no double release: QUALIFIED_FOR_SCOPE six completed/failure-recovery targets.
+P9 callback late: QUALIFIED_FOR_SCOPE preserved Stream identity; candidate
+callback matrix remains an ADR-0031/P11 dependency.
+P10 Stop: QUALIFIED_FOR_SCOPE, frozen historical normal065 candidate qualified.
+P11 reconciliation: PARTIAL; C1-C12/integrated negatives not all completed.
+P12 native lifetime: BLOCKED; native-failure mandatory scenario unsafe/unexecuted.
+S1-S12/G2 are not implicitly qualified by this slice.
+ADR0032_QUALIFIED=NO. No claim of integral closeout.
+
+SOURCE EDIT HASHES (PRE -> POST)
+apps/server/server_secure_io_win32.c
+9EA7DE6D32EFE86735367F95E0EBFEB64637B10D4F25F89DB78424576F8A1010
+5CDA80A05DEFE5E28CB7F0C984ACB349FB7BB06F95031358B7D2A8BC4070828F
+tests/server_secure_io_win32_test.c
+2368F47758920A506DF36E917EF6FA2161CB0E5B1CAEF708F41037F6E89E2A24
+08EF8BBFA2C2735C4D06C2720CFFBA41B55B203BE4B72995D5F363FEDFF71BE0
+tests/server_secure_io_win32_integration_test.c
+D8559F5B0ECD0501AA8224518D9748849BA8E69EE29E1BD7F5EA6EFB43E1F5E5
+6D151B1629A4A4C3BB647B5E0B14E4A04798F0962A01CBEE26A08CF6AC8DC067
+Live-doc/report full pre/post SHA256 recorded in final-evidence.json and
+governed edits.jsonl; report self-hash kept external to avoid circularity.
+REPORT_PRE_SHA256=861382F601180EE896B7982EB14D407646A8D3BFA6F4F8E74DCD33F3B3DB506C
+
+CURRENT_TASK_COMPLETED=NO
+SLICE_COMPLETED=YES
+P10_FREEZE=VERIFIED_183_OF_183
+P10_QUALIFIED=PRESERVED_YES
+P11_QUALIFIED=NO
+P12_QUALIFIED=NO
+ADR0032_QUALIFIED=NO
+PRODUCTION_PIN=0.6.4
+PST065_PROMOTED=NO
+PST_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+BROWSER_CHANGED=NO
+FIRST_UNRESOLVED_DIVERGENCE=PST065_NATIVE_CLOSE_FAILURE_OWNERSHIP_CANNOT_BE_SAFELY_INJECTED_WITH_CURRENT_CONTRACT
+NEXT=Separate upstream review/authorized safe native-failure plan; remaining
+integrated C3/C4/C5/C6/C8/C9/C10/C12 and cancellation/operation/generation
+negatives; then P11/P12/ADR0032 closeout. No production promotion.
+Evidence manifest=build/p11-p12-qualification/final-evidence.json
+
+
+2026-10-12 ED08 R4 controlled-provider component integration: 20/20 Debug/Release PASS, zero warnings. Current PST 4dbd2783ebaf135114da2b7247e36c0ad6bc550a normal and separate TEST_ONLY_R4 targets. Real isolated API3 manager/adapter/processor/scheduler retained identity and query-only state; original 28 ED08 traces preserved. Native Winsock failure NOT_PROVEN. Fixture publication negative is not production G1 qualification. ED11 preserved separately. Evidence: docs/capabilities/ed08-r4-integrated-evidence-20261012.json; closeout: docs/capabilities/ed08-r4-integrated-closeout-20261012.md. No production wire/pin/PST/Browser change.
+
+
+2026-10-12 C2 normative closeout: ADR-0034 accepts semantic Revision3/exact encoding1 and specification1.0; capability3/major1 and types0x0010-0x001B allocated normatively only. Four states separated: contract accepted; implementation authorization NO; implementation qualification pending; production enablement NO. ED08 exact audited order accepted; real-owner qualification pending implementation. ED11 managed policy accepted, incremental total/provider/kernel/NT4 gates remain open. See docs/capabilities/pacc-c2-normative-approval-and-gates-20261012.md and docs/protocol/pacc-c2-contract-freeze-20261012.json. Previous draft/status/evidence history preserved; no functional wire/PST/Browser/pin change.

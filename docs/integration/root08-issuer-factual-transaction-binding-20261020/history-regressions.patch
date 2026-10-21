@@ -1,0 +1,44 @@
+--- tests/config_root8_v2_test.c
++++ tests/config_root8_v2_test.c
+@@ -160,8 +160,11 @@
+ static int predecessor_cases(void)
+ {
+  static PAPACC_U8 prior[PC_ROOT8_V2_MAX];
+- PAPACC_SIZE pn,L,n,Q;PAPACC_U8 *q,*c;unsigned i;
+- CHECK(setup(1,1,1));CHECK(checkpoints());pn=used;memcpy(prior,encoded,pn);
++ PAPACC_SIZE pn,L,n,Q;PAPACC_U8 *q,*c,*image;unsigned i;
++ PAPACC_ISSUER_VIEW iv;PAPACC_ISSUER_RECORD rec;PAPACC_U8 anchor[32],cert[3]={1,2,3};
++ CHECK(setup(1,1,2));
++ q=fields+r32(fields+244)+64;w32(q+12,15);q[22]=1;memset(q+72,0,112);
++ CHECK(seal());CHECK(checkpoints());pn=used;memcpy(prior,encoded,pn);
+  w64(fields+104,3);w64(fields+112,2);w64(fields+136,2);w64(fields+144,18);w64(fields+152,9);
+  w64(fields+160,r64(prior+120));w16(fields+240,2);
+  Q=r32(prior+56);memcpy(fields+176,prior+Q+88,32);memcpy(fields+208,prior+pn-32U,32);
+@@ -184,6 +187,27 @@
+   fields[208+i]^=1;CHECK(seal());CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID);fields[208+i]^=1;
+  }
+  CHECK(seal());
++ /* A valid newer image with lost reservations/high-water still rejects. */
++ image=fields+r32(fields+48)+8192;
++ CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK);
++ CHECK(hash(&owner,image-8192,8192,anchor));iv.revision++;iv.high_water=1;
++ CHECK(papacc_issuer_image_init(image,&iv,anchor,hash,&owner)==PAPACC_ISSUER_OK);
++ w64(fields+120,iv.revision);CHECK(seal());
++ CHECK(pc_root8_v2_validate(encoded,used,hash,&owner,model_component,NULL)==PC_ROOT8_OK);
++ CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_INVALID);
++ memcpy(image,prior+r32(prior+48)+8192,8192);w64(fields+120,r64(prior+120));
++ {PAPACC_U8 id[16]={11};CHECK(papacc_issuer_image_find(image,id,&rec,hash,&owner)==PAPACC_ISSUER_OK);}
++ rec.state=PAPACC_ISSUER_SIGN_REQUESTED;CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK&&iv.high_water==2);
++ w64(fields+120,iv.revision);CHECK(seal());
++ CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_OK);
++ rec.state=PAPACC_ISSUER_ISSUED_UNPUBLISHED;rec.certificate_size=3;CHECK(hash(&owner,cert,3,rec.certificate_digest));
++ CHECK(papacc_issuer_image_append(image,&rec,cert,3,hash,&owner)==PAPACC_ISSUER_OK);
++ rec.state=PAPACC_ISSUER_PUBLISHED;CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ rec.state=PAPACC_ISSUER_REVOKED;CHECK(papacc_issuer_image_append(image,&rec,NULL,0,hash,&owner)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_image_validate(image,&iv,hash,&owner)==PAPACC_ISSUER_OK&&iv.high_water==2);
++ w64(fields+120,iv.revision);CHECK(seal());
++ CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_OK);
+  /* Even a new valid SNT digest cannot silently replace a naming approval. */
+  q=fields+r32(fields+244)+64;w64(q+32,3);CHECK(seal());
+  CHECK(pc_root8_v2_base_link(encoded,used,prior,pn,hash,&owner,model_component,NULL)==PC_ROOT8_INCOMPLETE);

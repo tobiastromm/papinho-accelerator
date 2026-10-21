@@ -1,0 +1,16 @@
+--- src/config/config_binding.h
++++ src/config/config_binding.h
+@@ -21,5 +21,13 @@
+ } PC_MODEL_BINDING;
+ PC_RESULT pc_bind_existing_models(const PC_DOCUMENT *,
+  const PAPACC_SERVER_CONFIG *const *,PAPACC_SIZE,PC_MODEL_BINDING *,PC_DIAGNOSTIC *);
++/* Pure binding against one immutable borrowed discovery snapshot. Its storage
++ * and the models remain caller-owned for the entire call, with no concurrent
++ * mutation/Stop-driven destruction. This API cannot prove producer identity,
++ * administrative revision or CURRENT and NEVER sets resolved. Missing snapshot
++ * rejects SELECTED; the old no-snapshot entry therefore remains fail-closed. */
++PC_RESULT pc_bind_existing_models_snapshot(const PC_DOCUMENT *,
++ const PAPACC_SERVER_CONFIG *const *,PAPACC_SIZE,
++ const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *,PC_MODEL_BINDING *,PC_DIAGNOSTIC *);
+ /* Value snapshot only. No secret handles, pins or source borrows escape. */
+ #endif

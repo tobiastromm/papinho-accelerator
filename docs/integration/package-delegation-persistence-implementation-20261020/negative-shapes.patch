@@ -1,0 +1,20 @@
+--- a/tests/config_root8_v3_test.c
++++ b/tests/config_root8_v3_test.c
+@@ -91,6 +91,17 @@
+  CHECK(pc_root8_v3_validate(e3,z3,fail_hash,NULL,component3,NULL)==PC_ROOT8_HASH_FAILED);
+  CHECK(pc_root8_v2_validate(e3,z3,hash,&owner,component3,NULL)!=PC_ROOT8_OK);
+  n=99;complete=99;CHECK(pc_root8_v3_decode(e3,z3,e3,sizeof(e3),&n,&complete,hash,&owner,component3,NULL)==PC_ROOT8_INVALID&&n==99&&complete==99);
++ /* Rehashed/fragment-level negatives exercise shape, not just outer SHA. */
++ {static const unsigned bad[]={8,10,12,16,20,22,24,26,28,30,32,36,40,44,48,52,56,60,64,68,104,112,120,128,132,134,136,168,172,240,242,244,248,252,254,256,258,260,264,268,270,272,274};
++ memcpy(save3,f3,n3);
++ for(j=0;j<sizeof(bad)/sizeof(bad[0]);j++){memcpy(f3,save3,n3);f3[bad[j]]^=255;n=99;CHECK(pc_root8_v3_encode(f3,n3,e3,sizeof(e3),&n,hash,&owner,component3,NULL)!=PC_ROOT8_OK&&!n);}
++ memcpy(f3,save3,n3);CHECK(seal3());}
++ {static const unsigned bad[]={8,12,16,48,56,64,72,80,88,120,152,184};PAPACC_U8 *c;
++ for(j=0;j<sizeof(bad)/sizeof(bad[0]);j++){
++ CHECK(cp3());c=f3+r32(f3+56);if(bad[j]==64U||bad[j]==72U)memset(c+bad[j],0,8);else c[bad[j]]^=255;
++ n=99;CHECK(pc_root8_v3_cp_encode(f3,n3,part,sizeof(part),&n,hash,&owner)!=PC_ROOT8_OK&&!n);
++ }
++ memset(f3+r32(f3+56),0,512);CHECK(seal3());}
+  CHECK(cp3());memcpy(base3,e3,z3);bn=z3;CHECK(next3(3,bn));CHECK(pc_root8_v3_base_link(e3,z3,base3,bn,hash,&owner,component3,NULL)==PC_ROOT8_OK);
+  CHECK(pc_root8_v3_base_link(e3,z3,NULL,0,hash,&owner,component3,NULL)==PC_ROOT8_INCOMPLETE);
+  CHECK(pc_root8_v3_base_link(e3,z3,e3,z3,hash,&owner,component3,NULL)==PC_ROOT8_INVALID);

@@ -1,0 +1,70 @@
+--- tests\canonical_root_transaction_test.c
++++ tests\canonical_root_transaction_test.c
+@@ -110,7 +110,7 @@
+  {PAPACC_U64 denied_deadline=123U;PAPACC_BOOL permit=PAPACC_TRUE;
+  CHECK(papacc_server_launcher_c2_deadline(NULL,NULL,0U,&denied_deadline)!=PAPACC_RESULT_OK&&!denied_deadline);
+  CHECK(papacc_server_launcher_c2_capacity(NULL,0U,&permit)!=PAPACC_RESULT_OK&&!permit);}
+- if(argc>1&&!strcmp(argv[1],"snapshot-consume")){
++ if(argc>1&&!strncmp(argv[1],"snapshot-consume",16)){
+   PAPACC_SIZE native_i,native_j;PAPACC_BOOL found=PAPACC_FALSE;
+   CHECK(papacc_network_discover_local_snapshot(interfaces,32,addresses,128,presentation,sizeof(presentation),&snapshot,&ir,&ar,&pr)==PAPACC_RESULT_OK);
+   for(native_i=0;native_i<snapshot.interface_count&&!found;++native_i){
+@@ -149,15 +149,20 @@
+   PAPACC_NETWORK_DISCOVERY_SNAPSHOT oversized=snapshot;
+   PAPACC_SIZE observed_interfaces=snapshot.interface_count;
+   CHECK(observed_interfaces>0U);
+-  if(!strcmp(argv[1],"snapshot-consume")){
++  if(!strncmp(argv[1],"snapshot-consume",16)){
+    CHECK(config.bind_selection.mode==PAPACC_BIND_SELECTION_SELECTED_INTERFACES&&consumed_interface.is_valid);
+    CHECK(papacc_server_launcher_interface_consumption_check(o,&pin)!=PAPACC_RESULT_OK);
+    CHECK(papacc_server_launcher_activate(o)!=PAPACC_RESULT_OK);
+    CHECK(!o->activation_lifetime.phase&&!o->network.is_active&&!o->network.listener_storage&&!o->network.tcp_platform.initialized);
+   }
+   CHECK(papacc_server_launcher_configuration_interface_current(o,&pin,&interface_report)!=PAPACC_RESULT_OK&&!interface_report.current_bound&&!interface_report.resolved);
+-  if(!strcmp(argv[1],"snapshot-stop")){
++  if(!strcmp(argv[1],"snapshot-stop")||!strcmp(argv[1],"snapshot-consume-stop")){
+    papacc_server_console_win32_request_stop();
++   if(config.bind_selection.mode==PAPACC_BIND_SELECTION_SELECTED_INTERFACES){
++    CHECK(papacc_server_launcher_interface_consumption_check(o,&pin)!=PAPACC_RESULT_OK);
++    CHECK(papacc_server_launcher_activate(o)!=PAPACC_RESULT_OK);
++    CHECK(!o->activation_lifetime.phase&&!o->network.listener_storage&&!o->network.is_active);
++   }
+    CHECK(papacc_server_launcher_configuration_prepare_listener(o,&snapshot)!=PAPACC_RESULT_OK);
+    CHECK(!t->participants.interface_snapshot.present&&!t->participants.listener_prepared);
+   }else{
+@@ -179,16 +184,21 @@
+    CHECK(!borrowed.interfaces[0].presentation_name.utf8);
+    memset(interfaces,0,sizeof(interfaces));memset(addresses,0,sizeof(addresses));memset(presentation,0,sizeof(presentation));
+    CHECK(borrowed.interfaces[0].interface_instance_id&&t->participants.target_count);
+-   if(!strcmp(argv[1],"snapshot-consume")){
++   if(!strncmp(argv[1],"snapshot-consume",16)){
+     CHECK(papacc_server_launcher_interface_consumption_check(o,&pin)!=PAPACC_RESULT_OK);
+     CHECK(papacc_server_launcher_activate(o)!=PAPACC_RESULT_OK);
+     CHECK(!o->activation_lifetime.phase&&!o->network.listener_storage&&!o->network.is_active);
+    }
+    CHECK(papacc_server_launcher_configuration_prepare_listener(o,&snapshot)!=PAPACC_RESULT_OK);
+    CHECK(papacc_interface_snapshot_copy_view(&t->participants.interface_snapshot,o->invocation,1U,&borrowed)!=PAPACC_RESULT_OK&&!borrowed.interfaces);
+-   if(!strcmp(argv[1],"snapshot-retain")){
++   if(!strcmp(argv[1],"snapshot-retain")||!strcmp(argv[1],"snapshot-consume-retain")){
+     CHECK(papacc_server_launcher_configuration_preparation_retain(o)==PAPACC_RESULT_OK);
+     CHECK(t->participants.interface_snapshot.retained&&t->participants.interface_snapshot.present);
++    if(config.bind_selection.mode==PAPACC_BIND_SELECTION_SELECTED_INTERFACES){
++     CHECK(papacc_server_launcher_interface_consumption_check(o,&pin)!=PAPACC_RESULT_OK);
++     CHECK(papacc_server_launcher_activate(o)!=PAPACC_RESULT_OK);
++     CHECK(t->participants.interface_snapshot.retained&&!o->activation_lifetime.phase&&!o->network.is_active);
++    }
+     CHECK(papacc_interface_snapshot_copy_view(&t->participants.interface_snapshot,o->invocation,0U,&borrowed)!=PAPACC_RESULT_OK);
+     CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)!=PAPACC_RESULT_OK);
+     CHECK(papacc_server_launcher_owner_state()==PAPACC_LAUNCHER_RETAINED&&t->participants.interface_snapshot.interface_count==observed_interfaces);
+@@ -202,6 +212,11 @@
+   CHECK(!t->normative_committed&&!t->administrative_published&&!t->current_policy_epoch&&!o->configuration_commit.initialized);
+   CHECK(papacc_server_launcher_configuration_preparation_rollback(o)==PAPACC_RESULT_OK);
+   CHECK(!t->participants.interface_snapshot.present&&!t->participants.listener_prepared);
++  if(config.bind_selection.mode==PAPACC_BIND_SELECTION_SELECTED_INTERFACES){
++   CHECK(papacc_server_launcher_interface_consumption_check(o,&pin)!=PAPACC_RESULT_OK);
++   CHECK(papacc_server_launcher_activate(o)!=PAPACC_RESULT_OK);
++   CHECK(!o->activation_lifetime.phase&&!o->network.listener_storage&&!o->network.is_active);
++  }
+   CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)==PAPACC_RESULT_OK);
+   printf("SNAPSHOT_ROOT_LIFETIME=PASS checks=%u case=%s NO_CURRENT NO_COMMIT NO_NETWORK\n",checks,argv[1]);return 0;
+  }

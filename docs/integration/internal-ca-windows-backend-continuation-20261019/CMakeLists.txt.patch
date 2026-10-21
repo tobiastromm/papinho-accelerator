@@ -1,0 +1,22 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2803,3 +2803,19 @@
+  set_property(SOURCE apps/server/server_configuration_commit_win32.c APPEND PROPERTY OBJECT_DEPENDS
+   "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_bootstrap_commit_win32.inc")
+ endif()
++
++# Public request validation only; no CNG key activation or product linkage.
++if(WIN32)
++ add_library(papacc_issuer_windows_validation STATIC apps/server/server_issuer_windows_validation.c)
++ target_include_directories(papacc_issuer_windows_validation PUBLIC apps/server src/issuer include)
++ target_link_libraries(papacc_issuer_windows_validation PUBLIC papacc_issuer crypt32)
++ papacc_enable_warnings(papacc_issuer_windows_validation)
++ set_source_files_properties(apps/server/server_issuer_windows_validation.c tests/issuer_windows_validation_test.c PROPERTIES OBJECT_DEPENDS
++ "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_issuer_windows_validation.h;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_ca_key_win32.h;${CMAKE_CURRENT_SOURCE_DIR}/src/issuer/issuer_core.h")
++ if(BUILD_TESTING)
++  add_executable(papacc_issuer_windows_validation_test tests/issuer_windows_validation_test.c)
++  target_link_libraries(papacc_issuer_windows_validation_test PRIVATE papacc_issuer_windows_validation)
++  papacc_enable_warnings(papacc_issuer_windows_validation_test)
++  add_test(NAME papacc.issuer.windows_validation COMMAND papacc_issuer_windows_validation_test "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/client-a.der.b64")
++ endif()
++endif()

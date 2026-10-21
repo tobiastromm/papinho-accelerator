@@ -1,0 +1,34 @@
+--- a/docs/integration/shared-m1-factual-evidence-20261021/FACTUAL-EVIDENCE-CONTRACT-PROPOSED.md
++++ b/docs/integration/shared-m1-factual-evidence-20261021/FACTUAL-EVIDENCE-CONTRACT-PROPOSED.md
+@@ -22,6 +22,7 @@
+  SP_TRUST_APPLICABLE=1, SP_TRUST_DENIED=-1,
+  SP_TRUST_RETAINED=-2, SP_TRUST_INVALID=-3
+ } SP_TRUST_RESULT;
++/* acquire never returns RETAINED; revalidate may retain an existing lease. */
+ SP_TRUST_RESULT sp_trust_acquire(
+  const SP_TRUST_PACKAGE *,const SP_ADMIN_OBSERVATION *,
+  const SP_INDEPENDENT_CONFIRMATION *,const SP_TRUST_LEASE **);
+@@ -60,7 +61,11 @@
+ 
+ ## E6 Aquisição, lifetime e revalidação
+ 
+-Output de acquire permanece intacto em erro; não publicar empréstimo parcial. Sucesso exige E2–E5 integrais com referências pertencentes ao mesmo lifetime/owner. O lease é armazenamento público transitório do owner existente, não token bearer copiável ou capacidade de outra operação. Core recebe borrow somente após aquisição factual; dados candidatos permanecem DATA.
++acquire SHALL ser uma ligação síncrona e all-or-nothing a referências já factualmente adquiridas, protegidas e contabilizadas pelo owner da operação existente ANTES da chamada. Não inicia aquisição nativa, I/O, trabalho assíncrono, nova alocação ou aquisição parcial de ref/pin/lease; não publica borrow parcial. Se não for possível comprovar essas precondições, nega sem iniciar o trabalho dependente. Sucesso exige E2–E5 integrais, referências transitivamente protegidas pelos owners reais e correlação à mesma operação existente; não exige que root, issuer e destinatário se tornem um único owner.
++
++Resultados permitidos de acquire são SOMENTE SP_TRUST_APPLICABLE, SP_TRUST_DENIED ou SP_TRUST_INVALID; acquire NÃO retorna SP_TRUST_RETAINED. APPLICABLE escreve o único borrow completo no output válido/disjunto; DENIED/INVALID deixam o output intacto e não transferem, liberam ou criam ownership. Referências pré-adquiridas e qualquer trabalho anterior retido continuam alcançáveis pelo owner existente e seguem seu lifecycle próprio, nunca são descartados por esse retorno. O lease é metadado público transitório já reservado dentro desse owner, não token bearer copiável ou capacidade de outra operação; sua dimensão e custo ainda exigem censo de implementação. Core recebe borrow somente após aquisição factual; dados candidatos permanecem DATA.
++
++Em revalidate, APPLICABLE confirma apenas a fase solicitada no mesmo lifetime. DENIED/INVALID não liberam o lease ou suas dependências; cessam o avanço M1. RETAINED de revalidate pressupõe lease já conhecido, conserva esse lease e toda a operação, proíbe KDF/release de conteúdo e remete ao encerramento governado do mesmo owner. Nenhum resultado de revalidate autoriza retry destrutivo, fallback, novo pacote ou reconstrução de evidência.
+ 
+ Revalidar antes TRUST/KDF e antes RELEASE, incluindo validade, revisão/approval/status aplicáveis e confirmação independente contemporânea. Se não se puder provar aplicabilidade da observação anterior, exigir nova observação administrativa conforme D3; não inventar consulta remota ou evidência offline automática. Alteração de revisão, revogação, Stop, perda de pin/custódia, mudança de pacote ou incerteza nega liberação. Um lease de memória não prova CURRENT contínuo/global.
+ 
+@@ -68,7 +73,9 @@
+ 
+ Stop solicita encerramento, não cancela KDF/I/O nem encerra borrow por inferência. Owner mantém pacote, senha/key, quarentena, metadados, snapshots/pins, contexto provider, evidências e créditos até fim factual de todos filhos/borrows. Sem limpeza/reuso de retidos ou segredo emprestado.
+ 
+-release autoriza uma única tentativa governada pelo owner; SP_TRUST_RELEASED significa somente referências da operação efetivamente liberadas; é tipo distinto do resultado de trust, nunca trust ou instalação. Depois de RELEASED, invalidar o alias exatamente uma vez e não consultar novamente. Resultado SP_TRUST_RELEASE_RETAINED mantém o mesmo handle e dependências somente para release_query; query nunca reemite close, revalida para continuar M1 ou publica sucesso tardio. Repetição de release/destrutivo negada. Distinguir resultado de operação, destruição factual e finalização do owner; nenhum alias dos dispositions PST é criado. Esta semântica proposta exige registro exato antes de implementação.
++SP_TRUST_RELEASE_INVALID significa SOMENTE precondição inválida, sem executar tentativa de liberação. Para um lease previamente válido e conhecido pelo seu owner, conserva o mesmo borrow/ownership, dependências, créditos e estado de tentativa anterior; não significa RELEASED nem autoriza limpar/reutilizar a memória. Corrigir uma precondição somente quando o owner comprovar que a tentativa factual ainda não ocorreu não é repetir uma tentativa. Depois de uma tentativa efetivamente iniciada, o resultado do encerramento deve ser RELEASED ou RELEASE_RETAINED, nunca INVALID para ocultar incerteza. Query com precondição inválida não muda disposição ou ownership e não reabre direito a release. Não invocar a API com ponteiro/lifetime desconhecido ou já invalidado.
++
++release autoriza uma única tentativa efetiva governada pelo owner; SP_TRUST_RELEASED significa somente referências da operação efetivamente liberadas; é tipo distinto do resultado de trust, nunca trust ou instalação. Depois de RELEASED, invalidar o alias exatamente uma vez e não consultar novamente. Resultado SP_TRUST_RELEASE_RETAINED mantém o mesmo handle e dependências somente para release_query; query nunca reemite close, revalida para continuar M1 ou publica sucesso tardio. Repetição de release/destrutivo negada. Distinguir resultado de operação, destruição factual e finalização do owner; nenhum alias dos dispositions PST é criado. Esta semântica proposta exige registro exato antes de implementação.
+ 
+ ## E8 Gates de aceitação e implantação
+ 

@@ -1,0 +1,25 @@
+--- tests/manual_package_test.c
++++ tests/manual_package_test.c
+@@ -22,7 +22,7 @@
+  o=field(cfg,o,t,x,n);
+  }v->member[3].data=cfg;v->member[3].size=o;
+  memset(iss,0,sizeof(iss));memcpy(iss,"PACISS02",8);b16(iss+8,2);b16(iss+10,5);o=12;
+- for(t=1;t<=5;t++){memset(x,1,sizeof(x));n=t<=2?32:t==3?16:t==4?4:0;o=field(iss,o,t,x,n);}
++ for(t=1;t<=5;t++){memset(x,1,sizeof(x));n=t<=2?32:t==3?16:t==4?4:0;if(t==4)memcpy(x,"TEST",4);o=field(iss,o,t,x,n);}
+  v->member[4].data=iss;v->member[4].size=o;
+  for(t=0;t<3;t++){v->member[t].data=fake;v->member[t].size=sizeof(fake);}
+ }
+@@ -32,7 +32,12 @@
+  setup(&p);n=99;CHECK(mp_payload_prepare(&p,zip,sizeof(zip),&n,0)==MP_DATA_ONLY);CHECK(n==502U+27U+p.member[3].size+p.member[4].size);
+  CHECK(zip[14]==0x26&&zip[15]==0x39&&zip[16]==0xf4&&zip[17]==0xcb); /* standard ZIP CRC32 check vector */
+  CHECK(mp_payload_inspect(zip,n,&q,0)==MP_DATA_ONLY);CHECK(q.member[2].size==9&&!memcmp(q.member[2].data,fake,9));
+- memcpy(old,zip,n);for(i=0;i<n;i++){zip[i]^=1;CHECK(mp_payload_inspect(zip,n,&q,0)!=MP_DATA_ONLY);zip[i]^=1;}
++ memcpy(old,zip,n);
++ /* Named attack regressions: fixed-name/order grammar, no extraction. */
++ memcpy(zip+30,"../bad",6);CHECK(mp_payload_inspect(zip,n,&q,0)==MP_INVALID);memcpy(zip,old,n);
++ memcpy(zip+30U+6U+9U+30U,"cliente.pk8",11);CHECK(mp_payload_inspect(zip,n,&q,0)==MP_INVALID);memcpy(zip,old,n);
++ memcpy(zip+30,"xx.der",6);CHECK(mp_payload_inspect(zip,n,&q,0)==MP_INVALID);memcpy(zip,old,n);
++ for(i=0;i<n;i++){zip[i]^=1;CHECK(mp_payload_inspect(zip,n,&q,0)!=MP_DATA_ONLY);zip[i]^=1;}
+  for(i=1;i<n;i++)CHECK(mp_payload_inspect(zip,i,&q,0)!=MP_DATA_ONLY);
+  zip[n]=0;CHECK(mp_payload_inspect(zip,n+1,&q,0)!=MP_DATA_ONLY);
+  CHECK(mp_payload_inspect(zip,n,(MP_PAYLOAD *)zip,0)==MP_INVALID);

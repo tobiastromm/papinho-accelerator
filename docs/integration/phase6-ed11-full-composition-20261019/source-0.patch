@@ -1,0 +1,14 @@
+--- src\config\config_root8.h
++++ src\config\config_root8.h
+@@ -33,6 +33,11 @@
+ /* Owned bounded decode; output capacity is no-carrier fields maximum9376.
+  * Complete is structural only. Zero output after safe precondition checks;
+  * no borrowed view, carrier always UNSUPPORTED, all other checks unchanged. */
++/* Same no-carrier integrity/shape checks without an owned output copy.
++ * Read-only synchronous validation only, never CURRENT/authority. Input and
++ * callback contexts remain immutable/alive throughout; no view escapes. */
++PC_ROOT8_RESULT pc_root8_validate_no_issuer(const PAPACC_U8 *,PAPACC_SIZE,
++ PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
+ PC_ROOT8_RESULT pc_root8_decode_no_issuer(const PAPACC_U8 *,PAPACC_SIZE,
+  PAPACC_U8 *,PAPACC_SIZE,int *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
+ PC_ROOT8_RESULT pc_root8_decode(const PAPACC_U8 *,PAPACC_SIZE,PC_ROOT8_MODEL *,

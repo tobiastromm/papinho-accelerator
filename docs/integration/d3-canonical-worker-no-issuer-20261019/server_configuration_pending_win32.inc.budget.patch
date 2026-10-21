@@ -1,0 +1,20 @@
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -183,13 +183,16 @@
+ 
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+ PAPACC_RESULT papacc_configuration_d3_begin08(PAPACC_CONFIGURATION_COMMIT *o,
+- const PAPACC_CONFIG_PIN *pin,const PAPACC_U8 *image,PAPACC_SIZE n,HANDLE identity)
++ const PAPACC_CONFIG_PIN *pin,const PAPACC_U8 *image,PAPACC_SIZE n,HANDLE identity,PAPACC_SIZE already_reserved)
+ {
+  PAPACC_CONFIG_PENDING *p;PAPACC_CONFIG_VIEW view;PAPACC_U64 A,P;
+  PAPACC_U8 fields[PC_ROOT8_NO_ISSUER_FIELDS];BY_HANDLE_FILE_INFORMATION f;
+  unsigned i;int complete;PAPACC_SIZE q;PAPACC_RESULT result=PAPACC_RESULT_INVALID_STATE;
+  if(!owner(o)||!pin||!image||n<PC_ROOT8_MIN||n>PC_ROOT8_NO_ISSUER_MAX||
+     pending_overlap(o,sizeof(*o),image,n)||pending_overlap(o,sizeof(*o),pin,sizeof(*pin)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ /* Caller model may remain live: charge this entire scratch separately. */
++ if(already_reserved<sizeof(*o)||already_reserved>2097152U||
++    sizeof(fields)+sizeof(view)+sizeof(f)>2097152U-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  EnterCriticalSection(&o->lock);p=&o->pending_commit;
+  if(o->store02!=8||!o->published||o->prepared||o->committed_pending||o->stopped||o->unresolved||
+     o->recovery_selected||o->recovery_guard||!path_ok(o->path)||pending_blocks(o)||p->thread||

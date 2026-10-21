@@ -1,0 +1,1121 @@
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+#include "server_c2_owner_win32.h"
+#endif
+#include "server_io_loop_win32.h"
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ENABLE_PST_OUTBOUND_TLS)
+#include "server_launcher_owner_win32.h"
+#endif
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
+#include "pal_time.h"
+#define PAPACC_SERVER_TICKET_LIFETIME_NS 30000000000ULL
+#define PAPACC_TERMINAL_LATENCY_TRACE_ENV "PAPACC_TERMINAL_LATENCY_TRACE_FILE"
+static const char*terminal_trace_name(const char*event)
+{
+    static const char*names[]={"NETWORK_OPEN_BEGIN","UPSTREAM_TLS_READY",
+        "FIRST_UPSTREAM_BYTE","LAST_UPSTREAM_DATA_BEFORE_TERMINAL",
+        "UPSTREAM_TLS_TERMINAL_OBSERVED","TERMINAL_CLASSIFIED",
+        "PACC_TERMINAL_CONSTRUCTED","PACC_TERMINAL_QUEUED",
+        "PACC_TERMINAL_WRITE_BEGIN","PACC_TERMINAL_WRITE_COMPLETE"};
+    if(event!=NULL&&event[0]=='A'&&event[1]>='0'&&event[1]<='9'&&
+        event[2]=='\0')return names[event[1]-'0'];
+    return "UNKNOWN";
+}
+static void terminal_trace_emit_at(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,const PAPACC_NETWORK_STREAM*stream,
+    const char*event,PAPACC_U64 event_ns,const char*detail)
+{
+    FILE*f=NULL;PAPACC_U64 elapsed;
+    if(l==NULL||s==NULL||event==NULL||
+        l->terminal_latency_trace_enabled!=PAPACC_TRUE||
+        s->terminal_trace_t0_ns==0U)return;
+    elapsed=event_ns>=s->terminal_trace_t0_ns?
+        event_ns-s->terminal_trace_t0_ns:0U;
+    if(fopen_s(&f,l->terminal_latency_trace_path,"ab")!=0||f==NULL)return;
+    (void)fprintf(f,
+        "event=%s name=%s elapsed_us=%llu session=%llu data_channel=%llu connection=%llu stream=%llu%s%s\n",
+        event,terminal_trace_name(event),(unsigned long long)(elapsed/1000U),
+        (unsigned long long)s->network_data_protocol.session_instance_id,
+        (unsigned long long)s->network_data_protocol.channel_instance_id,
+        (unsigned long long)s->connection_instance_id,
+        (unsigned long long)(stream!=NULL?stream->stream_instance_id:0U),
+        detail!=NULL?" ":"",detail!=NULL?detail:"");
+    (void)fclose(f);
+}
+static void terminal_trace_emit(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,const PAPACC_NETWORK_STREAM*stream,
+    const char*event,const char*detail)
+{
+    PAPACC_U64 now;
+    if(l==NULL||l->terminal_latency_trace_enabled!=PAPACC_TRUE||
+        papacc_pal_monotonic_time_ns(&now)!=PAPACC_RESULT_OK)return;
+    terminal_trace_emit_at(l,s,stream,event,now,detail);
+}
+static void terminal_trace_begin(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,PAPACC_U64 now)
+{
+    DWORD size;
+    if(l==NULL||s==NULL)return;
+    size=GetEnvironmentVariableA(PAPACC_TERMINAL_LATENCY_TRACE_ENV,
+        l->terminal_latency_trace_path,
+        (DWORD)sizeof(l->terminal_latency_trace_path));
+    if(size==0U||size>=sizeof(l->terminal_latency_trace_path)){
+        l->terminal_latency_trace_enabled=PAPACC_FALSE;
+        l->terminal_latency_trace_path[0]='\0';
+        return;
+    }
+    l->terminal_latency_trace_enabled=PAPACC_TRUE;
+    s->terminal_trace_t0_ns=now;
+    terminal_trace_emit_at(l,s,NULL,"A0",now,"name=NETWORK_OPEN_BEGIN");
+}
+static PAPACC_BOOL network_valid(const PAPACC_SERVER_NETWORK*n){return n!=NULL&&n->is_active&&n->listener_set.is_active&&n->listener_set.entries!=NULL&&n->listener_set.count>0&&n->listener_set.count<=n->listener_set.capacity;}
+static PAPACC_U64 deadline(PAPACC_U64 n,PAPACC_U64 t){PAPACC_U64 m=(PAPACC_U64)~(PAPACC_U64)0;return n>m-t?m:n+t;}
+static PAPACC_RESULT allow_enabled_capability(void*context,const PAPACC_CAPABILITY_KEY*key,PAPACC_CAPABILITY_POLICY_DECISION*out){(void)context;if(key==NULL||out==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;*out=PAPACC_CAPABILITY_POLICY_ALLOW;return PAPACC_RESULT_OK;}
+static PAPACC_RESULT stream_read(void*c,PAPACC_U8*b,PAPACC_SIZE cap,PAPACC_SIZE*n,PAPACC_BOOL*eof){PAPACC_TRANSPORT_IO_STATUS s;PAPACC_RESULT r;if(eof!=NULL)*eof=PAPACC_FALSE;r=papacc_transport_connection_read((PAPACC_TRANSPORT_CONNECTION*)c,b,cap,n,&s);if(r==PAPACC_RESULT_OK&&eof!=NULL&&s==PAPACC_TRANSPORT_IO_STATUS_END_OF_STREAM)*eof=PAPACC_TRUE;return r;}
+static PAPACC_RESULT stream_write(void*c,const PAPACC_U8*b,PAPACC_SIZE len,PAPACC_SIZE*n){PAPACC_TRANSPORT_IO_STATUS s;return papacc_transport_connection_write((PAPACC_TRANSPORT_CONNECTION*)c,b,len,n,&s);}
+static PAPACC_RESULT stream_half_close(void*c){PAPACC_TRANSPORT_CONNECTION*t=(PAPACC_TRANSPORT_CONNECTION*)c;SOCKET s;if(papacc_tcp_connection_transport_win32_get_native_socket(t,&s)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;return shutdown(s,SD_SEND)==0?PAPACC_RESULT_OK:PAPACC_RESULT_INTERNAL_ERROR;}
+static void stream_close(void*c){papacc_transport_connection_close((PAPACC_TRANSPORT_CONNECTION*)c);}
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+static PAPACC_NETWORK_TERMINAL_REASON tls_terminal_reason(void*c){PAPACC_OUTBOUND_TLS*t=(PAPACC_OUTBOUND_TLS*)c;return t!=NULL&&t->truncated==PAPACC_TRUE?PAPACC_NETWORK_TERMINAL_REASON_TLS_TRUNCATED:PAPACC_NETWORK_TERMINAL_REASON_UNSPECIFIED;}
+#endif
+static PAPACC_RESULT prepare_open_result(PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,PAPACC_NETWORK_OPEN_STATUS status){PAPACC_FRAME_HEADER h;PAPACC_RESULT r;r=papacc_network_open_result_encode(status,s->open_result_payload,sizeof(s->open_result_payload),&s->open_result_length);if(r!=PAPACC_RESULT_OK)return r;h=papacc_network_frame_header(PAPACC_MESSAGE_TYPE_NETWORK_OPEN_RESULT,(PAPACC_U32)s->open_result_length);r=papacc_framed_writer_begin_frame(&s->data_attach_processor.writer,&h);if(r==PAPACC_RESULT_OK){s->open_result_offset=0U;s->open_result_pending=PAPACC_TRUE;}return r;}
+static void establishment_cleanup(PAPACC_NETWORK_ESTABLISHMENT_WIN32*e){if(e==NULL)return;papacc_tcp_outbound_win32_close(&e->connector);if(e->published!=PAPACC_TRUE){
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+if(e->tls.processor.connection!=NULL){PAPACC_BOOL closed=PAPACC_FALSE;if(papacc_outbound_tls_try_close(&e->tls,&closed)!=PAPACC_RESULT_OK||closed!=PAPACC_TRUE)return;}e->tls_initialized=PAPACC_FALSE;
+#endif
+papacc_transport_connection_close(&e->transport);if(e->reservation!=NULL)papacc_network_stream_release_reservation(&e->loop->network_stream_manager,e->reservation);e->reservation=NULL;}}
+static PAPACC_RESULT establishment_publish(PAPACC_NETWORK_ESTABLISHMENT_WIN32*e,PAPACC_COMPUTE_STEP_STATUS*out){PAPACC_NETWORK_STREAM_IO io=PAPACC_NETWORK_STREAM_IO_INITIALIZER;PAPACC_SESSION*sess;PAPACC_CHANNEL*ch;PAPACC_RESULT r;sess=papacc_session_manager_find(&e->loop->session_manager,e->slot->network_data_protocol.session_instance_id);ch=papacc_channel_manager_find(&e->loop->channel_manager,e->slot->network_data_protocol.channel_instance_id);if(sess==NULL||sess->state!=PAPACC_SESSION_STATE_ACTIVE||ch==NULL||ch->state!=PAPACC_CHANNEL_STATE_BOUND||e->reservation==NULL||e->reservation->state!=PAPACC_NETWORK_STREAM_RESERVED){establishment_cleanup(e);*out=PAPACC_COMPUTE_STEP_CANCELLED;return PAPACC_RESULT_OK;}
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+if(e->slot->network_data_protocol.request.transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED){io.context=&e->tls;io.read=papacc_outbound_tls_read;io.write=papacc_outbound_tls_write;io.half_close=papacc_outbound_tls_half_close;io.shutdown=papacc_outbound_tls_shutdown_once;io.close=papacc_outbound_tls_close;io.try_close=papacc_outbound_tls_try_close;io.terminal_reason=tls_terminal_reason;}else
+#endif
+{r=papacc_tcp_outbound_win32_take_transport(&e->connector,&e->transport_context,&e->transport);if(r!=PAPACC_RESULT_OK){establishment_cleanup(e);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}io.context=&e->transport;io.read=stream_read;io.write=stream_write;io.half_close=stream_half_close;io.close=stream_close;}r=papacc_network_stream_publish(&e->loop->network_stream_manager,e->reservation,&io);if(r!=PAPACC_RESULT_OK){establishment_cleanup(e);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}e->published=PAPACC_TRUE;e->slot->network_stream_generation=e->reservation->stream_instance_id;e->slot->network_data_protocol.state=PAPACC_NETWORK_DATA_ACTIVE;e->slot->data_attach_processor.reader.parser.max_payload_length=PAPACC_NETWORK_DATA_MAX_PAYLOAD;r=prepare_open_result(e->slot,PAPACC_NETWORK_OPEN_OK);if(r!=PAPACC_RESULT_OK){(void)papacc_network_stream_close_channel(&e->loop->network_stream_manager,e->slot->network_data_protocol.channel_instance_id);e->published=PAPACC_FALSE;e->reservation=NULL;*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}*out=PAPACC_COMPUTE_STEP_PROGRESS;return PAPACC_RESULT_OK;}
+static PAPACC_RESULT establishment_prepare(void*c,void*w,void**out){PAPACC_NETWORK_ESTABLISHMENT_WIN32*e=(PAPACC_NETWORK_ESTABLISHMENT_WIN32*)w;(void)c;if(e==NULL||out==NULL||e->reservation==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;*out=e;return PAPACC_RESULT_OK;}
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+static PAPACC_RESULT establishment_tls_progress(PAPACC_NETWORK_ESTABLISHMENT_WIN32*e,PAPACC_COMPUTE_STEP_STATUS*out)
+{PAPACC_BOOL done=PAPACC_FALSE,consumed=PAPACC_FALSE;PAPACC_RESULT r;if(e->tls_initialized!=PAPACC_TRUE){PAPACC_OUTBOUND_TLS_POLICY p=e->loop->outbound_tls_policy;PAPACC_NORMALIZED_DESTINATION d=PAPACC_NORMALIZED_DESTINATION_INITIALIZER;SOCKET s=INVALID_SOCKET;char peer_name[PAPACC_DESTINATION_HOSTNAME_CAPACITY+1U];if(e->loop->outbound_tls_configured!=PAPACC_TRUE||papacc_destination_normalize(&e->slot->network_data_protocol.request,&d)!=PAPACC_RESULT_OK){(void)prepare_open_result(e->slot,PAPACC_NETWORK_OPEN_FAILED);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}if(d.kind==PAPACC_NETWORK_DESTINATION_DNS_ASCII)memcpy(peer_name,d.hostname,d.hostname_size+1U);else if(papacc_ip_address_format(&e->remote.address,peer_name,sizeof(peer_name))!=PAPACC_RESULT_OK){(void)prepare_open_result(e->slot,PAPACC_NETWORK_OPEN_FAILED);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}r=papacc_outbound_tls_init(&e->tls,&p,peer_name,e->slot->establishment_deadline_ns);
+e->tls_initialized=e->tls.processor.connection!=NULL?PAPACC_TRUE:PAPACC_FALSE;
+e->tls.close_authority_context=e->loop->outbound_close_authority_context;
+e->tls.close_authorize=e->loop->outbound_close_authorize;
+if(r!=PAPACC_RESULT_OK||papacc_tcp_outbound_win32_take_socket(&e->connector,&s)!=PAPACC_RESULT_OK){(void)prepare_open_result(e->slot,PAPACC_NETWORK_OPEN_FAILED);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}
+#ifdef PAPACC_ENABLE_PST_TEST_CORRELATION
+r=papacc_outbound_tls_test_capture_endpoints(&e->tls,s);
+if(r==PAPACC_RESULT_OK)
+#endif
+r=papacc_outbound_tls_attach_socket(&e->tls,s,&consumed);e->tls_initialized=e->tls.processor.connection!=NULL?PAPACC_TRUE:PAPACC_FALSE;if(r!=PAPACC_RESULT_OK){if(consumed!=PAPACC_TRUE)(void)closesocket(s);(void)prepare_open_result(e->slot,PAPACC_NETWORK_OPEN_FAILED);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}e->tls_initialized=PAPACC_TRUE;}r=papacc_outbound_tls_handshake_once(&e->tls,&done);if(r!=PAPACC_RESULT_OK){(void)prepare_open_result(e->slot,PAPACC_NETWORK_OPEN_FAILED);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}if(done==PAPACC_TRUE){terminal_trace_emit(e->loop,e->slot,NULL,"A1","tls_ready=1");return establishment_publish(e,out);}*out=PAPACC_COMPUTE_STEP_WOULD_BLOCK;return PAPACC_RESULT_OK;}
+#endif
+static PAPACC_RESULT establishment_start(void*c,void*x,PAPACC_COMPUTE_STEP_STATUS*out){PAPACC_NETWORK_ESTABLISHMENT_WIN32*e=(PAPACC_NETWORK_ESTABLISHMENT_WIN32*)x;PAPACC_RESULT r;(void)c;r=papacc_tcp_outbound_win32_start(&e->connector,&e->remote,e->source_required?&e->source:NULL,e->source_required,e->slot->establishment_deadline_ns);if(r!=PAPACC_RESULT_OK){(void)prepare_open_result(e->slot,PAPACC_NETWORK_OPEN_FAILED);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}if(e->connector.state==PAPACC_TCP_OUTBOUND_CONNECTED){
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+if(e->slot->network_data_protocol.request.transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED)return establishment_tls_progress(e,out);
+#endif
+return establishment_publish(e,out);}*out=PAPACC_COMPUTE_STEP_PROGRESS;return PAPACC_RESULT_OK;}
+static PAPACC_RESULT establishment_step(void*c,void*x,PAPACC_COMPUTE_STEP_STATUS*out){PAPACC_NETWORK_ESTABLISHMENT_WIN32*e=(PAPACC_NETWORK_ESTABLISHMENT_WIN32*)x;PAPACC_RESULT r;PAPACC_U64 now;PAPACC_FRAMED_WRITER_STATUS ws;PAPACC_SIZE n=0U,remaining;(void)c;if(e->published==PAPACC_TRUE){remaining=e->slot->open_result_length-e->slot->open_result_offset;r=papacc_framed_writer_step(&e->slot->data_attach_processor.writer,&e->slot->open_result_payload[e->slot->open_result_offset],remaining,&n,&ws);if(r!=PAPACC_RESULT_OK){(void)papacc_network_stream_close_channel(&e->loop->network_stream_manager,e->slot->network_data_protocol.channel_instance_id);e->published=PAPACC_FALSE;e->reservation=NULL;*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}e->slot->open_result_offset+=n;if(ws==PAPACC_FRAMED_WRITER_STATUS_FRAME_COMPLETE){e->slot->open_result_pending=PAPACC_FALSE;*out=PAPACC_COMPUTE_STEP_COMPLETED;}else *out=ws==PAPACC_FRAMED_WRITER_STATUS_WOULD_BLOCK?PAPACC_COMPUTE_STEP_WOULD_BLOCK:PAPACC_COMPUTE_STEP_PROGRESS;return PAPACC_RESULT_OK;}if(e->connector.state==PAPACC_TCP_OUTBOUND_CANCELLED){*out=PAPACC_COMPUTE_STEP_CANCELLED;return PAPACC_RESULT_OK;}if(papacc_pal_monotonic_time_ns(&now)!=PAPACC_RESULT_OK||now>=e->slot->establishment_deadline_ns){(void)prepare_open_result(e->slot,PAPACC_NETWORK_OPEN_FAILED);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+if(e->tls_initialized==PAPACC_TRUE)return establishment_tls_progress(e,out);
+#endif
+r=papacc_tcp_outbound_win32_progress(&e->connector,now);if(r!=PAPACC_RESULT_OK){(void)prepare_open_result(e->slot,PAPACC_NETWORK_OPEN_FAILED);*out=PAPACC_COMPUTE_STEP_FAILED;return PAPACC_RESULT_OK;}if(e->connector.state==PAPACC_TCP_OUTBOUND_CONNECTED){
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+if(e->slot->network_data_protocol.request.transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED)return establishment_tls_progress(e,out);
+#endif
+return establishment_publish(e,out);}*out=PAPACC_COMPUTE_STEP_WOULD_BLOCK;return PAPACC_RESULT_OK;}
+static PAPACC_RESULT establishment_cancel(void*c,void*x){(void)c;papacc_tcp_outbound_win32_cancel(&((PAPACC_NETWORK_ESTABLISHMENT_WIN32*)x)->connector);return PAPACC_RESULT_OK;}
+static void establishment_destroy(void*c,void*x){(void)c;establishment_cleanup((PAPACC_NETWORK_ESTABLISHMENT_WIN32*)x);}
+static PAPACC_RESULT admit_network_open(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,PAPACC_U64 now){const PAPACC_EGRESS_PROFILE*p=NULL;PAPACC_SESSION_CAPABILITY_SNAPSHOT*snap;PAPACC_JOB_ADMISSION a;PAPACC_JOB*j=NULL;PAPACC_RESULT r;PAPACC_BOOL egress_allowed;PAPACC_NORMALIZED_DESTINATION destination=PAPACC_NORMALIZED_DESTINATION_INITIALIZER;PAPACC_NETWORK_ENDPOINT remote=PAPACC_NETWORK_ENDPOINT_INITIALIZER;PAPACC_SIZE remote_count=0U;
+#if defined(PAPACC_C8_SUPERVISED_DIAGNOSTIC)
+if(papacc_server_launcher_supervision_loop_control_only(l))return PAPACC_RESULT_INVALID_STATE;
+#endif
+if(l->egress_configured!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;r=papacc_destination_normalize(&s->network_data_protocol.request,&destination);if(r!=PAPACC_RESULT_OK)return r;r=papacc_destination_resolve_and_filter(&destination,l->dns_resolver_configured==PAPACC_TRUE?&l->dns_resolver:NULL,l->egress_config.policy,&remote,1U,&remote_count);if(r!=PAPACC_RESULT_OK||remote_count!=1U)return r!=PAPACC_RESULT_OK?r:PAPACC_RESULT_INVALID_STATE;snap=papacc_session_capability_store_find(&l->capability_store,s->network_data_protocol.session_instance_id);egress_allowed=papacc_capability_operation_allowed(snap,&PAPACC_CAPABILITY_NETWORK_EGRESS_V2,&l->enabled_capabilities,allow_enabled_capability,NULL);if(egress_allowed!=PAPACC_TRUE)egress_allowed=papacc_capability_operation_allowed(snap,&PAPACC_CAPABILITY_NETWORK_EGRESS_V1,&l->enabled_capabilities,allow_enabled_capability,NULL);if(egress_allowed!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;if(s->network_data_protocol.request.transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED&&papacc_capability_operation_allowed(snap,&PAPACC_CAPABILITY_TLS_OFFLOAD_V1,&l->enabled_capabilities,allow_enabled_capability,NULL)!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+if(s->network_data_protocol.request.transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED&&l->outbound_tls_configured!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
+#else
+if(s->network_data_protocol.request.transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED)return PAPACC_RESULT_NOT_SUPPORTED;
+#endif
+r=papacc_egress_runtime_resolve(&l->egress_config,&remote,s->network_data_protocol.request.transport_mode,&p);if(r!=PAPACC_RESULT_OK)return r;r=papacc_network_stream_reserve(&l->network_stream_manager,s->network_data_protocol.session_instance_id,s->network_data_protocol.channel_instance_id,s->network_data_protocol.request.transport_mode,&s->establishment.reservation);if(r!=PAPACC_RESULT_OK)return r;s->establishment.loop=l;s->establishment.slot=s;s->establishment.remote=remote;s->establishment.source_required=p->use_default_route==PAPACC_TRUE?PAPACC_FALSE:PAPACC_TRUE;if(s->establishment.source_required)s->establishment.source=p->source_endpoint;s->establishment_deadline_ns=deadline(now,l->establishment_timeout_ns);a.session_instance_id=s->network_data_protocol.session_instance_id;a.snapshot=snap;a.required_capability=papacc_session_capability_snapshot_contains(snap,&PAPACC_CAPABILITY_NETWORK_EGRESS_V2)?&PAPACC_CAPABILITY_NETWORK_EGRESS_V2:&PAPACC_CAPABILITY_NETWORK_EGRESS_V1;a.server_enabled_now=&l->enabled_capabilities;a.contextual_policy=allow_enabled_capability;a.contextual_policy_context=NULL;a.backend=&l->establishment_backend;a.workload_context=&s->establishment;a.now_ns=now;a.deadline_ns=s->establishment_deadline_ns;r=papacc_job_manager_admit(&l->network_job_manager,&a,&j);if(r!=PAPACC_RESULT_OK){papacc_network_stream_release_reservation(&l->network_stream_manager,s->establishment.reservation);s->establishment.reservation=NULL;return r;}s->establishment_job_id=j->job_instance_id;return PAPACC_RESULT_OK;}
+static PAPACC_SERVER_PROTOCOL_SLOT_WIN32*free_slot(PAPACC_SERVER_IO_LOOP_WIN32*l){PAPACC_SIZE i;for(i=0;i<l->processor_capacity;++i)if(!l->processor_slots[i].in_use)return &l->processor_slots[i];return NULL;}
+static PAPACC_CONNECTION*slot_connection(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s){return papacc_connection_manager_find(l->connection_manager,s->connection_instance_id);}
+static PAPACC_BOOL format_endpoint(const PAPACC_NETWORK_ENDPOINT*endpoint,char*text,PAPACC_SIZE capacity){char address[40];int count;if(endpoint==NULL||text==NULL||capacity==0||papacc_ip_address_format(&endpoint->address,address,sizeof(address))!=PAPACC_RESULT_OK)return PAPACC_FALSE;if(endpoint->address.family==PAPACC_IP_FAMILY_IPV6)count=snprintf(text,capacity,"[%s]:%u",address,(unsigned)endpoint->port);else count=snprintf(text,capacity,"%s:%u",address,(unsigned)endpoint->port);return count>=0&&(PAPACC_SIZE)count<capacity;}
+static void log_event(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_LOG_LEVEL level,PAPACC_LOG_EVENT_ID event_id,PAPACC_LOG_CATEGORY category,PAPACC_LOG_OPERATION operation,PAPACC_BOOL result_valid,PAPACC_RESULT result,const char*message,const PAPACC_LOG_CONTEXT*context){if(l->logger!=NULL)papacc_log_event(l->logger,level,event_id,category,PAPACC_LOG_COMPONENT_SERVER_IO_LOOP,operation,result_valid,result,context,message);}
+static void log_connection(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_LOG_LEVEL level,PAPACC_LOG_EVENT_ID event_id,PAPACC_LOG_CATEGORY category,PAPACC_LOG_OPERATION operation,PAPACC_BOOL result_valid,PAPACC_RESULT result,const char*message,const PAPACC_CONNECTION*c){PAPACC_LOG_CONTEXT context=PAPACC_LOG_CONTEXT_INITIALIZER;if(c==NULL)return;context.fields=PAPACC_LOG_CONTEXT_CONNECTION_ID;context.connection_instance_id=c->connection_instance_id;if(format_endpoint(&c->local_endpoint,context.local_endpoint,sizeof(context.local_endpoint))){context.fields|=PAPACC_LOG_CONTEXT_LOCAL_ENDPOINT;}if(format_endpoint(&c->remote_endpoint,context.remote_endpoint,sizeof(context.remote_endpoint))){context.fields|=PAPACC_LOG_CONTEXT_REMOTE_ENDPOINT;}log_event(l,level,event_id,category,operation,result_valid,result,message,&context);}
+static void log_session(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_LOG_LEVEL level,PAPACC_LOG_EVENT_ID event_id,PAPACC_LOG_OPERATION operation,PAPACC_BOOL result_valid,PAPACC_RESULT result,const char*message,PAPACC_U64 sid){PAPACC_LOG_CONTEXT context=PAPACC_LOG_CONTEXT_INITIALIZER;context.fields=PAPACC_LOG_CONTEXT_SESSION_ID;context.session_instance_id=sid;log_event(l,level,event_id,PAPACC_LOG_CATEGORY_SESSION,operation,result_valid,result,message,&context);}
+static void shutdown_slot(PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s){
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+if(s->establishment.tls.processor.connection!=NULL){s->close_pending=PAPACC_TRUE;return;}
+#endif
+switch(s->kind){case PAPACC_SERVER_PROTOCOL_SLOT_KIND_CLASSIFIER:papacc_connection_classifier_shutdown(&s->classifier);break;case PAPACC_SERVER_PROTOCOL_SLOT_KIND_CONTROL_ESTABLISHMENT:papacc_control_processor_shutdown(&s->control_processor);break;case PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL:papacc_post_control_processor_shutdown(&s->post_control_processor);break;case PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH:papacc_data_attach_processor_shutdown(&s->data_attach_processor);break;default:break;}*s=(PAPACC_SERVER_PROTOCOL_SLOT_WIN32)PAPACC_SERVER_PROTOCOL_SLOT_WIN32_INITIALIZER;}
+static PAPACC_RESULT attach_classifier(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_CONNECTION*c,PAPACC_U64 now){PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=free_slot(l);PAPACC_RESULT r;if(s==NULL){log_connection(l,PAPACC_LOG_WARNING,PAPACC_LOG_EVENT_CONNECTION_REJECTED,PAPACC_LOG_CATEGORY_NETWORK,PAPACC_LOG_OPERATION_ACCEPT,PAPACC_TRUE,PAPACC_RESULT_LIMIT_EXCEEDED,"Connection rejected because protocol slot capacity was reached",c);(void)papacc_connection_manager_remove(l->connection_manager,c->connection_instance_id);return PAPACC_RESULT_LIMIT_EXCEEDED;}*s=(PAPACC_SERVER_PROTOCOL_SLOT_WIN32)PAPACC_SERVER_PROTOCOL_SLOT_WIN32_INITIALIZER;r=papacc_connection_classifier_init(&s->classifier,l->connection_manager,c->connection_instance_id,s->read_scratch,PAPACC_SERVER_PROTOCOL_READ_BUFFER_SIZE,16,deadline(now,l->establishment_timeout_ns));if(r!=PAPACC_RESULT_OK){(void)papacc_connection_manager_remove(l->connection_manager,c->connection_instance_id);return r;}s->connection_instance_id=c->connection_instance_id;s->kind=PAPACC_SERVER_PROTOCOL_SLOT_KIND_CLASSIFIER;s->in_use=PAPACC_TRUE;log_connection(l,PAPACC_LOG_INFO,PAPACC_LOG_EVENT_CONNECTION_ACCEPTED,PAPACC_LOG_CATEGORY_NETWORK,PAPACC_LOG_OPERATION_ACCEPT,PAPACC_TRUE,PAPACC_RESULT_OK,"Connection accepted",c);return PAPACC_RESULT_OK;}
+static PAPACC_BOOL peer_failure(PAPACC_RESULT r){return r==PAPACC_RESULT_PROTOCOL_ERROR||r==PAPACC_RESULT_NOT_SUPPORTED||r==PAPACC_RESULT_LIMIT_EXCEEDED||r==PAPACC_RESULT_INTERNAL_ERROR||r==PAPACC_RESULT_INVALID_STATE;}
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+static void owner_terminal_emit(PAPACC_SERVER_IO_LOOP_WIN32*l,const PAPACC_NETWORK_STREAM*s,
+ PAPACC_OWNER_TERMINAL_TEST_EVENT_KIND kind,PAPACC_U16 type,PAPACC_RESULT validation)
+{PAPACC_OWNER_TERMINAL_TEST_EVENT e;if(l==NULL||l->owner_terminal_test_observer==NULL)return;
+ memset(&e,0,sizeof(e));e.kind=kind;if(s!=NULL){e.operation_id=s->data_channel_instance_id;
+ e.stream_generation=s->stream_instance_id;e.owner_state=s->state;e.terminal_cause=s->terminal_cause;}
+ e.terminal_type=type;e.validation_result=validation;e.internal_injection=l->owner_terminal_test_internal_injection;
+ e.owner_thread_id=(PAPACC_U32)GetCurrentThreadId();l->owner_terminal_test_observer(l->owner_terminal_test_context,&e);}
+static void owner_terminal_emit_identity(PAPACC_SERVER_IO_LOOP_WIN32*l,
+ PAPACC_OWNER_TERMINAL_TEST_EVENT_KIND kind,PAPACC_U64 operation,PAPACC_U64 generation,
+ PAPACC_U16 type,PAPACC_RESULT validation)
+{PAPACC_OWNER_TERMINAL_TEST_EVENT e;if(l==NULL||l->owner_terminal_test_observer==NULL)return;
+ memset(&e,0,sizeof(e));e.kind=kind;e.operation_id=operation;e.stream_generation=generation;
+ e.terminal_type=type;e.validation_result=validation;e.internal_injection=PAPACC_TRUE;
+ e.owner_thread_id=(PAPACC_U32)GetCurrentThreadId();l->owner_terminal_test_observer(l->owner_terminal_test_context,&e);}
+static void owner_terminal_emit_publication(PAPACC_SERVER_IO_LOOP_WIN32*l,
+ const PAPACC_NETWORK_STREAM*s,const PAPACC_SERVER_PROTOCOL_SLOT_WIN32*slot,
+ PAPACC_OWNER_TERMINAL_TEST_EVENT_KIND kind,
+ PAPACC_U16 type,PAPACC_RESULT result,PAPACC_FRAMED_WRITER_STATUS writer_status)
+{PAPACC_OWNER_TERMINAL_TEST_EVENT e;if(l==NULL||l->owner_terminal_test_observer==NULL)return;
+ memset(&e,0,sizeof(e));e.kind=kind;if(s!=NULL){e.operation_id=s->data_channel_instance_id;
+ e.stream_generation=s->stream_instance_id;e.owner_state=s->state;e.terminal_cause=s->terminal_cause;}
+ if(slot!=NULL){e.operation_id=slot->network_control_operation_id;e.stream_generation=slot->network_control_generation;}
+ e.terminal_type=type;e.validation_result=PAPACC_RESULT_OK;e.publication_result=result;
+ e.writer_status=writer_status;e.transport_status=PAPACC_TRANSPORT_IO_STATUS_UNSPECIFIED;
+ e.transport_status_available=PAPACC_FALSE;e.internal_injection=l->owner_terminal_test_internal_injection;
+ e.owner_thread_id=(PAPACC_U32)GetCurrentThreadId();l->owner_terminal_test_observer(l->owner_terminal_test_context,&e);}
+#endif
+static PAPACC_SERVER_PROTOCOL_SLOT_WIN32*slot_for_stream(PAPACC_SERVER_IO_LOOP_WIN32*l,const PAPACC_NETWORK_STREAM*s);
+static PAPACC_BOOL publication_connection_active(PAPACC_SERVER_IO_LOOP_WIN32*l,const PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s);
+static PAPACC_RESULT accept_owner_terminal(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_NETWORK_STREAM*s,PAPACC_U16 type)
+{PAPACC_RESULT v=PAPACC_RESULT_OK;
+#ifndef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+ (void)l;
+#endif
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+ owner_terminal_emit(l,s,PAPACC_OWNER_TERMINAL_TEST_EVENT_RECEIVED,type,PAPACC_RESULT_OK);
+#endif
+ if(s==NULL||s->stream_instance_id==0U||(type!=PAPACC_MESSAGE_TYPE_NETWORK_CLOSE&&type!=PAPACC_MESSAGE_TYPE_NETWORK_ABORT))v=PAPACC_RESULT_INVALID_ARGUMENT;
+ else if(s->accepted_terminal_type!=0U||s->accepted_terminal_generation!=0U){
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+ owner_terminal_emit(l,s,PAPACC_OWNER_TERMINAL_TEST_EVENT_VALIDATED,type,PAPACC_RESULT_OK);
+ owner_terminal_emit(l,s,PAPACC_OWNER_TERMINAL_TEST_EVENT_SUPPRESSED,type,PAPACC_RESULT_INVALID_STATE);
+#endif
+ return PAPACC_RESULT_INVALID_STATE;}else if(s->state!=PAPACC_NETWORK_STREAM_OPEN)v=PAPACC_RESULT_INVALID_STATE;
+ if(v==PAPACC_RESULT_OK&&l!=NULL&&l->initialized==PAPACC_TRUE){
+  PAPACC_SERVER_PROTOCOL_SLOT_WIN32*slot=slot_for_stream(l,s);
+  if(slot==NULL||publication_connection_active(l,slot)!=PAPACC_TRUE||
+     slot->network_stream_generation!=s->stream_instance_id)v=PAPACC_RESULT_INVALID_STATE;}
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+ owner_terminal_emit(l,s,PAPACC_OWNER_TERMINAL_TEST_EVENT_VALIDATED,type,v);
+#endif
+ if(v!=PAPACC_RESULT_OK)return v;s->accepted_terminal_type=type;s->accepted_terminal_generation=s->stream_instance_id;
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+ owner_terminal_emit(l,s,PAPACC_OWNER_TERMINAL_TEST_EVENT_ACCEPTED,type,PAPACC_RESULT_OK);
+#endif
+ return PAPACC_RESULT_OK;}
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+PAPACC_RESULT papacc_server_io_loop_win32_test_set_owner_terminal_observer(PAPACC_SERVER_IO_LOOP_WIN32*l,
+ PAPACC_OWNER_TERMINAL_TEST_OBSERVER_FN fn,void*context)
+{if(l==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;l->owner_terminal_test_observer=fn;
+ l->owner_terminal_test_context=context;l->owner_terminal_test_thread_id=(PAPACC_U32)GetCurrentThreadId();return PAPACC_RESULT_OK;}
+PAPACC_RESULT papacc_server_io_loop_win32_test_inject_owner_terminal(PAPACC_SERVER_IO_LOOP_WIN32*l,
+ PAPACC_U64 operation,PAPACC_U64 generation,PAPACC_U16 type)
+{PAPACC_NETWORK_STREAM*s;PAPACC_RESULT r;if(l==NULL||operation==0U||generation==0U)
+ return PAPACC_RESULT_INVALID_ARGUMENT;
+ if(l->owner_terminal_test_thread_id!=(PAPACC_U32)GetCurrentThreadId())return PAPACC_RESULT_INVALID_STATE;
+ s=papacc_network_stream_find_channel(&l->network_stream_manager,operation);
+ if(s==NULL){owner_terminal_emit_identity(l,PAPACC_OWNER_TERMINAL_TEST_EVENT_LATE_AFTER_TEARDOWN,
+ operation,generation,type,PAPACC_RESULT_INVALID_STATE);return PAPACC_RESULT_INVALID_STATE;}
+ if(s->stream_instance_id!=generation){owner_terminal_emit(l,s,PAPACC_OWNER_TERMINAL_TEST_EVENT_RECEIVED,type,PAPACC_RESULT_OK);
+ owner_terminal_emit(l,s,PAPACC_OWNER_TERMINAL_TEST_EVENT_VALIDATED,type,PAPACC_RESULT_INVALID_STATE);
+ return PAPACC_RESULT_INVALID_STATE;}l->owner_terminal_test_internal_injection=PAPACC_TRUE;
+ r=accept_owner_terminal(l,s,type);l->owner_terminal_test_internal_injection=PAPACC_FALSE;return r;}
+#endif
+static PAPACC_BOOL preserve_accepted_close(const PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 cid){PAPACC_NETWORK_STREAM*s;if(l==NULL||cid==0U)return PAPACC_FALSE;s=papacc_network_stream_find_channel((PAPACC_NETWORK_STREAM_MANAGER*)&l->network_stream_manager,cid);return s!=NULL&&s->state==PAPACC_NETWORK_STREAM_CLOSING&&s->accepted_terminal_type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE&&s->accepted_terminal_generation==s->stream_instance_id?PAPACC_TRUE:PAPACC_FALSE;}
+static PAPACC_RESULT transition_classifier(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s){PAPACC_CONNECTION_CLASSIFICATION k;PAPACC_FRAME_HEADER h;PAPACC_FRAMED_READER reader=PAPACC_FRAMED_READER_INITIALIZER;PAPACC_U64 d;PAPACC_RESULT r=papacc_connection_classifier_take(&s->classifier,&k,&h,&reader,&d);if(r!=PAPACC_RESULT_OK)return r;if(k==PAPACC_CONNECTION_CLASSIFICATION_CONTROL){log_connection(l,PAPACC_LOG_INFO,PAPACC_LOG_EVENT_CONNECTION_ACCEPTED,PAPACC_LOG_CATEGORY_PROTOCOL,PAPACC_LOG_OPERATION_ESTABLISH,PAPACC_TRUE,PAPACC_RESULT_OK,"CONTROL connection classified",slot_connection(l,s));r=papacc_control_processor_init_from_reader(&s->control_processor,l->connection_manager,&l->session_manager,&l->channel_manager,s->connection_instance_id,&h,&reader,d);if(r==PAPACC_RESULT_OK)s->kind=PAPACC_SERVER_PROTOCOL_SLOT_KIND_CONTROL_ESTABLISHMENT;}else{log_connection(l,PAPACC_LOG_INFO,PAPACC_LOG_EVENT_DATA_CONNECTION_ACCEPTED,PAPACC_LOG_CATEGORY_PROTOCOL,PAPACC_LOG_OPERATION_ACCEPT,PAPACC_TRUE,PAPACC_RESULT_OK,"DATA connection classified",slot_connection(l,s));r=papacc_data_attach_processor_init_from_reader(&s->data_attach_processor,l->connection_manager,&l->session_manager,&l->channel_manager,&l->association_manager,s->connection_instance_id,&h,&reader,d);if(r==PAPACC_RESULT_OK)s->kind=PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH;}if(r!=PAPACC_RESULT_OK){papacc_framed_reader_shutdown(&reader);{PAPACC_CONNECTION*c=slot_connection(l,s);if(c!=NULL)papacc_connection_close(c);}}return r;}
+static PAPACC_RESULT transition_post(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s){PAPACC_FRAMED_READER reader=PAPACC_FRAMED_READER_INITIALIZER;PAPACC_CAPABILITY_EVALUATION_INPUTS inputs;PAPACC_U64 sid=s->control_processor.session_instance_id,cid=s->control_processor.control_channel_instance_id;PAPACC_RESULT r=papacc_control_processor_handoff_reader(&s->control_processor,&reader);if(r==PAPACC_RESULT_OK)r=papacc_post_control_processor_init_from_reader(&s->post_control_processor,l->connection_manager,&l->session_manager,&l->channel_manager,&l->association_manager,sid,cid,&reader);inputs.registry=&l->capability_registry;inputs.server_supported=&l->supported_capabilities;inputs.server_enabled=&l->enabled_capabilities;inputs.principal_policy=allow_enabled_capability;inputs.principal_policy_context=NULL;inputs.client_supported=NULL;inputs.client_preference=NULL;if(r==PAPACC_RESULT_OK)r=papacc_post_control_processor_set_capability_gate(&s->post_control_processor,&l->capability_store,&inputs);if(r==PAPACC_RESULT_OK){s->kind=PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL;
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+r=papacc_server_c2_owner_win32_wire_control(l->c2_owner,&s->post_control_processor);
+if(r!=PAPACC_RESULT_OK){papacc_post_control_processor_shutdown(&s->post_control_processor);s->kind=PAPACC_SERVER_PROTOCOL_SLOT_KIND_UNUSED;return r;}
+#else
+if(l->c2_owner!=NULL){s->post_control_processor.c2_control=papacc_server_c2_owner_win32_control;s->post_control_processor.c2_context=l->c2_owner;s->post_control_processor.capability_inputs.principal_policy=papacc_server_c2_owner_win32_capability_policy;s->post_control_processor.capability_inputs.principal_policy_context=&s->post_control_processor;}
+#endif
+#endif
+log_session(l,PAPACC_LOG_INFO,PAPACC_LOG_EVENT_CONTROL_ESTABLISHED,PAPACC_LOG_OPERATION_ESTABLISH,PAPACC_TRUE,PAPACC_RESULT_OK,"CONTROL established",sid);}else{papacc_framed_reader_shutdown(&reader);(void)papacc_data_association_manager_invalidate_session(&l->association_manager,sid);(void)papacc_channel_manager_close(&l->channel_manager,cid);}return r;}
+static void close_bound_stream(PAPACC_SERVER_IO_LOOP_WIN32*,
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*);
+static PAPACC_RESULT process_network_open_frame(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,PAPACC_U64 now)
+{
+    PAPACC_SIZE pass;
+    PAPACC_NETWORK_STREAM*stream=NULL;
+    if(s->network_data_protocol.state==PAPACC_NETWORK_DATA_ACTIVE){
+        stream=papacc_network_stream_find_channel(&l->network_stream_manager,
+            s->network_data_protocol.channel_instance_id);
+        if(stream==NULL)return PAPACC_RESULT_INVALID_STATE;
+        if(papacc_network_stream_client_space(stream)<
+            PAPACC_SERVER_PROTOCOL_READ_BUFFER_SIZE)return PAPACC_RESULT_OK;
+    }
+    for(pass=0U;pass<4U;++pass){
+        PAPACC_FRAMED_READER_STATUS rs;
+        PAPACC_FRAME_PARSER_EVENT ev;
+        PAPACC_RESULT r=papacc_framed_reader_next(
+            &s->data_attach_processor.reader,&rs,&ev);
+        if(r!=PAPACC_RESULT_OK)return r;
+        if(rs==PAPACC_FRAMED_READER_STATUS_END_OF_STREAM){
+            if(s->network_data_protocol.state==PAPACC_NETWORK_DATA_ACTIVE)
+                close_bound_stream(l,s);
+            else{
+                PAPACC_CONNECTION*c=slot_connection(l,s);
+                s->network_data_protocol.state=PAPACC_NETWORK_DATA_TERMINAL;
+                if(c!=NULL)papacc_connection_close(c);
+            }
+            return PAPACC_RESULT_OK;
+        }
+        if(rs!=PAPACC_FRAMED_READER_STATUS_EVENT)return PAPACC_RESULT_OK;
+        if(s->network_data_protocol.state==PAPACC_NETWORK_DATA_ACTIVE){
+            if(ev.header.message_type==PAPACC_MESSAGE_TYPE_NETWORK_DATA){
+                PAPACC_RESULT enqueue_result=PAPACC_RESULT_OK;
+                if(stream->client_half_close_requested==PAPACC_TRUE)
+                    return PAPACC_RESULT_PROTOCOL_ERROR;
+                if(ev.payload_length!=0U)enqueue_result=
+                    papacc_network_stream_enqueue_client(stream,ev.payload,
+                        ev.payload_length);
+                if(enqueue_result!=PAPACC_RESULT_OK)return enqueue_result;
+                if(ev.type==PAPACC_FRAME_PARSER_EVENT_FRAME_COMPLETE)
+                    return PAPACC_RESULT_OK;
+                continue;
+            }
+            if(papacc_network_terminal_validate(ev.header.message_type,
+                ev.header.payload_length)!=PAPACC_RESULT_OK||
+                ev.type!=PAPACC_FRAME_PARSER_EVENT_FRAME_COMPLETE)
+                return PAPACC_RESULT_PROTOCOL_ERROR;
+            if(ev.header.message_type==PAPACC_MESSAGE_TYPE_NETWORK_HALF_CLOSE){
+                PAPACC_RESULT half_result=
+                    papacc_network_stream_half_close_client(stream);
+                if(half_result!=PAPACC_RESULT_OK)return half_result;
+                return PAPACC_RESULT_OK;
+            }
+            if(ev.header.message_type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE&&
+                stream->transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED){
+                PAPACC_RESULT accept_result=accept_owner_terminal(l,stream,
+                    PAPACC_MESSAGE_TYPE_NETWORK_CLOSE);
+                if(accept_result!=PAPACC_RESULT_OK)return accept_result;
+                s->network_data_protocol.state=PAPACC_NETWORK_DATA_TERMINAL;
+                return papacc_network_stream_request_close(stream,
+                    deadline(now,l->establishment_timeout_ns));
+            }
+            if(ev.header.message_type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE||
+                ev.header.message_type==PAPACC_MESSAGE_TYPE_NETWORK_ABORT){
+                PAPACC_RESULT accept_result=accept_owner_terminal(l,stream,
+                    ev.header.message_type);
+                PAPACC_CONNECTION*connection;
+                if(accept_result!=PAPACC_RESULT_OK)return accept_result;
+                connection=slot_connection(l,s);
+                (void)papacc_network_stream_close_channel(
+                    &l->network_stream_manager,
+                    s->network_data_protocol.channel_instance_id);
+                s->establishment.reservation=NULL;
+                s->network_data_protocol.state=PAPACC_NETWORK_DATA_TERMINAL;
+                if(connection!=NULL)papacc_connection_close(connection);
+                return PAPACC_RESULT_OK;
+            }
+            return PAPACC_RESULT_PROTOCOL_ERROR;
+        }
+        if(ev.header.message_type!=PAPACC_MESSAGE_TYPE_NETWORK_OPEN||
+            s->network_open_received+ev.payload_length>
+                sizeof(s->network_open_payload))return PAPACC_RESULT_PROTOCOL_ERROR;
+        if(ev.payload_length!=0U){
+            memcpy(&s->network_open_payload[s->network_open_received],
+                ev.payload,ev.payload_length);
+            s->network_open_received+=ev.payload_length;
+        }
+        if(ev.type==PAPACC_FRAME_PARSER_EVENT_FRAME_COMPLETE){
+            PAPACC_SESSION_CAPABILITY_SNAPSHOT*snap=
+                papacc_session_capability_store_find(&l->capability_store,
+                    s->data_attach_processor.session_instance_id);
+            if(!papacc_capability_operation_allowed(snap,
+                    &PAPACC_CAPABILITY_NETWORK_EGRESS_V2,
+                    &l->enabled_capabilities,allow_enabled_capability,NULL)&&
+                !papacc_capability_operation_allowed(snap,
+                    &PAPACC_CAPABILITY_NETWORK_EGRESS_V1,
+                    &l->enabled_capabilities,allow_enabled_capability,NULL))
+                return PAPACC_RESULT_INVALID_STATE;
+            return papacc_network_data_protocol_accept(&s->network_data_protocol,
+                ev.header.message_type,s->network_open_payload,
+                s->network_open_received);
+        }
+    }
+    return PAPACC_RESULT_OK;
+}
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+static PAPACC_RESULT process_c2_role(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s){PAPACC_FRAME_PARSER_EVENT event;PAPACC_FRAMED_READER_STATUS status;PAPACC_RESULT result;PAPACC_SIZE maximum;PAPACC_U16 type;
+ if(!papacc_server_c2_owner_win32_take_opportunity(l->c2_owner))return PAPACC_RESULT_OK;
+ result=papacc_framed_reader_next(&s->data_attach_processor.reader,&status,&event);if(result!=0)return result;
+ if(status==PAPACC_FRAMED_READER_STATUS_END_OF_STREAM){
+  /* Complete-frame boundary EOF is factual role loss, not malformed framing.
+   * Preserve that first cause before the generic failure path closes the slot.
+   * Partial/malformed frames still return their original protocol error. */
+  (void)papacc_server_c2_owner_win32_role_lost(l->c2_owner,s->data_attach_processor.session_instance_id,s->data_attach_processor.data_channel_instance_id,5U);
+  return PAPACC_RESULT_PROTOCOL_ERROR;
+ }
+ if(status!=PAPACC_FRAMED_READER_STATUS_EVENT)return PAPACC_RESULT_OK;type=event.header.message_type;
+ maximum=type==18U?68U:type==22U?16384U:(type==23U||type==24U||type==25U)?32U:0U;
+ if(maximum==0U||event.header.payload_length>maximum||event.header.payload_length<(type==22U?29U:maximum))return PAPACC_RESULT_PROTOCOL_ERROR;
+ if(event.type==PAPACC_FRAME_PARSER_EVENT_HEADER_READY){result=papacc_server_c2_owner_win32_role_header(l->c2_owner,s->data_attach_processor.session_instance_id,s->data_attach_processor.data_channel_instance_id,type);if(result!=PAPACC_RESULT_OK)return result;}
+ if(event.type==PAPACC_FRAME_PARSER_EVENT_HEADER_READY&&type==18U){if(s->c2_bind_attempted)return PAPACC_RESULT_PROTOCOL_ERROR;s->c2_bind_attempted=PAPACC_TRUE;}
+ if(event.payload_length>sizeof(s->c2_role_payload)-s->c2_role_received)return PAPACC_RESULT_PROTOCOL_ERROR;
+ if(event.payload_length){memcpy(s->c2_role_payload+s->c2_role_received,event.payload,event.payload_length);s->c2_role_received+=event.payload_length;SecureZeroMemory((void*)event.payload,event.payload_length);}
+ if(event.type==PAPACC_FRAME_PARSER_EVENT_FRAME_COMPLETE){result=papacc_server_c2_owner_win32_role(l->c2_owner,s->data_attach_processor.session_instance_id,s->data_attach_processor.data_channel_instance_id,s->connection_instance_id,type,s->c2_role_payload,s->c2_role_received);SecureZeroMemory(s->c2_role_payload,s->c2_role_received);s->c2_role_received=0U;return result;}
+ return PAPACC_RESULT_OK;
+}
+#endif
+static PAPACC_BOOL wants_read(const PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s){switch(s->kind){case PAPACC_SERVER_PROTOCOL_SLOT_KIND_CLASSIFIER:return s->classifier.state==PAPACC_CONNECTION_CLASSIFIER_STATE_WAITING_FIRST_HEADER;case PAPACC_SERVER_PROTOCOL_SLOT_KIND_CONTROL_ESTABLISHMENT:return papacc_control_processor_wants_read(&s->control_processor);case PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL:return papacc_post_control_processor_wants_read(&s->post_control_processor);case PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH:if(s->data_attach_processor.state==PAPACC_DATA_ATTACH_PROCESSOR_STATE_ESTABLISHED){if(s->network_data_protocol.state==PAPACC_NETWORK_DATA_WAIT_OPEN)return PAPACC_TRUE;if(s->network_data_protocol.state==PAPACC_NETWORK_DATA_ACTIVE)return s->establishment.reservation!=NULL&&papacc_network_stream_client_space(s->establishment.reservation)>=PAPACC_SERVER_PROTOCOL_READ_BUFFER_SIZE?PAPACC_TRUE:PAPACC_FALSE;}return papacc_data_attach_processor_wants_read(&s->data_attach_processor);default:return PAPACC_FALSE;}}
+static PAPACC_BOOL wants_write(const PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s){switch(s->kind){case PAPACC_SERVER_PROTOCOL_SLOT_KIND_CONTROL_ESTABLISHMENT:return papacc_control_processor_wants_write(&s->control_processor);case PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL:return papacc_post_control_processor_wants_write(&s->post_control_processor);case PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH:return papacc_data_attach_processor_wants_write(&s->data_attach_processor);default:return PAPACC_FALSE;}}
+static PAPACC_SIZE buffered(const PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s){switch(s->kind){case PAPACC_SERVER_PROTOCOL_SLOT_KIND_CLASSIFIER:return s->classifier.reader.buffered_length;case PAPACC_SERVER_PROTOCOL_SLOT_KIND_CONTROL_ESTABLISHMENT:return s->control_processor.reader.buffered_length;case PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL:return s->post_control_processor.reader.buffered_length;case PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH:return s->data_attach_processor.reader.buffered_length;default:return 0;}}
+PAPACC_RESULT papacc_server_io_loop_win32_processor_interest(const PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SIZE i,PAPACC_BOOL*r,PAPACC_BOOL*w){if(l==NULL||r==NULL||w==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;if(!l->initialized||i>=l->processor_capacity||!l->processor_slots[i].in_use)return PAPACC_RESULT_INVALID_STATE;*r=wants_read(&l->processor_slots[i]);*w=wants_write(&l->processor_slots[i]);
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+if(!papacc_server_c2_owner_win32_read_allowed(l->c2_owner,l->processor_slots[i].connection_instance_id))*r=PAPACC_FALSE;
+if(papacc_server_c2_owner_win32_wants_write(l->c2_owner,l->processor_slots[i].connection_instance_id)){*w=PAPACC_TRUE;if(l->processor_slots[i].kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL)*r=PAPACC_FALSE;}
+#endif
+return PAPACC_RESULT_OK;}
+PAPACC_RESULT papacc_server_io_loop_win32_processor_has_buffered_input(const PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SIZE i,PAPACC_BOOL*out){if(l==NULL||out==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;if(!l->initialized||i>=l->processor_capacity||!l->processor_slots[i].in_use)return PAPACC_RESULT_INVALID_STATE;*out=buffered(&l->processor_slots[i])!=0U?PAPACC_TRUE:PAPACC_FALSE;
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+if(!papacc_server_c2_owner_win32_read_allowed(l->c2_owner,l->processor_slots[i].connection_instance_id))*out=PAPACC_FALSE;
+#endif
+return PAPACC_RESULT_OK;}
+PAPACC_RESULT papacc_server_io_loop_win32_processor_scan_index(const PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SIZE o,PAPACC_SIZE*i){if(l==NULL||i==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;if(!l->initialized||l->processor_capacity==0||o>=l->processor_capacity)return PAPACC_RESULT_INVALID_STATE;*i=(l->next_processor_index+o)%l->processor_capacity;return PAPACC_RESULT_OK;}
+void papacc_server_io_loop_win32_set_logger(PAPACC_SERVER_IO_LOOP_WIN32*l,const PAPACC_LOGGER*logger){if(l!=NULL&&l->initialized)l->logger=logger;}
+PAPACC_RESULT papacc_server_io_loop_win32_set_egress_config(PAPACC_SERVER_IO_LOOP_WIN32*l,const PAPACC_EGRESS_RUNTIME_CONFIG*c){if(l==NULL||c==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;if(!l->initialized)return PAPACC_RESULT_INVALID_STATE;l->egress_config=*c;l->egress_configured=PAPACC_TRUE;l->establishment_backend.diagnostic_name="win32-tcp-establishment";l->establishment_backend.context=l;l->establishment_backend.prepare=establishment_prepare;l->establishment_backend.start=establishment_start;l->establishment_backend.step=establishment_step;l->establishment_backend.request_cancel=establishment_cancel;l->establishment_backend.destroy=establishment_destroy;return PAPACC_RESULT_OK;}
+PAPACC_RESULT papacc_server_io_loop_win32_set_dns_resolver(PAPACC_SERVER_IO_LOOP_WIN32*l,const PAPACC_DNS_RESOLVER*r){if(l==NULL||r==NULL||r->resolve==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;if(!l->initialized)return PAPACC_RESULT_INVALID_STATE;l->dns_resolver=*r;l->dns_resolver_configured=PAPACC_TRUE;return PAPACC_RESULT_OK;}
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+PAPACC_RESULT papacc_server_io_loop_win32_set_outbound_tls(PAPACC_SERVER_IO_LOOP_WIN32*l,const PAPACC_OUTBOUND_TLS_POLICY*p){if(l==NULL||p==NULL||p->runtime==NULL||p->trust==NULL||p->provider_id==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;if(!l->initialized)return PAPACC_RESULT_INVALID_STATE;l->outbound_tls_policy=*p;l->outbound_tls_configured=PAPACC_TRUE;return PAPACC_RESULT_OK;}
+#endif
+static PAPACC_RESULT loop_init_core(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_NETWORK*n,PAPACC_SERVER_ACCEPTOR_WIN32*a,PAPACC_SESSION*ss,PAPACC_SIZE sc,PAPACC_CHANNEL*cs,PAPACC_SIZE cc,PAPACC_DATA_ASSOCIATION_ENTRY*as,PAPACC_SIZE ac,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*ps,PAPACC_SIZE pc,PAPACC_U64 timeout,PAPACC_CONNECTION_MANAGER*cm,PAPACC_BOOL closed){PAPACC_SIZE i;PAPACC_RESULT r;if(l==NULL||n==NULL||(!closed&&a==NULL)||(sc&&ss==NULL)||(cc&&cs==NULL)||(ac&&as==NULL)||(pc&&ps==NULL)||timeout==0)return PAPACC_RESULT_INVALID_ARGUMENT;if(l->initialized)return PAPACC_RESULT_INVALID_STATE;if(!closed&&(!network_valid(n)||!a->initialized||a->server_network!=n))return PAPACC_RESULT_INVALID_STATE;if(!closed)cm=papacc_server_acceptor_win32_connection_manager(a);if(cm==NULL||!cm->initialized||sc>cm->capacity||cc>cm->capacity||pc>cm->capacity)return PAPACC_RESULT_INVALID_STATE;r=papacc_session_manager_init(&l->session_manager,ss,sc);if(r!=PAPACC_RESULT_OK)return r;r=papacc_channel_manager_init(&l->channel_manager,cs,cc,cm,&l->session_manager);if(r!=PAPACC_RESULT_OK){papacc_session_manager_shutdown(&l->session_manager);return r;}r=papacc_server_data_ticket_generator_init(&l->ticket_generator);if(r==PAPACC_RESULT_OK)r=papacc_data_association_manager_init(&l->association_manager,as,ac,&l->session_manager,&l->channel_manager,papacc_server_data_ticket_generator_generate,&l->ticket_generator,PAPACC_SERVER_TICKET_LIFETIME_NS);if(r==PAPACC_RESULT_OK)r=papacc_session_capability_store_init(&l->capability_store,l->capability_bindings,l->capability_keys,PAPACC_SERVER_NETWORK_STREAM_CAPACITY,PAPACC_SERVER_SESSION_CAPABILITY_KEYS);if(r==PAPACC_RESULT_OK)r=papacc_capability_registry_init(&l->capability_registry,l->capability_descriptors,PAPACC_SERVER_GLOBAL_CAPABILITY_KEYS);if(r==PAPACC_RESULT_OK)r=papacc_builtin_capabilities_register(&l->capability_registry);if(r==PAPACC_RESULT_OK)r=papacc_capability_set_init(&l->supported_capabilities,l->supported_capability_keys,PAPACC_SERVER_GLOBAL_CAPABILITY_KEYS);if(r==PAPACC_RESULT_OK)r=papacc_capability_set_init(&l->enabled_capabilities,l->enabled_capability_keys,PAPACC_SERVER_GLOBAL_CAPABILITY_KEYS);if(r==PAPACC_RESULT_OK)r=papacc_capability_set_insert(&l->supported_capabilities,&PAPACC_CAPABILITY_NETWORK_EGRESS_V1);if(r==PAPACC_RESULT_OK)r=papacc_capability_set_insert(&l->supported_capabilities,&PAPACC_CAPABILITY_NETWORK_EGRESS_V2);if(r==PAPACC_RESULT_OK)r=papacc_capability_set_insert(&l->supported_capabilities,&PAPACC_CAPABILITY_TLS_OFFLOAD_V1);if(!closed&&r==PAPACC_RESULT_OK)r=papacc_capability_set_insert(&l->enabled_capabilities,&PAPACC_CAPABILITY_NETWORK_EGRESS_V1);if(!closed&&r==PAPACC_RESULT_OK)r=papacc_capability_set_insert(&l->enabled_capabilities,&PAPACC_CAPABILITY_NETWORK_EGRESS_V2);if(!closed&&r==PAPACC_RESULT_OK)r=papacc_capability_set_insert(&l->enabled_capabilities,&PAPACC_CAPABILITY_TLS_OFFLOAD_V1);if(r==PAPACC_RESULT_OK)r=papacc_job_manager_init(&l->network_job_manager,l->network_job_storage,PAPACC_SERVER_NETWORK_JOB_CAPACITY,4U,&l->session_manager);if(r==PAPACC_RESULT_OK)r=papacc_network_stream_manager_init(&l->network_stream_manager,l->network_stream_storage,l->network_tx_storage,l->network_rx_storage,PAPACC_SERVER_NETWORK_STREAM_CAPACITY,4U,PAPACC_SERVER_NETWORK_STREAM_BUFFER_CAPACITY);if(r!=PAPACC_RESULT_OK){papacc_network_stream_manager_shutdown(&l->network_stream_manager);papacc_job_manager_shutdown(&l->network_job_manager);papacc_session_capability_store_shutdown(&l->capability_store);papacc_data_association_manager_shutdown(&l->association_manager);papacc_server_data_ticket_generator_shutdown(&l->ticket_generator);papacc_channel_manager_shutdown(&l->channel_manager);papacc_session_manager_shutdown(&l->session_manager);return r;}for(i=0;i<pc;++i)ps[i]=(PAPACC_SERVER_PROTOCOL_SLOT_WIN32)PAPACC_SERVER_PROTOCOL_SLOT_WIN32_INITIALIZER;l->network=n;l->acceptor=a;l->connection_manager=cm;l->association_storage=as;l->association_capacity=ac;l->processor_slots=ps;l->processor_capacity=pc;l->establishment_timeout_ns=timeout;l->initialized=PAPACC_TRUE;return PAPACC_RESULT_OK;}
+PAPACC_RESULT papacc_server_io_loop_win32_init(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_NETWORK*n,PAPACC_SERVER_ACCEPTOR_WIN32*a,PAPACC_SESSION*ss,PAPACC_SIZE sc,PAPACC_CHANNEL*cs,PAPACC_SIZE cc,PAPACC_DATA_ASSOCIATION_ENTRY*as,PAPACC_SIZE ac,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*ps,PAPACC_SIZE pc,PAPACC_U64 timeout){return loop_init_core(l,n,a,ss,sc,cs,cc,as,ac,ps,pc,timeout,NULL,PAPACC_FALSE);}
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+PAPACC_RESULT papacc_server_io_loop_win32_init_closed(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_NETWORK*n,PAPACC_SERVER_ACCEPTOR_WIN32*a,PAPACC_SESSION*ss,PAPACC_SIZE sc,PAPACC_CHANNEL*cs,PAPACC_SIZE cc,PAPACC_DATA_ASSOCIATION_ENTRY*as,PAPACC_SIZE ac,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*ps,PAPACC_SIZE pc,PAPACC_U64 timeout,PAPACC_CONNECTION_MANAGER*cm){if(a!=NULL||n==NULL||n->is_active||n->tcp_platform.initialized||n->listener_set.count)return PAPACC_RESULT_INVALID_STATE;return loop_init_core(l,n,a,ss,sc,cs,cc,as,ac,ps,pc,timeout,cm,PAPACC_TRUE);}
+#endif
+static PAPACC_RESULT process_slot(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,PAPACC_BOOL rd,PAPACC_BOOL wr,PAPACC_U64 now){PAPACC_RESULT r=PAPACC_RESULT_OK;
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+if(wr&&papacc_server_c2_owner_win32_wants_write(l->c2_owner,s->connection_instance_id))return papacc_server_c2_owner_win32_step(l->c2_owner,s->connection_instance_id);
+#endif
+if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_CLASSIFIER){PAPACC_CONNECTION_CLASSIFIER_STATUS st=PAPACC_CONNECTION_CLASSIFIER_STATUS_UNSPECIFIED;if(rd)r=papacc_connection_classifier_read_once(&s->classifier,&st);if(r==PAPACC_RESULT_OK&&(st==PAPACC_CONNECTION_CLASSIFIER_STATUS_CLASSIFIED_CONTROL||st==PAPACC_CONNECTION_CLASSIFIER_STATUS_CLASSIFIED_DATA))r=transition_classifier(l,s);}else if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_CONTROL_ESTABLISHMENT){PAPACC_CONTROL_PROCESSOR_STEP_STATUS st;if(rd)r=papacc_control_processor_read_once(&s->control_processor,&st);else if(wr)r=papacc_control_processor_write_once(&s->control_processor,&st);if(r==PAPACC_RESULT_OK&&s->control_processor.state==PAPACC_CONTROL_PROCESSOR_STATE_ESTABLISHED)r=transition_post(l,s);}else if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL){PAPACC_POST_CONTROL_STEP_STATUS st;PAPACC_POST_CONTROL_PROCESSOR_STATE before=s->post_control_processor.state;if(rd)r=papacc_post_control_processor_read_once(&s->post_control_processor,now,&st);else if(wr)r=papacc_post_control_processor_write_once(&s->post_control_processor,&st);
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+if(r==PAPACC_RESULT_OK&&before==PAPACC_POST_CONTROL_PROCESSOR_STATE_WRITING_CAPABILITIES&&s->post_control_processor.state==PAPACC_POST_CONTROL_PROCESSOR_STATE_READY&&l->c2_owner!=NULL){
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ PAPACC_CAPABILITY_KEY mode={3U,1U};
+ PAPACC_SESSION_CAPABILITY_SNAPSHOT *snapshot=papacc_session_capability_store_find(&l->capability_store,s->post_control_processor.session_instance_id);
+ /* A peer without negotiated C2 stays on its existing protocol. No C2 Session
+  * or grant is invented. Present C2 still requires the fixed root boundary. */
+ if(!snapshot||!snapshot->published)r=PAPACC_RESULT_INVALID_STATE;
+ else if(papacc_session_capability_snapshot_contains(snapshot,&mode))
+  r=papacc_server_c2_owner_win32_adopt_session(l->c2_owner,s->connection_instance_id);
+#else
+ r=papacc_server_c2_owner_win32_adopt_session(l->c2_owner,s->connection_instance_id);
+#endif
+}
+#endif
+if(r==PAPACC_RESULT_OK&&before==PAPACC_POST_CONTROL_PROCESSOR_STATE_READY&&s->post_control_processor.state==PAPACC_POST_CONTROL_PROCESSOR_STATE_WRITING_TICKET)log_session(l,PAPACC_LOG_INFO,PAPACC_LOG_EVENT_DATA_TICKET_ISSUED,PAPACC_LOG_OPERATION_ISSUE,PAPACC_TRUE,PAPACC_RESULT_OK,"DATA ticket issued",s->post_control_processor.session_instance_id);}else if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH){PAPACC_DATA_ATTACH_PROCESSOR_STEP_STATUS st;PAPACC_DATA_ATTACH_PROCESSOR_STATE before=s->data_attach_processor.state;if(before==PAPACC_DATA_ATTACH_PROCESSOR_STATE_ESTABLISHED&&rd){
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+if(papacc_server_c2_owner_win32_has_session(l->c2_owner,s->data_attach_processor.session_instance_id))r=process_c2_role(l,s);else
+#endif
+r=process_network_open_frame(l,s,now);}
+else{if(rd)r=papacc_data_attach_processor_read_once(&s->data_attach_processor,now,&st);else if(wr)r=papacc_data_attach_processor_write_once(&s->data_attach_processor,&st);if(r==PAPACC_RESULT_OK&&before!=PAPACC_DATA_ATTACH_PROCESSOR_STATE_ESTABLISHED&&s->data_attach_processor.state==PAPACC_DATA_ATTACH_PROCESSOR_STATE_ESTABLISHED){s->data_attach_processor.reader.parser.max_payload_length=PAPACC_NETWORK_OPEN_MAX_PAYLOAD;
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+if(papacc_server_c2_owner_win32_has_session(l->c2_owner,s->data_attach_processor.session_instance_id))s->data_attach_processor.reader.parser.max_payload_length=16384U;
+#endif
+r=papacc_network_data_protocol_init(&s->network_data_protocol,s->data_attach_processor.session_instance_id,s->data_attach_processor.data_channel_instance_id);if(r==PAPACC_RESULT_OK)log_session(l,PAPACC_LOG_INFO,PAPACC_LOG_EVENT_DATA_ATTACHED,PAPACC_LOG_OPERATION_ATTACH,PAPACC_TRUE,PAPACC_RESULT_OK,"DATA successfully attached",s->data_attach_processor.session_instance_id);}}}if(r!=PAPACC_RESULT_OK&&peer_failure(r)){
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH&&papacc_server_c2_owner_win32_has_session(l->c2_owner,s->data_attach_processor.session_instance_id))(void)papacc_server_c2_owner_win32_role_lost(l->c2_owner,s->data_attach_processor.session_instance_id,s->data_attach_processor.data_channel_instance_id,r==PAPACC_RESULT_PROTOCOL_ERROR?11U:5U);
+#endif
+if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH){PAPACC_CONNECTION*c=slot_connection(l,s);log_event(l,PAPACC_LOG_WARNING,PAPACC_LOG_EVENT_PROTOCOL_REJECTED,PAPACC_LOG_CATEGORY_PROTOCOL,PAPACC_LOG_OPERATION_ATTACH,PAPACC_TRUE,r,"DATA attach rejected",NULL);if(s->network_data_protocol.state==PAPACC_NETWORK_DATA_ACTIVE)close_bound_stream(l,s);else{s->network_data_protocol.state=PAPACC_NETWORK_DATA_TERMINAL;if(c!=NULL)papacc_connection_close(c);}}else log_event(l,PAPACC_LOG_WARNING,PAPACC_LOG_EVENT_PROTOCOL_REJECTED,PAPACC_LOG_CATEGORY_PROTOCOL,PAPACC_LOG_OPERATION_ESTABLISH,PAPACC_TRUE,r,"Peer protocol rejected",NULL);}return r;}
+static PAPACC_CONNECTION*closed_slot_connection(PAPACC_SERVER_IO_LOOP_WIN32*l,const PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s){PAPACC_SIZE i;for(i=0;i<l->connection_manager->capacity;++i){PAPACC_CONNECTION*c=&l->connection_manager->storage[i];if(c->connection_instance_id==s->connection_instance_id&&c->state==PAPACC_CONNECTION_STATE_CLOSED)return c;}return NULL;}
+#define reap reap_base
+static void reap(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 now){PAPACC_SIZE i,n;for(i=0;i<l->processor_capacity;++i){PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=&l->processor_slots[i];PAPACC_CONNECTION*c=s->in_use?closed_slot_connection(l,s):NULL;if(c!=NULL){PAPACC_CHANNEL*ch;if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH&&preserve_accepted_close(l,s->network_data_protocol.channel_instance_id)==PAPACC_TRUE)continue;if(s->establishment_job_id!=0U){PAPACC_JOB*j=papacc_job_manager_find(&l->network_job_manager,s->establishment_job_id);if(j!=NULL){j->suppress_result=PAPACC_TRUE;(void)papacc_job_manager_cancel(&l->network_job_manager,s->establishment_job_id);}continue;}ch=papacc_channel_manager_find_by_connection(&l->channel_manager,c->connection_instance_id);if(ch!=NULL)(void)papacc_channel_manager_close(&l->channel_manager,ch->channel_instance_id);if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL)log_session(l,PAPACC_LOG_INFO,PAPACC_LOG_EVENT_CHANNEL_CLOSED,PAPACC_LOG_OPERATION_SHUTDOWN,PAPACC_TRUE,PAPACC_RESULT_OK,"CONTROL closed",s->post_control_processor.session_instance_id);else if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH&&s->data_attach_processor.session_instance_id!=0)log_session(l,PAPACC_LOG_INFO,PAPACC_LOG_EVENT_CHANNEL_CLOSED,PAPACC_LOG_OPERATION_SHUTDOWN,PAPACC_TRUE,PAPACC_RESULT_OK,"DATA closed",s->data_attach_processor.session_instance_id);shutdown_slot(s);}}(void)papacc_data_association_manager_expire(&l->association_manager,now,&n);if(n!=0)log_event(l,PAPACC_LOG_DEBUG,PAPACC_LOG_EVENT_DATA_TICKETS_EXPIRED,PAPACC_LOG_CATEGORY_SESSION,PAPACC_LOG_OPERATION_EXPIRE,PAPACC_TRUE,PAPACC_RESULT_OK,"Expired DATA ticket entries removed",NULL);for(i=0;i<l->channel_manager.capacity;++i)if(l->channel_manager.storage[i].state==PAPACC_CHANNEL_STATE_CLOSED){PAPACC_U64 cid=l->channel_manager.storage[i].channel_instance_id;if(preserve_accepted_close(l,cid)!=PAPACC_TRUE&&papacc_network_stream_find_channel(&l->network_stream_manager,cid)!=NULL&&papacc_network_stream_close_channel(&l->network_stream_manager,cid)!=PAPACC_RESULT_OK)continue;(void)papacc_channel_manager_remove(&l->channel_manager,cid);}for(i=0;i<l->session_manager.capacity;++i)if(l->session_manager.storage[i].state==PAPACC_SESSION_STATE_CLOSED){PAPACC_U64 sid=l->session_manager.storage[i].session_instance_id;(void)papacc_job_manager_cancel_session(&l->network_job_manager,sid);if(papacc_network_stream_close_session(&l->network_stream_manager,sid)!=PAPACC_RESULT_OK)continue;(void)papacc_data_association_manager_invalidate_session(&l->association_manager,sid);if(papacc_session_capability_store_find(&l->capability_store,sid)!=NULL)(void)papacc_session_capability_store_remove(&l->capability_store,sid);(void)papacc_session_manager_remove(&l->session_manager,sid);log_session(l,PAPACC_LOG_INFO,PAPACC_LOG_EVENT_SESSION_CLEANUP,PAPACC_LOG_OPERATION_CLEANUP,PAPACC_TRUE,PAPACC_RESULT_OK,"Session cleanup complete",sid);}for(i=0;i<l->processor_capacity;++i)if(l->processor_slots[i].close_pending==PAPACC_TRUE)shutdown_slot(&l->processor_slots[i]);for(i=0;i<l->connection_manager->capacity;++i)if(l->connection_manager->storage[i].state==PAPACC_CONNECTION_STATE_CLOSED){PAPACC_U64 closed_id=l->connection_manager->storage[i].connection_instance_id;PAPACC_SERVER_PROTOCOL_SLOT_WIN32*pending=papacc_server_io_loop_win32_find_connection_slot(l,closed_id);if(pending!=NULL&&pending->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH&&preserve_accepted_close(l,pending->network_data_protocol.channel_instance_id)==PAPACC_TRUE)continue;(void)papacc_connection_manager_remove(l->connection_manager,closed_id);}}
+static void progress_standalone_open_result(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s)
+{
+    PAPACC_FRAMED_WRITER_STATUS status;
+    PAPACC_SIZE written=0U;
+    PAPACC_RESULT r;
+    if(s->open_result_pending!=PAPACC_TRUE||s->establishment_job_id!=0U)return;
+    r=papacc_framed_writer_step(&s->data_attach_processor.writer,
+        &s->open_result_payload[s->open_result_offset],
+        s->open_result_length-s->open_result_offset,&written,&status);
+    if(r!=PAPACC_RESULT_OK){
+        PAPACC_CONNECTION*c=slot_connection(l,s);
+        if(c!=NULL)papacc_connection_close(c);
+        (void)papacc_network_stream_close_channel(&l->network_stream_manager,
+            s->network_data_protocol.channel_instance_id);
+        s->open_result_pending=PAPACC_FALSE;
+        return;
+    }
+    s->open_result_offset+=written;
+    if(status==PAPACC_FRAMED_WRITER_STATUS_FRAME_COMPLETE)
+        s->open_result_pending=PAPACC_FALSE;
+}
+
+static void cancel_lost_establishments(PAPACC_SERVER_IO_LOOP_WIN32*l)
+{
+    PAPACC_SIZE i,pass;
+    PAPACC_JOB*j;
+    for(i=0U;i<l->processor_capacity;++i){
+        PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=&l->processor_slots[i];
+        if(s->in_use==PAPACC_TRUE&&s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH&&
+            s->establishment_job_id!=0U&&closed_slot_connection(l,s)!=NULL){
+            j=papacc_job_manager_find(&l->network_job_manager,s->establishment_job_id);
+            if(j!=NULL)j->suppress_result=PAPACC_TRUE;
+            (void)papacc_job_manager_cancel(&l->network_job_manager,
+                s->establishment_job_id);
+        }
+    }
+    for(pass=0U;pass<l->network_job_manager.capacity;++pass){
+        j=NULL;
+        if(papacc_job_manager_progress_one(&l->network_job_manager,0U,&j)!=
+            PAPACC_RESULT_OK||j==NULL)break;
+        if(papacc_job_state_terminal(j->state)==PAPACC_TRUE){
+            PAPACC_U64 id=j->job_instance_id;
+            for(i=0U;i<l->processor_capacity;++i)
+                if(l->processor_slots[i].establishment_job_id==id)
+                    l->processor_slots[i].establishment_job_id=0U;
+            (void)papacc_job_manager_reap(&l->network_job_manager,id);
+        }
+    }
+}
+
+static void drive_establishments(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 now)
+{
+    PAPACC_SIZE i;
+    PAPACC_JOB*j=NULL;
+    cancel_lost_establishments(l);
+    for(i=0U;i<l->processor_capacity;++i){
+        PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=&l->processor_slots[i];
+        if(s->in_use&&s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH&&
+            s->network_data_protocol.state==PAPACC_NETWORK_DATA_ESTABLISHING&&
+            s->establishment_job_id==0U&&s->open_result_pending!=PAPACC_TRUE&&
+            s->network_open_attempted!=PAPACC_TRUE){
+            s->network_open_attempted=PAPACC_TRUE;
+            terminal_trace_begin(l,s,now);
+            PAPACC_RESULT r=admit_network_open(l,s,now);
+            if(r!=PAPACC_RESULT_OK){
+                s->network_data_protocol.state=PAPACC_NETWORK_DATA_TERMINAL;
+                (void)prepare_open_result(s,r==PAPACC_RESULT_NOT_SUPPORTED?
+                    PAPACC_NETWORK_OPEN_UNSUPPORTED:PAPACC_NETWORK_OPEN_FAILED);
+            }
+        }
+        progress_standalone_open_result(l,s);
+    }
+    if(papacc_job_manager_progress_one(&l->network_job_manager,now,&j)!=
+        PAPACC_RESULT_OK)return;
+    if(j!=NULL&&papacc_job_state_terminal(j->state)==PAPACC_TRUE){
+        PAPACC_U64 id=j->job_instance_id;
+        for(i=0U;i<l->processor_capacity;++i)
+            if(l->processor_slots[i].establishment_job_id==id){
+                if(j->state!=PAPACC_JOB_STATE_COMPLETED)
+                    l->processor_slots[i].network_data_protocol.state=
+                        PAPACC_NETWORK_DATA_TERMINAL;
+                l->processor_slots[i].establishment_job_id=0U;
+                break;
+            }
+        (void)papacc_job_manager_reap(&l->network_job_manager,id);
+    }
+}
+
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+static void publication_authority_trace(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,const PAPACC_NETWORK_STREAM*stream,
+    const char*boundary)
+{
+    char path[MAX_PATH];FILE*f=NULL;PAPACC_U64 now=0U;
+    PAPACC_CONNECTION*c=l!=NULL?slot_connection(l,s):NULL;
+    DWORD length=GetEnvironmentVariableA("PAPACC_P10_PUBLICATION_TRACE_FILE",path,sizeof(path));
+    if(length==0U||length>=sizeof(path))return;
+    (void)papacc_pal_monotonic_time_ns(&now);
+    if(fopen_s(&f,path,"ab")!=0||f==NULL)return;
+    (void)fprintf(f,"boundary=%s ns=%llu thread=%lu slot=%p connection=%llu connection_state=%u operation=%llu generation=%llu bound_generation=%llu queue_connection=%llu queue_operation=%llu queue_generation=%llu stream=%p stream_state=%u cause=%u queue_pending=%u type=%u writer_state=%u header_offset=%llu\n",
+        boundary,(unsigned long long)now,(unsigned long)GetCurrentThreadId(),(void*)s,
+        (unsigned long long)s->connection_instance_id,c!=NULL?(unsigned)c->state:0U,
+        (unsigned long long)s->network_data_protocol.channel_instance_id,
+        (unsigned long long)(stream!=NULL?stream->stream_instance_id:0U),
+        (unsigned long long)s->network_stream_generation,(unsigned long long)s->network_control_connection_id,
+        (unsigned long long)s->network_control_operation_id,(unsigned long long)s->network_control_generation,(const void*)stream,
+        stream!=NULL?(unsigned)stream->state:0U,stream!=NULL?(unsigned)stream->terminal_cause:0U,
+        (unsigned)s->network_control_send_pending,(unsigned)s->network_control_send_type,
+        (unsigned)s->data_attach_processor.writer.state,
+        (unsigned long long)s->data_attach_processor.writer.header_offset);
+    (void)fclose(f);
+}
+#define AUTHORITY_TRACE(l,s,stream,boundary) publication_authority_trace(l,s,stream,boundary)
+#else
+#define AUTHORITY_TRACE(l,s,stream,boundary) ((void)0)
+#endif
+/* A queued terminal never grants authority after its Connection close intent.
+ * Keep the queue intact until owner reconciliation; do not run its writer. */
+static PAPACC_BOOL publication_connection_active(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    const PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s)
+{
+    PAPACC_CONNECTION*c;
+    if(l==NULL||s==NULL)return PAPACC_FALSE;
+    if(l->connection_manager==NULL){
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+        /* Existing standalone owner-hook harness, not an initialized runtime. */
+        return l->initialized!=PAPACC_TRUE&&l->owner_terminal_test_thread_id==
+            (PAPACC_U32)GetCurrentThreadId()?PAPACC_TRUE:PAPACC_FALSE;
+#else
+        return PAPACC_FALSE;
+#endif
+    }
+    c=papacc_connection_manager_find(l->connection_manager,s->connection_instance_id);
+    return c!=NULL&&(c->state==PAPACC_CONNECTION_STATE_PENDING||
+        c->state==PAPACC_CONNECTION_STATE_ASSOCIATED)?PAPACC_TRUE:PAPACC_FALSE;
+}
+/* ADR-0023 G1: a factual site clean completion may reach the writer's
+ * validation after DATA has closed. This grants no delivery authority: the
+ * same CLOSED Connection must have an invalid transport, so validation fails
+ * before any transport callback. Retained/closing owners never qualify. */
+static PAPACC_BOOL publication_closed_clean_rejection(
+    PAPACC_SERVER_IO_LOOP_WIN32*l,
+    const PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,PAPACC_U16 type)
+{
+    PAPACC_CONNECTION*c;
+    PAPACC_NETWORK_STREAM*stream;
+    if(l==NULL||s==NULL||l->connection_manager==NULL||
+       type!=PAPACC_MESSAGE_TYPE_NETWORK_CLOSE||
+       s->network_data_protocol.state!=PAPACC_NETWORK_DATA_TERMINAL||
+       s->network_terminal_sent==PAPACC_TRUE||s->in_use!=PAPACC_TRUE||
+       s->kind!=PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH)return PAPACC_FALSE;
+    c=papacc_connection_manager_find(l->connection_manager,s->connection_instance_id);
+    if(c==NULL||c->state!=PAPACC_CONNECTION_STATE_CLOSED||
+       s->data_attach_processor.writer.transport!=&c->transport||
+       papacc_transport_connection_is_valid(&c->transport)==PAPACC_TRUE)
+        return PAPACC_FALSE;
+    stream=papacc_network_stream_find_channel(&l->network_stream_manager,
+        s->network_data_protocol.channel_instance_id);
+    return stream!=NULL&&stream->stream_instance_id==s->network_stream_generation&&
+        stream->transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED&&
+        stream->remote_half_closed==PAPACC_TRUE&&
+        stream->accepted_terminal_type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE&&
+        stream->accepted_terminal_generation==stream->stream_instance_id&&
+        stream->terminal_cause==PAPACC_NETWORK_STREAM_TERMINAL_CAUSE_NONE?
+        PAPACC_TRUE:PAPACC_FALSE;
+}
+static PAPACC_BOOL publication_slot_identity_valid(
+    const PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s)
+{
+    return s!=NULL&&s->network_data_protocol.channel_instance_id!=0U&&
+        s->network_stream_generation!=0U?PAPACC_TRUE:PAPACC_FALSE;
+}
+static PAPACC_SERVER_PROTOCOL_SLOT_WIN32*slot_for_stream(
+    PAPACC_SERVER_IO_LOOP_WIN32*l,const PAPACC_NETWORK_STREAM*stream)
+{
+    PAPACC_SIZE i;
+    for(i=0U;i<l->processor_capacity;++i){
+        PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=&l->processor_slots[i];
+        if(s->in_use==PAPACC_TRUE&&s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH&&
+            s->network_data_protocol.channel_instance_id==
+                stream->data_channel_instance_id)return s;
+    }
+    return NULL;
+}
+
+static void close_bound_stream(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s)
+{
+    PAPACC_CONNECTION*c=slot_connection(l,s);
+    AUTHORITY_TRACE(l,s,s->establishment.reservation,"CANCEL_CASCADE_BEGIN");
+    (void)papacc_network_stream_close_channel(&l->network_stream_manager,
+        s->network_data_protocol.channel_instance_id);
+    AUTHORITY_TRACE(l,s,s->establishment.reservation,"STREAM_DESTROY_RETURN");
+    s->establishment.reservation=NULL;
+    s->network_data_protocol.state=PAPACC_NETWORK_DATA_TERMINAL;
+    if(c!=NULL)papacc_connection_close(c);
+    AUTHORITY_TRACE(l,s,NULL,"CONNECTION_CLOSE_RETURN");
+}
+
+static PAPACC_RESULT begin_network_control_payload(
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,PAPACC_U16 type,
+    const PAPACC_U8*payload,PAPACC_SIZE payload_length,PAPACC_BOOL close_after)
+{
+    PAPACC_FRAME_HEADER header;
+    PAPACC_RESULT r;
+    if(s->network_control_send_pending==PAPACC_TRUE||
+       (publication_connection_active(s->establishment.loop,s)!=PAPACC_TRUE&&
+        publication_closed_clean_rejection(s->establishment.loop,s,type)!=PAPACC_TRUE)||
+       publication_slot_identity_valid(s)!=PAPACC_TRUE||
+       s->network_terminal_sent==PAPACC_TRUE)
+        return PAPACC_RESULT_INVALID_STATE;
+    if(payload_length>sizeof(s->network_control_payload)||
+        (payload_length!=0U&&payload==NULL))return PAPACC_RESULT_INVALID_ARGUMENT;
+    header=papacc_network_frame_header(type,(PAPACC_U32)payload_length);
+    AUTHORITY_TRACE(s->establishment.loop,s,s->establishment.reservation,"CONTROL_CREATE");
+    r=papacc_framed_writer_begin_frame(&s->data_attach_processor.writer,
+        &header);
+    if(r==PAPACC_RESULT_OK){
+        s->network_control_send_type=type;
+        s->network_control_connection_id=s->connection_instance_id;
+        s->network_control_operation_id=s->network_data_protocol.channel_instance_id;
+        s->network_control_generation=s->network_stream_generation;
+        s->network_control_publication_started=PAPACC_FALSE;
+        s->network_control_send_pending=PAPACC_TRUE;
+        AUTHORITY_TRACE(s->establishment.loop,s,s->establishment.reservation,"CONTROL_ENQUEUE");
+        if(payload_length!=0U)memcpy(s->network_control_payload,payload,
+            payload_length);
+        s->network_control_payload_length=payload_length;
+        s->network_control_payload_offset=0U;
+        s->network_close_after_control=close_after;
+    }
+    return r;
+}
+
+static PAPACC_RESULT begin_network_control(
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,PAPACC_U16 type,
+    PAPACC_BOOL close_after)
+{
+    return begin_network_control_payload(s,type,NULL,0U,close_after);
+}
+
+static PAPACC_RESULT begin_tls_truncated_reason(
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s)
+{
+    PAPACC_NETWORK_ABORT_REASON_MESSAGE message=
+        PAPACC_NETWORK_ABORT_REASON_MESSAGE_INITIALIZER;
+    PAPACC_U8 payload[2];PAPACC_SIZE written=0U;PAPACC_RESULT r;
+    message.reason=PAPACC_NETWORK_TERMINAL_REASON_TLS_TRUNCATED;
+    r=papacc_network_abort_reason_encode(&message,payload,sizeof(payload),
+        &written);
+    if(r!=PAPACC_RESULT_OK)return r;
+    return begin_network_control_payload(s,
+        PAPACC_MESSAGE_TYPE_NETWORK_ABORT_REASON,payload,written,PAPACC_TRUE);
+}
+
+static void progress_network_control(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,PAPACC_NETWORK_STREAM*stream)
+{
+    PAPACC_SIZE ignored=0U;
+    PAPACC_FRAMED_WRITER_STATUS status;
+    PAPACC_RESULT r;
+    if(s->network_control_send_pending!=PAPACC_TRUE)return;
+    if((publication_connection_active(l,s)!=PAPACC_TRUE&&
+        publication_closed_clean_rejection(l,s,s->network_control_send_type)!=PAPACC_TRUE)||
+       publication_slot_identity_valid(s)!=PAPACC_TRUE||
+       s->network_control_connection_id!=s->connection_instance_id||
+       s->network_control_operation_id!=s->network_data_protocol.channel_instance_id||
+       s->network_control_generation!=s->network_stream_generation||
+       (stream!=NULL&&(stream->stream_instance_id!=s->network_control_generation||
+        stream->data_channel_instance_id!=s->network_control_operation_id))){
+        AUTHORITY_TRACE(l,s,stream,"CONTROL_AUTHORITY_REVOKED");
+        return;
+    }
+    AUTHORITY_TRACE(l,s,stream,"CONTROL_DEQUEUE_DISPATCH");
+    if(s->terminal_trace_a4==PAPACC_TRUE&&
+        (s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_HALF_CLOSE||
+         s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE||
+         s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_ABORT||
+         s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_ABORT_REASON)&&
+        s->terminal_trace_write_started!=PAPACC_TRUE){
+        terminal_trace_emit(l,s,stream,"A8",
+            "name=PACC_TERMINAL_WRITE_BEGIN");
+        s->terminal_trace_write_started=PAPACC_TRUE;
+    }
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+    if((s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE||
+        s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_ABORT||
+        s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_ABORT_REASON)&&
+       s->network_control_publication_started!=PAPACC_TRUE)
+        owner_terminal_emit_publication(l,stream,s,
+            PAPACC_OWNER_TERMINAL_TEST_EVENT_PUBLICATION_ATTEMPT,
+            s->network_control_send_type,PAPACC_RESULT_OK,
+            PAPACC_FRAMED_WRITER_STATUS_UNSPECIFIED);
+#endif
+    s->network_control_publication_started=PAPACC_TRUE;
+    r=papacc_framed_writer_step(&s->data_attach_processor.writer,
+        s->network_control_payload_length==0U?NULL:
+            s->network_control_payload+s->network_control_payload_offset,
+        s->network_control_payload_length-s->network_control_payload_offset,
+        &ignored,&status);
+    if(r!=PAPACC_RESULT_OK||status==PAPACC_FRAMED_WRITER_STATUS_END_OF_STREAM){
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+        if(s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE||
+           s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_ABORT||
+           s->network_control_send_type==PAPACC_MESSAGE_TYPE_NETWORK_ABORT_REASON)
+            owner_terminal_emit_publication(l,stream,s,
+                PAPACC_OWNER_TERMINAL_TEST_EVENT_PUBLICATION_FAILURE,
+                s->network_control_send_type,r,status);
+#endif
+        close_bound_stream(l,s);
+        return;
+    }
+    s->network_control_payload_offset+=ignored;
+    if(status==PAPACC_FRAMED_WRITER_STATUS_FRAME_COMPLETE){
+        PAPACC_BOOL close_after=s->network_close_after_control;
+        PAPACC_U16 type=s->network_control_send_type;
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+        if(type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE||type==PAPACC_MESSAGE_TYPE_NETWORK_ABORT||
+           type==PAPACC_MESSAGE_TYPE_NETWORK_ABORT_REASON)
+            owner_terminal_emit_publication(l,stream,s,
+                PAPACC_OWNER_TERMINAL_TEST_EVENT_PUBLICATION_SUCCESS,
+                type,PAPACC_RESULT_OK,status);
+#endif
+        s->network_control_send_type=0U;
+        s->network_control_send_pending=PAPACC_FALSE;
+        s->network_control_payload_length=0U;
+        s->network_control_payload_offset=0U;
+        s->network_close_after_control=PAPACC_FALSE;
+        if(s->terminal_trace_a4==PAPACC_TRUE&&
+            s->terminal_trace_write_started==PAPACC_TRUE)
+            terminal_trace_emit(l,s,stream,"A9",
+                "name=PACC_TERMINAL_WRITE_COMPLETE");
+        if(type==PAPACC_MESSAGE_TYPE_NETWORK_HALF_CLOSE&&stream!=NULL)
+            stream->remote_half_close_signalled=PAPACC_TRUE;
+        if(close_after==PAPACC_TRUE)
+            s->network_terminal_sent=PAPACC_TRUE;
+        if(close_after==PAPACC_TRUE)close_bound_stream(l,s);
+    }
+}
+#ifdef PAPACC_ENABLE_TEST_OWNER_TERMINAL_HOOKS
+PAPACC_RESULT papacc_server_io_loop_win32_test_publish_owner_terminal(
+    PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,
+    PAPACC_U64 operation,PAPACC_U64 generation,PAPACC_U16 type)
+{
+    PAPACC_NETWORK_STREAM*stream;PAPACC_RESULT r;
+    if(l==NULL||s==NULL||operation==0U||generation==0U||
+       l->owner_terminal_test_thread_id!=(PAPACC_U32)GetCurrentThreadId())
+        return PAPACC_RESULT_INVALID_ARGUMENT;
+    stream=papacc_network_stream_find_channel(&l->network_stream_manager,
+        operation);
+    if(stream==NULL||stream->stream_instance_id!=generation||
+       stream->accepted_terminal_type!=type||
+       stream->accepted_terminal_generation!=generation||
+       s->network_data_protocol.channel_instance_id!=operation)
+        return PAPACC_RESULT_INVALID_STATE;
+    s->establishment.loop=l;
+    s->network_stream_generation=generation;
+    r=begin_network_control(s,type,PAPACC_TRUE);
+    if(r!=PAPACC_RESULT_OK)return r;
+    progress_network_control(l,s,stream);
+    return s->network_control_send_pending==PAPACC_FALSE?
+        PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
+}
+PAPACC_RESULT papacc_server_io_loop_win32_test_queue_owner_terminal(
+    PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,
+    PAPACC_U64 operation,PAPACC_U64 generation,PAPACC_U16 type)
+{
+    PAPACC_NETWORK_STREAM*stream;
+    if(l==NULL||s==NULL||operation==0U||generation==0U)return PAPACC_RESULT_INVALID_ARGUMENT;
+    if(l->owner_terminal_test_thread_id!=(PAPACC_U32)GetCurrentThreadId())
+        return PAPACC_RESULT_INVALID_STATE;
+    stream=papacc_network_stream_find_channel(&l->network_stream_manager,operation);
+    if(stream==NULL||stream->stream_instance_id!=generation||
+       s->network_data_protocol.channel_instance_id!=operation||
+       s->network_stream_generation!=generation||stream->accepted_terminal_type!=type||
+       stream->accepted_terminal_generation!=generation)return PAPACC_RESULT_INVALID_STATE;
+    return begin_network_control(s,type,PAPACC_TRUE);
+}
+PAPACC_RESULT papacc_server_io_loop_win32_test_drain_owner_terminal(
+    PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s,
+    PAPACC_U64 operation,PAPACC_U64 generation)
+{
+    PAPACC_NETWORK_STREAM*stream;
+    if(l==NULL||s==NULL||operation==0U||generation==0U)return PAPACC_RESULT_INVALID_ARGUMENT;
+    if(l->owner_terminal_test_thread_id!=(PAPACC_U32)GetCurrentThreadId()||
+       s->network_control_operation_id!=operation||s->network_control_generation!=generation)
+        return PAPACC_RESULT_INVALID_STATE;
+    stream=papacc_network_stream_find_channel(&l->network_stream_manager,operation);
+    progress_network_control(l,s,stream);
+    return s->network_control_send_pending==PAPACC_FALSE?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
+}
+#endif
+
+static void progress_stream_to_client(PAPACC_SERVER_IO_LOOP_WIN32*l,
+    PAPACC_NETWORK_STREAM*stream)
+{
+    PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=slot_for_stream(l,stream);
+    const PAPACC_U8*payload=NULL;
+    PAPACC_SIZE available=0U,written=0U;
+    PAPACC_FRAMED_WRITER_STATUS status;
+    PAPACC_RESULT r;
+    PAPACC_U16 terminal_type;
+    PAPACC_BOOL close_after_terminal;
+    if(s==NULL||s->open_result_pending==PAPACC_TRUE||
+        s->establishment_job_id!=0U)return;
+    if(s->network_control_send_pending==PAPACC_TRUE){
+        progress_network_control(l,s,stream);
+        return;
+    }
+    if(papacc_network_stream_peek_client(stream,&payload,&available)!=
+        PAPACC_RESULT_OK){
+        close_bound_stream(l,s);
+        return;
+    }
+    if(available==0U&&stream->remote_half_closed==PAPACC_TRUE&&
+        (stream->transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED||
+         stream->remote_half_close_signalled!=PAPACC_TRUE)){
+        terminal_type=PAPACC_MESSAGE_TYPE_NETWORK_HALF_CLOSE;
+        close_after_terminal=stream->client_half_closed;
+        if(stream->transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED){
+            terminal_type=PAPACC_MESSAGE_TYPE_NETWORK_CLOSE;
+            close_after_terminal=PAPACC_TRUE;
+        }
+        terminal_trace_emit(l,s,stream,"A5",
+            "name=TERMINAL_CLASSIFIED terminal=CLEAN_EOF");
+        if(begin_network_control(s,terminal_type,
+            close_after_terminal)==PAPACC_RESULT_OK){
+            terminal_trace_emit(l,s,stream,"A6",
+                terminal_type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE?
+                    "name=PACC_TERMINAL_CONSTRUCTED message=NETWORK_CLOSE":
+                    "name=PACC_TERMINAL_CONSTRUCTED message=NETWORK_HALF_CLOSE");
+            terminal_trace_emit(l,s,stream,"A7",
+                terminal_type==PAPACC_MESSAGE_TYPE_NETWORK_CLOSE?
+                    "name=PACC_TERMINAL_QUEUED message=NETWORK_CLOSE":
+                    "name=PACC_TERMINAL_QUEUED message=NETWORK_HALF_CLOSE");
+            progress_network_control(l,s,stream);
+        }
+        return;
+    }
+    if(available==0U&&stream->client_half_closed==PAPACC_TRUE&&
+        stream->remote_half_close_signalled==PAPACC_TRUE){
+        close_bound_stream(l,s);
+        return;
+    }
+    if(s->network_data_send_pending!=PAPACC_TRUE){
+        PAPACC_FRAME_HEADER header;
+        if(papacc_network_stream_peek_client(stream,&payload,&available)!=
+            PAPACC_RESULT_OK||available==0U)return;
+        if(available>PAPACC_NETWORK_DATA_MAX_PAYLOAD)
+            available=PAPACC_NETWORK_DATA_MAX_PAYLOAD;
+        header=papacc_network_frame_header(PAPACC_MESSAGE_TYPE_NETWORK_DATA,
+            (PAPACC_U32)available);
+        if(papacc_framed_writer_begin_frame(&s->data_attach_processor.writer,
+            &header)!=PAPACC_RESULT_OK)return;
+        s->network_data_send_length=available;
+        s->network_data_send_offset=0U;
+        s->network_data_send_pending=PAPACC_TRUE;
+    }
+    if(papacc_network_stream_peek_client(stream,&payload,&available)!=
+        PAPACC_RESULT_OK||available<s->network_data_send_length){
+        s->network_data_protocol.state=PAPACC_NETWORK_DATA_TERMINAL;
+        return;
+    }
+    r=papacc_framed_writer_step(&s->data_attach_processor.writer,
+        payload+s->network_data_send_offset,
+        s->network_data_send_length-s->network_data_send_offset,&written,&status);
+    if(r!=PAPACC_RESULT_OK){
+        PAPACC_CONNECTION*c=slot_connection(l,s);
+        if(c!=NULL)papacc_connection_close(c);
+        s->network_data_protocol.state=PAPACC_NETWORK_DATA_TERMINAL;
+        return;
+    }
+    s->network_data_send_offset+=written;
+    if(status==PAPACC_FRAMED_WRITER_STATUS_FRAME_COMPLETE){
+        if(papacc_network_stream_consume_client(stream,
+            s->network_data_send_length)!=PAPACC_RESULT_OK){
+            s->network_data_protocol.state=PAPACC_NETWORK_DATA_TERMINAL;
+            return;
+        }
+        s->network_data_send_length=0U;
+        s->network_data_send_offset=0U;
+        s->network_data_send_pending=PAPACC_FALSE;
+    }
+}
+
+static PAPACC_BOOL drive_active_streams(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 now)
+{
+    PAPACC_SIZE i;
+    PAPACC_NETWORK_STREAM*stream=NULL;
+    PAPACC_BOOL made_progress=PAPACC_FALSE;
+    PAPACC_SIZE before_client_size=0U,before_send_offset=0U;
+    PAPACC_RESULT r=papacc_network_stream_progress_one_observed_at(
+        &l->network_stream_manager,PAPACC_SERVER_NETWORK_STREAM_QUANTUM,now,
+        &stream,&made_progress);
+    if(stream!=NULL){before_client_size=stream->to_client_size;
+        {PAPACC_SERVER_PROTOCOL_SLOT_WIN32*before_slot=slot_for_stream(l,stream);
+         if(before_slot!=NULL)before_send_offset=before_slot->network_data_send_offset;}}
+    if(r==PAPACC_RESULT_OK&&stream!=NULL){
+        if(stream->state==PAPACC_NETWORK_STREAM_OPEN&&
+            stream->transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED&&
+            stream->remote_half_closed==PAPACC_TRUE&&
+            stream->remote_half_close_signalled!=PAPACC_TRUE){
+            stream->remote_half_closed=PAPACC_FALSE;
+            if(papacc_network_stream_request_close(stream,
+                    deadline(now,l->establishment_timeout_ns))!=PAPACC_RESULT_OK)
+                (void)papacc_network_stream_close_channel(
+                    &l->network_stream_manager,stream->data_channel_instance_id);
+        }
+        PAPACC_SERVER_PROTOCOL_SLOT_WIN32*trace_slot=slot_for_stream(l,stream);
+        if(trace_slot!=NULL&&stream->bytes_to_client>
+                trace_slot->terminal_trace_last_bytes){
+            trace_slot->terminal_trace_last_bytes=stream->bytes_to_client;
+            trace_slot->terminal_trace_last_data_ns=now;
+            if(trace_slot->terminal_trace_a2!=PAPACC_TRUE){
+                terminal_trace_emit_at(l,trace_slot,stream,"A2",now,
+                    "name=FIRST_UPSTREAM_BYTE");
+                trace_slot->terminal_trace_a2=PAPACC_TRUE;
+            }
+        }
+        if((stream->terminal_pending==PAPACC_TRUE||
+                stream->remote_half_closed==PAPACC_TRUE)&&
+            trace_slot!=NULL&&trace_slot->terminal_trace_a4!=PAPACC_TRUE){
+            char detail[128];
+            if(trace_slot->terminal_trace_last_data_ns!=0U){
+                char data_detail[64];
+                (void)sprintf_s(data_detail,sizeof(data_detail),
+                    "name=LAST_UPSTREAM_DATA_BEFORE_TERMINAL bytes=%llu",
+                    (unsigned long long)stream->bytes_to_client);
+                terminal_trace_emit_at(l,trace_slot,stream,"A3",
+                    trace_slot->terminal_trace_last_data_ns,
+                    data_detail);
+            }
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+            if(stream->transport_mode==PAPACC_NETWORK_TRANSPORT_TLS_REQUIRED)
+                (void)sprintf_s(detail,sizeof(detail),
+                    "name=UPSTREAM_TLS_TERMINAL_OBSERVED pst_result=%d classification=%s",
+                    (int)((PAPACC_OUTBOUND_TLS*)stream->io.context)->processor.source_result,
+                    stream->terminal_reason==PAPACC_NETWORK_TERMINAL_REASON_TLS_TRUNCATED?
+                        "TLS_TRUNCATED":(stream->remote_half_closed==PAPACC_TRUE?
+                        "CLEAN_EOF":"OTHER"));
+            else (void)sprintf_s(detail,sizeof(detail),
+                "pst_result=NA classification=OTHER");
+#else
+            (void)sprintf_s(detail,sizeof(detail),"classification=%s",
+                "OTHER");
+#endif
+            terminal_trace_emit(l,trace_slot,stream,"A4",detail);
+            trace_slot->terminal_trace_a4=PAPACC_TRUE;
+        }
+    }
+    if(r==PAPACC_RESULT_OK&&stream!=NULL&&
+        stream->state==PAPACC_NETWORK_STREAM_OPEN)
+        progress_stream_to_client(l,stream);
+    if(r==PAPACC_RESULT_OK&&stream!=NULL&&
+        (stream->state==PAPACC_NETWORK_STREAM_OPEN||
+         stream->state==PAPACC_NETWORK_STREAM_CLOSING)&&
+        stream->terminal_pending==PAPACC_TRUE&&
+        stream->to_client_size==0U){
+        PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=slot_for_stream(l,stream);
+        if(s!=NULL&&s->network_data_send_pending!=PAPACC_TRUE&&
+            s->network_control_send_pending!=PAPACC_TRUE){
+            PAPACC_SESSION_CAPABILITY_SNAPSHOT*snapshot=
+                papacc_session_capability_store_find(&l->capability_store,
+                    stream->owner_session_instance_id);
+            PAPACC_RESULT terminal_result;
+            terminal_trace_emit(l,s,stream,"A5",
+                stream->terminal_reason==
+                    PAPACC_NETWORK_TERMINAL_REASON_TLS_TRUNCATED?
+                    "name=TERMINAL_CLASSIFIED terminal=TLS_TRUNCATED":
+                    (stream->terminal_cause==
+                        PAPACC_NETWORK_STREAM_TERMINAL_CAUSE_SHUTDOWN_DEADLINE?
+                        "name=TERMINAL_CLASSIFIED terminal=ABORT internal_cause=SHUTDOWN_DEADLINE":
+                        "name=TERMINAL_CLASSIFIED terminal=ABORT"));
+            if(stream->terminal_reason==
+                    PAPACC_NETWORK_TERMINAL_REASON_TLS_TRUNCATED&&
+                papacc_session_capability_snapshot_contains(snapshot,
+                    &PAPACC_CAPABILITY_NETWORK_EGRESS_V2)==PAPACC_TRUE){
+                terminal_result=begin_tls_truncated_reason(s);
+                log_session(l,PAPACC_LOG_WARNING,
+                    PAPACC_LOG_EVENT_SECURE_TRANSPORT_CONNECTION_FAILURE,
+                    PAPACC_LOG_OPERATION_CLEANUP,PAPACC_TRUE,
+                    PAPACC_RESULT_INTERNAL_ERROR,
+                    "TLS truncation mapped to NETWORK_ABORT_REASON",
+                    stream->owner_session_instance_id);
+            }else{
+                terminal_result=begin_network_control(s,
+                    PAPACC_MESSAGE_TYPE_NETWORK_ABORT,PAPACC_TRUE);
+                log_session(l,PAPACC_LOG_WARNING,
+                    PAPACC_LOG_EVENT_SECURE_TRANSPORT_CONNECTION_FAILURE,
+                    PAPACC_LOG_OPERATION_CLEANUP,PAPACC_TRUE,
+                    PAPACC_RESULT_INTERNAL_ERROR,
+                    stream->terminal_reason==
+                        PAPACC_NETWORK_TERMINAL_REASON_TLS_TRUNCATED?
+                        "TLS truncation mapped to NETWORK_ABORT":
+                        (stream->terminal_cause==
+                            PAPACC_NETWORK_STREAM_TERMINAL_CAUSE_SHUTDOWN_DEADLINE?
+                            "Shutdown deadline mapped to NETWORK_ABORT":
+                            "Network Stream mapped to NETWORK_ABORT"),
+                    stream->owner_session_instance_id);
+            }
+            if(terminal_result==PAPACC_RESULT_OK){
+                terminal_trace_emit(l,s,stream,"A6",
+                    stream->terminal_reason==PAPACC_NETWORK_TERMINAL_REASON_TLS_TRUNCATED?
+                    "name=PACC_TERMINAL_CONSTRUCTED message=NETWORK_ABORT_REASON reason=TLS_TRUNCATED":
+                    "name=PACC_TERMINAL_CONSTRUCTED message=NETWORK_ABORT");
+                terminal_trace_emit(l,s,stream,"A7",
+                    stream->terminal_reason==PAPACC_NETWORK_TERMINAL_REASON_TLS_TRUNCATED?
+                    "name=PACC_TERMINAL_QUEUED message=NETWORK_ABORT_REASON":
+                    "name=PACC_TERMINAL_QUEUED message=NETWORK_ABORT");
+                progress_network_control(l,s,stream);
+            }else close_bound_stream(l,s);
+        }
+    }
+    {
+        for(i=0U;i<l->processor_capacity;++i){
+            PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=&l->processor_slots[i];
+            if(s->in_use==PAPACC_TRUE&&
+                publication_connection_active(l,s)==PAPACC_TRUE&&
+                s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH&&
+                (s->network_data_protocol.state==PAPACC_NETWORK_DATA_ACTIVE||
+                 s->network_data_protocol.state==PAPACC_NETWORK_DATA_TERMINAL)&&
+                s->network_terminal_sent!=PAPACC_TRUE&&
+                papacc_network_stream_find_channel(&l->network_stream_manager,
+                    s->network_data_protocol.channel_instance_id)==NULL){
+                s->establishment.reservation=NULL;
+                if(s->network_data_send_pending!=PAPACC_TRUE&&
+                    s->data_attach_processor.writer.state==
+                        PAPACC_FRAMED_WRITER_STATE_IDLE&&
+                    begin_network_control(s,PAPACC_MESSAGE_TYPE_NETWORK_ABORT,
+                        PAPACC_TRUE)==PAPACC_RESULT_OK)
+                    progress_network_control(l,s,NULL);
+                else close_bound_stream(l,s);
+            }
+        }
+    }
+    if(stream!=NULL&&stream->state==PAPACC_NETWORK_STREAM_OPEN){
+        PAPACC_SERVER_PROTOCOL_SLOT_WIN32*after_slot=slot_for_stream(l,stream);
+        if(stream->to_client_size!=before_client_size||
+            (after_slot!=NULL&&after_slot->network_data_send_offset!=
+                before_send_offset))made_progress=PAPACC_TRUE;
+    }
+    return made_progress;
+}
+#undef reap
+static void reap_budget(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 now,
+    PAPACC_SIZE network_stream_budget){PAPACC_SIZE operation,idle=0U,active;
+    drive_establishments(l,now);
+    active=l->network_stream_manager.count;
+    for(operation=0U;operation<network_stream_budget;++operation){
+        if(drive_active_streams(l,now)==PAPACC_TRUE)idle=0U;else ++idle;
+        active=l->network_stream_manager.count;
+        if(active==0U||idle>=active)break;}
+    reap_base(l,now);}
+static void reap(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 now){reap_budget(l,now,1U);}
+PAPACC_RESULT papacc_server_io_loop_win32_maintenance_budget(
+    PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 now,PAPACC_SIZE budget){
+    if(l==NULL||budget==0U)return PAPACC_RESULT_INVALID_ARGUMENT;
+    if(!l->initialized)return PAPACC_RESULT_INVALID_STATE;
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+    if(l->c2_owner!=NULL){PAPACC_RESULT result=papacc_c2_operation_tick(l->c2_owner->manager,(PAPACC_U64)GetTickCount64());if(result!=PAPACC_RESULT_OK)return result;}
+#endif
+    reap_budget(l,now,budget);
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+    if(l->c2_owner!=NULL)return papacc_server_c2_owner_win32_retire_sessions(l->c2_owner);
+#endif
+    return PAPACC_RESULT_OK;}
+PAPACC_RESULT papacc_server_io_loop_win32_maintenance(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 now){return papacc_server_io_loop_win32_maintenance_budget(l,now,1U);}
+PAPACC_RESULT papacc_server_io_loop_win32_poll_once(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U32 ms){fd_set rs,ws;struct timeval tv;PAPACC_SIZE rc,wc=0,i,o;PAPACC_BOOL bw=PAPACC_FALSE;PAPACC_U64 now;int ready;PAPACC_RESULT r;if(l==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ENABLE_PST_OUTBOUND_TLS)
+if(papacc_server_launcher_generic_io_is_c8(l->network,l->acceptor,l)==PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
+#endif
+if(!l->initialized||!network_valid(l->network))return PAPACC_RESULT_INVALID_STATE;rc=l->network->listener_set.count;for(i=0;i<l->processor_capacity;++i)if(l->processor_slots[i].in_use){if(wants_read(&l->processor_slots[i]))++rc;if(wants_write(&l->processor_slots[i]))++wc;if(buffered(&l->processor_slots[i]))bw=PAPACC_TRUE;}if(rc>(PAPACC_SIZE)FD_SETSIZE||wc>(PAPACC_SIZE)FD_SETSIZE)return PAPACC_RESULT_LIMIT_EXCEEDED;if(papacc_pal_monotonic_time_ns(&now)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INTERNAL_ERROR;FD_ZERO(&rs);FD_ZERO(&ws);for(i=0;i<l->network->listener_set.count;++i)FD_SET(l->network->listener_set.entries[i].socket.native_socket,&rs);for(i=0;i<l->processor_capacity;++i){PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=&l->processor_slots[i];PAPACC_CONNECTION*c;SOCKET sock;if(!s->in_use||(!wants_read(s)&&!wants_write(s)))continue;c=slot_connection(l,s);if(c==NULL||papacc_tcp_connection_transport_win32_get_native_socket(&c->transport,&sock)!=PAPACC_RESULT_OK)continue;if(wants_read(s))FD_SET(sock,&rs);if(wants_write(s))FD_SET(sock,&ws);}tv.tv_sec=bw?0L:(long)(ms/1000U);tv.tv_usec=bw?0L:(long)((ms%1000U)*1000U);ready=select(0,&rs,&ws,NULL,&tv);if(ready==SOCKET_ERROR)return PAPACC_RESULT_INTERNAL_ERROR;for(o=0;o<l->network->listener_set.count;++o){i=(l->next_listener_index+o)%l->network->listener_set.count;if(FD_ISSET(l->network->listener_set.entries[i].socket.native_socket,&rs)){PAPACC_CONNECTION*c=NULL;l->next_listener_index=(i+1U)%l->network->listener_set.count;r=papacc_server_acceptor_win32_accept_ready(l->acceptor,i,&c);if(r==PAPACC_RESULT_OK&&c!=NULL)r=attach_classifier(l,c,now);if(r!=PAPACC_RESULT_OK&&r!=PAPACC_RESULT_LIMIT_EXCEEDED)return r;break;}}for(o=0;o<l->processor_capacity;++o){PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s;PAPACC_CONNECTION*c;SOCKET sock;PAPACC_BOOL dor,dow;if(papacc_server_io_loop_win32_processor_scan_index(l,o,&i)!=PAPACC_RESULT_OK)break;s=&l->processor_slots[i];if(!s->in_use)continue;c=slot_connection(l,s);if(c==NULL||papacc_tcp_connection_transport_win32_get_native_socket(&c->transport,&sock)!=PAPACC_RESULT_OK)continue;dor=wants_read(s)&&(buffered(s)>0||FD_ISSET(sock,&rs));dow=!dor&&wants_write(s)&&FD_ISSET(sock,&ws);if(!dor&&!dow)continue;r=process_slot(l,s,dor,dow,now);if(r!=PAPACC_RESULT_OK&&!peer_failure(r))return r;}if(l->processor_capacity)l->next_processor_index=(l->next_processor_index+1U)%l->processor_capacity;if(papacc_pal_monotonic_time_ns(&now)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INTERNAL_ERROR;for(i=0;i<l->processor_capacity;++i){PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s=&l->processor_slots[i];if(!s->in_use)continue;if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_CLASSIFIER){PAPACC_CONNECTION_CLASSIFIER_STATUS st;(void)papacc_connection_classifier_check_deadline(&s->classifier,now,&st);}else if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_CONTROL_ESTABLISHMENT){PAPACC_CONTROL_PROCESSOR_STEP_STATUS st;(void)papacc_control_processor_check_deadline(&s->control_processor,now,&st);}else if(s->kind==PAPACC_SERVER_PROTOCOL_SLOT_KIND_DATA_ATTACH&&s->data_attach_processor.state!=PAPACC_DATA_ATTACH_PROCESSOR_STATE_ESTABLISHED){PAPACC_DATA_ATTACH_PROCESSOR_STEP_STATUS st;(void)papacc_data_attach_processor_check_deadline(&s->data_attach_processor,now,&st);}}reap(l,now);return PAPACC_RESULT_OK;}
+PAPACC_SERVER_PROTOCOL_SLOT_WIN32 *papacc_server_io_loop_win32_find_connection_slot(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 id){PAPACC_SIZE i;if(l==NULL||!l->initialized||id==0)return NULL;for(i=0;i<l->processor_capacity;++i)if(l->processor_slots[i].in_use&&l->processor_slots[i].connection_instance_id==id)return &l->processor_slots[i];return NULL;}
+PAPACC_RESULT papacc_server_io_loop_win32_attach_connection(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 id,PAPACC_U64 now){PAPACC_CONNECTION*c;if(l==NULL||id==0)return PAPACC_RESULT_INVALID_ARGUMENT;if(!l->initialized)return PAPACC_RESULT_INVALID_STATE;
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+if(l->acceptor==NULL)return PAPACC_RESULT_INVALID_STATE;
+#endif
+c=papacc_connection_manager_find(l->connection_manager,id);if(c==NULL)return PAPACC_RESULT_INVALID_STATE;return attach_classifier(l,c,now);}
+PAPACC_RESULT papacc_server_io_loop_win32_process_connection_once(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 id,PAPACC_BOOL rd,PAPACC_BOOL wr,PAPACC_U64 now){PAPACC_SERVER_PROTOCOL_SLOT_WIN32*s;if(l==NULL||id==0||(rd!=PAPACC_FALSE&&rd!=PAPACC_TRUE)||(wr!=PAPACC_FALSE&&wr!=PAPACC_TRUE))return PAPACC_RESULT_INVALID_ARGUMENT;if(!l->initialized)return PAPACC_RESULT_INVALID_STATE;
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+if(l->acceptor==NULL)return PAPACC_RESULT_INVALID_STATE;
+#endif
+s=papacc_server_io_loop_win32_find_connection_slot(l,id);if(s==NULL)return PAPACC_RESULT_INVALID_STATE;if(buffered(s)!=0U)rd=PAPACC_TRUE;
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+if(!papacc_server_c2_owner_win32_read_allowed(l->c2_owner,id)){rd=PAPACC_FALSE;if(papacc_server_c2_owner_win32_wants_write(l->c2_owner,id))wr=PAPACC_TRUE;}
+#endif
+if(rd==PAPACC_TRUE)wr=PAPACC_FALSE;return process_slot(l,s,rd,wr,now);}
+void papacc_server_io_loop_win32_shutdown(PAPACC_SERVER_IO_LOOP_WIN32*l){PAPACC_SIZE i;if(l==NULL||!l->initialized)return;
+#if defined(PAPACC_ENABLE_C2_DIAGNOSTIC) || defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE)
+if(papacc_server_c2_owner_win32_has_dependencies(l->c2_owner))return;
+#endif
+papacc_job_manager_shutdown(&l->network_job_manager);for(i=0;i<l->processor_capacity;++i)if(l->processor_slots[i].in_use)shutdown_slot(&l->processor_slots[i]);papacc_network_stream_manager_shutdown(&l->network_stream_manager);for(i=0;i<l->processor_capacity;++i)if(l->processor_slots[i].close_pending==PAPACC_TRUE)shutdown_slot(&l->processor_slots[i]);
+#ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+for(i=0;i<l->processor_capacity;++i)if(l->processor_slots[i].establishment.tls.processor.connection!=NULL)return;
+#endif
+papacc_session_capability_store_shutdown(&l->capability_store);papacc_data_association_manager_shutdown(&l->association_manager);papacc_server_data_ticket_generator_shutdown(&l->ticket_generator);papacc_channel_manager_shutdown(&l->channel_manager);papacc_session_manager_shutdown(&l->session_manager);*l=(PAPACC_SERVER_IO_LOOP_WIN32)PAPACC_SERVER_IO_LOOP_WIN32_INITIALIZER;}

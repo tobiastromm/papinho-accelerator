@@ -1,0 +1,20 @@
+--- apps/server/server_config_source_binding_win32.c
++++ apps/server/server_config_source_binding_win32.c
+@@ -24,6 +24,9 @@
+  source=&o->configuration_preparation.source;security=&source->configuration;
+  if(source->state!=PAPACC_SECURITY_SOURCE_PUBLISHED||papacc_server_security_source_validate(source)!=PAPACC_RESULT_OK||
+     !source->reference.valid||source->reference.length==0U||source->reference.length>64U||!security->principal_resolve||!security->authorize||
++    !security->composition_inputs.secure_principal_alpn||
++    security->composition_inputs.secure_principal_alpn_size!=PAPACC_SECURITY_ALPN_PAPACC_1_SIZE||
++    memcmp(security->composition_inputs.secure_principal_alpn,PAPACC_SECURITY_ALPN_PAPACC_1,PAPACC_SECURITY_ALPN_PAPACC_1_SIZE)||
+     source->reference.length!=pin->view.config.security_configuration_ref_length||
+     memcmp(source->reference.value,pin->view.config.security_configuration_ref,source->reference.length))
+   return deny(out,diag,"existing published Secure source unavailable or divergent");
+@@ -37,6 +40,7 @@
+   return deny(out,diag,"root/source changed during resolution");
+  memcpy(out->root,pin->view.domain,32U);out->revision=pin->view.revision;
+  out->administrative_epoch=pin->administrative_epoch;out->policy_epoch=pin->epoch;
++ out->issuer_present=pin->issuer_present?1U:0U;
+  out->issuer_revision=pin->issuer_present?pin->issuer_revision:0U;out->resolved=1U;
+  if(diag)diag->reason="resolved value snapshot; publication and operational authority remain denied";
+  return PC_OK;

@@ -1,0 +1,12 @@
+--- tests/config_binding_native_test.c
++++ tests/config_binding_native_test.c
+@@ -13,6 +13,9 @@
+  CHECK(papacc_server_config_source_resolve(&fake_owner,&fake_pin,1U,&doc,&out,&d)!=PC_OK&&!out.resolved);
+  fake_owner.configuration_preparation.participants.interface_current.bound=PAPACC_TRUE;
+  CHECK(papacc_server_launcher_configuration_interface_current(&fake_owner,&fake_pin,&report)!=PAPACC_RESULT_OK&&!report.current_bound&&!report.resolved&&!report.topology_proven);
++ {PAPACC_U64 before=fake_pin.view.revision;
++  CHECK(papacc_server_launcher_configuration_interface_current(&fake_owner,&fake_pin,(PAPACC_INTERFACE_CURRENT_REPORT *)&fake_pin)==PAPACC_RESULT_INVALID_ARGUMENT&&fake_pin.view.revision==before);
++ }
+  CHECK(!fake_owner.configuration_commit.initialized&&!fake_owner.network.is_active);
+  fake_owner.configuration_commit.stopped=1;CHECK(papacc_server_config_source_resolve(&fake_owner,&fake_pin,1U,&doc,&out,&d)!=PC_OK&&!out.resolved);
+  fake_owner.configuration_commit.unresolved=1;CHECK(papacc_server_config_source_resolve(&fake_owner,&fake_pin,1U,&doc,&out,&d)!=PC_OK&&!out.resolved);

@@ -1,0 +1,17 @@
+# Existing A–H campaign handoff — diagnostic only
+Campaign plan/manifest under ../mode-c-supervised-ed11-campaign-20261018 remain proposed and non-executable. This integration does not fill certificates, Principal/grants, configuration/CURRENT/epoch/Site profile, ports, request/response bounds, duration, freshness/headroom or UNKNOWN disposition. Browser active-resource-observation closeout supersedes the campaign's historical identity-only description; no Browser work is repeated here.
+
+Use the same existing C1 observer binary as an independent diagnostic participant, not as the product owner/supervisor. New CLI:
+observer.exe --handle DECIMAL_INHERITED_HANDLE EXPECTED_PID EXPECTED_CREATION_FILETIME RUN_LABEL NEW_OUTPUT_PATH SAMPLE_COUNT INTERVAL_MS
+Handle is an inherited observer-owned duplicate of a process object already held by the governed launcher. Do not reopen PID. Give only required query/VM-read/synchronize access, no VM-write/terminate rights. Use a restricted inheritance list; do not leak unrelated handles. Expected PID/creation must originate from that same factual process handle. Keep existing launcher observed-image/mapping/file-lock and build/SDK evidence. Bind config/build through existing manifests/receipts; null in raw observer logs is not approval.
+
+Launch/Stop coordination must NOT wait for metrics or observer exit. Do not put product and observer under a shared kill-on-close lifecycle. No pipe whose reader is the observer may carry product output. Use independent existing durable logs; the product's own disk I/O remains a separately accounted effect. A hung query or disk write yields missing completion/END and PENDING evidence, not a reason to kill/release the product or declare observer destroyed. Closing a process observation handle is not product teardown and does not cancel an in-flight call. A future launcher must report any retained observer handle/lifetime; if it cannot, execution stays blocked.
+
+Offline join order:
+1. Validate existing internal receipts and producer/build identity with existing consumers.
+2. Hash preserved observer artifact; call correlate_external_resources(raw, expected_sha256, receipt_body) with the existing run/process/creation/image identity.
+3. Report resource identity consistency separately from receipt protocol causality, configuration/CURRENT/epoch, credits and native lifecycle. The function cannot authenticate a forged self-consistent log.
+4. Keep PHASE_ASSOCIATION=INCOMPLETE unless existing causal references prove phase scope. Do not compare observer and product clocks. Internal phase sampling, external process samples and OS lifetime peaks are distinct. No new public message or receipt format is authorized. Where no association is available, retain process-scope samples with unsampled gaps rather than invent A–H coverage.
+5. Keep all outcomes, setup failures and retained/pending evidence; do not repeat until PASS. No operational admission or real HTTPS is authorized by this task.
+
+Existing operational gates stay disabled/deny. Existing observer resources need separate host accounting; no global process budget, new credit manager or quota increase. Quantitative target policy and any Mode C opaque-resource lab exception require separate acceptance; ADR0052 remains C8 CONTROL only. Exact product pair artifacts/configs must be reconciled and reapproved before a finite run.

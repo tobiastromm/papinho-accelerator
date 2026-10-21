@@ -1,0 +1,166 @@
+{
+  "task": "PAPINHOACCELERATOR-PACC-C2-REVISION3-EXACT-WIRE-ENCODING-AND-SECURITY-REVIEW",
+  "date": "2026-10-11",
+  "status": "DOCUMENTARY_SLICE_COMPLETED_OWNER_APPROVAL_PENDING",
+  "branch": "main",
+  "HEAD": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+  "C2Revision": 3,
+  "encodingCandidate": 1,
+  "ADRStatus": "proposed",
+  "ownerDecisions": "ED01-ED14",
+  "registryCollisionCheck": "PASS_LOCAL_CAPTURED_REGISTRY_NOT_GLOBAL_ALLOCATION",
+  "inputs": {
+    "docs/adr/ADR-0001-secure-principal-e-legacy-endpoint.md": "E753036252807DD1C91F8951423DBA67EED482A929E696D331073DA019FA126B",
+    "docs/adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md": "6D1C45A069505B6332633E868C0FC8E0FF1AFE6926986E6216016115A1CE8448",
+    "docs/adr/ADR-0003-connection-session-channel-ownership-e-lifecycle.md": "0A865B530DA8D69D6EFA80CBC656DDD1DFCE041428CD349C4198F7F9D8CB7F4B",
+    "docs/adr/ADR-0004-escalonamento-de-io-nao-bloqueante-limitado-e-justo.md": "671061CF8F6330466CF24FE2E3BBBB0C744A2FE041A50F287D39CA0CBFE07CC0",
+    "docs/adr/ADR-0005-negociacao-de-capabilities-disponibilidade-de-backend-e-autoridade-de-policy.md": "19B2523C244080501530894C652195C4074C552B3A2336D8A8F8EF56E520B3F2",
+    "docs/adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md": "DA730E73AD68F675BE50DF7822146A7A60B3AA9E8B5386E949F7E723F0295F6C",
+    "docs/adr/ADR-0007-identidade-persistente-de-interface-e-resolucao-runtime-de-bind.md": "746981D7B1C986DDFF977B1663C7CC8502C399E4671C2D6B407DA00CEF126F0A",
+    "docs/adr/ADR-0008-fixacao-de-dependencias-papinho-por-release.md": "46AAE3C102FBDB22B7CF2B180D5C1A1627D2CF9C14B1FECD0E65DCEA6000E4CC",
+    "docs/adr/ADR-0009-perfil-de-transporte-explicito-por-listener.md": "A5F71BE610C174AC71412D23B59C9539DB3CC3AB0B8FD942C3A66F67A8D275AB",
+    "docs/adr/ADR-0010-resolucao-de-configuracao-de-seguranca-do-servidor.md": "7A24418D578386A18948A41D997C703B9A26D3C98A703BE3B24338E53D657AFB",
+    "docs/adr/ADR-0011-identidade-de-capability-e-modelo-portatil-limitado.md": "758DC3D26A484B70226DEA28F85468F86CA5A8BC4694D3B9EF4764E61F2237FE",
+    "docs/adr/ADR-0012-snapshot-de-capabilities-e-enforcement-contextual.md": "8AB7F8E0750732FB3F2D498AC83DF9EC42A5BE7D06D93548D7B5515EE1237B9A",
+    "docs/adr/ADR-0013-lifecycle-de-job-ownership-de-session-e-cancelamento-cooperativo.md": "7C01E3C5EC10EAA09E2D7BD4DAB6E8D3F3831F222A227CB3C0CA31EF08DC8D13",
+    "docs/adr/ADR-0014-contrato-portatil-incremental-de-compute-backend.md": "301ED9F7A431798C83B5A1753E7D3807508E6BB845D203092A024D4E4E19D4B8",
+    "docs/adr/ADR-0015-establishment-jobs-e-lifecycle-de-network-stream.md": "33BD954EC85AB3688CC04CC2FE5FC644E504F6F37D7E498D283A39064B45894E",
+    "docs/adr/ADR-0016-negociacao-inicial-de-capabilities-no-wire.md": "062FC00B474F7616966A3F85CEF62424659A87C515147599E76707085CECFD59",
+    "docs/adr/ADR-0017-protocolo-wire-de-network-offload-em-data-channel-dedicado.md": "8E0B9B8848E560341CB30C857F876666A625DCB098AF20CF8B99D1A65A8C8B0D",
+    "docs/adr/ADR-0018-registry-de-capabilities-network-egress-e-tls-offload.md": "8E995B613C6EC8E653489BBD6A31305EB88C1E94E4E6618030CA25C3C899DEB2",
+    "docs/adr/ADR-0019-policy-de-egress-e-egress-profiles-server-owned.md": "C1DA5DAA10488AE555A89CF8A992592AF01B088E0953A568DFD36DBD6AE0B887",
+    "docs/adr/ADR-0020-normalizacao-dns-e-binding-de-endpoint-validado.md": "FE09DE903C3A1654DC188355A5543581ECFA6DF51B9690275BCFB4843DCE790A",
+    "docs/adr/ADR-0021-prevencao-de-abuso-e-destinos-sensiveis-de-egress.md": "4CF22AEE8218CAD93D21D72C34EF89775DCC193DAE1376529B55E6516FB9003F",
+    "docs/adr/ADR-0022-perfil-tls13-client-outbound-via-pst.md": "2D81C1B1968FFCE4070A808D50711A7D1398B90DDBE11AF8A87D3C6CE9D88596",
+    "docs/adr/ADR-0023-tls-required-v1-nao-suporta-network-half-close-direcional.md": "C3BF6713BD0184F806036AABDF00ECA029E0BC55A79A7187422C009A90F7C716",
+    "docs/adr/ADR-0024-boundary-concreta-de-policy-e-egress-profile.md": "881FB292172C58C487BD2C985F9601FBBD912AE8DB5C83E30FC783D1161B5EA9",
+    "docs/adr/ADR-0025-contrato-publico-portavel-papinhopacc.md": "4D6134142449689DBB6BF2F4F1E867C2799295C02819393A51E142DBD9DC77D3",
+    "docs/adr/ADR-0026-referencias-de-policy-profile-e-regras-exatas-de-egress.md": "6F9232FF9E6C3B373390CE512F73062153DA1B8A826DEA112158F4D81E96B521",
+    "docs/adr/ADR-0027-referencia-e-resolucao-de-outbound-tls-security-profile.md": "FD1AB0FC0C2FC75D6A66A24037AF327311D86265DE9265FBCE7E495D43D34A6D",
+    "docs/adr/ADR-0028-modelo-ortogonal-de-admissao-autenticacao-e-policies.md": "965E61A2A5AC768AACDF5CFDEEDF93CDA4680250229F95795130480DC71AD851",
+    "docs/adr/ADR-0029-contrato-mode-c-c2-e-autorizacao-laboratorial.md": "F55D4AC97469A2F9F9DCB106790F4F577F6F3AF86CDE17E922BFBA300DE2D2FD",
+    "docs/adr/ADR-0030-stop-global-phase-aware-para-teardown-outbound-pst.md": "BCC9F18B1D149DA0F76E97AEE41D6F24DD8464D07C13E2103B23E13C4F12DDAD",
+    "docs/adr/ADR-0031-secure-candidate-protocol-lifetime-reconciliation.md": "375E6B5260DF8D8D15931A53EAC20B51AE3522C345C23E7AA351A81F81E51835",
+    "docs/adr/ADR-0032-result-returning-pre-close-boundary.md": "0347BC91E023E924BC2952A2796F5FFB8346A83E27B224170885A2E8C85711A7",
+    "docs/adr/ADR-CANDIDATE-pacc-c2-operation-and-progressive-specification.md": "A868A9DB226904FD81663BC94504BF55F05D664AB3122985CE5156694E90ABE5",
+    "docs/capabilities/pacc-c2-joint-review-20261011.json": "ED6747B1369ECC4E6E6381B164D2553AA184F9DABF11E9E871C77973020448FE",
+    "docs/capabilities/pacc-c2-joint-review-20261011.md": "882A2A92C7699F8162AAF0FB59AC1A875A08E762DDDF4CA262F3BE5A704E31B7",
+    "docs/capabilities/pacc-c2-revision2-closeout-20261011.json": "5DE8F8FD942600FD2F2F0851BA1E1B64E2DF43F462348582DDD2C74B00167A55",
+    "docs/capabilities/pacc-c2-revision2-closeout-20261011.md": "71B89C9616FB1ED479D8AF55DCD1BECFA0AC6B02312086AD0A64EBCB76034CAA",
+    "docs/capabilities/pacc-c2-revision3-conformance.md": "8E1CAC4362DA15F3B27FF078CD38461E7227BE85D1ECB988AC428CF9A78142FE",
+    "docs/control-establishment-protocol.md": "60DAA72E60D792668A18BF123F8930627B5C842B205683AB9D57DE8FBCC5581F",
+    "docs/data-association-protocol.md": "80C9467CF8ED8754F0E7F8C19F3A0919AD90AFC7BAEDDA3E08C212D4C054D512",
+    "docs/future/pacc-c2-versioned-contract-proposal-revision-2.txt": "A45F9409CD94F0CEE443F4454E6ECB0661A68F4DF5D44EFC45EC57BB20FF2DEA",
+    "docs/future/pacc-c2-versioned-contract-proposal-revision-3.md": "D427ED8B42683B4BA2C1B317C159F81BD71B39844E4D44A52FBBD75D5E0BBDC9",
+    "docs/integration/pacc-c2-revision3-wire-approval-handoff.md": "F26BC7224976B40DED4BDF25F53CCAADDD0AA5811AF79F6DF70DCD6ABF802787",
+    "docs/integration/papinhopacc.md": "28F05E1A298F0E3A4FFD1010A864A6C73406887B3EA8FEC1C22D1A780632A024",
+    "docs/pacc-c2-specification-requirements.md": "195DDED7CA0993ADD6C70849269111F269FADAFEAFF6D8BFAB6A22F47CE82685",
+    "docs/protocol-framing.md": "C63B5805205F7A3303B58B9FBD919467EC0F955C2EFC0AB8BC3DB02A3D93A5B5",
+    "docs/protocol-overview.md": "8E7092516A556BB75570F8164A9DABA2360BA7FFF0FD491BC5082F59A670A554",
+    "docs/protocol/pacc-c2-protocol-specification-draft-revision-0.2.md": "4F493F9BA0FEB8EBEC067176FA69BB965BA63CCDC160BCEC6A2CDBC89492524E",
+    "docs/protocol/pacc-c2-protocol-specification-draft.md": "D672B7E8E1375295CD5C08249C1EC70A551F2763EC39F0620730993C271F3D5F",
+    "docs/protocol/pacc-progressive-specification-ledger.md": "92DCD1B863CAB50CADE1A01802A2D23B1025F8955B9F890A0292EA56F235B8DD",
+    "docs/secure-principal-operation.md": "D059911B0C4858DD6C57C93F77C1A1C93369AEB994187B3ED80A3029890E3564",
+    "docs/security-model.md": "44A1CE49E79A6626BE9E57F0019CEC3A1F0419AFD41F11C1D6D40F2077CA0791",
+    "AGENTS.md": "289BA76D8FAB2CF1D19B3C14ADFDEBF41E39C2D835AC4D7F13539F8F7E3D47EC",
+    "dependencies/papinho-secure-transport.txt": "3D347A0606C7AD03D2ED02B593DABA8853A2C627F85A146F28FB90C94BA05C39"
+  },
+  "outputs": {
+    "docs/adr/ADR-CANDIDATE-pacc-c2-exact-encoding-and-security.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "4B1B269421CC83895ABC054CA0E1A64231B6705DD94F074B21179374EE094B06",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/capabilities/pacc-c2-exact-wire-security-review-20261011.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "1313CF567B0B41096599A4A98F54D01C812DFD48BEA80E4E31A0C73910A83C5B",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/integration/pacc-c2-exact-wire-security-owner-handoff.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "AA1B920EE8D12AA9BE42BB2ECFE4162677073F96B241B5306144166B8054B381",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/protocol/pacc-c2-exact-wire-layouts.json": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "49DF70E2783683A64023227A19BDEB55AF5A3670A5FC5A22899CA9D952F1C8BD",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/protocol/pacc-c2-exact-wire-candidate-vectors.json": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "958B151826E7D30349C9717F7376AA8D9D168B0580B1B12A310091D8889BFD50",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    },
+    "docs/protocol/pacc-c2-protocol-specification-draft-revision-0.3.md": {
+      "preSHA256": "ABSENT",
+      "postSHA256": "FEE409F2E71A0FC9ABDB57F657E1479B3926D73DED471A0CD63D566F4BDD9FF2",
+      "encoding": "UTF8",
+      "lineEndings": "LF"
+    }
+  },
+  "preservation": {
+    "C:\\Projetos\\PapinhoAccelerator": {
+      "filesPreserved": 449,
+      "baselineDigest": "9D89BFBB15126940234B81FB4095C24A8B4A1A33A1C9FDE4DE2BFBA0072F1397",
+      "sha256AllUnchanged": true,
+      "preexistingGitStatusUnchanged": true
+    },
+    "C:\\Projetos\\PapinhoBrowser": {
+      "filesPreserved": 3142,
+      "baselineDigest": "E4F908167BB8120AE55D25C3F6FD3D53380A1D04BBC095BA3FADAED0F02E9BCE",
+      "sha256AllUnchanged": true,
+      "preexistingGitStatusUnchanged": true
+    },
+    "C:\\Projetos\\_tmp\\PapinhoBrowser\\model-e-implementation-20261011\\source": {
+      "filesPreserved": 1566,
+      "baselineDigest": "200BCC926E34ACCAB1608C25FE5186A9CAB07EAA2BB005B996E7508C84FD4E9C",
+      "sha256AllUnchanged": true,
+      "preexistingGitStatusUnchanged": false
+    }
+  },
+  "C1QualifiedHashesVerified": 7,
+  "normalSDKHashesVerified": 53,
+  "sharedExistingCodecsByteIdentical": 7,
+  "validation": {
+    "schemaOffsetAndBoundChecks": "PASS",
+    "candidateVectors": 14,
+    "candidateVectorWidthsAndHeaderLengths": "PASS",
+    "documentLinks": 21,
+    "MermaidFencesStructurallyChecked": 4,
+    "MermaidRendered": false,
+    "gitDiffCheck": "PASS",
+    "newFileWhitespace": "PASS",
+    "oldDraftsAndAcceptedADRs": "SHA256_UNCHANGED",
+    "runtimeConformance": "NOT_EXECUTED",
+    "independentPeer": "NOT_EXECUTED",
+    "VC6NT4": "NOT_EXECUTED",
+    "E1E12": "NOT_EXECUTED"
+  },
+  "editHistory": [
+    {
+      "file": "docs/protocol/pacc-c2-protocol-specification-draft-revision-0.3.md",
+      "preSHA256": "AAF4B53FB485A8C055C53D96670BDC1290B1E24E16EE57AF2EA6185FBE8FD6CB",
+      "postSHA256": "FEE409F2E71A0FC9ABDB57F657E1479B3926D73DED471A0CD63D566F4BDD9FF2",
+      "cause": "Refine explicit scopes and directional guards; add revocation diagram"
+    }
+  ],
+  "functionalChanges": false,
+  "PSTChanged": false,
+  "BrowserChanged": false,
+  "PACCWireChanged": false,
+  "productionPin": "0.6.4",
+  "C2ImplementationAuthorized": false,
+  "C3ImplementationAuthorized": false,
+  "processesLaunched": 0,
+  "firstUnresolved": "OWNER_APPROVAL_AND_IMPLEMENTATION_GATES_PENDING",
+  "next": "OWNER_APPROVAL_OF_EXACT_C2_ENCODING_AND_SECURITY_CONTRACT",
+  "sourceDiscrepancies": [
+    "protocol-overview old registry0x000E/API1.0/generation1 is historical vs current registry0x000F/API1.1/generation2",
+    "security-model historical PST0.6.1 does not override production dependency pin0.6.4"
+  ]
+}

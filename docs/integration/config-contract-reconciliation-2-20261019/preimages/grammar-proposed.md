@@ -1,0 +1,43 @@
+# PROPOSED — papacc.conf versão 1
+
+Proposta de Configuration Source textual, inspirada na legibilidade e nos comentários de squid.conf. Não é gramática Squid, parser implementado ou autorização operacional. As escolhas lexicais abaixo requerem aceitação antes de código dependente. ADRs accepted prevalecem; aliases e cláusulas estão no inventário da auditoria anterior.
+
+## Léxico e estrutura
+
+UTF-8 válido sem NUL; aceitar BOM UTF-8 apenas no início; LF e CRLF. Uma diretiva por linha, tokens separados por espaço/tab. Primeiro token sensível a caixa, minúsculo; enums em maiúsculas. `#` fora de aspas inicia comentário até fim da linha, inclusive inline. Dentro de aspas `#` é dado. `;` NÃO é comentário nem terminador: fora de aspas é erro lexical; dentro é dado e ainda passa pela validação do campo. Sem concatenação, continuação de linha, includes, expansão de ambiente, comandos, interpolação ou detecção de formato alternativo.
+
+String entre aspas duplas, escapes somente `\` e `\"` (barra e aspas); escape desconhecido, aspas abertas, newline ou controle no valor são erros. Identificadores administrativos: ASCII [A-Za-z][A-Za-z0-9_.-]*, comparados exatamente; refs são strings não vazias bounded pelo contrato consumidor, sem normalização destrutiva. Inteiros decimais unsigned sem sinal/sufixo, com overflow rejeitado e intervalo do campo validado. Portas 1..65535; revisão CAS é precondição, não contador escolhido pelo arquivo. Principal tipado requer exatamente 16 bytes/32 hex e proveniência do resolver, não identidade fabricada pelo parser. Nunca truncar Principal32 histórico para16.
+
+Documento = comentários/brancos, `format_version 1` único como primeira diretiva, seguidos de diretivas globais ou blocos. Bloco começa por tipo + id e termina por `end` sozinho. Sem nesting. Tipos: binding, listener, access_auth, capability_policy, destination_policy, egress_profile, channel_tls, outbound_tls, site_tls, provisioning, issuer, resources, audit. Fields são válidos apenas no contexto listado na matriz. Referências podem preceder definições; RESOLVE exige exatamente um alvo válido do tipo esperado. IDs únicos por tipo; um mesmo texto em outro tipo não é conversão implícita.
+
+Globals: `client_admission DISABLED`, `site_tls_admission DENY`, `ed11_admission DENY`, `network_egress DISABLED`, `expected_root_ref "ref"`, `expected_current_revision N`. Os quatro primeiros são restrições negativas nesta revisão; ENABLED/ALLOW não pertencem a esta proposta. Root/ref/revision são opcionais para leitura e validate, obrigatórias e factuais para futuro apply sobre root existente; nunca criam root ou CURRENT.
+
+Demais aridades e valores estão na matriz. Campos singleton duplicados são erros mesmo iguais. Bloco incompleto é erro, não preenchimento por initializer permissivo. Repetições autorizadas: interface_ref, enable, rule, hostname, endpoint; duplicatas idênticas são rejeitadas salvo regras distintas deliberadamente ordenadas. Regras têm rótulo único e ordem de ocorrência física; sem prioridade numérica ou reordenação por nome. `end` desconhecido/ausente, bloco desconhecido e campo fora de contexto rejeitam o documento inteiro.
+
+## Política e defaults
+
+`rule id ACCEPT|DENY key major [principal "hex16"]`: key/major numéricos suportados pelo registry, habilitação explícita por `enable key major`; contexto do listener/tabela e TODOS os predicates precisam corresponder. Apenas Principal suportado no subset atual; não existe wildcard textual `any`, OR, NOT, herança ou especificidade. Ausência do predicate Principal significa regra sem essa condição, sujeita aos demais gates, nunca identidade autenticada implícita. No-match, tabela vazia, capability não habilitada e erro resultam DENY. Primeira terminal correspondente encerra a decisão; ACCEPT anterior não é anulado por DENY posterior na mesma tabela. Um gate independente ainda pode negar. Não usar esse algoritmo para inventar regras DENY em exact destination v1.
+
+Zero listeners não publica endpoint; zero regras habilitadas não autoriza capability; refs ausentes não escolhem defaults; ausência de recursos/evidência não é quota infinita ou custo zero. Formato ausente/incompatível rejeita arquivo. Durante validate pode existir documento seguro sem listener, mas aplicar remoção de listeners ativos exige transação/lifecycle próprios, não equivale a Stop imediato por apagar linhas.
+
+## Parser, suporte e erros
+
+Parse, validação semântica e aplicação são fases distintas. Conhecer a sintaxe NÃO significa suportar seu enforcement. Candidate com componente, condição, enum ou capacidade não implementada no target falha integralmente antes de commit; não remover a parte desconhecida para executar uma regra mais ampla. Limites de bytes/linhas/tokens/objetos/scratch devem ser declarados pelo perfil de implementação e censados ED11 antes de código; esta proposta não inventa quotas nem define strings ilimitadas. Limite excedido produz erro, sem truncamento ou commit parcial.
+
+Diagnóstico: arquivo, linha, coluna, bloco/id, código estável, motivo e expectativa, sem expor valor secreto. Exemplos: `papacc.conf:18:1 E_PROFILE_REQUIRED listener front: transport explícito ausente`; `:27:1 E_UNSUPPORTED_PREDICATE: condição não implementada no target`; `:31:1 E_DUPLICATE_FIELD: security_ref já declarado na linha 29`; `:44:1 E_TARGET_CAPACITY: coleção excede capacidade declarada`; `:2:23 E_LEXICAL: ponto-e-vírgula fora de string`. Parse bem-sucedido não concede PASS de ED11, autenticação ou admissão.
+
+## Publicação e estado
+
+SOURCE → PARSE → VALIDATE → RESOLVE → PREPARE → COMMIT factual/CAS → CURRENT → EPOCH conforme contrato. Apply exige ator autorizado, predecessor factual, conteúdo resolvido versionado/protegido, participantes/leases/reservas e audit. Falha/UNKNOWN/CAS conflict não usa revisão antiga como autoridade alternativa; preserva ownership/retencão. Sem watchers que apliquem automaticamente arquivo alterado. Não editar BODY/ROOT/serial/high-water/checkpoint nem emitir epochs via arquivo.
+
+I issuer, R CURRENT, A contexto administrativo e P policy_epoch C2 continuam distintos. Issuer-only preserva P apenas com projeção operacional comprovadamente idêntica; demais mudanças seguem transição vigente. Pins antigos preservam memória, não novos OPEN/BIND/grants. Recuperação sem checkpoint/fencing permanece DENY. Reload geral ainda não foi qualificado; issuer-only live não prova troca segura de listener/trust/rota.
+
+## Portabilidade e escopo
+
+Modelo comum não contém SID/DACL/CNG/Registry/Win32 handles. Ref resolve em adapter autorizado Windows/box/ISA; capacidade ausente rejeita, sem fallback de backend/algoritmo/trust. Box/ISA não qualificadas. Não selecionar backend de testes por configuração produtiva. Fonte não implementa hardware, backup .papacc.bkp, migração universal, RBAC, calendários, booleanos gerais, firewall/NAT, TLS interception ou novos protocolos. A primeira source limitada não é arquitetura definitiva.
+
+## Obrigatoriedade, vínculos e unidades
+
+Dentro de bloco declarado, todos os campos singleton enumerados na matriz são obrigatórios, exceto os explicitamente condicionais. `enable` e `rule` podem estar ausentes (DENY); uma rule para key não habilitada não a habilita. EXACT_ALLOWLIST vazia nega todos os destinos. Nome/endpoint repetem zero ou mais vezes; interface_ref uma ou mais em SELECTED e nenhuma em ALL. Não existe diretiva alpn nesta versão textual: a lista ALPN pertence ao conteúdo dos profiles resolvidos; não é criada por um token global. Authentication NONE não tem provider_ref; CERTIFICATE_IDENTITY requer provider_ref válido. Para Legacy, channel_tls_ref é proibida, sem eliminar outros requisitos de acesso/profile. Provisioning OPEN não usa authentication_ref; CLOSED requer ref para o mecanismo de password do enrollment aprovado, ainda pendente de suporte.
+
+Listener referencia policy/access_auth/binding/channel_tls pelo id do bloco; egress_profile referencia destination_policy pelo id; provisioning referencia issuer pelo id. Outros campos terminados ref são referências aos mecanismos existentes, com conteúdo e tipo comprovados na fase RESOLVE. Ref isolada sem consumidor/contexto aprovado não instala recurso nem seleciona automaticamente rota/trust/profile para uma operação. Unidades e limites de duração/bytes/concorrência/validade permanecem nos contratos tipados do conteúdo resolvido; não há parâmetros quantitativos novos no arquivo. Nenhum bloco é opcionalmente ignorado por não ser usado: validar todos e rejeitar não suportados.

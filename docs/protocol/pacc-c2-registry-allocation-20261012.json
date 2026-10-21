@@ -1,0 +1,129 @@
+{
+  "status": "ACCEPTED_NORMATIVE_ALLOCATION_NOT_IMPLEMENTED",
+  "authority": "PapinhoAccelerator/ADR-0034",
+  "capability": {
+    "id": 3,
+    "major": 1,
+    "requires": {
+      "id": 2,
+      "major": 1
+    }
+  },
+  "envelope": {
+    "major": 1,
+    "minor": 0,
+    "headerBytes": 16,
+    "flags": 0
+  },
+  "messages": [
+    {
+      "id": 16,
+      "name": "C2_OPEN",
+      "minPayload": 42,
+      "maxPayload": 803
+    },
+    {
+      "id": 17,
+      "name": "C2_OPEN_RESULT",
+      "minPayload": 108,
+      "maxPayload": 108
+    },
+    {
+      "id": 18,
+      "name": "C2_BIND",
+      "minPayload": 68,
+      "maxPayload": 68
+    },
+    {
+      "id": 19,
+      "name": "C2_BIND_ACK",
+      "minPayload": 28,
+      "maxPayload": 28
+    },
+    {
+      "id": 20,
+      "name": "C2_SITE_READY",
+      "minPayload": 32,
+      "maxPayload": 32
+    },
+    {
+      "id": 21,
+      "name": "C2_TLS_READY",
+      "minPayload": 32,
+      "maxPayload": 287
+    },
+    {
+      "id": 22,
+      "name": "C2_DATA",
+      "minPayload": 29,
+      "maxPayload": 16384
+    },
+    {
+      "id": 23,
+      "name": "C2_FENCE",
+      "minPayload": 32,
+      "maxPayload": 32
+    },
+    {
+      "id": 24,
+      "name": "C2_FENCE_ACK",
+      "minPayload": 32,
+      "maxPayload": 32
+    },
+    {
+      "id": 25,
+      "name": "C2_RECORD_EVENT",
+      "minPayload": 32,
+      "maxPayload": 32
+    },
+    {
+      "id": 26,
+      "name": "C2_CANCEL",
+      "minPayload": 40,
+      "maxPayload": 40
+    },
+    {
+      "id": 27,
+      "name": "C2_FINAL",
+      "minPayload": 76,
+      "maxPayload": 76
+    }
+  ],
+  "preservedExistingTypes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "preservedExistingKeys": [
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      2,
+      1
+    ]
+  ],
+  "sourceRegistryHashes": {
+    "include\\papacc\\pacc\\message_types.h": "7B3A63AEFBC259E5E77905CFCAD87D3C7EBB10FE8402778EC54A57E2377003D4",
+    "src/capability/builtin_capabilities.c": "29AEF7A01D2B0440E50EA11536121E308940F407F71BCC2470182E980EBB52C0"
+  },
+  "publicAPIAndPackageRevision": "SEPARATE_PUBLICATION_GATE; NO_CHANGE_HERE"
+}

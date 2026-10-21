@@ -7,9 +7,10 @@ permanece como índice e visão geral viva.
 
 **Estado de implementação:** o framework portátil da Phase 4 está implementado:
 Capability Key, registry/sets bounded, interseção fail-closed, snapshot de
-Session e enforcement contextual. Negociação wire e execução de workloads não
-estão implementadas. Os nomes abaixo continuam conceitos futuros e não recebem
-IDs concretos nesta fase.
+Session e enforcement contextual. A Phase 6 implementou a negociação wire
+inicial e atribuiu as keys canônicas `NETWORK_EGRESS=(1,1)` e
+`TLS_OFFLOAD=(2,1)`. Os demais nomes abaixo continuam conceitos futuros e não
+recebem IDs concretos neste documento.
 
 O framework genérico de Jobs da Phase 5 também está implementado. A admissão
 exige membership no snapshot e enforcement contextual atual antes de publicar
@@ -40,7 +41,10 @@ DISPLAY_COMMANDS        FRAMEBUFFER
 
 Os nomes são iniciais. Anunciar uma capability não implica que todas as opções, formatos ou versões dela sejam aceitos.
 
-`TLS_OFFLOAD` é o nome conceitual, ainda não congelado, da capability que poderá auxiliar ou executar operações TLS para conexões do cliente com sites e serviços externos. Ela pertence ao Capability Framework e não representa a segurança da conexão PapinhoAccelerator Client–Server.
+`TLS_OFFLOAD` é a capability de processamento TLS para conexões externas. Sua
+key v1 foi congelada pelo ADR-0018 e o Mode B foi implementado na Phase 6. Ela
+pertence ao Capability Framework e não representa a segurança da conexão
+PapinhoAccelerator Client–Server.
 
 Os [ADR-0001](adr/ADR-0001-secure-principal-e-legacy-endpoint.md) e
 [ADR-0006](adr/ADR-0006-perfil-de-transport-security-e-credenciais-do-secure-principal.md)

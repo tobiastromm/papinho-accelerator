@@ -1,5 +1,15 @@
 # Arquitetura
 
+## Estado factual após a Phase 6
+
+A Phase 6 concluiu Network & TLS Offload v1 no placement Mode B
+(Accelerator network + Accelerator TLS), com negociação inicial de capabilities,
+wire `0x0007..0x000E`, Network Streams bounded, policy/profile server-owned,
+DNS/SSRF fail-closed, `TCP_PLAIN` e TLS 1.3 outbound pela API pública PST.
+Modes A/C/D permanecem arquiteturalmente distintos conforme
+[Phase 6 — Network & TLS Offload](phase6-network-tls-offload.md); Browser
+integration e Phase 7 não foram iniciadas.
+
 ## Decisões arquiteturais canônicas
 
 Este documento oferece a visão corrente da arquitetura sem duplicar o contexto

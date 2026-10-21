@@ -1,0 +1,542 @@
+--- src/core/ed11_process_profile.h
++++ src/core/ed11_process_profile.h
+@@ -0,0 +1,17 @@
++#ifndef PAPACC_ED11_PROCESS_PROFILE_H
++#define PAPACC_ED11_PROCESS_PROFILE_H
++/* Private compile-time PROCESS ceiling. No authority, credit, per-client quota
++ * or platform API. Default/other targets preserve the historical ceiling. */
++#define PAPACC_ED11_LEGACY_PROCESS_LIMIT 2097152U
++#if defined(PAPACC_ED11_WINDOWS_3MIB)
++#if PAPACC_ED11_WINDOWS_3MIB != 1
++#error Invalid_ED11_Windows_profile_selector
++#endif
++#if !defined(_WIN32)
++#error Windows_ED11_profile_requires_Windows_target
++#endif
++#define PAPACC_ED11_PROCESS_LIMIT 3145728U
++#else
++#define PAPACC_ED11_PROCESS_LIMIT PAPACC_ED11_LEGACY_PROCESS_LIMIT
++#endif
++#endif
+--- apps/server/server_c2_configuration_win32.c
++++ apps/server/server_c2_configuration_win32.c
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ /* Private part of the existing C2 owner. No transport or Session activation. */
+ #include "server_c2_owner_win32.h"
+ #ifndef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+@@ -33,14 +34,14 @@
+  c=&o->configuration;
+  if(c->owner!=GetCurrentThreadId()||
+     (c->state!=PAPACC_C2_CONFIG_APPLIED&&c->state!=PAPACC_C2_CONFIG_CURRENT)||
+-    !c->source||!c->source_ticket||!c->secure_lease||c->reserved>2097152U||
++    !c->source||!c->source_ticket||!c->secure_lease||c->reserved>PAPACC_ED11_PROCESS_LIMIT||
+     c->source->state!=PAPACC_SECURITY_SOURCE_PUBLISHED||
+     papacc_server_security_source_validate(c->source)!=PAPACC_RESULT_OK||
+     papacc_security_composition_is_ready(c->secure_lease)!=PAPACC_TRUE||
+     papacc_server_config_validate(&c->view.config)!=PAPACC_RESULT_OK)
+   return PAPACC_RESULT_INVALID_STATE;
+- if(c->source->other_reserved>2097152U-sizeof(*c->source)||
+-    c->source->credit>2097152U-sizeof(*c->source)-c->source->other_reserved||
++ if(c->source->other_reserved>PAPACC_ED11_PROCESS_LIMIT-sizeof(*c->source)||
++    c->source->credit>PAPACC_ED11_PROCESS_LIMIT-sizeof(*c->source)-c->source->other_reserved||
+     c->reserved!=c->source->other_reserved+sizeof(*c->source)+c->source->credit)
+   return PAPACC_RESULT_LIMIT_EXCEEDED;
+  {unsigned i;int found=0;for(i=0U;i<8U;++i)if(c->source->tickets[i]==c->source_ticket)found=1;
+@@ -78,9 +79,9 @@
+     papacc_server_security_source_validate(source)!=PAPACC_RESULT_OK||
+     papacc_security_composition_is_ready(secure)!=PAPACC_TRUE)
+   return PAPACC_RESULT_INVALID_STATE;
+- if(reserved<sizeof(*o)+sizeof(*m)+sizeof(*source)||reserved>2097152U)return PAPACC_RESULT_LIMIT_EXCEEDED;
+- if(source->other_reserved>2097152U-sizeof(*source)||
+-    source->credit>2097152U-sizeof(*source)-source->other_reserved||
++ if(reserved<sizeof(*o)+sizeof(*m)+sizeof(*source)||reserved>PAPACC_ED11_PROCESS_LIMIT)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(source->other_reserved>PAPACC_ED11_PROCESS_LIMIT-sizeof(*source)||
++    source->credit>PAPACC_ED11_PROCESS_LIMIT-sizeof(*source)-source->other_reserved||
+     reserved!=source->other_reserved+sizeof(*source)+source->credit)
+   return PAPACC_RESULT_LIMIT_EXCEEDED;
+  /* Initial dormant apply consumes fresh zeroed durable storage. Reject any
+--- apps/server/server_c2_dispatch_binding_win32.inc
++++ apps/server/server_c2_dispatch_binding_win32.inc
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ /* Fixed existing-root dispatch. No callbacks supplied by a client/fixture. */
+ static PAPACC_U32 dispatch_ref(const PAPACC_U8 *p)
+ {return ((PAPACC_U32)p[28]<<24)|((PAPACC_U32)p[29]<<16)|((PAPACC_U32)p[30]<<8)|p[31];}
+@@ -30,7 +31,7 @@
+  PAPACC_RESULT r;
+  if(!permit)return PAPACC_RESULT_INVALID_ARGUMENT;*permit=PAPACC_FALSE;
+  if(!dispatch_owned(context)||bytes>root.configuration_preparation.combined_reserved||
+- root.configuration_preparation.combined_reserved>2097152U)return PAPACC_RESULT_INVALID_STATE;
++ root.configuration_preparation.combined_reserved>PAPACC_ED11_PROCESS_LIMIT)return PAPACC_RESULT_INVALID_STATE;
+  /* Manager/pools are already included: no second charge. UNKNOWN still denies. */
+  r=papacc_application_require_operational_admission();
+  if(r==PAPACC_RESULT_OK)*permit=PAPACC_TRUE;return r;
+--- apps/server/server_c2_participant_win32.h
++++ apps/server/server_c2_participant_win32.h
+@@ -1,10 +1,11 @@
++#include "../../src/core/ed11_process_profile.h"
+ #ifndef PAPACC_SERVER_C2_PARTICIPANT_H
+ #define PAPACC_SERVER_C2_PARTICIPANT_H
+ #include "server_config.h"
+ #include "c2_operation_win32.h"
+ #include "capability.h"
+ #define PAPACC_C2_PARTICIPANT_IDS 8U
+-#define PAPACC_C2_PARTICIPANT_LIMIT 2097152U
++#define PAPACC_C2_PARTICIPANT_LIMIT PAPACC_ED11_PROCESS_LIMIT
+ typedef enum PAPACC_C2_PARTICIPANT_STATE {
+  PAPACC_C2_PARTICIPANT_EMPTY=0, PAPACC_C2_PARTICIPANT_READY,
+  PAPACC_C2_PARTICIPANT_CLOSED, PAPACC_C2_PARTICIPANT_RETAINED
+--- apps/server/server_c8_policy_adapter_win32.c
++++ apps/server/server_c8_policy_adapter_win32.c
+@@ -1,7 +1,8 @@
++#include "../../src/core/ed11_process_profile.h"
+ #include "server_c8_policy_adapter_win32.h"
+ #include <windows.h>
+ #include <string.h>
+-#define C8_LIMIT 2097152U
++#define C8_LIMIT PAPACC_ED11_PROCESS_LIMIT
+ #define C8_PREVIOUS_GRAPH 1551024U
+ static const PAPACC_CAPABILITY_KEY keys[2] = {{2U,1U},{3U,1U}};
+ static int owned(const PAPACC_C8_POLICY_ADAPTER *a)
+--- apps/server/server_c8_resource_admission_win32.h
++++ apps/server/server_c8_resource_admission_win32.h
+@@ -1,9 +1,10 @@
++#include "../../src/core/ed11_process_profile.h"
+ #ifndef PAPACC_SERVER_C8_RESOURCE_ADMISSION_WIN32_H
+ #define PAPACC_SERVER_C8_RESOURCE_ADMISSION_WIN32_H
+ /* Private by-value bookkeeping; never an issuer of measurement or grants. */
+ #include "papacc/types.h"
+ #define PAPACC_C8_RESOURCE_SLOTS 64U
+-#define PAPACC_C8_RESOURCE_LIMIT 2097152U
++#define PAPACC_C8_RESOURCE_LIMIT PAPACC_ED11_PROCESS_LIMIT
+ #define PAPACC_C8_RESOURCE_METRICS 9U
+ typedef enum PAPACC_C8_RESOURCE_REASON { PAPACC_C8_RESOURCE_OK=0,
+  PAPACC_C8_RESOURCE_UNKNOWN,PAPACC_C8_RESOURCE_STALE,
+--- apps/server/server_c8_stage_pool_win32.h
++++ apps/server/server_c8_stage_pool_win32.h
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ #ifndef PAPACC_C8_STAGE_POOL_WIN32_H
+ #define PAPACC_C8_STAGE_POOL_WIN32_H
+ /* Private storage leases, NEVER authentication, grants, binding or PST authority.
+@@ -6,7 +7,7 @@
+ #include "papacc/types.h"
+ #define PAPACC_C8_STAGE_COUNT 8U
+ #define PAPACC_C8_STAGE_BYTES 16384U
+-#define PAPACC_C8_STORAGE_LIMIT 2097152U
++#define PAPACC_C8_STORAGE_LIMIT PAPACC_ED11_PROCESS_LIMIT
+ typedef enum PAPACC_C8_STAGE_STATE {
+  PAPACC_C8_STAGE_FREE=0,PAPACC_C8_STAGE_ACTIVE,
+  PAPACC_C8_STAGE_QUIESCING,PAPACC_C8_STAGE_RETAINED
+--- apps/server/server_configuration_attachment_win32.inc
++++ apps/server/server_configuration_attachment_win32.inc
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ /* Private same-root attachment. No application listener/Connection admission. */
+ #define PAPACC_ATTACHMENT_WAKE_CREDIT 4096U
+ #ifdef PAPACC_C8_TEST_ATTACHMENT_FAULTS
+@@ -79,7 +80,7 @@
+     t->participants.listener.bind_selection.mode!=o->config.bind_selection.mode||
+     t->participants.listener.bind_selection.interface_persistent_id_count!=o->config.bind_selection.interface_persistent_id_count||
+     papacc_server_c2_configuration_validate(&configuration_c2_owner)!=PAPACC_RESULT_OK||
+-    t->combined_reserved>2097152U-PAPACC_ATTACHMENT_WAKE_CREDIT||
++    t->combined_reserved>PAPACC_ED11_PROCESS_LIMIT-PAPACC_ATTACHMENT_WAKE_CREDIT||
+     reservation!=t->combined_reserved+PAPACC_ATTACHMENT_WAKE_CREDIT)return PAPACC_RESULT_INVALID_STATE;
+  memset(&pin,0,sizeof(pin));result=papacc_server_launcher_configuration_current_pin(o,&pin);
+  if(result!=PAPACC_RESULT_OK)return result;
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+ #include "server_configuration_d3_worker_win32.inc"
+ #endif
+@@ -233,8 +234,8 @@
+     pending_overlap(o,sizeof(*o),image,n)||pending_overlap(o,sizeof(*o),pin,sizeof(*pin)))return PAPACC_RESULT_INVALID_ARGUMENT;
+  /* Immutable committed bytes are validated in place. Keep view/identity
+   * locals separately priced; no caller, packet or snapshot credit is released. */
+- if(already_reserved<sizeof(*o)||already_reserved>2097152U||
+-    sizeof(view)+sizeof(f)>2097152U-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(already_reserved<sizeof(*o)||already_reserved>PAPACC_ED11_PROCESS_LIMIT||
++    sizeof(view)+sizeof(f)>PAPACC_ED11_PROCESS_LIMIT-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  EnterCriticalSection(&o->lock);p=&o->pending_commit;fields=o->committed;
+  if(o->store02!=8||!o->published||o->prepared||o->committed_pending||o->stopped||o->unresolved||
+     o->recovery_selected||o->recovery_guard||!path_ok(o->path)||pending_blocks(o)||p->thread||
+@@ -288,8 +289,8 @@
+     pending_overlap(o,sizeof(*o),receipt,sizeof(*receipt))||pending_overlap(out,cap,used,sizeof(*used))||
+     pending_overlap(out,cap,receipt,sizeof(*receipt))||pending_overlap(used,sizeof(*used),receipt,sizeof(*receipt)))return PAPACC_RESULT_INVALID_ARGUMENT;
+  *used=0;memset(receipt,0,sizeof(*receipt));
+- if(already_reserved<sizeof(*o)||already_reserved>2097152U||
+-    sizeof(digest)>2097152U-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(already_reserved<sizeof(*o)||already_reserved>PAPACC_ED11_PROCESS_LIMIT||
++    sizeof(digest)>PAPACC_ED11_PROCESS_LIMIT-already_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  EnterCriticalSection(&o->lock);p=&o->pending_commit;
+  if(o->store02!=8||o->stopped||o->unresolved||o->recovery_selected||o->recovery_guard||
+     !o->committed_pending||!o->authority_lost||o->prepared||p->active||p->thread||
+@@ -329,7 +330,7 @@
+     pending_blocks(o)||o->pending_commit.thread||o->pending_commit.bootstrap_created)
+   return PAPACC_RESULT_INVALID_STATE;
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->slots[i].readers||o->slots[i].retained||o->issuer_snapshot_valid[i])return PAPACC_RESULT_INVALID_STATE;
+- if(reserved>2097152U||4096U>2097152U-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(reserved>PAPACC_ED11_PROCESS_LIMIT||4096U>PAPACC_ED11_PROCESS_LIMIT-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  n=strlen(parent);k=strlen(leaf);
+  if(n<3U||n>=MAX_PATH||parent[1]!=':'||parent[2]!='\\'||!k||k>64U||strstr(parent,"..")||
+     !strcmp(leaf,".")||!strcmp(leaf,"..")||leaf[k-1U]=='.')return PAPACC_RESULT_INVALID_ARGUMENT;
+@@ -412,7 +413,7 @@
+     !p->bootstrap_parent||!p->bootstrap_container||o->published||o->committed_bytes||o->issuer_stage_prepared||o->stopped||o->unresolved||
+     p->close_error||p->committed||InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i]||o->slots[i].issuer_revision)return PAPACC_RESULT_INVALID_STATE;
+- if(reserved>2097152U||sizeof(PAPACC_CONFIG_VIEW)+sizeof(BY_HANDLE_FILE_INFORMATION)>2097152U-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(reserved>PAPACC_ED11_PROCESS_LIMIT||sizeof(PAPACC_CONFIG_VIEW)+sizeof(BY_HANDLE_FILE_INFORMATION)>PAPACC_ED11_PROCESS_LIMIT-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  if(bytes<PC_ROOT8_MIN||bytes>PC_ROOT8_NO_ISSUER_MAX||pending_overlap(o,sizeof(*o),image,bytes))return PAPACC_RESULT_INVALID_ARGUMENT;
+  k=strlen(leaf);if(!k||k>64U||!strcmp(leaf,".")||!strcmp(leaf,"..")||leaf[k-1U]=='.')return PAPACC_RESULT_INVALID_ARGUMENT;
+  for(i=0;i<k;i++)if(!((leaf[i]>='a'&&leaf[i]<='z')||(leaf[i]>='A'&&leaf[i]<='Z')||
+--- apps/server/server_configuration_root_transaction_win32.inc
++++ apps/server/server_configuration_root_transaction_win32.inc
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ /* Same application transaction authority, first dormant commit only.
+  * Native persistence stays outside active owner callbacks; no network calls. */
+ #include <bcrypt.h>
+@@ -28,7 +29,7 @@
+  PAPACC_ROOT_CONFIGURATION_PREPARATION *t;PAPACC_RESULT result;
+  if(!root_dormant_owned(o))return PAPACC_RESULT_INVALID_STATE;t=&o->configuration_preparation;
+ if(t->dormant_applied||(o->configuration_commit.initialized&&!root_recovery_candidate_matches(o))||t->normative_committed||
+-    t->combined_reserved>2097152U)return PAPACC_RESULT_INVALID_STATE;
++    t->combined_reserved>PAPACC_ED11_PROCESS_LIMIT)return PAPACC_RESULT_INVALID_STATE;
+  if(t->source.state==PAPACC_SECURITY_SOURCE_PREPARED){
+   result=papacc_server_security_source_commit(&t->source);if(result!=PAPACC_RESULT_OK)return result;
+  }
+@@ -346,7 +347,7 @@
+   (!configuration_c2_owner.configuration.io_attached||o->secure_io.stop_state==PAPACC_SERVER_SECURE_STOP_RUNNING)&&
+   o->security_composition.state==PAPACC_SECURITY_COMPOSITION_READY&&
+   papacc_server_c2_configuration_authority_current(&configuration_c2_owner)==PAPACC_RESULT_OK&&
+-  root_policy_model_valid(o)&&root_policy_inputs_valid(t)&&t->combined_reserved<=2097152U&&
++  root_policy_model_valid(o)&&root_policy_inputs_valid(t)&&t->combined_reserved<=PAPACC_ED11_PROCESS_LIMIT&&
+   papacc_configuration_issuer_projection06(&o->config,&t->model.config)&&
+   papacc_configuration_issuer_projection06(&t->model.config,&c->slots[c->current].view.config)&&
+   papacc_configuration_issuer_projection06(&configuration_c2_owner.configuration.view.config,&c->slots[c->current].view.config);
+--- apps/server/server_config_source_binding_win32.c
++++ apps/server/server_config_source_binding_win32.c
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ #include "server_config_source_binding_win32.h"
+ #include <string.h>
+ static PC_RESULT deny(PC_MODEL_BINDING *out,PC_DIAGNOSTIC *d,const char *why)
+@@ -76,7 +77,7 @@
+  if(!t->source.reference.valid||t->source.reference.length!=t->model.config.security_configuration_ref_length||
+     memcmp(t->source.reference.value,t->model.config.security_configuration_ref,t->source.reference.length))
+   return deny(&out->binding,diag,"initial security reference mismatch");
+- if(t->combined_reserved>2097152U||sizeof(PC_DOCUMENT)+PC_SOURCE_MAX+sizeof(*out)+4096U>2097152U-t->combined_reserved)
++ if(t->combined_reserved>PAPACC_ED11_PROCESS_LIMIT||sizeof(PC_DOCUMENT)+PC_SOURCE_MAX+sizeof(*out)+4096U>PAPACC_ED11_PROCESS_LIMIT-t->combined_reserved)
+   return deny(&out->binding,diag,"initial resolver reservation insufficient");
+  models[0]=&t->model.config;result=pc_bind_existing_models(doc,models,1U,&out->binding,diag);
+  if(result!=PC_OK)return result;
+@@ -109,7 +110,7 @@
+  minimum=sizeof(PC_DOCUMENT)+PC_SOURCE_MAX+sizeof(PAPACC_BOOTSTRAP_RESOLUTION)+
+   sizeof(PC_DIAGNOSTIC)+sizeof(const PAPACC_SERVER_CONFIG *)+16384U+
+   PC_ROOT8_NO_ISSUER_FIELDS+PC_ROOT8_NO_ISSUER_MAX+128U+4096U;
+- if(minimum>2097152U||o->configuration_preparation.combined_reserved>2097152U-minimum||
++ if(minimum>PAPACC_ED11_PROCESS_LIMIT||o->configuration_preparation.combined_reserved>PAPACC_ED11_PROCESS_LIMIT-minimum||
+     reserved<o->configuration_preparation.combined_reserved+minimum)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  /* Enforce the current one-listener target, never truncate a collection. */
+  if(image[20]!=1U||image[21]||!doc||doc->listener_count!=1U)return PAPACC_RESULT_NOT_SUPPORTED;
+--- apps/server/server_issuer_cng_backend_win32.c
++++ apps/server/server_issuer_cng_backend_win32.c
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ #define _WIN32_WINNT 0x0600
+ #include "server_issuer_x509_win32.h"
+ #include <bcrypt.h>
+@@ -72,7 +73,7 @@
+   !disjoint(out,cap,b,sizeof(*b))||!disjoint(out,cap,b->workspace.bytes,b->workspace.capacity)||!disjoint(out,cap,r,sizeof(*r))||
+   !disjoint(out,cap,csr,size)||!disjoint(out,cap,used,sizeof(*used))||!disjoint(out,cap,b->owner,sizeof(*b->owner))||
+   (b->key&&!disjoint(out,cap,b->key,sizeof(*b->key))))return PAPACC_ISSUER_DENIED;
+- if(b->reserved>2097152U||size>2097152U-b->reserved||cap>2097152U-b->reserved-size)return PAPACC_ISSUER_LIMIT;
++ if(b->reserved>PAPACC_ED11_PROCESS_LIMIT||size>PAPACC_ED11_PROCESS_LIMIT-b->reserved||cap>PAPACC_ED11_PROCESS_LIMIT-b->reserved-size)return PAPACC_ISSUER_LIMIT;
+  s=binding(b,r,PAPACC_ISSUER_SIGN,&current);if(s)return s;
+  if(!view_equal(&current,&b->view)||!req_equal(&b->record.request,&r->request)||memcmp(b->record.serial,r->serial,16))return PAPACC_ISSUER_CONFLICT;
+  s=request(b,r,csr,size);if(s)return s;
+@@ -132,7 +133,7 @@
+   * callbacks and complete transitive stack. This adds data objects only; it
+   * does not approve opaque resources or permit caller-selected authority. */
+  extra=sizeof(*b)+sizeof(PAPACC_ISSUER_CORE)+sizeof(PAPACC_CA_KEY);
+- if(reserved>2097152U||extra>2097152U-reserved||capacity>2097152U-reserved-extra)return PAPACC_ISSUER_LIMIT;
++ if(reserved>PAPACC_ED11_PROCESS_LIMIT||extra>PAPACC_ED11_PROCESS_LIMIT-reserved||capacity>PAPACC_ED11_PROCESS_LIMIT-reserved-extra)return PAPACC_ISSUER_LIMIT;
+  memset(b,0,sizeof(*b));b->root=*root;b->administrative=administrative;b->key=key;b->owner=owner;b->ca=ca;
+  b->workspace.bytes=scratch;b->workspace.capacity=capacity;b->reserved=reserved+extra+capacity;b->thread=GetCurrentThreadId();b->initialized=1;
+  b->ports.ctx=b;b->ports.test_only=root->test_only||administrative->test_only;
+--- apps/server/server_launcher_owner_win32.h
++++ apps/server/server_launcher_owner_win32.h
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ #ifndef PAPACC_SERVER_LAUNCHER_OWNER_WIN32_H
+ #define PAPACC_SERVER_LAUNCHER_OWNER_WIN32_H
+ /* Application-private. Reuse requires confirmed quiescent normal teardown.
+@@ -18,7 +19,7 @@
+ #include "server_security_source_win32.h"
+ #include "server_outbound_tls_source_win32.h"
+ #endif
+-#define PAPACC_LAUNCHER_MANAGED_LIMIT 2097152U
++#define PAPACC_LAUNCHER_MANAGED_LIMIT PAPACC_ED11_PROCESS_LIMIT
+ #define PAPACC_LAUNCHER_ACTIVE 1L
+ #define PAPACC_LAUNCHER_RETAINED 2L
+ #define PAPACC_LAUNCHER_FINISHED 3L
+--- apps/server/server_security_source_win32.c
++++ apps/server/server_security_source_win32.c
+@@ -1,3 +1,4 @@
++#include "../../src/core/ed11_process_profile.h"
+ #include "server_security_source_win32.h"
+ 
+ #include <windows.h>
+@@ -322,8 +323,8 @@
+     if(t->state!=PAPACC_SECURITY_SOURCE_EMPTY || t->owner_thread!=0U ||
+         t->held_storage!=NULL || t->used!=0U || t->configuration.release!=NULL)
+         return PAPACC_RESULT_INVALID_STATE;
+-    if(sizeof(*t)>2097152U || other_reserved>2097152U-sizeof(*t) ||
+-        credit>2097152U-sizeof(*t)-other_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++    if(sizeof(*t)>PAPACC_ED11_PROCESS_LIMIT || other_reserved>PAPACC_ED11_PROCESS_LIMIT-sizeof(*t) ||
++        credit>PAPACC_ED11_PROCESS_LIMIT-sizeof(*t)-other_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+     t->owner_thread=GetCurrentThreadId();t->other_reserved=other_reserved;
+     t->credit=credit;t->reference=*reference;t->logger=*logger;
+     t->state=PAPACC_SECURITY_SOURCE_PREPARING;t->failure=PAPACC_RESULT_OK;
+--- src/protocol/c2_operation_dormant_win32.c
++++ src/protocol/c2_operation_dormant_win32.c
+@@ -1,3 +1,4 @@
++#include "../core/ed11_process_profile.h"
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include "c2_operation_win32.h"
+@@ -5,6 +6,6 @@
+ /* Historical manager initialization only. No dispatch/Session/token implementation linked. */
+ PAPACC_RESULT papacc_c2_operation_manager_init(PAPACC_C2_OPERATION_MANAGER*m,PAPACC_U32 owner,PAPACC_C2_OPEN_POLICY policy,PAPACC_C2_CAPACITY_GATE capacity,void*context){
+  if(m==NULL||policy==NULL||capacity==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+- if(m->initialized||owner!=(PAPACC_U32)GetCurrentThreadId()||sizeof(*m)>2097152U)return PAPACC_RESULT_INVALID_STATE;
++ if(m->initialized||owner!=(PAPACC_U32)GetCurrentThreadId()||sizeof(*m)>PAPACC_ED11_PROCESS_LIMIT)return PAPACC_RESULT_INVALID_STATE;
+  memset(m,0,sizeof(*m));m->owner=owner;m->next_operation=1;m->policy=policy;m->capacity=capacity;m->context=context;m->initialized=PAPACC_TRUE;return PAPACC_RESULT_OK;
+ }
+--- src/protocol/c2_operation_win32.c
++++ src/protocol/c2_operation_win32.c
+@@ -1,3 +1,4 @@
++#include "../core/ed11_process_profile.h"
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include "c2_operation_win32.h"
+@@ -36,7 +37,7 @@
+ static PAPACC_C2_OPERATION *find(PAPACC_C2_OPERATION_MANAGER*m,PAPACC_C2_SESSION*s,PAPACC_U64 id,PAPACC_U64 gen){unsigned i;for(i=0;i<2;++i){PAPACC_C2_OPERATION*o=&m->operations[i];if(o->state!=PAPACC_C2_OP_EMPTY&&o->session==s&&o->id==id&&o->generation==gen)return o;}return NULL;}
+ PAPACC_RESULT papacc_c2_operation_manager_init(PAPACC_C2_OPERATION_MANAGER*m,PAPACC_U32 owner,PAPACC_C2_OPEN_POLICY policy,PAPACC_C2_CAPACITY_GATE capacity,void*context){
+  if(m==NULL||policy==NULL||capacity==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
+- if(m->initialized||owner!=(PAPACC_U32)GetCurrentThreadId()||sizeof(*m)>2097152U)return PAPACC_RESULT_INVALID_STATE;
++ if(m->initialized||owner!=(PAPACC_U32)GetCurrentThreadId()||sizeof(*m)>PAPACC_ED11_PROCESS_LIMIT)return PAPACC_RESULT_INVALID_STATE;
+  memset(m,0,sizeof(*m));m->owner=owner;m->next_operation=1;m->policy=policy;m->capacity=capacity;m->context=context;m->initialized=PAPACC_TRUE;return PAPACC_RESULT_OK;
+ }
+ PAPACC_RESULT papacc_c2_operation_session_attach(PAPACC_C2_OPERATION_MANAGER*m,PAPACC_C2_SESSION*s,const PAPACC_PRINCIPAL*p){unsigned i;
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2532,6 +2532,16 @@
+ endif()
+ 
+ option(PAPACC_ENABLE_CANONICAL_C8_ROOT "Compose the existing factual closed root with C2/C3" OFF)
++option(PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE "Explicit Windows Accelerator process ED11 3MiB candidate profile" OFF)
++if(NOT "${PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE}" MATCHES "^(ON|OFF)$")
++    message(FATAL_ERROR "Windows3MiB ED11 selector must be explicitly ON or OFF")
++endif()
++if(PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE)
++    if(NOT WIN32 OR NOT PAPACC_ENABLE_CANONICAL_API3_CANDIDATE OR NOT PAPACC_ENABLE_CANONICAL_C8_ROOT)
++        message(FATAL_ERROR "Windows3MiB ED11 requires explicit Windows canonical API3/root candidate")
++    endif()
++    add_compile_definitions(PAPACC_ED11_WINDOWS_3MIB=1)
++endif()
+ if(PAPACC_ENABLE_CANONICAL_C8_ROOT)
+     if(NOT WIN32 OR NOT PAPACC_ENABLE_CANONICAL_API3_CANDIDATE OR NOT BUILD_TESTING)
+         message(FATAL_ERROR "Canonical closed root requires normal API3 offline candidate profile")
+@@ -2857,3 +2867,30 @@
+   add_test(NAME papacc.issuer.cng_production_gate COMMAND papacc_issuer_cng_production_gate_test)
+  endif()
+ endif()
++
++# Constant profile and shared-credit tests; synthetic, no product authority.
++if(BUILD_TESTING AND WIN32)
++ foreach(profile selected legacy other)
++  add_executable(papacc_ed11_profile_${profile}_test tests/ed11_process_profile_test.c)
++  target_include_directories(papacc_ed11_profile_${profile}_test PRIVATE src/core)
++  if(profile STREQUAL "selected" AND PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE)
++   target_compile_definitions(papacc_ed11_profile_${profile}_test PRIVATE ED11_EXPECTED=3145728U)
++  else()
++   target_compile_definitions(papacc_ed11_profile_${profile}_test PRIVATE ED11_EXPECTED=2097152U ED11_TEST_LEGACY=1)
++  endif()
++  if(profile STREQUAL "other")
++   target_compile_definitions(papacc_ed11_profile_${profile}_test PRIVATE ED11_TEST_OTHER=1)
++  endif()
++  papacc_enable_warnings(papacc_ed11_profile_${profile}_test)
++  add_test(NAME papacc.ed11.profile_${profile} COMMAND papacc_ed11_profile_${profile}_test)
++ endforeach()
++ foreach(profile selected legacy)
++  add_executable(papacc_ed11_credit_${profile}_test tests/ed11_process_credit_test.c)
++  target_include_directories(papacc_ed11_credit_${profile}_test PRIVATE include apps/server)
++  if(profile STREQUAL "legacy")
++   target_compile_definitions(papacc_ed11_credit_${profile}_test PRIVATE ED11_TEST_LEGACY=1)
++  endif()
++  papacc_enable_warnings(papacc_ed11_credit_${profile}_test)
++  add_test(NAME papacc.ed11.credit_${profile} COMMAND papacc_ed11_credit_${profile}_test)
++ endforeach()
++endif()
+--- tests/ed11_process_profile_test.c
++++ tests/ed11_process_profile_test.c
+@@ -0,0 +1,8 @@
++#if defined(ED11_TEST_LEGACY)
++#undef PAPACC_ED11_WINDOWS_3MIB
++#endif
++#if defined(ED11_TEST_OTHER)
++#undef _WIN32
++#endif
++#include "ed11_process_profile.h"
++int main(void){return PAPACC_ED11_PROCESS_LIMIT==ED11_EXPECTED&&PAPACC_ED11_LEGACY_PROCESS_LIMIT==2097152U?0:1;}
+--- tests/ed11_process_credit_test.c
++++ tests/ed11_process_credit_test.c
+@@ -0,0 +1,39 @@
++/* Synthetic facts exercise the EXISTING ledger; never target qualification. */
++#if defined(ED11_TEST_LEGACY)
++#undef PAPACC_ED11_WINDOWS_3MIB
++#endif
++#include "server_c8_resource_admission_win32.h"
++#include <string.h>
++#include <stdio.h>
++#include "../apps/server/server_c8_resource_admission_win32.inc"
++static PAPACC_C8_RESOURCE_ADMISSION state;
++static PAPACC_C8_RESOURCE_CONTEXT context;
++#define CHECK(x) do{if(!(x)){printf("FAIL %u %s\n",(unsigned)__LINE__,#x);return 1;}}while(0)
++int main(void)
++{
++ PAPACC_C8_RESOURCE_KEY a,b,c;unsigned i;PAPACC_SIZE charged;
++ memset(&state,0,sizeof(state));memset(&context,0,sizeof(context));
++ state.invocation=context.invocation=1;state.owner=context.owner=2;state.revision=context.revision=3;state.epoch=context.epoch=4;state.domain[0]=context.domain[0]=1;
++ context.connection=context.generation=context.profile=context.source_id=context.origin=context.phase=context.policy_current=context.connection_state=1;
++ context.target[0]=context.sdk_sha256[0]=context.provenance[0]=1;
++ state.listener_reserved=1;state.connection_limit=4;state.connection_managed=65536;state.connection_user=state.connection_kernel=1;
++ state.base_managed=PAPACC_C8_RESOURCE_LIMIT-2U*65536U;state.host_physical_credit=state.host_commit_credit=1048576;state.user_limit=33554432;state.kernel_limit=8388608;
++ state.evidence.version=0x605;state.evidence.api=0x30000;state.evidence.spi=0x400;state.evidence.origin=state.evidence.profile=state.evidence.source_id=state.evidence.phase=1;
++ state.evidence.sampled_ms=100;state.evidence.expires_ms=200;state.evidence.peak=100;state.evidence.concurrency=4;
++ state.evidence.target[0]=state.evidence.sdk_sha256[0]=state.evidence.provenance[0]=1;
++ for(i=0;i<PAPACC_C8_RESOURCE_METRICS;i++){state.evidence.metrics[i].kind=i+1;state.evidence.metrics[i].classification=2;state.evidence.metrics[i].value=i<2?1048576:1;}
++ CHECK(papacc_c8_resource_check(&state,&context,150)==PAPACC_C8_RESOURCE_OK);
++ CHECK(papacc_c8_resource_reserve(&state,&context,150,&a)==PAPACC_C8_RESOURCE_OK);
++ CHECK(papacc_c8_resource_commit(&state,&context,150,&a)==PAPACC_C8_RESOURCE_OK);
++ context.connection=2;CHECK(papacc_c8_resource_reserve(&state,&context,150,&b)==PAPACC_C8_RESOURCE_OK);
++ context.connection=3;CHECK(papacc_c8_resource_reserve(&state,&context,150,&c)==PAPACC_C8_RESOURCE_CAPACITY);CHECK(state.managed_used==131072&&state.connection_managed==65536);
++ context.connection=2;CHECK(papacc_c8_resource_observe_acquisition(&state,&context,&b,NATIVE_SOCKET_NOT_ACQUIRED,PST_CHILD_NOT_CREATED)==PAPACC_C8_RESOURCE_OK);
++ CHECK(papacc_c8_resource_rollback(&state,&context,&b)==PAPACC_C8_RESOURCE_OK);CHECK(state.managed_used==65536);
++ CHECK(papacc_c8_resource_rollback(&state,&context,&b)!=PAPACC_C8_RESOURCE_OK);
++ context.connection=1;CHECK(papacc_c8_resource_retain(&state,&context,&a)==PAPACC_C8_RESOURCE_OK);charged=state.managed_used;
++ CHECK(papacc_c8_resource_rollback(&state,&context,&a)!=PAPACC_C8_RESOURCE_OK&&state.managed_used==charged);
++ CHECK(papacc_c8_resource_stop(&state,state.invocation,state.owner)==PAPACC_C8_RESOURCE_OK);
++ CHECK(state.managed_used==charged);CHECK(papacc_c8_resource_reserve(&state,&context,150,&c)!=PAPACC_C8_RESOURCE_OK);
++ state.stopping=0;state.base_managed=PAPACC_C8_RESOURCE_LIMIT+1U;CHECK(papacc_c8_resource_check(&state,&context,150)==PAPACC_C8_RESOURCE_CAPACITY);
++ puts("PASS SHARED_PROCESS_CREDIT_EXACT_CAP_PRESSURE_ROLLBACK_ONCE_RETAIN_STOP_INDIVIDUAL_UNCHANGED SYNTHETIC_ONLY");return 0;
++}
+--- tests/issuer_cng_production_gate_test.c
++++ tests/issuer_cng_production_gate_test.c
+@@ -1,3 +1,4 @@
++#include "../src/core/ed11_process_profile.h"
+ #include "server_issuer_x509_win32.h"
+ #include <stdio.h>
+ #include <string.h>
+@@ -8,7 +9,7 @@
+ int main(void){PAPACC_ISSUER_CNG_BACKEND b;PAPACC_ISSUER_CORE owner;PAPACC_ISSUER_BACKEND admin;PAPACC_ISSUER_ROOT_PORT root;CERT_INFO ca;PAPACC_CA_KEY key;union{ULONGLONG align;BYTE bytes[4096];}w;
+  memset(&b,0,sizeof(b));memset(&owner,0,sizeof(owner));memset(&admin,0,sizeof(admin));memset(&root,0,sizeof(root));memset(&ca,0,sizeof(ca));admin.authorize=a;admin.utc=u;root.ctx=&root;root.read=rd;root.cas=cs;root.test_only=1;
+  if(papacc_issuer_cng_backend_init(&b,&root,&admin,&owner,NULL,&ca,w.bytes,sizeof(w.bytes),0)!=PAPACC_ISSUER_DENIED||b.initialized)return 1;
+- root.test_only=0;if(papacc_issuer_cng_backend_init(&b,&root,&admin,&owner,NULL,&ca,w.bytes,sizeof(w.bytes),2097152)!=PAPACC_ISSUER_LIMIT)return 1;
++ root.test_only=0;if(papacc_issuer_cng_backend_init(&b,&root,&admin,&owner,NULL,&ca,w.bytes,sizeof(w.bytes),PAPACC_ED11_PROCESS_LIMIT)!=PAPACC_ISSUER_LIMIT)return 1;
+  memset(&key,0,sizeof(key));key.thread=GetCurrentThreadId();key.state=PAPACC_CA_KEY_READY;key.key=101;key.provider=202;
+  if(papacc_ca_key_borrow(&key,&owner)!=0||papacc_ca_key_close(&key)!=NTE_BAD_KEY_STATE||key.close_attempted||key.borrower!=&owner)return 1;
+  if(papacc_ca_key_return(&key,&b)!=NTE_BAD_KEY_STATE||papacc_ca_key_return(&key,&owner)!=0||key.borrower)return 1;
+--- tests/issuer_cng_x509_test.c
++++ tests/issuer_cng_x509_test.c
+@@ -1,3 +1,4 @@
++#include "../src/core/ed11_process_profile.h"
+ /* Public provider encoding + synthetic signatures/root authority only.
+  * No NCrypt import, private key, key creation, credential or network. */
+ #define _WIN32_WINNT 0x0600
+@@ -204,7 +205,7 @@
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_SERVER;
+  CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNSUPPORTED&&!private_calls&&record.state==PAPACC_ISSUER_SERIAL_RESERVED);
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_SERVER;CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_UNSUPPORTED);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));saved=backend.reserved;backend.reserved=2097152;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_LIMIT);CHECK(!private_calls);backend.reserved=saved;
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));saved=backend.reserved;backend.reserved=PAPACC_ED11_PROCESS_LIMIT;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_LIMIT);CHECK(!private_calls);backend.reserved=saved;
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));v.prefix[0]=0;v.prefix[1]=128;memcpy(record.serial,v.prefix,8);
+  {unsigned i,at;for(i=0;i<8;i++)root_serial[8+i]=v.prefix[7-i];ca.SerialNumber.cbData=16;
+  CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+--- tests/d3_worker_win32_test.c
++++ tests/d3_worker_win32_test.c
+@@ -1,3 +1,4 @@
++#include "../src/core/ed11_process_profile.h"
+ /* Native filesystem/CAS only; deliberately SYNTHETIC CURRENT/CP fixture.
+  * Does not exercise operational root publication/bootstrap or any network. */
+ #define main root8_codec_fixture_main
+@@ -23,7 +24,7 @@
+  CHECK(WriteFile(file,base,(DWORD)base_used,&written,NULL)&&written==base_used);CHECK(FlushFileBuffers(file));CHECK(CloseHandle(file));
+  /* Access0 handle permits worker exclusive RW; only native identity is read. */
+  identity=CreateFileA(argv[2],0,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(identity!=INVALID_HANDLE_VALUE);
+- CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity,2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED);
++ CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity,PAPACC_ED11_PROCESS_LIMIT)==PAPACC_RESULT_LIMIT_EXCEEDED);
+  CHECK(!owner.pending_commit.active&&!owner.pending_commit.thread);
+  CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used-1U,identity,2078563U)!=0);
+  bytes[0]^=1;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity,2078563U)!=0);bytes[0]^=1;
+@@ -69,7 +70,7 @@
+   /* Caller byte image can be reused after begin returns: packet is copied. */
+   memset(bytes,0,sizeof(bytes));exported=99;
+   CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))==0&&exported==used);
+-  exported=99;CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED&&!exported);
++  exported=99;CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,PAPACC_ED11_PROCESS_LIMIT)==PAPACC_RESULT_LIMIT_EXCEEDED&&!exported);
+   exported=99;CHECK(papacc_configuration_d3_committed08(&owner,(PAPACC_U8 *)&owner,PC_ROOT8_NO_ISSUER_MAX,&exported,&receipt,2078563U+sizeof(receipt))!=0&&exported==99);
+   owner.pending_commit.next[used-1U]^=1;exported=99;
+   CHECK(papacc_configuration_d3_committed08(&owner,bounded_output,sizeof(bounded_output),&exported,&receipt,2078563U+sizeof(receipt))!=0&&!exported);
+--- tests/bootstrap_d3_commit_win32_test.c
++++ tests/bootstrap_d3_commit_win32_test.c
+@@ -1,3 +1,4 @@
++#include "../src/core/ed11_process_profile.h"
+ #define main bootstrap_fixture_main
+ #include "config_root8_test.c"
+ #undef main
+@@ -40,7 +41,7 @@
+  owner.issuer_stage_prepared=1;
+  CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2078000U)!=PAPACC_RESULT_OK);
+  owner.issuer_stage_prepared=0;
+- CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED);
++ CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",PAPACC_ED11_PROCESS_LIMIT)==PAPACC_RESULT_LIMIT_EXCEEDED);
+  bytes[72]^=1U;
+  CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2078000U)!=PAPACC_RESULT_OK);bytes[72]^=1U;
+  bytes[used-1U]^=1U;CHECK(papacc_configuration_bootstrap_commit_begin(&owner,bytes,used,"root.bin",2078000U)!=PAPACC_RESULT_OK);bytes[used-1U]^=1U;
+--- tests/bootstrap_namespace_win32_test.c
++++ tests/bootstrap_namespace_win32_test.c
+@@ -1,3 +1,4 @@
++#include "../src/core/ed11_process_profile.h"
+ #include "server_configuration_commit_win32.h"
+ #include <stdio.h>
+ #include <string.h>
+@@ -9,7 +10,7 @@
+  CHECK(argc==4);stopped=!strcmp(argv[3],"stop");uncertain=!strcmp(argv[3],"unknown")||!strcmp(argv[3],"identity");
+  closefail=!strcmp(argv[3],"closefail");negative=!strcmp(argv[3],"reparse");paused=!strcmp(argv[3],"pending-stop")||!strcmp(argv[3],"identity")||!strcmp(argv[3],"namespace");
+  CHECK(papacc_configuration_commit_init03(&o,argv[1])==PAPACC_RESULT_OK);
+- CHECK(papacc_configuration_bootstrap_custody_begin(&o,argv[2],"production-must-deny",2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED);
++ CHECK(papacc_configuration_bootstrap_custody_begin(&o,argv[2],"production-must-deny",PAPACC_ED11_PROCESS_LIMIT)==PAPACC_RESULT_LIMIT_EXCEEDED);
+  CHECK(papacc_configuration_bootstrap_custody_begin(&o,argv[2],"admin-denial",2089300U)==PAPACC_RESULT_INVALID_STATE);
+  if(paused){entered=CreateEventA(NULL,TRUE,FALSE,NULL);release=CreateEventA(NULL,TRUE,FALSE,NULL);CHECK(entered&&release);
+   o.pending_commit.test_entered=entered;o.pending_commit.test_release=release;}
+--- tests/c2_dormant_participant_test.c
++++ tests/c2_dormant_participant_test.c
+@@ -1,3 +1,4 @@
++#include "../src/core/ed11_process_profile.h"
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include "server_c2_participant_win32.h"
+@@ -35,7 +36,7 @@
+  CHECK(papacc_server_c2_participant_validate(NULL,&root_identity,1U)==PAPACC_RESULT_INVALID_STATE);
+  CHECK(papacc_server_c2_participant_validate(&a,&root_identity,1U)==PAPACC_RESULT_INVALID_STATE);
+  CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,0U,&model,&inputs,0U)==PAPACC_RESULT_INVALID_ARGUMENT);
+- CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,1U,&model,&inputs,2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED);
++ CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,1U,&model,&inputs,PAPACC_ED11_PROCESS_LIMIT)==PAPACC_RESULT_LIMIT_EXCEEDED);
+  CHECK(a.state==PAPACC_C2_PARTICIPANT_EMPTY&&!a.manager.initialized&&!a.reserved);
+  CHECK(papacc_server_c2_participant_prepare(&a,&root_identity,1U,&model,&inputs,0U)==PAPACC_RESULT_INVALID_STATE);
+  CHECK(!a.manager.initialized); /* MODE C without TLS refused, no partial prepare. */

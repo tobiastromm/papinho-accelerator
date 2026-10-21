@@ -1,0 +1,18 @@
+S0. Browser é primeiro/importante consumidor, não exclusivo. Capacidade comum não depende de HWND,BrowserProfile,abas,navegação,Registry ou estruturas privadas da root. Nenhum consumidor futuro é declarado suportado.
+
+S1. PapinhoPACC mantém única implementação wire/framing/codecs/validação,protocol-only. API e pacote evoluem independentemente de wire. Não adicionar bytes/messages/ALPN ao wire para acomodar API local. Fixes upstream,snapshot pinado imutável.
+
+S2. SDK composto com módulo complementar de provisão separado de papacc_protocol,fonte canônica inicialmente Accelerator. Extrair M2/M3/TLV/normalização/suite/pipeline comum comprovados sem reescrita semântica,após API/lifetime/target review. Nome público,pastas,númeroAPI/release/repositório não congelados. Sem plugin platform,trust service ou SDK high-level Phase12 por inferência.
+
+S3. Core comum valida dados/evidências;estados DATA,crypto,confiança,autorização e instalação distintos. Não fabrica CURRENT/Principal/grants/trust por booleano,string ou digest. APIs exatas de autoridade/evidência exigem revisão própria. M1 STRUCTURE -> SIGNATURE -> TRUST -> KDF -> AEAD -> CONTENT -> RELEASE e recheck final intactos;quarentena exclusiva até conclusão integral.
+
+S4. Backends opcionais e qualificados por target,reusando BearSSL/NSS-derived/EVP/PST com pins,licenças e testes. Não escrever primitiva ou emular capability profunda. PST mantém TLS/certificates/ALPN/mTLS;issuer/CNG privado não integra corecliente. C89/VC6 build não qualifica NT4,Windows/box/ISA por inferência.
+
+S5. Consumidor mantém confirmação administrativa independente e autorização local de instalação,UI/Profile/storage/gate/CredentialGeneration/ActiveConfiguration/leases concretos. Accelerator mantém policy/delegação/issuer/serial/revogação/CURRENT/R/A/P/I/CAS/root/worker/emissão. Root não concede confiança local. Browser não conhece codec interno root. ProvenanceBrowser não vira formato universal obrigatório.
+
+S6. Migração preserva owners factuais,Stop não bloqueante,ModelE/ED08/retenção/exactly-once/créditosED11. Não mover buffers para escapar de censo,não apagar segredo borrowed/retido. Simple/advanced mesmo pipeline;automático chave exclusivamente cliente;manual só exceção accepted. Sem segunda root/CA/truststore/registry/journal/autoridade ou fallback permissivo.
+
+S7. Distribuição fonte versionada com manifest/hash/API/wire/target/backend/licença/NOTICE separados. Sem ABIbinária entre toolchains presumida,fetch no build ou dependência de checkout Browser. Wrappers temporários precisam owner/gateequivalência e remoção antes release conjunta. Não manter parsers/M1 paralelos permanentemente sem exceção normativa explícita delimitada;esta proposta não cria exceção.
+
+S8. Owner aceita e registro oficial precede mudança dependente. Cada patch funcional exige aprovação própria. Fixture anteriormente negada continua bloqueada até revisão oficial própria;auditoria não é retry. Sem aceitar novos formatos/crypto/quotas/autoridade/release/gates por referência. Orçamento Windows Accelerator não aumenta limite Browser/outros targets;UNKNOWN mantém DENY.
+

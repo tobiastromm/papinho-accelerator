@@ -1,0 +1,17 @@
+--- apps/server/server_configuration_commit_win32.h
++++ apps/server/server_configuration_commit_win32.h
+@@ -133,6 +133,14 @@
+ PAPACC_RESULT papacc_configuration_recovery_publish04(PAPACC_CONFIGURATION_COMMIT *);
+ #endif
+ #ifdef PAPACC_OFFLINE_D3_WORKER
++/* Initial namespace phase only. Same worker/packet, no commit or CURRENT.
++ * parent is an existing governed local directory, leaf a new single component.
++ * explicit caller is administrative; native enabled-admin token required.
++ * Retained leases block all other pending operations until stopped/closed. */
++PAPACC_RESULT papacc_configuration_bootstrap_custody_begin(PAPACC_CONFIGURATION_COMMIT *,const char *,const char *,PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_bootstrap_custody_poll(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++PAPACC_BOOL papacc_configuration_bootstrap_custody_ready(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_bootstrap_custody_close(PAPACC_CONFIGURATION_COMMIT *);
+ /* Offline update only. No bootstrap/recovery/publication; actual current pin
+  * and native identity handle required. Last argument is factual already-reserved
+  * composition including root, caller and codec pair; extra scratch is checked

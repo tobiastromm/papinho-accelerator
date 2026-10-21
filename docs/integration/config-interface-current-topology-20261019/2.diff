@@ -1,0 +1,39 @@
+--- apps/server/server_launcher_owner_win32.h
++++ apps/server/server_launcher_owner_win32.h
+@@ -70,12 +70,24 @@
+ } PAPACC_ROOT_POLICY_REPORT;
+ /* Dormant transaction participants. No live listener/Session/grant exists. */
+ #define PAPACC_ROOT_BIND_TARGETS 8U
++/* Correlation stamped only after actual same-root commit/publication. This is
++ * not a topology lease, epoch source, registry or new pin system. */
++typedef struct PAPACC_INTERFACE_CURRENT_BINDING {
++ PAPACC_U8 domain[32];
++ PAPACC_U64 invocation,preparation_revision,revision,administrative_epoch,policy_epoch;
++ PAPACC_BOOL bound;
++} PAPACC_INTERFACE_CURRENT_BINDING;
++typedef struct PAPACC_INTERFACE_CURRENT_REPORT {
++ PAPACC_INTERFACE_CURRENT_BINDING binding;
++ PAPACC_BOOL current_bound,topology_proven,resolved;
++} PAPACC_INTERFACE_CURRENT_REPORT;
+ typedef struct PAPACC_ROOT_TRANSACTION_PARTICIPANTS {
+     PAPACC_SERVER_LISTENER_CONFIGURATION listener;
+     PAPACC_BIND_TARGET targets[PAPACC_ROOT_BIND_TARGETS];
+     PAPACC_U32 runtime_ids[PAPACC_CONFIG_IDS];
+     PAPACC_SIZE target_count;
+     PAPACC_INTERFACE_SNAPSHOT_COPY interface_snapshot;
++    PAPACC_INTERFACE_CURRENT_BINDING interface_current;
+     PAPACC_U64 invocation;
+     PAPACC_BOOL listener_prepared, capabilities_prepared, c2_prepared;
+ } PAPACC_ROOT_TRANSACTION_PARTICIPANTS;
+@@ -117,6 +129,11 @@
+  PAPACC_CONFIG_PIN pin;PAPACC_CONFIG_VIEW view;PAPACC_U64 epoch,invocation; /* epoch is P, never A. */
+  PAPACC_U64 administrative_epoch,issuer_revision,session_incarnation;PAPACC_BOOL issuer_present;
+ } PAPACC_ROOT_CURRENT_PIN;
++/* Same owner thread and caller-held factual pin required. Read-only report;
++ * topology_proven/resolved remain false without a qualified topology proof. */
++struct PAPACC_SERVER_LAUNCHER_OWNER_WIN32;
++PAPACC_RESULT papacc_server_launcher_configuration_interface_current(
++ struct PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,const PAPACC_ROOT_CURRENT_PIN *,PAPACC_INTERFACE_CURRENT_REPORT *);
+ /* Private stage facts, not a published socket or an admission/grant ticket. */
+ typedef enum PAPACC_ROOT_LISTENER_STATE {
+  PAPACC_ROOT_LISTENER_EMPTY=0, PAPACC_ROOT_LISTENER_PREPARED,

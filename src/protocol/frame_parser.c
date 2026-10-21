@@ -6,7 +6,7 @@ static void papacc_frame_parser_clear_frame(PAPACC_FRAME_PARSER *parser)
 {
     memset(parser->header_bytes, 0, sizeof(parser->header_bytes));
     parser->header_bytes_received = 0;
-    parser->header = (PAPACC_FRAME_HEADER)PAPACC_FRAME_HEADER_INITIALIZER;
+    memset(&parser->header, 0, sizeof(parser->header));
     parser->payload_bytes_received = 0;
     parser->state = PAPACC_FRAME_PARSER_STATE_READING_HEADER;
 }

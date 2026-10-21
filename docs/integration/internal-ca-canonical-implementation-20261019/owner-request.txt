@@ -1,0 +1,271 @@
+# PAPINHOACCELERATOR — Implementação canônica da CA interna
+
+TASK=PACC-PHASE6-INTERNAL-CA-CANONICAL-IMPLEMENTATION-1
+
+MODE=GOVERNED_CANONICAL_IMPLEMENTATION_BUILD_AND_OFFLINE_VALIDATION
+
+CANONICAL_PROJECT=C:\Projetos\PapinhoAccelerator
+
+OWNER_AUTHORIZATION=APPROVED_FOR_SCOPED_INTERNAL_CA_SOURCE_IMPLEMENTATION_AND_ISOLATED_TESTS_SUBJECT_TO_OFFICIAL_EXECUTOR_APPROVAL
+
+## 1. Objetivo
+
+Implementar os componentes funcionais da CA interna do PapinhoAccelerator, conforme as decisões normativas accepted.
+
+Não repetir a preparação documental.
+
+Não criar outra árvore de implementação.
+
+Não gerar CA produtiva.
+
+## 2. Autoridades
+
+Ler:
+
+- docs/adr/DECISION-internal-ca-technical-profile-20261018.md;
+- docs/adr/DECISION-internal-client-issuer-and-manual-custody-20261018.md;
+- docs/integration/internal-ca-technical-profile-acceptance-20261018/CLOSEOUT.md;
+- contratos de provisionamento;
+- Model E;
+- ED08/ED11;
+- root/policy/CURRENT/epoch.
+
+Confirmar HEAD, WIP e hashes.
+
+## 3. Backend CNG
+
+Implementar backend administrativo usando Microsoft Software KSP.
+
+Exigir:
+
+- chave RSA2048/e65537;
+- export policy 0;
+- uso exclusivo para assinatura;
+- nome persistente governado;
+- identidade de autoridade e geração;
+- verificação de propriedades após criação;
+- separação de SID/token administrativo e operacional;
+- fechamento com resultado factual;
+- retenção diante de falhas.
+
+Não usar chave TLS como CA.
+
+Não permitir acesso à chave CA pelos handlers operacionais.
+
+Não gerar chave automaticamente no startup.
+
+## 4. Persistência
+
+Implementar codec privado versionado para:
+
+- identidade da CA;
+- geração;
+- SPKI;
+- serial high-water;
+- reservas;
+- emissão;
+- revogação;
+- renovação;
+- correlação de requests;
+- recuperação.
+
+Integrar à mesma root administrativa.
+
+Não criar shadow registry.
+
+Não reutilizar bytes livres do BODY0.5 sem contrato.
+
+Preservar versões históricas.
+
+## 5. Serial
+
+Implementar:
+
+- prefixo persistente de 8 bytes;
+- contador unsigned64 big-endian;
+- reserva durável antes de assinatura;
+- concorrência por revisão factual;
+- prevenção de reutilização;
+- reconciliação após crash;
+- serial consumido em falha incerta.
+
+Não assinar sem reserva confirmada.
+
+## 6. Emissão
+
+Implementar interfaces:
+
+- initialize_authority;
+- issue_or_lookup;
+- query_status;
+- revoke;
+- renew;
+- sign_package.
+
+Preservar separação entre:
+
+- CA;
+- certificado do servidor;
+- certificado do cliente;
+- assinador de pacotes.
+
+Aplicar KeyUsage, EKU, BasicConstraints, SAN e validade conforme perfil accepted.
+
+Não utilizar certificados TEST_ONLY como autoridade produtiva.
+
+## 7. Atualização live
+
+Integrar publicação de novos clientes pela mesma root.
+
+Exigir:
+
+PREPARE → VALIDATE → COMMIT → CURRENT → EPOCH
+
+Não contornar precondições dormentes.
+
+Não criar segundo listener.
+
+Não reiniciar o serviço para cadastrar clientes.
+
+Não conceder grants automaticamente.
+
+## 8. Model E
+
+Preservar:
+
+- ownership;
+- leases;
+- Stop;
+- quiescência;
+- retenção;
+- exactly-once;
+- resultados nativos factuais.
+
+Não liberar recursos por timeout ou saída de processo.
+
+## 9. ED11
+
+Reconciliar:
+
+- armazenamento;
+- buffers;
+- CNG;
+- serial journal;
+- registro;
+- gerações coexistentes;
+- retenção;
+- scratch.
+
+Não aumentar quotas.
+
+Provider/kernel UNKNOWN permanece UNKNOWN.
+
+## 10. Validação
+
+Compilar Debug/Release com zero warnings.
+
+Executar testes offline com autoridade de teste isolada:
+
+- inicialização explícita;
+- propriedade da chave;
+- exportação negada;
+- isolamento administrativo;
+- serial único;
+- emissão;
+- assinatura;
+- validade;
+- revogação;
+- renovação;
+- concorrência;
+- crash;
+- recuperação;
+- Stop;
+- retenção.
+
+Separar testes sintéticos de operações nativas CNG.
+
+Não executar rede.
+
+Não criar CA produtiva.
+
+## 11. STOP
+
+Interromper diante de:
+
+- acesso operacional à chave CA;
+- serial sem commit;
+- assinatura com identidade incerta;
+- persistência insegura;
+- ausência de proteção de chave;
+- falha de lifecycle;
+- excesso ED11;
+- negativa oficial do executor.
+
+Não contornar negativas.
+
+## 12. Governança
+
+Trabalhar somente em C:\Projetos\PapinhoAccelerator.
+
+Não modificar Browser, PST ou PACC wire.
+
+Não alterar produção 0.6.4.
+
+PST 0.6.5 somente será publicado após conclusão integral da Phase 6.
+
+Não criar clones ou worktrees.
+
+Não fazer commit, push, tag ou release.
+
+Preservar WIP.
+
+## 13. Entregas
+
+Produzir:
+
+- código funcional;
+- backend CNG;
+- codec persistente;
+- interfaces de emissão;
+- testes;
+- ED11;
+- hashes;
+- closeout;
+- handoff para CLI e pacote manual.
+
+## 14. Resultado
+
+CURRENT_TASK_COMPLETED=YES|NO
+
+INTERNAL_CA_SOURCE=...
+CNG_BACKEND=...
+ADMIN_KEY_ISOLATION=...
+SERIAL_PERSISTENCE=...
+ISSUER_API=...
+CERTIFICATE_ISSUANCE=...
+REVOCATION=...
+RENEWAL=...
+LIVE_PUBLICATION=...
+
+BUILDS=...
+WARNINGS=...
+OFFLINE_TESTS=...
+NETWORK_TESTS=NOT_RUN
+
+ED11_TOTAL_STATUS=PARTIAL_UNTIL_QUALIFIED
+
+REAL_CA_CREATED=NO
+PRODUCTIVE_ISSUANCE=DISABLED
+CLIENT_ADMISSION=DISABLED
+SITE_TLS_ADMISSION=DENY
+ED11_ADMISSION=DENY
+
+PST_CHANGED=NO
+BROWSER_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+PRODUCTION_PIN=0.6.4
+PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
+
+WIP_PRESERVED=...
+FIRST_UNRESOLVED_DIVERGENCE=...
+NEXT=IMPLEMENT_ADMIN_CLI_AND_COMPLETE_MANUAL_PACKAGE

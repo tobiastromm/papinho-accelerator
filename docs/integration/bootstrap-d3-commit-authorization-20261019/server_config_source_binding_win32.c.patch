@@ -1,0 +1,44 @@
+--- apps/server/server_config_source_binding_win32.c
++++ apps/server/server_config_source_binding_win32.c
+@@ -63,8 +63,8 @@
+  c=&o->configuration_commit;t=&o->configuration_preparation;
+  if(c->published||c->committed_bytes||c->committed_pending||c->recovery_selected||c->recovery_guard||
+     t->administrative_published||t->normative_committed||t->invocation!=o->invocation||
+-    o->network.is_active||papacc_server_console_win32_stop_requested()||
+-    papacc_configuration_bootstrap_custody_ready(c)!=PAPACC_TRUE)
++    o->network.is_active||o->io_loop.initialized||o->secure_io.initialized||o->acceptor.initialized||papacc_server_console_win32_stop_requested()||
++    papacc_configuration_bootstrap_authority_valid(c)!=PAPACC_TRUE)
+   return deny(&out->binding,diag,"initial mode requires native administrative custody; update/recovery forbidden");
+  if(!pc_view(doc)||doc->listener_count!=1U||t->state!=PAPACC_ROOT_PREPARATION_PARTIAL||
+     papacc_server_security_source_validate(&t->source)!=PAPACC_RESULT_OK||
+@@ -89,3 +89,30 @@
+  return PC_OK;
+ }
+ #endif
++
++#ifdef PAPACC_OFFLINE_D3_WORKER
++#include "server_configuration_body05_win32.h"
++#include "config_root8.h"
++PAPACC_RESULT papacc_server_config_initial_bootstrap_commit(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,
++ const PC_DOCUMENT *doc,const PAPACC_U8 *image,PAPACC_SIZE bytes,const char *leaf,PAPACC_SIZE reserved)
++{
++ PAPACC_BOOTSTRAP_RESOLUTION resolved;PC_DIAGNOSTIC diagnostic;PAPACC_CONFIG_VIEW expected;
++ PAPACC_CONFIGURATION_COMMIT *c;const PC_LINE *line;unsigned length;
++ if(!o||!image||bytes<PC_ROOT8_MIN||bytes>PC_ROOT8_NO_ISSUER_MAX)return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(papacc_server_config_initial_bootstrap_resolve(o,doc,&resolved,&diagnostic)!=PC_OK||!resolved.initial_resolved||resolved.epochs_present)
++  return PAPACC_RESULT_INVALID_STATE;
++ c=&o->configuration_commit;
++ /* Enforce the current one-listener target, never truncate a collection. */
++ if(image[20]!=1U||image[21]||!doc||doc->listener_count!=1U)return PAPACC_RESULT_NOT_SUPPORTED;
++ expected=o->configuration_preparation.model;memcpy(expected.domain,c->domain,32U);
++ expected.revision=1U;expected.predecessor=0U;expected.policy_epoch=0U;
++ /* observed is exclusively reusable after custody worker has signaled/closed;
++  * future commit worker overwrites it only after this function hands off. */
++ if(papacc_configuration_body05_encode(&expected,c->pending_commit.observed,1024U)!=PAPACC_RESULT_OK||
++    memcmp(image+1024U,c->pending_commit.observed,1024U))return PAPACC_RESULT_INVALID_ARGUMENT;
++ line=&doc->lines[doc->blocks[doc->listeners[0].block].opener];length=(unsigned)strlen(line->tokens[1].text);
++ if(image[522]!=length||image[523]||memcmp(image+536U,line->tokens[1].text,length))return PAPACC_RESULT_INVALID_ARGUMENT;
++ if(papacc_server_console_win32_stop_requested())return PAPACC_RESULT_INVALID_STATE;
++ return papacc_configuration_bootstrap_commit_begin(c,image,bytes,leaf,reserved);
++}
++#endif

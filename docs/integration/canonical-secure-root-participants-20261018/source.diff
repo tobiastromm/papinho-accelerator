@@ -1,0 +1,528 @@
+diff --git "a/docs\\integration\\canonical-secure-root-participants-20261018\\CMakeLists.txt.preimage" b/CMakeLists.txt
+index 22f6c50..cf29862 100644
+--- "a/docs\\integration\\canonical-secure-root-participants-20261018\\CMakeLists.txt.preimage"
++++ b/CMakeLists.txt
+@@ -2366,3 +2366,33 @@ if(WIN32 AND PAPACC_ENABLE_DORMANT_C2_PARTICIPANT)
+         add_test(NAME papacc.c2.dormant_participant COMMAND papacc_c2_dormant_test)
+     endif()
+ endif()
++
++option(PAPACC_ENABLE_SECURE_SOURCE_PARTICIPANT "Build private transactional security material participant" OFF)
++if(WIN32 AND PAPACC_ENABLE_SECURE_SOURCE_PARTICIPANT)
++    if(NOT PAPACC_ENABLE_CANONICAL_API3_CANDIDATE OR NOT TARGET papacc_pst_consumer)
++        message(FATAL_ERROR "Secure source participant requires explicit normal API3 candidate and PST proof boundary")
++    endif()
++    add_library(papacc_secure_source_participant STATIC
++        apps/server/server_security_source_win32.c
++        src/security/authentication_authorization.c
++        src/security/server_security_configuration.c
++        src/security/security_composition.c
++        src/security/pst_log_adapter.c
++        src/security/platform/win32/pst_provider_bootstrap_win32.c)
++    target_include_directories(papacc_secure_source_participant PUBLIC
++        ${CMAKE_CURRENT_SOURCE_DIR}/apps/server
++        ${CMAKE_CURRENT_SOURCE_DIR}/src/security
++        ${CMAKE_CURRENT_SOURCE_DIR}/src/security/platform/win32
++        ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime)
++    target_link_libraries(papacc_secure_source_participant PUBLIC papacc_core papacc_runtime papacc_pst_consumer crypt32)
++    target_compile_options(papacc_secure_source_participant PRIVATE /W4 /WX)
++    if(BUILD_TESTING)
++        add_executable(papacc_secure_source_participant_test tests/secure_source_participant_test.c)
++        target_link_libraries(papacc_secure_source_participant_test PRIVATE papacc_secure_source_participant)
++        target_compile_options(papacc_secure_source_participant_test PRIVATE /W4 /WX)
++        add_test(NAME papacc.security.source_participant COMMAND papacc_secure_source_participant_test)
++    endif()
++endif()
++if(TARGET papacc_secure_source_participant_test)
++    set_tests_properties(papacc.security.source_participant PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
++endif()
+diff --git "a/docs\\integration\\canonical-secure-root-participants-20261018\\server_security_source_win32.c.preimage" b/apps/server/server_security_source_win32.c
+index 30f5d7d..d6fc1dc 100644
+--- "a/docs\\integration\\canonical-secure-root-participants-20261018\\server_security_source_win32.c.preimage"
++++ b/apps/server/server_security_source_win32.c
+@@ -9,6 +9,8 @@
+ #include "pst_provider_bootstrap_win32.h"
+ 
+ typedef struct PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE {
++    PAPACC_SECURITY_SOURCE_TRANSACTION *transaction;
++    PAPACC_SIZE capacities[3];
+     PAPACC_U8 *certificate;
+     PAPACC_SIZE certificate_size;
+     PAPACC_U8 *private_key;
+@@ -30,59 +32,97 @@ static void papacc_server_security_zero(void *data, PAPACC_SIZE size)
+     }
+ }
+ 
++static int source_owned(const PAPACC_SECURITY_SOURCE_TRANSACTION *t)
++{
++    return t!=NULL && t->owner_thread==GetCurrentThreadId() &&
++        t->state!=PAPACC_SECURITY_SOURCE_EMPTY &&
++        t->state!=PAPACC_SECURITY_SOURCE_CLOSED;
++}
++static void *source_allocate(PAPACC_SECURITY_SOURCE_TRANSACTION *t,PAPACC_SIZE size)
++{
++    void *p;
++    if(t!=NULL){
++        if(!source_owned(t) || t->close_uncertain || t->used>t->credit ||
++            size>t->credit-t->used){t->failure=PAPACC_RESULT_LIMIT_EXCEEDED;return NULL;}
++#ifdef PAPACC_SECURITY_SOURCE_OFFLINE_TEST
++        ++t->allocation_attempts;
++        if(t->fail_allocation_at!=0U && t->allocation_attempts==t->fail_allocation_at){
++            t->failure=PAPACC_RESULT_OUT_OF_MEMORY;return NULL;}
++#endif
++        t->used+=size;if(t->used>t->peak)t->peak=t->used;
++    }
++    p=malloc(size);
++    if(p==NULL && t!=NULL){t->used-=size;t->failure=PAPACC_RESULT_OUT_OF_MEMORY;}
++    return p;
++}
++static void source_free(PAPACC_SECURITY_SOURCE_TRANSACTION *t,void *p,PAPACC_SIZE size)
++{
++    if(p==NULL)return;
++    papacc_server_security_zero(p,size);free(p);
++    if(t!=NULL){
++        if(t->used>=size)t->used-=size;
++        else {t->close_uncertain=PAPACC_TRUE;t->failure=PAPACC_RESULT_INTERNAL_ERROR;}
++    }
++}
++
+ static void papacc_server_security_environment_release(void *context)
+ {
+     PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *storage =
+         (PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *)context;
++    PAPACC_SECURITY_SOURCE_TRANSACTION *t;
+     if (storage == NULL) return;
+-    papacc_server_security_zero(storage->private_key,
+-        storage->private_key_size);
+-    free(storage->certificate);
+-    free(storage->private_key);
+-    free(storage->client_ca);
+-    papacc_server_security_zero(storage, sizeof(*storage));
+-    free(storage);
++    t=storage->transaction;
++    if(t!=NULL && (t->state==PAPACC_SECURITY_SOURCE_RETAINED || t->borrowers!=0U))
++        return;
++    source_free(t,storage->certificate,storage->capacities[0]);
++    source_free(t,storage->private_key,storage->capacities[1]);
++    source_free(t,storage->client_ca,storage->capacities[2]);
++    if(t!=NULL)t->held_storage=NULL;
++    source_free(t,storage,sizeof(*storage));
+ }
+ 
++/* One existing loader, with optional transaction credit. The historical
++ * 16MiB input bound is unchanged. Decoded capacity and encoded staging overlap
++ * and are charged simultaneously. No data/content hashes are exported. */
+ static int papacc_server_security_load_base64(const char *path,
+-    PAPACC_U8 **data, PAPACC_SIZE *size)
+-{
+-    FILE *file = NULL;
+-    char *encoded = NULL;
+-    long length;
+-    DWORD needed = 0U, written;
+-    if (path == NULL || path[0] == '\0' || data == NULL || size == NULL ||
+-        fopen_s(&file, path, "rb") != 0 || file == NULL)
+-        return 0;
+-    if (fseek(file, 0, SEEK_END) != 0 || (length = ftell(file)) <= 0 ||
+-        length > 16L * 1024L * 1024L || fseek(file, 0, SEEK_SET) != 0)
+-        goto fail;
+-    encoded = (char *)malloc((size_t)length + 1U);
+-    if (encoded == NULL || fread(encoded, 1U, (size_t)length, file) !=
+-            (size_t)length)
+-        goto fail;
+-    fclose(file);
+-    file = NULL;
+-    encoded[length] = '\0';
+-    if (!CryptStringToBinaryA(encoded, (DWORD)length, CRYPT_STRING_BASE64,
+-            NULL, &needed, NULL, NULL) || needed == 0U)
+-        goto fail;
+-    *data = (PAPACC_U8 *)malloc((size_t)needed);
+-    if (*data == NULL) goto fail;
+-    written = needed;
+-    if (!CryptStringToBinaryA(encoded, (DWORD)length, CRYPT_STRING_BASE64,
+-            *data, &written, NULL, NULL)) {
+-        free(*data);
+-        *data = NULL;
+-        goto fail;
+-    }
+-    free(encoded);
+-    *size = (PAPACC_SIZE)written;
+-    return 1;
++    PAPACC_U8 **data,PAPACC_SIZE *size,PAPACC_SIZE *capacity,
++    PAPACC_SECURITY_SOURCE_TRANSACTION *t)
++{
++    FILE *file=NULL;char *encoded=NULL;PAPACC_U8 *decoded=NULL;
++    long length=0;DWORD needed=0U,written;PAPACC_SIZE encoded_capacity=0U;
++    int close_result;
++    if(data!=NULL)*data=NULL;if(size!=NULL)*size=0U;if(capacity!=NULL)*capacity=0U;
++    if(path==NULL || path[0]=='\0' || data==NULL || size==NULL || capacity==NULL ||
++        fopen_s(&file,path,"rb")!=0 || file==NULL)return 0;
++    if(fseek(file,0,SEEK_END)!=0 || (length=ftell(file))<=0 ||
++        length>16L*1024L*1024L || fseek(file,0,SEEK_SET)!=0)goto fail;
++    encoded_capacity=(PAPACC_SIZE)length+1U;
++    encoded=source_allocate(t,encoded_capacity);
++    if(encoded==NULL || fread(encoded,1U,(size_t)length,file)!=(size_t)length)goto fail;
++    close_result=fclose(file);file=NULL;
++    if(close_result!=0){if(t!=NULL)t->close_uncertain=PAPACC_TRUE;goto fail;}
++    encoded[length]='\0';
++    if(!CryptStringToBinaryA(encoded,(DWORD)length,CRYPT_STRING_BASE64,
++        NULL,&needed,NULL,NULL) || needed==0U)goto fail;
++    decoded=source_allocate(t,(PAPACC_SIZE)needed);
++    if(decoded==NULL)goto fail;
++    written=needed;
++    if(!CryptStringToBinaryA(encoded,(DWORD)length,CRYPT_STRING_BASE64,
++        decoded,&written,NULL,NULL) || written==0U || written>needed)goto fail;
++    source_free(t,encoded,encoded_capacity);
++    *data=decoded;*size=(PAPACC_SIZE)written;*capacity=(PAPACC_SIZE)needed;return 1;
+ fail:
+-    if (file != NULL) fclose(file);
+-    free(encoded);
+-    return 0;
++    if(file!=NULL){close_result=fclose(file);file=NULL;
++        if(close_result!=0 && t!=NULL)t->close_uncertain=PAPACC_TRUE;}
++    /* fclose consumes the CRT stream even on failure: never retry it. An
++     * uncertain native close keeps the transaction/owned material contained. */
++    if(t!=NULL && t->close_uncertain){
++        t->retained_staging=encoded;t->retained_staging_capacity=encoded_capacity;
++        if(decoded!=NULL){*data=decoded;*size=(PAPACC_SIZE)needed;*capacity=(PAPACC_SIZE)needed;}
++        t->failure=PAPACC_RESULT_INTERNAL_ERROR;return 0;
++    }
++    source_free(t,decoded,(PAPACC_SIZE)needed);
++    source_free(t,encoded,encoded_capacity);return 0;
+ }
+ 
+ static PAPACC_RESULT papacc_server_lab_principal_resolve(void *context,
+@@ -148,46 +188,88 @@ static PAPACC_RESULT papacc_server_lab_authorize(void *context,
+     return PAPACC_RESULT_OK;
+ }
+ 
+-PAPACC_RESULT papacc_server_security_environment_resolve(
++/* 1=value, 0=missing, -1=empty/overlong/error. Paths are not secrets,
++ * but never exported by this source. No truncation is accepted. */
++static int papacc_server_security_environment_value(const char *name,
++    char *value,DWORD capacity)
++{
++    DWORD count,error;
++    value[0]='\0';SetLastError(ERROR_SUCCESS);
++    count=GetEnvironmentVariableA(name,value,capacity);error=GetLastError();
++    if(count==0U)return error==ERROR_ENVVAR_NOT_FOUND?0:-1;
++    if(count>=capacity){value[0]='\0';return -1;}
++    return 1;
++}
++
++static PAPACC_RESULT source_resolve(
+     void *context, const PAPACC_SECURITY_CONFIGURATION_REF *reference,
+     PAPACC_SECURITY_CONFIGURATION_RESOLUTION *resolution,
+-    PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION *configuration)
++    PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION *configuration,
++    PAPACC_SECURITY_SOURCE_TRANSACTION *transaction)
+ {
+     PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *storage;
+-    const char *expected = getenv("PAPACC_SECURITY_CONFIGURATION_REF");
+-    const char *certificate = getenv("PAPACC_SERVER_CERTIFICATE_DER_B64");
+-    const char *private_key = getenv("PAPACC_SERVER_PRIVATE_KEY_PKCS8_DER_B64");
+-    const char *client_ca = getenv("PAPACC_CLIENT_CA_DER_B64");
+-    const char *allowed_client = getenv("PAPACC_ALLOWED_CLIENT_CERT_SHA256");
++    char expected[PAPACC_SECURITY_CONFIGURATION_REF_CAPACITY+1U];
++    char certificate[MAX_PATH];
++    char private_key[MAX_PATH];
++    char client_ca[MAX_PATH];
++    char allowed_client[65U];
+     PAPACC_SIZE expected_size;
++    int environment_status;
+     (void)context;
+     if (reference == NULL || resolution == NULL || configuration == NULL)
+         return PAPACC_RESULT_INVALID_ARGUMENT;
+     *resolution = PAPACC_SECURITY_CONFIGURATION_RESOLVER_ERROR;
+-    if (expected == NULL) {
++    /* Reject malformed reference before environment lookup or byte comparison. */
++    if (reference->valid != PAPACC_TRUE || reference->length == 0U ||
++        reference->length > PAPACC_SECURITY_CONFIGURATION_REF_CAPACITY)
++        return PAPACC_RESULT_INVALID_ARGUMENT;
++    environment_status=papacc_server_security_environment_value(
++        "PAPACC_SECURITY_CONFIGURATION_REF",expected,(DWORD)sizeof(expected));
++    if (environment_status == 0) {
+         *resolution = PAPACC_SECURITY_CONFIGURATION_UNAVAILABLE;
+         return PAPACC_RESULT_OK;
+     }
++    if (environment_status != 1) {
++        *resolution = PAPACC_SECURITY_CONFIGURATION_INVALID;
++        return PAPACC_RESULT_OK;
++    }
+     expected_size = strlen(expected);
+     if (reference->valid != PAPACC_TRUE || expected_size != reference->length ||
+         memcmp(reference->value, expected, expected_size) != 0) {
+         *resolution = PAPACC_SECURITY_CONFIGURATION_NOT_FOUND;
+         return PAPACC_RESULT_OK;
+     }
+-    storage = (PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *)calloc(
+-        1U, sizeof(*storage));
+-    if (storage == NULL) return PAPACC_RESULT_OUT_OF_MEMORY;
++    if (papacc_server_security_environment_value("PAPACC_SERVER_CERTIFICATE_DER_B64",certificate,
++            (DWORD)sizeof(certificate)) != 1 ||
++        papacc_server_security_environment_value("PAPACC_SERVER_PRIVATE_KEY_PKCS8_DER_B64",private_key,
++            (DWORD)sizeof(private_key)) != 1 ||
++        papacc_server_security_environment_value("PAPACC_CLIENT_CA_DER_B64",client_ca,
++            (DWORD)sizeof(client_ca)) != 1 ||
++        papacc_server_security_environment_value("PAPACC_ALLOWED_CLIENT_CERT_SHA256",allowed_client,
++            (DWORD)sizeof(allowed_client)) != 1) {
++        *resolution = PAPACC_SECURITY_CONFIGURATION_INVALID;
++        return PAPACC_RESULT_OK;
++    }
++    storage = (PAPACC_SERVER_SECURITY_ENVIRONMENT_STORAGE *)source_allocate(
++        transaction,sizeof(*storage));
++    if (storage == NULL) return transaction!=NULL?transaction->failure:PAPACC_RESULT_OUT_OF_MEMORY;
++    memset(storage,0,sizeof(*storage));storage->transaction=transaction;
++    if(transaction!=NULL)transaction->held_storage=storage;
+     if (!papacc_server_security_parse_hex_sha256(allowed_client,
+             storage->allowed_client_certificate_sha256) ||
+         !papacc_server_security_load_base64(certificate,
+-            &storage->certificate, &storage->certificate_size) ||
++            &storage->certificate, &storage->certificate_size,&storage->capacities[0],transaction) ||
+         !papacc_server_security_load_base64(private_key,
+-            &storage->private_key, &storage->private_key_size) ||
++            &storage->private_key, &storage->private_key_size,&storage->capacities[1],transaction) ||
+         !papacc_server_security_load_base64(client_ca,
+-            &storage->client_ca, &storage->client_ca_size)) {
+-        papacc_server_security_environment_release(storage);
++            &storage->client_ca, &storage->client_ca_size,&storage->capacities[2],transaction)) {
++        if(transaction!=NULL && transaction->close_uncertain){
++            configuration->release=papacc_server_security_environment_release;
++            configuration->release_context=storage;
++        }else papacc_server_security_environment_release(storage);
+         *resolution = PAPACC_SECURITY_CONFIGURATION_INVALID;
+-        return PAPACC_RESULT_OK;
++        return transaction!=NULL && transaction->failure!=PAPACC_RESULT_OK?
++            transaction->failure:PAPACC_RESULT_OK;
+     }
+     storage->certificate_item.data = storage->certificate;
+     storage->certificate_item.size = storage->certificate_size;
+@@ -219,3 +301,109 @@ PAPACC_RESULT papacc_server_security_environment_resolve(
+     *resolution = PAPACC_SECURITY_CONFIGURATION_RESOLVED;
+     return PAPACC_RESULT_OK;
+ }
++
++
++/* Existing public-to-the-application resolver contract and callback identities
++ * remain unchanged. Transactional callers use the same source_resolve path. */
++PAPACC_RESULT papacc_server_security_environment_resolve(
++    void *context,const PAPACC_SECURITY_CONFIGURATION_REF *reference,
++    PAPACC_SECURITY_CONFIGURATION_RESOLUTION *resolution,
++    PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION *configuration)
++{return source_resolve(context,reference,resolution,configuration,NULL);}
++
++PAPACC_RESULT papacc_server_security_source_prepare(PAPACC_SECURITY_SOURCE_TRANSACTION *t,
++    const PAPACC_SECURITY_CONFIGURATION_REF *reference,const PAPACC_LOGGER *logger,
++    PAPACC_SIZE other_reserved,PAPACC_SIZE credit)
++{
++    PAPACC_SECURITY_CONFIGURATION_RESOLUTION resolution;
++    PAPACC_RESULT result;
++    if(t==NULL || reference==NULL || logger==NULL || credit==0U)
++        return PAPACC_RESULT_INVALID_ARGUMENT;
++    if(t->state!=PAPACC_SECURITY_SOURCE_EMPTY || t->owner_thread!=0U ||
++        t->held_storage!=NULL || t->used!=0U || t->configuration.release!=NULL)
++        return PAPACC_RESULT_INVALID_STATE;
++    if(sizeof(*t)>2097152U || other_reserved>2097152U-sizeof(*t) ||
++        credit>2097152U-sizeof(*t)-other_reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++    t->owner_thread=GetCurrentThreadId();t->other_reserved=other_reserved;
++    t->credit=credit;t->reference=*reference;t->logger=*logger;
++    t->state=PAPACC_SECURITY_SOURCE_PREPARING;t->failure=PAPACC_RESULT_OK;
++    result=source_resolve(&t->logger,reference,&resolution,&t->configuration,t);
++    if(result==PAPACC_RESULT_OK && resolution==PAPACC_SECURITY_CONFIGURATION_RESOLVED){
++        t->state=PAPACC_SECURITY_SOURCE_PREPARED;
++        result=papacc_server_security_source_validate(t);
++    }
++    else if(result==PAPACC_RESULT_OK)result=PAPACC_RESULT_INVALID_STATE;
++    if(result!=PAPACC_RESULT_OK){
++        t->failure=result;
++        if(t->close_uncertain){t->state=PAPACC_SECURITY_SOURCE_RETAINED;return result;}
++        papacc_resolved_server_security_configuration_release(&t->configuration);
++        t->state=PAPACC_SECURITY_SOURCE_REJECTED;
++    }
++    return result;
++}
++PAPACC_RESULT papacc_server_security_source_validate(const PAPACC_SECURITY_SOURCE_TRANSACTION *t)
++{
++    if(!source_owned(t) || t->close_uncertain || t->used==0U ||
++        t->used>t->credit || t->held_storage==NULL ||
++        (t->state!=PAPACC_SECURITY_SOURCE_PREPARED &&
++         t->state!=PAPACC_SECURITY_SOURCE_COMMITTED && t->state!=PAPACC_SECURITY_SOURCE_PUBLISHED))
++        return PAPACC_RESULT_INVALID_STATE;
++    return papacc_resolved_server_security_configuration_validate(&t->configuration);
++}
++PAPACC_RESULT papacc_server_security_source_commit(PAPACC_SECURITY_SOURCE_TRANSACTION *t)
++{
++    if(!source_owned(t) || t->state!=PAPACC_SECURITY_SOURCE_PREPARED ||
++        papacc_server_security_source_validate(t)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
++    t->state=PAPACC_SECURITY_SOURCE_COMMITTED;return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_server_security_source_publish(PAPACC_SECURITY_SOURCE_TRANSACTION *t)
++{
++    if(!source_owned(t) || t->state!=PAPACC_SECURITY_SOURCE_COMMITTED ||
++        papacc_server_security_source_validate(t)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
++    t->state=PAPACC_SECURITY_SOURCE_PUBLISHED;return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_server_security_source_borrow(PAPACC_SECURITY_SOURCE_TRANSACTION *t,
++    PAPACC_U64 *ticket,const PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION **view)
++{
++    unsigned i;if(ticket!=NULL)*ticket=0U;if(view!=NULL)*view=NULL;
++    if(ticket==NULL || view==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
++    if(!source_owned(t) || t->state!=PAPACC_SECURITY_SOURCE_PUBLISHED ||
++        papacc_server_security_source_validate(t)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
++    if(t->next_ticket==(PAPACC_U64)-1)return PAPACC_RESULT_LIMIT_EXCEEDED;
++    for(i=0U;i<8U;++i)if(t->tickets[i]==0U)break;
++    if(i==8U)return PAPACC_RESULT_LIMIT_EXCEEDED;
++    t->tickets[i]=++t->next_ticket;++t->borrowers;*ticket=t->tickets[i];
++    *view=&t->configuration;return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_server_security_source_unborrow(PAPACC_SECURITY_SOURCE_TRANSACTION *t,PAPACC_U64 ticket)
++{
++    unsigned i;
++    if(!source_owned(t) || ticket==0U)return PAPACC_RESULT_INVALID_STATE;
++    for(i=0U;i<8U;++i)if(t->tickets[i]==ticket)break;
++    if(i==8U || t->borrowers==0U)return PAPACC_RESULT_INVALID_STATE;
++    t->tickets[i]=0U;--t->borrowers;return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_server_security_source_rollback(PAPACC_SECURITY_SOURCE_TRANSACTION *t)
++{
++    if(!source_owned(t) || t->state!=PAPACC_SECURITY_SOURCE_PREPARED ||
++        t->borrowers!=0U || t->close_uncertain)return PAPACC_RESULT_INVALID_STATE;
++    papacc_resolved_server_security_configuration_release(&t->configuration);
++    if(t->used || t->held_storage)return PAPACC_RESULT_INTERNAL_ERROR;
++    t->state=PAPACC_SECURITY_SOURCE_CLOSED;return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_server_security_source_finish(PAPACC_SECURITY_SOURCE_TRANSACTION *t,PAPACC_BOOL quiescent)
++{
++    if(!source_owned(t) || quiescent!=PAPACC_TRUE || t->close_uncertain ||
++        t->borrowers!=0U || t->state==PAPACC_SECURITY_SOURCE_RETAINED ||
++        (t->state!=PAPACC_SECURITY_SOURCE_COMMITTED && t->state!=PAPACC_SECURITY_SOURCE_PUBLISHED &&
++         t->state!=PAPACC_SECURITY_SOURCE_REJECTED))return PAPACC_RESULT_INVALID_STATE;
++    papacc_resolved_server_security_configuration_release(&t->configuration);
++    if(t->used || t->held_storage)return PAPACC_RESULT_INTERNAL_ERROR;
++    t->state=PAPACC_SECURITY_SOURCE_CLOSED;return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_server_security_source_retain(PAPACC_SECURITY_SOURCE_TRANSACTION *t)
++{
++    if(!source_owned(t) || t->state==PAPACC_SECURITY_SOURCE_REJECTED)
++        return PAPACC_RESULT_INVALID_STATE;
++    t->state=PAPACC_SECURITY_SOURCE_RETAINED;return PAPACC_RESULT_OK;
++}
+diff --git "a/docs\\integration\\canonical-secure-root-participants-20261018\\server_security_source_win32.h.preimage" b/apps/server/server_security_source_win32.h
+index db713ac..c6a5c89 100644
+--- "a/docs\\integration\\canonical-secure-root-participants-20261018\\server_security_source_win32.h.preimage"
++++ b/apps/server/server_security_source_win32.h
+@@ -17,4 +17,48 @@ PAPACC_RESULT papacc_server_security_environment_resolve(
+     PAPACC_SECURITY_CONFIGURATION_RESOLUTION *resolution,
+     PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION *configuration);
+ 
++/* Private source-lease states, NOT configuration commit, provider readiness
++ * or authentication. Only zeroed durable storage may enter EMPTY. */
++typedef enum PAPACC_SECURITY_SOURCE_STATE {
++    PAPACC_SECURITY_SOURCE_EMPTY = 0,
++    PAPACC_SECURITY_SOURCE_PREPARING,
++    PAPACC_SECURITY_SOURCE_PREPARED,
++    PAPACC_SECURITY_SOURCE_COMMITTED,
++    PAPACC_SECURITY_SOURCE_PUBLISHED,
++    PAPACC_SECURITY_SOURCE_REJECTED,
++    PAPACC_SECURITY_SOURCE_RETAINED,
++    PAPACC_SECURITY_SOURCE_CLOSED
++} PAPACC_SECURITY_SOURCE_STATE;
++typedef struct PAPACC_SECURITY_SOURCE_TRANSACTION {
++    PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION configuration;
++    PAPACC_SECURITY_CONFIGURATION_REF reference;
++    PAPACC_LOGGER logger;
++    PAPACC_SIZE other_reserved, credit, used, peak;
++    PAPACC_U32 owner_thread;
++    PAPACC_SECURITY_SOURCE_STATE state;
++    PAPACC_RESULT failure;
++    PAPACC_U64 next_ticket, tickets[8];
++    PAPACC_SIZE borrowers;
++    void *held_storage, *retained_staging;
++    PAPACC_SIZE retained_staging_capacity;
++    PAPACC_BOOL close_uncertain;
++#ifdef PAPACC_SECURITY_SOURCE_OFFLINE_TEST
++    PAPACC_SIZE fail_allocation_at, allocation_attempts;
++#endif
++} PAPACC_SECURITY_SOURCE_TRANSACTION;
++/* other_reserved prices all other simultaneous owners, stacks and overhead.
++ * Add sizeof(transaction) and its material credit before effects. Opaque
++ * provider/kernel memory stays UNKNOWN. A borrowed view is read-only. */
++PAPACC_RESULT papacc_server_security_source_prepare(
++    PAPACC_SECURITY_SOURCE_TRANSACTION *,const PAPACC_SECURITY_CONFIGURATION_REF *,
++    const PAPACC_LOGGER *,PAPACC_SIZE,PAPACC_SIZE);
++PAPACC_RESULT papacc_server_security_source_validate(const PAPACC_SECURITY_SOURCE_TRANSACTION *);
++PAPACC_RESULT papacc_server_security_source_commit(PAPACC_SECURITY_SOURCE_TRANSACTION *);
++PAPACC_RESULT papacc_server_security_source_publish(PAPACC_SECURITY_SOURCE_TRANSACTION *);
++PAPACC_RESULT papacc_server_security_source_borrow(PAPACC_SECURITY_SOURCE_TRANSACTION *,
++    PAPACC_U64 *,const PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION **);
++PAPACC_RESULT papacc_server_security_source_unborrow(PAPACC_SECURITY_SOURCE_TRANSACTION *,PAPACC_U64);
++PAPACC_RESULT papacc_server_security_source_rollback(PAPACC_SECURITY_SOURCE_TRANSACTION *);
++PAPACC_RESULT papacc_server_security_source_finish(PAPACC_SECURITY_SOURCE_TRANSACTION *,PAPACC_BOOL);
++PAPACC_RESULT papacc_server_security_source_retain(PAPACC_SECURITY_SOURCE_TRANSACTION *);
+ #endif
+diff --git a/tests/secure_source_participant_test.c b/tests/secure_source_participant_test.c
+new file mode 100644
+index 0000000..95d4919
+--- /dev/null
++++ b/tests/secure_source_participant_test.c
+@@ -0,0 +1,60 @@
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include "server_security_source_win32.h"
++#include <stdio.h>
++#include <string.h>
++static PAPACC_SECURITY_SOURCE_TRANSACTION normal,rollback,retained,rejected;
++static unsigned checks;
++#define CHECK(x) do{++checks;if(!(x)){printf("FAIL line=%d\n",__LINE__);return 1;}}while(0)
++int main(void)
++{
++ PAPACC_LOGGER logger={NULL,NULL,PAPACC_LOG_LEVEL_OFF};
++ PAPACC_SECURITY_CONFIGURATION_REF ref=PAPACC_SECURITY_CONFIGURATION_REF_INITIALIZER;
++ const PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION *view=NULL;
++ PAPACC_U64 ticket=0U,stale;PAPACC_SIZE held;
++ CHECK(SetEnvironmentVariableA("PAPACC_SECURITY_CONFIGURATION_REF","offline-source")!=0);
++ CHECK(SetEnvironmentVariableA("PAPACC_SERVER_CERTIFICATE_DER_B64","tests/fixtures/security/server.der.b64")!=0);
++ CHECK(SetEnvironmentVariableA("PAPACC_SERVER_PRIVATE_KEY_PKCS8_DER_B64","tests/fixtures/security/server.pk8.b64")!=0);
++ CHECK(SetEnvironmentVariableA("PAPACC_CLIENT_CA_DER_B64","tests/fixtures/security/ca.der.b64")!=0);
++ CHECK(SetEnvironmentVariableA("PAPACC_ALLOWED_CLIENT_CERT_SHA256","0000000000000000000000000000000000000000000000000000000000000000")!=0);
++ CHECK(papacc_security_configuration_ref_set(&ref,(const PAPACC_U8 *)"offline-source",14U)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_prepare(&rejected,&ref,&logger,2097152U,32768U)==PAPACC_RESULT_LIMIT_EXCEEDED);
++ CHECK(!rejected.held_storage&&rejected.state==PAPACC_SECURITY_SOURCE_EMPTY);
++ CHECK(papacc_server_security_source_prepare(&rejected,&ref,&logger,0U,1U)!=PAPACC_RESULT_OK);
++ CHECK(!rejected.held_storage&&!rejected.used);
++ CHECK(papacc_server_security_source_prepare(&normal,&ref,&logger,0U,32768U)==PAPACC_RESULT_OK);
++ CHECK(normal.state==PAPACC_SECURITY_SOURCE_PREPARED&&normal.used&&normal.used<=normal.credit);
++ CHECK(papacc_server_security_source_validate(&normal)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_borrow(&normal,&ticket,&view)==PAPACC_RESULT_INVALID_STATE&&!ticket&&!view);
++ /* Material-local commit/publication, NOT CONFIG_COMMITTED or policy CURRENT. */
++ CHECK(papacc_server_security_source_commit(&normal)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_publish(&normal)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_borrow(&normal,&ticket,&view)==PAPACC_RESULT_OK);
++ CHECK(view==&normal.configuration&&normal.borrowers==1U&&view->valid);
++ CHECK(view->principal_resolve_context==view->release_context&&view->authorization_context==NULL&&view->composition_inputs.logger==&normal.logger);
++ held=normal.used;stale=ticket;
++ CHECK(papacc_server_security_source_finish(&normal,PAPACC_TRUE)==PAPACC_RESULT_INVALID_STATE&&normal.used==held);
++ CHECK(papacc_server_security_source_unborrow(&normal,ticket)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_unborrow(&normal,stale)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(papacc_server_security_source_finish(&normal,PAPACC_FALSE)==PAPACC_RESULT_INVALID_STATE&&normal.used==held);
++ CHECK(papacc_server_security_source_finish(&normal,PAPACC_TRUE)==PAPACC_RESULT_OK);
++ CHECK(normal.state==PAPACC_SECURITY_SOURCE_CLOSED&&!normal.used&&!normal.held_storage);
++ CHECK(papacc_server_security_source_finish(&normal,PAPACC_TRUE)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(papacc_server_security_source_prepare(&normal,&ref,&logger,0U,32768U)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(papacc_server_security_source_prepare(&rollback,&ref,&logger,0U,32768U)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_rollback(&rollback)==PAPACC_RESULT_OK);
++ CHECK(!rollback.used&&!rollback.held_storage&&rollback.state==PAPACC_SECURITY_SOURCE_CLOSED);
++ CHECK(papacc_server_security_source_prepare(&retained,&ref,&logger,0U,32768U)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_commit(&retained)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_publish(&retained)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_borrow(&retained,&ticket,&view)==PAPACC_RESULT_OK);
++ held=retained.used;
++ CHECK(papacc_server_security_source_retain(&retained)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_borrow(&retained,&stale,&view)==PAPACC_RESULT_INVALID_STATE);
++ CHECK(papacc_server_security_source_unborrow(&retained,ticket)==PAPACC_RESULT_OK);
++ CHECK(papacc_server_security_source_finish(&retained,PAPACC_TRUE)==PAPACC_RESULT_INVALID_STATE&&retained.used==held);
++ CHECK(papacc_server_security_source_rollback(&retained)==PAPACC_RESULT_INVALID_STATE);
++ printf("PASS checks=%u source_size=%llu credit=32768 peak=%llu retained=%llu\n",checks,
++ (unsigned long long)sizeof(normal),(unsigned long long)normal.peak,(unsigned long long)retained.used);
++ return 0;
++}
+\ No newline at end of file

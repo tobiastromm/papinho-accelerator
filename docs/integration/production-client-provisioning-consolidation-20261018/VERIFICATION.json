@@ -1,0 +1,95 @@
+{
+  "scope": "DOCUMENTARY_VALIDATION_ONLY_NOT_PRODUCT_TESTS",
+  "browser": {
+    "preexisting_files": 17053,
+    "changed_preexisting": [],
+    "new_files": [],
+    "head": "1eb028554f622672377953225e162ed9b6564a40",
+    "head_unchanged": true,
+    "status_unchanged": true,
+    "diff_head_sha256": "854d26becfba2c46fc4f4c8edc8350b34e655d9c73d2499743cbff39266158ab"
+  },
+  "accelerator": {
+    "preexisting_files": 1231,
+    "changed_preexisting": [
+      "docs/capabilities/client-pairing.md",
+      "docs/phase6-network-tls-offload.md"
+    ],
+    "new_files": [
+      "docs/adr/DECISION-production-client-provisioning-20261018.md",
+      "docs/integration/production-client-provisioning-consolidation-20261018/AUTHORITIES-SHA256.json",
+      "docs/integration/production-client-provisioning-consolidation-20261018/BASELINE.json",
+      "docs/integration/production-client-provisioning-consolidation-20261018/BROWSER-HANDOFF.md",
+      "docs/integration/production-client-provisioning-consolidation-20261018/EXECUTOR-LOG.json",
+      "docs/integration/production-client-provisioning-consolidation-20261018/NEXT-MANUAL-GENERATOR.md",
+      "docs/integration/production-client-provisioning-consolidation-20261018/OWNER-REQUEST.txt",
+      "docs/integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md",
+      "docs/integration/production-client-provisioning-consolidation-20261018/apply_documents.py",
+      "docs/integration/production-client-provisioning-consolidation-20261018/preimages.zip"
+    ],
+    "head": "c50b8fb9a7e3293b5e6355fc08459bf85b56857a",
+    "head_unchanged": true,
+    "status_unchanged": false,
+    "diff_head_sha256": "689e422c0961d16076b538cac664b365774edfa2e880d134b4b1a82dbbdaaea9"
+  },
+  "official_patch_failure": {
+    "path": "docs/capabilities/canonical-phase6-consolidation.md",
+    "reason": "Expected context not found. Unterminated final line caused generated diff context concatenation. Optional patch NOT reapplied by any mechanism.",
+    "file_ends_with_newline": false
+  },
+  "runtime_tests": "NOT_RUN",
+  "network": "NOT_RUN",
+  "diff_check": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "warning: in the working copy of 'docs/capabilities/client-pairing.md', LF will be replaced by CRLF the next time Git touches it\n"
+  },
+  "applied_documents": [
+    "docs/adr/DECISION-production-client-provisioning-20261018.md",
+    "docs/integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md",
+    "docs/phase6-network-tls-offload.md",
+    "docs/capabilities/client-pairing.md",
+    "docs/integration/production-client-provisioning-consolidation-20261018/BROWSER-HANDOFF.md",
+    "docs/integration/production-client-provisioning-consolidation-20261018/NEXT-MANUAL-GENERATOR.md"
+  ],
+  "newline_whitespace_errors": [],
+  "broken_document_links": [],
+  "phase6_gates": {
+    "P6-PROVISIONING-MANUAL-PACKAGE": true,
+    "P6-PROVISIONING-AUTOMATIC-ENROLLMENT": true,
+    "P6-PROVISIONING-OPEN-CLOSED": true,
+    "P6-PROVISIONING-AUTO-MANUAL-APPROVAL": true,
+    "P6-PROVISIONING-HOT-UPDATE": true,
+    "P6-PROVISIONING-REVOCATION-RENEWAL": true
+  },
+  "accepted_existing_adrs_unchanged": true,
+  "all_unexpected_changes": 0,
+  "documentary_validation": "PASS",
+  "final_review": {
+    "applied_documents": [
+      "docs/adr/DECISION-production-client-provisioning-20261018.md",
+      "docs/integration/production-client-provisioning-consolidation-20261018/RECONCILIATION.md",
+      "docs/phase6-network-tls-offload.md",
+      "docs/capabilities/client-pairing.md",
+      "docs/integration/production-client-provisioning-consolidation-20261018/BROWSER-HANDOFF.md",
+      "docs/integration/production-client-provisioning-consolidation-20261018/NEXT-MANUAL-GENERATOR.md",
+      "docs/integration/production-client-provisioning-consolidation-20261018/CLOSEOUT.md"
+    ],
+    "document_count": 7,
+    "official_context_failures": 1,
+    "policy_denials": 0,
+    "context_failure_not_retried": true,
+    "broken_links": [],
+    "reverse_delta_check": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "diff_check_exit_code": 0,
+    "artifact_serialization_note": "Initial read-only reverse check failed on generated CRLF diff. Diff artifact serialized as UTF-8 LF; final --reverse --check PASS. No product/doc patch applied during these checks.",
+    "scope": "DOCS_ONLY_NO_PRODUCT_BUILD_TESTS_OR_NETWORK",
+    "sdk_verification": "SDK-VERIFICATION.json",
+    "heads_unchanged": true,
+    "browser_final_status_unchanged": true
+  }
+}

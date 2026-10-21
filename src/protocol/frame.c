@@ -66,7 +66,7 @@ PAPACC_RESULT papacc_frame_header_encode(
     if (header == NULL || output == NULL || out_written == NULL) {
         return PAPACC_RESULT_INVALID_ARGUMENT;
     }
-    result = papacc_frame_header_validate(header, UINT32_MAX);
+    result = papacc_frame_header_validate(header, (PAPACC_U32)0xFFFFFFFFUL);
     if (result != PAPACC_RESULT_OK) {
         return result;
     }

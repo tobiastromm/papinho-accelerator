@@ -1,0 +1,20 @@
+#ifndef PAPACC_EGRESS_RUNTIME_CONFIG_H
+#define PAPACC_EGRESS_RUNTIME_CONFIG_H
+#include "egress_policy.h"
+#include "network_offload_protocol.h"
+typedef PAPACC_RESULT (*PAPACC_EGRESS_PROFILE_SELECT_FN)(void *,
+    const PAPACC_NETWORK_ENDPOINT *,PAPACC_NETWORK_TRANSPORT_MODE,PAPACC_U32 *);
+typedef struct PAPACC_EGRESS_RUNTIME_CONFIG {
+    PAPACC_BOOL allow_network_egress;
+    const PAPACC_EGRESS_POLICY *policy;
+    const PAPACC_EGRESS_PROFILE *profiles;
+    PAPACC_SIZE profile_count;
+    PAPACC_EGRESS_PROFILE_SELECT_FN select_profile;
+    void *select_profile_context;
+} PAPACC_EGRESS_RUNTIME_CONFIG;
+#define PAPACC_EGRESS_RUNTIME_CONFIG_INITIALIZER \
+    {PAPACC_FALSE,NULL,NULL,0U,NULL,NULL}
+PAPACC_RESULT papacc_egress_runtime_resolve(
+    const PAPACC_EGRESS_RUNTIME_CONFIG *,const PAPACC_NETWORK_ENDPOINT *,
+    PAPACC_NETWORK_TRANSPORT_MODE,const PAPACC_EGRESS_PROFILE **);
+#endif

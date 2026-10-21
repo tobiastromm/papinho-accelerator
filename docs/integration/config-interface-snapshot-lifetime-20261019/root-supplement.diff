@@ -1,0 +1,44 @@
+--- tests\canonical_root_transaction_test.c
++++ tests\canonical_root_transaction_test.c
+@@ -69,6 +69,16 @@
+  printf("CHECKPOINT_ROUNDTRIP R=%llu A_PRESENT P_MATCH high_water=%llu checks=%u RECOVERY_DENY\n",(unsigned long long)r,(unsigned long long)o->configuration_commit.committed[8192+175],checks);
+  return 0;
+ }
++/* Diagnostic-only wrong-thread attempt; no new product worker or callback. */
++typedef struct SNAPSHOT_THREAD_INPUT {
++ PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *owner;
++ const PAPACC_NETWORK_DISCOVERY_SNAPSHOT *snapshot;
++} SNAPSHOT_THREAD_INPUT;
++static DWORD WINAPI snapshot_wrong_thread(void *context)
++{
++ SNAPSHOT_THREAD_INPUT *input=(SNAPSHOT_THREAD_INPUT *)context;
++ return (DWORD)papacc_server_launcher_configuration_prepare_listener(input->owner,input->snapshot);
++}
+ int main(int argc,char **argv)
+ {
+  PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=NULL;PAPACC_ROOT_CONFIGURATION_PREPARATION *t;
+@@ -129,6 +139,13 @@
+    CHECK(papacc_server_launcher_configuration_prepare_listener(o,&snapshot)!=PAPACC_RESULT_OK);
+    CHECK(!t->participants.interface_snapshot.present&&!t->participants.listener_prepared);
+   }else{
++   {SNAPSHOT_THREAD_INPUT input;HANDLE peer;DWORD outcome=0U;
++    input.owner=o;input.snapshot=&snapshot;
++    peer=CreateThread(NULL,0,snapshot_wrong_thread,&input,0,NULL);CHECK(peer!=NULL);
++    CHECK(WaitForSingleObject(peer,5000U)==WAIT_OBJECT_0);
++    CHECK(GetExitCodeThread(peer,&outcome)&&outcome!=(DWORD)PAPACC_RESULT_OK);
++    CHECK(CloseHandle(peer));CHECK(!t->participants.interface_snapshot.present);
++   }
+    oversized.address_count=PAPACC_INTERFACE_COPY_ADDRESSES+1U;
+    CHECK(papacc_server_launcher_configuration_prepare_listener(o,&oversized)==PAPACC_RESULT_LIMIT_EXCEEDED);
+    CHECK(!t->participants.interface_snapshot.present&&!t->participants.listener_prepared);
+@@ -151,6 +168,10 @@
+     printf("SNAPSHOT_ROOT_RETAINED=PASS checks=%u NO_CURRENT NO_COMMIT NO_NETWORK\n",checks);return 0;
+    }
+   }
++  printf("SNAPSHOT_BUDGET combined=%llu copy=%llu participant=%llu transient_guard=%llu limit=2097152\n",
++   (unsigned long long)t->combined_reserved,(unsigned long long)sizeof(PAPACC_INTERFACE_SNAPSHOT_COPY),
++   (unsigned long long)sizeof(PAPACC_ROOT_TRANSACTION_PARTICIPANTS),
++   (unsigned long long)(sizeof(PAPACC_ROOT_TRANSACTION_PARTICIPANTS)+4096U));
+   CHECK(!t->normative_committed&&!t->administrative_published&&!t->current_policy_epoch&&!o->configuration_commit.initialized);
+   CHECK(papacc_server_launcher_configuration_preparation_rollback(o)==PAPACC_RESULT_OK);
+   CHECK(!t->participants.interface_snapshot.present&&!t->participants.listener_prepared);

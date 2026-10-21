@@ -1,0 +1,11 @@
+--- apps\server\server_issuer_x509_win32.h
++++ apps\server\server_issuer_x509_win32.h
+@@ -23,7 +23,7 @@
+  PAPACC_CA_KEY *key;PAPACC_ISSUER_CORE *owner;const CERT_INFO *ca;
+  PAPACC_ISSUER_WINDOWS_WORKSPACE workspace;
+  PAPACC_ISSUER_VIEW view;PAPACC_ISSUER_RECORD record;
+- PAPACC_SIZE reserved;DWORD thread;SECURITY_STATUS native_error;
++ PAPACC_SIZE reserved;NCRYPT_KEY_HANDLE leased_key;DWORD thread;SECURITY_STATUS native_error;
+  int initialized,active,retained,stopped;
+ } PAPACC_ISSUER_CNG_BACKEND;
+ PAPACC_ISSUER_RESULT papacc_issuer_cng_backend_init(PAPACC_ISSUER_CNG_BACKEND *,

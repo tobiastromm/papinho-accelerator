@@ -1,0 +1,11 @@
+--- a/docs/capabilities/client-pairing.md
++++ b/docs/capabilities/client-pairing.md
+@@ -552,3 +552,8 @@
+ ### Pareamento e transporte inicial — contratos accepted — 2026-10-20
+ 
+ [P0–P9 e T0–T7 Revision 2](../adr/DECISION-pairing-enrollment-transport-20261020.md) registrados ACCEPTED, após revisão exata e aprovação oficial. O registro incorpora intervalos byte-exatos, preserva propostas originais e delimita precedência: listener separado L0–L5, ALPN papacc-enroll/1 e PAE1/v1.0 exclusivos de enrollment; uma CONFIRM restringe o teto geral de cinco; claim inicial, aprovação e consumo posterior são distintos. Operacional mantém TLS 1.3/mTLS/papacc/1. Contrato normativo não é código, reserva ED11 ou qualificação: implementação, CURRENT, emissão, recuperação e admissão continuam negados. Modelo/codec versionados para o novo propósito, runtime de coleção, fontes factuais, provider CLOSED e medição de targets permanecem gates. Nenhum build, teste ou rede foi executado; produção 0.6.4, Browser, PST e wire operacional inalterados. Ver [conformidade](../integration/pairing-enrollment-transport-acceptance-20261020/conformance-matrix.md), [handoff](../integration/pairing-enrollment-transport-acceptance-20261020/implementation-gates-and-handoff.md) e [closeout](../integration/pairing-enrollment-transport-acceptance-20261020/closeout.md).
++
++
++### Implementação parcial offline de enrollment — 2026-10-20
++
++Bibliotecas privadas opt-in implementam projeção do perfil PST ENROLLMENT, framing PAE1, trace de dados, CSPRNG Windows para código de 50 bits, claim único local e limiter pré-TLS. Não estão ligadas ao servidor nem registram listener. APPROVED/claim não constituem autorização ou emissão; operacional mantém mTLS/papacc/1. Selected/Legacy Debug/Release passaram 10/10 suítes por configuração, zero warnings; prova nativa nova limitada ao RNG. Permanecem gates de propósito persistente, owner/runtime de coleção, fontes factuais, provider CLOSED, limites globais P4 e deadlines nativos. Delta fixo no servidor zero, pico de ativação UNKNOWN; ED11 PARTIAL. CURRENT/assinatura/admissão DENY. Ver [closeout](../integration/automatic-enrollment-listener-pairing-20261020/closeout.md) e [prova/handoff](../integration/automatic-enrollment-listener-pairing-20261020/implementation-proof-and-browser-handoff.md).

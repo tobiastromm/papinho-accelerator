@@ -318,8 +318,18 @@ higher-layer metadata. Conceptual alignment is not a native ABI.
 Names such as HELLO, generic CONTROL/DATA, AUTH, ERROR, PING, and CAPABILITIES
 remain unassigned messages.
 
-The registry is defined across
+At the Phase 2 baseline, the registry was defined across
 [Control Establishment Protocol](control-establishment-protocol.md) and
 [Data Association Protocol](data-association-protocol.md), assigning only
 `0x0001` through `0x0006`. Framing itself still accepts unknown nonzero types
 and does not interpret Control or DATA association semantics.
+
+### Retrospective registry extension
+
+The deferrals above describe the Phase 2 baseline. Later accepted decisions
+ADR-0016 and ADR-0017 assigned `0x0007` through `0x000E` to initial capability
+negotiation and Network Offload. They do not change the frozen 16-byte envelope
+or the byte semantics of `0x0001` through `0x0006`. The framing layer continues
+to accept structurally valid unknown nonzero types without interpreting them;
+higher-layer state machines decide whether a registered type is valid in their
+current context.

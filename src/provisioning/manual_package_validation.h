@@ -1,0 +1,76 @@
+#ifndef PAPACC_MANUAL_PACKAGE_VALIDATION_H
+#define PAPACC_MANUAL_PACKAGE_VALIDATION_H
+#include "manual_package_crypto.h"
+#include "shared_structure/m1.h"
+#include "../config/config_root8_v3.h"
+/* Synchronous OFFLINE component, not linked to runtime/CLI/Browser.
+ * No supplied boolean/callback/fingerprint can create productive trust.
+ * Existing policy-delegation/independent-attestation source is UNBOUND: DENY.
+ * Caller existing owner serializes and holds immutable input/password/struct,
+ * crypto context, all disjoint buffers and operation through factual finish.
+ * Never call synchronous KDF on owner Stop path. Numeric sizes below are
+ * accounting inputs, NOT grants of credit or provider qualification. */
+#define MP_AUTH_UNKNOWN_BYTES ((size_t)-1)
+typedef SP_M1_STAGE MP_AUTH_STAGE;
+#define MP_AUTH_NONE SP_M1_NONE
+#define MP_AUTH_STRUCTURE SP_M1_STRUCTURE
+#define MP_AUTH_BUDGET SP_M1_BUDGET
+#define MP_AUTH_SIGNATURE SP_M1_SIGNATURE
+#define MP_AUTH_TRUST SP_M1_TRUST
+#define MP_AUTH_KDF SP_M1_KDF
+#define MP_AUTH_AEAD SP_M1_AEAD
+#define MP_AUTH_CONTENT SP_M1_CONTENT
+#define MP_AUTH_RECHECK_TRUST SP_M1_RECHECK_TRUST
+#define MP_AUTH_RELEASE SP_M1_RELEASE
+
+typedef enum MP_AUTH_RESULT {
+ MP_AUTH_VALIDATED=1, /* unreachable until factual source/content adapters exist */
+ MP_AUTH_SYNTHETIC_ONLY=2, /* only separately compiled test implementation */
+ MP_AUTH_DENIED=-10,MP_AUTH_STOPPED=-11,MP_AUTH_RETAINED=-12,
+ MP_AUTH_INVALID=-13,MP_AUTH_LIMIT=-14,MP_AUTH_ABORTED=-15
+} MP_AUTH_RESULT;
+/* Candidate DATA only. Caller existing owner holds snapshot/context immutable
+ * through operation/retention. Reuse existing codec DATA component adapter;
+ * callbacks are vetted public DATA validation only: no KDF, secret/private
+ * operations, I/O or other effects; never selected from config/network.
+ * They cannot assert CURRENT, pin, administrative confirmation or trust.
+ * No boolean/role/epoch supplied here can authorize KDF. Exact package digest
+ * correlates this candidate to bytes; it is not independent confirmation. */
+typedef struct MP_PDG_INPUT {
+ MP_SLICE root;
+ PC_ROOT8_COMPONENT data_component;void *data_context;
+ unsigned listener_ordinal;
+ unsigned char package_digest[32];
+} MP_PDG_INPUT;
+typedef struct MP_AUTH_INPUT {
+ MP_CRYPTO *crypto;
+ MP_SLICE package,password;
+ unsigned char *quarantine,*staging,*output;
+ size_t quarantine_capacity,staging_capacity,output_capacity;
+ size_t other_reserved,provider_reserved;
+ MP_CANCEL stopped;void *stop_context;
+ const MP_PDG_INPUT *pdg;
+} MP_AUTH_INPUT;
+typedef struct MP_AUTH_OPERATION {
+ /* Zero-init once. No retry/reinitialization while retained or borrowed.
+  * Internal fields are not a serialized format or authority evidence. */
+ SP_M1_STATE flow; /* shared sequencing metadata; no authority evidence */
+ size_t staging_size,output_size,managed_estimate;
+ unsigned char key[32];
+ MP_ENVELOPE envelope;MP_PAYLOAD payload; /* durable metadata for retained borrowers */
+ PC_PDG1_SELECTION pdg_data; /* owned retained DATA, never CURRENT or pin */
+ unsigned char pdg_package_digest[32];
+ const MP_AUTH_INPUT *input;
+ const void *internal_port;void *internal_context;
+} MP_AUTH_OPERATION;
+/* Output remains untouched on every denial/Stop/unknown. Private quarantine
+ * and staging are never exposed by API; views during CONTENT expire at return.
+ * Current productive binding always denies at TRUST (or earlier).
+ * Argument/budget rejection acquires no workspace; caller owns prior contents. */
+MP_AUTH_RESULT mp_package_validate_authenticated(MP_AUTH_OPERATION *,const MP_AUTH_INPUT *);
+/* Query factual quiescence only; never reissue step/close, decrypt or release.
+ * RETAINED holds input/password/key/staging/context/credit until confirmed.
+ * Finish discards uncertain result; never publishes a late plaintext result. */
+MP_AUTH_RESULT mp_package_validation_finish(MP_AUTH_OPERATION *);
+size_t mp_package_validation_process_limit(void);
+#endif

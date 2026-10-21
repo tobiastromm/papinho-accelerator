@@ -1,0 +1,46 @@
+#ifndef PAPACC_TCP_ACCEPT_WIN32_H
+#define PAPACC_TCP_ACCEPT_WIN32_H
+
+#include "network_endpoint.h"
+#include "tcp_socket_win32.h"
+
+typedef struct PAPACC_TCP_ACCEPTED_SOCKET_WIN32 {
+    SOCKET native_socket;
+    PAPACC_BOOL close_unresolved;
+    PAPACC_BOOL is_open;
+    PAPACC_IP_FAMILY family;
+    PAPACC_NETWORK_ENDPOINT local_endpoint;
+    PAPACC_NETWORK_ENDPOINT remote_endpoint;
+} PAPACC_TCP_ACCEPTED_SOCKET_WIN32;
+
+#define PAPACC_TCP_ACCEPTED_SOCKET_WIN32_INITIALIZER \
+    { INVALID_SOCKET, PAPACC_FALSE, PAPACC_FALSE, PAPACC_IP_FAMILY_UNSPECIFIED, \
+      PAPACC_NETWORK_ENDPOINT_INITIALIZER, \
+      PAPACC_NETWORK_ENDPOINT_INITIALIZER }
+
+/*
+ * Accepts one transport from an open/bound/listening socket. This operation
+ * may block until a pending connection exists. It does not classify a channel,
+ * create a Connection/Session, or alter ownership/state of the listener.
+ *
+ * out_accepted must be exactly initialized/closed. The backend owns the native
+ * accepted socket until both endpoints have been obtained, converted, and
+ * validated. Setup failure also returns any unresolved acquisition by value;
+ * the caller must retain it and its WinSock parent until factual close.
+ */
+PAPACC_RESULT papacc_tcp_socket_win32_accept(
+    const PAPACC_TCP_SOCKET_WIN32 *listener,
+    PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *out_accepted);
+
+/* Changes only the accepted socket's blocking mode; ownership is unchanged. */
+PAPACC_RESULT papacc_tcp_accepted_socket_win32_set_nonblocking(
+    PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *accepted,
+    PAPACC_BOOL enabled);
+
+/* Failure preserves acquisition in out_accepted, including failed accept setup. */
+PAPACC_RESULT papacc_tcp_accepted_socket_win32_try_close(PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *);
+/* Compatibility request; only confirmed close clears ownership. */
+void papacc_tcp_accepted_socket_win32_close(
+    PAPACC_TCP_ACCEPTED_SOCKET_WIN32 *accepted);
+
+#endif

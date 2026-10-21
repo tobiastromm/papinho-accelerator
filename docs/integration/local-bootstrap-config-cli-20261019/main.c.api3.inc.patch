@@ -1,0 +1,36 @@
+--- apps/server/main.c.api3.inc
++++ apps/server/main.c.api3.inc
+@@ -3,6 +3,9 @@
+ 
+ #include "papacc/version.h"
+ #include "server_cli.h"
++#if defined(PAPACC_ENABLE_CONFIG_ADMIN_CLI)
++#include "server_config_cli.h"
++#endif
+ #include "server_cli_interfaces.h"
+ #include "server_console_win32.h"
+ #include "server_network.h"
+@@ -55,6 +58,11 @@
+     puts("PapinhoAccelerator Server");
+     puts("Usage:");
+     puts("  papacc_server.exe --help");
++#if defined(PAPACC_ENABLE_CONFIG_ADMIN_CLI)
++    puts("  papacc_server.exe config validate|diff|apply --source <file>");
++    puts("  papacc_server.exe config show-effective");
++    puts("  Configuration: offline validation only; CURRENT/apply unavailable");
++#endif
+     puts("  papacc_server.exe --list-interfaces");
+     puts("  papacc_server.exe --port <port> --all-interfaces [--listener-profile legacy-endpoint] [--log-level <level>]");
+     puts("  papacc_server.exe --port <port> --interface-id <id> [--interface-id <id> ...] [--listener-profile legacy-endpoint] [--log-level <level>]");
+@@ -169,6 +177,11 @@
+ 
+ int main(int argc, char **argv)
+ {
++#if defined(PAPACC_ENABLE_CONFIG_ADMIN_CLI)
++    int config_result = papacc_server_config_cli(
++        argc, (const char *const *)argv, stdout, stderr);
++    if (config_result >= 0) return config_result;
++#endif
+     if (argc > 1) {
+         PAPACC_SERVER_CLI_REQUEST request =
+             PAPACC_SERVER_CLI_REQUEST_INITIALIZER;

@@ -1,0 +1,77 @@
+# Portabilidade
+
+Esta visão corrente especializa e referencia, sem duplicá-las, as decisões:
+
+- [PapinhoAccelerator/ADR-0002 — Core portável entre deployments e backends substituíveis](adr/ADR-0002-core-portavel-entre-deployments-e-backends-substituiveis.md);
+- `PapinhoEngineering/ADR-0007` — Fronteiras portáveis entre core, plataforma e backends substituíveis.
+
+## Estado atual
+
+- `papacc_core`, `papacc_network`, Server Config e parser CLI são portáteis e não expõem tipos Win32.
+- Win32 implementa PAL monotônica, discovery/catálogo de interfaces, WinSock, socket/bind/listen, Listener Set e o executable lifecycle.
+- `papacc_server` é atualmente um composition root Win32 e só é criado pelo CMake em builds Windows.
+- Não existe backend POSIX/Linux, transport local, GUI ou Compute Backend implementado.
+- Identidade persistente em outras plataformas permanece um contrato opcional: futuros backends poderão fornecer token próprio ou marcar `is_valid = FALSE`; nenhuma estratégia Linux foi escolhida.
+
+O Core e os modelos de rede são escritos em C portável e consomem contratos abstratos. Windows/Win32 é a primeira implementação disponível; não determina tipos, lifecycle ou semântica pública do produto.
+
+## Possibilidades arquiteturais
+
+```text
+Windows / Win32
+Linux / POSIX
+Raspberry Pi
+Embedded
+Dedicated Hardware
+PCI / PCIe
+ISA
+```
+
+Esta lista não afirma suporte atual, compromisso de entrega nem implementação uniforme. Algumas plataformas poderão hospedar o servidor completo; outras poderão ser apenas Compute Backends; outras poderão usar transports locais. PCI/PCIe e ISA são possibilidades preservadas, sem protocolo elétrico, driver, DMA, memória compartilhada ou outro detalhe inventado nesta fase.
+
+## Fronteiras portáveis
+
+- APIs do Core usam tipos C de largura/semântica definida e handles opacos próprios.
+- Endianness e serialização pertencem ao Wire Protocol, nunca à representação nativa de structs.
+- Tamanho de ponteiro, alinhamento, packing, path, newline e encoding não podem atravessar a fronteira implicitamente.
+- Tempo de protocolo deve distinguir duração monotônica de horário civil.
+- Erros de plataforma são traduzidos para categorias portáveis sem perder diagnóstico local.
+- Ownership, lifetime, cancelamento e cleanup são definidos no contrato, não inferidos da API do OS.
+
+Tipos como `HWND`, `HANDLE`, `SOCKET` e `CRITICAL_SECTION` podem existir apenas dentro da implementação Windows apropriada. Equivalentes POSIX ou embarcados obedecem à mesma regra.
+
+## Adaptações
+
+A PAL encapsulará primitivas de plataforma; transports encapsularão canais; Compute Backends encapsularão mecanismos de execução. O build futuro deverá permitir selecionar implementações sem condicionais de plataforma espalhadas pelo Core. Capabilities serão descobertas em runtime/build e negociadas, portanto backend ausente causa redução explícita de funcionalidade, não falha arquitetural.
+
+## Portabilidade não é equivalência
+
+Uma plataforma limitada pode oferecer apenas um subconjunto, com quotas e desempenho diferentes. Compatibilidade significa negociar corretamente esse subconjunto, preservar segurança e produzir erros definidos. Fallback local pertence ao cliente e só é usado quando ele declara suporte; nenhuma capability remota é presumida.
+
+## Diagnóstico CA e fronteira portável — 2026-10-19
+
+O backend CNG parcial permanece privado em `apps/server/server_ca_key_win32.*`,
+sem dependência dos contratos comuns. A variante diagnóstica de leitura exclui
+por compilação criação, setters e finalização; não exige CNG na box ou ISA.
+Emissão, assinatura, serial, status/revogação, custódia e persistência seguem as
+decisões accepted de issuer/perfil técnico; a API comum de issuer completo ainda
+não está implementada. Não confundir esse componente Windows com o contrato
+comum futuro. O smoke atual comprova isolamento de headers no MSVC x64, sem
+qualificar outro target. Ver [matriz e evidências](integration/cng-diagnostic-safety-portability-20261019/safety-identity-portability-handoff.md).
+## Núcleo portável de issuer — 2026-10-19
+
+`src/issuer/issuer_core.h/.c` e o target `papacc_issuer` implementam agora os
+contratos privados e a máquina de estados comum: identidade/geração/SPKI,
+serial/reserva CAS, emissão/consulta, revogação, renovação e recuperação.
+Não dependem de CNG/Win32. O backend sintético só integra o target de teste;
+a biblioteca normal o rejeita. Box/ISA continuam NOT_QUALIFIED.
+O vínculo à mesma autoridade root existe como porta; o adaptador durável real,
+o codec versionado e a publicação live permanecem pendentes/negados. Não há
+registro paralelo nem integração CNG operacional. Ver [handoff e censo](integration/portable-issuer-core-20261019/implementation-and-root-handoff.md).
+## Persistência issuer na root — 2026-10-19
+
+src/issuer/issuer_codec.h/.c implementam codec comum sem Win32/CNG. O adaptador Windows usa o mesmo owner e arquivo da root. Commit de metadados e recuperação observacional foram validados offline; CURRENT/EPOCH, recuperação autoritativa e publicação live continuam pendentes. Ver [evidências e limites](integration/issuer-root-persistence-20261019/closeout.md). Box/ISA não qualificadas.
+
+### Gerações issuer protegidas — 2026-10-19
+
+O adaptador da mesma root mantém três imagens issuer imutáveis associadas aos slots/pins já existentes. A cópia protegida não consulta Win32 nem concede autoridade. Coexistência de bytes foi validada offline; continuidade operacional de Sessions e recuperação com checkpoint/fencing continuam pendentes. Ver [prova focal](integration/issuer-live-root-recovery-20261019/lifetime-and-recovery-proof.md).

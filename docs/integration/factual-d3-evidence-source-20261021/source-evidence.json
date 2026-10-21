@@ -1,0 +1,79 @@
+[
+  {
+    "path": "apps/server/server_configuration_root_transaction_win32.inc",
+    "line": 148,
+    "marker": "static int root_snapshot_held",
+    "excerpt": "/* A held pin proves its own lifetime/provenance, never CURRENT alone. */\n/* A held pin proves its own lifetime/provenance, never CURRENT alone. */\nstatic int root_snapshot_held(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)\n{\n PAPACC_CONFIG_VIEW v;PAPACC_U64 administrative,policy;PAPACC_CONFIGURATION_COMMIT *c;\n if(!preparation_owned(o)||!p||p->invocation!=o->invocation||!p->epoch||!p->administrative_epoch)return 0;c=&o->configuration_commit;\n if(papacc_configuration_pin_read(c,&p->pin,&v,&administrative,&policy)!=PAPACC_RESULT_OK)return 0;\n return policy==p->epoch&&administrative==p->administrative_epoch&&v.revision==p->view.revision&&v.predecessor==p->view.predecessor&&\n  !memcmp(v.domain,p->view.domain,32)&&papacc_configuration_issuer_projection06(&v.config,&p->view.config)&&\n  p->issuer_present==(c->issuer_snapshot_valid[p->pin.index]?PAPACC_TRUE:PAPACC_FALSE)&&\n  (!p->issuer_present||p->issuer_revision==c->slots[p->pin.index].issuer_revision);\n}",
+    "sha256": "2c2d94ba2face28798e0a4a704b2fa977a0671fac7352f035b416782796d80ef"
+  },
+  {
+    "path": "apps/server/server_configuration_root_transaction_win32.inc",
+    "line": 181,
+    "marker": "static int root_snapshot_live",
+    "excerpt": " return 1;\n}\nstatic int root_snapshot_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ROOT_CURRENT_PIN *p)\n{\n PAPACC_CONFIGURATION_COMMIT *c=&o->configuration_commit;\n return !c->committed_pending&&root_operational_reference_current(o,p)&&p->pin.index==c->current&&\n  p->view.revision==c->slots[c->current].view.revision&&p->administrative_epoch==c->slots[c->current].context_epoch;\n}\nPAPACC_RESULT papacc_server_launcher_configuration_current_pin(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_ROOT_CURRENT_PIN *out)\n{\n PAPACC_CONFIGURATION_COMMIT *c;PAPACC_ROOT_CONFIGURATION_PREPARATION *t;PAPACC_RESULT result;\n if(!out||out->pin.ticket)return PAPACC_RESULT_INVALID_ARGUMENT;",
+    "sha256": "2c2d94ba2face28798e0a4a704b2fa977a0671fac7352f035b416782796d80ef"
+  },
+  {
+    "path": "apps/server/server_configuration_root_transaction_win32.inc",
+    "line": 187,
+    "marker": "PAPACC_RESULT papacc_server_launcher_configuration_current_pin",
+    "excerpt": "  p->view.revision==c->slots[c->current].view.revision&&p->administrative_epoch==c->slots[c->current].context_epoch;\n}\nPAPACC_RESULT papacc_server_launcher_configuration_current_pin(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_ROOT_CURRENT_PIN *out)\n{\n PAPACC_CONFIGURATION_COMMIT *c;PAPACC_ROOT_CONFIGURATION_PREPARATION *t;PAPACC_RESULT result;\n if(!out||out->pin.ticket)return PAPACC_RESULT_INVALID_ARGUMENT;\n memset(out,0,sizeof(*out));\n if(o!=&root||papacc_server_launcher_owner_state()!=PAPACC_LAUNCHER_ACTIVE||!o->configuration_commit.initialized)\n  return PAPACC_RESULT_INVALID_STATE;\n c=&o->configuration_commit;t=&o->configuration_preparation;EnterCriticalSection(&c->lock);\n if(!t->administrative_published||!t->normative_committed||t->state!=PAPACC_ROOT_PREPARATION_PARTIAL||c->slots[c->current].operational_epoch!=t->current_policy_epoch||!c->slots[c->current].context_epoch){LeaveCriticalSection(&c->lock);return PAPACC_RESULT_INVALID_STATE;}\n result=papacc_configuration_pin(c,&out->pin,&out->view);",
+    "sha256": "2c2d94ba2face28798e0a4a704b2fa977a0671fac7352f035b416782796d80ef"
+  },
+  {
+    "path": "apps/server/server_configuration_root_transaction_win32.inc",
+    "line": 460,
+    "marker": "static PAPACC_ISSUER_RESULT issuer_root_port_read",
+    "excerpt": " return r;\n}\nstatic PAPACC_ISSUER_RESULT issuer_root_port_read(void *ctx,const PAPACC_U8 id[16],PAPACC_ISSUER_VIEW *v,PAPACC_ISSUER_RECORD *record,int *found)\n{\n PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=ctx;PAPACC_U8 image[8192];PAPACC_ISSUER_RESULT r;\n if(!id||!v||!record||!found)return PAPACC_ISSUER_INVALID;memset(v,0,sizeof(*v));memset(record,0,sizeof(*record));*found=0;\n if(!root_dormant_owned(o)||!o->configuration_preparation.normative_committed||!o->configuration_preparation.administrative_published)return PAPACC_ISSUER_DENIED;\n if(papacc_configuration_issuer_copy06(&o->configuration_commit,image)!=PAPACC_RESULT_OK)return PAPACC_ISSUER_UNSUPPORTED;\n r=papacc_issuer_image_validate(image,v,papacc_configuration_issuer_hash06,&o->configuration_commit);if(r)return r;\n r=papacc_issuer_image_find(image,id,record,papacc_configuration_issuer_hash06,&o->configuration_commit);\n if(r==PAPACC_ISSUER_OK)*found=1;else if(r!=PAPACC_ISSUER_ABSENT)return r;\n /* No key/freshness/prefix-history/CURRENT proof exists yet. Leaving epoch",
+    "sha256": "2c2d94ba2face28798e0a4a704b2fa977a0671fac7352f035b416782796d80ef"
+  },
+  {
+    "path": "apps/server/server_configuration_root_transaction_win32.inc",
+    "line": 469,
+    "marker": "/* No key/freshness/prefix-history/CURRENT",
+    "excerpt": " r=papacc_issuer_image_find(image,id,record,papacc_configuration_issuer_hash06,&o->configuration_commit);\n if(r==PAPACC_ISSUER_OK)*found=1;else if(r!=PAPACC_ISSUER_ABSENT)return r;\n /* No key/freshness/prefix-history/CURRENT proof exists yet. Leaving epoch\n  * and proofs absent is deliberate: core init denies, no implicit authority. */\n return PAPACC_ISSUER_OK;\n}\nstatic PAPACC_ISSUER_RESULT issuer_root_port_cas(void *ctx,const PAPACC_ISSUER_VIEW *expected,const PAPACC_ISSUER_RECORD *old,const PAPACC_ISSUER_RECORD *next,PAPACC_U64 high,const PAPACC_U8 *der,PAPACC_SIZE size,int publish)\n{\n PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=ctx;PAPACC_U8 image[8192];PAPACC_ISSUER_VIEW actual;PAPACC_ISSUER_RECORD prior;PAPACC_ISSUER_RESULT r;PAPACC_RESULT result;\n if(publish)return PAPACC_ISSUER_UNSUPPORTED;\n if(!expected||!next||!issuer_root_dormant_ready(o)||expected->epoch!=o->configuration_preparation.current_policy_epoch||next->approved_epoch!=expected->epoch)return PAPACC_ISSUER_DENIED;\n if(papacc_configuration_issuer_copy06(&o->configuration_commit,image)!=0)return PAPACC_ISSUER_UNSUPPORTED;",
+    "sha256": "2c2d94ba2face28798e0a4a704b2fa977a0671fac7352f035b416782796d80ef"
+  },
+  {
+    "path": "apps/server/server_configuration_issuer06_win32.inc",
+    "line": 153,
+    "marker": "PAPACC_RESULT papacc_configuration_issuer_snapshot06",
+    "excerpt": "done:LeaveCriticalSection(&o->lock);return result;\n}\nPAPACC_RESULT papacc_configuration_issuer_snapshot06(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *p,PAPACC_U8 *out)\n{\n unsigned i;PAPACC_RESULT r=PAPACC_RESULT_INVALID_STATE;\n if(!owner(o)||!p||!out||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS||issuer06_overlap(out,PAPACC_ISSUER_IMAGE_BYTES,o,sizeof(*o))||issuer06_overlap(out,PAPACC_ISSUER_IMAGE_BYTES,p,sizeof(*p)))return PAPACC_RESULT_INVALID_ARGUMENT;\n EnterCriticalSection(&o->lock);\n if(o->unresolved||!p->ticket||!o->issuer_snapshot_valid[p->index]||\n    !o->slots[p->index].readers||o->slots[p->index].serial!=p->serial)goto done;\n for(i=0;i<32;i++)if(o->tickets[i].ticket==p->ticket&&o->tickets[i].serial==p->serial&&o->tickets[i].index==p->index)break;\n if(i==32)goto done;\n /* Pure synchronous copy; no Win32 resource query, hash or callback. Stop",
+    "sha256": "a6746fc7abdf958571aec98f5fe0d14c61b0e0ebb15fdcbb2c047046137beabe"
+  },
+  {
+    "path": "apps/server/server_configuration_commit_win32.c",
+    "line": 259,
+    "marker": "PAPACC_RESULT papacc_configuration_unpin",
+    "excerpt": "    LeaveCriticalSection(&o->lock);return PAPACC_RESULT_OK;\n}\nPAPACC_RESULT papacc_configuration_unpin(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *p,int retained)\n{\n    PAPACC_CONFIG_SLOT *s;unsigned i;\n    if(o==NULL||!o->initialized||p==NULL||p->issuer!=o||p->index>=PAPACC_CONFIG_SLOTS)return PAPACC_RESULT_INVALID_ARGUMENT;\n    EnterCriticalSection(&o->lock);s=&o->slots[p->index];\n    for(i=0U;i<32U;++i)if(p->ticket!=0U&&o->tickets[i].ticket==p->ticket&&\n        o->tickets[i].serial==p->serial&&o->tickets[i].index==p->index)break;\n    if(i==32U||s->serial!=p->serial||s->readers==0U){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_INVALID_STATE;}\n    o->tickets[i].ticket=0U;--s->readers;if(retained)s->retained=1;\n    LeaveCriticalSection(&o->lock);return PAPACC_RESULT_OK;",
+    "sha256": "13053063dfafbfbb0bce92efdbff9a7af2fde557f43384e5bb3054f390c7d102"
+  },
+  {
+    "path": "apps/server/server_config_root8_data_win32.c",
+    "line": 37,
+    "marker": "if(kind!=6U&&kind!=7U)",
+    "excerpt": " PAPACC_ISSUER_RESULT s;\n if(kind==5U)return papacc_root8_body05_data(NULL,kind,p,n,row,header);\n if(kind!=6U&&kind!=7U)return PC_ROOT8_UNSUPPORTED;\n if(!c||!c->owner||!c->workspace||!header||!p||n!=16384U)return PC_ROOT8_INVALID;\n if(c->owner->stopped||c->owner->unresolved||c->owner->authority_lost)return PC_ROOT8_INCOMPLETE;\n if(!c->floor||c->floor_bytes!=16384U)return PC_ROOT8_INCOMPLETE;\n if(papacc_configuration_issuer_carrier_inspect06(c->owner,c->floor,c->floor_bytes,c->workspace,&v)!=PAPACC_RESULT_OK||\n    papacc_configuration_issuer_carrier_inspect06(c->owner,p,n,c->workspace,&v)!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;\n if(memcmp(v.root,header+72,32)||v.revision!=le64(header+120)||memcmp(p,c->floor,8192))return PC_ROOT8_INVALID;\n s=papacc_issuer_checkpoint_assess(p+8192,8192,c->floor+8192,8192,\n    papacc_configuration_issuer_hash06,c->owner,0,&report);\n if(s!=PAPACC_ISSUER_DENIED||report.state!=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED)return PC_ROOT8_INVALID;",
+    "sha256": "4bafefd318e2302ed07f2ba508ba68593063ca7fa9bb64bf09e0445a36a0c591"
+  },
+  {
+    "path": "src/config/config_root8_v3.h",
+    "line": 32,
+    "marker": "typedef struct PC_PDG1_SELECTION",
+    "excerpt": " * epochs remain data, never CURRENT. No pin/lease or trust is reconstructed.\n * Output disjoint from immutable input; component contract remains mandatory. */\ntypedef struct PC_PDG1_SELECTION {\n PAPACC_U8 row[384],root[32],whole_digest[32];\n PAPACC_U64 revision,administrative_epoch,policy_epoch,issuer_revision;\n unsigned certificate_state;\n} PC_PDG1_SELECTION;\nPC_ROOT8_RESULT pc_root8_v3_pdg_select_data(const PAPACC_U8 *,PAPACC_SIZE,unsigned,\n PC_PDG1_SELECTION *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);\n#endif",
+    "sha256": "ff2da2f9ad4590b7f6807e121f4c65cf95c79b60bd9a77d2d5bc8aa79c810804"
+  },
+  {
+    "path": "src/provisioning/manual_package_pdg.c",
+    "line": 11,
+    "marker": "return MP_AUTH_STEP_SOURCE_ABSENT;",
+    "excerpt": "int mp_auth_pdg_candidate(MP_AUTH_OPERATION *o,const MP_ENVELOPE *e){\n const MP_AUTH_INPUT *i=o->input;const MP_PDG_INPUT *p=i->pdg;PC_ROOT8_RESULT result;unsigned char d[32];\n if(!p)return MP_AUTH_STEP_SOURCE_ABSENT;\n if(stopped(i))return MP_AUTH_STOPPED;\n if(mp_crypto_public_sha256(i->crypto,i->package.data,i->package.size,o->pdg_package_digest)!=MP_CRYPTO_ONLY)return MP_AUTH_STEP_PROVIDER;\n if(memcmp(o->pdg_package_digest,p->package_digest,32))return MP_AUTH_STEP_INVALID;\n result=pc_root8_v3_pdg_select_data(p->root.data,p->root.size,p->listener_ordinal,&o->pdg_data,hash,i->crypto,p->data_component,p->data_context);\n if(stopped(i))return MP_AUTH_STOPPED;\n if(result==PC_ROOT8_INCOMPLETE||result==PC_ROOT8_UNSUPPORTED)return MP_AUTH_STEP_SOURCE_ABSENT;\n if(result==PC_ROOT8_HASH_FAILED)return MP_AUTH_STEP_PROVIDER;if(result!=PC_ROOT8_OK)return MP_AUTH_STEP_INVALID;\n if(u16(o->pdg_data.row+18)!=1U)return MP_AUTH_STEP_WRONG_PURPOSE;\n if(u16(o->pdg_data.row+16)!=1U||o->pdg_data.certificate_state==PAPACC_ISSUER_REVOKED)return MP_AUTH_STEP_REVOKED;",
+    "sha256": "caae58b159cf4e91ed618473a8f2f6df9c4710e4a79c504fa36660cdb8c4fbc0"
+  },
+  {
+    "path": "src/issuer/issuer_core.c",
+    "line": 16,
+    "marker": "(v->proofs&PAPACC_ISSUER_ROOT_PROOFS)",
+    "excerpt": "static int view_ok(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_VIEW *v){\n if(!nz(v->root,32)||!nz(v->authority,16)||!nz(v->generation,16)||!nz(v->policy,32)||!nz(v->ca_spki_digest,32)||!nz(v->prefix,8)||(v->prefix[0]&128U)||\n  !v->revision||!v->epoch||!v->high_water||!v->ca_not_after||(v->proofs&PAPACC_ISSUER_ROOT_PROOFS)!=PAPACC_ISSUER_ROOT_PROOFS)return 0;\n if(c->initialized&& (memcmp(c->root_id,v->root,32)||memcmp(c->authority,v->authority,16)||memcmp(c->generation,v->generation,16)||memcmp(c->prefix,v->prefix,8)||memcmp(c->ca_spki_digest,v->ca_spki_digest,32)||\n  v->revision<c->minimum_revision||v->high_water<c->minimum_counter))return 0;\n return 1;\n}\nstatic int record_ok(const PAPACC_ISSUER_RECORD *r,const PAPACC_ISSUER_VIEW *v){\n PAPACC_U8 sn[16];\n if(r->state<PAPACC_ISSUER_PREPARED||r->state>PAPACC_ISSUER_RECONCILIATION_REQUIRED||!request_ok(&r->request)||\n  memcmp(r->authority,v->authority,16)||memcmp(r->generation,v->generation,16)||!nz(r->policy,32)||!r->approved_epoch)return 0;\n if(r->state==PAPACC_ISSUER_PREPARED&&(r->counter||nz(r->serial,16)))return 0;",
+    "sha256": "292b96af5fc612186eb72cf5ddb1d547acb85ed0bb86c89c15ae4ac91c02c7ce"
+  }
+]

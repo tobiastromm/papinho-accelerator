@@ -1,0 +1,24 @@
+--- apps/server/server_configuration_commit_win32.h
++++ apps/server/server_configuration_commit_win32.h
+@@ -9,9 +9,11 @@
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ #include "../../src/issuer/issuer_codec.h"
+ #include "server_configuration_pending_win32.h"
+-#define PAPACC_CONFIG_STORAGE_BYTES PAPACC_CONFIG_TRANSACTION_BYTES
++#define PAPACC_CONFIG_STORAGE_BYTES PAPACC_ISSUER_LINKED_ROOT_BYTES
++#define PAPACC_CONFIG_COMMITTED_BYTES PAPACC_CONFIG_TRANSACTION_BYTES
+ #else
+ #define PAPACC_CONFIG_STORAGE_BYTES PAPACC_CONFIG_STORE_BYTES
++#define PAPACC_CONFIG_COMMITTED_BYTES PAPACC_CONFIG_STORAGE_BYTES
+ #endif
+ #define PAPACC_CONFIG_SLOTS 3U
+ #define PAPACC_CONFIG_IDS 8U
+@@ -42,7 +44,7 @@
+     PAPACC_CONFIG_SLOT slots[PAPACC_CONFIG_SLOTS];
+     PAPACC_CONFIG_PIN tickets[32];
+     PAPACC_U64 next_ticket;
+-    unsigned char committed[PAPACC_CONFIG_STORAGE_BYTES];
++    unsigned char committed[PAPACC_CONFIG_COMMITTED_BYTES];
+     char path[MAX_PATH];
+     unsigned char domain[32];
+     HANDLE retained_file, retained_transaction;

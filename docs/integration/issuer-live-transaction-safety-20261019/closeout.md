@@ -1,0 +1,32 @@
+# Issuer live transaction safety — scoped adapter completed
+
+Implemented the pending persistence boundary and explicit CAS results in the existing configuration root. The officially approved eleven-file operation and a subsequent one-function stack-dedup hunk are applied. No historical Session/live-publication hunks were replayed. See safety-proof-and-handoff.md, operation.json, preimages, source diff and final-manifest.json.
+
+Debug/Release builds pass, zero warnings. Fourteen scoped offline invocations per configuration pass, plus strict C portable-header compilation. Real TxF writes and a real file mismatch are distinguished from controlled worker pause and explicit UNKNOWN fault injection. No network, CA, certificates or CNG key operation occurred.
+
+CURRENT_TASK_COMPLETED=YES
+LIVE_TRANSACTION_SAFETY=IMPLEMENTED_OFFLINE_VALIDATED_PERSISTENCE_ADAPTER
+STOP_DURING_PENDING_COMMIT=NONWAITING_OWNER_SYNTHETIC_PAUSE_WITH_NATIVE_TXF_VALIDATED
+CAS_CONFLICT=EXPLICIT_DENY_NO_OLD_CURRENT_FALLBACK
+CAS_UNKNOWN=EXPLICIT_RETAINED_NO_AUTOMATIC_RETRY
+CURRENT_PUBLICATION=DENY_PENDING_EXACT_SESSION_HUNK_INTEGRATION
+EPOCH_FACTUAL=UNCHANGED_NO_NEW_EPOCH_EMITTED
+MODEL_E_RETENTION=EXPLICIT_PENDING_HANDLES_BUFFERS_ROOT_LIFETIME
+BUILDS=DEBUG_RELEASE_PASS
+WARNINGS=0
+OFFLINE_TESTS=28_OF_28_SCOPED_INVOCATIONS_PASS
+NETWORK_TESTS=NOT_RUN
+AUTHORITATIVE_RECOVERY=DENY_UNTIL_QUALIFIED
+CNG_NATIVE_STATUS=UNRESOLVED
+ED11_TOTAL_STATUS=PARTIAL
+CLIENT_ADMISSION=DISABLED
+SITE_TLS_ADMISSION=DENY
+ED11_ADMISSION=DENY
+PST_CHANGED=NO
+BROWSER_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+PRODUCTION_PIN=0.6.4
+PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
+WIP_PRESERVED=YES_OUTSIDE_EXACT_APPROVED_HUNKS
+FIRST_UNRESOLVED_DIVERGENCE=ISSUER_SESSION_AND_LIVE_PUBLICATION_HUNKS_NOT_INTEGRATED
+NEXT=RECONCILE_AND_APPLY_EXACT_ISSUER_SESSION_HUNKS

@@ -1,0 +1,12 @@
+fact,existing_mechanism,authority_limit,disposition
+signer_identity,PC_PDG1_SELECTION row and issuer record,DATA and no qualified signer observation,DENY
+issuer_generation_history,issuer_root_port_read and issuer snapshots,root read explicitly leaves CURRENT/key/continuity proofs absent,PARTIAL_DATA_ONLY
+PACKAGE_SIGNING_delegation,PDG1 v3 codec,not a published/pinned policy delegation snapshot,DENY
+policy_authorization,F1 PDG1 representation,policy identity or capability model alone is not approval,DENY
+certificate_validity_profile,native X509/CSR helpers and component kind8 requirement,no native kind8 binding to exact signer source,DENY
+certificate_status_revocation,issuer record and event history,record state alone does not establish applicable CURRENT status,DENY
+delegation_status_validity,PDG1 row interval and disposition,decoded row is not current policy observation,DENY
+CURRENT_revision,papacc_server_launcher_configuration_current_pin,requires actual published canonical root; unavailable installation,PENDING_EXTERNAL_ENVIRONMENT
+pins_lifetime,pin/read/unpin and issuer_snapshot06,protect existing slot/issuer bytes; no delegation-v3 graph or external-source lease,PARTIAL_EXISTING_GUARDS
+package_binding,manual_package_pdg SHA256 and signer correlation,correlation only; no provenance observation,DENY
+independent_confirmation,Browser existing operation responsibility,out of scope and cannot be manufactured by Accelerator,DENY_UNTIL_SEPARATE_CONSUMER_SOURCE

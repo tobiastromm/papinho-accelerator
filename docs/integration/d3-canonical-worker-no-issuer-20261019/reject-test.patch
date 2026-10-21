@@ -1,0 +1,11 @@
+--- 
++++ 
+@@ -30,7 +30,7 @@
+  owner.published=0;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity)!=0);owner.published=1;
+  actual_pin.serial++;CHECK(papacc_configuration_d3_begin08(&owner,&actual_pin,bytes,used,identity)!=0);actual_pin.serial--;
+  if(!strcmp(argv[1],"reject")){
+-  CHECK(CloseHandle(identity));CHECK(papacc_configuration_unpin(&owner,&actual_pin,1)==0);CHECK(papacc_configuration_stop(&owner)==0);CHECK(papacc_configuration_finish(&owner)==0);
++  CHECK(CloseHandle(identity));CHECK(papacc_configuration_unpin(&owner,&actual_pin,0)==0);CHECK(papacc_configuration_stop(&owner)==0);CHECK(papacc_configuration_finish(&owner)==0);
+   printf("PASS D3_REJECTIONS SYNTHETIC_CURRENT NO_WORKER NO_NETWORK\n");return 0;
+  }
+  if(conflict_case){

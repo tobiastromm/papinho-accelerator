@@ -1,0 +1,62 @@
+#include "server_configuration_commit_win32.h"
+#include <stdio.h>
+#include <string.h>
+static PAPACC_CONFIGURATION_COMMIT o;
+#define CHECK(x) do{if(!(x)){printf("FAIL %u error=%lu native=%08lx created=%u parent=%p child=%p\n",__LINE__,GetLastError(),o.pending_commit.native_error,o.pending_commit.bootstrap_created,o.pending_commit.bootstrap_parent,o.pending_commit.bootstrap_container);return 1;}}while(0)
+int main(int argc,char **argv)
+{
+ PAPACC_ISSUER_CAS_RESULT result;DWORD start;HANDLE h;char path[MAX_PATH];int stopped,paused,uncertain,closefail,negative;HANDLE entered=NULL,release=NULL;char moved[MAX_PATH];PAPACC_RESULT close_result;
+ CHECK(argc==4);stopped=!strcmp(argv[3],"stop");uncertain=!strcmp(argv[3],"unknown")||!strcmp(argv[3],"identity");
+ closefail=!strcmp(argv[3],"closefail");negative=!strcmp(argv[3],"reparse");paused=!strcmp(argv[3],"pending-stop")||!strcmp(argv[3],"identity")||!strcmp(argv[3],"namespace");
+ CHECK(papacc_configuration_commit_init03(&o,argv[1])==PAPACC_RESULT_OK);
+ CHECK(papacc_configuration_bootstrap_custody_begin(&o,argv[2],"production-must-deny",2097152U)==PAPACC_RESULT_LIMIT_EXCEEDED);
+ CHECK(papacc_configuration_bootstrap_custody_begin(&o,argv[2],"admin-denial",2089300U)==PAPACC_RESULT_INVALID_STATE);
+ if(paused){entered=CreateEventA(NULL,TRUE,FALSE,NULL);release=CreateEventA(NULL,TRUE,FALSE,NULL);CHECK(entered&&release);
+  o.pending_commit.test_entered=entered;o.pending_commit.test_release=release;}
+ if(!strcmp(argv[3],"unknown"))o.pending_commit.test_unknown=1;
+ o.pending_commit.checkpoint_only=91; /* compile-isolated native primitive test, NOT authority */
+ CHECK(papacc_configuration_bootstrap_custody_begin(&o,argv[2],argv[3],2089300U)==PAPACC_RESULT_OK);
+ if(paused){
+  CHECK(WaitForSingleObject(entered,10000)==WAIT_OBJECT_0);
+  CHECK(o.pending_commit.bootstrap_created&&o.pending_commit.bootstrap_parent&&o.pending_commit.bootstrap_container);
+  CHECK(snprintf(path,sizeof(path),"%s\\%s",argv[2],argv[3])>0);
+  CHECK(!CreateDirectoryA(path,NULL)); /* concurrent exclusive creation loses */
+  CHECK(snprintf(moved,sizeof(moved),"%s-moved",path)>0);CHECK(!MoveFileA(path,moved));
+  CHECK(snprintf(moved,sizeof(moved),"%s-moved",argv[2])>0);CHECK(!MoveFileA(argv[2],moved));
+  CHECK(papacc_configuration_bootstrap_custody_poll(&o,&result)==PAPACC_RESULT_OK&&result==PAPACC_COMMIT_PENDING);
+  if(!strcmp(argv[3],"pending-stop")){CHECK(papacc_configuration_stop(&o)==PAPACC_RESULT_OK);CHECK(papacc_configuration_finish(&o)!=PAPACC_RESULT_OK);stopped=1;}
+  if(!strcmp(argv[3],"identity"))o.pending_commit.bootstrap_low^=1U;
+  CHECK(SetEvent(release));
+ }
+ if(stopped)CHECK(papacc_configuration_stop(&o)==PAPACC_RESULT_OK);
+ start=GetTickCount();do{
+  CHECK(papacc_configuration_bootstrap_custody_poll(&o,&result)==PAPACC_RESULT_OK);
+  if(result==PAPACC_COMMIT_PENDING)Sleep(1);
+ }while(result==PAPACC_COMMIT_PENDING&&GetTickCount()-start<10000U);
+ CHECK(result!=PAPACC_COMMIT_PENDING);
+ if(negative){CHECK(result!=PAPACC_CAS_SUCCESS&&!o.pending_commit.bootstrap_created);CHECK(papacc_configuration_stop(&o)==PAPACC_RESULT_OK);}
+ else if(uncertain){CHECK(result==PAPACC_CAS_UNKNOWN&&o.unresolved&&o.pending_commit.bootstrap_container);CHECK(papacc_configuration_stop(&o)==PAPACC_RESULT_OK);}
+ else if(!stopped){
+  CHECK(result==PAPACC_CAS_SUCCESS&&o.pending_commit.bootstrap_created);
+  CHECK(!o.pending_commit.bootstrap_admin); /* filtered token never becomes approved admin */
+  CHECK(papacc_configuration_bootstrap_custody_ready(&o)==PAPACC_FALSE);
+  CHECK(snprintf(path,sizeof(path),"%s\\%s",argv[2],argv[3])>0);
+  h=CreateFileA(path,DELETE,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
+  CHECK(h==INVALID_HANDLE_VALUE); /* rename/delete cannot acquire DELETE */
+  CHECK(!RemoveDirectoryA(path));
+  CHECK(papacc_configuration_finish(&o)!=PAPACC_RESULT_OK);
+  CHECK(papacc_configuration_stop(&o)==PAPACC_RESULT_OK);
+ }
+ if(closefail)o.pending_commit.test_unknown=2;
+ close_result=papacc_configuration_bootstrap_custody_close(&o);
+ if(closefail){CHECK(close_result==PAPACC_RESULT_INTERNAL_ERROR&&o.unresolved&&o.pending_commit.bootstrap_container);
+  CHECK(papacc_configuration_bootstrap_custody_close(&o)!=PAPACC_RESULT_OK);CHECK(papacc_configuration_finish(&o)!=PAPACC_RESULT_OK);
+  puts("PASS CLOSE_FAILURE_RETAINED_NO_RETRY_NO_DESTROYED");return 0;}
+ CHECK(close_result==PAPACC_RESULT_OK);
+ if(entered)CHECK(CloseHandle(entered));if(release)CHECK(CloseHandle(release));
+ CHECK(papacc_configuration_bootstrap_custody_ready(&o)==PAPACC_FALSE);
+ CHECK(!o.pending_commit.bootstrap_parent&&!o.pending_commit.bootstrap_container);
+ CHECK(!o.published&&!o.committed_pending&&!o.committed_bytes);
+ printf("PASS NATIVE_NAMESPACE_COMPONENT phase=%d created=%u admin=%u owner=%Iu pending=%Iu NO_CURRENT_NO_COMMIT_NO_OPERATIONAL_AUTHORITY\n",
+ result,o.pending_commit.bootstrap_created,o.pending_commit.bootstrap_admin,sizeof(o),sizeof(o.pending_commit));return 0;
+}

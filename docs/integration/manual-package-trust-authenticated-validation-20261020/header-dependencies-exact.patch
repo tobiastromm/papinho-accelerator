@@ -1,0 +1,16 @@
+--- tests\manual_package_validation\CMakeLists.txt
++++ tests\manual_package_validation\CMakeLists.txt
+@@ -28,3 +28,13 @@
+ target_link_libraries(package_crypto_test PRIVATE package_validation)
+ target_compile_definitions(package_crypto_test PRIVATE MP_AUTH_NATIVE_INTEGRATION_TEST=1)
+ add_test(NAME papacc.manual_package.validation_model COMMAND package_validation_model_test)
++
++# Explicit dependencies also support hosts emitting localized /showIncludes.
++set_property(SOURCE "${ROOT}/src/provisioning/manual_package_validation.c"
++ "${ROOT}/src/provisioning/manual_package_validation_openssl.c"
++ "${ROOT}/tests/manual_package_validation_test.c" APPEND PROPERTY OBJECT_DEPENDS
++ "${ROOT}/src/provisioning/manual_package_validation.h;${ROOT}/src/provisioning/manual_package_validation_internal.h;${ROOT}/src/provisioning/manual_package_crypto.h;${ROOT}/src/core/ed11_process_profile.h")
++set_property(SOURCE "${ROOT}/tests/manual_package_crypto_test.c" TARGET_DIRECTORY package_crypto_test APPEND PROPERTY OBJECT_DEPENDS
++ "${ROOT}/src/provisioning/manual_package_validation.h;${ROOT}/src/provisioning/manual_package_crypto.h;${ROOT}/tests/manual_package_validation_native_test.inc")
++set_property(SOURCE "${ROOT}/src/provisioning/manual_package_crypto_openssl.c" TARGET_DIRECTORY package_crypto APPEND PROPERTY OBJECT_DEPENDS
++ "${ROOT}/src/provisioning/manual_package_crypto.h")

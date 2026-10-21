@@ -1,0 +1,288 @@
+--- /dev/null
++++ docs\integration\manual-package-d3-trust-reconciliation-20261020\D3-RECONCILED-PROPOSED.md
+@@ -0,0 +1,68 @@
++---
++status: proposed
++revision: 2
++scope: D3 first-contact and purpose/status reconciliation only
++---
++# Reconciled D3 normative text for conditional official acceptance
++
++Prepared under owner task PACC-PHASE6-MANUAL-PACKAGE-D3-TRUST-RECONCILIATION-1. This prepared source is not self-accepting. Exact clauses are separately frozen; a designated officially approved acceptance record determines their normative status. Prior proposals remain unchanged.
++
++## D3.1 Scope and distinct decisions
++
++This contract specifies only first-contact trust for the already accepted manual PACCMP02/version2/suite1 package and the explicit decision to import that exact configuration. Mathematical signature verification, trust in the signer and local permission to install are separate outcomes. None grants operational admission, Principal, capabilities, Network Egress, issuance, recovery or permission to change another authority. M0-M8, automatic enrollment with client-local key custody and advanced separate-file import remain unchanged.
++
++## D3.2 Independent first-contact channel
++
++A newly installed Browser need not already trust the Accelerator issuer. It SHALL obtain the expected complete signer-SPKI SHA256 fingerprint and the approval facts below through an independently authenticated administrative channel. The minimal accepted ceremony is in-person confirmation with an administrator whose identity and applicable role the Browser operator already recognizes independently of this package, its password, delivery and candidate connection. That previously established recognition is a necessary trust assumption, not something supplied by a package label or successful RSA/TLS/TCP operation.
++
++Another channel is eligible only when an existing explicitly approved administrative authentication procedure proves its identity, role, independence and integrity for this use; this decision does not select a new protocol/provider or qualify such a channel. If there is no verifiable independent channel or recognized authorized administrator, DENY before KDF. No silent TOFU, self-assigned trust anchor, generic SYSTEM/channel/client trust substitution or PapinhoTrustStore is required or authorized. The package may be delivered separately; its unlock secret follows the existing distinct-delivery rule and is never proof of issuer identity.
++
++## D3.3 Authoritative purpose/status evidence
++
++The confirming administrator SHALL obtain evidence from the existing canonical root/policy and issuer owner under its factual applicable CURRENT context and protected snapshot lifetime. An explicit policy approval of the exact signer for manual-package authentication is required in addition to certificate issuance. Existing PACKAGE purpose, codeSigning or a certificate chain alone is insufficient. The evidence must establish: root/server scope and ExpectedServerName; issuer authority/generation and approved CA SPKI identity; exact signer record/certificate identity and full DER-SPKI fingerprint; dedicated package-signing purpose/delegation; certificate and delegation validity; separate certificate/delegation revocation status; factual revision and administrative observation context. Existing R/A/P/I meanings and applicability remain intact; no epoch/revision is invented or substituted.
++
++The source SHALL validate the accepted dedicated signer certificate profile with vetted routines, including issuer association, RSA2048/e65537, sha256WithRSAEncryption, critical CA=FALSE BasicConstraints and digitalSignature KeyUsage, noncritical codeSigning-only EKU, accepted signer identity and validity under trustworthy UTC. Certificate/delegation absence, ambiguity, wrong purpose, mismatch, expiration, revocation, uncertain authority or unproved CURRENT denies confirmation. CA, channel and client keys cannot sign package bytes in place of the dedicated signer.
++
++## D3.4 Explicit administrative attestation boundary
++
++For this first-contact ceremony only, the independently recognized administrator's explicit confirmation of the validated D3.3 facts, carried through D3.2 and bound to D3.5, is an accepted source of the approved signer context described by M1. This acceptance makes the human administrative trust assumption explicit; it is not a new cryptographic proof or general trust service. An unchecked checkbox, an arbitrary callback/boolean, a package-provided assertion or a manually entered string without that independent confirmation does not satisfy it.
++
++The Browser SHALL distinguish independently attested purpose/delegation/status from mathematical verification and from any local validation of a signer certificate it actually receives. It SHALL NOT claim to have locally validated an unseen certificate. When the applicable deployment requires additional independent public certificate evidence, it must be available and validated; this ceremony does not waive that requirement. No new package member, mandatory second material file, prior CSR, signed-attestation format or crypto construction is introduced. ca.der and cliente.der retain their existing roles and do not become the signer certificate or a self-authenticating trust source.
++
++## D3.5 Exact package and operation binding
++
++Before KDF, the independent confirmation SHALL be associated with the exact immutable package bytes/object selected for this one import operation and its expected server/root scope. Use the existing complete-file SHA256 transfer/audit correlation with exact full-SPKI fingerprint comparison; a digest correlates bytes and is not itself authority. The administrator's authorized confirmation is the authority source, not the embedded hash or the hash comparison alone. Hold the same input/object identity through verification and use, never reread a replaceable path as the authenticated file.
++
++Confirmation permits only continued validation of this package for the named import, not permanent acceptance of that key, other packages, another server, automatic reimport, renewal or operational TLS trust. Changed bytes, target, operation, source approval or identity require a new independently validated context. Existing M5 already-imported/idempotency rules remain unchanged and do not create a new trust exemption. Values encrypted inside the package are checked against independently approved expectations after AEAD; they cannot establish pre-KDF trust or scope.
++
++## D3.6 Status, validity and offline behavior
++
++The status policy for this minimum ceremony is a contemporaneous authoritative administrative observation for this same interactive import, not reuse of cached evidence as a continuing status grant. Before the TRUST decision the administrator must check the actual applicable CURRENT approval and certificate/delegation status and convey the observation/revision through the independent channel. Before controlled release and local installation, revalidate validity and that applicable approval/status still permits this operation, using a renewed authoritative observation if the prior facts cannot be proved applicable. New revocation, expiration, loss of source lifetime, changed/mismatched authority, Stop, interruption or uncertainty prevents release and requires fresh confirmation before a replacement operation proceeds.
++
++An observation proves status at its factual source revision/time; it does not prove global latest state, restored-instance fencing, immunity to later revocation or ongoing remote CURRENT. No numerical TTL, certificate-lifetime-as-import-TTL, wall-clock freshness bypass or offline global-revocation guarantee is introduced. A stricter applicable approved deployment policy still applies.
++
++The Browser may be offline if the independently authenticated administrator can provide those factual authoritative observations without requiring Browser network access. If neither the Browser nor that approved independent source can establish the required status/validity/delegation, DENY. A stored package, old certificate, password, valid signature, historical root hash or previously accepted fingerprint is not a fallback. This decision adds no mandatory network service, online protocol, backup or fencing mechanism and does not reopen authoritative recovery.
++
++## D3.7 Mandatory M1 order and confidential release
++
++STRUCTURE -> SIGNATURE -> TRUST -> KDF -> AEAD -> CONTENT -> RELEASE is mandatory. Outer structure/version/suite/length/parameters are validated first; untrusted SPKI may be used for mathematical verification only. Independent signature and D3.2-D3.6 trust must both succeed before invoking KDF or treating the signer as authenticated. The implementation may acquire independent public reference data earlier; it may not derive trust from file-supplied bytes or password knowledge.
++
++Keep AEAD output in exclusive private quarantine until tag success and keep the entire result private through ZIP/TLV, certificate/key correspondence, accepted profiles, issuer/serial/time/identity/server and final authority/lifetime validation. No private-key/plaintext disclosure or usable result follows from signature, trust or AEAD success alone. Every missing or failed prerequisite denies; no partial success or fallback. Crypto parameters and layouts remain exactly M0-M8.
++
++## D3.8 Local import authorization and existing ownership
++
++After complete authenticated validation, an operator already authorized by existing BrowserProfile policy to change that profile must explicitly confirm installation of the identified configuration. Administrator attestation, trusted signer, password entry and successful validation do not grant that local right. Validation and installation remain different factual outcomes. Cancel or denial before commit preserves the old committed configuration.
++
++Use the existing candidate -> CredentialGeneration -> CredentialReference -> store -> gate/ActiveConfiguration/leases flow for both simple package and advanced imports. The existing owner must hold independent confirmation/provenance and protected references through use/commit; retain only public bounded provenance as required by that existing lifecycle, not a general reusable signer allowlist. No new importer owner, registry, trust store or storage/codec is approved. Any necessary versioned representation requires its own exact acceptance before writing. No Browser source or normative file is changed by this Accelerator decision.
++
++## D3.9 Stop, uncertainty and retention
++
++Keep immutable inputs, source/snapshot references, password/key/provider copies, quarantine and output credit owned until factual completion/quiescence. Stop does not prove cancellation of synchronous native KDF/I/O or destruction; timeout, process exit and FINAL do not free retained dependencies. Failed/uncertain release retains resources and credits under Model E/ED08, without destructive retry, guessed rollback or fabricated DESTROYED. Wipe only quiescent owned secret copies using reviewed non-elidable facilities; never log passwords, keys or protected plaintext. Active Session revocation remains a separate pending policy; this ceremony does not redefine it.
++
++## D3.10 ED11 and platform boundary
++
++No quota, reservation or operational credit is granted. Account trust/source references, immutable package, signature/provider, KDF, password/key, AEAD, plaintext/ciphertext/quarantine, ZIP/TLV, certificates/material, snapshots, old/new generations, stack/callbacks and retained coexistence once with proven ownership. Explicit Windows3145728 and default/legacy2097152 remain per-process limits, not per-client budgets. Provider/kernel and unmeasured costs stay UNKNOWN; ED11 total stays PARTIAL until operational qualification. Insufficient or unknown required credit denies integration. No CNG/Win32 dependency, box/ISA qualification or PapinhoTrustStore prerequisite is introduced into the common contract.
++
++## D3.11 Normative acceptance versus factual readiness
++
++This is a delimited first-contact/purpose/status contract, not evidence of an installed administrator channel, live policy delegation, factual CURRENT, qualified crypto/lifetime/ED11 or successful import. Those facts must exist and be proved before use; otherwise DENY. Implementation is NOT authorized by this record, nor are any referenced functional hunks. No productive signature, CURRENT publication, recovery, admission, key/certificate/package creation, network or Phase6 completion is authorized. Proposals and earlier accepted decisions remain preserved.
+--- /dev/null
++++ docs\integration\manual-package-d3-trust-reconciliation-20261020\D3-reconciled-clause-bytes.txt
+@@ -0,0 +1,59 @@
++## D3.1 Scope and distinct decisions
++
++This contract specifies only first-contact trust for the already accepted manual PACCMP02/version2/suite1 package and the explicit decision to import that exact configuration. Mathematical signature verification, trust in the signer and local permission to install are separate outcomes. None grants operational admission, Principal, capabilities, Network Egress, issuance, recovery or permission to change another authority. M0-M8, automatic enrollment with client-local key custody and advanced separate-file import remain unchanged.
++
++## D3.2 Independent first-contact channel
++
++A newly installed Browser need not already trust the Accelerator issuer. It SHALL obtain the expected complete signer-SPKI SHA256 fingerprint and the approval facts below through an independently authenticated administrative channel. The minimal accepted ceremony is in-person confirmation with an administrator whose identity and applicable role the Browser operator already recognizes independently of this package, its password, delivery and candidate connection. That previously established recognition is a necessary trust assumption, not something supplied by a package label or successful RSA/TLS/TCP operation.
++
++Another channel is eligible only when an existing explicitly approved administrative authentication procedure proves its identity, role, independence and integrity for this use; this decision does not select a new protocol/provider or qualify such a channel. If there is no verifiable independent channel or recognized authorized administrator, DENY before KDF. No silent TOFU, self-assigned trust anchor, generic SYSTEM/channel/client trust substitution or PapinhoTrustStore is required or authorized. The package may be delivered separately; its unlock secret follows the existing distinct-delivery rule and is never proof of issuer identity.
++
++## D3.3 Authoritative purpose/status evidence
++
++The confirming administrator SHALL obtain evidence from the existing canonical root/policy and issuer owner under its factual applicable CURRENT context and protected snapshot lifetime. An explicit policy approval of the exact signer for manual-package authentication is required in addition to certificate issuance. Existing PACKAGE purpose, codeSigning or a certificate chain alone is insufficient. The evidence must establish: root/server scope and ExpectedServerName; issuer authority/generation and approved CA SPKI identity; exact signer record/certificate identity and full DER-SPKI fingerprint; dedicated package-signing purpose/delegation; certificate and delegation validity; separate certificate/delegation revocation status; factual revision and administrative observation context. Existing R/A/P/I meanings and applicability remain intact; no epoch/revision is invented or substituted.
++
++The source SHALL validate the accepted dedicated signer certificate profile with vetted routines, including issuer association, RSA2048/e65537, sha256WithRSAEncryption, critical CA=FALSE BasicConstraints and digitalSignature KeyUsage, noncritical codeSigning-only EKU, accepted signer identity and validity under trustworthy UTC. Certificate/delegation absence, ambiguity, wrong purpose, mismatch, expiration, revocation, uncertain authority or unproved CURRENT denies confirmation. CA, channel and client keys cannot sign package bytes in place of the dedicated signer.
++
++## D3.4 Explicit administrative attestation boundary
++
++For this first-contact ceremony only, the independently recognized administrator's explicit confirmation of the validated D3.3 facts, carried through D3.2 and bound to D3.5, is an accepted source of the approved signer context described by M1. This acceptance makes the human administrative trust assumption explicit; it is not a new cryptographic proof or general trust service. An unchecked checkbox, an arbitrary callback/boolean, a package-provided assertion or a manually entered string without that independent confirmation does not satisfy it.
++
++The Browser SHALL distinguish independently attested purpose/delegation/status from mathematical verification and from any local validation of a signer certificate it actually receives. It SHALL NOT claim to have locally validated an unseen certificate. When the applicable deployment requires additional independent public certificate evidence, it must be available and validated; this ceremony does not waive that requirement. No new package member, mandatory second material file, prior CSR, signed-attestation format or crypto construction is introduced. ca.der and cliente.der retain their existing roles and do not become the signer certificate or a self-authenticating trust source.
++
++## D3.5 Exact package and operation binding
++
++Before KDF, the independent confirmation SHALL be associated with the exact immutable package bytes/object selected for this one import operation and its expected server/root scope. Use the existing complete-file SHA256 transfer/audit correlation with exact full-SPKI fingerprint comparison; a digest correlates bytes and is not itself authority. The administrator's authorized confirmation is the authority source, not the embedded hash or the hash comparison alone. Hold the same input/object identity through verification and use, never reread a replaceable path as the authenticated file.
++
++Confirmation permits only continued validation of this package for the named import, not permanent acceptance of that key, other packages, another server, automatic reimport, renewal or operational TLS trust. Changed bytes, target, operation, source approval or identity require a new independently validated context. Existing M5 already-imported/idempotency rules remain unchanged and do not create a new trust exemption. Values encrypted inside the package are checked against independently approved expectations after AEAD; they cannot establish pre-KDF trust or scope.
++
++## D3.6 Status, validity and offline behavior
++
++The status policy for this minimum ceremony is a contemporaneous authoritative administrative observation for this same interactive import, not reuse of cached evidence as a continuing status grant. Before the TRUST decision the administrator must check the actual applicable CURRENT approval and certificate/delegation status and convey the observation/revision through the independent channel. Before controlled release and local installation, revalidate validity and that applicable approval/status still permits this operation, using a renewed authoritative observation if the prior facts cannot be proved applicable. New revocation, expiration, loss of source lifetime, changed/mismatched authority, Stop, interruption or uncertainty prevents release and requires fresh confirmation before a replacement operation proceeds.
++
++An observation proves status at its factual source revision/time; it does not prove global latest state, restored-instance fencing, immunity to later revocation or ongoing remote CURRENT. No numerical TTL, certificate-lifetime-as-import-TTL, wall-clock freshness bypass or offline global-revocation guarantee is introduced. A stricter applicable approved deployment policy still applies.
++
++The Browser may be offline if the independently authenticated administrator can provide those factual authoritative observations without requiring Browser network access. If neither the Browser nor that approved independent source can establish the required status/validity/delegation, DENY. A stored package, old certificate, password, valid signature, historical root hash or previously accepted fingerprint is not a fallback. This decision adds no mandatory network service, online protocol, backup or fencing mechanism and does not reopen authoritative recovery.
++
++## D3.7 Mandatory M1 order and confidential release
++
++STRUCTURE -> SIGNATURE -> TRUST -> KDF -> AEAD -> CONTENT -> RELEASE is mandatory. Outer structure/version/suite/length/parameters are validated first; untrusted SPKI may be used for mathematical verification only. Independent signature and D3.2-D3.6 trust must both succeed before invoking KDF or treating the signer as authenticated. The implementation may acquire independent public reference data earlier; it may not derive trust from file-supplied bytes or password knowledge.
++
++Keep AEAD output in exclusive private quarantine until tag success and keep the entire result private through ZIP/TLV, certificate/key correspondence, accepted profiles, issuer/serial/time/identity/server and final authority/lifetime validation. No private-key/plaintext disclosure or usable result follows from signature, trust or AEAD success alone. Every missing or failed prerequisite denies; no partial success or fallback. Crypto parameters and layouts remain exactly M0-M8.
++
++## D3.8 Local import authorization and existing ownership
++
++After complete authenticated validation, an operator already authorized by existing BrowserProfile policy to change that profile must explicitly confirm installation of the identified configuration. Administrator attestation, trusted signer, password entry and successful validation do not grant that local right. Validation and installation remain different factual outcomes. Cancel or denial before commit preserves the old committed configuration.
++
++Use the existing candidate -> CredentialGeneration -> CredentialReference -> store -> gate/ActiveConfiguration/leases flow for both simple package and advanced imports. The existing owner must hold independent confirmation/provenance and protected references through use/commit; retain only public bounded provenance as required by that existing lifecycle, not a general reusable signer allowlist. No new importer owner, registry, trust store or storage/codec is approved. Any necessary versioned representation requires its own exact acceptance before writing. No Browser source or normative file is changed by this Accelerator decision.
++
++## D3.9 Stop, uncertainty and retention
++
++Keep immutable inputs, source/snapshot references, password/key/provider copies, quarantine and output credit owned until factual completion/quiescence. Stop does not prove cancellation of synchronous native KDF/I/O or destruction; timeout, process exit and FINAL do not free retained dependencies. Failed/uncertain release retains resources and credits under Model E/ED08, without destructive retry, guessed rollback or fabricated DESTROYED. Wipe only quiescent owned secret copies using reviewed non-elidable facilities; never log passwords, keys or protected plaintext. Active Session revocation remains a separate pending policy; this ceremony does not redefine it.
++
++## D3.10 ED11 and platform boundary
++
++No quota, reservation or operational credit is granted. Account trust/source references, immutable package, signature/provider, KDF, password/key, AEAD, plaintext/ciphertext/quarantine, ZIP/TLV, certificates/material, snapshots, old/new generations, stack/callbacks and retained coexistence once with proven ownership. Explicit Windows3145728 and default/legacy2097152 remain per-process limits, not per-client budgets. Provider/kernel and unmeasured costs stay UNKNOWN; ED11 total stays PARTIAL until operational qualification. Insufficient or unknown required credit denies integration. No CNG/Win32 dependency, box/ISA qualification or PapinhoTrustStore prerequisite is introduced into the common contract.
++
++## D3.11 Normative acceptance versus factual readiness
++
++This is a delimited first-contact/purpose/status contract, not evidence of an installed administrator channel, live policy delegation, factual CURRENT, qualified crypto/lifetime/ED11 or successful import. Those facts must exist and be proved before use; otherwise DENY. Implementation is NOT authorized by this record, nor are any referenced functional hunks. No productive signature, CURRENT publication, recovery, admission, key/certificate/package creation, network or Phase6 completion is authorized. Proposals and earlier accepted decisions remain preserved.
+--- /dev/null
++++ docs\integration\manual-package-d3-trust-reconciliation-20261020\conformance-matrix.md
+@@ -0,0 +1,53 @@
++# D3 final reconciliation - conformance and acceptance review
++
++Task PACC-PHASE6-MANUAL-PACKAGE-D3-TRUST-RECONCILIATION-1 authorizes focused normative completion and conditional acceptance of first-contact ceremony, verifiable purpose/status and separation of signature/trust/local authorization. This review does not implement or qualify an importer/channel/signer. Branch main, HEAD c50b8fb9a7e3293b5e6355fc08459bf85b56857a. Authority/preimage hashes and exact incorporation are recorded separately.
++
++## Resolved prior gaps
++
++The prior D3 correction explicitly proposed independently recognized human administrative attestation, same-operation status and separate local installation permission. The prior acceptance review correctly left that choice pending. The present task supplies owner direction to complete exactly those decisions and conditionally register them under official review. D3.1-D3.11 now fix the trust basis and denial predicates; actual channel/source/provider availability remains a factual use gate. It is not another undefined trust mechanism or a claim that a deployment has been qualified.
++
++|Prior open clause|Reconciled exact rule|Why the normative gap is closed|
++|---|---|---|
++|Original D3 paragraph2, independently authenticated administrator without selected ceremony|D3.2 selects independently recognized in-person administrator; other channel requires an already approved applicable authentication procedure|New Browser need not trust a CA first. Independent human relationship/channel is an explicit trust assumption; none means DENY|
++|Correction paragraph3, proposed attestation of signer purpose/delegation|D3.3-D3.4 require factual canonical policy/issuer/certificate checks and explicitly accept that independently authenticated administrative confirmation for this one package|It is neither RSA-as-trust nor local validation of an unseen certificate; embedded SPKI/CA and password cannot bootstrap the approval|
++|Original D3 paragraph3, status/freshness deferred|D3.6 defines current authoritative administrative observation for this same import, applicability/status revalidation before release, no cache reuse, DENY when proof unavailable|No numerical TTL or global offline revocation/fencing claim; no mandatory Browser networking|
++|Correction local authorization boundary|D3.8 requires separate local BrowserProfile-authorized install confirmation after complete validation|Trusted remote signer does not gain local administrative rights; validation is not Apply|
++|Trust scope formerly described broadly as signer/server|D3.5 binds the independent confirmation to exact immutable package bytes/correlation and one operation|No permanent trust anchor, future packages, renewed credential or extra registry is silently authorized|
++
++## Conditions against accepted authorities
++
++|Condition|Authority/comparison|Finding|
++|---|---|---|
++|No self-trust or silent TOFU|ADR0006 Pairing/first-use; M1 full signer fingerprint/server independent confirmation|D3.2/D3.4 require independent identity/role/channel; package or password alone deny|
++|One canonical policy/issuer root|Manual custody decision7/10; accepted root/C8/issuer-C2|D3.3 proof source is canonical root/policy/issuer under actual CURRENT, not a parallel source|
++|Issuer membership and signer identity|Technical profile1.2/1.3, M3 C1/C4|D3.3 requires authority/generation, CA SPKI and exact signer cert/SPKI/record correspondence, purpose and scope|
++|CodeSigning and separate keys|Technical profile1.1/1.3/3.4|Dedicated signer validated by vetted source, CA/TLS/client reuse forbidden; EKU/issuance alone not delegation|
++|Purpose evidence to a new Browser|M1 approved signer context, M2 header and M3 member set|D3.4 explicitly accepts independent administrative attestation, not a nonexistent embedded signer certificate or a new file format|
++|Exact package and signature domain|M2 file SHA is correlation only and immutable input; current owner section3|D3.5 uses complete-file correlation with independent approval; fingerprint is complete SHA256 of DER SPKI, not a short code; algorithms/domain/layout unchanged|
++|Scope is limited to this import|Current owner section3; M4/M5 separate authority/commit|D3.1/D3.5 prohibit general signer allowlists and implied new authority|
++|Current/status not invented|Root/C8/issuer-C2 P1/P3; technical profile2.4|D3.3/D3.6 require actual source context/status and deny uncertain authority; no decoded hash/CURRENT or restored global freshness claim|
++|Validity and revocation|Technical profile1.3/1.4 and M1/M5|Certificate and delegation validity/status checked separately under trustworthy UTC, revalidated before release; no backdating or implicit renewal|
++|Offline status behavior explicit|Current owner section4 and M1 approved context|D3.6 permits offline Browser only with independently verified authoritative administrator evidence; lack of proof DENY, no cache fallback or network mandate|
++|M1 exact pipeline|M1 and M5, current owner section5|D3.7 STRUCTURE -> SIGNATURE -> TRUST -> KDF -> AEAD -> CONTENT -> RELEASE; pre-trust failures never reach KDF|
++|No confidential release before all checks|M1/M4/M5|D3.7/D3.8 keep private quarantine through full content/profile/identity and final authority checks; no partial success|
++|Separate local permission|BrowserProfile ownership and candidate/Apply contract; current owner section3|D3.8 requires an already permitted local operator; trust/password is not installation authorization|
++|Existing simple/advanced import lifecycle|Accepted provisioning/manual custody9, M5, Browser ADR0007 permanent provisioning and safe retirement|D3.8 converges on existing generation/reference/store/gate/lease pipeline, preserves advanced path and adds no Browser implementation|
++|Stop/quiescence/retention|Model E, ED08, issuer/C2 P4.7|D3.9 forbids early release/destruction/credit refund/retry on uncertainty and wiping borrowed retained secrets|
++|ED11 and portability|M7, accepted Windows3MiB W1-W6|D3.10 grants no quota/reservation; default and individual limits unchanged, no Win32/CNG dependency or target qualification|
++|No functional or operational authorization|M8 and present task section7|D3.11/acceptance record keep implementation, validation, signing, CURRENT, recovery and admission denied|
++
++No material conflict remains in the reconciled D3 normative text. This conclusion is contract conformance, not execution evidence. Missing live CURRENT/admin/channel/delegation/status/lifetime/budget still denies use. Those conditions are not replaced by the accepted label.
++
++## Exact incorporation and precedence
++
++Only frozen D3.1-D3.11 is accepted by the designated new decision after official executor approval; SHA/length/byte interval in incorporation-and-preimages.json are mandatory. Original delegated proposal, prior correction, unapplied old patch and historical closeouts stay unchanged. The new record delimits D3 precedence over their pending wording; no entire D0-D6 proposal is accepted, no D1/D2/D4-D6 wholesale promotion and no accepted M0-M8/Browser/profile/root change.
++
++Within D3, the minimum proof-source predicate (explicit canonical policy approval plus existing issuer history and independent confirmation) is now explicit. This does not select/approve a serialized policy field, root/issuer carrier extension, new trust record, CNG token mechanism, alternative channel or concrete trust provider. Any required exact persistence and functional changes still require their own normative/executor gates. Browser adoption remains governed separately; no Browser ADR/source is edited.
++
++## ED11 - review only, no operational approval
++
++New runtime allocations/contexts/copies0 because no code or activation changes. The future graph must charge input/object, exact signer/issuer/certificate/delegation references, public hashes/correlations, independently confirmed status metadata, password/KDF/key/provider, ciphertext/quarantine/plaintext, ZIP/TLV/material, candidate/generation old/new coexistence, callbacks/stacks and all retained borrowers. Do not omit extra copies or count borrowed aliases twice. Trust metadata is not sized by an invented number in this review.
++
++Historical selected known base2103847 and legacy2067655 are not full activation maxima. Prior test CRT peak1290354 includes a fixture-only global signer context; the earlier private/material phase569962 is not a complete production graph. Conservative base+full-test peak3394201 exceeds Windows3145728 by248473 before caller buffers, but is NOT measured deployed usage. Preserve required segregation/attribution work; no claimed reserve or erased cost. Default2097152 and explicit Windows3145728 per process, no individual quota changes. Provider/kernel/whole stack UNKNOWN, ED11 totalPARTIAL, activationDENY.
++
++No build, product test, native qualification, package/key/certificate or signature creation, network or CURRENT publication was run. Hash/preimage and exact incorporation checks are documentary verification only.
+--- /dev/null
++++ docs/adr/DECISION-manual-package-d3-first-contact-trust-20261020.md
+@@ -0,0 +1,55 @@
++---
++status: accepted
++revision: 1
++decision-date: 2026-10-20
++scope-level: project
++scope-target: manual package D3 first-contact trust only
++decision-makers: [Tobias Tromm]
++supersedes: []
++---
++# D3 - first-contact delegated package trust and local import boundary
++
++## Authorized scope and exact incorporation
++
++Owner task PACC-PHASE6-MANUAL-PACKAGE-D3-TRUST-RECONCILIATION-1 directs completion and conditional acceptance of the prepared D3 correction, specifically independent first contact, verifiable signer purpose/status and separation of signature/trust/local authorization. This record takes effect only after official executor approval of these exact bytes and verified incorporation. It accepts only D3.1-D3.11 in the frozen annex [D3-reconciled-clause-bytes.txt](../integration/manual-package-d3-trust-reconciliation-20261020/D3-reconciled-clause-bytes.txt), SHA256 0d35ec89f35d9b843c7d335855f3d40158b379c6d30accfa4e66b28c819956ff, length12055 bytes, UTF8/CRLF. Prepared source [D3-RECONCILED-PROPOSED.md](../integration/manual-package-d3-trust-reconciliation-20261020/D3-RECONCILED-PROPOSED.md), SHA256 42ab8e2350556708cf83e82443375746dfb85f4f9d3bcab7feed65e9548d5cfc, preserves the proposal history; only the frozen clauses are incorporated, not its frontmatter/title/preparatory text.
++
++The current owner direction supplies the conditional normative authorization for this reconciliation; its factual obligations remain mandatory DENY gates before any use. This record does not assert a factual trusted signer/channel/CURRENT exists merely because the contract is accepted.
++
++## Delimited precedence
++
++For D3 only, the incorporated clauses replace the deferred first-contact/source-ceremony and status-policy wording in docs/integration/manual-package-m1-trust-binding-20261020/DECISION-DELEGATED-SIGNER-TRUST-PROPOSED.md and reconcile docs/integration/manual-package-delegated-trust-acceptance-20261020/D3-CORRECTION-PROPOSED.md. Both originals, their unexecuted patch and prior reviews remain byte-exact historical proposals/evidence. Their earlier acceptance-pending assessment remains historically correct before this current conditional reconciliation and official registration.
++
++No entire D0-D6 proposal or D1/D2/D4-D6 clause is promoted by reference. D3 itself now defines its necessary proof-source predicate: explicit canonical policy approval plus issuer/certificate/history and independent administrative confirmation, not issuance-as-trust. This does not approve any policy fields, ROOT06/ROOT08/BODY/D3/LST1 layout, trust registry or codec extension. Source acquisition and any additional persistence must still be implemented/qualified under their own exact gates. Accepted M0-M8, ADR0006, provisioning/custody/CA profiles, issuer/C2/root/CAS and existing Browser contracts are unchanged.
++
++## Acceptance findings
++
++The first-contact trust assumption is explicit: the operator independently recognizes the administrator/role, and the approved channel conveys verified same-root purpose/status facts bound to this one immutable package. An in-person handover is the minimum ceremony; another channel needs an already approved applicable administrative authentication procedure. No channel qualification or new protocol is inferred. Package password, embedded SPKI/CA, mathematical RSA and a UI checkbox alone never establish trust.
++
++Purpose evidence is attested by that independently authenticated administrator only after factual canonical root/policy/issuer and vetted certificate validation. The Browser must not claim local verification of an unseen signer certificate. Additional required independent certificate evidence is not waived. This delimited approved signer context follows the independent-confirmation option already allowed by M1; it does not replace certificate requirements or make arbitrary statements trustworthy.
++
++Status is observed through actual applicable CURRENT for the same import, revalidated before release/installation, and denied whenever unavailable/expired/revoked/uncertain. Offline delivery has no global-current or revocation-freshness guarantee and no cached-evidence exception. Browser offline does not prohibit a trusted administrator obtaining source facts, but no source of proof means DENY. No TTL or recovery/fencing proof is invented.
++
++M1 order is preserved, all confidential material remains quarantined until complete validation, and installation requires a separate authorized local BrowserProfile action. Same candidate/generation/store/lease ownership, Stop/retention, ED08/ED11, per-process limits and independent admission guards remain. There is no material normative conflict after this delimited reconciliation. Factual environment/provider/representation/lifetime/reservation gates remain open, not hidden as acceptance prerequisites already proved.
++
++## Limits
++
++D3_TRUST_CORRECTION=ACCEPTED
++IMPLEMENTATION_AUTHORIZED=NO
++AUTHENTICATED_PACKAGE_VALIDATION=DENY
++SIGNATURE_AUTHORITY=DENY
++CURRENT_PUBLICATION=DENY
++AUTHORITATIVE_RECOVERY=DENY
++CLIENT_ADMISSION=DISABLED
++SITE_TLS_ADMISSION=DENY
++ED11_ADMISSION=DENY
++ED11_TOTAL_STATUS=PARTIAL
++PRODUCTION_PIN=0.6.4
++PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
++
++No functional patch, Browser/PST/wire change, productive bootstrap, package/key/certificate creation, private signature, build/test/network, commit/push/tag/release or Phase6 closure follows from this record. Exact later source patches require their own official approval and qualification.
++
++## Evidence and history
++
++[Conformance matrix](../integration/manual-package-d3-trust-reconciliation-20261020/conformance-matrix.md), [incorporation/preimages](../integration/manual-package-d3-trust-reconciliation-20261020/incorporation-and-preimages.json), [closeout](../integration/manual-package-d3-trust-reconciliation-20261020/closeout.md).
++
++Revision1,2026-10-20: exact D3 first-contact/purpose/status reconciliation registered only through owner conditional authority and official executor approval; historical proposals preserved.
+--- /dev/null
++++ docs\integration\manual-package-d3-trust-reconciliation-20261020\closeout.md
+@@ -0,0 +1,38 @@
++# Closeout - D3 final normative reconciliation
++
++D3 first-contact/purpose/status correction accepted only through the exact designated decision and official executor approval. Independent administrative confirmation is limited to the exact package/import; canonical policy/issuer/certificate/status facts must be verified and bound to that operation. RSA correctness, signer trust and local BrowserProfile installation permission remain separate.
++
++Without a verifiable independent channel or valid authoritative status/delegation evidence, DENY before KDF. Offline Browser does not require prior issuer trust or PapinhoTrustStore, and receives no global-freshness guarantee: absent sufficient proof denies. M1 order and confidential quarantine remain mandatory. Acceptance is not an installed channel, trusted signer, factual CURRENT or successful import.
++
++Original proposals, accepted authorities and existing WIP preserved. No source, build/test/network, package/key/certificate, productive signature, runtime publication or admission change. ED11 total PARTIAL; reservation/activation unqualified. Exact incorporation, preimages and final hashes verified after authorized registration.
++
++[Designated decision](../../adr/DECISION-manual-package-d3-first-contact-trust-20261020.md) | [Frozen accepted clauses](D3-reconciled-clause-bytes.txt) | [Conformance](conformance-matrix.md) | [Incorporation](incorporation-and-preimages.json) | [Hashes](final-manifest.json).
++
++```ini
++CURRENT_TASK_COMPLETED=YES
++D3_TRUST_CORRECTION=ACCEPTED
++BROWSER_FIRST_CONTACT=EXPLICIT_INDEPENDENT_ADMIN_CONFIRMATION_FOR_EXACT_PACKAGE_ONLY
++SIGNER_PURPOSE_STATUS=CANONICAL_POLICY_ISSUER_ATTESTATION_WITH_FACTUAL_STATUS_REQUIRED_ABSENT_DENY
++DELEGATED_SIGNER_TRUST=D3_CONTRACT_ACCEPTED_FACTUAL_BINDING_NOT_QUALIFIED
++M1_SEQUENCE=PRESERVED
++IMPLEMENTATION_AUTHORIZED=NO
++AUTHENTICATED_PACKAGE_VALIDATION=DENY
++SIGNATURE_AUTHORITY=DENY
++CURRENT_PUBLICATION=DENY
++AUTHORITATIVE_RECOVERY=DENY
++CLIENT_ADMISSION=DISABLED
++SITE_TLS_ADMISSION=DENY
++ED11_ADMISSION=DENY
++ED11_TOTAL_STATUS=PARTIAL
++PST_CHANGED=NO
++BROWSER_CHANGED=NO
++PACC_WIRE_CHANGED=NO
++PRODUCTION_PIN=0.6.4
++PST065_RELEASE=DEFERRED_UNTIL_PHASE6_COMPLETION
++BUILDS=NOT_RUN
++TESTS=NOT_RUN
++NETWORK=NOT_RUN
++WIP_PRESERVED=YES
++FIRST_UNRESOLVED_DIVERGENCE=NONE_IN_ACCEPTED_D3_FACTUAL_SOURCE_LIFETIME_AND_ED11_IMPLEMENTATION_GATES_REMAIN
++NEXT=MANUAL_PACKAGE_TRUST_AND_AUTHENTICATED_VALIDATION_IMPLEMENTATION
++```
