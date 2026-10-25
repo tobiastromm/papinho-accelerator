@@ -1,0 +1,217 @@
+--- apps/server/personal_native_win32.h
++++ apps/server/personal_native_win32.h
+@@ -3,7 +3,13 @@
+ #include <windows.h>
+ #include "server_console_win32.h"
+ /* Same canonical packet owns every handle/allocation through factual close. */
++#define PAPACC_PERSONAL_HANDOFF_SUBMITTED 1L
++#define PAPACC_PERSONAL_HANDOFF_VERIFIED 2L
++#define PAPACC_PERSONAL_HANDOFF_DENIED 3L
++#define PAPACC_PERSONAL_HANDOFF_RETAINED 4L
+ typedef struct PAPACC_PERSONAL_NATIVE_CONTEXT {
++ /* Private read-only dispatch state; same packet, no authority or child ID. */
++ volatile LONG handoff_state;unsigned char handoff_attempt[32];
+  TOKEN_STATISTICS token;BYTE sid[SECURITY_MAX_SID_SIZE];DWORD sid_bytes,session;
+  BY_HANDLE_FILE_INFORMATION parent,source;
+  HANDLE unexpected_thread,check_token;
+--- apps/server/server_configuration_personal_native_win32.inc
++++ apps/server/server_configuration_personal_native_win32.inc
+@@ -60,11 +60,11 @@
+  if(!ConvertSidToStringSidA(n->sid,&n->sid_text))return PAPACC_RESULT_INVALID_STATE;
+  return papacc_configuration_personal_native_current(o);
+ }
+-PAPACC_RESULT papacc_configuration_personal_native_current(PAPACC_CONFIGURATION_COMMIT *o)
++static PAPACC_RESULT personal_packet_current(PAPACC_CONFIG_PENDING *p)
+ {
+- PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;BY_HANDLE_FILE_INFORMATION f;int same;
+- if(!o||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved)return PAPACC_RESULT_INVALID_STATE;
+- p=&o->pending_commit;n=&p->personal_native;
++ PAPACC_PERSONAL_NATIVE_CONTEXT *n;BY_HANDLE_FILE_INFORMATION f;int same;
++ if(InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
++ n=&p->personal_native;
+  if(!personal_token(p,0)||!p->bootstrap_parent||!n->descriptor||n->check_descriptor||
+  !GetFileInformationByHandle(p->bootstrap_parent,&f)||memcmp(&f.dwVolumeSerialNumber,&n->parent.dwVolumeSerialNumber,sizeof(DWORD))||
+  f.nFileIndexHigh!=n->parent.nFileIndexHigh||f.nFileIndexLow!=n->parent.nFileIndexLow||
+@@ -72,14 +72,22 @@
+  if(GetSecurityInfo(p->bootstrap_parent,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->check_descriptor)!=ERROR_SUCCESS)return PAPACC_RESULT_INVALID_STATE;
+  same=IsValidSecurityDescriptor(n->check_descriptor)&&n->descriptor_bytes==GetSecurityDescriptorLength(n->check_descriptor)&&
+  !memcmp(n->descriptor,n->check_descriptor,n->descriptor_bytes);
+- if(LocalFree(n->check_descriptor)){n->phase=2U;o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}n->check_descriptor=NULL;
++ if(LocalFree(n->check_descriptor)){n->phase=2U;return PAPACC_RESULT_INTERNAL_ERROR;}n->check_descriptor=NULL;
+  return same?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
++}
++PAPACC_RESULT papacc_configuration_personal_native_current(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ PAPACC_RESULT r;
++ if(!o||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved||o->pending_commit.active||o->pending_commit.thread)return PAPACC_RESULT_INVALID_STATE;
++ r=personal_packet_current(&o->pending_commit);
++ if(o->pending_commit.personal_native.phase==2U)o->unresolved=1;
++ return r;
+ }
+ PAPACC_RESULT papacc_configuration_personal_native_close(PAPACC_CONFIGURATION_COMMIT *o)
+ {
+  PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;HANDLE *h[5];HLOCAL m[3];unsigned i;
+  if(!o||o->writer!=GetCurrentThreadId())return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;n=&p->personal_native;
+- if(n->phase==2U||p->active||p->thread)return PAPACC_RESULT_INVALID_STATE;
++ if(p->active||p->thread||n->phase==2U)return PAPACC_RESULT_INVALID_STATE;
+  if(n->phase==3U)return PAPACC_RESULT_OK;
+  h[0]=&p->file;h[1]=&n->unexpected_thread;h[2]=&p->bootstrap_token;h[3]=&p->bootstrap_parent;h[4]=&n->check_token;
+  for(i=0;i<5;i++)if(*h[i]&&*h[i]!=INVALID_HANDLE_VALUE){
+@@ -91,14 +99,37 @@
+ retained:n->error=GetLastError();n->phase=2U;o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;
+ }
+ 
+-PAPACC_RESULT papacc_configuration_personal_source_current(PAPACC_CONFIGURATION_COMMIT *o)
++static PAPACC_RESULT personal_packet_source(PAPACC_CONFIG_PENDING *p)
+ {
+- PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;BY_HANDLE_FILE_INFORMATION f;LARGE_INTEGER zero;
+- if(!o||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved)return PAPACC_RESULT_INVALID_STATE;
+- p=&o->pending_commit;n=&p->personal_native;zero.QuadPart=0;
++ PAPACC_PERSONAL_NATIVE_CONTEXT *n;BY_HANDLE_FILE_INFORMATION f;LARGE_INTEGER zero;
++ if(InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
++ n=&p->personal_native;zero.QuadPart=0;
+  if(n->phase!=1U||!p->file||p->file==INVALID_HANDLE_VALUE||!GetFileInformationByHandle(p->file,&f)||
+  f.dwVolumeSerialNumber!=n->source.dwVolumeSerialNumber||f.nFileIndexHigh!=n->source.nFileIndexHigh||f.nFileIndexLow!=n->source.nFileIndexLow||
+  f.nFileSizeHigh||f.nFileSizeLow!=p->personal_data.bytes||f.nFileSizeLow!=n->source.nFileSizeLow||
+  !SetFilePointerEx(p->file,zero,NULL,FILE_BEGIN)||pending_compare_file(p,p->personal_data.plan,f.nFileSizeLow)!=1)return PAPACC_RESULT_INVALID_STATE;
+  return PAPACC_RESULT_OK;
+ }
++PAPACC_RESULT papacc_configuration_personal_source_current(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ if(!o||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved||o->pending_commit.active||o->pending_commit.thread)return PAPACC_RESULT_INVALID_STATE;
++ return personal_packet_source(&o->pending_commit);
++}
++/* Same pending_worker dispatch. All inputs belong to the frozen packet. Never
++ * reads owner-only DATA phase/consumed while Stop may invalidate that phase.
++ * Source bytes/attempt/native refs remain owned until factual quiescence. */
++static void personal_handoff_worker(PAPACC_CONFIG_PENDING *p)
++{
++ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;
++ LONG result=PAPACC_PERSONAL_HANDOFF_DENIED;
++ if(InterlockedCompareExchange(&n->handoff_state,0,0)!=PAPACC_PERSONAL_HANDOFF_SUBMITTED)return;
++ if(!InterlockedCompareExchange(&p->stop,0,0)&&
++    !memcmp(n->handoff_attempt,p->personal_data.attempt,32U)&&
++    personal_packet_current(p)==PAPACC_RESULT_OK&&
++    personal_packet_source(p)==PAPACC_RESULT_OK&&
++    !InterlockedCompareExchange(&p->stop,0,0))result=PAPACC_PERSONAL_HANDOFF_VERIFIED;
++ if(n->phase==2U||p->close_error){result=PAPACC_PERSONAL_HANDOFF_RETAINED;p->result=PAPACC_CAS_UNKNOWN;}
++ /* No FILE_CREATE, owner lookup, key borrow, commit or publication here.
++  * Existing child creation remains separately denied by its native gate. */
++ InterlockedExchange(&n->handoff_state,result);
++}
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -31,6 +31,10 @@
+ {
+  PAPACC_CONFIG_PENDING *p=arg;DWORD n;LARGE_INTEGER size;BY_HANDLE_FILE_INFORMATION f;
+  int ok=0,conflict=0,rolled=0,verified=0,comparison;
++#ifdef PAPACC_OFFLINE_D3_WORKER
++ /* Preserve the already-held source/parent/token. No packet reset/reopen. */
++ if(p->packet_format==12U){personal_handoff_worker(p);return 0;}
++#endif
+  p->result=PAPACC_COMMIT_FAILED;p->file=INVALID_HANDLE_VALUE;p->transaction=NULL;
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+  if(p->packet_format==9U){bootstrap_worker(p);return 0;}
+@@ -132,6 +136,45 @@
+  if(!p->thread){p->native_error=GetLastError();p->result=PAPACC_COMMIT_FAILED;p->active=0;return PAPACC_RESULT_INTERNAL_ERROR;}
+  return PAPACC_RESULT_OK;
+ }
++#ifdef PAPACC_OFFLINE_D3_WORKER
++PAPACC_RESULT papacc_configuration_personal_handoff_begin(PAPACC_CONFIGURATION_COMMIT *o,
++ const unsigned char id[32],PAPACC_SIZE reserved)
++{
++ PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;
++ if(!o||!id||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved||o->published||o->prepared||o->committed_pending||o->committed_bytes)return PAPACC_RESULT_INVALID_STATE;
++ p=&o->pending_commit;n=&p->personal_native;
++ if(p->active||p->thread||p->transaction||p->bootstrap_container||p->bootstrap_created||p->close_error||
++    n->handoff_state||n->phase!=1U||p->personal_data.phase!=PAPACC_PERSONAL_DATA_CONFIRMED||p->personal_data.consumed)return PAPACC_RESULT_INVALID_STATE;
++ if(memcmp(id,p->personal_data.attempt,32U)){papacc_personal_data_invalidate(&p->personal_data);return PAPACC_RESULT_INVALID_ARGUMENT;}
++ if(reserved>PAPACC_ED11_PROCESS_LIMIT||PAPACC_PENDING_STACK_BYTES>PAPACC_ED11_PROCESS_LIMIT-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(papacc_configuration_personal_native_current(o)!=PAPACC_RESULT_OK||
++    papacc_configuration_personal_source_current(o)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
++ if(!papacc_personal_data_consume(&p->personal_data,id,p->next,p->personal_data.bytes))return PAPACC_RESULT_INVALID_STATE;
++ /* One-shot consumption precedes this read-only submission too. Failure never
++  * rearms it. No pointer or handle is duplicated/transferred to another owner. */
++ memcpy(n->handoff_attempt,id,32U);InterlockedExchange(&n->handoff_state,PAPACC_PERSONAL_HANDOFF_SUBMITTED);
++ p->packet_format=12U;p->result=PAPACC_COMMIT_FAILED;p->thread_close_attempted=0;p->active=1;
++ p->thread=CreateThread(NULL,PAPACC_PENDING_STACK_BYTES,pending_worker,p,STACK_SIZE_PARAM_IS_A_RESERVATION,NULL);
++ if(!p->thread){p->native_error=GetLastError();p->active=0;InterlockedExchange(&n->handoff_state,PAPACC_PERSONAL_HANDOFF_DENIED);return PAPACC_RESULT_INTERNAL_ERROR;}
++ return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_configuration_personal_handoff_poll(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ PAPACC_CONFIG_PENDING *p;DWORD wait;
++ if(!o||o->writer!=GetCurrentThreadId())return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;
++ if(p->packet_format!=12U||p->thread_close_attempted||p->personal_native.handoff_state==PAPACC_PERSONAL_HANDOFF_RETAINED)return PAPACC_RESULT_INVALID_STATE;
++ if(!p->active)return p->thread?PAPACC_RESULT_INVALID_STATE:PAPACC_RESULT_OK;
++ wait=WaitForSingleObject(p->thread,0);
++ if(wait==WAIT_TIMEOUT)return PAPACC_RESULT_OK;
++ if(wait!=WAIT_OBJECT_0){o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}
++ /* The signal proves quiescence, not closure. Never free on timeout. */
++ p->thread_close_attempted=1;
++ if(!CloseHandle(p->thread)){p->close_error=GetLastError();o->unresolved=1;InterlockedExchange(&p->personal_native.handoff_state,PAPACC_PERSONAL_HANDOFF_RETAINED);return PAPACC_RESULT_INTERNAL_ERROR;}
++ p->thread=NULL;p->active=0;
++ if(p->personal_native.phase==2U||p->result==PAPACC_CAS_UNKNOWN){o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}
++ return PAPACC_RESULT_OK;
++}
++#endif
+ static PAPACC_RESULT pending_poll06(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER_CAS_RESULT *out)
+ {
+  PAPACC_CONFIG_PENDING *p;DWORD w;
+--- apps/server/server_configuration_commit_win32.h
++++ apps/server/server_configuration_commit_win32.h
+@@ -196,6 +196,10 @@
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+ #include "personal_custody_data_win32.h"
+ PAPACC_PERSONAL_CUSTODY_DATA papacc_configuration_personal_custody_data(const PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CA_KEY *);
++/* One-shot, read-only handoff to the existing worker; no child/key effects.
++ * Same owner keeps all inputs frozen until poll confirms signal AND close. */
++PAPACC_RESULT papacc_configuration_personal_handoff_begin(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_personal_handoff_poll(PAPACC_CONFIGURATION_COMMIT *);
+ /* Native read-only preflight only; no root identity, child, key or CURRENT. */
+ PAPACC_RESULT papacc_configuration_personal_native_open(PAPACC_CONFIGURATION_COMMIT *,const char *);
+ PAPACC_RESULT papacc_configuration_personal_native_current(PAPACC_CONFIGURATION_COMMIT *);
+--- apps/server/server_launcher_personal_win32.inc
++++ apps/server/server_launcher_personal_win32.inc
+@@ -76,7 +76,13 @@
+  if(papacc_server_console_win32_stop_requested()||!papacc_personal_data_confirm(&p->personal_data,id,p->next,bytes))goto done;
+  /* DATA consume is not operational admissibility. Source/material and CA are
+   * absent, full ED11/continuity is unqualified: native creation stays denied. */
+- if(papacc_server_console_win32_stop_requested()||!papacc_personal_data_consume(&p->personal_data,id,p->next,bytes))goto done;confirmed=1;
++ if(papacc_server_console_win32_stop_requested()||papacc_configuration_personal_handoff_begin(c,id,root.reserved_bytes)!=PAPACC_RESULT_OK)goto done;
++ while(p->active){
++  if(papacc_server_console_win32_stop_requested()){InterlockedExchange(&p->stop,1);break;}
++  if(papacc_configuration_personal_handoff_poll(c)!=PAPACC_RESULT_OK)break;
++  if(p->active)Sleep(10U);
++ }
++ if(!p->active&&!p->thread&&n->handoff_state==PAPACC_PERSONAL_HANDOFF_VERIFIED&&!papacc_server_console_win32_stop_requested())confirmed=1;
+ done:
+  papacc_personal_data_invalidate(&p->personal_data);
+  if(n->console.is_installed&&papacc_server_console_win32_uninstall(&n->console)!=PAPACC_RESULT_OK)clean=0;
+--- tests/personal_plan_data_win32_test.c
++++ tests/personal_plan_data_win32_test.c
+@@ -50,6 +50,10 @@
+  CHECK(!papacc_personal_data_capture(p,nonce,plan,0));
+  CHECK(!papacc_personal_data_capture(p,nonce,plan,PAPACC_PERSONAL_PLAN_MAX+1U));
+  CHECK(papacc_configuration_personal_data_capture(&owner_state,nonce,plan,sizeof(plan))==0);
++ CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK);
++ CHECK(!owner_state.pending_commit.thread&&!owner_state.pending_commit.active&&!p->consumed);
++ CHECK(papacc_configuration_personal_handoff_poll(&owner_state)!=PAPACC_RESULT_OK);
++
+  CHECK(!papacc_personal_data_consume(p,nonce,plan,sizeof(plan)));
+  CHECK(!papacc_personal_data_confirm(p,nonce,plan,sizeof(plan)));
+  CHECK(papacc_personal_data_present(p));
+@@ -57,6 +61,13 @@
+  CHECK(p->phase==PAPACC_PERSONAL_DATA_INVALID);
+  CHECK(papacc_configuration_personal_data_retire(&owner_state)==0);
+  CHECK(!papacc_personal_data_capture(p,nonce,plan,sizeof(plan)));
++ memset(p,0,sizeof(*p));
++ CHECK(papacc_configuration_personal_data_capture(&owner_state,nonce,plan,sizeof(plan))==0);
++ CHECK(papacc_personal_data_present(p)&&papacc_personal_data_confirm(p,nonce,plan,sizeof(plan)));
++ owner_state.pending_commit.personal_native.phase=1U; /* MODEL metadata, no native refs */
++ CHECK(papacc_configuration_personal_handoff_begin(&owner_state,other,0)!=PAPACC_RESULT_OK);
++ CHECK(p->phase==PAPACC_PERSONAL_DATA_INVALID&&!p->consumed&&!owner_state.pending_commit.thread);
++ owner_state.pending_commit.personal_native.phase=0U;
+  memset(p,0,sizeof(*p)); /* MODEL reset only, never a product retry. */
+  CHECK(papacc_configuration_personal_data_capture(&owner_state,nonce,plan,sizeof(plan))==0);
+  CHECK(papacc_personal_data_present(p));

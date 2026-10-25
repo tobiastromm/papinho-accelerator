@@ -1,0 +1,478 @@
+# PAPINHOACCELERATOR — Phase 6 Personal MVP Consolidation and Continuation
+
+TASK=PACC-PHASE6-PERSONAL-MVP-CONSOLIDATION-1
+
+MODE=GOVERNED_OWNER_SCOPE_CONSOLIDATION_NORMATIVE_RECONCILIATION_AND_CONDITIONAL_CONTINUATION
+
+CANONICAL_PROJECT=C:\Projetos\PapinhoAccelerator
+
+OWNER_DECISION=SIMPLIFY_PHASE6_TO_A_FUNCTIONAL_PERSONAL_ACCELERATOR
+
+PRIORITY=FINISH_INSTALLATION_CA_PAIRING_CLIENT_MANAGEMENT_AND_WINDOWS_SERVICE
+
+## 1. Contexto e objetivo
+
+O owner decidiu simplificar o escopo da primeira versão pessoal/local do PapinhoAccelerator.
+
+O objetivo imediato é disponibilizar um produto que permita:
+
+1. Instalar o PapinhoAccelerator no Windows.
+2. Configurar seu funcionamento.
+3. Instalar e remover seu serviço Windows.
+4. Iniciar, parar e consultar o serviço.
+5. Criar uma CA interna local protegida.
+6. Parear clientes, começando pelo PapinhoBrowser.
+7. Emitir e administrar os certificados necessários.
+8. Listar clientes pareados.
+9. Revogar pareamentos.
+10. Consultar e limpar o histórico de pareamentos revogados.
+11. Desinstalar e reinstalar com comportamento previsível.
+12. Restaurar configurações não secretas por arquivo `.conf`.
+
+Não exigir infraestrutura institucional, backup corporativo ou recuperação completa da identidade criptográfica para a primeira versão, caso a revisão normativa autorize essa simplificação.
+
+Preservar a arquitetura existente, os contratos de segurança aplicáveis e o trabalho já concluído.
+
+O objetivo é concluir a Phase 6, não ampliar indefinidamente seu escopo.
+
+## 2. Autoridades e estado atual
+
+Ler integralmente:
+
+- docs/adr/DECISION-personal-ca-preinitialization-20261022.md;
+- docs/adr/DECISION-internal-ca-technical-profile-20261018.md;
+- docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md;
+- docs/adr/DECISION-ca-lab-nonoverwrite-gate-20261022.md;
+- docs/integration/personal-first-install-ca-initialize-producer-20261022/closeout.md;
+- contratos accepted de bootstrap, CA, issuer, CURRENT, revogação e admissão;
+- contratos de provisionamento e SDK cliente;
+- Model E;
+- ED08/ED11;
+- implementação atual da CLI, serviço Windows e configuração.
+
+Confirmar HEAD, WIP, hashes e preimagens.
+
+Preservar as evidências já qualificadas:
+
+- F10 positivo no Windows;
+- criação exclusiva do alvo em LAB;
+- criação e finalização da chave CA em LAB;
+- binding privado de custódia;
+- packet11 v4 em LAB;
+- SHA-256 determinístico;
+- contratos F0–F9 accepted.
+
+Não promover resultados LAB a autoridade produtiva.
+
+## 3. Simplificação da CA e recuperação
+
+A primeira versão deverá utilizar CA privada local protegida.
+
+O owner deseja adiar:
+
+- backup criptografado completo da CA;
+- recuperação da identidade antiga após perda total;
+- migração da CA para outro equipamento;
+- recuperação autoritativa de estado;
+- mecanismos institucionais de backup;
+- infraestrutura corporativa de custódia.
+
+A perda definitiva da CA poderá exigir:
+
+- criação de uma nova identidade de instalação;
+- criação de uma nova CA;
+- novo pareamento de todos os clientes.
+
+Essa limitação deve ser apresentada claramente ao administrador.
+
+Não prometer recuperação de identidade antiga.
+
+Não utilizar a chave LAB como CA produtiva.
+
+### Revisão normativa obrigatória
+
+Os contratos accepted atuais exigem procedimentos de proteção, backup, recuperação e rotação.
+
+Identificar as cláusulas exatas que impedem o MVP simplificado.
+
+Preparar a menor revisão normativa necessária, distinguindo:
+
+A. Proteção obrigatória da chave durante operação.
+
+B. Segurança de emissão, revogação e custódia.
+
+C. Backup e recuperação completos adiados.
+
+D. Comportamento explícito de perda irreversível da identidade.
+
+Não alterar contratos accepted silenciosamente.
+
+Se a simplificação for incompatível com uma garantia de segurança indispensável, registrar a divergência e propor a menor solução viável.
+
+Não simplesmente remover gates para permitir emissão.
+
+## 4. Arquivo de configuração .conf
+
+A primeira versão deverá permitir backup e restauração manual das configurações não secretas.
+
+O administrador poderá copiar o arquivo `.conf` e restaurá-lo em uma instalação nova, sujeito à validação.
+
+O arquivo poderá conter, conforme o formato existente:
+
+- portas;
+- endereços;
+- opções de rede;
+- preferências;
+- limites configuráveis;
+- parâmetros não secretos do serviço;
+- política de retenção do histórico de pareamentos.
+
+Não restaurar por `.conf`:
+
+- chave privada da CA;
+- certificados de autoridade;
+- CURRENT;
+- estado administrativo protegido;
+- serial/high-water;
+- revogações;
+- autorizações consumidas;
+- credenciais de clientes;
+- confiança criptográfica da instalação anterior.
+
+Restaurar `.conf` em uma instalação nova não restaura pareamentos.
+
+A nova instalação deverá possuir identidade criptográfica própria.
+
+Inspecionar o formato existente antes de definir novas seções ou nomes.
+
+Não criar formato paralelo desnecessário.
+
+## 5. Backup criptografado futuro
+
+Registrar como capacidade futura um backup completo criptografado e autenticado.
+
+Nome/extensão candidata:
+
+`.papaccbak`
+
+Esse formato poderá futuramente preservar:
+
+- identidade da instalação;
+- material de recuperação autorizado;
+- configurações;
+- estado administrativo;
+- informações necessárias à restauração consistente.
+
+Não implementar nesta Phase 6.
+
+Não prometer compatibilidade de um formato ainda não especificado.
+
+Não confundir `.papaccbak` com os pacotes `.papacc` de provisionamento de clientes.
+
+## 6. Instalação e serviço Windows
+
+Incluir obrigatoriamente no MVP:
+
+- instalar o produto;
+- registrar serviço no SCM;
+- iniciar serviço;
+- parar serviço;
+- consultar status;
+- configurar inicialização automática ou manual;
+- remover registro do serviço;
+- desinstalar o produto.
+
+Reutilizar os mecanismos Windows existentes.
+
+Preservar separação entre operador administrativo e identidade operacional.
+
+Não exigir Active Directory ou infraestrutura institucional.
+
+### Desinstalação
+
+Distinguir:
+
+A. Remover o serviço e os binários.
+
+B. Preservar configurações e dados.
+
+C. Remover definitivamente a identidade e os dados da instalação.
+
+A remoção definitiva da CA deve exigir confirmação específica e informar suas consequências.
+
+Não excluir chaves, CURRENT ou dados protegidos por simples remoção do serviço.
+
+Não criar automaticamente nova CA sobre uma instalação existente.
+
+Não presumir que desinstalação equivale a revogação de certificados distribuídos.
+
+## 7. Gerenciamento de clientes pareados
+
+Adicionar ao MVP duas visualizações administrativas:
+
+### 7.1 Clientes pareados
+
+Exibir os clientes atualmente pareados e não revogados.
+
+Apresentar, conforme evidência factual disponível:
+
+- nome ou identificação do cliente;
+- tipo de cliente;
+- fingerprint;
+- identificador/certificado;
+- data de pareamento;
+- status;
+- informações administrativas relevantes.
+
+Disponibilizar ação:
+
+**Revogar pareamento**
+
+Exigir confirmação explícita.
+
+Após revogação efetiva:
+
+- impedir novas admissões daquele cliente;
+- aplicar a política aceita às sessões existentes;
+- retirar o cliente da lista ativa;
+- apresentá-lo no histórico.
+
+Não considerar exclusão visual equivalente à revogação criptográfica.
+
+Reutilizar os registros canônicos de identidade, admissão e revogação.
+
+Não criar segundo cadastro de clientes.
+
+### 7.2 Histórico de pareamentos
+
+Apresentar os pareamentos revogados.
+
+Exibir:
+
+- identificação do cliente;
+- fingerprint ou referência histórica permitida;
+- data do pareamento;
+- data da revogação;
+- status;
+- informações administrativas disponíveis.
+
+Disponibilizar ação:
+
+**Excluir do histórico**
+
+Essa ação somente estará disponível depois da revogação confirmada.
+
+Não permitir exclusão direta de cliente ativo.
+
+A exclusão do histórico deve retirar a entrada da visualização administrativa, sem reativar credenciais ou eliminar evidências protegidas obrigatórias.
+
+Preservar tombstones, identificadores, registros de revogação e demais dados necessários para impedir reutilização indevida, conforme contratos accepted.
+
+Se algum dado precisar permanecer por obrigação de segurança, distinguir claramente exclusão da visualização e retenção protegida.
+
+## 8. Retenção automática do histórico
+
+Adicionar configuração ao `.conf` para definir após quantos dias um pareamento revogado será removido automaticamente do histórico visível.
+
+Nome candidato:
+
+[Pairing]
+RevokedHistoryRetentionDays=0
+
+Semântica:
+
+- 0 = nunca excluir automaticamente.
+- N positivo = remover do histórico visível após N dias corridos desde a revogação.
+- Valor ausente = 0.
+- Valor inválido = rejeição conforme política de configuração.
+
+A limpeza deve:
+
+- considerar apenas pareamentos efetivamente revogados;
+- contar o prazo a partir da revogação;
+- preservar clientes ativos;
+- preservar evidências protegidas obrigatórias;
+- não reativar credenciais;
+- não alterar o estado de revogação;
+- não depender de comunicação com o Browser.
+
+Se não houver referência temporal confiável para determinar o vencimento, não executar exclusão automática baseada em idade.
+
+Não converter UNKNOWN temporal em vencimento presumido.
+
+Verificar as convenções existentes do `.conf` antes de fixar definitivamente o nome da chave.
+
+## 9. Independência Browser ↔ Accelerator
+
+Na primeira versão:
+
+**Excluir configuração no Browser:**
+
+- remove a configuração local correspondente;
+- não solicita automaticamente revogação ao Accelerator;
+- não apaga o registro administrativo do servidor.
+
+**Revogar no Accelerator:**
+
+- invalida o acesso do cliente no servidor;
+- não exige que o Browser esteja online;
+- não depende de confirmação do Browser;
+- impede novas admissões conforme os contratos aceitos.
+
+A sincronização bilateral de exclusões fica para versão futura.
+
+PapinhoBrowser permanece o primeiro consumidor, mas não o único cliente possível.
+
+Não criar dependências específicas do Browser no núcleo administrativo do Accelerator.
+
+## 10. Escopo futuro
+
+Adiar explicitamente:
+
+- instalação institucional;
+- Configuration Manager/MDM;
+- backup criptografado completo;
+- recuperação da CA antiga;
+- migração de identidade entre equipamentos;
+- sincronização bilateral de exclusões;
+- funcionalidades administrativas corporativas não indispensáveis.
+
+Não permitir que essas capacidades futuras bloqueiem a conclusão do MVP pessoal, salvo exigência de segurança accepted que precise ser revisada formalmente.
+
+## 11. Preservação dos requisitos essenciais
+
+Continuam obrigatórios:
+
+- TLS 1.3/mTLS;
+- custódia protegida da CA;
+- autorização explícita NEW_INSTALL;
+- criação exclusiva do alvo;
+- pareamento autorizado;
+- certificados válidos;
+- revogação efetiva;
+- proteção contra replay;
+- Stop;
+- retenção UNKNOWN;
+- CAS;
+- consistência de CURRENT;
+- separação de autoridade;
+- ED11 e quotas aplicáveis.
+
+Não transformar simplificação funcional em dispensa de segurança.
+
+Não promover LAB/DATA a produção por inferência.
+
+## 12. Consolidação normativa
+
+Revisar as decisões accepted afetadas e preparar uma única proposta consolidada de especialização do MVP pessoal.
+
+Evitar criar uma ADR separada para cada item de interface ou configuração.
+
+A proposta deve identificar:
+
+- cláusulas preservadas;
+- cláusulas especializadas;
+- capacidades adiadas;
+- requisitos novos;
+- compatibilidade;
+- impactos de segurança;
+- impactos no roadmap.
+
+Submeter à aprovação oficial.
+
+Registrar ACCEPTED somente após aprovação.
+
+Preservar originais e hashes.
+
+## 13. Continuação executável
+
+Após a consolidação, identificar o primeiro slice funcional que efetivamente aproxima o produto de:
+
+INSTALAR
+→ CONFIGURAR
+→ CRIAR CA
+→ PAREAR CLIENTE
+→ ADMINISTRAR CLIENTES
+→ UTILIZAR.
+
+Priorizar reutilização do código existente.
+
+Não reiniciar auditorias gerais já concluídas.
+
+Não pesquisar novas bibliotecas sem necessidade comprovada.
+
+Não implementar backup completo nesta fase.
+
+Se a aprovação normativa for obtida e houver autorização funcional específica, continuar pelo menor slice implementável.
+
+Caso contrário, entregar o próximo prompt exato de implementação, sem executar alterações não autorizadas.
+
+## 14. Entregas obrigatórias
+
+Produzir:
+
+1. Documento consolidado de escopo MVP.
+2. Correção normativa mínima PROPOSED.
+3. Matriz de conformidade com os ADRs accepted.
+4. Inventário do código existente para instalação/serviço.
+5. Inventário do código existente para clientes/revogação.
+6. Especificação do `.conf` e retenção.
+7. Roadmap objetivo até o primeiro Accelerator pessoal operacional.
+8. Um único próximo slice executável.
+9. Closeout e hashes.
+
+Não produzir múltiplas propostas concorrentes sem necessidade.
+
+## 15. Governança
+
+Não modificar PST, Browser ou PACC wire.
+
+Não alterar produção 0.6.4.
+
+Não aumentar quotas.
+
+Não criar clones ou worktrees.
+
+Não fazer commit, push, tag ou release.
+
+Preservar WIP e quatro LAB históricos.
+
+Não executar bootstrap, gerar chave produtiva, certificado ou CURRENT sem autorização específica.
+
+Não executar rede operacional.
+
+## 16. Resultado final
+
+CURRENT_TASK_COMPLETED=YES|NO
+
+PERSONAL_MVP_SCOPE=CONSOLIDATED_PROPOSED|ACCEPTED
+INSTITUTIONAL_DEPLOYMENT=DEFERRED
+
+CA_PROTECTION=REQUIRED
+CA_BACKUP_RECOVERY=DEFERRED_PROPOSED
+CONFIG_ONLY_RESTORE=...
+WINDOWS_SERVICE_LIFECYCLE=...
+
+PAIRED_CLIENT_LIST=...
+PAIRING_REVOCATION=...
+REVOKED_HISTORY=...
+MANUAL_HISTORY_DELETE=...
+REVOKED_HISTORY_RETENTION_DAYS_DEFAULT=0
+BROWSER_SERVER_DELETE_SYNC=DEFERRED
+
+NORMATIVE_CONFLICTS=...
+IMPLEMENTATION_AUTHORIZED=NO_UNTIL_APPROVED
+
+ED11_TOTAL_STATUS=PARTIAL
+CURRENT_PUBLICATION=DENY
+SIGNATURE_AUTHORITY=DENY
+AUTHORITATIVE_RECOVERY=DENY
+
+PST_CHANGED=NO
+BROWSER_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+PRODUCTION_PIN=0.6.4
+
+WIP_PRESERVED=...
+FIRST_UNRESOLVED_DIVERGENCE=...
+NEXT=ONE_MINIMUM_PERSONAL_MVP_IMPLEMENTATION_SLICE

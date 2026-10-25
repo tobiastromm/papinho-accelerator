@@ -1,0 +1,1076 @@
+[
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 16,
+    "api": "CloseHandle",
+    "source": "static int lab_close_aux(HANDLE h){if(CloseHandle(h))return 1;if(lab_aux_count<2)lab_aux_retained[lab_aux_count++]=h;return 0;}"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 23,
+    "api": "GetSecurityInfo",
+    "source": "e=GetSecurityInfo(h,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&p);if(e)return e;"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 27,
+    "api": "LocalFree",
+    "source": "if(LocalFree(p))return ERROR_INVALID_HANDLE;lab_pending_sd=NULL;return ok?ERROR_SUCCESS:ERROR_ACCESS_DENIED;"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 57,
+    "api": "OpenThreadToken",
+    "source": "if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&th)){if(!lab_close_aux(th))return ERROR_INVALID_HANDLE;return ERROR_ACCESS_DENIED;}"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 59,
+    "api": "OpenProcessToken",
+    "source": "if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&lab_token))return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 69,
+    "api": "OpenThreadToken",
+    "source": "if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&thread)){if(!lab_close_aux(thread))return ERROR_INVALID_HANDLE;return ERROR_ACCESS_DENIED;}"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 71,
+    "api": "OpenProcessToken",
+    "source": "if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 79,
+    "api": "CreateFileW",
+    "source": "in=CreateFileW(L\"CONIN$\",GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(in==INVALID_HANDLE_VALUE)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 80,
+    "api": "CreateFileW",
+    "source": "out=CreateFileW(L\"CONOUT$\",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 101,
+    "api": "CreateFileW",
+    "source": "h=CreateFileW(L\"C:\\\\Projetos\\\\PapinhoAccelerator\\\\docs\\\\integration\\\\windows-virtual-service-native-lab-registration-20261023\\\\manual-native-intent.txt\",GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 121,
+    "api": "CreateFileW",
+    "source": "lab_parent=CreateFileW(lab_parent_path,READ_CONTROL|FILE_READ_ATTRIBUTES,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 123,
+    "api": "CreateFileW",
+    "source": "lab_config=CreateFileW(lab_config_path,GENERIC_READ|READ_CONTROL|FILE_READ_ATTRIBUTES,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 125,
+    "api": "CreateFileW",
+    "source": "native.image=CreateFileW(lab_image_path,GENERIC_READ|READ_CONTROL|FILE_READ_ATTRIBUTES,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 130,
+    "api": "OpenSCManagerW",
+    "source": "stage=\"SCM_ABSENCE\";native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!native.manager){e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 131,
+    "api": "OpenServiceW",
+    "source": "existing=OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG);"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 132,
+    "api": "CloseServiceHandle",
+    "source": "if(existing){e=ERROR_SERVICE_EXISTS;if(!CloseServiceHandle(existing)){native.service=existing;native.retained=1U;e=lab_error();}goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 138,
+    "api": "CloseServiceHandle",
+    "source": "if(!CloseServiceHandle(native.manager)){native.retained=1U;e=lab_error();goto done;}native.manager=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 139,
+    "api": "OpenSCManagerW",
+    "source": "stage=\"CREATE_CONFIG_READBACK\";native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT|SC_MANAGER_CREATE_SERVICE);if(!native.manager){e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 147,
+    "api": "LocalFree",
+    "source": "if(LocalFree(sid_text)){e=ERROR_INVALID_HANDLE;goto done;}sid_text=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 151,
+    "api": "CloseHandle",
+    "source": "if(lab_config&&!CloseHandle(lab_config))close_error=ERROR_INVALID_HANDLE;"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 152,
+    "api": "CloseHandle",
+    "source": "if(lab_parent&&!CloseHandle(lab_parent))close_error=ERROR_INVALID_HANDLE;"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 153,
+    "api": "CloseHandle",
+    "source": "if(lab_token&&!CloseHandle(lab_token))close_error=ERROR_INVALID_HANDLE;"
+  },
+  {
+    "file": "tools/qualification/scm-registration-lab.c",
+    "line": 154,
+    "api": "LocalFree",
+    "source": "if(lab_sid&&LocalFree(lab_sid))close_error=ERROR_INVALID_HANDLE;"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 59,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(cycle_file)){native.retained=1;ig_gate.retained=1;e=ERROR_INVALID_HANDLE;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 106,
+    "api": "CreateFileW",
+    "source": "ig_approval_file=CreateFileW("
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 121,
+    "api": "OpenProcess",
+    "source": "ig_observer.process[role]=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,pid);if(!ig_observer.process[role])return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 124,
+    "api": "OpenProcessToken",
+    "source": "if(!OpenProcessToken(ig_observer.process[role],TOKEN_QUERY,&token))return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 139,
+    "api": "CreateToolhelp32Snapshot",
+    "source": "if(ig_guard_snapshot||native.retained)return ERROR_INVALID_STATE;ig_guard_snapshot=ig_diag_handle(cycle_stage,\"CreateToolhelp32Snapshot\",\"process_snapshot\",CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0));if(ig_guard_snapshot==INVALID_HANDLE_VALUE){ig_guard_snapshot=NULL;return lab_error();}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 161,
+    "api": "CloseHandle",
+    "source": "if(!ig_diag_bool(cycle_stage,\"CloseHandle\",\"process_snapshot_handle\",CloseHandle(ig_guard_snapshot))){native.retained=1;return ERROR_INVALID_HANDLE;}ig_guard_snapshot=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 165,
+    "api": "GetProcessHandleCount",
+    "source": "observed=GetProcessHandleCount(GetCurrentProcess(),&handles);if(!observed){metric_error=GetLastError();if(!metric_error)metric_error=ERROR_GEN_FAILURE;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 175,
+    "api": "CreateFileW",
+    "source": "in=CreateFileW(L\"CONIN$\",GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(in==INVALID_HANDLE_VALUE)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 176,
+    "api": "CreateFileW",
+    "source": "out=CreateFileW(L\"CONOUT$\",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(out==INVALID_HANDLE_VALUE){e=lab_error();if(!lab_close_aux(in))return ERROR_INVALID_HANDLE;return e;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 195,
+    "api": "LocalFree",
+    "source": "if(LocalFree(ig_diag_sd)){native.retained=1;return ERROR_INVALID_HANDLE;}ig_diag_sd=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 202,
+    "api": "CreateFileW",
+    "source": "h=CreateFileW(ig_diag_path,GENERIC_READ,0,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(h==INVALID_HANDLE_VALUE)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 226,
+    "api": "EvtClose",
+    "source": "if(ig_observer.event){if(!EvtClose(ig_observer.event))return ERROR_INVALID_HANDLE;ig_observer.event=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 227,
+    "api": "EvtClose",
+    "source": "if(ig_observer.event_query){if(!EvtClose(ig_observer.event_query))return ERROR_INVALID_HANDLE;ig_observer.event_query=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 228,
+    "api": "CloseHandle",
+    "source": "if(ig_guard_snapshot){if(!CloseHandle(ig_guard_snapshot))return ERROR_INVALID_HANDLE;ig_guard_snapshot=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 229,
+    "api": "LocalFree",
+    "source": "if(ig_diag_sd){if(LocalFree(ig_diag_sd))return ERROR_INVALID_HANDLE;ig_diag_sd=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 231,
+    "api": "CloseHandle",
+    "source": "for(i=0;i<2;i++)if(ig_observer.process[i]){if(!CloseHandle(ig_observer.process[i]))return ERROR_INVALID_HANDLE;ig_observer.process[i]=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 233,
+    "api": "CloseHandle",
+    "source": "if(ig_approval_file){if(!CloseHandle(ig_approval_file))return ERROR_INVALID_HANDLE;ig_approval_file=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 258,
+    "api": "OpenProcess",
+    "source": "cycle_process=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,pid);if(!cycle_process)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 335,
+    "api": "CreateFileW",
+    "source": "lab_parent=CreateFileW(lab_parent_path,READ_CONTROL|FILE_READ_ATTRIBUTES|FILE_TRAVERSE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(lab_parent==INVALID_HANDLE_VALUE){lab_parent=NULL;e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 336,
+    "api": "CreateFileW",
+    "source": "lab_config=CreateFileW(lab_config_path,GENERIC_READ|READ_CONTROL,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(lab_config==INVALID_HANDLE_VALUE){lab_config=NULL;e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 337,
+    "api": "CreateFileW",
+    "source": "native.image=CreateFileW(lab_image_path,GENERIC_READ|READ_CONTROL,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(native.image==INVALID_HANDLE_VALUE){native.image=NULL;e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 343,
+    "api": "GetSecurityInfo",
+    "source": "e=GetSecurityInfo(native.admission.launch,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&lab_pending_sd);if(e)goto done;"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 345,
+    "api": "LocalFree",
+    "source": "if(LocalFree(lab_pending_sd)){native.retained=1;e=ERROR_INVALID_HANDLE;goto done;}lab_pending_sd=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 352,
+    "api": "CreateFileW",
+    "source": "cycle_source_file=CreateFileW(cycle_source,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(cycle_source_file==INVALID_HANDLE_VALUE){cycle_source_file=NULL;e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 356,
+    "api": "OpenSCManagerW",
+    "source": "native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!native.manager){e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 357,
+    "api": "OpenServiceW",
+    "source": "native.service=OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS|(positive?(SERVICE_CHANGE_CONFIG|SERVICE_START|SERVICE_STOP):0));if(!native.service){e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 411,
+    "api": "StartServiceW",
+    "source": "cycle_start_requested=1;if(!StartServiceW(native.service,0,NULL)){e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-cycle-lab.inc",
+    "line": 429,
+    "api": "ControlService",
+    "source": "if(!ControlService(native.service,SERVICE_CONTROL_STOP,&stopped)){if(!e)e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 50,
+    "api": "CreateFileW",
+    "source": "if(initial){cycle_dependencies[i]=CreateFileW(paths[i],GENERIC_READ|READ_CONTROL,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(cycle_dependencies[i]==INVALID_HANDLE_VALUE){cycle_dependencies[i]=NULL;return lab_error();}}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 53,
+    "api": "GetSecurityInfo",
+    "source": "e=GetSecurityInfo(cycle_dependencies[i],SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&cycle_sd);if(e)return e;"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 57,
+    "api": "LocalFree",
+    "source": "if(LocalFree(cycle_sd)){native.retained=1;return ERROR_INVALID_HANDLE;}cycle_sd=NULL;if(e)return e;"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 70,
+    "api": "GetSecurityInfo",
+    "source": "e=GetSecurityInfo(cycle_file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&cycle_sd);"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 77,
+    "api": "LocalFree",
+    "source": "if(cycle_sd){if(LocalFree(cycle_sd)){native.retained=1;return ERROR_INVALID_HANDLE;}cycle_sd=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 107,
+    "api": "CreateFileW",
+    "source": "in=CreateFileW(L\"CONIN$\",GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(in==INVALID_HANDLE_VALUE)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 108,
+    "api": "CreateFileW",
+    "source": "out=CreateFileW(L\"CONOUT$\",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 123,
+    "api": "CreateFileW",
+    "source": "h=CreateFileW(L\"C:\\\\Projetos\\\\PapinhoAccelerator\\\\docs\\\\integration\\\\first-native-lab-service-start-stop-20261023\\\\manual-native-intent.txt\",GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 133,
+    "api": "GetSecurityInfo",
+    "source": "e=GetSecurityInfo(native.image,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&cycle_sd);if(e)return e;"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 136,
+    "api": "LocalFree",
+    "source": "if(LocalFree(cycle_sd)){native.retained=1;return ERROR_INVALID_HANDLE;}cycle_sd=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 145,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(cycle_file)){native.retained=1;return ERROR_INVALID_HANDLE;}cycle_file=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 153,
+    "api": "GetSecurityInfo",
+    "source": "e=GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&cycle_sd);"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 158,
+    "api": "LocalFree",
+    "source": "if(cycle_sd){if(LocalFree(cycle_sd)){native.retained=1;return ERROR_INVALID_HANDLE;}cycle_sd=NULL;}return e;"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 192,
+    "api": "OpenProcess",
+    "source": "if(!cycle_process)cycle_process=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,pid);if(!cycle_process)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 193,
+    "api": "OpenProcessToken",
+    "source": "if(!QueryFullProcessImageNameW(cycle_process,0,image,&len)||_wcsicmp(image,cycle_path)||!OpenProcessToken(cycle_process,TOKEN_QUERY|TOKEN_DUPLICATE,&cycle_token))return ERROR_ACCESS_DENIED;"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 195,
+    "api": "CreateToolhelp32Snapshot",
+    "source": "cycle_threads=CreateToolhelp32Snapshot(TH32CS_SNAPMODULE|TH32CS_SNAPMODULE32,pid);if(cycle_threads==INVALID_HANDLE_VALUE){cycle_threads=NULL;return lab_error();}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 204,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(cycle_threads)){native.retained=1;return ERROR_INVALID_HANDLE;}cycle_threads=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 211,
+    "api": "LocalFree",
+    "source": "printf(\"LAB_TOKEN_USER=%ls; PRIMARY=1; PID=%lu\\n\",sid,(unsigned long)pid);if(LocalFree(sid)){cycle_sid_retained=sid;native.retained=1;return ERROR_INVALID_HANDLE;}sid=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 215,
+    "api": "LocalFree",
+    "source": "printf(\"LAB_TOKEN_GROUP=%ls; ATTR=%08lx\\n\",sid,(unsigned long)g.align.Groups[i].Attributes);if(LocalFree(sid)){cycle_sid_retained=sid;native.retained=1;return ERROR_INVALID_HANDLE;}sid=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 219,
+    "api": "DuplicateToken",
+    "source": "if(!DuplicateToken(cycle_token,SecurityImpersonation,&cycle_access))return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 221,
+    "api": "CreateToolhelp32Snapshot",
+    "source": "cycle_threads=CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD,0);if(cycle_threads==INVALID_HANDLE_VALUE){cycle_threads=NULL;return lab_error();}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 224,
+    "api": "OpenThread",
+    "source": "cycle_thread=OpenThread(THREAD_QUERY_INFORMATION,FALSE,te.th32ThreadID);if(!cycle_thread)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 225,
+    "api": "OpenThreadToken",
+    "source": "if(OpenThreadToken(cycle_thread,TOKEN_QUERY,TRUE,&token)){if(!lab_close_aux(token))return ERROR_INVALID_HANDLE;return ERROR_ACCESS_DENIED;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 226,
+    "api": "CloseHandle",
+    "source": "if(GetLastError()!=ERROR_NO_TOKEN)return lab_error();threads++;if(!CloseHandle(cycle_thread))return ERROR_INVALID_HANDLE;cycle_thread=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 229,
+    "api": "GetProcessHandleCount",
+    "source": "if(!GetProcessHandleCount(cycle_process,&handles)||!GetProcessMemoryInfo(cycle_process,(PROCESS_MEMORY_COUNTERS *)&mem,sizeof(mem)))return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 239,
+    "api": "LocalFree",
+    "source": "if(cycle_sd){if(LocalFree(cycle_sd)){native.retained=1;return ERROR_INVALID_HANDLE;}cycle_sd=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 240,
+    "api": "CloseHandle",
+    "source": "for(i=0;i<sizeof(v)/sizeof(v[0]);i++)if(*v[i]){if(!CloseHandle(*v[i]))return ERROR_INVALID_HANDLE;*v[i]=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 241,
+    "api": "LocalFree",
+    "source": "if(lab_sid){if(LocalFree(lab_sid))return ERROR_INVALID_HANDLE;lab_sid=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 258,
+    "api": "CreateFileW",
+    "source": "lab_parent=CreateFileW(lab_parent_path,READ_CONTROL|FILE_READ_ATTRIBUTES|FILE_TRAVERSE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(lab_parent==INVALID_HANDLE_VALUE){lab_parent=NULL;e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 259,
+    "api": "CreateFileW",
+    "source": "lab_config=CreateFileW(lab_config_path,GENERIC_READ|READ_CONTROL,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(lab_config==INVALID_HANDLE_VALUE){lab_config=NULL;e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 260,
+    "api": "CreateFileW",
+    "source": "native.image=CreateFileW(lab_image_path,GENERIC_READ|READ_CONTROL,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(native.image==INVALID_HANDLE_VALUE){native.image=NULL;e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 262,
+    "api": "CreateFileW",
+    "source": "cycle_source_file=CreateFileW(cycle_source,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(cycle_source_file==INVALID_HANDLE_VALUE){cycle_source_file=NULL;e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 266,
+    "api": "OpenSCManagerW",
+    "source": "cycle_stage=\"EXISTING_LAB_READBACK\";native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!native.manager){e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 267,
+    "api": "OpenServiceW",
+    "source": "native.service=OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS|(positive?(SERVICE_CHANGE_CONFIG|SERVICE_START|SERVICE_STOP):0));if(!native.service){e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 284,
+    "api": "StartServiceW",
+    "source": "cycle_stage=\"START_ONCE\";cycle_start_requested=1;if(!StartServiceW(native.service,0,NULL)){e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-runtime-cycle-lab.inc",
+    "line": 291,
+    "api": "ControlService",
+    "source": "if(!ControlService(native.service,SERVICE_CONTROL_STOP,&stopped)){if(!e)e=lab_error();goto done;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 15,
+    "api": "CloseHandle",
+    "source": "if(ig_observer.thread){if(!ig_diag_bool(cycle_stage,\"CloseHandle\",\"thread_handle\",CloseHandle(ig_observer.thread))){ig_observer.retained=1;return GetLastError();}ig_observer.thread=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 16,
+    "api": "PssWalkMarkerFree",
+    "source": "if(ig_observer.marker){e=ig_diag_status(cycle_stage,\"PssWalkMarkerFree\",\"snapshot_marker\",PssWalkMarkerFree(ig_observer.marker),0);if(e){ig_observer.retained=1;return e;}ig_observer.marker=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 17,
+    "api": "PssFreeSnapshot",
+    "source": "if(ig_observer.snapshot){e=ig_diag_status(cycle_stage,\"PssFreeSnapshot\",\"thread_snapshot\",PssFreeSnapshot(GetCurrentProcess(),ig_observer.snapshot),0);if(e){ig_observer.retained=1;return e;}ig_observer.snapshot=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 28,
+    "api": "GetProcessHandleCount",
+    "source": "if(!ig_diag_bool(cycle_stage,\"GetProcessMemoryInfo\",\"process_memory\",GetProcessMemoryInfo(process,(PROCESS_MEMORY_COUNTERS *)&m,sizeof(m)))||!ig_diag_bool(cycle_stage,\"GetProcessHandleCount\",\"process_handles\",GetProcessHandleCount(process,&p->handles))||!ig_diag_bool(cycle_stage,\"GetProcessIoCounters\",\"process_io\",GetProcessIoCounters(process,&io)))return GetLastError();"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 31,
+    "api": "PssCaptureSnapshot",
+    "source": "e=ig_diag_status(cycle_stage,\"PssCaptureSnapshot\",\"thread_snapshot\",PssCaptureSnapshot(process,(PSS_CAPTURE_FLAGS)(PSS_CAPTURE_THREADS|PSS_CAPTURE_THREAD_CONTEXT),CONTEXT_CONTROL,&ig_observer.snapshot),0);if(e){if(ig_observer.snapshot)ig_observer.retained=1;return e;}"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 32,
+    "api": "PssWalkMarkerCreate",
+    "source": "e=ig_diag_status(cycle_stage,\"PssWalkMarkerCreate\",\"snapshot_marker\",PssWalkMarkerCreate(NULL,&ig_observer.marker),0);if(e)return e;"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 38,
+    "api": "OpenThread",
+    "source": "ig_observer.thread=ig_diag_handle(cycle_stage,\"OpenThread\",\"thread\",OpenThread(THREAD_QUERY_INFORMATION|SYNCHRONIZE,FALSE,t.ThreadId));if(!ig_observer.thread)return GetLastError();"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 58,
+    "api": "CloseHandle",
+    "source": "if(!ig_diag_bool(cycle_stage,\"CloseHandle\",\"thread_handle\",CloseHandle(ig_observer.thread))){ig_observer.retained=1;return GetLastError();}ig_observer.thread=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 121,
+    "api": "EvtQuery",
+    "source": "ig_observer.event_query=EvtQuery(NULL,L\"System\",L\"*[System[Provider[@Name='Microsoft-Windows-Kernel-General'] and EventID=12]]\",EvtQueryChannelPath|EvtQueryReverseDirection);"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 123,
+    "api": "EvtNext",
+    "source": "if(!EvtNext(ig_observer.event_query,1,&ig_observer.event,0,0,&n)||n!=1)return GetLastError();"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 134,
+    "api": "EvtClose",
+    "source": "if(!EvtClose(ig_observer.event)){ig_observer.retained=1;return GetLastError();}ig_observer.event=NULL;"
+  },
+  {
+    "file": "tools/qualification/scm-instrumented-observer.inc",
+    "line": 135,
+    "api": "EvtClose",
+    "source": "if(!EvtClose(ig_observer.event_query)){ig_observer.retained=1;return GetLastError();}ig_observer.event_query=NULL;return e;"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 42,
+    "api": "GetSecurityInfo",
+    "source": "e=GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&ig_n0.sd);if(e)return e;"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 45,
+    "api": "LocalFree",
+    "source": "if(LocalFree(ig_n0.sd)){native.retained=1;return ERROR_INVALID_HANDLE;}ig_n0.sd=NULL;return ok?0:ERROR_ACCESS_DENIED;"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 49,
+    "api": "CreateFileW",
+    "source": "WCHAR actual[1100];DWORD n,flags;*out=CreateFileW(path,GENERIC_READ|READ_CONTROL,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 67,
+    "api": "CreateFileW",
+    "source": "ig_n0.input_root[i]=CreateFileW(ig_n0_roots[i],READ_CONTROL|FILE_READ_ATTRIBUTES|SYNCHRONIZE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 106,
+    "api": "CloseHandle",
+    "source": "for(i=0;i<sizeof(v)/sizeof(v[0]);i++)if(*v[i]){if(!CloseHandle(*v[i])){native.retained=1;return ERROR_INVALID_HANDLE;}*v[i]=NULL;}"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 107,
+    "api": "LocalFree",
+    "source": "if(ig_n0.sd){if(LocalFree(ig_n0.sd)){native.retained=1;return ERROR_INVALID_HANDLE;}ig_n0.sd=NULL;}ig_n0.prepared=0;ig_n0.metric_window=0;ig_n0.validated_at=0;return 0;"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 127,
+    "api": "OpenProcess",
+    "source": "ig_n0.actor=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,actor);if(!ig_n0.actor)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 128,
+    "api": "OpenThread",
+    "source": "ig_n0.control=OpenThread(THREAD_QUERY_INFORMATION|SYNCHRONIZE,FALSE,tid);if(!ig_n0.control)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 129,
+    "api": "OpenProcess",
+    "source": "ig_n0.auxiliary=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,auxiliary);if(!ig_n0.auxiliary)return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 133,
+    "api": "OpenProcessToken",
+    "source": "if(!OpenProcessToken(ig_n0.actor,TOKEN_QUERY,&ig_n0.actor_token)||!GetTokenInformation(ig_n0.actor_token,TokenStatistics,&d->statistics,sizeof(d->statistics),&n)||n!=sizeof(d->statistics))return lab_error();"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 138,
+    "api": "BCryptGenRandom",
+    "source": "if(BCryptGenRandom(NULL,(BYTE *)&d->challenge,sizeof(d->challenge),BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0||!d->challenge)return ERROR_GEN_FAILURE;"
+  },
+  {
+    "file": "tools/qualification/scm-n0-context.inc",
+    "line": 147,
+    "api": "CloseHandle",
+    "source": "for(i=0;i<sizeof(refs)/sizeof(refs[0]);i++){if(!CloseHandle(*refs[i])){native.retained=1;return ERROR_INVALID_HANDLE;}*refs[i]=NULL;}}"
+  },
+  {
+    "file": "tools/qualification/psr-file-capture-lab.inc",
+    "line": 37,
+    "api": "CloseHandle",
+    "source": "if(s->handle){if(!CloseHandle(s->handle))return psrf_fail(s,GetLastError());s->handle=NULL;s->closed=1U;}"
+  },
+  {
+    "file": "tools/qualification/psr-file-capture-lab.inc",
+    "line": 56,
+    "api": "CreateFileW",
+    "source": "s->handle=CreateFileW(path,FILE_READ_DATA|FILE_WRITE_DATA|FILE_READ_ATTRIBUTES|READ_CONTROL|SYNCHRONIZE,0,security,CREATE_NEW,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "tools/qualification/psr-file-capture-lab.inc",
+    "line": 95,
+    "api": "CreateFileW",
+    "source": "s->handle=CreateFileW(path,FILE_READ_DATA|FILE_WRITE_DATA|FILE_READ_ATTRIBUTES|READ_CONTROL|SYNCHRONIZE,0,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "apps/server/server_service_win32.c",
+    "line": 108,
+    "api": "CloseServiceHandle",
+    "source": "if(native.service){if(!CloseServiceHandle(native.service)){e=ps_last_error();native.retained=1U;return e;}native.service=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_win32.c",
+    "line": 109,
+    "api": "CloseServiceHandle",
+    "source": "if(native.manager){if(!CloseServiceHandle(native.manager)){e=ps_last_error();native.retained=1U;return e;}native.manager=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_win32.c",
+    "line": 110,
+    "api": "CloseHandle",
+    "source": "if(native.image){if(!CloseHandle(native.image)){e=ps_last_error();native.retained=1U;return e;}native.image=NULL;native.image_ready=0U;}"
+  },
+  {
+    "file": "apps/server/server_service_win32.c",
+    "line": 125,
+    "api": "StartServiceW",
+    "source": "if(q->action==PS_START)return StartServiceW(native.service,0,NULL)?ERROR_SUCCESS:ps_last_error();"
+  },
+  {
+    "file": "apps/server/server_service_win32.c",
+    "line": 126,
+    "api": "ControlService",
+    "source": "if(q->action==PS_STOP)return ControlService(native.service,SERVICE_CONTROL_STOP,&stopped)?ERROR_SUCCESS:ps_last_error();"
+  },
+  {
+    "file": "apps/server/server_service_win32.c",
+    "line": 164,
+    "api": "OpenSCManagerW",
+    "source": "native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT|(q.action==PS_INSTALL?SC_MANAGER_CREATE_SERVICE:0));"
+  },
+  {
+    "file": "apps/server/server_service_win32.c",
+    "line": 167,
+    "api": "OpenServiceW",
+    "source": "native.service=OpenServiceW(native.manager,ps_name,rights);"
+  },
+  {
+    "file": "apps/server/server_service_win32.c",
+    "line": 289,
+    "api": "RegisterServiceCtrlHandlerExW",
+    "source": "host.handle=RegisterServiceCtrlHandlerExW(ps_name,ps_handler,NULL);"
+  },
+  {
+    "file": "apps/server/server_service_win32.c",
+    "line": 331,
+    "api": "StartServiceCtrlDispatcherW",
+    "source": "if(!StartServiceCtrlDispatcherW(table))return 2; /* no console fallback */"
+  },
+  {
+    "file": "apps/server/server_service_virtual_win32.inc",
+    "line": 21,
+    "api": "CreateFileW",
+    "source": "f=PSRT_HANDLE(\"CreateFileW\",(GENERIC_READ),CreateFileW(native.image_path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL));"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 23,
+    "api": "LocalFree",
+    "source": "if(native.runtime.descriptor){if(LocalFree(native.runtime.descriptor)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,\"original_branch\");}native.runtime.descriptor=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 24,
+    "api": "LocalFree",
+    "source": "if(native.runtime.approved_sid){if(LocalFree(native.runtime.approved_sid)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,\"original_branch\");}native.runtime.approved_sid=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 25,
+    "api": "CloseHandle",
+    "source": "for(i=0;i<7;i++)if(*v[i]){if(!CloseHandle(*v[i])){native.runtime.retained=1U;return ps_last_error();}*v[i]=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 49,
+    "api": "OpenThreadToken",
+    "source": "if(PSRT_BOOL(\"OpenThreadToken\",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,\"unexpected_thread_impersonation_token\");"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 51,
+    "api": "OpenProcessToken",
+    "source": "if(!PSRT_BOOL(\"OpenProcessToken\",(TOKEN_QUERY|TOKEN_DUPLICATE),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY|TOKEN_DUPLICATE,&native.runtime.token)))return PSRT_RETURN(ps_last_error(),\"native_api_failure\");"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 72,
+    "api": "DuplicateToken",
+    "source": "if(!PSRT_BOOL(\"DuplicateToken\",(TOKEN_DUPLICATE),DuplicateToken(native.runtime.token,SecurityImpersonation,&native.runtime.access_token)))return PSRT_RETURN(ps_last_error(),\"native_api_failure\");"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 96,
+    "api": "GetSecurityInfo",
+    "source": "e=PSRT_STATUS(\"GetSecurityInfo\",READ_CONTROL,GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&sd));native.runtime.descriptor=sd;if(e){if(sd)native.runtime.retained=1U;return PSRT_RETURN(e,\"propagate_original\");}"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 105,
+    "api": "LocalFree",
+    "source": "if(LocalFree(sd)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,\"original_branch\");}native.runtime.descriptor=NULL;"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 106,
+    "api": "LocalFree",
+    "source": "if(LocalFree(approved)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,\"original_branch\");}native.runtime.approved_sid=NULL;"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 115,
+    "api": "OpenThreadToken",
+    "source": "if(PSRT_BOOL(\"OpenThreadToken\",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,\"authorization_or_native_mapping\");"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 116,
+    "api": "OpenProcessToken",
+    "source": "if(GetLastError()!=ERROR_NO_TOKEN||!PSRT_BOOL(\"OpenProcessToken\",(TOKEN_QUERY),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&native.runtime.check_token)))return PSRT_RETURN(ERROR_ACCESS_DENIED,\"authorization_or_native_mapping\");"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 121,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(native.runtime.check_token)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,\"original_branch\");}native.runtime.check_token=NULL;"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 147,
+    "api": "OpenSCManagerW",
+    "source": "native.manager=PSRT_HANDLE(\"OpenSCManagerW\",(SC_MANAGER_CONNECT),OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT));if(!native.manager)return PSRT_RETURN(ps_last_error(),\"native_api_failure\");"
+  },
+  {
+    "file": "apps/server/server_service_runtime_win32.inc",
+    "line": 148,
+    "api": "OpenServiceW",
+    "source": "native.service=PSRT_HANDLE(\"OpenServiceW\",(SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS),OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS));if(!native.service)return PSRT_RETURN(ps_last_error(),\"native_api_failure\");"
+  },
+  {
+    "file": "apps/server/server_service_psr_file_win32.inc",
+    "line": 38,
+    "api": "GetKernelObjectSecurity",
+    "source": "if(!GetKernelObjectSecurity(file,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,d->sd.bytes,sizeof(d->sd.bytes),&used))return psrd_fail(GetLastError());"
+  },
+  {
+    "file": "apps/server/server_service_psr_file_win32.inc",
+    "line": 49,
+    "api": "CreateFileW",
+    "source": "d->parent=CreateFileW(psr_parent,FILE_READ_ATTRIBUTES|READ_CONTROL|SYNCHRONIZE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "apps/server/server_service_psr_file_win32.inc",
+    "line": 57,
+    "api": "CreateFileW",
+    "source": "d->file.consumed=1U;d->file.handle=CreateFileW(d->file_path,FILE_READ_DATA|FILE_WRITE_DATA|FILE_READ_ATTRIBUTES|READ_CONTROL|SYNCHRONIZE,0,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "apps/server/server_service_psr_file_win32.inc",
+    "line": 77,
+    "api": "CloseHandle",
+    "source": "if(d->parent){if(!CloseHandle(d->parent)){(void)psrd_fail(GetLastError());SetLastError(saved);return;}d->parent=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 28,
+    "api": "LocalFree",
+    "source": "{if(PSA.pending){if(LocalFree(PSA.pending)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.pending=NULL;}return 0;}"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 35,
+    "api": "GetSecurityInfo",
+    "source": "e=GetSecurityInfo(PSA.mutex,SE_KERNEL_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,&owner,NULL,&actual_acl,NULL,&PSA.pending);"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 37,
+    "api": "LocalFree",
+    "source": "{LPWSTR observed=NULL;if(!e&&ConvertSecurityDescriptorToStringSecurityDescriptorW(PSA.pending,SDDL_REVISION_1,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,&observed,NULL)){wprintf(L\"MUTEX_SD=%ls\\n\",observed);LocalFree(observed);}printf(\"MUTEX_QUERY=%lu\\n\",(unsigned long)e);}"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 46,
+    "api": "LocalFree",
+    "source": "if(LocalFree(expected)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.expected=NULL;"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 59,
+    "api": "OpenProcess",
+    "source": "PSA.launcher=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,pid);if(!PSA.launcher)return psa_error();"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 61,
+    "api": "CreateFileW",
+    "source": "PSA.launch=CreateFileW(psa_launch_path,GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 86,
+    "api": "CreateMutexExW",
+    "source": "PSA.mutex=CreateMutexExW(&sa,psa_name,0,SYNCHRONIZE|MUTEX_MODIFY_STATE|READ_CONTROL);"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 100,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(PSA.mutex)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.mutex=NULL;return e;"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 140,
+    "api": "CreateFileW",
+    "source": "PSA.intent=CreateFileW(psa_path,GENERIC_WRITE,FILE_SHARE_READ,&sa,CREATE_NEW,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_OPEN_REPARSE_POINT,NULL);"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 168,
+    "api": "CloseHandle",
+    "source": "if(PSA.launch){if(!CloseHandle(PSA.launch)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.launch=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 169,
+    "api": "CloseHandle",
+    "source": "if(PSA.launcher){if(!CloseHandle(PSA.launcher)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.launcher=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 177,
+    "api": "CloseHandle",
+    "source": "if(PSA.launch){if(!CloseHandle(PSA.launch)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.launch=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 178,
+    "api": "CloseHandle",
+    "source": "if(PSA.launcher){if(!CloseHandle(PSA.launcher)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.launcher=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 179,
+    "api": "CloseHandle",
+    "source": "if(PSA.intent){if(!CloseHandle(PSA.intent)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.intent=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_admission_win32.inc",
+    "line": 181,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(PSA.mutex)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.mutex=NULL;PSA.phase=2;"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 10,
+    "api": "OpenThreadToken",
+    "source": "if(OpenThreadToken(thread,TOKEN_QUERY,TRUE,&PSA.bd.unexpected))return ERROR_ACCESS_DENIED;"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 34,
+    "api": "OpenProcessToken",
+    "source": "if(!OpenProcessToken(PSA.bd.auxiliary,TOKEN_QUERY,&PSA.bd.aux_check_token))return psa_error();"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 43,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(PSA.bd.aux_check_token)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.bd.aux_check_token=NULL;"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 53,
+    "api": "DuplicateHandle",
+    "source": "if(!DuplicateHandle(GetCurrentProcess(),d->auxiliary.instance.handle,GetCurrentProcess(),&PSA.bd.auxiliary,0,FALSE,DUPLICATE_SAME_ACCESS)||"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 54,
+    "api": "DuplicateHandle",
+    "source": "!DuplicateHandle(GetCurrentProcess(),d->auxiliary.file,GetCurrentProcess(),&PSA.bd.file,0,FALSE,DUPLICATE_SAME_ACCESS))return psa_error();"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 56,
+    "api": "OpenProcessToken",
+    "source": "if(!OpenProcessToken(PSA.bd.auxiliary,TOKEN_QUERY,&PSA.bd.aux_token)||"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 74,
+    "api": "OpenProcessToken",
+    "source": "if(!OpenProcessToken(PSA.launcher,TOKEN_QUERY,&PSA.bd.actor_check_token))return psa_error();"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 83,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(PSA.bd.actor_check_token)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.bd.actor_check_token=NULL;"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 91,
+    "api": "CreateFileW",
+    "source": "PSA.bd.input=CreateFileW(L\"CONIN$\",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 93,
+    "api": "CreateFileW",
+    "source": "PSA.bd.output=CreateFileW(L\"CONOUT$\",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 116,
+    "api": "DuplicateHandle",
+    "source": "if(!DuplicateHandle(GetCurrentProcess(),d->actor.handle,GetCurrentProcess(),&PSA.launcher,0,FALSE,DUPLICATE_SAME_ACCESS)||"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 117,
+    "api": "DuplicateHandle",
+    "source": "!DuplicateHandle(GetCurrentProcess(),d->control_thread,GetCurrentProcess(),&PSA.bd.thread,0,FALSE,DUPLICATE_SAME_ACCESS))return psa_error();"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 119,
+    "api": "DuplicateHandle",
+    "source": "if(!DuplicateHandle(GetCurrentProcess(),GetCurrentProcess(),GetCurrentProcess(),&PSA.bd.self,PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,0)||!OpenProcessToken(PSA.launcher,TOKEN_QUERY,&PSA.token))return psa_error();"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 119,
+    "api": "OpenProcessToken",
+    "source": "if(!DuplicateHandle(GetCurrentProcess(),GetCurrentProcess(),GetCurrentProcess(),&PSA.bd.self,PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,0)||!OpenProcessToken(PSA.launcher,TOKEN_QUERY,&PSA.token))return psa_error();"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 123,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(PSA.bd.input)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.bd.input=NULL;"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 124,
+    "api": "CloseHandle",
+    "source": "if(!CloseHandle(PSA.bd.output)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.bd.output=NULL;"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 143,
+    "api": "CloseHandle",
+    "source": "for(i=0;i<12;i++)if(*refs[i]){if(!CloseHandle(*refs[i])){PSA.phase=3;return ERROR_INVALID_HANDLE;}*refs[i]=NULL;}"
+  },
+  {
+    "file": "apps/server/server_service_admission_bd_win32.inc",
+    "line": 144,
+    "api": "LocalFree",
+    "source": "if(PSA.bd.approved_sid){if(LocalFree(PSA.bd.approved_sid)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.bd.approved_sid=NULL;}"
+  },
+  {
+    "file": "apps/server/server_launcher_scm_prepare_win32.inc",
+    "line": 31,
+    "api": "GetSecurityInfo",
+    "source": "if(GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->check_descriptor)!=ERROR_SUCCESS)return 0;"
+  },
+  {
+    "file": "apps/server/server_launcher_scm_prepare_win32.inc",
+    "line": 34,
+    "api": "LocalFree",
+    "source": "if(LocalFree(n->check_descriptor)){n->phase=2U;return 0;}n->check_descriptor=NULL;return ok;"
+  },
+  {
+    "file": "apps/server/server_launcher_scm_prepare_win32.inc",
+    "line": 68,
+    "api": "BCryptGenRandom",
+    "source": "stage=\"ATTEMPT\";if(BCryptGenRandom(NULL,facts.attempt,32U,BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0||!ps_lab_binding_capture(&binding,&facts))goto done;"
+  },
+  {
+    "file": "tools/qualification/scm-n0-protected-single-powershell.ps1",
+    "line": 133,
+    "api": "CloseHandle",
+    "source": "try {if($reader){$reader.Dispose()};if($process){$process.Dispose()};foreach($pin in $pins){$pin.Dispose()};for($i=$locks.Count-1;$i-ge0;$i--){if(-not [PaccFileAcl]::CloseHandle($locks[$i])){throw 'QUALIFIER_PATH_CLOSE_UNKNOWN'};$locks[$i]=[IntPtr]::Zero}}catch{$exitCode=2;$closeFailed=$true;$script:N0RetainedPins=$pins;$script:N0RetainedLocks=$locks;Write-Host 'CLOSE_UNKNOWN_NO_RETRY';while($true){Start-Sleep -Seconds 1}}"
+  }
+]

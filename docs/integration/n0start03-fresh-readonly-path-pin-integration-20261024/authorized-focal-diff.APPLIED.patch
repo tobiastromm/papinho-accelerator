@@ -1,0 +1,33 @@
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -111,7 +111,7 @@
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+  ig_approval_file=CreateFileW(
+ #ifdef PAPACC_N0START03_READONLY_PINS
+- L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-operational-pin-integration-20261024\\EXACT-READONLY-APPROVED.json",
++ L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-fresh-native-readonly-preparation-20261024\\EXACT-FRESH-READONLY-APPROVED.json",
+ #else
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\successor-exact-binding-functional-20261024\\EXACT-OPERATION-APPROVED.json",
+ #endif
+--- a/tools/qualification/scm-n0-protected-single-powershell.ps1
++++ b/tools/qualification/scm-n0-protected-single-powershell.ps1
+@@ -12,8 +12,8 @@
+ $ErrorActionPreference='Stop'
+ $Root='C:\Projetos\PapinhoAccelerator'
+ $ExpectedPath=$Root+'\tools\qualification\scm-n0-protected-single-powershell.ps1'
+-$Qualifier='C:\Projetos\PapinhoAccelerator\build\n0start03-operational-pins-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
+-$QualifierHash='4e7f9cd090fb132d741d57cbb1754a410474b897375a272d8708d51439903407'
++$Qualifier='C:\Projetos\PapinhoAccelerator\build\n0start03-fresh-readonly-path-pin-integration-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
++$QualifierHash='deeff3b9911ea720ebf5df2c31a1ae10657a19a7d64b6e37fee48029aee1944f'
+ # Reviewed existing inputs. These pins grant no execution or Start authority.
+ $DossierHash=''
+ if($Profile-eq'N0START03ReadOnly'){$DossierHash='5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050'}
+@@ -80,7 +80,7 @@
+  if([Console]::IsInputRedirected -or [Console]::IsOutputRedirected){throw 'INTERACTIVE_CONSOLE_REQUIRED'}
+  if($DossierHash -cnotmatch '^[0-9a-f]{64}$' -or $EvidenceHash -cnotmatch '^[0-9a-f]{64}$'){throw 'WINDOWS_PROVENANCE_UNKNOWN_DENY'}
+  Pin 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' '9785001b0dcf755eddb8af294a373c0b87b2498660f724e76c4d53f9c217c7a3'
+- Pin ($Root+'\docs\integration\n0start03-operational-pin-integration-20261024\EXACT-READONLY-APPROVED.json') $ExactApprovalSha256
++ Pin ($Root+'\docs\integration\n0start03-fresh-native-readonly-preparation-20261024\EXACT-FRESH-READONLY-APPROVED.json') $ExactApprovalSha256
+  Pin ($Root+'\docs\adr\DECISION-n0start03-n7-and-ed11-evaluation-plan-20261024.md') 'c17aa105580aa7680e8d97042abc9daa32640dcf1e69dcdce49c59b8462109ac'
+  Lock-QualifierPath
+  Pin $Qualifier $QualifierHash

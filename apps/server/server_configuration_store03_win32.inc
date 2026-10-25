@@ -7,25 +7,17 @@
 #define STORE03_CAP 4U
 static int store03_zero(const unsigned char*p,unsigned n)
 {unsigned i;for(i=0;i<n;++i)if(p[i])return 0;return 1;}
-static int store03_hash(const unsigned char*p,unsigned n,unsigned char out[32])
-{
- BCRYPT_ALG_HANDLE a=NULL;BCRYPT_HASH_HANDLE h=NULL;NTSTATUS s;int ok;
- s=BCryptOpenAlgorithmProvider(&a,BCRYPT_SHA256_ALGORITHM,NULL,0U);if(s<0)return 0;
- s=BCryptCreateHash(a,&h,NULL,0U,NULL,0U,0U);
- if(s>=0)s=BCryptHashData(h,(PUCHAR)p,n,0U);
- if(s>=0)s=BCryptFinishHash(h,out,32U,0U);ok=s>=0;
- if(h!=NULL&&BCryptDestroyHash(h)<0)ok=0;
- if(BCryptCloseAlgorithmProvider(a,0U)<0)ok=0;return ok;
-}
+static int store03_hash(PAPACC_STORE_HASH *hash_ctx,const unsigned char *p,unsigned n,unsigned char out[32])
+{return store_data_hash(hash_ctx,p,n,out);}
 static void p03_put16(unsigned char *b,unsigned n){b[0]=(unsigned char)(n>>8);b[1]=(unsigned char)n;}
 static unsigned p03_get16(const unsigned char *b){return ((unsigned)b[0]<<8)|b[1];}
 static void p03_put32(unsigned char *b,PAPACC_U32 n){b[0]=(unsigned char)(n>>24);b[1]=(unsigned char)(n>>16);b[2]=(unsigned char)(n>>8);b[3]=(unsigned char)n;}
 static PAPACC_U32 p03_get32(const unsigned char *b){return ((PAPACC_U32)b[0]<<24)|((PAPACC_U32)b[1]<<16)|((PAPACC_U32)b[2]<<8)|b[3];}
-static int p03_body_encode(const PAPACC_CONFIG_VIEW *v,unsigned char *b)
+static int p03_body_encode(PAPACC_STORE_HASH *hash_ctx,const PAPACC_CONFIG_VIEW *v,unsigned char *b)
 {
  unsigned i,pos;unsigned char hash[32];const PAPACC_ADMIN_POLICY *p=&v->config.policy;
  if(p->representation!=0U||!p->present||v->policy_epoch!=0U||papacc_server_config_validate(&v->config)!=PAPACC_RESULT_OK)return 0;
- memset(b,0,1024U);encode(v,b);if(!digest(b,0))return 0;
+ memset(b,0,1024U);encode(v,b);if(!storage_digest(hash_ctx,b,0))return 0;
  memcpy(b+512U,"ADMP0301",8U);b[520U]=1U;b[521U]=(unsigned char)p->profile;
  b[522U]=(unsigned char)p->admission;p03_put16(b+524U,p->listener_port);
  b[526U]=(unsigned char)p->enabled_count;b[527U]=(unsigned char)p->rule_count;memcpy(b+528U,p->identity,32U);
@@ -33,15 +25,15 @@ static int p03_body_encode(const PAPACC_CONFIG_VIEW *v,unsigned char *b)
  for(i=0U;i<p->rule_count;++i){const PAPACC_ADMIN_POLICY_RULE *rule=&p->rules[i];pos=584U+i*40U;
   p03_put32(b+pos,rule->key.id);p03_put16(b+pos+4U,rule->key.major);
   b[pos+6U]=(unsigned char)rule->action;b[pos+7U]=(unsigned char)rule->conditions;memcpy(b+pos+8U,rule->principal,32U);}
- if(!store03_hash(b,992U,hash))return 0;memcpy(b+992U,hash,32U);return 1;
+ if(!store03_hash(hash_ctx,b,992U,hash))return 0;memcpy(b+992U,hash,32U);return 1;
 }
-static int p03_body_valid(unsigned char *b)
+static int p03_body_valid(PAPACC_STORE_HASH *hash_ctx,unsigned char *b)
 {
  unsigned i;unsigned char hash[32];PAPACC_U64 rev=get64(b+40U),pred=get64(b+48U);
  if(memcmp(b,"PACCFC01",8U)||rev==0U||pred==((PAPACC_U64)-1)||rev!=pred+1U||
-    get64(b+56U)!=0U||b[69U]>PAPACC_CONFIG_IDS||!digest(b,1))return 0;
+    get64(b+56U)!=0U||b[69U]>PAPACC_CONFIG_IDS||!storage_digest(hash_ctx,b,1))return 0;
  for(i=0U;i<4U;++i)if(b[70U+i*65U]>64U)return 0;
- return store03_hash(b,992U,hash)&&memcmp(hash,b+992U,32U)==0;
+ return store03_hash(hash_ctx,b,992U,hash)&&memcmp(hash,b+992U,32U)==0;
 }
 static int p03_policy_decode(const unsigned char *b,PAPACC_ADMIN_POLICY *p)
 {
@@ -60,10 +52,10 @@ static int p03_policy_decode(const unsigned char *b,PAPACC_ADMIN_POLICY *p)
   else if(!store03_zero(b+pos,40U))return 0;}
  return 1;
 }
-static int store03_decode(unsigned char*b,PAPACC_CONFIG_VIEW*v)
+static int store03_decode(PAPACC_STORE_HASH *hash_ctx,unsigned char*b,PAPACC_CONFIG_VIEW*v)
 {
  unsigned i,j,pos=70U;PAPACC_SIZE*lengths[4];PAPACC_U8*refs[4];PAPACC_BOOL*valids[4];
- if(!p03_body_valid(b)||store03_zero(b+8U,32U))return 0;
+ if(!p03_body_valid(hash_ctx,b)||store03_zero(b+8U,32U))return 0;
  memset(v,0,sizeof(*v));memcpy(v->domain,b+8U,32U);v->revision=get64(b+40U);
  v->predecessor=get64(b+48U);v->policy_epoch=get64(b+56U);
  v->config.control_port=(PAPACC_U16)(((unsigned)b[64U]<<8)|b[65U]);
@@ -81,11 +73,11 @@ static int store03_decode(unsigned char*b,PAPACC_CONFIG_VIEW*v)
  if(!store03_zero(b+330U+8U*b[69U],480U-330U-8U*b[69U]))return 0;
  fix(v);return p03_policy_decode(b,&v->config.policy)&&papacc_server_config_validate(&v->config)==PAPACC_RESULT_OK;
 }
-static int store03_select(unsigned char*b,const BY_HANDLE_FILE_INFORMATION*f,PAPACC_CONFIG_VIEW*out)
+static int store03_select(PAPACC_STORE_HASH *hash_ctx,unsigned char*b,const BY_HANDLE_FILE_INFORMATION*f,PAPACC_CONFIG_VIEW*out)
 {
  unsigned i,j,n;unsigned char d[32],prev[32];unsigned char*c,*w;PAPACC_CONFIG_VIEW candidate;PAPACC_U64 last_epoch=0U;
  if(memcmp(b,"PACL0301",8U)||get64(b+8U)!=3U||store03_zero(b+16U,32U))return 0;
- if(!store03_hash(b,STORE03_FOOTER,d)||memcmp(d,b+STORE03_FOOTER,32U))return 0;
+ if(!store03_hash(hash_ctx,b,STORE03_FOOTER,d)||memcmp(d,b+STORE03_FOOTER,32U))return 0;
  if(get64(b+104U)!=f->dwVolumeSerialNumber||get64(b+112U)!=(((PAPACC_U64)f->nFileIndexHigh<<32)|f->nFileIndexLow))return 0;
  if(get64(b+56U)==0U||get64(b+56U)>STORE03_CAP||get64(b+64U)!=get64(b+56U))return 0;
  n=(unsigned)get64(b+56U);memset(prev,0,32U);memset(&candidate,0,sizeof(candidate));
@@ -96,10 +88,10 @@ static int store03_select(unsigned char*b,const BY_HANDLE_FILE_INFORMATION*f,PAP
   if(get64(c+32U)!=i+1U||get64(w+32U)!=i+1U||get64(c+40U)!=i||get64(w+40U)!=i||
     get64(c+48U)==0U||get64(c+48U)!=get64(w+48U)||get64(c+56U)!=1024U)return 0;
   if(memcmp(c+64U,prev,32U)||memcmp(w+88U,prev,32U)||memcmp(c+96U,"CONF0301",8U)||!store03_zero(c+104U,24U)||!store03_zero(w+120U,8U))return 0;
-  if(!store03_hash(c,1152U,d)||memcmp(d,w+56U,32U)||!store03_decode(c+128U,&candidate))return 0;
+  if(!store03_hash(hash_ctx,c,1152U,d)||memcmp(d,w+56U,32U)||!store03_decode(hash_ctx,c+128U,&candidate))return 0;
   if(memcmp(candidate.domain,b+16U,32U)||candidate.revision!=i+1U||candidate.predecessor!=i)return 0;
   if(candidate.policy_epoch<last_epoch)return 0;last_epoch=candidate.policy_epoch;
-  if(!store03_hash(w,128U,prev))return 0;
+  if(!store03_hash(hash_ctx,w,128U,prev))return 0;
  }
  if(get64(b+48U)!=n||memcmp(b+72U,prev,32U)||!store03_zero(b+STORE03_C+n*1152U,(STORE03_CAP-n)*1152U)||
    !store03_zero(b+STORE03_W+n*128U,(STORE03_CAP-n)*128U)||!store03_zero(b+6528U,STORE03_FOOTER-6528U))return 0;
@@ -110,14 +102,14 @@ static int store03_append(PAPACC_CONFIGURATION_COMMIT*o,const PAPACC_CONFIG_VIEW
 {
  unsigned char*c,*w,d[32];unsigned index;PAPACC_CONFIG_VIEW prior;
  if(v->revision==0U||v->revision>STORE03_CAP)return 0;
- if(o->published){memcpy(b,o->committed,PAPACC_CONFIG_STORE_BYTES);if(!store03_select(b,f,&prior)||prior.revision!=v->predecessor)return 0;}
+ if(o->published){memcpy(b,o->committed,PAPACC_CONFIG_STORE_BYTES);if(!store03_select(&o->store_hash,b,f,&prior)||prior.revision!=v->predecessor)return 0;}
  else{memset(b,0,PAPACC_CONFIG_STORE_BYTES);memcpy(b,"PACL0301",8U);put64(b+8U,3U);memcpy(b+16U,v->domain,32U);
   put64(b+104U,f->dwVolumeSerialNumber);put64(b+112U,((PAPACC_U64)f->nFileIndexHigh<<32)|f->nFileIndexLow);}
  index=(unsigned)v->revision-1U;c=b+STORE03_C+index*1152U;w=b+STORE03_W+index*128U;
  memcpy(c,v->domain,32U);put64(c+32U,v->revision);put64(c+40U,v->predecessor);put64(c+48U,1000U+v->revision);
- put64(c+56U,1024U);memcpy(c+64U,b+72U,32U);memcpy(c+96U,"CONF0301",8U);if(!p03_body_encode(v,c+128U))return 0;
+ put64(c+56U,1024U);memcpy(c+64U,b+72U,32U);memcpy(c+96U,"CONF0301",8U);if(!p03_body_encode(&o->store_hash,v,c+128U))return 0;
  memcpy(w,v->domain,32U);put64(w+32U,v->revision);put64(w+40U,v->predecessor);put64(w+48U,1000U+v->revision);
- if(!store03_hash(c,1152U,d))return 0;memcpy(w+56U,d,32U);memcpy(w+88U,b+72U,32U);
- if(!store03_hash(w,128U,d))return 0;memcpy(b+72U,d,32U);put64(b+48U,v->revision);put64(b+56U,v->revision);put64(b+64U,v->revision);
- return store03_hash(b,STORE03_FOOTER,b+STORE03_FOOTER);
+ if(!store03_hash(&o->store_hash,c,1152U,d))return 0;memcpy(w+56U,d,32U);memcpy(w+88U,b+72U,32U);
+ if(!store03_hash(&o->store_hash,w,128U,d))return 0;memcpy(b+72U,d,32U);put64(b+48U,v->revision);put64(b+56U,v->revision);put64(b+64U,v->revision);
+ return store03_hash(&o->store_hash,b,STORE03_FOOTER,b+STORE03_FOOTER);
 }

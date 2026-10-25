@@ -1,0 +1,167 @@
+--- before/CMakeLists.txt
++++ after/CMakeLists.txt
+@@ -3327,6 +3327,14 @@
+   target_link_libraries(papacc_service_busy_diagnostic_test PRIVATE papacc_server_service psapi iphlpapi wevtapi wintrust user32 bcrypt)
+   set_target_properties(papacc_service_busy_diagnostic_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+   add_test(NAME papacc.service.busy_diagnostic COMMAND papacc_service_busy_diagnostic_test)
++  if(BUILD_TESTING)
++   add_executable(papacc_service_n0_sd_test tests/service_n0_sd_reconciliation_test.c)
++   target_compile_options(papacc_service_n0_sd_test PRIVATE /W4 /WX)
++   target_compile_definitions(papacc_service_n0_sd_test PRIVATE _WIN32_WINNT=0x0601 WIN32_LEAN_AND_MEAN=1)
++   target_link_libraries(papacc_service_n0_sd_test PRIVATE papacc_storage_sha256 advapi32)
++   set_target_properties(papacc_service_n0_sd_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++   add_test(NAME papacc.service.n0_sd_model COMMAND papacc_service_n0_sd_test --model)
++  endif()
+   add_executable(papacc_service_console_proof_test tests/service_console_proof_test.c)
+   target_compile_options(papacc_service_console_proof_test PRIVATE /W4 /WX)
+   set_target_properties(papacc_service_console_proof_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+--- before/docs/capabilities/canonical-phase6-consolidation.md
++++ after/docs/capabilities/canonical-phase6-consolidation.md
+@@ -526,3 +526,8 @@
+ [Current integration closeout](../integration/n0-n9-factual-binding-and-launcher-20261024/closeout.md): prior caller/adapter gaps now implemented using SAME PS_ADMISSION bounded context, query-only --prepare-n0 branch, original refs and checked closure, explicit native confirmation, same census/metrics and direct single elevated PowerShell launcher. Pending context refs prevent mutex release; no second owner/recorder. Read-only metadata found two conhost hardlinks; exact reviewed-count validation replaces auxiliary-only one-link restriction, configuration/evidence guards unchanged. Four builds zero warnings,28 test runs/88 distinct-process fixture cases and script AST PASS; no native preflight/launcher/Start/SCM/ACL/ETW. Independent opened-file Windows-origin dossier still absent: compile/script pins empty, admission DENY before auxiliary acquisition, full positive path unqualified. Metadata/hash/name/parent never prove Windows origin or mapped image. Four roles/128/shared budget/NONE_GRANTED/Stop/UNKNOWN preserved; ED11 PARTIAL, production0.6.4 and authorities DENY.
+ 
+ Same-slice external signature follow-up: existing Get-AuthenticodeSignature returned Valid/Catalog/IsOSBinary=True, Microsoft Windows; textual volume417614100 observed. These improve file evidence, NOT admission. Current evidence-directory inherited DACL has unapproved writers; native-vs-.NET SD byte equivalence and protected reviewed dossier remain unqualified. Pins remain empty/DENY, no ACL change or approved input creation. [Evidence](../integration/n0-n9-factual-binding-and-launcher-20261024/external-signature-observation.json).
++
++
++### N0-N9 SD reconciliation and protected dossier - STOP (2026-10-24)
++
++[Reconciliation closeout](../integration/n0-n9-protected-dossier-completion-20261024/closeout.md): native original file SD7852b616... versus .NETb6432636... differ exactly by six allow-ACE ordering; owner/group/control0x9404/offsets/size248 and ACE multiset match. Existing-cmdlet Valid/Catalog/IsOSBinary=True content-linked to native opened file, not mapped image.13 new SD model cases per variant/32 test runs/four zero-warning builds PASS; focused fixed-file query refs closed. First13 fixture result preserved as unlocalized; no native preflight/qualifier/Start/SCM/ACL/ETW. [RAW1 profile candidate](../adr/ADR-CANDIDATE-n0-n9-security-descriptor-digest-profile-20261024.md) proposes conservative exact native bytes, NO permission normalization/semantic bypass. Accepted encoding is not defined cross-producer; per task keep PROPOSED/DENY. Docs default DACL unsafe for approved inputs; protected placement requires exact existing-operator authorization/qualification. Original owner/adapter/launcher/pins unchanged, no new authority/recorder or quota; N0-N9 historical acceptance and UNKNOWN preserved. ED11 PARTIAL, production0.6.4 and authorities DENY.
+--- /dev/null
++++ after/tests/service_n0_sd_reconciliation_test.c
+@@ -0,0 +1,91 @@
++/* Isolated focal SD tests/file evidence. No admission, SCM, launcher or writer. */
++#ifndef WIN32_LEAN_AND_MEAN
++#define WIN32_LEAN_AND_MEAN
++#endif
++#include <windows.h>
++#include <aclapi.h>
++#include <sddl.h>
++#include <stdio.h>
++#include <string.h>
++#include "../tools/qualification/storage-hash-capsule/storage_sha256.h"
++static unsigned cases;
++#define T(x) do{if(!(x)){printf("SD_TEST_FAIL line=%d case=%u\n",__LINE__,cases);return 1;}}while(0)
++static void hex(const BYTE *bytes,DWORD n)
++{DWORD i;for(i=0;i<n;i++)printf("%02x",(unsigned)bytes[i]);}
++static int digest(PSECURITY_DESCRIPTOR sd,BYTE out[32])
++{DWORD n=GetSecurityDescriptorLength(sd);return IsValidSecurityDescriptor(sd)&&n&&n<=65536&&pacc_storage_hash_callback(NULL,(BYTE *)sd,n,out);}
++static int sid_equal(PSID a,PSID b)
++{return (!a&&!b)||(a&&b&&IsValidSid(a)&&IsValidSid(b)&&EqualSid(a,b));}
++/* Ordered security fields only; no claim of arbitrary access-check equivalence. */
++static int fields_equal(PSECURITY_DESCRIPTOR a,PSECURITY_DESCRIPTOR b)
++{
++ SECURITY_DESCRIPTOR_CONTROL ac,bc;DWORD ar,br;PSID ao,bo,ag,bg;BOOL ad,bd,ap,bp;PACL aa,ba;
++ if(!IsValidSecurityDescriptor(a)||!IsValidSecurityDescriptor(b)||!GetSecurityDescriptorControl(a,&ac,&ar)||!GetSecurityDescriptorControl(b,&bc,&br)||ac!=bc||ar!=br)return 0;
++ if(!GetSecurityDescriptorOwner(a,&ao,&ad)||!GetSecurityDescriptorOwner(b,&bo,&bd)||ad!=bd||!sid_equal(ao,bo)||!GetSecurityDescriptorGroup(a,&ag,&ad)||!GetSecurityDescriptorGroup(b,&bg,&bd)||ad!=bd||!sid_equal(ag,bg))return 0;
++ if(!GetSecurityDescriptorDacl(a,&ap,&aa,&ad)||!GetSecurityDescriptorDacl(b,&bp,&ba,&bd)||ap!=bp||ad!=bd)return 0;
++ if((!aa)!=(!ba)||(aa&&(aa->AclSize!=ba->AclSize||memcmp(aa,ba,aa->AclSize))))return 0;
++ if(!GetSecurityDescriptorSacl(a,&ap,&aa,&ad)||!GetSecurityDescriptorSacl(b,&bp,&ba,&bd)||ap!=bp||ad!=bd)return 0;
++ return (!aa&&!ba)||(aa&&ba&&aa->AclSize==ba->AclSize&&!memcmp(aa,ba,aa->AclSize));
++}
++static int model(void)
++{
++ PSECURITY_DESCRIPTOR a=NULL,b=NULL;DWORD n;BYTE original[32],other[32];
++ union {ULONGLONG align;BYTE data[1024];} moved;SECURITY_DESCRIPTOR_RELATIVE *relative;
++ static const WCHAR *changed[]={
++ L"O:SYG:BAD:P(A;;FR;;;BA)(A;;FR;;;SY)",
++ L"O:BAG:BAD:P(A;;FA;;;BA)(A;;FR;;;SY)",
++ L"O:SYG:SYD:P(A;;FA;;;BA)(A;;FR;;;SY)",
++ L"O:SYG:BAD:(A;;FA;;;BA)(A;;FR;;;SY)",
++ L"O:SYG:BAD:P(A;;FR;;;SY)(A;;FA;;;BA)",
++ L"O:SYG:BAD:P(A;CI;FA;;;BA)(A;;FR;;;SY)",
++ L"O:SYG:BAD:P(A;;FA;;;BA)(A;;FR;;;SY)S:(AU;SA;FR;;;WD)",
++ L"O:SYG:BA",
++ L"O:SYG:BAD:P",
++ L"O:SYG:BAD:NO_ACCESS_CONTROL"};unsigned i;
++ T(ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:SYG:BAD:P(A;;FA;;;BA)(A;;FR;;;SY)",SDDL_REVISION_1,&a,NULL));T(digest(a,original));++cases;
++ T(digest(a,other)&&!memcmp(original,other,32));++cases;
++ n=GetSecurityDescriptorLength(a);T(n+16<=sizeof(moved.data));ZeroMemory(&moved,sizeof(moved));
++ memcpy(moved.data,a,sizeof(SECURITY_DESCRIPTOR_RELATIVE));memcpy(moved.data+sizeof(SECURITY_DESCRIPTOR_RELATIVE)+16,(BYTE *)a+sizeof(SECURITY_DESCRIPTOR_RELATIVE),n-sizeof(SECURITY_DESCRIPTOR_RELATIVE));
++ relative=(SECURITY_DESCRIPTOR_RELATIVE *)moved.data;
++ if(relative->Owner)relative->Owner+=16;if(relative->Group)relative->Group+=16;if(relative->Dacl)relative->Dacl+=16;if(relative->Sacl)relative->Sacl+=16;
++ T(fields_equal(a,moved.data));T(digest(moved.data,other)&&memcmp(original,other,32));++cases;
++ /* SAME security fields, different valid relative offsets => exact-byte gate DENY.
++  * Never apply descriptor changes to any file or normalize permissions. */
++ for(i=0;i<sizeof(changed)/sizeof(changed[0]);i++){
++  T(ConvertStringSecurityDescriptorToSecurityDescriptorW(changed[i],SDDL_REVISION_1,&b,NULL));T(!fields_equal(a,b)&&digest(b,other)&&memcmp(original,other,32));T(LocalFree(b)==NULL);b=NULL;++cases;
++ }
++ T(LocalFree(a)==NULL);
++ printf("N0_SD_MODEL=PASS cases=%u; EXACT_SHA256_PRESERVED; EQUIVALENT_FIELDS_DIFFERENT_LAYOUT_DENY; ACL_OWNER_GROUP_CONTROL_ORDER_INHERITANCE_DIFFERENCES_DENY; NO_OS_ACL_MUTATION\n",cases);return 0;
++}
++static int file_evidence(void)
++{
++ HANDLE file=NULL;PSECURITY_DESCRIPTOR sd=NULL,after=NULL;LPWSTR sddl=NULL;BY_HANDLE_FILE_INFORMATION id,end;DWORD e=0,n=0,size,revision;SECURITY_DESCRIPTOR_CONTROL control;
++ BYTE hash[32],raw_hash[32],sddl_hash[32],after_hash[32],block[1024];PACC_STORAGE_SHA256 sha;WCHAR path[512];int close_ok=1;const char *stage="OPEN_FILE";
++ file=CreateFileW(L"C:\\Windows\\System32\\conhost.exe",GENERIC_READ|READ_CONTROL,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
++ if(file==INVALID_HANDLE_VALUE){file=NULL;e=GetLastError();goto done;}
++ if(!GetFileInformationByHandle(file,&id)||GetFileType(file)!=FILE_TYPE_DISK||(id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY))){e=ERROR_INVALID_DATA;goto done;}
++ n=GetFinalPathNameByHandleW(file,path,512,FILE_NAME_NORMALIZED|VOLUME_NAME_DOS);if(!n||n>=512||wcscmp(path,L"\\\\?\\C:\\Windows\\System32\\conhost.exe")){e=ERROR_INVALID_NAME;goto done;}
++ stage="GET_SD";e=GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&sd);if(e)goto done;
++ stage="SD_RAW_AND_CONTROL";if(!digest(sd,raw_hash)||!GetSecurityDescriptorControl(sd,&control,&revision)||!(control&SE_SELF_RELATIVE)){e=ERROR_INVALID_DATA;goto done;}
++ printf("N0_SD_FIRST_NATIVE_SHA256=");hex(raw_hash,32);printf("\n");
++ size=GetSecurityDescriptorLength(sd);if(size>512){e=ERROR_INSUFFICIENT_BUFFER;goto done;}
++ stage="SD_TO_SDDL";if(!ConvertSecurityDescriptorToStringSecurityDescriptorW(sd,SDDL_REVISION_1,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,&sddl,NULL)||wcslen(sddl)>4096||!pacc_storage_hash_callback(NULL,(BYTE *)sddl,wcslen(sddl)*sizeof(WCHAR),sddl_hash)){e=ERROR_INVALID_DATA;goto done;}
++ stage="HASH_FILE";ZeroMemory(&sha,sizeof(sha));if(pacc_storage_sha_init(&sha)!=PACC_HASH_OK){e=ERROR_INVALID_DATA;goto done;}
++ for(;;){if(!ReadFile(file,block,sizeof(block),&n,NULL)){e=GetLastError();goto done;}if(!n)break;if(pacc_storage_sha_update(&sha,block,n,NULL,NULL)!=PACC_HASH_OK){e=ERROR_INVALID_DATA;goto done;}}
++ if(pacc_storage_sha_final(&sha,hash,32,NULL,NULL)!=PACC_HASH_OK){e=ERROR_INVALID_DATA;goto done;}
++ stage="REVALIDATE_FILE_ID";if(!GetFileInformationByHandle(file,&end)){e=GetLastError();goto done;}
++ /* LastAccessTime is read-side metadata, not native object identity. */
++ if(id.dwVolumeSerialNumber!=end.dwVolumeSerialNumber||id.nFileIndexHigh!=end.nFileIndexHigh||id.nFileIndexLow!=end.nFileIndexLow||id.nFileSizeHigh!=end.nFileSizeHigh||id.nFileSizeLow!=end.nFileSizeLow||id.nNumberOfLinks!=end.nNumberOfLinks||id.dwFileAttributes!=end.dwFileAttributes||memcmp(&id.ftLastWriteTime,&end.ftLastWriteTime,sizeof(FILETIME))){e=ERROR_INVALID_DATA;goto done;}
++ stage="REVALIDATE_SD";e=GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&after);if(e)goto done;
++ if(!digest(after,after_hash)||memcmp(raw_hash,after_hash,32)||!fields_equal(sd,after)){e=ERROR_INVALID_DATA;goto done;}
++ printf("N0_SD_FILE identity=%lu:%lu:%lu length=%lu:%lu links=%lu; ORIGINAL_FILE_HANDLE_HELD; NO_PROCESS_IMAGE_CLAIM\n",(unsigned long)id.dwVolumeSerialNumber,(unsigned long)id.nFileIndexHigh,(unsigned long)id.nFileIndexLow,(unsigned long)id.nFileSizeHigh,(unsigned long)id.nFileSizeLow,(unsigned long)id.nNumberOfLinks);
++ printf("N0_SD_FILE_SHA256=");hex(hash,32);printf("\nN0_SD_NATIVE_SHA256=");hex(raw_hash,32);printf("\nN0_SD_SDDL_UTF16LE_SHA256=");hex(sddl_hash,32);
++ printf("\nN0_SD_NATIVE length=%lu control=0x%04x revision=%lu owner=%lu group=%lu dacl=%lu sacl=%lu; QUERY=OWNER_GROUP_DACL; SACL_NOT_REQUESTED_NOT_PROVED_ABSENT\n",(unsigned long)size,(unsigned)control,(unsigned long)revision,(unsigned long)((SECURITY_DESCRIPTOR_RELATIVE *)sd)->Owner,(unsigned long)((SECURITY_DESCRIPTOR_RELATIVE *)sd)->Group,(unsigned long)((SECURITY_DESCRIPTOR_RELATIVE *)sd)->Dacl,(unsigned long)((SECURITY_DESCRIPTOR_RELATIVE *)sd)->Sacl);
++ printf("N0_SD_NATIVE_HEX=");hex((BYTE *)sd,size);printf("\nN0_SD_SDDL=%ls\nN0_SD_TWO_SAMPLES_STABLE=YES; NOT_CONTINUOUS_PROOF; NO_NORMALIZATION\n",sddl);
++ done:
++ if(sddl&&LocalFree(sddl))close_ok=0;if(after&&LocalFree(after))close_ok=0;if(sd&&LocalFree(sd))close_ok=0;if(file&&!CloseHandle(file))close_ok=0;
++ if(!close_ok){printf("N0_SD_FILE_RETAINED first=%lu; CLOSE_UNKNOWN_NO_RETRY\n",(unsigned long)e);fflush(stdout);Sleep(INFINITE);return 2;}
++ printf("N0_SD_FILE_FINAL stage=%s error=%lu refs_closed=1; NO_SCM_NO_PREFLIGHT_NO_ACL_MUTATION\n",stage,(unsigned long)e);return e?2:0;
++}
++int main(int argc,char **argv)
++{if(argc!=2)return 2;if(!strcmp(argv[1],"--model"))return model();if(!strcmp(argv[1],"--file"))return file_evidence();return 2;}
+--- /dev/null
++++ after/docs/adr/ADR-CANDIDATE-n0-n9-security-descriptor-digest-profile-20261024.md
+@@ -0,0 +1,42 @@
++---
++status: proposed
++revision: 1
++scope-level: project
++scope-target: exact accepted N0-N9 single Windows LAB attempt only
++supersedes: []
++---
++# Candidate - N0-N9 security descriptor evidence profile RAW1
++
++## Problem and minimal decision
++
++Accepted [N0-N9 N2.2/N2.6/N4](DECISION-first-native-lab-diagnostic-boundary-20261024.md) requires pinned opened-file security evidence but does not define cross-producer SD byte serialization. Existing adapter hashes raw GetSecurityInfo bytes; .NET CommonAcl can sort/compact ACEs in memory. Factual file has native SHA2567852b616c03c57528c4f85f843fd2f671d49dbd66a965f227c2ffbf663a177e0 versus .NETb643263616bb2e6cfd85743fbd21f78e4becc259896a0faa46a247477c80ace0. Owner/group/control/offsets/length and exact ACE multiset match; ordering differs. No ACL was changed. Windows self-relative alone is not a canonical byte format.
++
++Propose ONLY named profile `N2-SD-RAW1-OWNER-GROUP-DACL`, retaining exact native-byte rejection instead of creating a canonicalizer. This is NOT accepted, not an admission architecture or general ED11 change. No implementation/activation/ACL/SCM/file-placement/Start/preflight permission follows.
++
++## S0 - unchanged scope and authority
++
++Only existing N0-N9 attempt75330d11cc7e4123ae62eadc9a59c2f5/host/boot236441/service/config/candidate/operator/policies. Existing owner, confirmation/challenge, four roles,128 handles,shared budget,NONE_GRANTED,freshness,Stop/quiescence/UNKNOWN and one-shot intent unchanged. No console-authentication/mapped-image claim. Independent evidence never grants authority.
++
++## S1 - exact digest input
++
++Input comes from GetSecurityInfo on the ORIGINAL noninheritable FILE handle, SE_FILE_OBJECT, exactly OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION (mask7). Require successful API, IsValidSecurityDescriptor, revision1, SE_SELF_RELATIVE and size1..65536 from GetSecurityDescriptorLength. Hash exactly that many ORIGINAL bytes with existing Accelerator-owned SHA256. Bind returned control bits, owner/group, DACL presence/null/empty distinctions and ordered ACE data; no sorting, compacting, merging, SID/mask expansion, zeroing of fields/padding, SDDL/.NET round-trip or MakeSelfRelativeSD conversion before hashing. Unknown or malformed required input denies. Original raw bytes and producer/mask/length/control/identity stay in evidence for review.
++
++This is a source-specific EXACT-BYTE profile, not a claim that Windows offers one canonical serialization. Equivalent permission fields with different layout/order intentionally DENY; no semantic-equivalence bypass. This conservative false-denial behavior is explicit. A different profile or algorithm requires a separately reviewed decision; no automatic format migration or adoption of current bytes.
++
++## S2 - SACL boundary
++
++Mask7 does NOT query SACL/audit/mandatory labels. Returned Sacl offset0 does NOT prove the object's SACL absent or unchanged. No privilege enablement, SACL access/change or silent widening/waiver. Existing N2 owner/group/DACL scope remains; if a required check depends on SACL/integrity evidence, STOP and identify it separately. All returned bytes/control flags remain exact; unqueried information is UNKNOWN, never zero cost/security success.
++
++## S3 - protected evidence and binding
++
++RAW1/profile decision hash must be explicit in the SAME existing Windows-origin evidence referenced by the existing immutable dossier digest/plan/pins. Keep current record/owner; no second authority or registry. Only after owner acceptance and source/pin review may a dossier use the native digest. Do NOT overwrite historical .NET digest or label it raw; keep both original representations and comparison. Evidence must identify native file volume/id/size/type/reparse/links, protected owner/DACL, content SHA and external Windows catalog evidence for identical file content, plus tool/source identities and limitations.
++
++Documentary candidate files in ordinary docs are NOT protected inputs. Creation/placement of exact approved inputs needs the existing approved operator/owner and verified native protection; no unsafe inherited DACL, current unauthorized collector token, automatic ACL remediation or overwrite. Bind admitted live tuple to original process creation/token, actual host/boot, attempt/plan/config/image/policies, exact confirmation, complete fresh metrics and lifetime through existing owner. Static file evidence is not a reusable admission receipt. Unknown future PID/token/metrics are captured only during separately approved qualification, never invented now.
++
++## S4 - unchanged operational gates
++
++No accepted ADR is edited by this proposal. Pins remain EMPTY/DENY. Preserve original metadata/query failure evidence and all historical UNKNOWN. Normative acceptance is distinct from protected input placement, implementation qualification, manual read-only approval and positive operation approval. No Start/Stop/rebind/ACL,CA,bootstrap,certificate,CURRENT,production or quota authorization. Production0.6.4 unchanged.
++
++## Evidence and acceptance
++
++[Reconciliation/tests](../integration/n0-n9-protected-dossier-completion-20261024/reconciliation.md), [proposed dossier](../integration/n0-n9-protected-dossier-completion-20261024/dossier-PROPOSED.json), [protected-placement preparation](../integration/n0-n9-protected-dossier-completion-20261024/protected-placement-and-next-gate.md). Require explicit owner approval of exact S0-S4 bytes and official integral review before designated ACCEPTED registration. No activation or file protection changes in this candidate. No new generic instrumentation or production component.

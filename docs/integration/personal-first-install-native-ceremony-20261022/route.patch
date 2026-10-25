@@ -1,0 +1,14 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2854,7 +2854,10 @@
+     endif()
+     target_sources(papacc_server PRIVATE apps/server/server_config_cli.c)
+     target_link_libraries(papacc_server PRIVATE papacc_config_source)
+-    target_compile_definitions(papacc_server PRIVATE PAPACC_ENABLE_CONFIG_ADMIN_CLI=1)
++    target_compile_definitions(papacc_server PRIVATE PAPACC_ENABLE_CONFIG_ADMIN_CLI=1)
++    if(PAPACC_ENABLE_OFFLINE_D3_WORKER)
++        target_compile_definitions(papacc_server PRIVATE PAPACC_OFFLINE_D3_WORKER=1)
++    endif()
+ endif()
+ 
+ # Same-worker native namespace primitive regression, isolated diagnostic token bypass.

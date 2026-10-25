@@ -1,0 +1,45 @@
+{
+  "F1": {
+    "fact": "cohort and worker v3-only",
+    "evidence": [
+      "server_configuration_v3_update_cohort_win32.inc:image[8]!=3U",
+      "server_configuration_d3_worker_win32.inc:pending_v3_image_guard"
+    ],
+    "classification": "implementation_missing"
+  },
+  "F2": {
+    "fact": "canonical signer DATA rejects v4 header while fixtures model kind8",
+    "evidence": [
+      "server_config_root8_signer_win32.c:35",
+      "server_config_root8_data_win32.c:84,98",
+      "tests/config_root8_v3_test.c:16,17"
+    ],
+    "classification": "integration_gap_not_resource_bound"
+  },
+  "F3": {
+    "fact": "factual resolution and commit cannot complete",
+    "evidence": [
+      "server_configuration_root_transaction_win32.inc:v3_update_validate/v3_update_commit"
+    ],
+    "classification": "source_and_implementation"
+  },
+  "F4": {
+    "fact": "public SHA math reaches issuer native backend",
+    "classification": "avoidable_architectural_coupling"
+  },
+  "F5": {
+    "fact": "complete ED11 peak unknown; no demonstrated current managed overrun",
+    "known_managed": 1952704,
+    "projected_v4_known": 1956448,
+    "complete_peak": null,
+    "classification": "resource_proof_gap"
+  },
+  "F6": {
+    "fact": "store02 local failed-cleanup reference loss remains possible",
+    "classification": "source_nonconformance_not_observed_leak"
+  },
+  "F7": {
+    "fact": "borrow hashes under lock also acquired by synchronous Stop",
+    "classification": "latency_proof_gap_not_observed_hang"
+  }
+}

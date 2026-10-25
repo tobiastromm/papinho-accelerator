@@ -1,3 +1,8 @@
+#include "server_store_hash_win32.h"
+#ifndef PAPACC_FIXTURE_STORE_HASH_DEFINED
+#define PAPACC_FIXTURE_STORE_HASH_DEFINED
+static PAPACC_STORE_HASH fixture_store_hash;
+#endif
 #include "server_configuration_body05_win32.h"
 #include <stdio.h>
 #include <string.h>
@@ -43,17 +48,17 @@ int main(void)
  CHECK(papacc_site_tls_alpn_allowed(&c,c.alpn,257U)!=PAPACC_RESULT_OK);
  config->site_tls=c;view.domain[0]=1;view.revision=1;
  CHECK(papacc_server_config_validate(config)==PAPACC_RESULT_OK);
- CHECK(papacc_configuration_body05_encode(&view,bytes,1024)==PAPACC_RESULT_OK);
+ CHECK(papacc_configuration_body05_encode(&fixture_store_hash,&view,bytes,1024)==PAPACC_RESULT_OK);
  memcpy(saved,bytes,1024);
- CHECK(papacc_configuration_body05_decode(bytes,1024,&decoded)==PAPACC_RESULT_OK&&!memcmp(&decoded.config.site_tls,&c,sizeof(c)));
- CHECK(papacc_configuration_body04_decode(bytes,1024,&old)!=PAPACC_RESULT_OK);
- bytes[850]^=1;CHECK(papacc_configuration_body05_decode(bytes,1024,&decoded)!=PAPACC_RESULT_OK);memcpy(bytes,saved,1024);
- CHECK(papacc_configuration_body05_decode(bytes,1023,&decoded)!=PAPACC_RESULT_OK);
+ CHECK(papacc_configuration_body05_decode(&fixture_store_hash,bytes,1024,&decoded)==PAPACC_RESULT_OK&&!memcmp(&decoded.config.site_tls,&c,sizeof(c)));
+ CHECK(papacc_configuration_body04_decode(&fixture_store_hash,bytes,1024,&old)!=PAPACC_RESULT_OK);
+ bytes[850]^=1;CHECK(papacc_configuration_body05_decode(&fixture_store_hash,bytes,1024,&decoded)!=PAPACC_RESULT_OK);memcpy(bytes,saved,1024);
+ CHECK(papacc_configuration_body05_decode(&fixture_store_hash,bytes,1023,&decoded)!=PAPACC_RESULT_OK);
  old.base=view;old.base.config.site_tls=(PAPACC_SITE_TLS_CATALOG)PAPACC_SITE_TLS_CATALOG_INITIALIZER;
- CHECK(papacc_configuration_body04_encode(&old,bytes,1024)==PAPACC_RESULT_OK);
- CHECK(papacc_configuration_body05_decode(bytes,1024,&decoded)!=PAPACC_RESULT_OK);
- CHECK(papacc_configuration_body04_decode(bytes,1024,&old)==PAPACC_RESULT_OK&&!old.base.config.site_tls.present);
- CHECK(papacc_configuration_body05_encode(&old.base,bytes,1024)!=PAPACC_RESULT_OK);
+ CHECK(papacc_configuration_body04_encode(&fixture_store_hash,&old,bytes,1024)==PAPACC_RESULT_OK);
+ CHECK(papacc_configuration_body05_decode(&fixture_store_hash,bytes,1024,&decoded)!=PAPACC_RESULT_OK);
+ CHECK(papacc_configuration_body04_decode(&fixture_store_hash,bytes,1024,&old)==PAPACC_RESULT_OK&&!old.base.config.site_tls.present);
+ CHECK(papacc_configuration_body05_encode(&fixture_store_hash,&old.base,bytes,1024)!=PAPACC_RESULT_OK);
  puts("PASS_OFFLINE_SYNTHETIC_CATALOG_CODEC NOT_OPERATIONAL_AUTHORITY");
  printf("CHECKS=%u CATALOG_SIZE=%llu\n",checks,(unsigned long long)sizeof(c));return 0;
 }

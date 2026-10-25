@@ -1,0 +1,13 @@
+@echo off
+set VSLANG=1033
+call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+if errorlevel 1 exit /b %errorlevel%
+cmake -S . -B build/session0-diagnostic-runtime-integration-20261023/Selected/Debug -G Ninja "-DCMAKE_C_FLAGS=/WX /DPAPACC_PSR_TRACE_LAB=1 /DPAPACC_PSR_FILE_RUNTIME_LAB=1" -DBUILD_TESTING=ON -DPAPACC_ENABLE_CONFIG_ADMIN_CLI=ON -DPAPACC_ENABLE_OFFLINE_ROOT8=ON -DPAPACC_ENABLE_OFFLINE_D3_WORKER=ON -DPAPACC_ENABLE_OFFLINE_LST1=ON -DPAPACC_ENABLE_OFFLINE_CONFIG_SOURCE=ON -DPAPACC_ENABLE_CONFIG_ADMIN_BINDING=ON -DPAPACC_ENABLE_CANONICAL_API3_CANDIDATE=ON -DPAPACC_ENABLE_CANONICAL_C8_ROOT=ON -DPAPACC_ENABLE_PST_OUTBOUND_PROOF=ON -DPAPACC_PST_QUALIFICATION_SDK_ROOT=C:/Projetos/PapinhoAccelerator/build/ed08-r4-integrated-20261012/sdk-normal -DPAPACC_PST_QUALIFICATION_SDK_ARCHIVE=C:/Projetos/PapinhoSecureTransport/dist/packages/0.6.5/papinho-secure-transport-0.6.5-win32-x64-msvc-19.51-openssl3.zip -DCMAKE_BUILD_TYPE=Debug -DPAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE=ON
+if errorlevel 1 exit /b %errorlevel%
+cmake --build build/session0-diagnostic-runtime-integration-20261023/Selected/Debug --parallel 2 --target papacc_server papacc_server_lab_host papacc_service_host_product_model papacc_service_host_lab_model papacc_service_scm_query_model_test papacc_service_scm_virtual_model_test papacc_service_scm_acl_model_test papacc_service_lifecycle_data_test papacc_service_scm_native_test papacc_server_console_win32_test papacc_personal_effect_plan_test papacc_phase6_memory_census_test papacc_issuer_production_gate_test papacc_service_runtime_model_test papacc_service_runtime_native_test papacc_service_runtime_closed_test papacc_scm_cycle_model papacc_service_runtime_file_model_test
+if errorlevel 1 exit /b %errorlevel%
+cl /nologo /W4 /WX /Od /Zi /MDd /DPSRF_MODEL=1 /TC /Fo"build/session0-diagnostic-runtime-integration-20261023/Selected/Debug/psrf-model.obj" /Fd"build/session0-diagnostic-runtime-integration-20261023/Selected/Debug/psrf-model.pdb" /Fe"build/session0-diagnostic-runtime-integration-20261023/Selected/Debug/psrf-model.exe" tools/qualification/psr-file-capture-lab-test.c /link Advapi32.lib User32.lib
+if errorlevel 1 exit /b %errorlevel%
+cl /nologo /W4 /WX /Od /Zi /MDd /TC /Fo"build/session0-diagnostic-runtime-integration-20261023/Selected/Debug/psrf-native.obj" /Fd"build/session0-diagnostic-runtime-integration-20261023/Selected/Debug/psrf-native.pdb" /Fe"build/session0-diagnostic-runtime-integration-20261023/Selected/Debug/psrf-native.exe" tools/qualification/psr-file-capture-lab-test.c /link Advapi32.lib User32.lib
+if errorlevel 1 exit /b %errorlevel%
+exit /b %errorlevel%

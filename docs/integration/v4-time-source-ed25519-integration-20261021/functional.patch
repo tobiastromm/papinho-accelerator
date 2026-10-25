@@ -1,0 +1,165 @@
+--- a/src/config/config_root8_time_source_key.h
++++ b/src/config/config_root8_time_source_key.h
+@@ -0,0 +1,9 @@
++#ifndef PAPACC_ROOT8_TIME_SOURCE_KEY_H
++#define PAPACC_ROOT8_TIME_SOURCE_KEY_H
++#include "config_root8.h"
++/* Private kind9 DATA adapter. Caller protects immutable row384/header512
++ * until synchronous return; no references escape, no owner/pin/authority.
++ * Called only after codec structure/integrity checks, never on Stop path. */
++PC_ROOT8_RESULT pc_root8_time_source_key_data(void *,unsigned,const PAPACC_U8 *,
++ PAPACC_SIZE,const PAPACC_U8 *,const PAPACC_U8 *);
++#endif
+--- a/src/config/config_root8_time_source_key.c
++++ b/src/config/config_root8_time_source_key.c
+@@ -0,0 +1,19 @@
++#include "config_root8_time_source_key.h"
++#include "../issuer/strict_ed25519.h"
++#include <string.h>
++PC_ROOT8_RESULT pc_root8_time_source_key_data(void *ctx,unsigned kind,
++ const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
++{
++ int result;
++ (void)ctx;
++ if(kind!=9U)return PC_ROOT8_UNSUPPORTED;
++ if(!p||n!=384U||p!=row||!header)return PC_ROOT8_INVALID;
++ if(memcmp(header,"PACROOT8",8)||header[8]!=4U||header[9]||
++    memcmp(p,"PACTSR01",8)||p[8]!=1U||p[9]||p[10]!=128U||p[11]!=1U)
++  return PC_ROOT8_INVALID;
++ result=papacc_time_source_ed25519_check(p+88U,32U);
++ if(result==PAPACC_ED25519_VALID)return PC_ROOT8_OK;
++ if(result==PAPACC_ED25519_INVALID)return PC_ROOT8_INVALID;
++ if(result==PAPACC_ED25519_BACKEND_UNAVAILABLE)return PC_ROOT8_UNSUPPORTED;
++ return PC_ROOT8_INCOMPLETE;
++}
+--- a/apps/server/server_config_root8_data_win32.c
++++ b/apps/server/server_config_root8_data_win32.c
+@@ -1,4 +1,5 @@
+ #include "server_config_root8_data_win32.h"
++#include "config_root8_time_source_key.h"
+ #include "server_configuration_body05_win32.h"
+ #include <string.h>
+ static unsigned le16(const PAPACC_U8 *p){return (unsigned)p[0]|((unsigned)p[1]<<8);}
+@@ -107,6 +108,10 @@
+  PAPACC_ISSUER_CHECKPOINT_REPORT report;PAPACC_ISSUER_RECORD record;
+  PAPACC_ISSUER_RESULT s;
+  if(kind==5U)return papacc_root8_body05_data(NULL,kind,p,n,row,header);
++ if(kind==9U){
++  if(!c||!c->owner||c->owner->stopped||c->owner->unresolved||c->owner->authority_lost)return PC_ROOT8_INCOMPLETE;
++  return pc_root8_time_source_key_data(NULL,kind,p,n,row,header);
++ }
+ #if defined(PAPACC_ED11_WINDOWS_3MIB) && defined(PAPACC_OFFLINE_D3_WORKER)
+  if(kind==8U)return pinned_signer(c,p,n,row,header);
+ #endif
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2767,7 +2767,7 @@
+     if(NOT PAPACC_ENABLE_OFFLINE_LST1)
+         message(FATAL_ERROR "ROOT8 requires existing offline LST1 codec")
+     endif()
+-    add_library(papacc_config_root8 STATIC src/config/config_root8.c src/config/config_root8_v2.c src/config/config_root8_v3.c src/config/config_root8_v4.c)
++    add_library(papacc_config_root8 STATIC src/config/config_root8.c src/config/config_root8_v2.c src/config/config_root8_v3.c src/config/config_root8_v4.c src/config/config_root8_time_source_key.c src/issuer/strict_ed25519.c)
+     target_include_directories(papacc_config_root8 PUBLIC src/config include)
+     target_link_libraries(papacc_config_root8 PUBLIC papacc_config_lst1 papacc_issuer)
+     set_target_properties(papacc_config_root8 PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+--- a/tests/config_root8_v4_test.c
++++ b/tests/config_root8_v4_test.c
+@@ -1,14 +1,15 @@
+ /* Synthetic source/disposition/issuer model only. No real authority/UTC.
+  * Reuse the historical v3/v2 builders; existing native SHA/BODY helpers.
+- * kind9 is intentionally a MODEL, not positive native Ed25519 qualification. */
++ * kind9 uses the real independent mathematical DATA adapter; no authority. */
+ #define PAPACC_V3_BACKING_FIXTURE 1
+ #include "config_root8_v3_test.c"
+ #include "config_root8_v4.h"
++#include "config_root8_time_source_key.h"
+ static PAPACC_U8 f4[PC_ROOT8_V4_FIELDS_MAX],save4[PC_ROOT8_V4_FIELDS_MAX];
+ static PAPACC_U8 e4[PC_ROOT8_V4_MAX+1U],d4[PC_ROOT8_V4_FIELDS_MAX],base4[PC_ROOT8_V4_MAX];
+ static PAPACC_SIZE n4,z4;static int deny_source;static unsigned key_calls;
+ static PC_ROOT8_RESULT component4(void *ctx,unsigned kind,const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
+-{if(kind==9U){key_calls++;if(deny_source)return PC_ROOT8_INCOMPLETE;return p==row&&n==384U&&header[8]==4U?PC_ROOT8_OK:PC_ROOT8_INVALID;}return component3(ctx,kind,p,n,row,header);}
++{if(kind==9U){key_calls++;if(deny_source)return PC_ROOT8_INCOMPLETE;return pc_root8_time_source_key_data(NULL,kind,p,n,row,header);}return component3(ctx,kind,p,n,row,header);}
+ static int seal4(void)
+ {
+  PAPACC_SIZE n;CHECK(pc_root8_v4_snt_encode(f4,n4,part,sizeof(part),&n,hash,&owner)==PC_ROOT8_OK);memcpy(f4+r32(f4+244),part,n);
+@@ -26,7 +27,7 @@
+  memset(f4+r32(f4+56),0,512);s=f4+X;memcpy(s,"PACTSC01",8);w16(s+8,1);w16(s+10,64);w32(s+12,(PAPACC_U32)F);w16(s+16,H);w16(s+18,384);memcpy(s+24,f4+72,32);w64(s+56,r64(f4+104));
+  for(j=0;j<H;j++){
+   a=s+64U+384U*j;memcpy(a,"PACTSR01",8);w16(a+8,1);w16(a+10,384);w32(a+12,1);w16(a+16,1);w16(a+18,1);w16(a+20,1);w16(a+22,4);
+-  a[24]=(PAPACC_U8)(j+1);a[56]=(PAPACC_U8)(j+4);memset(a+88,(int)(j+8),32);CHECK(hash(&owner,a+88,32,a+120));
++  a[24]=(PAPACC_U8)(j+1);a[56]=(PAPACC_U8)(j+4);memset(a+88,0x66,32);a[88]=0x58;CHECK(hash(&owner,a+88,32,a+120));
+   a[152]=192;a[153]=0;a[154]=2;a[155]=(PAPACC_U8)(j+1);w16(a+168,5319);a[176]=17;w64(a+208,1);w64(a+216,1700000000);w64(a+224,1700003600);
+   a[232]=20;a[264]=21;a[296]=22;
+  }
+@@ -61,6 +62,12 @@
+   CHECK(pc_root8_v3_validate(e4,z4,hash,&owner,component3,NULL)!=PC_ROOT8_OK);CHECK(cp4());
+  }
+  CHECK(setup3(1,1,1));CHECK(upgrade4(3));CHECK(cp4());memcpy(save4,f4,n4);
++ {PAPACC_ROOT8_CARRIER_DATA context;PAPACC_U8 *keyrow=f4+r32(f4+276)+64U;
++ memset(&context,0,sizeof(context));context.owner=&owner;
++ CHECK(papacc_root8_issuer_carrier_data(NULL,9U,keyrow,384U,keyrow,f4)==PC_ROOT8_INCOMPLETE);
++ CHECK(papacc_root8_issuer_carrier_data(&context,9U,keyrow,384U,keyrow,f4)==PC_ROOT8_OK);
++ owner.stopped=1;CHECK(papacc_root8_issuer_carrier_data(&context,9U,keyrow,384U,keyrow,f4)==PC_ROOT8_INCOMPLETE);owner.stopped=0;
++ }
+  /* Signed status is policy DATA, never a positive source authority. */
+  for(state=0;state<=3;state++){memcpy(f4,save4,n4);memset(f4+r32(f4+56),0,512);w16(f4+r32(f4+276)+64U+16U,state);CHECK(seal4());}
+  memcpy(f4,save4,n4);memset(f4+r32(f4+56),0,512);CHECK(seal4());deny_source=1;CHECK(pc_root8_v4_validate(e4,z4,hash,&owner,component4,NULL)==PC_ROOT8_INCOMPLETE);deny_source=0;
+--- a/tests/config_root8_time_source_key_test.c
++++ b/tests/config_root8_time_source_key_test.c
+@@ -0,0 +1,56 @@
++#include "strict_ed25519.h"
++#include "config_root8_time_source_key.h"
++#include <stdio.h>
++#include <string.h>
++static unsigned checks,failures;
++static int row_check(const unsigned char *p,size_t n){
++ unsigned char row[384],header[512];PC_ROOT8_RESULT result;
++ if(!p||n!=32U)return papacc_time_source_ed25519_check(p,n);
++ memset(row,0,sizeof(row));memset(header,0,sizeof(header));
++ memcpy(row,"PACTSR01",8);row[8]=1;row[10]=128;row[11]=1;
++ memcpy(header,"PACROOT8",8);header[8]=4;memcpy(row+88,p,32);
++ result=pc_root8_time_source_key_data(NULL,9U,row,sizeof(row),row,header);
++ return result==PC_ROOT8_OK?PAPACC_ED25519_VALID:PAPACC_ED25519_INVALID;
++}
++#define CK(x) do { ++checks; if (!(x)) { ++failures; printf("FAIL line=%u\n",(unsigned)__LINE__); } } while(checks == 0)
++static int unhex(unsigned char *p,const char *s) { unsigned a,b; int n=0; while(s[0]&&s[1]) { a=(unsigned)(s[0]>='a'?s[0]-'a'+10:s[0]-'0'); b=(unsigned)(s[1]>='a'?s[1]-'a'+10:s[1]-'0'); if(a>15||b>15)return -1; p[n++]=(unsigned char)(a*16+b);s+=2;}return *s?-1:n; }
++static void key_tests(void) {
++ unsigned char k[64], saved[64]; size_t n; unsigned sign,j;
++ CK(unhex(k,"d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")==32);memset(k+32,0x55,32);memcpy(saved,k,64);
++ CK(row_check(k,32)==PAPACC_ED25519_VALID);
++ for(n=0;n<32;++n)CK(row_check(k,n)==PAPACC_ED25519_INVALID);
++ for(n=33;n<=64;++n)CK(row_check(k,n)==PAPACC_ED25519_INVALID);
++ CK(row_check(k,(size_t)-1)==PAPACC_ED25519_INVALID);
++ for(n=0;n<=64;++n)CK(row_check(NULL,n)==PAPACC_ED25519_INVALID);
++ CK(!memcmp(k,saved,64));
++ for(j=0;j<100;++j)CK(row_check(k,32)==PAPACC_ED25519_VALID);
++ CK(!memcmp(k,saved,64));
++ for(sign=0;sign<2;++sign) {
++  memset(k,0,32);k[0]=1;k[31]=(unsigned char)(sign*128);CK(row_check(k,32)==PAPACC_ED25519_INVALID);
++  memset(k,0xff,32);k[0]=0xec;k[31]=(unsigned char)(0x7f+sign*128);CK(row_check(k,32)==PAPACC_ED25519_INVALID);
++  memset(k,0,32);k[31]=(unsigned char)(sign*128);CK(row_check(k,32)==PAPACC_ED25519_INVALID);
++  memset(k,0,32);k[0]=2;k[31]=(unsigned char)(sign*128);CK(row_check(k,32)==PAPACC_ED25519_INVALID);
++  memset(k,0x99,32);k[0]=0x95;k[31]=(unsigned char)(0x19+sign*128);CK(row_check(k,32)==PAPACC_ED25519_INVALID);
++  for(j=0;j<19;++j) {memset(k,0xff,32);k[0]=(unsigned char)(0xed+j);k[31]=(unsigned char)(0x7f+sign*128);CK(row_check(k,32)==PAPACC_ED25519_INVALID);}
++  memset(k,0x66,32);k[0]=0x58;k[31]=(unsigned char)(0x66+sign*128);CK(row_check(k,32)==PAPACC_ED25519_VALID);
++ }
++}
++
++static void order8_tests(void) {
++ unsigned char p[32];
++ /* Independent public bytes: libsodium1.0.21 ref10 small-order blacklist.
++  * Only test DATA; no libsodium code or dependency incorporated. */
++ CK(unhex(p,"26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05")==32);
++ CK(row_check(p,32)==PAPACC_ED25519_INVALID);
++ p[31]^=128;CK(row_check(p,32)==PAPACC_ED25519_INVALID);
++ CK(unhex(p,"c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a")==32);
++ CK(row_check(p,32)==PAPACC_ED25519_INVALID);
++ p[31]^=128;CK(row_check(p,32)==PAPACC_ED25519_INVALID);
++ CK(unhex(p,"5252cc0a7f208133b620acbd4537eba2a4123bf0a8c2e4f980c3b31bb69765ea")==32);
++ CK(row_check(p,32)==PAPACC_ED25519_INVALID);
++ p[31]^=128;CK(row_check(p,32)==PAPACC_ED25519_INVALID);
++ CK(unhex(p,"da99e28ba529cdde35a25fba9059e78ecaee239f99755b9b1aa4f65df00803e2")==32);
++ CK(row_check(p,32)==PAPACC_ED25519_INVALID);
++ p[31]^=128;CK(row_check(p,32)==PAPACC_ED25519_INVALID);
++}
++int main(void){key_tests();order8_tests();printf("checks=%u failures=%u DATA_ONLY\n",checks,failures);return failures?1:0;}

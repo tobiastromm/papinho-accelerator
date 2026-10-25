@@ -1,0 +1,662 @@
+Microsoft (R) COFF/PE Dumper Version 14.51.36256.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file build\local-bootstrap-config-cli-20261019\Release\CMakeFiles\papacc_server.dir\apps\server\server_config_cli.c.obj
+
+File Type: COFF OBJECT
+
+__local_stdio_printf_options:
+  0000000000000000: 48 8D 05 00 00 00  lea         rax,[?_OptionsStorage@?1??__local_stdio_printf_options@@9@9]
+                    00
+  0000000000000007: C3                 ret
+
+_vfprintf_l:
+  0000000000000000: 40 53              push        rbx
+  0000000000000002: 55                 push        rbp
+  0000000000000003: 56                 push        rsi
+  0000000000000004: 57                 push        rdi
+  0000000000000005: 48 83 EC 38        sub         rsp,38h
+  0000000000000009: 49 8B D9           mov         rbx,r9
+  000000000000000C: 49 8B F8           mov         rdi,r8
+  000000000000000F: 48 8B F2           mov         rsi,rdx
+  0000000000000012: 48 8B E9           mov         rbp,rcx
+  0000000000000015: E8 00 00 00 00     call        __local_stdio_printf_options
+  000000000000001A: 4C 8B CF           mov         r9,rdi
+  000000000000001D: 48 89 5C 24 20     mov         qword ptr [rsp+20h],rbx
+  0000000000000022: 4C 8B C6           mov         r8,rsi
+  0000000000000025: 48 8B D5           mov         rdx,rbp
+  0000000000000028: 48 8B 08           mov         rcx,qword ptr [rax]
+  000000000000002B: FF 15 00 00 00 00  call        qword ptr [__imp___stdio_common_vfprintf]
+  0000000000000031: 48 83 C4 38        add         rsp,38h
+  0000000000000035: 5F                 pop         rdi
+  0000000000000036: 5E                 pop         rsi
+  0000000000000037: 5D                 pop         rbp
+  0000000000000038: 5B                 pop         rbx
+  0000000000000039: C3                 ret
+
+first_install_entry:
+  0000000000000000: 48 89 5C 24 08     mov         qword ptr [rsp+8],rbx
+  0000000000000005: 57                 push        rdi
+  0000000000000006: 48 83 EC 20        sub         rsp,20h
+  000000000000000A: 49 8B F8           mov         rdi,r8
+  000000000000000D: 48 8B DA           mov         rbx,rdx
+  0000000000000010: 83 F9 0B           cmp         ecx,0Bh
+  0000000000000013: 0F 85 94 00 00 00  jne         00000000000000AD
+  0000000000000019: 48 8B 4B 18        mov         rcx,qword ptr [rbx+18h]
+  000000000000001D: 48 8D 15 00 00 00  lea         rdx,[??_C@_09EGIAODBM@?9?9declare@]
+                    00
+  0000000000000024: E8 00 00 00 00     call        strcmp
+  0000000000000029: 85 C0              test        eax,eax
+  000000000000002B: 0F 85 7C 00 00 00  jne         00000000000000AD
+  0000000000000031: 48 8B 4B 20        mov         rcx,qword ptr [rbx+20h]
+  0000000000000035: 48 8D 15 00 00 00  lea         rdx,[??_C@_0M@GPMPHEAA@NEW_INSTALL@]
+                    00
+  000000000000003C: E8 00 00 00 00     call        strcmp
+  0000000000000041: 85 C0              test        eax,eax
+  0000000000000043: 75 68              jne         00000000000000AD
+  0000000000000045: 48 8B 4B 28        mov         rcx,qword ptr [rbx+28h]
+  0000000000000049: 48 8D 15 00 00 00  lea         rdx,[??_C@_08IOAGGDCI@?9?9source@]
+                    00
+  0000000000000050: E8 00 00 00 00     call        strcmp
+  0000000000000055: 85 C0              test        eax,eax
+  0000000000000057: 75 54              jne         00000000000000AD
+  0000000000000059: 48 8B 4B 38        mov         rcx,qword ptr [rbx+38h]
+  000000000000005D: 48 8D 15 00 00 00  lea         rdx,[??_C@_08KBALBLLA@?9?9parent@]
+                    00
+  0000000000000064: E8 00 00 00 00     call        strcmp
+  0000000000000069: 85 C0              test        eax,eax
+  000000000000006B: 75 40              jne         00000000000000AD
+  000000000000006D: 48 8B 4B 48        mov         rcx,qword ptr [rbx+48h]
+  0000000000000071: 48 8D 15 00 00 00  lea         rdx,[??_C@_0M@PEJGMNKN@?9?9container@]
+                    00
+  0000000000000078: E8 00 00 00 00     call        strcmp
+  000000000000007D: 85 C0              test        eax,eax
+  000000000000007F: 75 2C              jne         00000000000000AD
+  0000000000000081: 48 8B 53 30        mov         rdx,qword ptr [rbx+30h]
+  0000000000000085: 48 85 D2           test        rdx,rdx
+  0000000000000088: 74 23              je          00000000000000AD
+  000000000000008A: 38 02              cmp         byte ptr [rdx],al
+  000000000000008C: 74 1F              je          00000000000000AD
+  000000000000008E: 33 C0              xor         eax,eax
+  0000000000000090: 0F B6 0C 10        movzx       ecx,byte ptr [rax+rdx]
+  0000000000000094: 84 C9              test        cl,cl
+  0000000000000096: 74 35              je          00000000000000CD
+  0000000000000098: 80 F9 20           cmp         cl,20h
+  000000000000009B: 72 10              jb          00000000000000AD
+  000000000000009D: 80 F9 7F           cmp         cl,7Fh
+  00000000000000A0: 74 0B              je          00000000000000AD
+  00000000000000A2: 48 FF C0           inc         rax
+  00000000000000A5: 48 3D 03 01 00 00  cmp         rax,103h
+  00000000000000AB: 76 E3              jbe         0000000000000090
+  00000000000000AD: 48 8B D7           mov         rdx,rdi
+  00000000000000B0: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0DD@DJABFMKK@FIRST_INSTALL?$DNINVALID_DECLARATIO@]
+                    00
+  00000000000000B7: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  00000000000000BD: B8 01 00 00 00     mov         eax,1
+  00000000000000C2: 48 8B 5C 24 30     mov         rbx,qword ptr [rsp+30h]
+  00000000000000C7: 48 83 C4 20        add         rsp,20h
+  00000000000000CB: 5F                 pop         rdi
+  00000000000000CC: C3                 ret
+  00000000000000CD: 48 8B 53 40        mov         rdx,qword ptr [rbx+40h]
+  00000000000000D1: 48 85 D2           test        rdx,rdx
+  00000000000000D4: 74 D7              je          00000000000000AD
+  00000000000000D6: 80 3A 00           cmp         byte ptr [rdx],0
+  00000000000000D9: 74 D2              je          00000000000000AD
+  00000000000000DB: 33 C0              xor         eax,eax
+  00000000000000DD: 0F 1F 00           nop         dword ptr [rax]
+  00000000000000E0: 0F B6 0C 10        movzx       ecx,byte ptr [rax+rdx]
+  00000000000000E4: 84 C9              test        cl,cl
+  00000000000000E6: 74 17              je          00000000000000FF
+  00000000000000E8: 80 F9 20           cmp         cl,20h
+  00000000000000EB: 72 C0              jb          00000000000000AD
+  00000000000000ED: 80 F9 7F           cmp         cl,7Fh
+  00000000000000F0: 74 BB              je          00000000000000AD
+  00000000000000F2: 48 FF C0           inc         rax
+  00000000000000F5: 48 3D 03 01 00 00  cmp         rax,103h
+  00000000000000FB: 76 E3              jbe         00000000000000E0
+  00000000000000FD: EB AE              jmp         00000000000000AD
+  00000000000000FF: 48 8B 53 50        mov         rdx,qword ptr [rbx+50h]
+  0000000000000103: 48 85 D2           test        rdx,rdx
+  0000000000000106: 74 A5              je          00000000000000AD
+  0000000000000108: 80 3A 00           cmp         byte ptr [rdx],0
+  000000000000010B: 74 A0              je          00000000000000AD
+  000000000000010D: 33 C0              xor         eax,eax
+  000000000000010F: 90                 nop
+  0000000000000110: 0F B6 0C 10        movzx       ecx,byte ptr [rax+rdx]
+  0000000000000114: 84 C9              test        cl,cl
+  0000000000000116: 74 15              je          000000000000012D
+  0000000000000118: 80 F9 20           cmp         cl,20h
+  000000000000011B: 72 90              jb          00000000000000AD
+  000000000000011D: 80 F9 7F           cmp         cl,7Fh
+  0000000000000120: 74 8B              je          00000000000000AD
+  0000000000000122: 48 FF C0           inc         rax
+  0000000000000125: 48 83 F8 40        cmp         rax,40h
+  0000000000000129: 76 E5              jbe         0000000000000110
+  000000000000012B: EB 80              jmp         00000000000000AD
+  000000000000012D: 48 8B D7           mov         rdx,rdi
+  0000000000000130: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0PE@PDMDJLBF@NEW_INSTALL?$DNDECLARED_INPUT_ONLY?$DL@]
+                    00
+  0000000000000137: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  000000000000013D: 48 8B 5C 24 30     mov         rbx,qword ptr [rsp+30h]
+  0000000000000142: B8 02 00 00 00     mov         eax,2
+  0000000000000147: 48 83 C4 20        add         rsp,20h
+  000000000000014B: 5F                 pop         rdi
+  000000000000014C: C3                 ret
+
+first_install_span:
+  0000000000000000: 48 85 C9           test        rcx,rcx
+  0000000000000003: 74 29              je          000000000000002E
+  0000000000000005: 80 39 00           cmp         byte ptr [rcx],0
+  0000000000000008: 74 24              je          000000000000002E
+  000000000000000A: 33 C0              xor         eax,eax
+  000000000000000C: 0F 1F 40 00        nop         dword ptr [rax]
+  0000000000000010: 44 0F B6 04 08     movzx       r8d,byte ptr [rax+rcx]
+  0000000000000015: 45 84 C0           test        r8b,r8b
+  0000000000000018: 74 17              je          0000000000000031
+  000000000000001A: 41 80 F8 20        cmp         r8b,20h
+  000000000000001E: 72 0E              jb          000000000000002E
+  0000000000000020: 41 80 F8 7F        cmp         r8b,7Fh
+  0000000000000024: 74 08              je          000000000000002E
+  0000000000000026: 48 FF C0           inc         rax
+  0000000000000029: 48 3B C2           cmp         rax,rdx
+  000000000000002C: 76 E2              jbe         0000000000000010
+  000000000000002E: 33 C0              xor         eax,eax
+  0000000000000030: C3                 ret
+  0000000000000031: B8 01 00 00 00     mov         eax,1
+  0000000000000036: C3                 ret
+
+fprintf:
+  0000000000000000: 48 89 54 24 10     mov         qword ptr [rsp+10h],rdx
+  0000000000000005: 4C 89 44 24 18     mov         qword ptr [rsp+18h],r8
+  000000000000000A: 4C 89 4C 24 20     mov         qword ptr [rsp+20h],r9
+  000000000000000F: 53                 push        rbx
+  0000000000000010: 56                 push        rsi
+  0000000000000011: 57                 push        rdi
+  0000000000000012: 48 83 EC 30        sub         rsp,30h
+  0000000000000016: 48 8B FA           mov         rdi,rdx
+  0000000000000019: 48 8D 74 24 60     lea         rsi,[rsp+60h]
+  000000000000001E: 48 8B D9           mov         rbx,rcx
+  0000000000000021: E8 00 00 00 00     call        __local_stdio_printf_options
+  0000000000000026: 45 33 C9           xor         r9d,r9d
+  0000000000000029: 48 89 74 24 20     mov         qword ptr [rsp+20h],rsi
+  000000000000002E: 4C 8B C7           mov         r8,rdi
+  0000000000000031: 48 8B D3           mov         rdx,rbx
+  0000000000000034: 48 8B 08           mov         rcx,qword ptr [rax]
+  0000000000000037: FF 15 00 00 00 00  call        qword ptr [__imp___stdio_common_vfprintf]
+  000000000000003D: 48 83 C4 30        add         rsp,30h
+  0000000000000041: 5F                 pop         rdi
+  0000000000000042: 5E                 pop         rsi
+  0000000000000043: 5B                 pop         rbx
+  0000000000000044: C3                 ret
+
+papacc_server_config_cli:
+  0000000000000000: 48 89 5C 24 20     mov         qword ptr [rsp+20h],rbx
+  0000000000000005: 55                 push        rbp
+  0000000000000006: 56                 push        rsi
+  0000000000000007: 41 56              push        r14
+  0000000000000009: 48 83 EC 20        sub         rsp,20h
+  000000000000000D: 49 8B E9           mov         rbp,r9
+  0000000000000010: 4D 8B F0           mov         r14,r8
+  0000000000000013: 48 8B DA           mov         rbx,rdx
+  0000000000000016: 8B F1              mov         esi,ecx
+  0000000000000018: 83 F9 02           cmp         ecx,2
+  000000000000001B: 0F 8C 46 03 00 00  jl          0000000000000367
+  0000000000000021: 48 85 D2           test        rdx,rdx
+  0000000000000024: 0F 84 3D 03 00 00  je          0000000000000367
+  000000000000002A: 48 8B 4A 08        mov         rcx,qword ptr [rdx+8]
+  000000000000002E: 48 85 C9           test        rcx,rcx
+  0000000000000031: 0F 84 30 03 00 00  je          0000000000000367
+  0000000000000037: 45 33 C0           xor         r8d,r8d
+  000000000000003A: 48 8D 15 00 00 00  lea         rdx,[??_C@_06HEJKKHEK@config@]
+                    00
+  0000000000000041: 42 0F B6 04 01     movzx       eax,byte ptr [rcx+r8]
+  0000000000000046: 49 FF C0           inc         r8
+  0000000000000049: 42 3A 44 02 FF     cmp         al,byte ptr [rdx+r8-1]
+  000000000000004E: 0F 85 13 03 00 00  jne         0000000000000367
+  0000000000000054: 49 83 F8 07        cmp         r8,7
+  0000000000000058: 75 E7              jne         0000000000000041
+  000000000000005A: 4D 85 F6           test        r14,r14
+  000000000000005D: 74 29              je          0000000000000088
+  000000000000005F: 48 85 ED           test        rbp,rbp
+  0000000000000062: 74 24              je          0000000000000088
+  0000000000000064: 33 C9              xor         ecx,ecx
+  0000000000000066: 48 83 3C CB 00     cmp         qword ptr [rbx+rcx*8],0
+  000000000000006B: 74 1B              je          0000000000000088
+  000000000000006D: FF C1              inc         ecx
+  000000000000006F: 3B CE              cmp         ecx,esi
+  0000000000000071: 7C F3              jl          0000000000000066
+  0000000000000073: 83 FE 03           cmp         esi,3
+  0000000000000076: 7D 23              jge         000000000000009B
+  0000000000000078: 48 8B D5           mov         rdx,rbp
+  000000000000007B: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0BI@OMBMBGIH@CONFIG?$DNINVALID_COMMAND?6@]
+                    00
+  0000000000000082: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  0000000000000088: B8 01 00 00 00     mov         eax,1
+  000000000000008D: 48 8B 5C 24 58     mov         rbx,qword ptr [rsp+58h]
+  0000000000000092: 48 83 C4 20        add         rsp,20h
+  0000000000000096: 41 5E              pop         r14
+  0000000000000098: 5E                 pop         rsi
+  0000000000000099: 5D                 pop         rbp
+  000000000000009A: C3                 ret
+  000000000000009B: 48 89 7C 24 40     mov         qword ptr [rsp+40h],rdi
+  00000000000000A0: 48 8D 15 00 00 00  lea         rdx,[??_C@_0O@GOEGMKFP@first?9install@]
+                    00
+  00000000000000A7: 48 8B 7B 10        mov         rdi,qword ptr [rbx+10h]
+  00000000000000AB: 48 8B CF           mov         rcx,rdi
+  00000000000000AE: E8 00 00 00 00     call        strcmp
+  00000000000000B3: 85 C0              test        eax,eax
+  00000000000000B5: 0F 85 32 01 00 00  jne         00000000000001ED
+  00000000000000BB: 83 FE 0B           cmp         esi,0Bh
+  00000000000000BE: 0F 85 99 00 00 00  jne         000000000000015D
+  00000000000000C4: 48 8B 4B 18        mov         rcx,qword ptr [rbx+18h]
+  00000000000000C8: 48 8D 15 00 00 00  lea         rdx,[??_C@_09EGIAODBM@?9?9declare@]
+                    00
+  00000000000000CF: E8 00 00 00 00     call        strcmp
+  00000000000000D4: 85 C0              test        eax,eax
+  00000000000000D6: 0F 85 81 00 00 00  jne         000000000000015D
+  00000000000000DC: 48 8B 4B 20        mov         rcx,qword ptr [rbx+20h]
+  00000000000000E0: 48 8D 15 00 00 00  lea         rdx,[??_C@_0M@GPMPHEAA@NEW_INSTALL@]
+                    00
+  00000000000000E7: E8 00 00 00 00     call        strcmp
+  00000000000000EC: 85 C0              test        eax,eax
+  00000000000000EE: 75 6D              jne         000000000000015D
+  00000000000000F0: 48 8B 4B 28        mov         rcx,qword ptr [rbx+28h]
+  00000000000000F4: 48 8D 15 00 00 00  lea         rdx,[??_C@_08IOAGGDCI@?9?9source@]
+                    00
+  00000000000000FB: E8 00 00 00 00     call        strcmp
+  0000000000000100: 85 C0              test        eax,eax
+  0000000000000102: 75 59              jne         000000000000015D
+  0000000000000104: 48 8B 4B 38        mov         rcx,qword ptr [rbx+38h]
+  0000000000000108: 48 8D 15 00 00 00  lea         rdx,[??_C@_08KBALBLLA@?9?9parent@]
+                    00
+  000000000000010F: E8 00 00 00 00     call        strcmp
+  0000000000000114: 85 C0              test        eax,eax
+  0000000000000116: 75 45              jne         000000000000015D
+  0000000000000118: 48 8B 4B 48        mov         rcx,qword ptr [rbx+48h]
+  000000000000011C: 48 8D 15 00 00 00  lea         rdx,[??_C@_0M@PEJGMNKN@?9?9container@]
+                    00
+  0000000000000123: E8 00 00 00 00     call        strcmp
+  0000000000000128: 85 C0              test        eax,eax
+  000000000000012A: 75 31              jne         000000000000015D
+  000000000000012C: 48 8B 53 30        mov         rdx,qword ptr [rbx+30h]
+  0000000000000130: 48 85 D2           test        rdx,rdx
+  0000000000000133: 74 28              je          000000000000015D
+  0000000000000135: 38 02              cmp         byte ptr [rdx],al
+  0000000000000137: 74 24              je          000000000000015D
+  0000000000000139: 33 C0              xor         eax,eax
+  000000000000013B: 0F 1F 44 00 00     nop         dword ptr [rax+rax]
+  0000000000000140: 0F B6 0C 10        movzx       ecx,byte ptr [rax+rdx]
+  0000000000000144: 84 C9              test        cl,cl
+  0000000000000146: 74 2F              je          0000000000000177
+  0000000000000148: 80 F9 20           cmp         cl,20h
+  000000000000014B: 72 10              jb          000000000000015D
+  000000000000014D: 80 F9 7F           cmp         cl,7Fh
+  0000000000000150: 74 0B              je          000000000000015D
+  0000000000000152: 48 FF C0           inc         rax
+  0000000000000155: 48 3D 03 01 00 00  cmp         rax,103h
+  000000000000015B: 76 E3              jbe         0000000000000140
+  000000000000015D: 48 8B D5           mov         rdx,rbp
+  0000000000000160: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0DD@DJABFMKK@FIRST_INSTALL?$DNINVALID_DECLARATIO@]
+                    00
+  0000000000000167: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  000000000000016D: B8 01 00 00 00     mov         eax,1
+  0000000000000172: E9 7C 01 00 00     jmp         00000000000002F3
+  0000000000000177: 48 8B 53 40        mov         rdx,qword ptr [rbx+40h]
+  000000000000017B: 48 85 D2           test        rdx,rdx
+  000000000000017E: 74 DD              je          000000000000015D
+  0000000000000180: 80 3A 00           cmp         byte ptr [rdx],0
+  0000000000000183: 74 D8              je          000000000000015D
+  0000000000000185: 33 C0              xor         eax,eax
+  0000000000000187: 0F B6 0C 10        movzx       ecx,byte ptr [rax+rdx]
+  000000000000018B: 84 C9              test        cl,cl
+  000000000000018D: 74 17              je          00000000000001A6
+  000000000000018F: 80 F9 20           cmp         cl,20h
+  0000000000000192: 72 C9              jb          000000000000015D
+  0000000000000194: 80 F9 7F           cmp         cl,7Fh
+  0000000000000197: 74 C4              je          000000000000015D
+  0000000000000199: 48 FF C0           inc         rax
+  000000000000019C: 48 3D 03 01 00 00  cmp         rax,103h
+  00000000000001A2: 76 E3              jbe         0000000000000187
+  00000000000001A4: EB B7              jmp         000000000000015D
+  00000000000001A6: 48 8B 53 50        mov         rdx,qword ptr [rbx+50h]
+  00000000000001AA: 48 85 D2           test        rdx,rdx
+  00000000000001AD: 74 AE              je          000000000000015D
+  00000000000001AF: 80 3A 00           cmp         byte ptr [rdx],0
+  00000000000001B2: 74 A9              je          000000000000015D
+  00000000000001B4: 33 C0              xor         eax,eax
+  00000000000001B6: 0F B6 0C 10        movzx       ecx,byte ptr [rax+rdx]
+  00000000000001BA: 84 C9              test        cl,cl
+  00000000000001BC: 74 15              je          00000000000001D3
+  00000000000001BE: 80 F9 20           cmp         cl,20h
+  00000000000001C1: 72 9A              jb          000000000000015D
+  00000000000001C3: 80 F9 7F           cmp         cl,7Fh
+  00000000000001C6: 74 95              je          000000000000015D
+  00000000000001C8: 48 FF C0           inc         rax
+  00000000000001CB: 48 83 F8 40        cmp         rax,40h
+  00000000000001CF: 76 E5              jbe         00000000000001B6
+  00000000000001D1: EB 8A              jmp         000000000000015D
+  00000000000001D3: 48 8B D5           mov         rdx,rbp
+  00000000000001D6: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0PE@PDMDJLBF@NEW_INSTALL?$DNDECLARED_INPUT_ONLY?$DL@]
+                    00
+  00000000000001DD: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  00000000000001E3: B8 02 00 00 00     mov         eax,2
+  00000000000001E8: E9 06 01 00 00     jmp         00000000000002F3
+  00000000000001ED: 48 8D 15 00 00 00  lea         rdx,[??_C@_0P@OPIHINAE@show?9effective@]
+                    00
+  00000000000001F4: 48 8B CF           mov         rcx,rdi
+  00000000000001F7: E8 00 00 00 00     call        strcmp
+  00000000000001FC: 85 C0              test        eax,eax
+  00000000000001FE: 75 1F              jne         000000000000021F
+  0000000000000200: 83 FE 03           cmp         esi,3
+  0000000000000203: 75 1A              jne         000000000000021F
+  0000000000000205: 48 8B D5           mov         rdx,rbp
+  0000000000000208: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0EM@PCPOMMLJ@SHOW_EFFECTIVE?$DNUNAVAILABLE?$DL?5CURR@]
+                    00
+  000000000000020F: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  0000000000000215: B8 02 00 00 00     mov         eax,2
+  000000000000021A: E9 D4 00 00 00     jmp         00000000000002F3
+  000000000000021F: 4C 89 64 24 48     mov         qword ptr [rsp+48h],r12
+  0000000000000224: 48 8D 15 00 00 00  lea         rdx,[??_C@_08EBLJJHKN@validate@]
+                    00
+  000000000000022B: 48 8B CF           mov         rcx,rdi
+  000000000000022E: 4C 89 7C 24 50     mov         qword ptr [rsp+50h],r15
+  0000000000000233: E8 00 00 00 00     call        strcmp
+  0000000000000238: 4C 8D 3D 00 00 00  lea         r15,[??_C@_04GMLMBKFF@diff@]
+                    00
+  000000000000023F: 4C 8D 25 00 00 00  lea         r12,[??_C@_05KAEIDCAL@apply@]
+                    00
+  0000000000000246: 85 C0              test        eax,eax
+  0000000000000248: 74 3E              je          0000000000000288
+  000000000000024A: 33 C9              xor         ecx,ecx
+  000000000000024C: 0F 1F 40 00        nop         dword ptr [rax]
+  0000000000000250: 0F B6 04 0F        movzx       eax,byte ptr [rdi+rcx]
+  0000000000000254: 48 FF C1           inc         rcx
+  0000000000000257: 41 3A 44 0F FF     cmp         al,byte ptr [r15+rcx-1]
+  000000000000025C: 75 08              jne         0000000000000266
+  000000000000025E: 48 83 F9 05        cmp         rcx,5
+  0000000000000262: 75 EC              jne         0000000000000250
+  0000000000000264: EB 22              jmp         0000000000000288
+  0000000000000266: 33 C9              xor         ecx,ecx
+  0000000000000268: 0F 1F 84 00 00 00  nop         dword ptr [rax+rax]
+                    00 00
+  0000000000000270: 0F B6 04 0F        movzx       eax,byte ptr [rdi+rcx]
+  0000000000000274: 48 FF C1           inc         rcx
+  0000000000000277: 41 3A 44 0C FF     cmp         al,byte ptr [r12+rcx-1]
+  000000000000027C: 0F 85 CE 00 00 00  jne         0000000000000350
+  0000000000000282: 48 83 F9 06        cmp         rcx,6
+  0000000000000286: 75 E8              jne         0000000000000270
+  0000000000000288: 83 FE 05           cmp         esi,5
+  000000000000028B: 0F 85 BF 00 00 00  jne         0000000000000350
+  0000000000000291: 48 8B 4B 18        mov         rcx,qword ptr [rbx+18h]
+  0000000000000295: 48 8D 15 00 00 00  lea         rdx,[??_C@_08IOAGGDCI@?9?9source@]
+                    00
+  000000000000029C: E8 00 00 00 00     call        strcmp
+  00000000000002A1: 85 C0              test        eax,eax
+  00000000000002A3: 0F 85 A7 00 00 00  jne         0000000000000350
+  00000000000002A9: 4C 8B 4B 20        mov         r9,qword ptr [rbx+20h]
+  00000000000002AD: 41 38 01           cmp         byte ptr [r9],al
+  00000000000002B0: 0F 84 9A 00 00 00  je          0000000000000350
+  00000000000002B6: 33 C9              xor         ecx,ecx
+  00000000000002B8: 0F 1F 84 00 00 00  nop         dword ptr [rax+rax]
+                    00 00
+  00000000000002C0: 0F B6 04 0F        movzx       eax,byte ptr [rdi+rcx]
+  00000000000002C4: 48 FF C1           inc         rcx
+  00000000000002C7: 41 3A 44 0C FF     cmp         al,byte ptr [r12+rcx-1]
+  00000000000002CC: 75 38              jne         0000000000000306
+  00000000000002CE: 48 83 F9 06        cmp         rcx,6
+  00000000000002D2: 75 EC              jne         00000000000002C0
+  00000000000002D4: 48 8B D5           mov         rdx,rbp
+  00000000000002D7: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0GC@BHOGBJMB@APPLY?$DNDENY_UNTIL_QUALIFIED?$DL?5BOOT@]
+                    00
+  00000000000002DE: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  00000000000002E4: B8 02 00 00 00     mov         eax,2
+  00000000000002E9: 4C 8B 64 24 48     mov         r12,qword ptr [rsp+48h]
+  00000000000002EE: 4C 8B 7C 24 50     mov         r15,qword ptr [rsp+50h]
+  00000000000002F3: 48 8B 7C 24 40     mov         rdi,qword ptr [rsp+40h]
+  00000000000002F8: 48 8B 5C 24 58     mov         rbx,qword ptr [rsp+58h]
+  00000000000002FD: 48 83 C4 20        add         rsp,20h
+  0000000000000301: 41 5E              pop         r14
+  0000000000000303: 5E                 pop         rsi
+  0000000000000304: 5D                 pop         rbp
+  0000000000000305: C3                 ret
+  0000000000000306: 4C 8B C5           mov         r8,rbp
+  0000000000000309: 49 8B D6           mov         rdx,r14
+  000000000000030C: 49 8B C9           mov         rcx,r9
+  000000000000030F: E8 00 00 00 00     call        validate_source
+  0000000000000314: 8B D8              mov         ebx,eax
+  0000000000000316: 33 D2              xor         edx,edx
+  0000000000000318: 0F 1F 84 00 00 00  nop         dword ptr [rax+rax]
+                    00 00
+  0000000000000320: 0F B6 0C 17        movzx       ecx,byte ptr [rdi+rdx]
+  0000000000000324: 48 FF C2           inc         rdx
+  0000000000000327: 41 3A 4C 17 FF     cmp         cl,byte ptr [r15+rdx-1]
+  000000000000032C: 75 BB              jne         00000000000002E9
+  000000000000032E: 48 83 FA 05        cmp         rdx,5
+  0000000000000332: 75 EC              jne         0000000000000320
+  0000000000000334: 48 8B D5           mov         rdx,rbp
+  0000000000000337: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0DN@MPGOKLGJ@DIFF?$DNUNAVAILABLE?$DL?5CURRENT_PIN?$DNAB@]
+                    00
+  000000000000033E: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  0000000000000344: 33 C0              xor         eax,eax
+  0000000000000346: 83 FB 01           cmp         ebx,1
+  0000000000000349: 0F 95 C0           setne       al
+  000000000000034C: FF C0              inc         eax
+  000000000000034E: EB 99              jmp         00000000000002E9
+  0000000000000350: 48 8B D5           mov         rdx,rbp
+  0000000000000353: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0GG@HFJOGCOA@CONFIG?$DNINVALID_COMMAND?$DL?5EXPECTED@]
+                    00
+  000000000000035A: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  0000000000000360: B8 01 00 00 00     mov         eax,1
+  0000000000000365: EB 82              jmp         00000000000002E9
+  0000000000000367: 48 8B 5C 24 58     mov         rbx,qword ptr [rsp+58h]
+  000000000000036C: B8 FF FF FF FF     mov         eax,0FFFFFFFFh
+  0000000000000371: 48 83 C4 20        add         rsp,20h
+  0000000000000375: 41 5E              pop         r14
+  0000000000000377: 5E                 pop         rsi
+  0000000000000378: 5D                 pop         rbp
+  0000000000000379: C3                 ret
+
+papacc_server_config_cli_workspace_bytes:
+  0000000000000000: B8 10 0A 01 00     mov         eax,10A10h
+  0000000000000005: C3                 ret
+
+validate_source:
+  0000000000000000: 40 55              push        rbp
+  0000000000000002: 56                 push        rsi
+  0000000000000003: 41 54              push        r12
+  0000000000000005: 41 55              push        r13
+  0000000000000007: 48 8D AC 24 88 F6  lea         rbp,[rsp-10978h]
+                    FE FF
+  000000000000000F: B8 78 0A 01 00     mov         eax,10A78h
+  0000000000000014: E8 00 00 00 00     call        __chkstk
+  0000000000000019: 48 2B E0           sub         rsp,rax
+  000000000000001C: 48 8B 05 00 00 00  mov         rax,qword ptr [__security_cookie]
+                    00
+  0000000000000023: 48 33 C4           xor         rax,rsp
+  0000000000000026: 48 89 85 50 09 01  mov         qword ptr [rbp+10950h],rax
+                    00
+  000000000000002D: 4C 8B EA           mov         r13,rdx
+  0000000000000030: 4D 8B E0           mov         r12,r8
+  0000000000000033: 48 8B D1           mov         rdx,rcx
+  0000000000000036: 4C 8D 05 00 00 00  lea         r8,[??_C@_02JDPG@rb@]
+                    00
+  000000000000003D: 33 F6              xor         esi,esi
+  000000000000003F: 48 8D 4C 24 30     lea         rcx,[rsp+30h]
+  0000000000000044: 48 89 74 24 30     mov         qword ptr [rsp+30h],rsi
+  0000000000000049: FF 15 00 00 00 00  call        qword ptr [__imp_fopen_s]
+  000000000000004F: 85 C0              test        eax,eax
+  0000000000000051: 74 07              je          000000000000005A
+  0000000000000053: 48 89 74 24 30     mov         qword ptr [rsp+30h],rsi
+  0000000000000058: EB 0A              jmp         0000000000000064
+  000000000000005A: 4C 8B 4C 24 30     mov         r9,qword ptr [rsp+30h]
+  000000000000005F: 4D 85 C9           test        r9,r9
+  0000000000000062: 75 1A              jne         000000000000007E
+  0000000000000064: 49 8B D4           mov         rdx,r12
+  0000000000000067: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0CG@JFKMHKDD@SOURCE?$DNUNAVAILABLE?$DL?5CURRENT?$DNNOT_@]
+                    00
+  000000000000006E: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  0000000000000074: B8 01 00 00 00     mov         eax,1
+  0000000000000079: E9 7D 01 00 00     jmp         00000000000001FB
+  000000000000007E: 48 89 9C 24 B8 0A  mov         qword ptr [rsp+10AB8h],rbx
+                    01 00
+  0000000000000086: 48 8D 8D 28 E9 00  lea         rcx,[rbp+0E928h]
+                    00
+  000000000000008D: BA 01 00 00 00     mov         edx,1
+  0000000000000092: 48 89 BC 24 70 0A  mov         qword ptr [rsp+10A70h],rdi
+                    01 00
+  000000000000009A: 41 B8 01 20 00 00  mov         r8d,2001h
+  00000000000000A0: FF 15 00 00 00 00  call        qword ptr [__imp_fread]
+  00000000000000A6: 48 8B 4C 24 30     mov         rcx,qword ptr [rsp+30h]
+  00000000000000AB: 48 8B F8           mov         rdi,rax
+  00000000000000AE: FF 15 00 00 00 00  call        qword ptr [__imp_ferror]
+  00000000000000B4: 48 8B 4C 24 30     mov         rcx,qword ptr [rsp+30h]
+  00000000000000B9: 8B D8              mov         ebx,eax
+  00000000000000BB: FF 15 00 00 00 00  call        qword ptr [__imp_fclose]
+  00000000000000C1: 0B D8              or          ebx,eax
+  00000000000000C3: 0F 85 DF 01 00 00  jne         00000000000002A8
+  00000000000000C9: 0F 57 C0           xorps       xmm0,xmm0
+  00000000000000CC: 4C 8D 8D 30 09 01  lea         r9,[rbp+10930h]
+                    00
+  00000000000000D3: 33 C0              xor         eax,eax
+  00000000000000D5: 4C 8D 44 24 40     lea         r8,[rsp+40h]
+  00000000000000DA: 48 8B D7           mov         rdx,rdi
+  00000000000000DD: 48 89 85 40 09 01  mov         qword ptr [rbp+10940h],rax
+                    00
+  00000000000000E4: 48 8D 8D 28 E9 00  lea         rcx,[rbp+0E928h]
+                    00
+  00000000000000EB: 0F 11 85 30 09 01  movups      xmmword ptr [rbp+10930h],xmm0
+                    00
+  00000000000000F2: E8 00 00 00 00     call        pc_parse
+  00000000000000F7: 44 8B C0           mov         r8d,eax
+  00000000000000FA: 85 C0              test        eax,eax
+  00000000000000FC: 0F 85 62 01 00 00  jne         0000000000000264
+  0000000000000102: 4C 8D 85 30 09 01  lea         r8,[rbp+10930h]
+                    00
+  0000000000000109: 48 C7 85 48 09 01  mov         qword ptr [rbp+10948h],1
+                    00 01 00 00 00
+  0000000000000114: 48 8D 95 48 09 01  lea         rdx,[rbp+10948h]
+                    00
+  000000000000011B: 48 8D 4C 24 40     lea         rcx,[rsp+40h]
+  0000000000000120: E8 00 00 00 00     call        pc_validate
+  0000000000000125: 44 8B C0           mov         r8d,eax
+  0000000000000128: 85 C0              test        eax,eax
+  000000000000012A: 0F 85 34 01 00 00  jne         0000000000000264
+  0000000000000130: 4C 89 B4 24 68 0A  mov         qword ptr [rsp+10A68h],r14
+                    01 00
+  0000000000000138: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0EB@OPJMLDMF@SOURCE?$DNVALIDATED?$DL?5MODEL_BOUND?$DNNO@]
+                    00
+  000000000000013F: 49 8B D5           mov         rdx,r13
+  0000000000000142: 4C 89 BC 24 60 0A  mov         qword ptr [rsp+10A60h],r15
+                    01 00
+  000000000000014A: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  0000000000000150: 44 8B 74 24 4C     mov         r14d,dword ptr [rsp+4Ch]
+  0000000000000155: 8B DE              mov         ebx,esi
+  0000000000000157: 45 85 F6           test        r14d,r14d
+  000000000000015A: 74 49              je          00000000000001A5
+  000000000000015C: 0F 1F 40 00        nop         dword ptr [rax]
+  0000000000000160: 8B C3              mov         eax,ebx
+  0000000000000162: 48 8D 74 24 64     lea         rsi,[rsp+64h]
+  0000000000000167: 48 69 F8 6C 02 00  imul        rdi,rax,26Ch
+                    00
+  000000000000016E: 48 8D 15 00 00 00  lea         rdx,[??_C@_0N@IHLOOOGC@provider_ref@]
+                    00
+  0000000000000175: 48 03 F7           add         rsi,rdi
+  0000000000000178: 48 8B CE           mov         rcx,rsi
+  000000000000017B: E8 00 00 00 00     call        strcmp
+  0000000000000180: 44 8B F8           mov         r15d,eax
+  0000000000000183: 85 C0              test        eax,eax
+  0000000000000185: 0F 84 8D 00 00 00  je          0000000000000218
+  000000000000018B: 48 8D 15 00 00 00  lea         rdx,[??_C@_0O@NLDIJAJG@interface_ref@]
+                    00
+  0000000000000192: 48 8B CE           mov         rcx,rsi
+  0000000000000195: E8 00 00 00 00     call        strcmp
+  000000000000019A: 85 C0              test        eax,eax
+  000000000000019C: 74 7A              je          0000000000000218
+  000000000000019E: FF C3              inc         ebx
+  00000000000001A0: 41 3B DE           cmp         ebx,r14d
+  00000000000001A3: 72 BB              jb          0000000000000160
+  00000000000001A5: 83 7C 24 50 00     cmp         dword ptr [rsp+50h],0
+  00000000000001AA: 0F 84 9D 00 00 00  je          000000000000024D
+  00000000000001B0: 8B 85 DC E7 00 00  mov         eax,dword ptr [rbp+0E7DCh]
+  00000000000001B6: 48 8D 15 00 00 00  lea         rdx,[??_C@_0FA@NFEABCED@REFERENCES?$DNUNRESOLVED?5line?$DN?$CFu?5co@]
+                    00
+  00000000000001BD: 4C 69 C0 6C 02 00  imul        r8,rax,26Ch
+                    00
+  00000000000001C4: 49 8B CC           mov         rcx,r12
+  00000000000001C7: 46 8B 4C 05 A8     mov         r9d,dword ptr [rbp+r8-58h]
+  00000000000001CC: 46 8B 44 04 58     mov         r8d,dword ptr [rsp+r8+58h]
+  00000000000001D1: E8 00 00 00 00     call        fprintf
+  00000000000001D6: B8 02 00 00 00     mov         eax,2
+  00000000000001DB: 4C 8B BC 24 60 0A  mov         r15,qword ptr [rsp+10A60h]
+                    01 00
+  00000000000001E3: 4C 8B B4 24 68 0A  mov         r14,qword ptr [rsp+10A68h]
+                    01 00
+  00000000000001EB: 48 8B 9C 24 B8 0A  mov         rbx,qword ptr [rsp+10AB8h]
+                    01 00
+  00000000000001F3: 48 8B BC 24 70 0A  mov         rdi,qword ptr [rsp+10A70h]
+                    01 00
+  00000000000001FB: 48 8B 8D 50 09 01  mov         rcx,qword ptr [rbp+10950h]
+                    00
+  0000000000000202: 48 33 CC           xor         rcx,rsp
+  0000000000000205: E8 00 00 00 00     call        __security_check_cookie
+  000000000000020A: 48 81 C4 78 0A 01  add         rsp,10A78h
+                    00
+  0000000000000211: 41 5D              pop         r13
+  0000000000000213: 41 5C              pop         r12
+  0000000000000215: 5E                 pop         rsi
+  0000000000000216: 5D                 pop         rbp
+  0000000000000217: C3                 ret
+  0000000000000218: 44 8B 4C 3D A8     mov         r9d,dword ptr [rbp+rdi-58h]
+  000000000000021D: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0BG@HJFEJDD@AUTH_PROVIDER_PENDING@]
+                    00
+  0000000000000224: 44 8B 44 3C 58     mov         r8d,dword ptr [rsp+rdi+58h]
+  0000000000000229: 48 8D 05 00 00 00  lea         rax,[??_C@_0CB@KFEAJIEM@INTERFACE_TOPOLOGY_NOT_QUALIFIED@]
+                    00
+  0000000000000230: 45 85 FF           test        r15d,r15d
+  0000000000000233: 48 8D 15 00 00 00  lea         rdx,[??_C@_0CN@GCJLAFDP@REFERENCES?$DNDENY?5line?$DN?$CFu?5column?$DN?$CF@]
+                    00
+  000000000000023A: 48 0F 44 C1        cmove       rax,rcx
+  000000000000023E: 49 8B CC           mov         rcx,r12
+  0000000000000241: 48 89 44 24 20     mov         qword ptr [rsp+20h],rax
+  0000000000000246: E8 00 00 00 00     call        fprintf
+  000000000000024B: EB 89              jmp         00000000000001D6
+  000000000000024D: 49 8B D5           mov         rdx,r13
+  0000000000000250: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0EG@ICJJHGPN@REFERENCES?$DNNOT_APPLICABLE?$DL?5VALID@]
+                    00
+  0000000000000257: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  000000000000025D: 33 C0              xor         eax,eax
+  000000000000025F: E9 77 FF FF FF     jmp         00000000000001DB
+  0000000000000264: 48 8B 8D 40 09 01  mov         rcx,qword ptr [rbp+10940h]
+                    00
+  000000000000026B: 48 8D 05 00 00 00  lea         rax,[??_C@_0M@MFMDLEDN@unspecified@]
+                    00
+  0000000000000272: 44 8B 8D 34 09 01  mov         r9d,dword ptr [rbp+10934h]
+                    00
+  0000000000000279: 48 8D 15 00 00 00  lea         rdx,[??_C@_0DE@IJEDMKPI@SOURCE?$DNINVALID?5code?$DN?$CFu?5line?$DN?$CFu?5c@]
+                    00
+  0000000000000280: 48 85 C9           test        rcx,rcx
+  0000000000000283: 48 0F 45 C1        cmovne      rax,rcx
+  0000000000000287: 49 8B CC           mov         rcx,r12
+  000000000000028A: 48 89 44 24 28     mov         qword ptr [rsp+28h],rax
+  000000000000028F: 8B 85 38 09 01 00  mov         eax,dword ptr [rbp+10938h]
+  0000000000000295: 89 44 24 20        mov         dword ptr [rsp+20h],eax
+  0000000000000299: E8 00 00 00 00     call        fprintf
+  000000000000029E: B8 01 00 00 00     mov         eax,1
+  00000000000002A3: E9 43 FF FF FF     jmp         00000000000001EB
+  00000000000002A8: 49 8B D4           mov         rdx,r12
+  00000000000002AB: 48 8D 0D 00 00 00  lea         rcx,[??_C@_0DK@OHONMJGK@SOURCE?$DNIO_INCOMPLETE?$DL?5CLOSE_NOT_@]
+                    00
+  00000000000002B2: FF 15 00 00 00 00  call        qword ptr [__imp_fputs]
+  00000000000002B8: B8 01 00 00 00     mov         eax,1
+  00000000000002BD: E9 29 FF FF FF     jmp         00000000000001EB
+
+  Summary
+
+         250 .chks64
+          E4 .debug$S
+          2F .drectve
+          C0 .pdata
+         4F5 .rdata
+         84D .text$mn
+         140 .xdata

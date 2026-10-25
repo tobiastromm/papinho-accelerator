@@ -1,0 +1,72 @@
+--- a/docs/adr/ADR-CANDIDATE-authenticated-time-source.md
++++ b/AT0-AT9-REVISION2-PROPOSED.md
+@@ -1,6 +1,6 @@
+ ---
+ status: proposed
+-revision: 1
++revision: 2
+ decision-date: 2026-10-21
+ scope-level: project
+ scope-target: authenticated time source under Q0-Q7
+@@ -8,9 +8,11 @@
+ ---
+ # Candidate: authenticated UTC observations through the existing issuer backend
+ 
+-TASK=PACC-PHASE6-AUTHENTICATED-TIME-SOURCE-REVIEW-1. AT0-AT9 is PROPOSED for owner review,not ACCEPTED or an implementation authorization. Q0-Q7,issuer,U0-U7,E0-E8,root/C8,Model E and ED08/ED11 remain unchanged. No concrete protocol/API/codec/source is selected. External primary specifications were not available locally and no network was used;exact protocol review remains a gate.
++TASK=PACC-PHASE6-AUTHENTICATED-TIME-AT0-AT9-REVIEW-1. AT0-AT9 is PROPOSED for owner review,not ACCEPTED or an implementation authorization. Q0-Q7,issuer,U0-U7,E0-E8,root/C8,Model E and ED08/ED11 remain unchanged. No concrete protocol/API/codec/source is selected. Relevant official protocol sections were reviewed as documented in verified-references.json. Documentary HTTPS research is distinct from operational time traffic. Full concrete-profile/implementation/errata qualification remains a gate;no source is qualified by this review.
+ 
+ ## AT0 Direction
++
++Evidence refinement: prioritize R1 in protocol-matrix.md for the next protocol-profile review. No provider is selected. Preserve the complete referenced security model;do not silently reduce the assurance model to one signer or claim a measured footprint advantage.
+ 
+ Prefer investigating B: an EXISTING protocol for fresh signed UTC interval evidence,acquired on demand from an explicitly trusted deployment source and verified through the administrative issuer backend. This is a candidate for the smallest conceptual integration,not measured proof of smallest code/memory cost. Do not invent a signed JSON/blob/protocol. NTS remains alternative A if its deployed backend offers better evidence or reuse;qualified existing local hardware may be preferable where already present. No new server/service is authorized.
+ 
+@@ -22,15 +24,21 @@
+ 
+ ## AT2 Independent bootstrap
+ 
++The source key must be independently bound to the same administrative root/policy before any positive observation. Source credential replacement or withdrawal requires a governed configuration revision,not reply-driven enrollment. No protocol delegation or claimed time by itself proves current administrative trust/revocation status. Unknown/compromised source status denies;offline operation cannot silently waive status freshness. No general trust store is introduced.
++
+ Establish source verification identity through an approved administrative ceremony and protected canonical configuration,independent of the observation under validation. Never use the response key or TLS certificate as its sole anchor. Do not bypass certificate dates using unqualified OS time. A source credential/status path requiring qualified UTC needs independently justified bootstrap;it cannot establish its authority solely by its own observation. Bare-key or other trust modes need exact protocol/trust review;none is implicitly authorized. Existing bootstrap/CURRENT/recovery guards remain distinct and currently block operational installation where facts are absent.
+ 
+ ## AT3 Freshness/replay
++
++Treat an acquisition campaign as distinct from an individual packet. Preserve every request/response and causal correlation required by the selected protocol until verification/quiescence;serial transport alone does not prove that earlier evidence storage can be reused. Signed-data freshness and freshness of the underlying time reading are separate obligations. Use the selected existing protocol rules rather than inventing a new challenge envelope.
+ 
+ A concrete existing-protocol profile must authenticate complete response semantics,source identity and request correlation. Require a fresh unpredictable challenge from qualified entropy,one outstanding operation association,strict matching and governed single consumption. Exact challenge representation/length,generation,algorithms,signed fields,limits and replay rules come from separate profile review;no defaults here. Signing a nonce alone does not prove UTC was freshly sampled:causal capture semantics must be established by protocol and source qualification.
+ 
+ Old signed evidence is auditable DATA,not current time. Offline imported tokens without proved freshness/bounded age are denied. Restart/VM restore/clone/entropy reuse need replay/fencing analysis;no new journal or restored observation authority.
+ 
+ ## AT4 Absolute bounds
++
++The acquisition example below is a conditional inclusion proof,not a claim that cryptography establishes clock correctness. Prove the source reading time is inside the locally bracketed interval;cover quantization,scale conversion and verification delay without underflow/overflow. Distinguish native protocol interval endpoint rules from issuer/X509 [notBefore,notAfter) rules. Missing source calibration/health,qualified PAL or endpoint conversion invalidates the proof.
+ 
+ Qualify finite UTC error,scale,units,quantization,health and applicability,not merely cryptography. A signed error is an authenticated assertion;accuracy still requires deployment qualification. Define conservative exact conversion for era,leap/smear and native representation. Ambiguity/overflow denies;no silent scale conversion,grace or backdating.
+ 
+@@ -44,6 +52,8 @@
+ 
+ ## AT6 Continuity/rollback
+ 
++A valid delegation interval is not evidence that its private key was never compromised. Independent key status/rotation/withdrawal and source trust revisions remain required. Disagreement handling cannot be replaced by picking a favorable response or assumed majority accuracy. Root freshness,fencing and source replay history remain distinct;no state restoration through signed archives.
++
+ Use existing owner history and qualified continuity events. Manual wall-clock changes do not replace source time. Monotonic/native UTC regression,inconsistent intervals,source/key/config/revision change,expired quality,suspension/resume without continuity proof and UNKNOWN invalidate. Require requalification/new operation,no retry until favorable. Restart restores neither observation,CURRENT,UPDATE approval nor high-water/fencing. Signed history/hardware counters do not establish latest root revision.
+ 
+ ## AT7 Ownership/Stop
+@@ -54,12 +64,16 @@
+ 
+ ## AT8 Profile/ED11 gates
+ 
++Review record R1-R7 distinguishes verified protocol evidence from project requirements. Exact parser/profile validation,full primary-text byte archive and complete errata/update review are still prerequisites to implementation acceptance. Count all campaign transcripts and status/rotation evidence,including retained intermediates;no resource limit is inferred from a small base message.
++
+ Before implementation:local primary specification and exact version/errata;existing protocol/provider selection;algorithms,trust bootstrap,challenge/entropy/replay,authenticated domain,endpoint/transport policy,encoding/limits/errors/deadlines;qualified error/PAL;root binding/layout if needed;C89/VC6/platform/lifetime proof;full transitive ED11. None is accepted by this candidate.
+ 
+ Count transport/TLS or signature state,credentials/keys,entropy,proofs/transcripts,cookies where applicable,parsers,request/response,history,snapshots/pins,stack/provider/kernel and retention. Reuse is not zero cost. Windows3MiB only explicit,legacy/other/per-client limits intact. Full conservative scenario already exceeds3MiB. No allocation/quota authorized;relative A/B/C costs remain unmeasured.
+ 
+ ## AT9 Owner decision
+ 
++Revision2 is a separate proposed artifact with exact corrections.patch against the preserved Revision1. It is not incorporated into any accepted ADR. Documentary references refine the recommendation,not operational authority. Candidate-profile questions are listed in protocol-profile-PROPOSED.md;all unresolved mandatory items keep NOT_SUPPORTED.
++
+ Request architecture direction,preferably B subject to the above gates,or A/C with equivalent evidence. Later acceptance must follow governance and cannot be treated as profile/source/implementation qualification. No new wire,source configuration,root layout,clock adjustment,sync service or production effect. Missing evidence returns NOT_SUPPORTED. All current authority/admission gates remain DENY.
+ 
+-[Comparison](../integration/authenticated-time-source-review-20261021/comparison-and-risks.md) and [plan](../integration/authenticated-time-source-review-20261021/minimum-plan-and-open-gates.md) are review evidence,not accepted protocol contracts.
++[Protocol matrix](protocol-matrix.md) and [review/plan](review-bootstrap-and-plan.md) are review evidence,not accepted protocol contracts.

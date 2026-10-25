@@ -1,0 +1,13 @@
+PS C:\WINDOWS\system32> Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+PS C:\WINDOWS\system32> & "C:\Projetos\PapinhoAccelerator\tools\qualification\scm-n0-protected-single-powershell.ps1" -Mode Cycle -Profile Q4TokenDiagnostic -ExpectedScriptSha256 e90e033d483d9431b89eb4e42f712f4e7a5154b7909ea204732ea6912927d78b -ExactApprovalSha256 51ffb049a926d6725a688724e5998ea0118dc4dbd4d95f9dc7664ea12022bd85
+OPERATION=N0TOKEN-20261025-01; MODE=Cycle; N0-N9; ATTEMPT=10584f02e11f92c92b43cddf0d9d316f; auxiliary PID=22016 creation=134374396866905034
+ONE LAB: consume intent; exclusive image and sink; explicit rebind; ONE Start; at most ONE safe Stop; partial effects retained. No ACL remediation/delete/rollback/retry. Separate owner approval REQUIRED.
+Type exactly: START_N0_SINGLE_LAB N0TOKEN-20261025-01 10584f02e11f92c92b43cddf0d9d316f 22016 134374396866905034
+START_N0_SINGLE_LAB N0TOKEN-20261025-01 10584f02e11f92c92b43cddf0d9d316f 22016 134374396866905034
+IG_QUALIFIER_INSTANCE pid=20880 creation=31286477:1559355782; ATTEMPT=10584f02e11f92c92b43cddf0d9d316f; POLICY=ACCEPTED; AUTHORITY=NONE
+IG_DIAGNOSTIC stage=SCM_READBACK api=gate_or_uninstrumented_api resource=qualifier code=13 native=13 pid=0 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY
+IG_FINAL stage=SCM_READBACK first=13 close=0 starts=0 stops=0 quiescent=0 intent_consumed=0 effect=0 diagnostic_created=0; ED11=PARTIAL; CREDITS=NONE_GRANTED; NO_RETRY_NO_DELETE
+TRANSPORT_LOCAL_CLOSE=CONFIRMED; pid=20880 creation=134374397081411974 first=0 retained=0
+Qualifier returned with factual final close receipt. F10 returns to this existing operator console; no retry.
+N0_CYCLE_EXIT=2; START_RESULT=SEE_NATIVE_RECEIPT; ED11=PARTIAL; PRODUCT_AUTHORITY=DENY
+PS C:\WINDOWS\system32>

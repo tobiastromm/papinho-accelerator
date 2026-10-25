@@ -1,0 +1,33 @@
+{
+    "kind":  "interactive",
+    "PSVersion":  "5.1.19041.6456",
+    "PSEdition":  "Desktop",
+    "input_redirected":  false,
+    "output_redirected":  false,
+    "default_encoding":  "ibm850",
+    "transcript_host":  true,
+    "transcript_console":  false,
+    "information_host":  true,
+    "information_console":  false,
+    "native_protocol":  {
+                            "stdout_decoder":  "Existing Process.StandardOutput unchanged",
+                            "ASCII":  "Protocol strings unchanged",
+                            "Unicode_managed":  "Covered by loop StringWriter fixture",
+                            "default_encoding_changed_by_product":  false
+                        },
+    "native_input_mode":  true,
+    "native_output_mode":  true,
+    "screen_read_ok":  true,
+    "screen_text":  "ASCII ação ?? ??                                            ",
+    "screen_contains_expected":  false,
+    "write_host_unicode":  "ASCII ação 漢字 😀                                          ",
+    "write_host_unicode_exact":  true,
+    "ascii_hex_protocol_exact":  true,
+    "fixture_utf8_unicode":  "ASCII ação 漢字 😀                                          ",
+    "fixture_utf8_unicode_exact":  true,
+    "fixture_only_encoding_change":  "Not applied to product; proves encoding precondition, not a new authority or operational gate",
+    "detached":  true,
+    "console_loss_test":  "FreeConsole detach only;not CTRL_CLOSE_EVENT or proof of governed cleanup",
+    "after_detach_direct":  "System.Management.Automation.MethodInvocationException: Exceção ao chamar \"WriteLine\" com \"1\" argumento(s): \"Identificador inválido.\r\n\" ---\u003e System.IO.IOException: Identificador inválido.\r\n\r\n   em System.IO.__Error.WinIOError(Int32 errorCode, String maybeFullPath)\r\n   em System.IO.__ConsoleStream.Write(Byte[] buffer, Int32 offset, Int32 count)\r\n   em System.IO.StreamWriter.Flush(Boolean flushStream, Boolean flushEncoder)\r\n   em System.IO.StreamWriter.Write(Char[] buffer, Int32 index, Int32 count)\r\n   em System.IO.TextWriter.SyncTextWriter.WriteLine(String value)\r\n   em CallSite.Target(Closure , CallSite , TextWriter , String )\r\n   --- Fim do rastreamento de pilha de exceções internas ---\r\n   em System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)\r\n   em System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)\r\n   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)\r\n   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)",
+    "after_detach_host":  "System.Management.Automation.Host.HostException: Erro interno \"Identificador inválido\" 0x6 do Win32 ao obter o modo do console. Contate o Microsoft Customer Support Services. ---\u003e System.ComponentModel.Win32Exception: Identificador inválido\r\n   --- Fim do rastreamento de pilha de exceções internas ---\r\n   em Microsoft.PowerShell.ConsoleControl.GetMode(SafeFileHandle consoleHandle)\r\n   em Microsoft.PowerShell.ConsoleHostUserInterface.WriteToConsole(String value, Boolean transcribeResult)\r\n   em Microsoft.PowerShell.ConsoleHostUserInterface.WriteLine(String value)\r\n   em System.Management.Automation.MshCommandRuntime.WriteInformation(InformationRecord record, Boolean overrideInquire)\r\n   em System.Management.Automation.Cmdlet.WriteInformation(Object messageData, String[] tags)\r\n   em Microsoft.PowerShell.Commands.WriteHostCommand.ProcessRecord()\r\n   em System.Management.Automation.CommandProcessor.ProcessRecord()"
+}

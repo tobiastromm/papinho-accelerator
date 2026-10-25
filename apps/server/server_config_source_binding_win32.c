@@ -99,6 +99,7 @@ PAPACC_RESULT papacc_server_config_initial_bootstrap_commit(PAPACC_SERVER_LAUNCH
 {
  PAPACC_BOOTSTRAP_RESOLUTION resolved;PC_DIAGNOSTIC diagnostic;PAPACC_CONFIG_VIEW expected;
  PAPACC_CONFIGURATION_COMMIT *c;const PC_LINE *line;unsigned length;PAPACC_SIZE minimum;
+ PAPACC_U8 expected_body[1024];
  if(!o||!image||bytes<PC_ROOT8_MIN||bytes>PC_ROOT8_NO_ISSUER_MAX)return PAPACC_RESULT_INVALID_ARGUMENT;
  if((ULONG_PTR)image<=(ULONG_PTR)o? (ULONG_PTR)o-(ULONG_PTR)image<bytes:
     (ULONG_PTR)image-(ULONG_PTR)o<sizeof(*o))return PAPACC_RESULT_INVALID_ARGUMENT;
@@ -109,17 +110,16 @@ PAPACC_RESULT papacc_server_config_initial_bootstrap_commit(PAPACC_SERVER_LAUNCH
   * pair, receipt and native scratch. No omitted retained caller graph. */
  minimum=sizeof(PC_DOCUMENT)+PC_SOURCE_MAX+sizeof(PAPACC_BOOTSTRAP_RESOLUTION)+
   sizeof(PC_DIAGNOSTIC)+sizeof(const PAPACC_SERVER_CONFIG *)+16384U+
-  PC_ROOT8_NO_ISSUER_FIELDS+PC_ROOT8_NO_ISSUER_MAX+128U+4096U;
+  PC_ROOT8_NO_ISSUER_FIELDS+PC_ROOT8_NO_ISSUER_MAX+128U+4096U+sizeof(expected_body);
  if(minimum>PAPACC_ED11_PROCESS_LIMIT||o->configuration_preparation.combined_reserved>PAPACC_ED11_PROCESS_LIMIT-minimum||
     reserved<o->configuration_preparation.combined_reserved+minimum)return PAPACC_RESULT_LIMIT_EXCEEDED;
  /* Enforce the current one-listener target, never truncate a collection. */
  if(image[20]!=1U||image[21]||!doc||doc->listener_count!=1U)return PAPACC_RESULT_NOT_SUPPORTED;
  expected=o->configuration_preparation.model;memcpy(expected.domain,c->domain,32U);
  expected.revision=1U;expected.predecessor=0U;expected.policy_epoch=0U;
- /* observed is exclusively reusable after custody worker has signaled/closed;
-  * future commit worker overwrites it only after this function hands off. */
- if(papacc_configuration_body05_encode(&expected,c->pending_commit.observed,1024U)!=PAPACC_RESULT_OK||
-    memcmp(image+1024U,c->pending_commit.observed,1024U))return PAPACC_RESULT_INVALID_ARGUMENT;
+ /* Local synchronous BODY05 scratch; no borrow escapes to the worker. */
+ if(papacc_configuration_body05_encode(&o->configuration_commit.store_hash,&expected,expected_body,sizeof(expected_body))!=PAPACC_RESULT_OK||
+    memcmp(image+1024U,expected_body,sizeof(expected_body)))return PAPACC_RESULT_INVALID_ARGUMENT;
  line=&doc->lines[doc->blocks[doc->listeners[0].block].opener];length=(unsigned)strlen(line->tokens[1].text);
  if(image[522]!=length||image[523]||memcmp(image+536U,line->tokens[1].text,length))return PAPACC_RESULT_INVALID_ARGUMENT;
  if(papacc_server_console_win32_stop_requested())return PAPACC_RESULT_INVALID_STATE;

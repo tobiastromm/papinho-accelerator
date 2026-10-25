@@ -1,0 +1,15 @@
+path,boundary,placement,constraint
+main -> admission BD bind,papacc_server_service_admission_bd_bind,before approved SID/duplicates/token opens,LAB-only compile hook; no production guard dependency
+census/observer/arm/effect -> current,psa_bd_current,before thread/actor token queries,producer-only guard would be too late
+ps_bd_console/inventory/census -> validate callback,psa_bd_aux_current,before auxiliary token opens,direct callers preserved; same protected context remains
+canonical check callback -> N0 producer,ig_n0_current,before roots/RAW1/token/hashes/SCM,retain full verification when not frozen
+N0 producer -> operator,lab_operator_current,before every transient token open,sole persistent slot destination; no local owner
+post-Start loop -> census,ig_project_census,before BD revalidation and Toolhelp snapshot,existing late native.retained check insufficient
+post-Start loop -> observe,ig_observe,before BD revalidation/host samples,Stop/retention route instead of fresh observations
+observe -> per participant,ig_measure_process,before PSS/marker/OpenThread,existing observer owners preserved; different API families
+post-Start bind -> process,ig_bind_service,before callback and OpenProcess,existing cycle_process slot retained
+N0 acquisition/root callbacks,ig_n0_bind / ig_n0_roots_current / ig_n0_open / ig_n0_sd,before process/thread/file/SD acquisitions,no new dossier or binding generated
+positive effects,ig_create_intent / cycle_copy / ig_create_diagnostic / cycle_open_relative,before native effects,existing policy/consume/order/CREATE_NEW remain mandatory
+error/final branches -> diagnostic,ig_extract,entry and done branch,no late read-only acquisition while frozen
+main -> safe Stop,existing canonical admission_stop then ig_stop then ControlService,only existing authority and factual accepted state; fail -> retain,"no new handle, token/census/metrics, second request or inferred completion"
+done -> cleanup/finish,ig_cleanup / cycle_cleanup / admission_finish,retain before dependent cleanup,native.retained plus gate.retained; no mutex release or unknown reclose

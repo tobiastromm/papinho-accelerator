@@ -1,0 +1,77 @@
+{
+  "operation": "N0START-20261024-02",
+  "attempt": "75330d11cc7e4123ae62eadc9a59c2f5",
+  "receipt_sha256": "30889b7ab36e08e5c8ad57ee7d0ac2c7ec118566d6972aaa504de12e9017ed26",
+  "observation": "Current read-only file metadata/hash/ACL/fsutil and SCM queries; sequential, not atomic admission proof",
+  "intent": {
+    "disposition": "CONSUMED_PERSISTENT_DO_NOT_REUSE",
+    "bytes": 103,
+    "file_id_hex": "0x0000000000000000002000000023fb51",
+    "high": 2097152,
+    "low": 2358097,
+    "sha256": "9e54d105d484c2201b5b280f9354038e9373f355f137c7e8a0debbca1ca45895",
+    "content": "ATTEMPT=75330d11cc7e4123ae62eadc9a59c2f5; CONSUMED; NO_RETRY_NO_RECOVERY; UNKNOWN_UNTIL_FACTUAL_CLOSE",
+    "owner": "TROMM\\tobias",
+    "DACL": "PROTECTED_SYSTEM_ADMINISTRATORS_OPERATOR_FULL_ACCESS"
+  },
+  "image": {
+    "name": "papacc_server_lab_host_ntstatus.exe",
+    "disposition": "PRESENT_SOURCE_SHA256_MATCH",
+    "bytes": 434688,
+    "file_id_hex": "0x0000000000000000000a00000024dfd7",
+    "high": 655360,
+    "low": 2416599,
+    "sha256": "eda84c0cf91ad1266cee462e62c89b84ffa5873853a0122215d15d666701361b",
+    "reparse_attribute": false,
+    "mapped_image_claim": false
+  },
+  "sink": {
+    "disposition": "PRESENT_VALID_ARM_ONLY_NO_FINAL_APPEND",
+    "bytes": 1024,
+    "file_id_hex": "0x0000000000000000001000000024e0ad",
+    "high": 1048576,
+    "low": 2416813,
+    "sha256": "240d658c0cd8fdc2fdd6980f81c3a6419b1c8427876b766a664d686ebdd661e0",
+    "matches_receipt_native_high_low": true,
+    "DACL": "PROTECTED_SYSTEM_ADMINISTRATORS_OPERATOR_FULL_ACCESS_SERVICE_READ_WRITE_DATA_MASK_0x120083"
+  },
+  "SCM": {
+    "service": "PapinhoAcceleratorLab20261023",
+    "ImagePath": "\"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server_lab_host_ntstatus.exe\" service host",
+    "state": "STOPPED",
+    "PID": 0,
+    "win32_exit": 1077,
+    "service_specific_exit": 0,
+    "start_type": "DEMAND_START",
+    "account": "NT SERVICE\\PapinhoAcceleratorLab20261023",
+    "SID_type": "UNRESTRICTED",
+    "failure_actions": "NONE_LISTED",
+    "failure_reset_seconds": 0,
+    "failure_reboot_message": "EMPTY",
+    "failure_command": "EMPTY",
+    "failure_non_crash": false,
+    "triggers": "NONE_REGISTERED"
+  },
+  "first_failure": {
+    "code": 1816,
+    "stage": "EXPLICIT_INSTRUMENTED_REBIND",
+    "interpretation": "Final ig_observe calls canonical papacc_server_service_admission_bd_metrics -> ps_bd_costs before caller ig_metric; observed shared admin1032 necessarily exceeds1024; no per-branch historical timestamp or native API attribution beyond generic diagnostic"
+  },
+  "retention": {
+    "receipt_close": 0,
+    "receipt_quiescent": 0,
+    "quiescence": "UNPROVEN",
+    "intent_consumed": 1,
+    "effect": 2,
+    "diagnostic_created": 1,
+    "starts": 0,
+    "stops": 0,
+    "qualifier_return_and_launcher_final_exit": 2,
+    "historical_PIDs": "20740/21328/488 not observed in current query; no identity reuse or global cleanup conclusion",
+    "persistent_effects": "INTENT_IMAGE_ARM_SCM_REBIND_PRESERVED",
+    "initial_sandbox_read_denied": "Intent content access denied under sandbox; separately authorized read-only query succeeded without permission changes"
+  },
+  "SCM_mutations_this_task": "NONE",
+  "ACL_mutations_this_task": "NONE",
+  "protected_file_writes_this_task": "NONE"
+}

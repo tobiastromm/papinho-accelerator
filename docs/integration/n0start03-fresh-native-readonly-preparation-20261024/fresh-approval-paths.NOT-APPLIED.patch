@@ -1,0 +1,22 @@
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -111,7 +111,7 @@
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+  ig_approval_file=CreateFileW(
+ #ifdef PAPACC_N0START03_READONLY_PINS
+- L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-operational-pin-integration-20261024\\EXACT-READONLY-APPROVED.json",
++ L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-fresh-native-readonly-preparation-20261024\\EXACT-FRESH-READONLY-APPROVED.json",
+ #else
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\successor-exact-binding-functional-20261024\\EXACT-OPERATION-APPROVED.json",
+ #endif
+--- a/tools/qualification/scm-n0-protected-single-powershell.ps1
++++ b/tools/qualification/scm-n0-protected-single-powershell.ps1
+@@ -80,7 +80,7 @@
+  if([Console]::IsInputRedirected -or [Console]::IsOutputRedirected){throw 'INTERACTIVE_CONSOLE_REQUIRED'}
+  if($DossierHash -cnotmatch '^[0-9a-f]{64}$' -or $EvidenceHash -cnotmatch '^[0-9a-f]{64}$'){throw 'WINDOWS_PROVENANCE_UNKNOWN_DENY'}
+  Pin 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' '9785001b0dcf755eddb8af294a373c0b87b2498660f724e76c4d53f9c217c7a3'
+- Pin ($Root+'\docs\integration\n0start03-operational-pin-integration-20261024\EXACT-READONLY-APPROVED.json') $ExactApprovalSha256
++ Pin ($Root+'\docs\integration\n0start03-fresh-native-readonly-preparation-20261024\EXACT-FRESH-READONLY-APPROVED.json') $ExactApprovalSha256
+  Pin ($Root+'\docs\adr\DECISION-n0start03-n7-and-ed11-evaluation-plan-20261024.md') 'c17aa105580aa7680e8d97042abc9daa32640dcf1e69dcdce49c59b8462109ac'
+  Lock-QualifierPath
+  Pin $Qualifier $QualifierHash

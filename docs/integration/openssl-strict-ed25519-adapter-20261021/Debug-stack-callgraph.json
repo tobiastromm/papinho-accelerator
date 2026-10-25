@@ -1,0 +1,300 @@
+{
+  "CRYPTO_memcmp": {
+    "external_unbounded_here": true
+  },
+  "__security_check_cookie": {
+    "external_unbounded_here": true
+  },
+  "fe_0": {
+    "frame_sub_rsp": 40,
+    "push_bytes": 0,
+    "calls": [
+      "memset"
+    ]
+  },
+  "fe_1": {
+    "frame_sub_rsp": 40,
+    "push_bytes": 0,
+    "calls": [
+      "memset"
+    ]
+  },
+  "fe_add": {
+    "frame_sub_rsp": 24,
+    "push_bytes": 0,
+    "calls": []
+  },
+  "fe_copy": {
+    "frame_sub_rsp": 40,
+    "push_bytes": 0,
+    "calls": [
+      "memmove"
+    ]
+  },
+  "fe_frombytes": {
+    "frame_sub_rsp": 200,
+    "push_bytes": 0,
+    "calls": [
+      "load_3",
+      "load_4"
+    ]
+  },
+  "fe_invert": {
+    "frame_sub_rsp": 216,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_mul",
+      "fe_sq"
+    ]
+  },
+  "fe_isnegative": {
+    "frame_sub_rsp": 88,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_tobytes"
+    ]
+  },
+  "fe_isnonzero": {
+    "frame_sub_rsp": 88,
+    "push_bytes": 0,
+    "calls": [
+      "CRYPTO_memcmp",
+      "__security_check_cookie",
+      "fe_tobytes"
+    ]
+  },
+  "fe_mul": {
+    "frame_sub_rsp": 1112,
+    "push_bytes": 0,
+    "calls": []
+  },
+  "fe_neg": {
+    "frame_sub_rsp": 24,
+    "push_bytes": 0,
+    "calls": []
+  },
+  "fe_pow22523": {
+    "frame_sub_rsp": 184,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_mul",
+      "fe_sq"
+    ]
+  },
+  "fe_sq": {
+    "frame_sub_rsp": 712,
+    "push_bytes": 0,
+    "calls": []
+  },
+  "fe_sq2": {
+    "frame_sub_rsp": 712,
+    "push_bytes": 0,
+    "calls": []
+  },
+  "fe_sub": {
+    "frame_sub_rsp": 24,
+    "push_bytes": 0,
+    "calls": []
+  },
+  "fe_tobytes": {
+    "frame_sub_rsp": 56,
+    "push_bytes": 0,
+    "calls": []
+  },
+  "ge_add": {
+    "frame_sub_rsp": 152,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_add",
+      "fe_mul",
+      "fe_sub"
+    ]
+  },
+  "ge_double_scalarmult_vartime": {
+    "frame_sub_rsp": 2344,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "ge_add",
+      "ge_madd",
+      "ge_msub",
+      "ge_p1p1_to_p2",
+      "ge_p1p1_to_p3",
+      "ge_p2_0",
+      "ge_p2_dbl",
+      "ge_p3_dbl",
+      "ge_p3_to_cached",
+      "ge_sub",
+      "slide"
+    ]
+  },
+  "ge_frombytes_vartime": {
+    "frame_sub_rsp": 264,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_1",
+      "fe_add",
+      "fe_frombytes",
+      "fe_isnegative",
+      "fe_isnonzero",
+      "fe_mul",
+      "fe_neg",
+      "fe_pow22523",
+      "fe_sq",
+      "fe_sub"
+    ]
+  },
+  "ge_madd": {
+    "frame_sub_rsp": 152,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_add",
+      "fe_mul",
+      "fe_sub"
+    ]
+  },
+  "ge_msub": {
+    "frame_sub_rsp": 152,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_add",
+      "fe_mul",
+      "fe_sub"
+    ]
+  },
+  "ge_p1p1_to_p2": {
+    "frame_sub_rsp": 72,
+    "push_bytes": 0,
+    "calls": [
+      "fe_mul"
+    ]
+  },
+  "ge_p1p1_to_p3": {
+    "frame_sub_rsp": 72,
+    "push_bytes": 0,
+    "calls": [
+      "fe_mul"
+    ]
+  },
+  "ge_p2_0": {
+    "frame_sub_rsp": 40,
+    "push_bytes": 0,
+    "calls": [
+      "fe_0",
+      "fe_1"
+    ]
+  },
+  "ge_p2_dbl": {
+    "frame_sub_rsp": 120,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_add",
+      "fe_sq",
+      "fe_sq2",
+      "fe_sub"
+    ]
+  },
+  "ge_p3_dbl": {
+    "frame_sub_rsp": 184,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "ge_p2_dbl",
+      "ge_p3_to_p2"
+    ]
+  },
+  "ge_p3_to_cached": {
+    "frame_sub_rsp": 56,
+    "push_bytes": 0,
+    "calls": [
+      "fe_add",
+      "fe_copy",
+      "fe_mul",
+      "fe_sub"
+    ]
+  },
+  "ge_p3_to_p2": {
+    "frame_sub_rsp": 40,
+    "push_bytes": 0,
+    "calls": [
+      "fe_copy"
+    ]
+  },
+  "ge_p3_tobytes": {
+    "frame_sub_rsp": 184,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_invert",
+      "fe_isnegative",
+      "fe_mul",
+      "fe_tobytes"
+    ]
+  },
+  "ge_sub": {
+    "frame_sub_rsp": 152,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_add",
+      "fe_mul",
+      "fe_sub"
+    ]
+  },
+  "ge_tobytes": {
+    "frame_sub_rsp": 184,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_invert",
+      "fe_isnegative",
+      "fe_mul",
+      "fe_tobytes"
+    ]
+  },
+  "load_3": {
+    "frame_sub_rsp": 24,
+    "push_bytes": 0,
+    "calls": []
+  },
+  "load_4": {
+    "frame_sub_rsp": 24,
+    "push_bytes": 0,
+    "calls": []
+  },
+  "memcmp": {
+    "external_unbounded_here": true
+  },
+  "memmove": {
+    "external_unbounded_here": true
+  },
+  "memset": {
+    "external_unbounded_here": true
+  },
+  "papacc_ossl358_ed25519_point_check": {
+    "frame_sub_rsp": 392,
+    "push_bytes": 0,
+    "calls": [
+      "__security_check_cookie",
+      "fe_isnonzero",
+      "ge_double_scalarmult_vartime",
+      "ge_frombytes_vartime",
+      "ge_p3_tobytes",
+      "ge_tobytes",
+      "memcmp"
+    ]
+  },
+  "slide": {
+    "frame_sub_rsp": 40,
+    "push_bytes": 0,
+    "calls": []
+  }
+}

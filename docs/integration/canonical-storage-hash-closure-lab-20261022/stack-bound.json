@@ -1,0 +1,751 @@
+{
+  "msvc-Debug": {
+    "word_bytes": 8,
+    "maximum_over_all_probe_and_capsule_entries": 1152,
+    "callback_nested_bound": 1072,
+    "frames": {
+      "probe_main": {
+        "local_peak_excluding_return": 72,
+        "nested_including_entry_return": 1152,
+        "calls": [
+          "pacc_storage_hash_callback",
+          "pacc_storage_sha_final",
+          "pacc_storage_sha_init",
+          "pacc_storage_sha_update"
+        ]
+      },
+      "pacc_storage_sha_init": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 144,
+        "calls": [
+          "br_sha256_init",
+          "span"
+        ]
+      },
+      "pacc_storage_sha_update": {
+        "local_peak_excluding_return": 72,
+        "nested_including_entry_return": 720,
+        "calls": [
+          "br_sha224_update",
+          "enter",
+          "overlap",
+          "span",
+          "terminal"
+        ]
+      },
+      "pacc_storage_sha_final": {
+        "local_peak_excluding_return": 88,
+        "nested_including_entry_return": 816,
+        "calls": [
+          "br_sha256_out",
+          "clear_hash",
+          "enter",
+          "overlap",
+          "pacc_hash_memcpy",
+          "span",
+          "terminal"
+        ]
+      },
+      "pacc_storage_hash_callback": {
+        "local_peak_excluding_return": 248,
+        "nested_including_entry_return": 1072,
+        "calls": [
+          "pacc_hash_memset",
+          "pacc_storage_sha_final",
+          "pacc_storage_sha_init",
+          "pacc_storage_sha_update"
+        ]
+      },
+      "span": {
+        "local_peak_excluding_return": 24,
+        "nested_including_entry_return": 32,
+        "calls": []
+      },
+      "overlap": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 48,
+        "calls": []
+      },
+      "clear_hash": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 48,
+        "calls": []
+      },
+      "terminal": {
+        "local_peak_excluding_return": 56,
+        "nested_including_entry_return": 112,
+        "calls": [
+          "clear_hash"
+        ]
+      },
+      "enter": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 80,
+        "calls": [
+          "span"
+        ]
+      },
+      "pacc_hash_memcpy": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 48,
+        "calls": []
+      },
+      "pacc_hash_memset": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 48,
+        "calls": []
+      },
+      "br_sha224_init": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 96,
+        "calls": [
+          "pacc_hash_memcpy"
+        ]
+      },
+      "br_sha224_update": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 640,
+        "calls": [
+          "sha2small_update"
+        ]
+      },
+      "br_sha224_out": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 720,
+        "calls": [
+          "sha2small_out"
+        ]
+      },
+      "br_sha224_state": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 160,
+        "calls": [
+          "br_range_enc32be"
+        ]
+      },
+      "br_sha224_set_state": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 144,
+        "calls": [
+          "br_range_dec32be"
+        ]
+      },
+      "br_sha256_init": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 96,
+        "calls": [
+          "pacc_hash_memcpy"
+        ]
+      },
+      "br_sha256_out": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 720,
+        "calls": [
+          "sha2small_out"
+        ]
+      },
+      "br_enc32be": {
+        "local_peak_excluding_return": 24,
+        "nested_including_entry_return": 32,
+        "calls": []
+      },
+      "br_enc64be": {
+        "local_peak_excluding_return": 56,
+        "nested_including_entry_return": 96,
+        "calls": [
+          "br_enc32be"
+        ]
+      },
+      "br_sha2small_round": {
+        "local_peak_excluding_return": 408,
+        "nested_including_entry_return": 512,
+        "calls": [
+          "br_range_dec32be"
+        ]
+      },
+      "sha2small_update": {
+        "local_peak_excluding_return": 72,
+        "nested_including_entry_return": 592,
+        "calls": [
+          "br_sha2small_round",
+          "pacc_hash_memcpy"
+        ]
+      },
+      "sha2small_out": {
+        "local_peak_excluding_return": 152,
+        "nested_including_entry_return": 672,
+        "calls": [
+          "br_enc64be",
+          "br_range_enc32be",
+          "br_sha2small_round",
+          "pacc_hash_memcpy",
+          "pacc_hash_memset"
+        ]
+      },
+      "br_range_dec32be": {
+        "local_peak_excluding_return": 56,
+        "nested_including_entry_return": 96,
+        "calls": [
+          "br_dec32be"
+        ]
+      },
+      "br_dec32be": {
+        "local_peak_excluding_return": 24,
+        "nested_including_entry_return": 32,
+        "calls": []
+      },
+      "br_range_enc32be": {
+        "local_peak_excluding_return": 72,
+        "nested_including_entry_return": 112,
+        "calls": [
+          "br_enc32be"
+        ]
+      }
+    },
+    "validation": "CFG stack depth equal at all joins including loops; direct acyclic calls; tailcalls reuse caller frame; no unresolved/indirect call; excludes caller/OS startup stack"
+  },
+  "msvc-Release": {
+    "word_bytes": 8,
+    "maximum_over_all_probe_and_capsule_entries": 888,
+    "callback_nested_bound": 824,
+    "frames": {
+      "probe_main": {
+        "local_peak_excluding_return": 56,
+        "nested_including_entry_return": 888,
+        "calls": [
+          "pacc_storage_hash_callback",
+          "pacc_storage_sha_final",
+          "pacc_storage_sha_init",
+          "pacc_storage_sha_update"
+        ]
+      },
+      "pacc_storage_hash_callback": {
+        "local_peak_excluding_return": 232,
+        "nested_including_entry_return": 824,
+        "calls": [
+          "br_sha224_update",
+          "br_sha256_init",
+          "br_sha256_out",
+          "pacc_hash_memcpy",
+          "pacc_hash_memset"
+        ]
+      },
+      "pacc_storage_sha_final": {
+        "local_peak_excluding_return": 72,
+        "nested_including_entry_return": 664,
+        "calls": [
+          "br_sha256_out",
+          "pacc_hash_memcpy"
+        ]
+      },
+      "pacc_storage_sha_init": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 104,
+        "calls": [
+          "br_sha256_init"
+        ]
+      },
+      "pacc_storage_sha_update": {
+        "local_peak_excluding_return": 56,
+        "nested_including_entry_return": 536,
+        "calls": [
+          "br_sha224_update"
+        ]
+      },
+      "pacc_hash_memcpy": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 8,
+        "calls": []
+      },
+      "pacc_hash_memset": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 8,
+        "calls": []
+      },
+      "br_sha224_init": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 56,
+        "calls": [
+          "pacc_hash_memcpy"
+        ]
+      },
+      "br_sha224_update": {
+        "local_peak_excluding_return": 56,
+        "nested_including_entry_return": 472,
+        "calls": [
+          "br_sha2small_round",
+          "pacc_hash_memcpy"
+        ]
+      },
+      "br_sha224_out": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 584,
+        "calls": [
+          "sha2small_out"
+        ]
+      },
+      "br_sha224_state": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 56,
+        "calls": [
+          "br_range_enc32be"
+        ]
+      },
+      "br_sha224_set_state": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 56,
+        "calls": [
+          "br_range_dec32be"
+        ]
+      },
+      "br_sha256_init": {
+        "local_peak_excluding_return": 40,
+        "nested_including_entry_return": 56,
+        "calls": [
+          "pacc_hash_memcpy"
+        ]
+      },
+      "br_sha256_out": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 584,
+        "calls": [
+          "sha2small_out"
+        ]
+      },
+      "br_sha2small_round": {
+        "local_peak_excluding_return": 392,
+        "nested_including_entry_return": 408,
+        "calls": [
+          "br_range_dec32be"
+        ]
+      },
+      "sha2small_out": {
+        "local_peak_excluding_return": 168,
+        "nested_including_entry_return": 584,
+        "calls": [
+          "br_range_enc32be",
+          "br_sha2small_round",
+          "pacc_hash_memcpy",
+          "pacc_hash_memset"
+        ]
+      },
+      "br_range_dec32be": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 8,
+        "calls": []
+      },
+      "br_range_enc32be": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 8,
+        "calls": []
+      }
+    },
+    "validation": "CFG stack depth equal at all joins including loops; direct acyclic calls; tailcalls reuse caller frame; no unresolved/indirect call; excludes caller/OS startup stack"
+  },
+  "vc6-Debug": {
+    "word_bytes": 4,
+    "maximum_over_all_probe_and_capsule_entries": 812,
+    "callback_nested_bound": 784,
+    "frames": {
+      "_probe_main": {
+        "local_peak_excluding_return": 28,
+        "nested_including_entry_return": 812,
+        "calls": [
+          "_pacc_storage_hash_callback",
+          "_pacc_storage_sha_final",
+          "_pacc_storage_sha_init",
+          "_pacc_storage_sha_update"
+        ]
+      },
+      "_pacc_storage_sha_init": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 52,
+        "calls": [
+          "_br_sha256_init",
+          "_span"
+        ]
+      },
+      "_span": {
+        "local_peak_excluding_return": 8,
+        "nested_including_entry_return": 12,
+        "calls": []
+      },
+      "_pacc_storage_sha_update": {
+        "local_peak_excluding_return": 68,
+        "nested_including_entry_return": 528,
+        "calls": [
+          "_br_sha224_update",
+          "_enter",
+          "_overlap",
+          "_span",
+          "_terminal"
+        ]
+      },
+      "_overlap": {
+        "local_peak_excluding_return": 20,
+        "nested_including_entry_return": 24,
+        "calls": []
+      },
+      "_terminal": {
+        "local_peak_excluding_return": 8,
+        "nested_including_entry_return": 28,
+        "calls": [
+          "_clear_hash"
+        ]
+      },
+      "_clear_hash": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 16,
+        "calls": []
+      },
+      "_enter": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 28,
+        "calls": [
+          "_span"
+        ]
+      },
+      "_pacc_storage_sha_final": {
+        "local_peak_excluding_return": 64,
+        "nested_including_entry_return": 604,
+        "calls": [
+          "_br_sha256_out",
+          "_clear_hash",
+          "_enter",
+          "_overlap",
+          "_pacc_hash_memcpy",
+          "_span",
+          "_terminal"
+        ]
+      },
+      "_pacc_storage_hash_callback": {
+        "local_peak_excluding_return": 176,
+        "nested_including_entry_return": 784,
+        "calls": [
+          "_pacc_hash_memset",
+          "_pacc_storage_sha_final",
+          "_pacc_storage_sha_init",
+          "_pacc_storage_sha_update"
+        ]
+      },
+      "_br_sha2small_round": {
+        "local_peak_excluding_return": 376,
+        "nested_including_entry_return": 408,
+        "calls": [
+          "_br_range_dec32be"
+        ]
+      },
+      "_br_sha224_init": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 40,
+        "calls": [
+          "_pacc_hash_memcpy"
+        ]
+      },
+      "_br_sha224_update": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 460,
+        "calls": [
+          "_sha2small_update"
+        ]
+      },
+      "_sha2small_update": {
+        "local_peak_excluding_return": 32,
+        "nested_including_entry_return": 440,
+        "calls": [
+          "_br_sha2small_round",
+          "_pacc_hash_memcpy"
+        ]
+      },
+      "_br_sha224_out": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 544,
+        "calls": [
+          "_sha2small_out"
+        ]
+      },
+      "_sha2small_out": {
+        "local_peak_excluding_return": 116,
+        "nested_including_entry_return": 524,
+        "calls": [
+          "__allshl",
+          "_br_enc64be",
+          "_br_range_enc32be",
+          "_br_sha2small_round",
+          "_pacc_hash_memcpy",
+          "_pacc_hash_memset"
+        ]
+      },
+      "_br_enc64be": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 32,
+        "calls": [
+          "__aullshr",
+          "_br_enc32be"
+        ]
+      },
+      "_br_enc32be": {
+        "local_peak_excluding_return": 8,
+        "nested_including_entry_return": 12,
+        "calls": []
+      },
+      "_br_sha224_state": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 56,
+        "calls": [
+          "_br_range_enc32be"
+        ]
+      },
+      "_br_sha224_set_state": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 48,
+        "calls": [
+          "_br_range_dec32be"
+        ]
+      },
+      "_br_sha256_init": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 40,
+        "calls": [
+          "_pacc_hash_memcpy"
+        ]
+      },
+      "_br_sha256_out": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 544,
+        "calls": [
+          "_sha2small_out"
+        ]
+      },
+      "_pacc_hash_memcpy": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 20,
+        "calls": []
+      },
+      "_pacc_hash_memset": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 16,
+        "calls": []
+      },
+      "_br_range_dec32be": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 28,
+        "calls": [
+          "_br_dec32be"
+        ]
+      },
+      "_br_dec32be": {
+        "local_peak_excluding_return": 8,
+        "nested_including_entry_return": 12,
+        "calls": []
+      },
+      "_br_range_enc32be": {
+        "local_peak_excluding_return": 20,
+        "nested_including_entry_return": 36,
+        "calls": [
+          "_br_enc32be"
+        ]
+      },
+      "__allshl": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 4,
+        "calls": []
+      },
+      "__aullshr": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 4,
+        "calls": []
+      }
+    },
+    "validation": "CFG stack depth equal at all joins including loops; direct acyclic calls; tailcalls reuse caller frame; no unresolved/indirect call; excludes caller/OS startup stack"
+  },
+  "vc6-Release": {
+    "word_bytes": 4,
+    "maximum_over_all_probe_and_capsule_entries": 704,
+    "callback_nested_bound": 684,
+    "frames": {
+      "_probe_main": {
+        "local_peak_excluding_return": 20,
+        "nested_including_entry_return": 704,
+        "calls": [
+          "_pacc_storage_hash_callback",
+          "_pacc_storage_sha_final",
+          "_pacc_storage_sha_init",
+          "_pacc_storage_sha_update"
+        ]
+      },
+      "_pacc_storage_sha_init": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 44,
+        "calls": [
+          "_br_sha256_init",
+          "_span"
+        ]
+      },
+      "_span": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 4,
+        "calls": []
+      },
+      "_pacc_storage_sha_update": {
+        "local_peak_excluding_return": 32,
+        "nested_including_entry_return": 404,
+        "calls": [
+          "_br_sha224_update",
+          "_enter",
+          "_overlap",
+          "_span",
+          "_terminal"
+        ]
+      },
+      "_overlap": {
+        "local_peak_excluding_return": 4,
+        "nested_including_entry_return": 8,
+        "calls": []
+      },
+      "_terminal": {
+        "local_peak_excluding_return": 8,
+        "nested_including_entry_return": 16,
+        "calls": [
+          "_clear_hash"
+        ]
+      },
+      "_clear_hash": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 4,
+        "calls": []
+      },
+      "_enter": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 20,
+        "calls": [
+          "_span"
+        ]
+      },
+      "_pacc_storage_sha_final": {
+        "local_peak_excluding_return": 60,
+        "nested_including_entry_return": 528,
+        "calls": [
+          "_br_sha256_out",
+          "_clear_hash",
+          "_enter",
+          "_overlap",
+          "_pacc_hash_memcpy",
+          "_span",
+          "_terminal"
+        ]
+      },
+      "_pacc_storage_hash_callback": {
+        "local_peak_excluding_return": 152,
+        "nested_including_entry_return": 684,
+        "calls": [
+          "_pacc_hash_memset",
+          "_pacc_storage_sha_final",
+          "_pacc_storage_sha_init",
+          "_pacc_storage_sha_update"
+        ]
+      },
+      "_br_sha2small_round": {
+        "local_peak_excluding_return": 312,
+        "nested_including_entry_return": 328,
+        "calls": [
+          "_br_range_dec32be"
+        ]
+      },
+      "_br_sha224_init": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 32,
+        "calls": [
+          "_pacc_hash_memcpy"
+        ]
+      },
+      "_br_sha224_update": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 372,
+        "calls": [
+          "_sha2small_update"
+        ]
+      },
+      "_sha2small_update": {
+        "local_peak_excluding_return": 28,
+        "nested_including_entry_return": 356,
+        "calls": [
+          "_br_sha2small_round",
+          "_pacc_hash_memcpy"
+        ]
+      },
+      "_br_sha224_out": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 472,
+        "calls": [
+          "_sha2small_out"
+        ]
+      },
+      "_sha2small_out": {
+        "local_peak_excluding_return": 136,
+        "nested_including_entry_return": 456,
+        "calls": [
+          "__allshl",
+          "_br_range_enc32be",
+          "_br_sha2small_round",
+          "_pacc_hash_memcpy",
+          "_pacc_hash_memset"
+        ]
+      },
+      "_br_sha224_state": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 32,
+        "calls": [
+          "_br_range_enc32be"
+        ]
+      },
+      "_br_sha224_set_state": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 32,
+        "calls": [
+          "_br_range_dec32be"
+        ]
+      },
+      "_br_sha256_init": {
+        "local_peak_excluding_return": 16,
+        "nested_including_entry_return": 32,
+        "calls": [
+          "_pacc_hash_memcpy"
+        ]
+      },
+      "_br_sha256_out": {
+        "local_peak_excluding_return": 12,
+        "nested_including_entry_return": 472,
+        "calls": [
+          "_sha2small_out"
+        ]
+      },
+      "_pacc_hash_memcpy": {
+        "local_peak_excluding_return": 8,
+        "nested_including_entry_return": 12,
+        "calls": []
+      },
+      "_pacc_hash_memset": {
+        "local_peak_excluding_return": 4,
+        "nested_including_entry_return": 8,
+        "calls": []
+      },
+      "_br_range_dec32be": {
+        "local_peak_excluding_return": 8,
+        "nested_including_entry_return": 12,
+        "calls": []
+      },
+      "_br_range_enc32be": {
+        "local_peak_excluding_return": 8,
+        "nested_including_entry_return": 12,
+        "calls": []
+      },
+      "__allshl": {
+        "local_peak_excluding_return": 0,
+        "nested_including_entry_return": 4,
+        "calls": []
+      }
+    },
+    "validation": "CFG stack depth equal at all joins including loops; direct acyclic calls; tailcalls reuse caller frame; no unresolved/indirect call; excludes caller/OS startup stack"
+  }
+}

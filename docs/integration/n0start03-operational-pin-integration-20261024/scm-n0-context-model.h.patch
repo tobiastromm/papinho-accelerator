@@ -1,0 +1,29 @@
+--- tools/qualification/scm-n0-context-model.h preimage
++++ tools/qualification/scm-n0-context-model.h
+@@ -35,8 +35,10 @@
+  return which?ig_n0_input_match(id,IG_N0_EVIDENCE_VOLUME,IG_N0_EVIDENCE_HIGH,IG_N0_EVIDENCE_LOW,IG_N0_EVIDENCE_BYTES):
+  ig_n0_input_match(id,IG_N0_DOSSIER_VOLUME,IG_N0_DOSSIER_HIGH,IG_N0_DOSSIER_LOW,IG_N0_DOSSIER_BYTES);
+ }
++static __inline int ig_n0_policy_ready(const char *hash)
++{return hash&&strlen(hash)==64&&ps_bd_hex(hash)&&!strcmp(hash,IG_N0_N7_ED11_SHA);}
+ static __inline int ig_n0_inputs_ready(void)
+-{return ps_bd_hex(IG_N0_DOSSIER_SHA)&&ps_bd_hex(IG_N0_EVIDENCE_SHA)&&IG_N0_DOSSIER_VOLUME&&
++{return ig_n0_policy_ready(IG_N0_N7_ED11_SHA)&&ps_bd_hex(IG_N0_DOSSIER_SHA)&&ps_bd_hex(IG_N0_EVIDENCE_SHA)&&IG_N0_DOSSIER_VOLUME&&
+  (IG_N0_DOSSIER_HIGH||IG_N0_DOSSIER_LOW)&&IG_N0_DOSSIER_BYTES&&IG_N0_EVIDENCE_VOLUME&&
+  (IG_N0_EVIDENCE_HIGH||IG_N0_EVIDENCE_LOW)&&IG_N0_EVIDENCE_BYTES;}
+ static __inline int ig_n0_root_identity(const BY_HANDLE_FILE_INFORMATION *id,unsigned which)
+@@ -48,7 +50,13 @@
+ }
+ /* This compilation may prepare the exact read-only path, never a cycle. */
+ static __inline int ig_n0_readonly_command(int argc,char **argv)
+-{return argc==8&&argv&&argv[1]&&!strcmp(argv[1],"--prepare-n0");}
++{
++#ifdef PAPACC_N0START03_READONLY_PINS
++ return argc==9&&argv&&argv[1]&&argv[8]&&strlen(argv[8])==64&&!strcmp(argv[1],"--prepare-n0")&&ps_bd_hex(argv[8]);
++#else
++ return argc==8&&argv&&argv[1]&&!strcmp(argv[1],"--prepare-n0");
++#endif
++}
+ static __inline int ig_n0_volume_profile(DWORD serial,DWORD flags,const WCHAR *filesystem)
+ {return serial==417614100UL&&(flags&FS_PERSISTENT_ACLS)&&filesystem&&!_wcsicmp(filesystem,L"NTFS");}
+ #endif

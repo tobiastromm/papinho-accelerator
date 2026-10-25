@@ -28,7 +28,7 @@ static int v3b_ca(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_U8 *der,PAPACC_SIZ
  if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,signed_info->ToBeSigned.pbData,signed_info->ToBeSigned.cbData,CRYPT_DECODE_NOCOPY_FLAG,NULL,info,&n))goto error;
  cursor+=rounded;left-=rounded;n=left;
  if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_PUBLIC_KEY_INFO,&info->SubjectPublicKeyInfo,0,NULL,cursor,&n))goto error;
- return papacc_configuration_issuer_hash06(o,cursor,n,key);
+ return papacc_configuration_storage_hash(o,cursor,n,key);
 error:w->native_error=GetLastError();return 0;
 }
 static int v3b_free_prepared(PAPACC_CONFIGURATION_COMMIT *o)
@@ -37,15 +37,15 @@ static int v3b_free_prepared(PAPACC_CONFIGURATION_COMMIT *o)
  o->pending<PAPACC_CONFIG_SLOTS&&(!o->published||o->pending!=o->current)&&
  !o->slots[o->pending].readers&&!o->slots[o->pending].retained;
 }
-PAPACC_RESULT papacc_configuration_v3_capture_data(PAPACC_CONFIGURATION_COMMIT *o,
+static PAPACC_RESULT backing_capture_data_version(PAPACC_CONFIGURATION_COMMIT *o,
  const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *ca,PAPACC_SIZE cn,
- PAPACC_ISSUER_WINDOWS_WORKSPACE *w,PC_ROOT8_COMPONENT component,void *cc)
+ PAPACC_ISSUER_WINDOWS_WORKSPACE *w,PC_ROOT8_COMPONENT component,void *cc,unsigned version)
 {
  PAPACC_CONFIG_V3_BACKING *b;PAPACC_CONFIG_SLOT *slot;PAPACC_U8 key[32],ph[32],ch[32];
  PAPACC_CONFIG_VIEW *cv;PAPACC_SIZE off;PAPACC_U64 serial;unsigned index,j;PAPACC_ISSUER_VIEW iv;PC_ROOT8_RESULT result;
  if(!owner(o)||!v3b_range(p,n)||!v3b_range(ca,cn)||!v3b_range(w,sizeof(*w))||
- n<PC_ROOT8_V3_MIN||n>PC_ROOT8_V3_MAX||cn>PAPACC_CONFIG_V3_CA_BYTES||
- !v3b_range(w->bytes,w->capacity)||((ULONG_PTR)w->bytes&7U)||w->capacity>0xffffffffU||w->capacity<sizeof(PAPACC_CONFIG_VIEW)||!component||
+ (version!=3U&&version!=4U)||n<(version==3U?PC_ROOT8_V3_MIN:PC_ROOT8_V4_MIN)||n>(version==3U?PC_ROOT8_V3_MAX:PC_ROOT8_V4_MAX)||cn>PAPACC_CONFIG_V3_CA_BYTES||
+ !v3b_range(w->bytes,w->capacity)||((ULONG_PTR)w->bytes&7U)||w->capacity>0xffffffffU||w->capacity<sizeof(PAPACC_CONFIG_VIEW)||(version==4U&&w->capacity>PAPACC_CONFIG_V4_CAPTURE_WORKSPACE_MAX)||!component||
  issuer06_overlap(p,n,o,sizeof(*o))||issuer06_overlap(ca,cn,o,sizeof(*o))||
  issuer06_overlap(w,sizeof(*w),o,sizeof(*o))||issuer06_overlap(w->bytes,w->capacity,o,sizeof(*o))||
  issuer06_overlap(p,n,ca,cn)||issuer06_overlap(w,sizeof(*w),p,n)||issuer06_overlap(w,sizeof(*w),ca,cn)||
@@ -59,20 +59,20 @@ PAPACC_RESULT papacc_configuration_v3_capture_data(PAPACC_CONFIGURATION_COMMIT *
  LeaveCriticalSection(&o->lock);
  /* Owner-thread serialized, nonreentrant ports; never called on Stop path.
   * Validation outside lock: no native/codec call in the Stop/close path. */
- result=pc_root8_v3_validate(p,n,papacc_configuration_issuer_hash06,o,component,cc);
+ result=version==3U?pc_root8_v3_validate(p,n,papacc_configuration_storage_hash,o,component,cc):pc_root8_v4_validate(p,n,papacc_configuration_storage_hash,o,component,cc);
  if(result!=PC_ROOT8_OK)return PAPACC_RESULT_INVALID_STATE;
  off=v3b32(p+48);
- if(papacc_issuer_image_validate(p+off+8192,&iv,papacc_configuration_issuer_hash06,o)!=PAPACC_ISSUER_OK||
+ if(papacc_issuer_image_validate(p+off+8192,&iv,papacc_configuration_storage_hash,o)!=PAPACC_ISSUER_OK||
  memcmp(iv.root,p+72,32)||iv.revision!=v3b64(p+120)||
  !v3b_ca(o,ca,cn,w,key)||memcmp(key,iv.ca_spki_digest,32)||
- !papacc_configuration_issuer_hash06(o,p,n,ph)||!papacc_configuration_issuer_hash06(o,ca,cn,ch))return PAPACC_RESULT_INVALID_STATE;
+ !papacc_configuration_storage_hash(o,p,n,ph)||!papacc_configuration_storage_hash(o,ca,cn,ch))return PAPACC_RESULT_INVALID_STATE;
  /* Every SNT row refers to this same public issuer/CA, not a second catalog. */
  for(j=0;j<(unsigned)(p[252]|((unsigned)p[253]<<8));j++){
  const PAPACC_U8 *row=p+v3b32(p+244)+64U+768U*j;
  if(memcmp(row+40,iv.authority,16)||memcmp(row+56,iv.generation,16)||memcmp(row+568,key,32))return PAPACC_RESULT_INVALID_STATE;
  }
  cv=w->bytes; /* crypto decode borrows ended; same caller arena reused */
- if(papacc_configuration_body05_decode(p+1024U,1024U,cv)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
+ if(papacc_configuration_body05_decode(&o->store_hash,p+1024U,1024U,cv)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
  EnterCriticalSection(&o->lock);
  if(!v3b_free_prepared(o)||o->pending!=index||slot->serial!=serial||w->stopped||
  memcmp(o->domain,p+72,32)||!papacc_configuration_issuer_projection06(&slot->view.config,&cv->config)||
@@ -85,8 +85,8 @@ PAPACC_RESULT papacc_configuration_v3_capture_data(PAPACC_CONFIGURATION_COMMIT *
  b->packet_bytes=n;b->ca_bytes=cn;b->serial=serial;
  LeaveCriticalSection(&o->lock);return PAPACC_RESULT_OK;
 }
-PAPACC_RESULT papacc_configuration_v3_borrow_data(PAPACC_CONFIGURATION_COMMIT *o,
- const PAPACC_CONFIG_PIN *p,PAPACC_CONFIG_V3_BORROW *out)
+static PAPACC_RESULT backing_borrow_data_version(PAPACC_CONFIGURATION_COMMIT *o,
+ const PAPACC_CONFIG_PIN *p,PAPACC_CONFIG_V3_BORROW *out,unsigned version)
 {
  PAPACC_CONFIG_V3_BACKING *b;PAPACC_CONFIG_SLOT *slot;PAPACC_CONFIG_V3_BORROW v;
  PAPACC_U8 d[32];unsigned j;PAPACC_RESULT r=PAPACC_RESULT_INVALID_STATE;
@@ -95,9 +95,9 @@ PAPACC_RESULT papacc_configuration_v3_borrow_data(PAPACC_CONFIGURATION_COMMIT *o
  EnterCriticalSection(&o->lock);slot=&o->slots[p->index];b=&o->v3_backings[p->index];
  if(o->stopped||o->unresolved||o->authority_lost||!p->ticket||!slot->readers||slot->serial!=p->serial||b->serial!=p->serial)goto done;
  for(j=0;j<32U;j++)if(o->tickets[j].ticket==p->ticket&&o->tickets[j].serial==p->serial&&o->tickets[j].index==p->index)break;
- if(j==32U||b->packet_bytes<PC_ROOT8_V3_MIN||b->packet_bytes>PC_ROOT8_V3_MAX||!b->ca_bytes||b->ca_bytes>PAPACC_CONFIG_V3_CA_BYTES)goto done;
- if(!papacc_configuration_issuer_hash06(o,b->packet,b->packet_bytes,d)||memcmp(d,b->packet_hash,32)||
- !papacc_configuration_issuer_hash06(o,b->ca,b->ca_bytes,d)||memcmp(d,b->ca_hash,32)||
+ if(j==32U||(version!=3U&&version!=4U)||b->packet_bytes<(version==3U?PC_ROOT8_V3_MIN:PC_ROOT8_V4_MIN)||b->packet_bytes>(version==3U?PC_ROOT8_V3_MAX:PC_ROOT8_V4_MAX)||b->packet[8]!=version||b->packet[9]||!b->ca_bytes||b->ca_bytes>PAPACC_CONFIG_V3_CA_BYTES)goto done;
+ if(!papacc_configuration_storage_hash(o,b->packet,b->packet_bytes,d)||memcmp(d,b->packet_hash,32)||
+ !papacc_configuration_storage_hash(o,b->ca,b->ca_bytes,d)||memcmp(d,b->ca_hash,32)||
  memcmp(slot->view.domain,b->packet+72,32)||slot->view.revision!=v3b64(b->packet+104)||
  slot->view.predecessor!=v3b64(b->packet+112)||
  (slot->issuer_revision&&slot->issuer_revision!=v3b64(b->packet+120)))goto done;
@@ -110,14 +110,40 @@ PAPACC_RESULT papacc_configuration_v3_borrow_data(PAPACC_CONFIGURATION_COMMIT *o
 done:LeaveCriticalSection(&o->lock);return r;
 }
 
+PAPACC_RESULT papacc_configuration_v3_capture_data(PAPACC_CONFIGURATION_COMMIT *o,
+ const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *ca,PAPACC_SIZE cn,
+ PAPACC_ISSUER_WINDOWS_WORKSPACE *w,PC_ROOT8_COMPONENT c,void *cc)
+{return backing_capture_data_version(o,p,n,ca,cn,w,c,cc,3U);}
+PAPACC_RESULT papacc_configuration_v4_capture_data(PAPACC_CONFIGURATION_COMMIT *o,
+ const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *ca,PAPACC_SIZE cn,
+ PAPACC_ISSUER_WINDOWS_WORKSPACE *w,PC_ROOT8_COMPONENT c,void *cc)
+{return backing_capture_data_version(o,p,n,ca,cn,w,c,cc,4U);}
+PAPACC_RESULT papacc_configuration_storage_borrow_data(PAPACC_CONFIGURATION_COMMIT *o,
+ const PAPACC_CONFIG_PIN *p,PAPACC_CONFIG_V3_BORROW *out,unsigned version)
+{return backing_borrow_data_version(o,p,out,version);}
+PAPACC_RESULT papacc_configuration_v3_borrow_data(PAPACC_CONFIGURATION_COMMIT *o,
+ const PAPACC_CONFIG_PIN *p,PAPACC_CONFIG_V3_BORROW *out)
+{return backing_borrow_data_version(o,p,out,3U);}
+PAPACC_RESULT papacc_configuration_v4_borrow_data(PAPACC_CONFIGURATION_COMMIT *o,
+ const PAPACC_CONFIG_PIN *p,PAPACC_CONFIG_V4_BORROW *out)
+{
+ PAPACC_CONFIG_V4_BORROW v;PAPACC_RESULT result;
+ if(!owner(o)||!v3b_range(p,sizeof(*p))||!v3b_range(out,sizeof(*out))||
+ issuer06_overlap(out,sizeof(*out),o,sizeof(*o))||issuer06_overlap(out,sizeof(*out),p,sizeof(*p)))return PAPACC_RESULT_INVALID_ARGUMENT;
+ memset(&v,0,sizeof(v));result=backing_borrow_data_version(o,p,&v.base,4U);if(result!=PAPACC_RESULT_OK)return result;
+ /* The caller still holds the same pin; owner-thread/Stop is serialized.
+  * Checked immutable packet/ranges were sealed before publication of backing. */
+ v.tsc=v.base.packet+v3b32(v.base.packet+276);v.tsc_bytes=v3b32(v.base.packet+280);*out=v;return PAPACC_RESULT_OK;
+}
+
 /* Correlation of already protected DATA, deliberately not a CURRENT factory. */
-PAPACC_RESULT papacc_configuration_v3_checkpoint_match_data(
- PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *pin)
+static PAPACC_RESULT storage_checkpoint_match_data(
+ PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *pin,unsigned version)
 {
  PAPACC_CONFIG_V3_BORROW borrow;PAPACC_CONFIG_SLOT *slot;const PAPACC_U8 *cp;
  PAPACC_RESULT result;
  if(!owner(o)||!pin)return PAPACC_RESULT_INVALID_ARGUMENT;
- result=papacc_configuration_v3_borrow_data(o,pin,&borrow);if(result!=PAPACC_RESULT_OK)return result;
+ result=backing_borrow_data_version(o,pin,&borrow,version);if(result!=PAPACC_RESULT_OK)return result;
  EnterCriticalSection(&o->lock);result=PAPACC_RESULT_INVALID_STATE;
  if(!o->published||o->prepared||o->committed_pending||pending_blocks(o)||o->recovery_selected||
  pin->index!=o->current||!o->issuer_snapshot_valid[pin->index])goto done;
@@ -126,10 +152,13 @@ PAPACC_RESULT papacc_configuration_v3_checkpoint_match_data(
  if(borrow.packet_bytes>sizeof(o->committed)){result=PAPACC_RESULT_NOT_SUPPORTED;goto done;}
  if(o->committed_bytes!=borrow.packet_bytes||memcmp(o->committed,borrow.packet,borrow.packet_bytes))goto done;
  cp=borrow.packet+v3b32(borrow.packet+56);
- if(memcmp(cp,"PACR8CP3",8)||cp[8]!=3U||cp[9]||
+ if(memcmp(cp,version==3U?"PACR8CP3":"PACR8CP4",8)||cp[8]!=version||cp[9]||
  memcmp(cp+16,slot->view.domain,32)||v3b64(cp+48)!=slot->view.revision||
  v3b64(cp+56)!=slot->view.predecessor||v3b64(cp+64)!=slot->context_epoch||
  v3b64(cp+72)!=slot->operational_epoch||v3b64(cp+80)!=slot->issuer_revision)goto done;
  result=PAPACC_RESULT_OK; /* DATA only; no provenance/freshness/fencing claim */
 done:LeaveCriticalSection(&o->lock);return result;
 }
+
+PAPACC_RESULT papacc_configuration_v3_checkpoint_match_data(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_PIN *pin)
+{return storage_checkpoint_match_data(o,pin,3U);}

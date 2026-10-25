@@ -1,0 +1,142 @@
+PAPINHOACCELERATOR — N0START-03
+Integração focal do endereço da aprovação read-only e dos pins
+
+TASK=PACC-PHASE6-N0START03-FRESH-READONLY-APPROVAL-PATH-PIN-INTEGRATION-1
+MODE=SCOPED_SOURCE_AND_PIN_INTEGRATION_OFFLINE_ONLY
+CANONICAL_PROJECT=C:\Projetos\PapinhoAccelerator
+OWNER_AUTHORIZATION=EXACT_PATH_PATCH_DERIVED_LAUNCHER_PINS_REBUILD_AND_OFFLINE_QUALIFICATION
+
+1. Objetivo e autorização
+
+Autorizo concluir, no projeto canônico existente, a integração focal necessária para preparar um pacote consistente para posterior aprovação de uma única observação manual read-only da N0START-03.
+
+Esta autorização inclui, na mesma tarefa:
+- verificar e aplicar o patch das duas referências ao endereço da aprovação read-only;
+- reconstruir o Selected Release opt-in pela receita já qualificada;
+- calcular o hash factual do executável resultante;
+- atualizar no launcher existente os campos de caminho/hash desse executável previstos no plano;
+- calcular o hash final do launcher;
+- requalificar offline e concluir a revisão cruzada do pacote.
+
+Essa autorização substitui a proibição de alteração funcional da seção 9 da tarefa anterior EXCLUSIVAMENTE para as mudanças acima. Não é necessária nova autorização intermediária para atualizar os pins derivados desse rebuild, já incluídos neste escopo.
+
+A aprovação operacional e a execução manual posterior continuam sendo uma etapa separada.
+
+2. Base documental e verificação prévia
+
+Ler o pacote existente:
+docs/integration/n0start03-fresh-native-readonly-preparation-20261024/
+
+Usar especialmente:
+- build-pin-review-and-preparation-STOP.md;
+- fresh-approval-paths.NOT-APPLIED.patch;
+- launcher-pin-update.PLAN.json;
+- pin-review-matrix.csv;
+- reviewed-source-policy-dependency-hashes.json;
+- build-Selected-Release.cmd;
+- offline-test-results.json;
+- o pedido DRAFT, o plano de confirmação/observação/Stop e o comando candidato já preparados.
+
+Verificar localmente os bytes do patch. SHA256 informado no relatório:
+dcc6535f29937ec8692142dde7ad9ef1c211f522bb91d7ba208aedd67d7a2b57
+
+Conferir HEAD, WIP, preimagens e o plano antes de aplicar. Preservar alterações preexistentes. Confirmar que o patch modifica apenas as duas referências read-only descritas: ig_approval() sob o macro sucessor read-only e o Pin correspondente no launcher.
+
+O endereço exclusivo futuro deve ser exatamente o previsto no patch verificado, no pacote existente, terminando em:
+EXACT-FRESH-READONLY-APPROVED.json
+
+O registro histórico deve permanecer byte-exato. O novo registro operacional deve continuar ausente. Se houver divergência de hash, preimagem, escopo ou conflito com o WIP, relatar a primeira divergência concreta e não forçar a aplicação.
+
+3. Integração completa
+
+Executar nesta ordem:
+
+a) Aplicar o patch exato verificado.
+
+b) Reconstruir Selected Release com a receita, dependências e perfil read-only opt-in já documentados. Preservar as evidências e os binários históricos segundo o procedimento existente. Usar a árvore canônica; não criar outro checkout, clone ou worktree.
+
+c) Obter o caminho, tamanho e SHA256 factuais do executável produzido. O hash 3093beaa26d2b57fe6fe14fe9b5d9cfbb7ea7f5ef36ff936850c1d7de7e0583d identifica o build de revisão anterior à alteração do C; não o tratar como resultado final.
+
+d) Atualizar no launcher existente somente os campos de caminho/hash do executável previstos em launcher-pin-update.PLAN.json, além do endereço de aprovação alterado pelo patch.
+
+Launcher existente:
+tools/qualification/scm-n0-protected-single-powershell.ps1
+
+e) Calcular o SHA256 final do launcher após todas as alterações autorizadas.
+
+f) Concluir a revisão cruzada: C e launcher apontam para o mesmo endereço exclusivo de aprovação nova; launcher aponta para o executável efetivamente produzido; documentos e pedido candidato correspondem aos bytes finais.
+
+Não preencher hashes futuros por inferência nem reutilizar hashes de builds/aprovações anteriores.
+
+4. Qualificação offline necessária
+
+Reexecutar os 15 executáveis offline já definidos no pacote e os checks de consistência de paths/pins pertinentes à alteração. Reaproveitar os fixtures existentes; ampliar testes somente se uma divergência concreta exigir.
+
+Verificar:
+- build Selected Release sem warnings;
+- correspondência entre fonte, executável, launcher e pins finais;
+- endereço histórico preservado e endereço novo consistente, sem criar o registro aprovado;
+- perfil geral EMPTY_DENY preservado;
+- PAPACC_N0START03_READONLY_PINS=1 e PAPACC_N0_READONLY_PINNED_LAB=1 no opt-in;
+- PAPACC_N0_POSITIVE_PINNED_LAB ausente e opção positiva OFF;
+- A1, B1, self-token, validações, freshness, replay, Stop e retenção preservados.
+
+Nenhum teste desta tarefa deve entrar no qualificador operacional nem acionar --prepare-n0 ou --cycle-n0. Usar modelos e APIs simuladas já existentes.
+
+5. Limites de escopo e de evidência
+
+Preservar o predicado positive&&n0 do fechamento antecipado de lab_token. O read-only não executa essa redução; não alterar o predicado para obter uma medição favorável.
+
+Preservar e explicitar os limites documentados:
+- IG_PROCESS mede handles antes de PSS;
+- os logs atuais não mostram o pico intermediário de captura/OpenThread/VirtualQueryEx: manter NOT_AVAILABLE;
+- duração monotônica ponta a ponta permanece UNKNOWN quando não houver medição factual;
+- um futuro PASS read-only não demonstra o pico positivo inteiro, não concede orçamento independente e não encerra ED11.
+
+Não adicionar instrumentação nem implementar B2 nesta tarefa. Não alterar políticas, contratos, quotas, guardas, ownership, callbacks ou cleanup. Preservar produção 0.6.4, launcher único e histórico.
+
+Não criar o registro operacional de aprovação; não marcar o pedido como aprovado; não reutilizar ou sobrescrever a aprovação histórica.
+
+Não executar Prepare, preflight nativo, LAB, Start/Stop, consulta/mutação SCM ou alteração ACL. Não consumir intent, criar tentativa operacional, imagem, sink ou arm, fazer rebind, placement, bootstrap, CA, certificados ou CURRENT. Sem commit, push, tag ou release.
+
+6. Entregáveis e encerramento
+
+Entregar:
+- diff focal exato e sua revisão;
+- comandos/logs do build e resultados offline;
+- caminhos, tamanhos e hashes finais completos do executável e launcher;
+- matriz de pins atualizada, distinguindo fatos históricos, bytes finais revisados e fatos ainda dependentes da observação autorizada;
+- pedido candidato inerte atualizado para revisão e aprovação específica de UMA futura execução manual read-only;
+- comando candidato com os valores finais já conhecidos preenchidos, mantendo explícita a dependência do futuro registro aprovado e de seu hash.
+
+Não apresentar o comando como executável antes de existir aprovação operacional específica e registro exato correspondente. Não gerar aprovação em nome do proprietário.
+
+Preservar o relatório STOP anterior como evidência e acrescentar o closeout desta integração. Identificar o novo relatório principal no resumo final para evitar confusão entre o STOP histórico e o pacote atual.
+
+Concluir esta tarefa quando integração, build, testes e pacote estiverem consistentes. A execução manual posterior não é requisito para declarar esta integração concluída.
+
+Usar os campos abaixo como formato proposto de resultado, preenchidos conforme a evidência efetiva. Em caso de divergência, registrar NO e a causa concreta:
+
+CURRENT_TASK_COMPLETED=YES|NO
+FRESH_APPROVAL_PATH_INTEGRATION=COMPLETE|INCOMPLETE
+READONLY_EXECUTABLE_AND_LAUNCHER_PINS=CONSISTENT|INCONSISTENT
+OPERATIONAL_PINS=INTEGRATED_READONLY_ONLY_EXECUTION_NOT_AUTHORIZED|UNCHANGED_DIVERGENCE_REPORTED
+READONLY_PACKAGE=READY_FOR_SPECIFIC_OWNER_APPROVAL|STOP
+EXACT_FRESH_APPROVAL_RECORD=NOT_REGISTERED
+EXECUTION_AUTHORIZED=NO
+BUILD=SELECTED_RELEASE_PASS|FAIL|NOT_RUN
+WARNINGS=...
+OFFLINE_TESTS=...
+FRESH_OBSERVATION=NOT_EXECUTED
+PREFLIGHT_EXECUTED=NO
+START_EXECUTED=NO
+STOP_EXECUTED=NO
+SCM_MUTATIONS=NONE
+ACL_MUTATIONS=NONE
+ED11_TOTAL_STATUS=PARTIAL
+CURRENT_PUBLICATION=DENY
+SIGNATURE_AUTHORITY=DENY
+AUTHORITATIVE_RECOVERY=DENY
+WIP_PRESERVED=YES_EXCEPT_AUTHORIZED_FOCAL_DIFF|DIVERGENCE_REPORTED
+FIRST_UNRESOLVED_DIVERGENCE=NONE_IN_INTEGRATION|...
+NEXT=SPECIFIC_OWNER_APPROVAL_FOR_ONE_MANUAL_FRESH_READONLY_OBSERVATION

@@ -1,0 +1,2642 @@
+{
+  "Selected-Debug": {
+    "functions": {
+      "psrf_checksum": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_valid": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "memcmp",
+          "psrf_checksum"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_fail": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_same": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_close": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp_CloseHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_fail"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_write": {
+        "stack_sub": 80,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 88,
+        "calls": [
+          "QWORD PTR __imp_WriteFile",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_fail",
+          "QWORD PTR __imp_FlushFileBuffers",
+          "_RTC_CheckStackVars"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_read_arm": {
+        "stack_sub": 216,
+        "saved_register_push_bytes": 16,
+        "local_stack_extent_excluding_return": 232,
+        "calls": [
+          "psrf_fail",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_same",
+          "QWORD PTR __imp_GetFileType",
+          "QWORD PTR __imp_GetFileSizeEx",
+          "QWORD PTR __imp_ReadFile",
+          "psrf_valid",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_finish": {
+        "stack_sub": 144,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 152,
+        "calls": [
+          "psrf_fail",
+          "memcmp",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_same",
+          "memset",
+          "memcpy",
+          "psrf_checksum",
+          "psrf_write",
+          "psrf_close",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_emit": {
+        "stack_sub": 80,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 88,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "psrd_fail",
+          "_snprintf_s",
+          "psrf_finish",
+          "QWORD PTR __imp_CloseHandle"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_quiescent": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_context": {
+        "stack_sub": 304,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 312,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "QWORD PTR __imp_SetLastError",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_prepared": {
+        "stack_sub": 304,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 312,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "QWORD PTR __imp_SetLastError",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_bool": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_handle": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "psrt_bool"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_status": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "psrt_bool",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_count": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "psrt_bool"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_nt": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "psrt_bool",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_pred": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 8,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_values": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 8,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_token": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "psrt_bool"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_sid_hex": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_token_emit": {
+        "stack_sub": 880,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 888,
+        "calls": [
+          "psrt_sid_hex",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_return": {
+        "stack_sub": 1024,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 1032,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "psrt_token_emit",
+          "QWORD PTR __imp_SetLastError",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_close": {
+        "stack_sub": 128,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 136,
+        "calls": [
+          "psrt_return",
+          "psrd_quiescent",
+          "psrf_close",
+          "QWORD PTR __imp_LocalFree",
+          "QWORD PTR __imp_CloseHandle",
+          "ps_last_error",
+          "RtlSecureZeroMemory",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_inside_sid": {
+        "stack_sub": 64,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_IsValidSid",
+          "QWORD PTR __imp_GetLengthSid"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_fail": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_sid": {
+        "stack_sub": 96,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 104,
+        "calls": [
+          "QWORD PTR __imp_InitializeSid",
+          "QWORD PTR __imp_GetSidSubAuthority",
+          "QWORD PTR __imp_IsValidSid",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_descriptor": {
+        "stack_sub": 864,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 872,
+        "calls": [
+          "QWORD PTR __imp_IsValidSecurityDescriptor",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "QWORD PTR __imp_GetSecurityDescriptorOwner",
+          "QWORD PTR __imp_GetSecurityDescriptorDacl",
+          "QWORD PTR __imp_IsValidAcl",
+          "QWORD PTR __imp_CreateWellKnownSid",
+          "psrd_sid",
+          "QWORD PTR __imp_EqualSid",
+          "QWORD PTR __imp_GetAce",
+          "psr_inside_sid",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_security": {
+        "stack_sub": 336,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 344,
+        "calls": [
+          "QWORD PTR __imp_GetKernelObjectSecurity",
+          "QWORD PTR __imp_GetLastError",
+          "psrd_fail",
+          "QWORD PTR __imp_IsValidSecurityDescriptor",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "psrd_sid",
+          "scm_descriptor",
+          "psrd_descriptor",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_bind": {
+        "stack_sub": 224,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 232,
+        "calls": [
+          "papacc_server_console_win32_stop_requested",
+          "psrd_fail",
+          "QWORD PTR __imp_CreateFileW",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "psrd_security",
+          "QWORD PTR __imp_GetFinalPathNameByHandleW",
+          "QWORD PTR __imp_wcslen",
+          "memcpy",
+          "QWORD PTR __imp_wcsncmp",
+          "QWORD PTR __imp_wcscmp",
+          "psrf_read_arm",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_prepare_complete": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "psrt_prepared",
+          "psrd_quiescent"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_token": {
+        "stack_sub": 648,
+        "saved_register_push_bytes": 16,
+        "local_stack_extent_excluding_return": 664,
+        "calls": [
+          "psrt_context",
+          "psrt_return",
+          "QWORD PTR __imp_GetCurrentThread",
+          "QWORD PTR __imp_OpenThreadToken",
+          "psrt_bool",
+          "QWORD PTR __imp_GetLastError",
+          "ps_last_error",
+          "QWORD PTR __imp_GetCurrentProcess",
+          "QWORD PTR __imp_OpenProcessToken",
+          "QWORD PTR __imp_GetTokenInformation",
+          "psrt_token",
+          "psrt_pred",
+          "psr_inside_sid",
+          "QWORD PTR __imp_EqualSid",
+          "QWORD PTR __imp_CreateWellKnownSid",
+          "QWORD PTR __imp_DuplicateToken",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_open": {
+        "stack_sub": 384,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 392,
+        "calls": [
+          "psrt_return",
+          "QWORD PTR __imp_wcslen",
+          "QWORD PTR __imp_wcscmp",
+          "psrt_context",
+          "QWORD PTR __imp_GetModuleHandleW",
+          "QWORD PTR __imp_GetProcAddress",
+          "memcpy",
+          "memset",
+          "QWORD PTR create$[rsp]",
+          "psrt_nt",
+          "_RTC_CheckStackVars"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_acl": {
+        "stack_sub": 496,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 504,
+        "calls": [
+          "psrt_context",
+          "psrt_return",
+          "ConvertStringSidToSidW",
+          "psrt_bool",
+          "ps_last_error",
+          "QWORD PTR __imp_GetSecurityInfo",
+          "psrt_status",
+          "QWORD PTR __imp_GetSecurityDescriptorLength",
+          "psrt_pred",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "scm_descriptor",
+          "QWORD PTR __imp_AccessCheck",
+          "psrt_values",
+          "pacc_storage_hash_callback",
+          "memcmp",
+          "memcpy",
+          "QWORD PTR __imp_LocalFree",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_current": {
+        "stack_sub": 528,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 536,
+        "calls": [
+          "psrt_context",
+          "papacc_server_console_win32_stop_requested",
+          "psrt_return",
+          "QWORD PTR __imp_GetCurrentThread",
+          "QWORD PTR __imp_OpenThreadToken",
+          "psrt_bool",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentProcess",
+          "QWORD PTR __imp_OpenProcessToken",
+          "QWORD PTR __imp_GetTokenInformation",
+          "psrt_token",
+          "memcmp",
+          "QWORD PTR __imp_CloseHandle",
+          "psrt_pred",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "ps_image_same",
+          "QWORD PTR __imp_SetFilePointerEx",
+          "QWORD PTR __imp_ReadFile",
+          "pacc_storage_hash_callback",
+          "__report_rangecheckfailure",
+          "strcmp",
+          "psr_acl",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_prepare": {
+        "stack_sub": 61776,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 61784,
+        "calls": [
+          "__chkstk",
+          "psrd_bind",
+          "psrt_context",
+          "psrt_return",
+          "ps_image_open",
+          "QWORD PTR __imp_OpenSCManagerW",
+          "psrt_handle",
+          "ps_last_error",
+          "QWORD PTR __imp_OpenServiceW",
+          "ps_virtual_readback_start",
+          "memset",
+          "QWORD PTR __imp_QueryServiceStatusEx",
+          "psrt_bool",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "psr_token",
+          "QWORD PTR __imp_wcslen",
+          "QWORD PTR __imp_wcsncmp",
+          "QWORD PTR __imp_wcscmp",
+          "QWORD PTR __imp_QueryDosDeviceW",
+          "psrt_count",
+          "memcpy",
+          "psr_open",
+          "psr_current",
+          "pc_parse",
+          "pc_validate",
+          "psrd_prepare_complete",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "ps_main": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp__wcsicmp",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "ps_begin",
+          "QWORD PTR __imp_RegisterServiceCtrlHandlerExW",
+          "ps_report",
+          "ps_park_retained",
+          "psr_prepare",
+          "psr_close",
+          "ps_close",
+          "ps_finish",
+          "QWORD PTR host+80"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      }
+    },
+    "chains": [
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_bind",
+          "psrd_security",
+          "psrd_descriptor"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_bind",
+          "psrd_security",
+          "psrd_descriptor"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psrd_bind",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_bind",
+            "callee": "psrd_security",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_security",
+            "callee": "psrd_descriptor",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 63328,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      },
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psr_open",
+          "psrt_return",
+          "psrd_emit",
+          "psrf_finish",
+          "psrf_write"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psr_open",
+          "psrt_return",
+          "psrd_emit",
+          "psrf_finish",
+          "psrf_write"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psr_open",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_open",
+            "callee": "psrt_return",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrt_return",
+            "callee": "psrd_emit",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_emit",
+            "callee": "psrf_finish",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrf_finish",
+            "callee": "psrf_write",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 63648,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      },
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_prepare_complete",
+          "psrt_prepared",
+          "psrd_emit",
+          "psrf_finish",
+          "psrf_write"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_prepare_complete",
+          "psrt_prepared",
+          "psrd_emit",
+          "psrf_finish",
+          "psrf_write"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psrd_prepare_complete",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_prepare_complete",
+            "callee": "psrt_prepared",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrt_prepared",
+            "callee": "psrd_emit",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_emit",
+            "callee": "psrf_finish",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrf_finish",
+            "callee": "psrf_write",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 62576,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      }
+    ]
+  },
+  "Selected-Release": {
+    "functions": {
+      "psrf_checksum": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_valid": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "memcmp",
+          "psrf_checksum"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_fail": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_same": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_close": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp_CloseHandle",
+          "QWORD PTR __imp_GetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_write": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_WriteFile",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_FlushFileBuffers"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_read_arm": {
+        "stack_sub": 128,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 136,
+        "calls": [
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_fail",
+          "QWORD PTR __imp_GetFileType",
+          "QWORD PTR __imp_GetFileSizeEx",
+          "QWORD PTR __imp_ReadFile",
+          "memcmp",
+          "psrf_checksum",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_finish": {
+        "stack_sub": 128,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 168,
+        "calls": [
+          "memcmp",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_fail",
+          "memset",
+          "memcpy",
+          "psrf_checksum",
+          "QWORD PTR __imp_WriteFile",
+          "QWORD PTR __imp_FlushFileBuffers",
+          "QWORD PTR __imp_CloseHandle",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_emit": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "_snprintf_s",
+          "psrf_finish",
+          "QWORD PTR __imp_CloseHandle",
+          "psrd_fail"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_quiescent": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_context": {
+        "stack_sub": 256,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 264,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_prepared": {
+        "stack_sub": 256,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 264,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_bool": {
+        "stack_sub": 40,
+        "saved_register_push_bytes": 32,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_handle": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_status": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_count": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_nt": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_pred": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_values": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_token": {
+        "stack_sub": 40,
+        "saved_register_push_bytes": 32,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_sid_hex": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 8,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_token_emit": {
+        "stack_sub": 680,
+        "saved_register_push_bytes": 16,
+        "local_stack_extent_excluding_return": 696,
+        "calls": [
+          "psrt_sid_hex",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_return": {
+        "stack_sub": 968,
+        "saved_register_push_bytes": 32,
+        "local_stack_extent_excluding_return": 1000,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "psrt_token_emit",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_close": {
+        "stack_sub": 104,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 104,
+        "calls": [
+          "psrf_close",
+          "QWORD PTR __imp_LocalFree",
+          "QWORD PTR __imp_CloseHandle",
+          "QWORD PTR __imp_GetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_inside_sid": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp_IsValidSid",
+          "QWORD PTR __imp_GetLengthSid"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_fail": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_sid": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 24,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_InitializeSid",
+          "QWORD PTR __imp_GetSidSubAuthority",
+          "QWORD PTR __imp_IsValidSid",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_descriptor": {
+        "stack_sub": 472,
+        "saved_register_push_bytes": 48,
+        "local_stack_extent_excluding_return": 520,
+        "calls": [
+          "QWORD PTR __imp_IsValidSecurityDescriptor",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "QWORD PTR __imp_GetSecurityDescriptorOwner",
+          "QWORD PTR __imp_GetSecurityDescriptorDacl",
+          "QWORD PTR __imp_IsValidAcl",
+          "QWORD PTR __imp_CreateWellKnownSid",
+          "QWORD PTR __imp_InitializeSid",
+          "QWORD PTR __imp_GetSidSubAuthority",
+          "QWORD PTR __imp_IsValidSid",
+          "QWORD PTR __imp_EqualSid",
+          "QWORD PTR __imp_GetAce",
+          "QWORD PTR __imp_GetLengthSid",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_security": {
+        "stack_sub": 192,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 200,
+        "calls": [
+          "QWORD PTR __imp_GetKernelObjectSecurity",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_IsValidSecurityDescriptor",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "QWORD PTR __imp_InitializeSid",
+          "QWORD PTR __imp_GetSidSubAuthority",
+          "QWORD PTR __imp_IsValidSid",
+          "scm_descriptor",
+          "psrd_descriptor",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_bind": {
+        "stack_sub": 136,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 136,
+        "calls": [
+          "papacc_server_console_win32_stop_requested",
+          "QWORD PTR __imp_CreateFileW",
+          "QWORD PTR __imp_GetLastError",
+          "psrd_fail",
+          "__security_check_cookie",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "psrd_security",
+          "QWORD PTR __imp_GetFinalPathNameByHandleW",
+          "wcsncmp",
+          "wcscmp",
+          "psrf_read_arm"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_prepare_complete": {
+        "stack_sub": 256,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 264,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_token": {
+        "stack_sub": 336,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 344,
+        "calls": [
+          "psrt_context",
+          "QWORD PTR __imp_GetCurrentThread",
+          "QWORD PTR __imp_OpenThreadToken",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "psrt_return",
+          "QWORD PTR __imp_GetCurrentProcess",
+          "QWORD PTR __imp_OpenProcessToken",
+          "QWORD PTR __imp_GetTokenInformation",
+          "psr_inside_sid",
+          "QWORD PTR __imp_EqualSid",
+          "QWORD PTR __imp_CreateWellKnownSid",
+          "QWORD PTR __imp_IsValidSid",
+          "QWORD PTR __imp_GetLengthSid",
+          "__security_check_cookie",
+          "QWORD PTR __imp_DuplicateToken"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_open": {
+        "stack_sub": 176,
+        "saved_register_push_bytes": 24,
+        "local_stack_extent_excluding_return": 200,
+        "calls": [
+          "wcslen",
+          "psrt_context",
+          "QWORD PTR __imp_GetModuleHandleW",
+          "psrt_return",
+          "QWORD PTR __imp_GetProcAddress",
+          "r10",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_acl": {
+        "stack_sub": 176,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 216,
+        "calls": [
+          "psrt_context",
+          "ConvertStringSidToSidW",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "QWORD PTR __imp_GetSecurityInfo",
+          "QWORD PTR __imp_GetSecurityDescriptorLength",
+          "QWORD PTR __imp_LocalFree",
+          "psrt_return",
+          "__security_check_cookie",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "scm_descriptor",
+          "QWORD PTR __imp_AccessCheck",
+          "pacc_storage_hash_callback",
+          "memcmp"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_current": {
+        "stack_sub": 304,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 312,
+        "calls": [
+          "psrt_context",
+          "papacc_server_console_win32_stop_requested",
+          "QWORD PTR __imp_GetCurrentThread",
+          "QWORD PTR __imp_OpenThreadToken",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "psrt_return",
+          "QWORD PTR __imp_GetCurrentProcess",
+          "QWORD PTR __imp_OpenProcessToken",
+          "QWORD PTR __imp_GetTokenInformation",
+          "memcmp",
+          "QWORD PTR __imp_CloseHandle",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_SetFilePointerEx",
+          "QWORD PTR __imp_ReadFile",
+          "pacc_storage_hash_callback",
+          "__security_check_cookie",
+          "strcmp",
+          "psr_acl"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_prepare": {
+        "stack_sub": 61760,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 61768,
+        "calls": [
+          "__chkstk",
+          "psrd_bind",
+          "psrt_context",
+          "ps_image_open",
+          "psrt_return",
+          "QWORD PTR __imp_OpenSCManagerW",
+          "psrt_handle",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_OpenServiceW",
+          "ps_virtual_readback_start",
+          "QWORD PTR __imp_QueryServiceStatusEx",
+          "QWORD PTR __imp_SetLastError",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "psr_token",
+          "wcsncmp",
+          "QWORD PTR __imp_QueryDosDeviceW",
+          "psrt_count",
+          "wcslen",
+          "__security_check_cookie",
+          "memcpy",
+          "psr_open",
+          "psr_current",
+          "pc_parse",
+          "pc_validate",
+          "_snprintf_s",
+          "psrd_emit"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "ps_main": {
+        "stack_sub": 40,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp__wcsicmp",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "ps_begin",
+          "QWORD PTR __imp_RegisterServiceCtrlHandlerExW",
+          "QWORD PTR __imp_SetServiceStatus",
+          "psr_prepare",
+          "psr_close",
+          "ps_close",
+          "ps_finish",
+          "ps_report",
+          "QWORD PTR host+80"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      }
+    },
+    "chains": [
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_bind",
+          "psrd_security",
+          "psrd_descriptor"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_bind",
+          "psrd_security",
+          "psrd_descriptor"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psrd_bind",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_bind",
+            "callee": "psrd_security",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_security",
+            "callee": "psrd_descriptor",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 62704,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      },
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psr_open",
+          "psrt_return",
+          "psrd_emit",
+          "psrf_finish"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psr_open",
+          "psrt_return",
+          "psrd_emit",
+          "psrf_finish"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psr_open",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_open",
+            "callee": "psrt_return",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrt_return",
+            "callee": "psrd_emit",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_emit",
+            "callee": "psrf_finish",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 63280,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      },
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_emit",
+          "psrf_finish"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_emit",
+          "psrf_finish"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psrd_emit",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_emit",
+            "callee": "psrf_finish",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 62064,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      }
+    ]
+  },
+  "Legacy-Debug": {
+    "functions": {
+      "psrf_checksum": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_valid": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "memcmp",
+          "psrf_checksum"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_fail": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_same": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_close": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp_CloseHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_fail"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_write": {
+        "stack_sub": 80,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 88,
+        "calls": [
+          "QWORD PTR __imp_WriteFile",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_fail",
+          "QWORD PTR __imp_FlushFileBuffers",
+          "_RTC_CheckStackVars"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_read_arm": {
+        "stack_sub": 216,
+        "saved_register_push_bytes": 16,
+        "local_stack_extent_excluding_return": 232,
+        "calls": [
+          "psrf_fail",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_same",
+          "QWORD PTR __imp_GetFileType",
+          "QWORD PTR __imp_GetFileSizeEx",
+          "QWORD PTR __imp_ReadFile",
+          "psrf_valid",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_finish": {
+        "stack_sub": 144,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 152,
+        "calls": [
+          "psrf_fail",
+          "memcmp",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_same",
+          "memset",
+          "memcpy",
+          "psrf_checksum",
+          "psrf_write",
+          "psrf_close",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_emit": {
+        "stack_sub": 80,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 88,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "psrd_fail",
+          "_snprintf_s",
+          "psrf_finish",
+          "QWORD PTR __imp_CloseHandle"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_quiescent": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_context": {
+        "stack_sub": 304,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 312,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "QWORD PTR __imp_SetLastError",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_prepared": {
+        "stack_sub": 304,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 312,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "QWORD PTR __imp_SetLastError",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_bool": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_handle": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "psrt_bool"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_status": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "psrt_bool",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_count": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "psrt_bool"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_nt": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "psrt_bool",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_pred": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 8,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_values": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 8,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_token": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "psrt_bool"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_sid_hex": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_token_emit": {
+        "stack_sub": 880,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 888,
+        "calls": [
+          "psrt_sid_hex",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_return": {
+        "stack_sub": 1024,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 1032,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "psrt_token_emit",
+          "QWORD PTR __imp_SetLastError",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_close": {
+        "stack_sub": 128,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 136,
+        "calls": [
+          "psrt_return",
+          "psrd_quiescent",
+          "psrf_close",
+          "QWORD PTR __imp_LocalFree",
+          "QWORD PTR __imp_CloseHandle",
+          "ps_last_error",
+          "RtlSecureZeroMemory",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_inside_sid": {
+        "stack_sub": 64,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_IsValidSid",
+          "QWORD PTR __imp_GetLengthSid"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_fail": {
+        "stack_sub": 16,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 24,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_sid": {
+        "stack_sub": 96,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 104,
+        "calls": [
+          "QWORD PTR __imp_InitializeSid",
+          "QWORD PTR __imp_GetSidSubAuthority",
+          "QWORD PTR __imp_IsValidSid",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_descriptor": {
+        "stack_sub": 864,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 872,
+        "calls": [
+          "QWORD PTR __imp_IsValidSecurityDescriptor",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "QWORD PTR __imp_GetSecurityDescriptorOwner",
+          "QWORD PTR __imp_GetSecurityDescriptorDacl",
+          "QWORD PTR __imp_IsValidAcl",
+          "QWORD PTR __imp_CreateWellKnownSid",
+          "psrd_sid",
+          "QWORD PTR __imp_EqualSid",
+          "QWORD PTR __imp_GetAce",
+          "psr_inside_sid",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_security": {
+        "stack_sub": 336,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 344,
+        "calls": [
+          "QWORD PTR __imp_GetKernelObjectSecurity",
+          "QWORD PTR __imp_GetLastError",
+          "psrd_fail",
+          "QWORD PTR __imp_IsValidSecurityDescriptor",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "psrd_sid",
+          "scm_descriptor",
+          "psrd_descriptor",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_bind": {
+        "stack_sub": 224,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 232,
+        "calls": [
+          "papacc_server_console_win32_stop_requested",
+          "psrd_fail",
+          "QWORD PTR __imp_CreateFileW",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "psrd_security",
+          "QWORD PTR __imp_GetFinalPathNameByHandleW",
+          "QWORD PTR __imp_wcslen",
+          "memcpy",
+          "QWORD PTR __imp_wcsncmp",
+          "QWORD PTR __imp_wcscmp",
+          "psrf_read_arm",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_prepare_complete": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "psrt_prepared",
+          "psrd_quiescent"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_token": {
+        "stack_sub": 648,
+        "saved_register_push_bytes": 16,
+        "local_stack_extent_excluding_return": 664,
+        "calls": [
+          "psrt_context",
+          "psrt_return",
+          "QWORD PTR __imp_GetCurrentThread",
+          "QWORD PTR __imp_OpenThreadToken",
+          "psrt_bool",
+          "QWORD PTR __imp_GetLastError",
+          "ps_last_error",
+          "QWORD PTR __imp_GetCurrentProcess",
+          "QWORD PTR __imp_OpenProcessToken",
+          "QWORD PTR __imp_GetTokenInformation",
+          "psrt_token",
+          "psrt_pred",
+          "psr_inside_sid",
+          "QWORD PTR __imp_EqualSid",
+          "QWORD PTR __imp_CreateWellKnownSid",
+          "QWORD PTR __imp_DuplicateToken",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_open": {
+        "stack_sub": 384,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 392,
+        "calls": [
+          "psrt_return",
+          "QWORD PTR __imp_wcslen",
+          "QWORD PTR __imp_wcscmp",
+          "psrt_context",
+          "QWORD PTR __imp_GetModuleHandleW",
+          "QWORD PTR __imp_GetProcAddress",
+          "memcpy",
+          "memset",
+          "QWORD PTR create$[rsp]",
+          "psrt_nt",
+          "_RTC_CheckStackVars"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_acl": {
+        "stack_sub": 496,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 504,
+        "calls": [
+          "psrt_context",
+          "psrt_return",
+          "ConvertStringSidToSidW",
+          "psrt_bool",
+          "ps_last_error",
+          "QWORD PTR __imp_GetSecurityInfo",
+          "psrt_status",
+          "QWORD PTR __imp_GetSecurityDescriptorLength",
+          "psrt_pred",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "scm_descriptor",
+          "QWORD PTR __imp_AccessCheck",
+          "psrt_values",
+          "pacc_storage_hash_callback",
+          "memcmp",
+          "memcpy",
+          "QWORD PTR __imp_LocalFree",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_current": {
+        "stack_sub": 528,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 536,
+        "calls": [
+          "psrt_context",
+          "papacc_server_console_win32_stop_requested",
+          "psrt_return",
+          "QWORD PTR __imp_GetCurrentThread",
+          "QWORD PTR __imp_OpenThreadToken",
+          "psrt_bool",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentProcess",
+          "QWORD PTR __imp_OpenProcessToken",
+          "QWORD PTR __imp_GetTokenInformation",
+          "psrt_token",
+          "memcmp",
+          "QWORD PTR __imp_CloseHandle",
+          "psrt_pred",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "ps_image_same",
+          "QWORD PTR __imp_SetFilePointerEx",
+          "QWORD PTR __imp_ReadFile",
+          "pacc_storage_hash_callback",
+          "__report_rangecheckfailure",
+          "strcmp",
+          "psr_acl",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_prepare": {
+        "stack_sub": 61776,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 61784,
+        "calls": [
+          "__chkstk",
+          "psrd_bind",
+          "psrt_context",
+          "psrt_return",
+          "ps_image_open",
+          "QWORD PTR __imp_OpenSCManagerW",
+          "psrt_handle",
+          "ps_last_error",
+          "QWORD PTR __imp_OpenServiceW",
+          "ps_virtual_readback_start",
+          "memset",
+          "QWORD PTR __imp_QueryServiceStatusEx",
+          "psrt_bool",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "psr_token",
+          "QWORD PTR __imp_wcslen",
+          "QWORD PTR __imp_wcsncmp",
+          "QWORD PTR __imp_wcscmp",
+          "QWORD PTR __imp_QueryDosDeviceW",
+          "psrt_count",
+          "memcpy",
+          "psr_open",
+          "psr_current",
+          "pc_parse",
+          "pc_validate",
+          "psrd_prepare_complete",
+          "_RTC_CheckStackVars",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "ps_main": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp__wcsicmp",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "ps_begin",
+          "QWORD PTR __imp_RegisterServiceCtrlHandlerExW",
+          "ps_report",
+          "ps_park_retained",
+          "psr_prepare",
+          "psr_close",
+          "ps_close",
+          "ps_finish",
+          "QWORD PTR host+80"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      }
+    },
+    "chains": [
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_bind",
+          "psrd_security",
+          "psrd_descriptor"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_bind",
+          "psrd_security",
+          "psrd_descriptor"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psrd_bind",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_bind",
+            "callee": "psrd_security",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_security",
+            "callee": "psrd_descriptor",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 63328,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      },
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psr_open",
+          "psrt_return",
+          "psrd_emit",
+          "psrf_finish",
+          "psrf_write"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psr_open",
+          "psrt_return",
+          "psrd_emit",
+          "psrf_finish",
+          "psrf_write"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psr_open",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_open",
+            "callee": "psrt_return",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrt_return",
+            "callee": "psrd_emit",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_emit",
+            "callee": "psrf_finish",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrf_finish",
+            "callee": "psrf_write",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 63648,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      },
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_prepare_complete",
+          "psrt_prepared",
+          "psrd_emit",
+          "psrf_finish",
+          "psrf_write"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_prepare_complete",
+          "psrt_prepared",
+          "psrd_emit",
+          "psrf_finish",
+          "psrf_write"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psrd_prepare_complete",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_prepare_complete",
+            "callee": "psrt_prepared",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrt_prepared",
+            "callee": "psrd_emit",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_emit",
+            "callee": "psrf_finish",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrf_finish",
+            "callee": "psrf_write",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 62576,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      }
+    ]
+  },
+  "Legacy-Release": {
+    "functions": {
+      "psrf_checksum": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_valid": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "memcmp",
+          "psrf_checksum"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_fail": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_same": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_close": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp_CloseHandle",
+          "QWORD PTR __imp_GetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_write": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_WriteFile",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_FlushFileBuffers"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_read_arm": {
+        "stack_sub": 128,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 136,
+        "calls": [
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_fail",
+          "QWORD PTR __imp_GetFileType",
+          "QWORD PTR __imp_GetFileSizeEx",
+          "QWORD PTR __imp_ReadFile",
+          "memcmp",
+          "psrf_checksum",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrf_finish": {
+        "stack_sub": 128,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 168,
+        "calls": [
+          "memcmp",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_GetLastError",
+          "psrf_fail",
+          "memset",
+          "memcpy",
+          "psrf_checksum",
+          "QWORD PTR __imp_WriteFile",
+          "QWORD PTR __imp_FlushFileBuffers",
+          "QWORD PTR __imp_CloseHandle",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_emit": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 56,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "_snprintf_s",
+          "psrf_finish",
+          "QWORD PTR __imp_CloseHandle",
+          "psrd_fail"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_quiescent": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_context": {
+        "stack_sub": 256,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 264,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_prepared": {
+        "stack_sub": 256,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 264,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_bool": {
+        "stack_sub": 40,
+        "saved_register_push_bytes": 32,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_handle": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_status": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_count": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_nt": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_pred": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_values": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_token": {
+        "stack_sub": 40,
+        "saved_register_push_bytes": 32,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_sid_hex": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 8,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_token_emit": {
+        "stack_sub": 680,
+        "saved_register_push_bytes": 16,
+        "local_stack_extent_excluding_return": 696,
+        "calls": [
+          "psrt_sid_hex",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrt_return": {
+        "stack_sub": 968,
+        "saved_register_push_bytes": 32,
+        "local_stack_extent_excluding_return": 1000,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "psrt_token_emit",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_close": {
+        "stack_sub": 104,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 104,
+        "calls": [
+          "psrf_close",
+          "QWORD PTR __imp_LocalFree",
+          "QWORD PTR __imp_CloseHandle",
+          "QWORD PTR __imp_GetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_inside_sid": {
+        "stack_sub": 32,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp_IsValidSid",
+          "QWORD PTR __imp_GetLengthSid"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_fail": {
+        "stack_sub": 0,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 0,
+        "calls": [],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_sid": {
+        "stack_sub": 48,
+        "saved_register_push_bytes": 24,
+        "local_stack_extent_excluding_return": 72,
+        "calls": [
+          "QWORD PTR __imp_InitializeSid",
+          "QWORD PTR __imp_GetSidSubAuthority",
+          "QWORD PTR __imp_IsValidSid",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_descriptor": {
+        "stack_sub": 472,
+        "saved_register_push_bytes": 48,
+        "local_stack_extent_excluding_return": 520,
+        "calls": [
+          "QWORD PTR __imp_IsValidSecurityDescriptor",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "QWORD PTR __imp_GetSecurityDescriptorOwner",
+          "QWORD PTR __imp_GetSecurityDescriptorDacl",
+          "QWORD PTR __imp_IsValidAcl",
+          "QWORD PTR __imp_CreateWellKnownSid",
+          "QWORD PTR __imp_InitializeSid",
+          "QWORD PTR __imp_GetSidSubAuthority",
+          "QWORD PTR __imp_IsValidSid",
+          "QWORD PTR __imp_EqualSid",
+          "QWORD PTR __imp_GetAce",
+          "QWORD PTR __imp_GetLengthSid",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_security": {
+        "stack_sub": 192,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 200,
+        "calls": [
+          "QWORD PTR __imp_GetKernelObjectSecurity",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_IsValidSecurityDescriptor",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "QWORD PTR __imp_InitializeSid",
+          "QWORD PTR __imp_GetSidSubAuthority",
+          "QWORD PTR __imp_IsValidSid",
+          "scm_descriptor",
+          "psrd_descriptor",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_bind": {
+        "stack_sub": 136,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 136,
+        "calls": [
+          "papacc_server_console_win32_stop_requested",
+          "QWORD PTR __imp_CreateFileW",
+          "QWORD PTR __imp_GetLastError",
+          "psrd_fail",
+          "__security_check_cookie",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "psrd_security",
+          "QWORD PTR __imp_GetFinalPathNameByHandleW",
+          "wcsncmp",
+          "wcscmp",
+          "psrf_read_arm"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psrd_prepare_complete": {
+        "stack_sub": 256,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 264,
+        "calls": [
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "_snprintf_s",
+          "psrd_emit",
+          "QWORD PTR __imp_SetLastError",
+          "__security_check_cookie"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_token": {
+        "stack_sub": 336,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 344,
+        "calls": [
+          "psrt_context",
+          "QWORD PTR __imp_GetCurrentThread",
+          "QWORD PTR __imp_OpenThreadToken",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "psrt_return",
+          "QWORD PTR __imp_GetCurrentProcess",
+          "QWORD PTR __imp_OpenProcessToken",
+          "QWORD PTR __imp_GetTokenInformation",
+          "psr_inside_sid",
+          "QWORD PTR __imp_EqualSid",
+          "QWORD PTR __imp_CreateWellKnownSid",
+          "QWORD PTR __imp_IsValidSid",
+          "QWORD PTR __imp_GetLengthSid",
+          "__security_check_cookie",
+          "QWORD PTR __imp_DuplicateToken"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_open": {
+        "stack_sub": 176,
+        "saved_register_push_bytes": 24,
+        "local_stack_extent_excluding_return": 200,
+        "calls": [
+          "wcslen",
+          "psrt_context",
+          "QWORD PTR __imp_GetModuleHandleW",
+          "psrt_return",
+          "QWORD PTR __imp_GetProcAddress",
+          "r10",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_acl": {
+        "stack_sub": 176,
+        "saved_register_push_bytes": 40,
+        "local_stack_extent_excluding_return": 216,
+        "calls": [
+          "psrt_context",
+          "ConvertStringSidToSidW",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "QWORD PTR __imp_GetSecurityInfo",
+          "QWORD PTR __imp_GetSecurityDescriptorLength",
+          "QWORD PTR __imp_LocalFree",
+          "psrt_return",
+          "__security_check_cookie",
+          "QWORD PTR __imp_GetSecurityDescriptorControl",
+          "scm_descriptor",
+          "QWORD PTR __imp_AccessCheck",
+          "pacc_storage_hash_callback",
+          "memcmp"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_current": {
+        "stack_sub": 304,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 312,
+        "calls": [
+          "psrt_context",
+          "papacc_server_console_win32_stop_requested",
+          "QWORD PTR __imp_GetCurrentThread",
+          "QWORD PTR __imp_OpenThreadToken",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_SetLastError",
+          "psrt_return",
+          "QWORD PTR __imp_GetCurrentProcess",
+          "QWORD PTR __imp_OpenProcessToken",
+          "QWORD PTR __imp_GetTokenInformation",
+          "memcmp",
+          "QWORD PTR __imp_CloseHandle",
+          "QWORD PTR __imp_GetFileInformationByHandle",
+          "QWORD PTR __imp_SetFilePointerEx",
+          "QWORD PTR __imp_ReadFile",
+          "pacc_storage_hash_callback",
+          "__security_check_cookie",
+          "strcmp",
+          "psr_acl"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "psr_prepare": {
+        "stack_sub": 61760,
+        "saved_register_push_bytes": 8,
+        "local_stack_extent_excluding_return": 61768,
+        "calls": [
+          "__chkstk",
+          "psrd_bind",
+          "psrt_context",
+          "ps_image_open",
+          "psrt_return",
+          "QWORD PTR __imp_OpenSCManagerW",
+          "psrt_handle",
+          "QWORD PTR __imp_GetLastError",
+          "QWORD PTR __imp_OpenServiceW",
+          "ps_virtual_readback_start",
+          "QWORD PTR __imp_QueryServiceStatusEx",
+          "QWORD PTR __imp_SetLastError",
+          "QWORD PTR __imp_GetCurrentProcessId",
+          "psr_token",
+          "wcsncmp",
+          "QWORD PTR __imp_QueryDosDeviceW",
+          "psrt_count",
+          "wcslen",
+          "__security_check_cookie",
+          "memcpy",
+          "psr_open",
+          "psr_current",
+          "pc_parse",
+          "pc_validate",
+          "_snprintf_s",
+          "psrd_emit"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      },
+      "ps_main": {
+        "stack_sub": 40,
+        "saved_register_push_bytes": 0,
+        "local_stack_extent_excluding_return": 40,
+        "calls": [
+          "QWORD PTR __imp__wcsicmp",
+          "QWORD PTR __imp_GetCurrentThreadId",
+          "ps_begin",
+          "QWORD PTR __imp_RegisterServiceCtrlHandlerExW",
+          "QWORD PTR __imp_SetServiceStatus",
+          "psr_prepare",
+          "psr_close",
+          "ps_close",
+          "ps_finish",
+          "ps_report",
+          "QWORD PTR host+80"
+        ],
+        "scope": "THIS_OBJECT_STATIC_FRAME_NOT_OS_CRT_OR_FULL_TRANSITIVE_BOUND"
+      }
+    },
+    "chains": [
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_bind",
+          "psrd_security",
+          "psrd_descriptor"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_bind",
+          "psrd_security",
+          "psrd_descriptor"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psrd_bind",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_bind",
+            "callee": "psrd_security",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_security",
+            "callee": "psrd_descriptor",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 62704,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      },
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psr_open",
+          "psrt_return",
+          "psrd_emit",
+          "psrf_finish"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psr_open",
+          "psrt_return",
+          "psrd_emit",
+          "psrf_finish"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psr_open",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_open",
+            "callee": "psrt_return",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrt_return",
+            "callee": "psrd_emit",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_emit",
+            "callee": "psrf_finish",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 63280,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      },
+      {
+        "path": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_emit",
+          "psrf_finish"
+        ],
+        "present": [
+          "ps_main",
+          "psr_prepare",
+          "psrd_emit",
+          "psrf_finish"
+        ],
+        "all_edges_explicit": true,
+        "edges": [
+          {
+            "caller": "ps_main",
+            "callee": "psr_prepare",
+            "explicit_call": true
+          },
+          {
+            "caller": "psr_prepare",
+            "callee": "psrd_emit",
+            "explicit_call": true
+          },
+          {
+            "caller": "psrd_emit",
+            "callee": "psrf_finish",
+            "explicit_call": true
+          }
+        ],
+        "known_stack_bytes_with_return_slots": 62064,
+        "interpretation": "KNOWN_PREFIX_ONLY_EXCLUDES_UNSEEN_NATIVE_AND_CRT_CALLEES_AND_CALLER_THREAD_SETUP"
+      }
+    ]
+  }
+}

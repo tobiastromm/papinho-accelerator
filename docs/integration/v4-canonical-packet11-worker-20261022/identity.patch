@@ -1,0 +1,33 @@
+--- 
++++ 
+@@ -9,8 +9,8 @@
+ int main(int argc,char **argv)
+ {
+  PAPACC_CONFIG_PENDING *p=&owner.pending_commit;HANDLE file,identity;DWORD count,start;
+- PAPACC_ISSUER_CAS_RESULT outcome=PAPACC_COMMIT_IDLE;PAPACC_SIZE bn;const PAPACC_U8 *old_image;unsigned q,base_version;int stop,unknown,conflict;
+- CHECK(argc==4);base_version=(unsigned)atoi(argv[3]);CHECK(base_version==3U||base_version==4U);stop=!strcmp(argv[1],"stop");unknown=!strcmp(argv[1],"unknown");conflict=!strcmp(argv[1],"conflict");
++ PAPACC_ISSUER_CAS_RESULT outcome=PAPACC_COMMIT_IDLE;PAPACC_SIZE bn;const PAPACC_U8 *old_image;unsigned q,base_version;int stop,unknown,conflict,identity_conflict;char identity_path[MAX_PATH];
++ CHECK(argc==4);base_version=(unsigned)atoi(argv[3]);CHECK(base_version==3U||base_version==4U);stop=!strcmp(argv[1],"stop");unknown=!strcmp(argv[1],"unknown");identity_conflict=!strcmp(argv[1],"identity");conflict=identity_conflict||!strcmp(argv[1],"conflict");
+  CHECK(papacc_configuration_commit_init03(&owner,argv[2])==0);
+  CHECK(setup3(4,4,4));CHECK(cp3());
+  if(base_version==4U){CHECK(upgrade4(3));CHECK(cp4());bn=z4;memcpy(base4,e4,bn);old_image=base4;CHECK(next4(bn));}
+@@ -32,7 +32,9 @@
+  CHECK(hash(&owner,p->next,z4-32U,p->next+z4-32U));
+  if(base_version==4U){q=r32(p->next+276)+64U+88U;p->next[q]^=1;CHECK(hash(&owner,p->next,z4-32U,p->next+z4-32U));CHECK(papacc_v3_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[q]^=1;CHECK(hash(&owner,p->next,z4-32U,p->next+z4-32U));}
+  owner.published=1;CHECK(papacc_v3_worker_fixture_start(&owner,identity)!=0);owner.published=0;
+- if(conflict){file=CreateFileA(argv[2],GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,0,NULL);CHECK(file!=INVALID_HANDLE_VALUE);CHECK(SetFilePointer(file,(LONG)(bn-1U),NULL,FILE_BEGIN)!=INVALID_SET_FILE_POINTER);CHECK(WriteFile(file,"X",1,&count,NULL)&&count==1&&FlushFileBuffers(file));CHECK(CloseHandle(file));}
++ if(identity_conflict){CHECK(strlen(argv[2])+10U<MAX_PATH);strcpy_s(identity_path,MAX_PATH,argv[2]);strcat_s(identity_path,MAX_PATH,".identity");CHECK(CloseHandle(identity));
++ identity=CreateFileA(identity_path,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(identity!=INVALID_HANDLE_VALUE);}
++ if(conflict&&!identity_conflict){file=CreateFileA(argv[2],GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,0,NULL);CHECK(file!=INVALID_HANDLE_VALUE);CHECK(SetFilePointer(file,(LONG)(bn-1U),NULL,FILE_BEGIN)!=INVALID_SET_FILE_POINTER);CHECK(WriteFile(file,"X",1,&count,NULL)&&count==1&&FlushFileBuffers(file));CHECK(CloseHandle(file));}
+  if(stop){p->test_entered=CreateEventA(NULL,TRUE,FALSE,NULL);p->test_release=CreateEventA(NULL,TRUE,FALSE,NULL);CHECK(p->test_entered&&p->test_release);}
+  p->test_unknown=unknown;
+  CHECK(papacc_v3_worker_fixture_start(&owner,identity)==0);CHECK(CloseHandle(identity));
+@@ -44,7 +46,7 @@
+  CHECK(!memcmp(p->previous+r32(old_image+48),p->next+r32(e4+48),16384));
+  CHECK(papacc_configuration_publish(&owner)!=0);
+  if(!unknown){file=CreateFileA(argv[2],GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);CHECK(file!=INVALID_HANDLE_VALUE);CHECK(ReadFile(file,observed_v3,sizeof(observed_v3),&count,NULL));CHECK(CloseHandle(file));
+- if(!stop&&!conflict){CHECK(count==z4&&!memcmp(observed_v3,e4,z4));}else if(stop){CHECK(count==bn&&!memcmp(observed_v3,old_image,bn));}}
++ if(!stop&&!conflict){CHECK(count==z4&&!memcmp(observed_v3,e4,z4));}else if(stop||identity_conflict){CHECK(count==bn&&!memcmp(observed_v3,old_image,bn));}}
+  if(stop){CHECK(CloseHandle(p->test_entered));CHECK(CloseHandle(p->test_release));}
+  CHECK(papacc_configuration_stop(&owner)==0);if(!stop)CHECK(papacc_configuration_finish(&owner)!=0);
+  printf("PASS V4_NATIVE_SAME_WORKER mode=%s outcome=%d bytes=%Iu old_bytes=%Iu owner=%Iu pending=%Iu SYNTHETIC_ADMIN_NO_CURRENT_NO_TRUST_RETAINED\n",argv[1],outcome,z4,bn,sizeof(owner),sizeof(*p));return 0;

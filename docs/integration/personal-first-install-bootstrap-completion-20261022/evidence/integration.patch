@@ -1,0 +1,1118 @@
+--- apps/server/server_configuration_personal_data_win32.inc
++++ apps/server/server_configuration_personal_data_win32.inc
+@@ -1,27 +1,52 @@
+-static int personal_native_ceremony_ready(const PAPACC_CONFIG_PENDING *p)
+-{(void)p;return 0; /* DATA sequencing never establishes native admissibility. */}
+-/* Same root/packet, DATA only. Never establishes native eligibility, parent
+- * identity, CSPRNG provenance or permission for a worker/custody operation. */
+-PAPACC_RESULT papacc_configuration_personal_data_capture(PAPACC_CONFIGURATION_COMMIT *o,
+- const unsigned char id[32],const unsigned char *plan,PAPACC_SIZE bytes)
+-{
+- unsigned i;
+- if(!owner(o)||o->stopped||o->unresolved||o->published||o->prepared||o->committed_pending||
+- o->committed_bytes||o->recovery_selected||o->recovery_guard||pending_blocks(o)||o->pending_commit.thread)
+- return PAPACC_RESULT_INVALID_STATE;
+- for(i=0U;i<PAPACC_CONFIG_SLOTS;i++)if(o->slots[i].readers||o->slots[i].retained||o->issuer_snapshot_valid[i])return PAPACC_RESULT_INVALID_STATE;
+- return papacc_personal_data_capture(&o->pending_commit.personal_data,id,plan,bytes)?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_ARGUMENT;
+-}
+-PAPACC_RESULT papacc_configuration_personal_data_retire(PAPACC_CONFIGURATION_COMMIT *o)
+-{
+- PAPACC_CONFIG_PENDING *p;
+- if(!owner(o))return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;
+- /* The DATA object never acquires a borrow. Still deny erasure while any
+-  * canonical worker/native owner can be pending or retained. */
+- if((p->personal_native.phase&&p->personal_native.phase!=3U)||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&p->store_hash)||p->active||p->thread||p->bootstrap_parent||p->bootstrap_container||p->bootstrap_token||
+- p->transaction||(p->file&&p->file!=INVALID_HANDLE_VALUE)||o->unresolved||
+- o->retained_transaction||(o->retained_file&&o->retained_file!=INVALID_HANDLE_VALUE))return PAPACC_RESULT_INVALID_STATE;
+- papacc_personal_data_invalidate(&p->personal_data);
+- return papacc_personal_data_retire(&p->personal_data)?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
+-}
+-
++static int personal_native_ceremony_ready(const PAPACC_CONFIG_PENDING *p)
++{(void)p;return 0; /* DATA sequencing never establishes native admissibility. */}
++/* Same root/packet, DATA only. Never establishes native eligibility, parent
++ * identity, CSPRNG provenance or permission for a worker/custody operation. */
++PAPACC_RESULT papacc_configuration_personal_data_capture(PAPACC_CONFIGURATION_COMMIT *o,
++ const unsigned char id[32],const unsigned char *plan,PAPACC_SIZE bytes)
++{
++ unsigned i;
++ if(!owner(o)||o->stopped||o->unresolved||o->published||o->prepared||o->committed_pending||
++ o->committed_bytes||o->recovery_selected||o->recovery_guard||pending_blocks(o)||o->pending_commit.thread)
++ return PAPACC_RESULT_INVALID_STATE;
++ for(i=0U;i<PAPACC_CONFIG_SLOTS;i++)if(o->slots[i].readers||o->slots[i].retained||o->issuer_snapshot_valid[i])return PAPACC_RESULT_INVALID_STATE;
++ return papacc_personal_data_capture(&o->pending_commit.personal_data,id,plan,bytes)?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_ARGUMENT;
++}
++PAPACC_RESULT papacc_configuration_personal_data_retire(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ PAPACC_CONFIG_PENDING *p;
++ if(!owner(o))return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;
++ /* The DATA object never acquires a borrow. Still deny erasure while any
++  * canonical worker/native owner can be pending or retained. */
++ if((p->personal_native.phase&&p->personal_native.phase!=3U)||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&p->store_hash)||p->active||p->thread||p->bootstrap_parent||p->bootstrap_container||p->bootstrap_token||
++ p->transaction||(p->file&&p->file!=INVALID_HANDLE_VALUE)||o->unresolved||
++ o->retained_transaction||(o->retained_file&&o->retained_file!=INVALID_HANDLE_VALUE))return PAPACC_RESULT_INVALID_STATE;
++ papacc_personal_data_invalidate(&p->personal_data);
++ return papacc_personal_data_retire(&p->personal_data)?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
++}
++
++
++/* Prepare requested effects BEFORE presentation, in the SAME owned packet.
++ * CA IDs/service bytes remain requested DATA, never factual CA custody. */
++PAPACC_RESULT papacc_configuration_personal_effect_plan_data(PAPACC_CONFIGURATION_COMMIT *o,
++ const unsigned char authority[16],const unsigned char generation[16],const unsigned char *service,PAPACC_SIZE service_bytes)
++{
++ PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;PAPACC_PERSONAL_EFFECT_SPEC v;
++ unsigned char parent[12];DWORD values[3];unsigned i,j;size_t bytes;
++ if(!owner(o)||o->stopped||o->unresolved)return PAPACC_RESULT_INVALID_STATE;
++ p=&o->pending_commit;n=&p->personal_native;
++ if(p->active||p->thread||p->bootstrap_created||p->bootstrap_container||n->phase!=1U||
++    p->personal_data.phase!=PAPACC_PERSONAL_DATA_CAPTURED||p->personal_data.effectful||p->personal_data.consumed||
++    !authority||!generation||!service||!service_bytes||service_bytes>68U)return PAPACC_RESULT_INVALID_STATE;
++ if(papacc_configuration_personal_native_current(o)!=PAPACC_RESULT_OK||
++    papacc_configuration_personal_source_current(o)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
++ values[0]=n->parent.dwVolumeSerialNumber;values[1]=n->parent.nFileIndexHigh;values[2]=n->parent.nFileIndexLow;
++ for(i=0;i<3U;i++)for(j=0;j<4U;j++)parent[i*4U+j]=(unsigned char)(values[i]>>(j*8U));
++ memset(&v,0,sizeof(v));v.operator_id=n->sid;v.operator_bytes=n->sid_bytes;v.parent_id=parent;
++ v.leaf=(const unsigned char *)n->plan_leaf;v.leaf_bytes=strlen(n->plan_leaf);
++ v.authority=authority;v.generation=generation;v.service_id=service;v.service_bytes=service_bytes;
++ v.configuration=p->next;v.configuration_bytes=p->personal_data.bytes;
++ bytes=papacc_personal_effect_build(&v,p->previous+1024U,PAPACC_PERSONAL_PLAN_MAX);
++ if(!bytes||!papacc_personal_effect_upgrade(&p->personal_data,p->previous+1024U,bytes))return PAPACC_RESULT_INVALID_ARGUMENT;
++ return PAPACC_RESULT_OK; /* no CA acquisition, authorization or effect */
++}
+--- apps/server/server_configuration_commit_win32.h
++++ apps/server/server_configuration_commit_win32.h
+@@ -1,322 +1,323 @@
+-#ifndef PAPACC_SERVER_CONFIGURATION_COMMIT_WIN32_H
+-#define PAPACC_SERVER_CONFIGURATION_COMMIT_WIN32_H
+-/* Private modern-Windows diagnostic component; not a configuration service.
+- * Zeroed durable owner storage required. No network, PST or secret storage. */
+-#include <windows.h>
+-#include "server_store_hash_win32.h"
+-#include "server_config.h"
+-#define PAPACC_CONFIG_RECORD_BYTES 512U
+-#define PAPACC_CONFIG_STORE_BYTES 8192U
+-#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+-#include "../../src/issuer/issuer_codec.h"
+-#include "server_configuration_pending_win32.h"
+-#define PAPACC_CONFIG_STORAGE_BYTES PAPACC_ISSUER_LINKED_ROOT_BYTES
+-#define PAPACC_CONFIG_COMMITTED_BYTES PAPACC_CONFIG_TRANSACTION_BYTES
+-#else
+-#define PAPACC_CONFIG_STORAGE_BYTES PAPACC_CONFIG_STORE_BYTES
+-#define PAPACC_CONFIG_COMMITTED_BYTES PAPACC_CONFIG_STORAGE_BYTES
+-#endif
+-#define PAPACC_CONFIG_SLOTS 3U
+-#define PAPACC_CONFIG_IDS 8U
+-typedef struct PAPACC_CONFIG_VIEW {
+-    PAPACC_SERVER_CONFIG config;
+-    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID ids[PAPACC_CONFIG_IDS];
+-    unsigned char domain[32];
+-    PAPACC_U64 revision, predecessor, policy_epoch;
+-} PAPACC_CONFIG_VIEW;
+-typedef struct PAPACC_CONFIG_SLOT {
+-    PAPACC_CONFIG_VIEW view;
+-    unsigned long readers;
+-    PAPACC_U64 serial;
+-#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+-    PAPACC_U64 context_epoch; /* A: same-root post-commit administrative context. */
+-    PAPACC_U64 operational_epoch; /* P: independently bound current C2 policy. */
+-    PAPACC_U64 issuer_revision; /* I: absent unless issuer_snapshot_valid. */
+-#endif
+-    int retained;
+-} PAPACC_CONFIG_SLOT;
+-typedef struct PAPACC_CONFIG_PIN {
+-    const void *issuer;
+-    unsigned index;
+-    PAPACC_U64 serial, ticket;
+-} PAPACC_CONFIG_PIN;
+-/* Private by-value v3/v4 DATA backing, same slots/tickets; never CURRENT or trust.
+- * Full image owns SNT/PDG/issuer/BODY/policy references. CA is public DER only.
+- * Selected Windows process reserves all three slots even when dormant. */
+-#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ED11_WINDOWS_3MIB)
+-#include "../../src/config/config_root8_v4.h"
+-#define PAPACC_CONFIG_V3_CA_BYTES 8192U
+-#define PAPACC_CONFIG_V4_CAPTURE_WORKSPACE_MAX 32768U
+-typedef struct PAPACC_CONFIG_V3_BACKING {
+- unsigned char packet[PC_ROOT8_V4_MAX],ca[PAPACC_CONFIG_V3_CA_BYTES];
+- unsigned char packet_hash[32],ca_hash[32];
+- PAPACC_SIZE packet_bytes,ca_bytes;
+- PAPACC_U64 serial; /* exact existing slot generation, not an epoch */
+-} PAPACC_CONFIG_V3_BACKING;
+-#endif
+-#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ED11_WINDOWS_3MIB)
+-/* Same owner, one unresolved UPDATE; real predecessor ticket, no candidate pin. */
+-#define PAPACC_V3_UPDATE_EMPTY 0U
+-#define PAPACC_V3_UPDATE_HELD 1U
+-#define PAPACC_V3_UPDATE_RETAINED 2U
+-#define PAPACC_V3_ACT_EMPTY 0U
+-#define PAPACC_V3_ACT_CAPTURED 1U
+-#define PAPACC_V3_ACT_INVALID 2U
+-#define PAPACC_V3_ACT_RETAINED 3U
+-#define PAPACC_V3_STATUS_SOURCE_ABSENT 1U
+-/* Native ephemeral act, not serialized, a lease or a status authority. */
+-typedef struct PAPACC_V3_UPDATE_ACT {
+- BYTE sid[SECURITY_MAX_SID_SIZE]; TOKEN_STATISTICS statistics;
+- BYTE candidate_hash[32],predecessor_hash[32]; HANDLE retained_token,retained_process_token;
+- DWORD sid_bytes,native_error; unsigned state,status;
+-} PAPACC_V3_UPDATE_ACT;
+-typedef struct PAPACC_V3_UPDATE_COHORT {
+- PAPACC_CONFIG_PIN predecessor_pin;
+- PAPACC_U64 candidate_serial,source_ticket,invocation;
+- PAPACC_SIZE reserved;
+- unsigned phase,candidate_index,prior_pending,data_active;
+- PAPACC_V3_UPDATE_ACT act;
+-} PAPACC_V3_UPDATE_COHORT;
+-#endif
+-typedef struct PAPACC_CONFIGURATION_COMMIT {
+-    CRITICAL_SECTION lock;
+-    PAPACC_STORE_HASH store_hash;
+-    PAPACC_CONFIG_SLOT slots[PAPACC_CONFIG_SLOTS];
+-    PAPACC_CONFIG_PIN tickets[32];
+-    PAPACC_U64 next_ticket;
+-    unsigned char committed[PAPACC_CONFIG_COMMITTED_BYTES];
+-    char path[MAX_PATH];
+-    unsigned char domain[32];
+-    HANDLE retained_file, retained_transaction;
+-    DWORD writer;
+-    unsigned current, pending;
+-    PAPACC_U64 next_serial;
+-    int initialized, prepared, committed_pending, published, stopped, unresolved;
+-    int store02, recovery_selected;
+-#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+-    PAPACC_CONFIG_PENDING pending_commit;
+-    DWORD committed_bytes; /* actual same-file size, not allocated capacity */
+-    int authority_lost; /* CAS conflict/unknown is not old CURRENT. */
+-    int recovery_guard; /* Exclusive native read lease, not Model E destruction. */
+-    unsigned char issuer_staged[PAPACC_ISSUER_IMAGE_BYTES];
+-    void *issuer_hash_alg,*issuer_hash;
+-    LONG issuer_hash_error;
+-    int issuer_stage_prepared;
+-    /* Immutable issuer bytes belong to the existing bounded config slots.
+-     * A pin protects the matching slot serial, never the mutable latest image. */
+-    unsigned char issuer_snapshots[PAPACC_CONFIG_SLOTS][PAPACC_ISSUER_IMAGE_BYTES];
+-    int issuer_snapshot_valid[PAPACC_CONFIG_SLOTS];
+-#if defined(PAPACC_ED11_WINDOWS_3MIB)
+-    PAPACC_CONFIG_V3_BACKING v3_backings[PAPACC_CONFIG_SLOTS];
+-    PAPACC_V3_UPDATE_COHORT v3_update;
+-#endif
+-#endif
+-} PAPACC_CONFIGURATION_COMMIT;
+-#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ED11_WINDOWS_3MIB)
+-#define PAPACC_V3_UPDATE_BUSY(o) ((o)->v3_update.phase!=PAPACC_V3_UPDATE_EMPTY)
+-#else
+-#define PAPACC_V3_UPDATE_BUSY(o) 0
+-#endif
+-/* init only creates an in-memory diagnostic domain; CREATE_NEW at first commit
+- * prevents replacing any existing installation. No recovery authorization. */
+-PAPACC_RESULT papacc_configuration_commit_init(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-PAPACC_RESULT papacc_configuration_prepare(PAPACC_CONFIGURATION_COMMIT *,
+-    const PAPACC_SERVER_CONFIG *,PAPACC_U64,PAPACC_U64);
+-PAPACC_RESULT papacc_configuration_commit(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_publish(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_abort(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_pin(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CONFIG_PIN *,PAPACC_CONFIG_VIEW *);
+-PAPACC_RESULT papacc_configuration_unpin(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,int);
+-PAPACC_BOOL papacc_configuration_current(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_VIEW *);
+-PAPACC_RESULT papacc_configuration_stop(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_finish(PAPACC_CONFIGURATION_COMMIT *);
+-/* Integrity inspection cannot authorize recovery. Output never contains a
+- * usable view. Even a valid record returns NOT_SUPPORTED without continuity. */
+-PAPACC_RESULT papacc_configuration_recovery_inspect(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-/* Opt-in protocol0.2 full server-model profile; no operational activation. */
+-PAPACC_RESULT papacc_configuration_commit_init02(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-PAPACC_RESULT papacc_configuration_recovery_init02(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-/* Query-only candidate, NOT a published/current configuration or new grant. */
+-PAPACC_RESULT papacc_configuration_recovered_copy(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CONFIG_VIEW *);
+-#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+-/* Root must validate full CURRENT/projection before beginning publication checkpoint.
+- * Same pending worker/CAS; this records historical facts, never recovery authority. */
+-PAPACC_RESULT papacc_configuration_checkpoint_begin07(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_checkpoint_poll07(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
+-PAPACC_RESULT papacc_configuration_checkpoint_data07(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_LINK *);
+-PAPACC_RESULT papacc_configuration_issuer_begin06(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_issuer_poll06(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
+-/* BODY0.3 is a COMPONENT store, not the application's normative commit.
+- * No caller epoch accepted; zero records unavailable epoch, never a grant. */
+-PAPACC_RESULT papacc_configuration_commit_init03(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-PAPACC_RESULT papacc_configuration_recovery_init03(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-PAPACC_RESULT papacc_configuration_prepare03(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SERVER_CONFIG *,PAPACC_U64);
+-/* Private isolated preserved-local-custody evidence. Integrity/file ID alone
+- * do not establish freshness outside ADR0046's explicitly supervised scope. */
+-typedef struct PAPACC_NORMAL_RESTART_WITNESS {
+- unsigned char domain[32], image_sha256[32];
+- PAPACC_U64 revision, predecessor, volume, file_index;
+-} PAPACC_NORMAL_RESTART_WITNESS;
+-PAPACC_RESULT papacc_configuration_recovery_guard03(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_NORMAL_RESTART_WITNESS *);
+-PAPACC_RESULT papacc_configuration_recovery_validate03(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_recovery_publish03(PAPACC_CONFIGURATION_COMMIT *);
+-/* Private ROOT06 component, same file and owner. No normative/live CURRENT.
+- * Caller must establish application dormancy; readers/retained slots deny.
+- * Epoch and admission proofs are never inferred from stored issuer bytes. */
+-/* Storage math only; no issuer/status/authorization result. */
+-int papacc_configuration_storage_hash(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 [32]);
+-int papacc_configuration_issuer_hash06(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8[32]);
+-PAPACC_RESULT papacc_configuration_issuer_prepare06(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_U64,PAPACC_U64);
+-PAPACC_RESULT papacc_configuration_issuer_copy06(PAPACC_CONFIGURATION_COMMIT *,PAPACC_U8 *);
+-/* Data-only copy using an existing live pin; no CURRENT/epoch proof returned. */
+-PAPACC_RESULT papacc_configuration_issuer_snapshot06(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_U8 *);
+-PAPACC_RESULT papacc_configuration_issuer_recovery06(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_VIEW *,PAPACC_U64 *,PAPACC_U64 *);
+-/* Offline DATA inspection of a full historical carrier, not file adoption.
+- * Caller owns immutable16384 input and disjoint workspace/output. No CURRENT,
+- * epoch/proof bits, source lease, key binding or recovery authority returned.
+- * Embedded file identity is checked for internal consistency only. */
+-PAPACC_RESULT papacc_configuration_storage_carrier_inspect(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_CONFIG_VIEW *,PAPACC_ISSUER_VIEW *);
+-PAPACC_RESULT papacc_configuration_issuer_carrier_inspect06(
+- PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,
+- PAPACC_CONFIG_VIEW *,PAPACC_ISSUER_VIEW *);
+-int papacc_configuration_issuer_projection06(const PAPACC_SERVER_CONFIG *,const PAPACC_SERVER_CONFIG *);
+-PAPACC_RESULT papacc_configuration_issuer_publish06(PAPACC_CONFIGURATION_COMMIT *);
+-/* Explicit BODY0.5 catalog profile; no old-format promotion. */
+-PAPACC_RESULT papacc_configuration_commit_init05(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-PAPACC_RESULT papacc_configuration_prepare05(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SERVER_CONFIG *,PAPACC_U64);
+-/* Explicit typed0.4 profile;0.2/0.3 entry points remain strict. */
+-PAPACC_RESULT papacc_configuration_commit_init04(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-PAPACC_RESULT papacc_configuration_recovery_init04(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-PAPACC_RESULT papacc_configuration_prepare04(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SERVER_CONFIG *,PAPACC_U64);
+-PAPACC_RESULT papacc_configuration_recovery_guard04(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_NORMAL_RESTART_WITNESS *);
+-PAPACC_RESULT papacc_configuration_recovery_validate04(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_recovery_publish04(PAPACC_CONFIGURATION_COMMIT *);
+-#endif
+-#ifdef PAPACC_OFFLINE_D3_WORKER
+-#include "personal_custody_data_win32.h"
+-PAPACC_PERSONAL_CUSTODY_DATA papacc_configuration_personal_custody_data(const PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CA_KEY *);
+-/* One-shot, read-only handoff to the existing worker; no child/key effects.
+- * Same owner keeps all inputs frozen until poll confirms signal AND close. */
+-PAPACC_RESULT papacc_configuration_personal_handoff_begin(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],PAPACC_SIZE);
+-PAPACC_RESULT papacc_configuration_personal_handoff_poll(PAPACC_CONFIGURATION_COMMIT *);
+-/* Separate effect entry: read-only consumed attempts never qualify. */
+-PAPACC_RESULT papacc_configuration_personal_target_begin(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],PAPACC_SIZE);
+-#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+-/* Compile-isolated LAB mechanics, not native administrative authorization. */
+-PAPACC_RESULT papacc_configuration_personal_target_component_begin(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],PAPACC_SIZE);
+-#endif
+-/* Native read-only preflight only; no root identity, child, key or CURRENT. */
+-PAPACC_RESULT papacc_configuration_personal_native_open(PAPACC_CONFIGURATION_COMMIT *,const char *);
+-PAPACC_RESULT papacc_configuration_personal_native_current(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_personal_source_current(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_personal_native_close(PAPACC_CONFIGURATION_COMMIT *);
+-/* Independent immutable-plan DATA. No operator, CSPRNG, target or authority
+- * is inferred. Owned by this root; no returned buffer borrow. */
+-PAPACC_RESULT papacc_configuration_personal_data_capture(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],const unsigned char *,PAPACC_SIZE);
+-PAPACC_RESULT papacc_configuration_personal_data_retire(PAPACC_CONFIGURATION_COMMIT *);
+-/* Initial namespace phase only. Same worker/packet, no commit or CURRENT.
+- * parent is an existing governed local directory, leaf a new single component.
+- * explicit caller is administrative; native enabled-admin token required.
+- * Retained leases block all other pending operations until stopped/closed. */
+-PAPACC_RESULT papacc_configuration_bootstrap_custody_begin(PAPACC_CONFIGURATION_COMMIT *,const char *,const char *,PAPACC_SIZE);
+-PAPACC_RESULT papacc_configuration_bootstrap_custody_poll(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
+-PAPACC_BOOL papacc_configuration_bootstrap_custody_ready(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_bootstrap_custody_close(PAPACC_CONFIGURATION_COMMIT *);
+-/* Same worker, relative initial FILE_CREATE under retained custody. Durable
+- * success is COMMITTED_PENDING only, never CURRENT. Scope/identity native proof
+- * and token state are revalidated by worker before commit. */
+-PAPACC_BOOL papacc_configuration_bootstrap_authority_valid(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_bootstrap_commit_begin(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,const char *,PAPACC_SIZE);
+-PAPACC_RESULT papacc_configuration_bootstrap_commit_poll(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
+-/* Offline update only. No bootstrap/recovery/publication; actual current pin
+- * and native identity handle required. Last argument is factual already-reserved
+- * composition including root, caller and codec pair; extra scratch is checked
+- * before effects. Result packet remains root-owned; no credit is released. */
+-PAPACC_RESULT papacc_configuration_d3_begin08(PAPACC_CONFIGURATION_COMMIT *,
+- const PAPACC_CONFIG_PIN *,const PAPACC_U8 *,PAPACC_SIZE,HANDLE,PAPACC_SIZE);
+-PAPACC_RESULT papacc_configuration_d3_poll08(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
+-/* Factual native commit result, NOT CURRENT/recovery/authorization. Epochs
+- * explicitly absent; caller owns full collection copy, no borrowed pointers. */
+-typedef struct PAPACC_D3_COMMITTED_RECEIPT {
+- PAPACC_U8 root[32],commit_digest[32],whole_digest[32];
+- PAPACC_U64 revision,predecessor;
+- PAPACC_SIZE bytes;
+- unsigned listener_count,epochs_present;
+-} PAPACC_D3_COMMITTED_RECEIPT;
+-/* Same owner/offline/no-reentry contract as begin08. already_reserved includes
+- * the caller receipt+buffers; separate9408 scratch is checked. Original begin
+- * input may be reused only after it returned: worker owns frozen copies. */
+-PAPACC_RESULT papacc_configuration_d3_committed08(PAPACC_CONFIGURATION_COMMIT *,
+- PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PAPACC_D3_COMMITTED_RECEIPT *,PAPACC_SIZE);
+-#endif
+-#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER) && defined(PAPACC_ED11_WINDOWS_3MIB)
+-#include "config_root8_v3.h"
+-#include "server_issuer_windows_validation.h"
+-typedef struct PAPACC_CONFIG_V3_BORROW {
+- const PAPACC_U8 *packet,*snt,*pdg,*issuer_image,*ca;
+- PAPACC_SIZE packet_bytes,snt_bytes,pdg_bytes,ca_bytes;
+- PAPACC_U64 revision,issuer_revision;
+-} PAPACC_CONFIG_V3_BORROW;
+-/* DATA-only capture into a prepared free slot. Existing public codec ports are
+- * synchronous/nonreentrant, never authority callbacks. Caller retains immutable
+- * disjoint inputs and exclusive workspace until return, serializes owner/Stop.
+- * Capture does NOT commit/publish/create a pin or mark issuer/CURRENT valid.
+- * Missing native/profile/source validation remains its independent gate. */
+-PAPACC_RESULT papacc_configuration_v3_capture_data(PAPACC_CONFIGURATION_COMMIT *,
+- const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,PAPACC_SIZE,
+- PAPACC_ISSUER_WINDOWS_WORKSPACE *,PC_ROOT8_COMPONENT,void *);
+-/* Borrow only under the SAME already-held canonical ticket. Caller must keep
+- * that ticket unreleased for the entire use (including children/callbacks).
+- * No extra acquisition or release API. Stop denies new borrows, preserves old
+- * references; unpin(retained) and finish keep their factual-quiescence rules.
+- * Output unchanged on failure. Root/slot/pin must outlive the complete borrow.
+- * Raw DER has no CERT_INFO pointers; future decode owns its own accounted arena.
+- * Historical pin protects memory, NEVER CURRENT/UTC/status/delegation/trust. */
+-PAPACC_RESULT papacc_configuration_v3_borrow_data(PAPACC_CONFIGURATION_COMMIT *,
+- const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_V3_BORROW *);
+-/* Same backing slots and canonical tickets; v4 never enters a v3 borrower.
+- * No new owner/pin/worker or native commit support. All preprotected-caller
+- * and Stop/retention rules above apply. Native key DATA adapter is required;
+- * no decoded source bytes or model callback can establish source authority. */
+-typedef struct PAPACC_CONFIG_V4_BORROW {
+- PAPACC_CONFIG_V3_BORROW base;
+- const PAPACC_U8 *tsc;
+- PAPACC_SIZE tsc_bytes;
+-} PAPACC_CONFIG_V4_BORROW;
+-PAPACC_RESULT papacc_configuration_v4_capture_data(PAPACC_CONFIGURATION_COMMIT *,
+- const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,PAPACC_SIZE,
+- PAPACC_ISSUER_WINDOWS_WORKSPACE *,PC_ROOT8_COMPONENT,void *);
+-PAPACC_RESULT papacc_configuration_v4_borrow_data(PAPACC_CONFIGURATION_COMMIT *,
+- const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_V4_BORROW *);
+-/* Same-pin DATA equation only: stored packet/CP3 vs slot R/predecessor/A/P/I.
+- * OK is NOT native commit, full-predecessor approval, CURRENT or E0 evidence.
+- * No output borrow/pin/lease, mutation, allocation or publication. */
+-PAPACC_RESULT papacc_configuration_v3_checkpoint_match_data(
+- PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *);
+-
+-/* Synchronous lifetime/staging ONLY. On OK, consumes the existing pin by move
+- * (caller pin cleared), owns a free G7 slot and copies complete input by value.
+- * No validation/RESOLVED/commit/CURRENT. Root must separately prove authority.
+- * Input remains caller-owned through return; reserved is lower-bound accounting,
+- * never a grant. Abort releases only after factual cohort quiescence; retained
+- * phase keeps the same pin/slot reachable. No candidate borrow is exported. */
+-/* Private synchronous DATA phase. Candidate views exist only inside validate;
+- * no candidate pin or authority. Ports are nonreentrant; no pointer may escape. */
+-PAPACC_RESULT papacc_configuration_storage_borrow_data(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_V3_BORROW *,unsigned);
+-PAPACC_RESULT papacc_configuration_candidate_borrow_data(PAPACC_CONFIGURATION_COMMIT *,PAPACC_U64,PAPACC_U64,PAPACC_CONFIG_V3_BORROW *);
+-PAPACC_RESULT papacc_configuration_prepared_storage_validate_data(PAPACC_CONFIGURATION_COMMIT *,PC_ROOT8_COMPONENT,void *);
+-PAPACC_RESULT papacc_configuration_v4_update_hold_data(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CONFIG_PIN *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE,PAPACC_U64);
+-PAPACC_RESULT papacc_configuration_v3_update_hold_data(PAPACC_CONFIGURATION_COMMIT *,
+- PAPACC_CONFIG_PIN *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE,PAPACC_U64);
+-/* Same held cohort only. Capture is an explicit local act, NOT resolution.
+- * Native capture/revalidation never accepts a caller authorization flag.
+- * Root must prove CURRENT/source before and after these private components. */
+-PAPACC_RESULT papacc_configuration_v3_update_act_capture(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE);
+-PAPACC_RESULT papacc_configuration_v3_update_act_revalidate(PAPACC_CONFIGURATION_COMMIT *);
+-/* Pure correlation for diagnostics: never native identity/CURRENT/status. */
+-PAPACC_RESULT papacc_configuration_v3_update_act_match_data(PAPACC_CONFIGURATION_COMMIT *);
+-PAPACC_RESULT papacc_configuration_v3_update_abort_data(PAPACC_CONFIGURATION_COMMIT *);
+-
+-#endif
+-#endif
++#ifndef PAPACC_SERVER_CONFIGURATION_COMMIT_WIN32_H
++#define PAPACC_SERVER_CONFIGURATION_COMMIT_WIN32_H
++/* Private modern-Windows diagnostic component; not a configuration service.
++ * Zeroed durable owner storage required. No network, PST or secret storage. */
++#include <windows.h>
++#include "server_store_hash_win32.h"
++#include "server_config.h"
++#define PAPACC_CONFIG_RECORD_BYTES 512U
++#define PAPACC_CONFIG_STORE_BYTES 8192U
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++#include "../../src/issuer/issuer_codec.h"
++#include "server_configuration_pending_win32.h"
++#define PAPACC_CONFIG_STORAGE_BYTES PAPACC_ISSUER_LINKED_ROOT_BYTES
++#define PAPACC_CONFIG_COMMITTED_BYTES PAPACC_CONFIG_TRANSACTION_BYTES
++#else
++#define PAPACC_CONFIG_STORAGE_BYTES PAPACC_CONFIG_STORE_BYTES
++#define PAPACC_CONFIG_COMMITTED_BYTES PAPACC_CONFIG_STORAGE_BYTES
++#endif
++#define PAPACC_CONFIG_SLOTS 3U
++#define PAPACC_CONFIG_IDS 8U
++typedef struct PAPACC_CONFIG_VIEW {
++    PAPACC_SERVER_CONFIG config;
++    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID ids[PAPACC_CONFIG_IDS];
++    unsigned char domain[32];
++    PAPACC_U64 revision, predecessor, policy_epoch;
++} PAPACC_CONFIG_VIEW;
++typedef struct PAPACC_CONFIG_SLOT {
++    PAPACC_CONFIG_VIEW view;
++    unsigned long readers;
++    PAPACC_U64 serial;
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++    PAPACC_U64 context_epoch; /* A: same-root post-commit administrative context. */
++    PAPACC_U64 operational_epoch; /* P: independently bound current C2 policy. */
++    PAPACC_U64 issuer_revision; /* I: absent unless issuer_snapshot_valid. */
++#endif
++    int retained;
++} PAPACC_CONFIG_SLOT;
++typedef struct PAPACC_CONFIG_PIN {
++    const void *issuer;
++    unsigned index;
++    PAPACC_U64 serial, ticket;
++} PAPACC_CONFIG_PIN;
++/* Private by-value v3/v4 DATA backing, same slots/tickets; never CURRENT or trust.
++ * Full image owns SNT/PDG/issuer/BODY/policy references. CA is public DER only.
++ * Selected Windows process reserves all three slots even when dormant. */
++#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ED11_WINDOWS_3MIB)
++#include "../../src/config/config_root8_v4.h"
++#define PAPACC_CONFIG_V3_CA_BYTES 8192U
++#define PAPACC_CONFIG_V4_CAPTURE_WORKSPACE_MAX 32768U
++typedef struct PAPACC_CONFIG_V3_BACKING {
++ unsigned char packet[PC_ROOT8_V4_MAX],ca[PAPACC_CONFIG_V3_CA_BYTES];
++ unsigned char packet_hash[32],ca_hash[32];
++ PAPACC_SIZE packet_bytes,ca_bytes;
++ PAPACC_U64 serial; /* exact existing slot generation, not an epoch */
++} PAPACC_CONFIG_V3_BACKING;
++#endif
++#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ED11_WINDOWS_3MIB)
++/* Same owner, one unresolved UPDATE; real predecessor ticket, no candidate pin. */
++#define PAPACC_V3_UPDATE_EMPTY 0U
++#define PAPACC_V3_UPDATE_HELD 1U
++#define PAPACC_V3_UPDATE_RETAINED 2U
++#define PAPACC_V3_ACT_EMPTY 0U
++#define PAPACC_V3_ACT_CAPTURED 1U
++#define PAPACC_V3_ACT_INVALID 2U
++#define PAPACC_V3_ACT_RETAINED 3U
++#define PAPACC_V3_STATUS_SOURCE_ABSENT 1U
++/* Native ephemeral act, not serialized, a lease or a status authority. */
++typedef struct PAPACC_V3_UPDATE_ACT {
++ BYTE sid[SECURITY_MAX_SID_SIZE]; TOKEN_STATISTICS statistics;
++ BYTE candidate_hash[32],predecessor_hash[32]; HANDLE retained_token,retained_process_token;
++ DWORD sid_bytes,native_error; unsigned state,status;
++} PAPACC_V3_UPDATE_ACT;
++typedef struct PAPACC_V3_UPDATE_COHORT {
++ PAPACC_CONFIG_PIN predecessor_pin;
++ PAPACC_U64 candidate_serial,source_ticket,invocation;
++ PAPACC_SIZE reserved;
++ unsigned phase,candidate_index,prior_pending,data_active;
++ PAPACC_V3_UPDATE_ACT act;
++} PAPACC_V3_UPDATE_COHORT;
++#endif
++typedef struct PAPACC_CONFIGURATION_COMMIT {
++    CRITICAL_SECTION lock;
++    PAPACC_STORE_HASH store_hash;
++    PAPACC_CONFIG_SLOT slots[PAPACC_CONFIG_SLOTS];
++    PAPACC_CONFIG_PIN tickets[32];
++    PAPACC_U64 next_ticket;
++    unsigned char committed[PAPACC_CONFIG_COMMITTED_BYTES];
++    char path[MAX_PATH];
++    unsigned char domain[32];
++    HANDLE retained_file, retained_transaction;
++    DWORD writer;
++    unsigned current, pending;
++    PAPACC_U64 next_serial;
++    int initialized, prepared, committed_pending, published, stopped, unresolved;
++    int store02, recovery_selected;
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++    PAPACC_CONFIG_PENDING pending_commit;
++    DWORD committed_bytes; /* actual same-file size, not allocated capacity */
++    int authority_lost; /* CAS conflict/unknown is not old CURRENT. */
++    int recovery_guard; /* Exclusive native read lease, not Model E destruction. */
++    unsigned char issuer_staged[PAPACC_ISSUER_IMAGE_BYTES];
++    void *issuer_hash_alg,*issuer_hash;
++    LONG issuer_hash_error;
++    int issuer_stage_prepared;
++    /* Immutable issuer bytes belong to the existing bounded config slots.
++     * A pin protects the matching slot serial, never the mutable latest image. */
++    unsigned char issuer_snapshots[PAPACC_CONFIG_SLOTS][PAPACC_ISSUER_IMAGE_BYTES];
++    int issuer_snapshot_valid[PAPACC_CONFIG_SLOTS];
++#if defined(PAPACC_ED11_WINDOWS_3MIB)
++    PAPACC_CONFIG_V3_BACKING v3_backings[PAPACC_CONFIG_SLOTS];
++    PAPACC_V3_UPDATE_COHORT v3_update;
++#endif
++#endif
++} PAPACC_CONFIGURATION_COMMIT;
++#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ED11_WINDOWS_3MIB)
++#define PAPACC_V3_UPDATE_BUSY(o) ((o)->v3_update.phase!=PAPACC_V3_UPDATE_EMPTY)
++#else
++#define PAPACC_V3_UPDATE_BUSY(o) 0
++#endif
++/* init only creates an in-memory diagnostic domain; CREATE_NEW at first commit
++ * prevents replacing any existing installation. No recovery authorization. */
++PAPACC_RESULT papacc_configuration_commit_init(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_prepare(PAPACC_CONFIGURATION_COMMIT *,
++    const PAPACC_SERVER_CONFIG *,PAPACC_U64,PAPACC_U64);
++PAPACC_RESULT papacc_configuration_commit(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_publish(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_abort(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_pin(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CONFIG_PIN *,PAPACC_CONFIG_VIEW *);
++PAPACC_RESULT papacc_configuration_unpin(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,int);
++PAPACC_BOOL papacc_configuration_current(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_VIEW *);
++PAPACC_RESULT papacc_configuration_stop(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_finish(PAPACC_CONFIGURATION_COMMIT *);
++/* Integrity inspection cannot authorize recovery. Output never contains a
++ * usable view. Even a valid record returns NOT_SUPPORTED without continuity. */
++PAPACC_RESULT papacc_configuration_recovery_inspect(PAPACC_CONFIGURATION_COMMIT *,const char *);
++/* Opt-in protocol0.2 full server-model profile; no operational activation. */
++PAPACC_RESULT papacc_configuration_commit_init02(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_recovery_init02(PAPACC_CONFIGURATION_COMMIT *,const char *);
++/* Query-only candidate, NOT a published/current configuration or new grant. */
++PAPACC_RESULT papacc_configuration_recovered_copy(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CONFIG_VIEW *);
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++/* Root must validate full CURRENT/projection before beginning publication checkpoint.
++ * Same pending worker/CAS; this records historical facts, never recovery authority. */
++PAPACC_RESULT papacc_configuration_checkpoint_begin07(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_checkpoint_poll07(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++PAPACC_RESULT papacc_configuration_checkpoint_data07(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_LINK *);
++PAPACC_RESULT papacc_configuration_issuer_begin06(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_issuer_poll06(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++/* BODY0.3 is a COMPONENT store, not the application's normative commit.
++ * No caller epoch accepted; zero records unavailable epoch, never a grant. */
++PAPACC_RESULT papacc_configuration_commit_init03(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_recovery_init03(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_prepare03(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SERVER_CONFIG *,PAPACC_U64);
++/* Private isolated preserved-local-custody evidence. Integrity/file ID alone
++ * do not establish freshness outside ADR0046's explicitly supervised scope. */
++typedef struct PAPACC_NORMAL_RESTART_WITNESS {
++ unsigned char domain[32], image_sha256[32];
++ PAPACC_U64 revision, predecessor, volume, file_index;
++} PAPACC_NORMAL_RESTART_WITNESS;
++PAPACC_RESULT papacc_configuration_recovery_guard03(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_NORMAL_RESTART_WITNESS *);
++PAPACC_RESULT papacc_configuration_recovery_validate03(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_recovery_publish03(PAPACC_CONFIGURATION_COMMIT *);
++/* Private ROOT06 component, same file and owner. No normative/live CURRENT.
++ * Caller must establish application dormancy; readers/retained slots deny.
++ * Epoch and admission proofs are never inferred from stored issuer bytes. */
++/* Storage math only; no issuer/status/authorization result. */
++int papacc_configuration_storage_hash(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 [32]);
++int papacc_configuration_issuer_hash06(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8[32]);
++PAPACC_RESULT papacc_configuration_issuer_prepare06(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_U64,PAPACC_U64);
++PAPACC_RESULT papacc_configuration_issuer_copy06(PAPACC_CONFIGURATION_COMMIT *,PAPACC_U8 *);
++/* Data-only copy using an existing live pin; no CURRENT/epoch proof returned. */
++PAPACC_RESULT papacc_configuration_issuer_snapshot06(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_U8 *);
++PAPACC_RESULT papacc_configuration_issuer_recovery06(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_VIEW *,PAPACC_U64 *,PAPACC_U64 *);
++/* Offline DATA inspection of a full historical carrier, not file adoption.
++ * Caller owns immutable16384 input and disjoint workspace/output. No CURRENT,
++ * epoch/proof bits, source lease, key binding or recovery authority returned.
++ * Embedded file identity is checked for internal consistency only. */
++PAPACC_RESULT papacc_configuration_storage_carrier_inspect(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_CONFIG_VIEW *,PAPACC_ISSUER_VIEW *);
++PAPACC_RESULT papacc_configuration_issuer_carrier_inspect06(
++ PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,
++ PAPACC_CONFIG_VIEW *,PAPACC_ISSUER_VIEW *);
++int papacc_configuration_issuer_projection06(const PAPACC_SERVER_CONFIG *,const PAPACC_SERVER_CONFIG *);
++PAPACC_RESULT papacc_configuration_issuer_publish06(PAPACC_CONFIGURATION_COMMIT *);
++/* Explicit BODY0.5 catalog profile; no old-format promotion. */
++PAPACC_RESULT papacc_configuration_commit_init05(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_prepare05(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SERVER_CONFIG *,PAPACC_U64);
++/* Explicit typed0.4 profile;0.2/0.3 entry points remain strict. */
++PAPACC_RESULT papacc_configuration_commit_init04(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_recovery_init04(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_prepare04(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SERVER_CONFIG *,PAPACC_U64);
++PAPACC_RESULT papacc_configuration_recovery_guard04(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_NORMAL_RESTART_WITNESS *);
++PAPACC_RESULT papacc_configuration_recovery_validate04(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_recovery_publish04(PAPACC_CONFIGURATION_COMMIT *);
++#endif
++#ifdef PAPACC_OFFLINE_D3_WORKER
++#include "personal_custody_data_win32.h"
++PAPACC_PERSONAL_CUSTODY_DATA papacc_configuration_personal_custody_data(const PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CA_KEY *);
++/* One-shot, read-only handoff to the existing worker; no child/key effects.
++ * Same owner keeps all inputs frozen until poll confirms signal AND close. */
++PAPACC_RESULT papacc_configuration_personal_handoff_begin(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_personal_handoff_poll(PAPACC_CONFIGURATION_COMMIT *);
++/* Separate effect entry: read-only consumed attempts never qualify. */
++PAPACC_RESULT papacc_configuration_personal_target_begin(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],PAPACC_SIZE);
++#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
++/* Compile-isolated LAB mechanics, not native administrative authorization. */
++PAPACC_RESULT papacc_configuration_personal_target_component_begin(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],PAPACC_SIZE);
++#endif
++/* Native read-only preflight only; no root identity, child, key or CURRENT. */
++PAPACC_RESULT papacc_configuration_personal_native_open(PAPACC_CONFIGURATION_COMMIT *,const char *);
++PAPACC_RESULT papacc_configuration_personal_native_current(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_personal_source_current(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_personal_native_close(PAPACC_CONFIGURATION_COMMIT *);
++/* Independent immutable-plan DATA. No operator, CSPRNG, target or authority
++ * is inferred. Owned by this root; no returned buffer borrow. */
++PAPACC_RESULT papacc_configuration_personal_data_capture(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],const unsigned char *,PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_personal_data_retire(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_personal_effect_plan_data(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[16],const unsigned char[16],const unsigned char *,PAPACC_SIZE);
++/* Initial namespace phase only. Same worker/packet, no commit or CURRENT.
++ * parent is an existing governed local directory, leaf a new single component.
++ * explicit caller is administrative; native enabled-admin token required.
++ * Retained leases block all other pending operations until stopped/closed. */
++PAPACC_RESULT papacc_configuration_bootstrap_custody_begin(PAPACC_CONFIGURATION_COMMIT *,const char *,const char *,PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_bootstrap_custody_poll(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++PAPACC_BOOL papacc_configuration_bootstrap_custody_ready(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_bootstrap_custody_close(PAPACC_CONFIGURATION_COMMIT *);
++/* Same worker, relative initial FILE_CREATE under retained custody. Durable
++ * success is COMMITTED_PENDING only, never CURRENT. Scope/identity native proof
++ * and token state are revalidated by worker before commit. */
++PAPACC_BOOL papacc_configuration_bootstrap_authority_valid(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_bootstrap_commit_begin(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,const char *,PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_bootstrap_commit_poll(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++/* Offline update only. No bootstrap/recovery/publication; actual current pin
++ * and native identity handle required. Last argument is factual already-reserved
++ * composition including root, caller and codec pair; extra scratch is checked
++ * before effects. Result packet remains root-owned; no credit is released. */
++PAPACC_RESULT papacc_configuration_d3_begin08(PAPACC_CONFIGURATION_COMMIT *,
++ const PAPACC_CONFIG_PIN *,const PAPACC_U8 *,PAPACC_SIZE,HANDLE,PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_d3_poll08(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++/* Factual native commit result, NOT CURRENT/recovery/authorization. Epochs
++ * explicitly absent; caller owns full collection copy, no borrowed pointers. */
++typedef struct PAPACC_D3_COMMITTED_RECEIPT {
++ PAPACC_U8 root[32],commit_digest[32],whole_digest[32];
++ PAPACC_U64 revision,predecessor;
++ PAPACC_SIZE bytes;
++ unsigned listener_count,epochs_present;
++} PAPACC_D3_COMMITTED_RECEIPT;
++/* Same owner/offline/no-reentry contract as begin08. already_reserved includes
++ * the caller receipt+buffers; separate9408 scratch is checked. Original begin
++ * input may be reused only after it returned: worker owns frozen copies. */
++PAPACC_RESULT papacc_configuration_d3_committed08(PAPACC_CONFIGURATION_COMMIT *,
++ PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PAPACC_D3_COMMITTED_RECEIPT *,PAPACC_SIZE);
++#endif
++#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER) && defined(PAPACC_ED11_WINDOWS_3MIB)
++#include "config_root8_v3.h"
++#include "server_issuer_windows_validation.h"
++typedef struct PAPACC_CONFIG_V3_BORROW {
++ const PAPACC_U8 *packet,*snt,*pdg,*issuer_image,*ca;
++ PAPACC_SIZE packet_bytes,snt_bytes,pdg_bytes,ca_bytes;
++ PAPACC_U64 revision,issuer_revision;
++} PAPACC_CONFIG_V3_BORROW;
++/* DATA-only capture into a prepared free slot. Existing public codec ports are
++ * synchronous/nonreentrant, never authority callbacks. Caller retains immutable
++ * disjoint inputs and exclusive workspace until return, serializes owner/Stop.
++ * Capture does NOT commit/publish/create a pin or mark issuer/CURRENT valid.
++ * Missing native/profile/source validation remains its independent gate. */
++PAPACC_RESULT papacc_configuration_v3_capture_data(PAPACC_CONFIGURATION_COMMIT *,
++ const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,PAPACC_SIZE,
++ PAPACC_ISSUER_WINDOWS_WORKSPACE *,PC_ROOT8_COMPONENT,void *);
++/* Borrow only under the SAME already-held canonical ticket. Caller must keep
++ * that ticket unreleased for the entire use (including children/callbacks).
++ * No extra acquisition or release API. Stop denies new borrows, preserves old
++ * references; unpin(retained) and finish keep their factual-quiescence rules.
++ * Output unchanged on failure. Root/slot/pin must outlive the complete borrow.
++ * Raw DER has no CERT_INFO pointers; future decode owns its own accounted arena.
++ * Historical pin protects memory, NEVER CURRENT/UTC/status/delegation/trust. */
++PAPACC_RESULT papacc_configuration_v3_borrow_data(PAPACC_CONFIGURATION_COMMIT *,
++ const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_V3_BORROW *);
++/* Same backing slots and canonical tickets; v4 never enters a v3 borrower.
++ * No new owner/pin/worker or native commit support. All preprotected-caller
++ * and Stop/retention rules above apply. Native key DATA adapter is required;
++ * no decoded source bytes or model callback can establish source authority. */
++typedef struct PAPACC_CONFIG_V4_BORROW {
++ PAPACC_CONFIG_V3_BORROW base;
++ const PAPACC_U8 *tsc;
++ PAPACC_SIZE tsc_bytes;
++} PAPACC_CONFIG_V4_BORROW;
++PAPACC_RESULT papacc_configuration_v4_capture_data(PAPACC_CONFIGURATION_COMMIT *,
++ const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,PAPACC_SIZE,
++ PAPACC_ISSUER_WINDOWS_WORKSPACE *,PC_ROOT8_COMPONENT,void *);
++PAPACC_RESULT papacc_configuration_v4_borrow_data(PAPACC_CONFIGURATION_COMMIT *,
++ const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_V4_BORROW *);
++/* Same-pin DATA equation only: stored packet/CP3 vs slot R/predecessor/A/P/I.
++ * OK is NOT native commit, full-predecessor approval, CURRENT or E0 evidence.
++ * No output borrow/pin/lease, mutation, allocation or publication. */
++PAPACC_RESULT papacc_configuration_v3_checkpoint_match_data(
++ PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *);
++
++/* Synchronous lifetime/staging ONLY. On OK, consumes the existing pin by move
++ * (caller pin cleared), owns a free G7 slot and copies complete input by value.
++ * No validation/RESOLVED/commit/CURRENT. Root must separately prove authority.
++ * Input remains caller-owned through return; reserved is lower-bound accounting,
++ * never a grant. Abort releases only after factual cohort quiescence; retained
++ * phase keeps the same pin/slot reachable. No candidate borrow is exported. */
++/* Private synchronous DATA phase. Candidate views exist only inside validate;
++ * no candidate pin or authority. Ports are nonreentrant; no pointer may escape. */
++PAPACC_RESULT papacc_configuration_storage_borrow_data(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_V3_BORROW *,unsigned);
++PAPACC_RESULT papacc_configuration_candidate_borrow_data(PAPACC_CONFIGURATION_COMMIT *,PAPACC_U64,PAPACC_U64,PAPACC_CONFIG_V3_BORROW *);
++PAPACC_RESULT papacc_configuration_prepared_storage_validate_data(PAPACC_CONFIGURATION_COMMIT *,PC_ROOT8_COMPONENT,void *);
++PAPACC_RESULT papacc_configuration_v4_update_hold_data(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CONFIG_PIN *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE,PAPACC_U64);
++PAPACC_RESULT papacc_configuration_v3_update_hold_data(PAPACC_CONFIGURATION_COMMIT *,
++ PAPACC_CONFIG_PIN *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE,PAPACC_U64);
++/* Same held cohort only. Capture is an explicit local act, NOT resolution.
++ * Native capture/revalidation never accepts a caller authorization flag.
++ * Root must prove CURRENT/source before and after these private components. */
++PAPACC_RESULT papacc_configuration_v3_update_act_capture(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE);
++PAPACC_RESULT papacc_configuration_v3_update_act_revalidate(PAPACC_CONFIGURATION_COMMIT *);
++/* Pure correlation for diagnostics: never native identity/CURRENT/status. */
++PAPACC_RESULT papacc_configuration_v3_update_act_match_data(PAPACC_CONFIGURATION_COMMIT *);
++PAPACC_RESULT papacc_configuration_v3_update_abort_data(PAPACC_CONFIGURATION_COMMIT *);
++
++#endif
++#endif
+--- apps/server/server_configuration_personal_native_win32.inc
++++ apps/server/server_configuration_personal_native_win32.inc
+@@ -1,181 +1,183 @@
+-#include <aclapi.h>
+-#include <sddl.h>
+-static int personal_group(WELL_KNOWN_SID_TYPE kind,int expected)
+-{
+- BYTE sid[SECURITY_MAX_SID_SIZE];DWORD bytes=sizeof(sid);BOOL member=FALSE;
+- return CreateWellKnownSid(kind,NULL,sid,&bytes)&&CheckTokenMembership(NULL,sid,&member)&&(member?1:0)==expected;
+-}
+-static int personal_token(PAPACC_CONFIG_PENDING *p,int capture)
+-{
+- PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;
+- union {TOKEN_USER alignment;BYTE bytes[sizeof(TOKEN_USER)+SECURITY_MAX_SID_SIZE];} u;
+- TOKEN_STATISTICS current_token;int same;
+- TOKEN_STATISTICS t;TOKEN_ELEVATION e;TOKEN_ELEVATION_TYPE type;DWORD z,session,ps;TOKEN_USER *user=(TOKEN_USER *)&u;
+- if(n->phase!=1U||p->stop||n->unexpected_thread)return 0;
+- if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&n->unexpected_thread))return 0;
+- if(GetLastError()!=ERROR_NO_TOKEN||!personal_group(WinBuiltinAdministratorsSid,1)||!personal_group(WinInteractiveSid,1)||!personal_group(WinServiceSid,0))return 0;
+- if(capture&&!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&p->bootstrap_token))return 0;
+- if(!p->bootstrap_token||!GetTokenInformation(p->bootstrap_token,TokenStatistics,&t,sizeof(t),&z)||t.TokenType!=TokenPrimary||
+- !GetTokenInformation(p->bootstrap_token,TokenElevation,&e,sizeof(e),&z)||!e.TokenIsElevated||
+- !GetTokenInformation(p->bootstrap_token,TokenElevationType,&type,sizeof(type),&z)||type==TokenElevationTypeLimited||
+- !GetTokenInformation(p->bootstrap_token,TokenSessionId,&session,sizeof(session),&z)||!session||
+- !ProcessIdToSessionId(GetCurrentProcessId(),&ps)||ps!=session||session!=WTSGetActiveConsoleSessionId()||
+- !GetTokenInformation(p->bootstrap_token,TokenUser,&u,sizeof(u),&z)||!IsValidSid(user->User.Sid)||GetLengthSid(user->User.Sid)>sizeof(n->sid))return 0;
+- if(capture){n->token=t;n->session=session;n->sid_bytes=GetLengthSid(user->User.Sid);return CopySid(sizeof(n->sid),n->sid,user->User.Sid)!=0;}
+- if(n->check_token||!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&n->check_token))return 0;
+- same=GetTokenInformation(n->check_token,TokenStatistics,&current_token,sizeof(current_token),&z)&&
+- !memcmp(&current_token.TokenId,&t.TokenId,sizeof(LUID))&&!memcmp(&current_token.ModifiedId,&t.ModifiedId,sizeof(LUID));
+- if(!CloseHandle(n->check_token)){n->phase=2U;return 0;}n->check_token=NULL;
+- return same&&n->session==session&&n->sid_bytes==GetLengthSid(user->User.Sid)&&EqualSid(n->sid,user->User.Sid)&&
+- !memcmp(&n->token.TokenId,&t.TokenId,sizeof(LUID))&&!memcmp(&n->token.AuthenticationId,&t.AuthenticationId,sizeof(LUID))&&
+- !memcmp(&n->token.ModifiedId,&t.ModifiedId,sizeof(LUID));
+-}
+-PAPACC_RESULT papacc_configuration_personal_native_open(PAPACC_CONFIGURATION_COMMIT *o,const char *parent)
+-{
+- PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;unsigned i,k,len;char drive[3],device[512];
+- WCHAR path[MAX_PATH+5];UNICODE_STRING name;OBJECT_ATTRIBUTES a;IO_STATUS_BLOCK io;HMODULE mod;FARPROC proc;BOOTSTRAP_NT_CREATE create;
+- PACL dacl;BOOL present,defaulted;
+- if(!o||o->writer!=GetCurrentThreadId()||o->initialized||!parent||o->stopped||o->unresolved)return PAPACC_RESULT_INVALID_STATE;
+- p=&o->pending_commit;n=&p->personal_native;
+- if(n->phase||p->active||p->thread||p->bootstrap_parent||p->bootstrap_token)return PAPACC_RESULT_INVALID_STATE;
+- len=(unsigned)strlen(parent);if(len<3U||len>=MAX_PATH||parent[1]!=':'||parent[2]!='\\'||strstr(parent,".."))return PAPACC_RESULT_INVALID_ARGUMENT;
+- for(i=0;i<len;i++)if((unsigned char)parent[i]<32U||(unsigned char)parent[i]>126U||parent[i]=='/'||(i!=1U&&parent[i]==':'))return PAPACC_RESULT_INVALID_ARGUMENT;
+- n->phase=1U;p->file=INVALID_HANDLE_VALUE;memcpy(p->path,parent,len+1U);
+- if(!personal_token(p,1))return PAPACC_RESULT_INVALID_STATE;
+- drive[0]=parent[0];drive[1]=':';drive[2]=0;
+- if(!QueryDosDeviceA(drive,device,sizeof(device))||strncmp(device,"\\Device\\",8U))return PAPACC_RESULT_NOT_SUPPORTED;
+- k=(unsigned)strlen(device);if(k+len-2U>=MAX_PATH+5U)return PAPACC_RESULT_INVALID_ARGUMENT;
+- for(i=0;i<k;i++)path[i]=(WCHAR)(unsigned char)device[i];
+- for(i=2U;i<=len;i++)path[k+i-2U]=(WCHAR)(unsigned char)parent[i];len=k+len-2U;
+- mod=GetModuleHandleA("ntdll.dll");if(!mod)return PAPACC_RESULT_NOT_SUPPORTED;proc=GetProcAddress(mod,"NtCreateFile");if(!proc)return PAPACC_RESULT_NOT_SUPPORTED;memcpy(&create,&proc,sizeof(create));
+- memset(&a,0,sizeof(a));memset(&io,0,sizeof(io));name.Buffer=path;name.Length=(USHORT)(len*2U);name.MaximumLength=name.Length;
+- a.Length=sizeof(a);a.ObjectName=&name;a.Attributes=OBJ_CASE_INSENSITIVE|OBJ_DONT_REPARSE;
+- if(create(&p->bootstrap_parent,FILE_READ_ATTRIBUTES|FILE_TRAVERSE|FILE_ADD_SUBDIRECTORY|READ_CONTROL|SYNCHRONIZE,&a,&io,NULL,
+- FILE_ATTRIBUTE_DIRECTORY,FILE_SHARE_READ,1U,0x00200021U,NULL,0U)<0)return PAPACC_RESULT_INVALID_STATE;
+- if(!GetFileInformationByHandle(p->bootstrap_parent,&n->parent)||!(n->parent.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||
+- (n->parent.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PAPACC_RESULT_INVALID_STATE;
+- if(GetSecurityInfo(p->bootstrap_parent,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->descriptor)!=ERROR_SUCCESS||
+- !IsValidSecurityDescriptor(n->descriptor)||!GetSecurityDescriptorDacl(n->descriptor,&present,&dacl,&defaulted)||!present||!dacl)return PAPACC_RESULT_INVALID_STATE;
+- n->descriptor_bytes=GetSecurityDescriptorLength(n->descriptor);
+- if(!ConvertSidToStringSidA(n->sid,&n->sid_text))return PAPACC_RESULT_INVALID_STATE;
+- return papacc_configuration_personal_native_current(o);
+-}
+-static PAPACC_RESULT personal_packet_current(PAPACC_CONFIG_PENDING *p)
+-{
+- PAPACC_PERSONAL_NATIVE_CONTEXT *n;BY_HANDLE_FILE_INFORMATION f;int same;
+- if(InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
+- n=&p->personal_native;
+- if(!personal_token(p,0)||!p->bootstrap_parent||!n->descriptor||n->check_descriptor||
+- !GetFileInformationByHandle(p->bootstrap_parent,&f)||memcmp(&f.dwVolumeSerialNumber,&n->parent.dwVolumeSerialNumber,sizeof(DWORD))||
+- f.nFileIndexHigh!=n->parent.nFileIndexHigh||f.nFileIndexLow!=n->parent.nFileIndexLow||
+- !(f.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||(f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PAPACC_RESULT_INVALID_STATE;
+- if(GetSecurityInfo(p->bootstrap_parent,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->check_descriptor)!=ERROR_SUCCESS)return PAPACC_RESULT_INVALID_STATE;
+- same=IsValidSecurityDescriptor(n->check_descriptor)&&n->descriptor_bytes==GetSecurityDescriptorLength(n->check_descriptor)&&
+- !memcmp(n->descriptor,n->check_descriptor,n->descriptor_bytes);
+- if(LocalFree(n->check_descriptor)){n->phase=2U;return PAPACC_RESULT_INTERNAL_ERROR;}n->check_descriptor=NULL;
+- return same?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
+-}
+-PAPACC_RESULT papacc_configuration_personal_native_current(PAPACC_CONFIGURATION_COMMIT *o)
+-{
+- PAPACC_RESULT r;
+- if(!o||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved||o->pending_commit.active||o->pending_commit.thread)return PAPACC_RESULT_INVALID_STATE;
+- r=personal_packet_current(&o->pending_commit);
+- if(o->pending_commit.personal_native.phase==2U)o->unresolved=1;
+- return r;
+-}
+-PAPACC_RESULT papacc_configuration_personal_native_close(PAPACC_CONFIGURATION_COMMIT *o)
+-{
+- PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;HANDLE *h[5];HLOCAL m[3];unsigned i;
+- if(!o||o->writer!=GetCurrentThreadId())return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;n=&p->personal_native;
+- if(p->active||p->thread||n->phase==2U)return PAPACC_RESULT_INVALID_STATE;
+- if(n->phase==3U)return PAPACC_RESULT_OK;
+- /* The child must close before its protecting parent, after worker signal.
+-  * This bit is disjoint from old handles and LocalFree attempt bits. */
+- if(p->bootstrap_container){
+-  if(n->close_attempts&256U)goto retained;n->close_attempts|=256U;
+-#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+-  if(p->test_unknown==2){SetLastError(ERROR_INVALID_HANDLE);goto retained;}
+-#endif
+-  if(!CloseHandle(p->bootstrap_container))goto retained;p->bootstrap_container=NULL;
+- }
+- h[0]=&p->file;h[1]=&n->unexpected_thread;h[2]=&p->bootstrap_token;h[3]=&p->bootstrap_parent;h[4]=&n->check_token;
+- for(i=0;i<5;i++)if(*h[i]&&*h[i]!=INVALID_HANDLE_VALUE){
+- if(n->close_attempts&(1U<<i))goto retained;n->close_attempts|=1U<<i;
+- if(!CloseHandle(*h[i]))goto retained;*h[i]=NULL;}
+- m[0]=n->check_descriptor;m[1]=n->descriptor;m[2]=n->sid_text;
+- for(i=0;i<3;i++)if(m[i]){if(n->close_attempts&(32U<<i))goto retained;n->close_attempts|=32U<<i;if(LocalFree(m[i]))goto retained;if(i==0U)n->check_descriptor=NULL;else if(i==1U)n->descriptor=NULL;else n->sid_text=NULL;}
+- n->phase=3U;return PAPACC_RESULT_OK;
+-retained:n->error=GetLastError();n->phase=2U;o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;
+-}
+-
+-static PAPACC_RESULT personal_packet_source(PAPACC_CONFIG_PENDING *p)
+-{
+- PAPACC_PERSONAL_NATIVE_CONTEXT *n;BY_HANDLE_FILE_INFORMATION f;LARGE_INTEGER zero;
+- if(InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
+- n=&p->personal_native;zero.QuadPart=0;
+- if(n->phase!=1U||!p->file||p->file==INVALID_HANDLE_VALUE||!GetFileInformationByHandle(p->file,&f)||
+- f.dwVolumeSerialNumber!=n->source.dwVolumeSerialNumber||f.nFileIndexHigh!=n->source.nFileIndexHigh||f.nFileIndexLow!=n->source.nFileIndexLow||
+- f.nFileSizeHigh||f.nFileSizeLow!=p->personal_data.bytes||f.nFileSizeLow!=n->source.nFileSizeLow||
+- !SetFilePointerEx(p->file,zero,NULL,FILE_BEGIN)||pending_compare_file(p,p->personal_data.plan,f.nFileSizeLow)!=1)return PAPACC_RESULT_INVALID_STATE;
+- return PAPACC_RESULT_OK;
+-}
+-PAPACC_RESULT papacc_configuration_personal_source_current(PAPACC_CONFIGURATION_COMMIT *o)
+-{
+- if(!o||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved||o->pending_commit.active||o->pending_commit.thread)return PAPACC_RESULT_INVALID_STATE;
+- return personal_packet_source(&o->pending_commit);
+-}
+-/* Same pending_worker dispatch. All inputs belong to the frozen packet. Never
+- * reads owner-only DATA phase/consumed while Stop may invalidate that phase.
+- * Source bytes/attempt/native refs remain owned until factual quiescence. */
+-static void personal_handoff_worker(PAPACC_CONFIG_PENDING *p)
+-{
+- PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;
+- LONG result=PAPACC_PERSONAL_HANDOFF_DENIED;
+- if(InterlockedCompareExchange(&n->handoff_state,0,0)!=PAPACC_PERSONAL_HANDOFF_SUBMITTED)return;
+- if(!InterlockedCompareExchange(&p->stop,0,0)&&
+-    !memcmp(n->handoff_attempt,p->personal_data.attempt,32U)&&
+-    n->plan_leaf[0]&&memchr(n->plan_leaf,0,sizeof(n->plan_leaf))&&
+-    !memcmp(n->plan_leaf,p->previous,sizeof(n->plan_leaf))&&
+-    personal_packet_current(p)==PAPACC_RESULT_OK&&
+-    personal_packet_source(p)==PAPACC_RESULT_OK&&
+-    !InterlockedCompareExchange(&p->stop,0,0))result=PAPACC_PERSONAL_HANDOFF_VERIFIED;
+- if(n->phase==2U||p->close_error){result=PAPACC_PERSONAL_HANDOFF_RETAINED;p->result=PAPACC_CAS_UNKNOWN;}
+- /* No FILE_CREATE, owner lookup, key borrow, commit or publication here.
+-  * Existing child creation remains separately denied by its native gate. */
+- InterlockedExchange(&n->handoff_state,result);
+-}
+-
+-/* Effect-capable sibling dispatch in the SAME worker. The current read-only
+- * ceremony never authorizes it; the production gate is independently checked.
+- * LAB93 tests mechanics only, never an eligible actor or administrative grant. */
+-static void personal_target_worker(PAPACC_CONFIG_PENDING *p)
+-{
+- PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;int lab=0;
+-#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+- lab=p->checkpoint_only==93;
+-#endif
+- if(InterlockedCompareExchange(&n->handoff_state,0,0)!=PAPACC_PERSONAL_HANDOFF_SUBMITTED)return;
+- p->result=PAPACC_COMMIT_FAILED;
+- if(!lab&&!personal_native_ceremony_ready(p))goto denied;
+- if(InterlockedCompareExchange(&p->stop,0,0)||
+-    memcmp(n->handoff_attempt,p->personal_data.attempt,32U)||
+-    !n->plan_leaf[0]||!memchr(n->plan_leaf,0,sizeof(n->plan_leaf))||
+-    memcmp(n->plan_leaf,p->previous,sizeof(n->plan_leaf)))goto denied;
+- if(!lab&&(personal_packet_current(p)!=PAPACC_RESULT_OK||personal_packet_source(p)!=PAPACC_RESULT_OK))goto denied;
+- if(!bootstrap_create_child(p))goto denied;
+-#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+- if(lab&&p->test_entered){
+-  if(!SetEvent(p->test_entered)||WaitForSingleObject(p->test_release,INFINITE)!=WAIT_OBJECT_0){p->result=PAPACC_CAS_UNKNOWN;goto denied;}
+- }
+- if(lab&&p->test_unknown==1){p->result=PAPACC_CAS_UNKNOWN;goto denied;}
+-#endif
+- if(InterlockedCompareExchange(&p->stop,0,0))goto denied;
+- if(!bootstrap_identity(p->bootstrap_parent,&p->bootstrap_parent_volume,&p->bootstrap_parent_high,&p->bootstrap_parent_low,0)||
+-    !bootstrap_identity(p->bootstrap_container,&p->bootstrap_volume,&p->bootstrap_high,&p->bootstrap_low,0)){
+-  p->result=PAPACC_CAS_UNKNOWN;goto denied;}
+- /* Only the namespace fact. No CA reference/acquisition is fabricated. */
+- p->result=PAPACC_CAS_SUCCESS;
+- InterlockedExchange(&n->handoff_state,PAPACC_PERSONAL_HANDOFF_VERIFIED);return;
+-denied:
+- InterlockedExchange(&n->handoff_state,p->result==PAPACC_CAS_UNKNOWN?PAPACC_PERSONAL_HANDOFF_RETAINED:PAPACC_PERSONAL_HANDOFF_DENIED);
+-}
++#include <aclapi.h>
++#include <sddl.h>
++static int personal_group(WELL_KNOWN_SID_TYPE kind,int expected)
++{
++ BYTE sid[SECURITY_MAX_SID_SIZE];DWORD bytes=sizeof(sid);BOOL member=FALSE;
++ return CreateWellKnownSid(kind,NULL,sid,&bytes)&&CheckTokenMembership(NULL,sid,&member)&&(member?1:0)==expected;
++}
++static int personal_token(PAPACC_CONFIG_PENDING *p,int capture)
++{
++ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;
++ union {TOKEN_USER alignment;BYTE bytes[sizeof(TOKEN_USER)+SECURITY_MAX_SID_SIZE];} u;
++ TOKEN_STATISTICS current_token;int same;
++ TOKEN_STATISTICS t;TOKEN_ELEVATION e;TOKEN_ELEVATION_TYPE type;DWORD z,session,ps;TOKEN_USER *user=(TOKEN_USER *)&u;
++ if(n->phase!=1U||p->stop||n->unexpected_thread)return 0;
++ if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&n->unexpected_thread))return 0;
++ if(GetLastError()!=ERROR_NO_TOKEN||!personal_group(WinBuiltinAdministratorsSid,1)||!personal_group(WinInteractiveSid,1)||!personal_group(WinServiceSid,0))return 0;
++ if(capture&&!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&p->bootstrap_token))return 0;
++ if(!p->bootstrap_token||!GetTokenInformation(p->bootstrap_token,TokenStatistics,&t,sizeof(t),&z)||t.TokenType!=TokenPrimary||
++ !GetTokenInformation(p->bootstrap_token,TokenElevation,&e,sizeof(e),&z)||!e.TokenIsElevated||
++ !GetTokenInformation(p->bootstrap_token,TokenElevationType,&type,sizeof(type),&z)||type==TokenElevationTypeLimited||
++ !GetTokenInformation(p->bootstrap_token,TokenSessionId,&session,sizeof(session),&z)||!session||
++ !ProcessIdToSessionId(GetCurrentProcessId(),&ps)||ps!=session||session!=WTSGetActiveConsoleSessionId()||
++ !GetTokenInformation(p->bootstrap_token,TokenUser,&u,sizeof(u),&z)||!IsValidSid(user->User.Sid)||GetLengthSid(user->User.Sid)>sizeof(n->sid))return 0;
++ if(capture){n->token=t;n->session=session;n->sid_bytes=GetLengthSid(user->User.Sid);return CopySid(sizeof(n->sid),n->sid,user->User.Sid)!=0;}
++ if(n->check_token||!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&n->check_token))return 0;
++ same=GetTokenInformation(n->check_token,TokenStatistics,&current_token,sizeof(current_token),&z)&&
++ !memcmp(&current_token.TokenId,&t.TokenId,sizeof(LUID))&&!memcmp(&current_token.ModifiedId,&t.ModifiedId,sizeof(LUID));
++ if(!CloseHandle(n->check_token)){n->phase=2U;return 0;}n->check_token=NULL;
++ return same&&n->session==session&&n->sid_bytes==GetLengthSid(user->User.Sid)&&EqualSid(n->sid,user->User.Sid)&&
++ !memcmp(&n->token.TokenId,&t.TokenId,sizeof(LUID))&&!memcmp(&n->token.AuthenticationId,&t.AuthenticationId,sizeof(LUID))&&
++ !memcmp(&n->token.ModifiedId,&t.ModifiedId,sizeof(LUID));
++}
++PAPACC_RESULT papacc_configuration_personal_native_open(PAPACC_CONFIGURATION_COMMIT *o,const char *parent)
++{
++ PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;unsigned i,k,len;char drive[3],device[512];
++ WCHAR path[MAX_PATH+5];UNICODE_STRING name;OBJECT_ATTRIBUTES a;IO_STATUS_BLOCK io;HMODULE mod;FARPROC proc;BOOTSTRAP_NT_CREATE create;
++ PACL dacl;BOOL present,defaulted;
++ if(!o||o->writer!=GetCurrentThreadId()||o->initialized||!parent||o->stopped||o->unresolved)return PAPACC_RESULT_INVALID_STATE;
++ p=&o->pending_commit;n=&p->personal_native;
++ if(n->phase||p->active||p->thread||p->bootstrap_parent||p->bootstrap_token)return PAPACC_RESULT_INVALID_STATE;
++ len=(unsigned)strlen(parent);if(len<3U||len>=MAX_PATH||parent[1]!=':'||parent[2]!='\\'||strstr(parent,".."))return PAPACC_RESULT_INVALID_ARGUMENT;
++ for(i=0;i<len;i++)if((unsigned char)parent[i]<32U||(unsigned char)parent[i]>126U||parent[i]=='/'||(i!=1U&&parent[i]==':'))return PAPACC_RESULT_INVALID_ARGUMENT;
++ n->phase=1U;p->file=INVALID_HANDLE_VALUE;memcpy(p->path,parent,len+1U);
++ if(!personal_token(p,1))return PAPACC_RESULT_INVALID_STATE;
++ drive[0]=parent[0];drive[1]=':';drive[2]=0;
++ if(!QueryDosDeviceA(drive,device,sizeof(device))||strncmp(device,"\\Device\\",8U))return PAPACC_RESULT_NOT_SUPPORTED;
++ k=(unsigned)strlen(device);if(k+len-2U>=MAX_PATH+5U)return PAPACC_RESULT_INVALID_ARGUMENT;
++ for(i=0;i<k;i++)path[i]=(WCHAR)(unsigned char)device[i];
++ for(i=2U;i<=len;i++)path[k+i-2U]=(WCHAR)(unsigned char)parent[i];len=k+len-2U;
++ mod=GetModuleHandleA("ntdll.dll");if(!mod)return PAPACC_RESULT_NOT_SUPPORTED;proc=GetProcAddress(mod,"NtCreateFile");if(!proc)return PAPACC_RESULT_NOT_SUPPORTED;memcpy(&create,&proc,sizeof(create));
++ memset(&a,0,sizeof(a));memset(&io,0,sizeof(io));name.Buffer=path;name.Length=(USHORT)(len*2U);name.MaximumLength=name.Length;
++ a.Length=sizeof(a);a.ObjectName=&name;a.Attributes=OBJ_CASE_INSENSITIVE|OBJ_DONT_REPARSE;
++ if(create(&p->bootstrap_parent,FILE_READ_ATTRIBUTES|FILE_TRAVERSE|FILE_ADD_SUBDIRECTORY|READ_CONTROL|SYNCHRONIZE,&a,&io,NULL,
++ FILE_ATTRIBUTE_DIRECTORY,FILE_SHARE_READ,1U,0x00200021U,NULL,0U)<0)return PAPACC_RESULT_INVALID_STATE;
++ if(!GetFileInformationByHandle(p->bootstrap_parent,&n->parent)||!(n->parent.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||
++ (n->parent.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PAPACC_RESULT_INVALID_STATE;
++ if(GetSecurityInfo(p->bootstrap_parent,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->descriptor)!=ERROR_SUCCESS||
++ !IsValidSecurityDescriptor(n->descriptor)||!GetSecurityDescriptorDacl(n->descriptor,&present,&dacl,&defaulted)||!present||!dacl)return PAPACC_RESULT_INVALID_STATE;
++ n->descriptor_bytes=GetSecurityDescriptorLength(n->descriptor);
++ if(!ConvertSidToStringSidA(n->sid,&n->sid_text))return PAPACC_RESULT_INVALID_STATE;
++ return papacc_configuration_personal_native_current(o);
++}
++static PAPACC_RESULT personal_packet_current(PAPACC_CONFIG_PENDING *p)
++{
++ PAPACC_PERSONAL_NATIVE_CONTEXT *n;BY_HANDLE_FILE_INFORMATION f;int same;
++ if(InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
++ n=&p->personal_native;
++ if(!personal_token(p,0)||!p->bootstrap_parent||!n->descriptor||n->check_descriptor||
++ !GetFileInformationByHandle(p->bootstrap_parent,&f)||memcmp(&f.dwVolumeSerialNumber,&n->parent.dwVolumeSerialNumber,sizeof(DWORD))||
++ f.nFileIndexHigh!=n->parent.nFileIndexHigh||f.nFileIndexLow!=n->parent.nFileIndexLow||
++ !(f.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||(f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PAPACC_RESULT_INVALID_STATE;
++ if(GetSecurityInfo(p->bootstrap_parent,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->check_descriptor)!=ERROR_SUCCESS)return PAPACC_RESULT_INVALID_STATE;
++ same=IsValidSecurityDescriptor(n->check_descriptor)&&n->descriptor_bytes==GetSecurityDescriptorLength(n->check_descriptor)&&
++ !memcmp(n->descriptor,n->check_descriptor,n->descriptor_bytes);
++ if(LocalFree(n->check_descriptor)){n->phase=2U;return PAPACC_RESULT_INTERNAL_ERROR;}n->check_descriptor=NULL;
++ return same?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
++}
++PAPACC_RESULT papacc_configuration_personal_native_current(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ PAPACC_RESULT r;
++ if(!o||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved||o->pending_commit.active||o->pending_commit.thread)return PAPACC_RESULT_INVALID_STATE;
++ r=personal_packet_current(&o->pending_commit);
++ if(o->pending_commit.personal_native.phase==2U)o->unresolved=1;
++ return r;
++}
++PAPACC_RESULT papacc_configuration_personal_native_close(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;HANDLE *h[5];HLOCAL m[3];unsigned i;
++ if(!o||o->writer!=GetCurrentThreadId())return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;n=&p->personal_native;
++ if(p->active||p->thread||n->phase==2U)return PAPACC_RESULT_INVALID_STATE;
++ if(n->phase==3U)return PAPACC_RESULT_OK;
++ /* The child must close before its protecting parent, after worker signal.
++  * This bit is disjoint from old handles and LocalFree attempt bits. */
++ if(p->bootstrap_container){
++  if(n->close_attempts&256U)goto retained;n->close_attempts|=256U;
++#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
++  if(p->test_unknown==2){SetLastError(ERROR_INVALID_HANDLE);goto retained;}
++#endif
++  if(!CloseHandle(p->bootstrap_container))goto retained;p->bootstrap_container=NULL;
++ }
++ h[0]=&p->file;h[1]=&n->unexpected_thread;h[2]=&p->bootstrap_token;h[3]=&p->bootstrap_parent;h[4]=&n->check_token;
++ for(i=0;i<5;i++)if(*h[i]&&*h[i]!=INVALID_HANDLE_VALUE){
++ if(n->close_attempts&(1U<<i))goto retained;n->close_attempts|=1U<<i;
++ if(!CloseHandle(*h[i]))goto retained;*h[i]=NULL;}
++ m[0]=n->check_descriptor;m[1]=n->descriptor;m[2]=n->sid_text;
++ for(i=0;i<3;i++)if(m[i]){if(n->close_attempts&(32U<<i))goto retained;n->close_attempts|=32U<<i;if(LocalFree(m[i]))goto retained;if(i==0U)n->check_descriptor=NULL;else if(i==1U)n->descriptor=NULL;else n->sid_text=NULL;}
++ n->phase=3U;return PAPACC_RESULT_OK;
++retained:n->error=GetLastError();n->phase=2U;o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;
++}
++
++static PAPACC_RESULT personal_packet_source(PAPACC_CONFIG_PENDING *p)
++{
++ PAPACC_PERSONAL_NATIVE_CONTEXT *n;BY_HANDLE_FILE_INFORMATION f;LARGE_INTEGER zero;
++ const unsigned char *configuration=p->personal_data.plan;size_t bytes=p->personal_data.bytes;
++ if(InterlockedCompareExchange(&p->stop,0,0))return PAPACC_RESULT_INVALID_STATE;
++ if(p->personal_data.effectful&&!papacc_personal_effect_source(p->personal_data.plan,p->personal_data.bytes,&configuration,&bytes))return PAPACC_RESULT_INVALID_STATE;
++ n=&p->personal_native;zero.QuadPart=0;
++ if(n->phase!=1U||!p->file||p->file==INVALID_HANDLE_VALUE||!GetFileInformationByHandle(p->file,&f)||
++ f.dwVolumeSerialNumber!=n->source.dwVolumeSerialNumber||f.nFileIndexHigh!=n->source.nFileIndexHigh||f.nFileIndexLow!=n->source.nFileIndexLow||
++ f.nFileSizeHigh||f.nFileSizeLow!=bytes||f.nFileSizeLow!=n->source.nFileSizeLow||
++ !SetFilePointerEx(p->file,zero,NULL,FILE_BEGIN)||pending_compare_file(p,configuration,f.nFileSizeLow)!=1)return PAPACC_RESULT_INVALID_STATE;
++ return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_configuration_personal_source_current(PAPACC_CONFIGURATION_COMMIT *o)
++{
++ if(!o||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved||o->pending_commit.active||o->pending_commit.thread)return PAPACC_RESULT_INVALID_STATE;
++ return personal_packet_source(&o->pending_commit);
++}
++/* Same pending_worker dispatch. All inputs belong to the frozen packet. Never
++ * reads owner-only DATA phase/consumed while Stop may invalidate that phase.
++ * Source bytes/attempt/native refs remain owned until factual quiescence. */
++static void personal_handoff_worker(PAPACC_CONFIG_PENDING *p)
++{
++ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;
++ LONG result=PAPACC_PERSONAL_HANDOFF_DENIED;
++ if(InterlockedCompareExchange(&n->handoff_state,0,0)!=PAPACC_PERSONAL_HANDOFF_SUBMITTED)return;
++ if(!InterlockedCompareExchange(&p->stop,0,0)&&
++    !memcmp(n->handoff_attempt,p->personal_data.attempt,32U)&&
++    n->plan_leaf[0]&&memchr(n->plan_leaf,0,sizeof(n->plan_leaf))&&
++    !memcmp(n->plan_leaf,p->previous,sizeof(n->plan_leaf))&&
++    personal_packet_current(p)==PAPACC_RESULT_OK&&
++    personal_packet_source(p)==PAPACC_RESULT_OK&&
++    !InterlockedCompareExchange(&p->stop,0,0))result=PAPACC_PERSONAL_HANDOFF_VERIFIED;
++ if(n->phase==2U||p->close_error){result=PAPACC_PERSONAL_HANDOFF_RETAINED;p->result=PAPACC_CAS_UNKNOWN;}
++ /* No FILE_CREATE, owner lookup, key borrow, commit or publication here.
++  * Existing child creation remains separately denied by its native gate. */
++ InterlockedExchange(&n->handoff_state,result);
++}
++
++/* Effect-capable sibling dispatch in the SAME worker. The current read-only
++ * ceremony never authorizes it; the production gate is independently checked.
++ * LAB93 tests mechanics only, never an eligible actor or administrative grant. */
++static void personal_target_worker(PAPACC_CONFIG_PENDING *p)
++{
++ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;int lab=0;
++#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
++ lab=p->checkpoint_only==93;
++#endif
++ if(InterlockedCompareExchange(&n->handoff_state,0,0)!=PAPACC_PERSONAL_HANDOFF_SUBMITTED)return;
++ p->result=PAPACC_COMMIT_FAILED;
++ if(!lab&&!personal_native_ceremony_ready(p))goto denied;
++ if(InterlockedCompareExchange(&p->stop,0,0)||
++    memcmp(n->handoff_attempt,p->personal_data.attempt,32U)||
++    !n->plan_leaf[0]||!memchr(n->plan_leaf,0,sizeof(n->plan_leaf))||
++    memcmp(n->plan_leaf,p->previous,sizeof(n->plan_leaf)))goto denied;
++ if(!lab&&(personal_packet_current(p)!=PAPACC_RESULT_OK||personal_packet_source(p)!=PAPACC_RESULT_OK))goto denied;
++ if(!bootstrap_create_child(p))goto denied;
++#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
++ if(lab&&p->test_entered){
++  if(!SetEvent(p->test_entered)||WaitForSingleObject(p->test_release,INFINITE)!=WAIT_OBJECT_0){p->result=PAPACC_CAS_UNKNOWN;goto denied;}
++ }
++ if(lab&&p->test_unknown==1){p->result=PAPACC_CAS_UNKNOWN;goto denied;}
++#endif
++ if(InterlockedCompareExchange(&p->stop,0,0))goto denied;
++ if(!bootstrap_identity(p->bootstrap_parent,&p->bootstrap_parent_volume,&p->bootstrap_parent_high,&p->bootstrap_parent_low,0)||
++    !bootstrap_identity(p->bootstrap_container,&p->bootstrap_volume,&p->bootstrap_high,&p->bootstrap_low,0)){
++  p->result=PAPACC_CAS_UNKNOWN;goto denied;}
++ /* Only the namespace fact. No CA reference/acquisition is fabricated. */
++ p->result=PAPACC_CAS_SUCCESS;
++ InterlockedExchange(&n->handoff_state,PAPACC_PERSONAL_HANDOFF_VERIFIED);return;
++denied:
++ InterlockedExchange(&n->handoff_state,p->result==PAPACC_CAS_UNKNOWN?PAPACC_PERSONAL_HANDOFF_RETAINED:PAPACC_PERSONAL_HANDOFF_DENIED);
++}
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -179,7 +179,8 @@
+  if(!bootstrap_identity(p->bootstrap_parent,&p->bootstrap_parent_volume,&p->bootstrap_parent_high,&p->bootstrap_parent_low,0))return PAPACC_RESULT_INVALID_STATE;
+  if(!lab&&(papacc_configuration_personal_native_current(o)!=PAPACC_RESULT_OK||
+     papacc_configuration_personal_source_current(o)!=PAPACC_RESULT_OK))return PAPACC_RESULT_INVALID_STATE;
+- if(!papacc_personal_data_consume(&p->personal_data,id,p->next,p->personal_data.bytes))return PAPACC_RESULT_INVALID_STATE;
++ if(lab){if(!papacc_personal_data_consume(&p->personal_data,id,p->next,p->personal_data.bytes))return PAPACC_RESULT_INVALID_STATE;}
++ else if(!papacc_personal_effect_consume(&p->personal_data,id,p->previous+1024U,p->personal_data.bytes))return PAPACC_RESULT_INVALID_STATE;
+  memcpy(n->handoff_attempt,id,32U);p->bootstrap_admin=0U;
+  p->packet_format=13U;p->result=PAPACC_COMMIT_PENDING;p->active=1;
+  InterlockedExchange(&n->handoff_state,PAPACC_PERSONAL_HANDOFF_SUBMITTED);
+--- tests/personal_effect_plan_data_test.c
++++ tests/personal_effect_plan_data_test.c
+@@ -35,6 +35,5 @@
+  CHECK(!papacc_personal_effect_consume(&p,id,plan,n)&&!papacc_personal_effect_upgrade(&p,plan,n));
+  papacc_personal_data_invalidate(&p);CHECK(p.consumed&&!papacc_personal_effect_consume(&p,id,plan,n));CHECK(papacc_personal_data_retire(&p));
+  for(i=0;i<sizeof(p.plan);i++)CHECK(p.plan[i]==0U);
+- CHECK(!papacc_personal_effect_source(plan,n-1U,&source,&bytes)||bytes==sizeof(config)-2U); /* config validity is separate parser responsibility */
+  puts("PASS EFFECT_PLAN_DATA_ONLY EXPLICIT_CA_SCOPE READ_ONLY_NOT_REUSABLE STOP_REPLAY_DENY NO_NATIVE_EFFECT");return 0;
+ }

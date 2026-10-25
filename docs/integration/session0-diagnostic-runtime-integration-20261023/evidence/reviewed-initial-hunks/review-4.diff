@@ -1,0 +1,67 @@
+--- a/tests/service_runtime_component_test.c
++++ b/tests/service_runtime_component_test.c
+@@ -29,7 +29,14 @@
+ static BOOL WINAPI m_process(HANDLE process,DWORD rights,PHANDLE token){(void)process;(void)rights;*token=(HANDLE)(ULONG_PTR)(++model_next);return TRUE;}
+ static BOOL WINAPI m_thread(HANDLE thread,DWORD rights,BOOL self,PHANDLE token){(void)thread;(void)rights;(void)self;if(model_mode==3U){*token=(HANDLE)(ULONG_PTR)(++model_next);return TRUE;}SetLastError(ERROR_NO_TOKEN);return FALSE;}
+ static BOOL WINAPI m_duplicate(HANDLE h,SECURITY_IMPERSONATION_LEVEL level,PHANDLE out){(void)h;if(level!=SecurityImpersonation)return FALSE;*out=(HANDLE)(ULONG_PTR)(++model_next);return TRUE;}
+-static BOOL WINAPI m_close(HANDLE h){(void)h;model_closes++;if(model_mode==9U){SetLastError(ERROR_INVALID_HANDLE);return FALSE;}return TRUE;}
++#ifdef PAPACC_PSR_FILE_RUNTIME_LAB
++#include "service_runtime_file_fixture.inc"
++#endif
++static BOOL WINAPI m_close(HANDLE h){
++#ifdef PAPACC_PSR_FILE_RUNTIME_LAB
++ if(h==(HANDLE)(ULONG_PTR)2001||h==(HANDLE)(ULONG_PTR)2002)return dm_close(h);
++#endif
++ (void)h;model_closes++;if(model_mode==9U){SetLastError(ERROR_INVALID_HANDLE);return FALSE;}return TRUE;}
+ static BOOL WINAPI m_token(HANDLE h,TOKEN_INFORMATION_CLASS kind,LPVOID b,DWORD capacity,PDWORD used)
+ {
+  DWORD n=0;(void)h;
+@@ -42,6 +49,9 @@
+ }
+ static BOOL WINAPI m_info(HANDLE h,LPBY_HANDLE_FILE_INFORMATION i)
+ {
++#ifdef PAPACC_PSR_FILE_RUNTIME_LAB
++ if(h==(HANDLE)(ULONG_PTR)2001||h==(HANDLE)(ULONG_PTR)2002)return dm_info(h,i);
++#endif
+  ZeroMemory(i,sizeof(*i));i->dwVolumeSerialNumber=417614100UL;if(model_mode==12U)return FALSE;
+  if(h==(HANDLE)(ULONG_PTR)1001){i->nFileIndexHigh=1966080UL;i->nFileIndexLow=79426UL;i->dwFileAttributes=FILE_ATTRIBUTE_DIRECTORY;}
+  else if(h==(HANDLE)(ULONG_PTR)1002){i->nFileIndexHigh=393216UL;i->nFileIndexLow=model_mode==7U?1120241UL:1120240UL;i->nFileSizeLow=116U;}
+@@ -49,7 +59,11 @@
+  else return FALSE;return TRUE;
+ }
+ static BOOL WINAPI m_seek(HANDLE h,LARGE_INTEGER offset,PLARGE_INTEGER result,DWORD method){(void)h;(void)offset;(void)result;(void)method;return TRUE;}
+-static BOOL WINAPI m_read(HANDLE h,LPVOID b,DWORD n,LPDWORD used,LPOVERLAPPED ov){(void)h;(void)ov;if(n<116U||model_mode==11U)return FALSE;memcpy(b,model_config,116U);if(model_mode==6U)((BYTE *)b)[0]='X';*used=116U;return TRUE;}
++static BOOL WINAPI m_read(HANDLE h,LPVOID b,DWORD n,LPDWORD used,LPOVERLAPPED ov){
++#ifdef PAPACC_PSR_FILE_RUNTIME_LAB
++ if(h==(HANDLE)(ULONG_PTR)2002)return dm_read(h,b,n,used,ov);
++#endif
++(void)h;(void)ov;if(n<116U||model_mode==11U)return FALSE;memcpy(b,model_config,116U);if(model_mode==6U)((BYTE *)b)[0]='X';*used=116U;return TRUE;}
+ static DWORD WINAPI m_security(HANDLE h,SE_OBJECT_TYPE type,SECURITY_INFORMATION info,PSID *owner,PSID *group,PACL *dacl,PACL *sacl,PSECURITY_DESCRIPTOR *sd){(void)h;(void)type;(void)info;(void)owner;(void)group;(void)dacl;(void)sacl;*sd=&model_sd;return ERROR_SUCCESS;}
+ static HLOCAL WINAPI m_free(HLOCAL v){if(v==&model_sd)return NULL;return LocalFree(v);}
+ static BOOL WINAPI m_access(PSECURITY_DESCRIPTOR sd,HANDLE token,DWORD desired,PGENERIC_MAPPING mapping,PPRIVILEGE_SET privileges,LPDWORD size,LPDWORD granted,LPBOOL allowed){(void)sd;(void)token;(void)mapping;(void)privileges;if(desired!=MAXIMUM_ALLOWED)return FALSE;*size=sizeof(PRIVILEGE_SET);*granted=FILE_GENERIC_READ|FILE_GENERIC_EXECUTE;if(model_mode==8U)*granted|=FILE_WRITE_DATA;*allowed=TRUE;return TRUE;}
+@@ -70,6 +84,15 @@
+ #define GetSecurityInfo m_security
+ #define LocalFree m_free
+ #define AccessCheck m_access
++#ifdef PAPACC_PSR_FILE_RUNTIME_LAB
++#define CreateFileW dm_create
++#define GetFinalPathNameByHandleW dm_name
++#define GetKernelObjectSecurity dm_security
++#define GetFileSizeEx dm_size_fn
++#define GetFileType dm_type
++#define WriteFile dm_write
++#define FlushFileBuffers dm_flush
++#endif
+ #endif
+ #define PAPACC_SCM_REGISTRATION_LAB 1
+ #define PAPACC_SCM_RUNTIME_LAB 1
+@@ -134,6 +157,9 @@
+  for(scenario=0U;scenario<3U;scenario++){
+   ZeroMemory(&native.runtime,sizeof(native.runtime));ZeroMemory(&host,sizeof(host));model_stop_flag=model_stop_on_running=model_reports=0U;
+   T(psr_token()==ERROR_SUCCESS);native.runtime.parent=(HANDLE)(ULONG_PTR)1001;native.runtime.configuration=(HANDLE)(ULONG_PTR)1002;native.runtime.relative_image=(HANDLE)(ULONG_PTR)1003;T(psr_current()==ERROR_SUCCESS);native.runtime.ready=1U;
++#ifdef PSR_FILE_ENABLED
++  native.runtime.diagnostic.receipt=2U; /* model-only prior capture receipt */
++#endif
+   host.handle=(SERVICE_STATUS_HANDLE)(ULONG_PTR)9;host.thread=GetCurrentThreadId();host.run_active=1U;T(ps_begin(&host.life));
+   native.runtime.managers_ready=1U;host.thread++;i=model_next;T(!papacc_server_service_runtime_ready()&&model_next==i);host.thread--;native.runtime.managers_ready=0U;
+   T(papacc_connection_manager_init(&cm,NULL,0U)==PAPACC_RESULT_OK);

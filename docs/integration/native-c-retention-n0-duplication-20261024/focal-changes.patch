@@ -1,0 +1,81 @@
+--- apps/server/server_service_admission_bd_win32.inc.before
++++ apps/server/server_service_admission_bd_win32.inc
+@@ -82,7 +82,7 @@
+  memcmp(&s.TokenId,&d->statistics.TokenId,sizeof(LUID))||memcmp(&s.AuthenticationId,&d->statistics.AuthenticationId,sizeof(LUID))||memcmp(&s.ModifiedId,&d->statistics.ModifiedId,sizeof(LUID)))return ERROR_ACCESS_DENIED;
+  if(!CloseHandle(PSA.bd.actor_check_token)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.bd.actor_check_token=NULL;
+  if(!GetFileInformationByHandle(d->configuration,&id)||!psa_bd_file(&id,&d->config_id)||!GetFileInformationByHandle(d->image,&id)||!psa_bd_file(&id,&d->image_id))return ERROR_INVALID_DATA;
+- if(d->n0){DWORD z=psa_bd_aux_current(d,GetTickCount64());if(z)return z;}
++ if(d->n0)return psa_bd_aux_current(d,GetTickCount64());
+  return PSA.bd.check?PSA.bd.check(d):ERROR_NOT_SUPPORTED;
+ }
+ static DWORD psa_bd_confirm(void)
+--- tests/service_bd_admission_test.c.before
++++ tests/service_bd_admission_test.c
+@@ -189,13 +189,30 @@
+  n0_descriptor();bd_fixture.auxiliary.file_id.nNumberOfLinks=2;T(!ps_bd_descriptor(&bd_fixture));owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));T(!papacc_server_service_admission_bd_revalidate(context));mode=25;T(papacc_server_service_admission_bd_revalidate(context)!=0);mode=0;T(!papacc_server_service_admission_finish(1));++cases;
+  owner();native.admission.bd.context.dossier=H(0x999);T(papacc_server_service_admission_finish(1)==ERROR_INVALID_STATE&&native.admission.phase==3&&native.admission.mutex&&native.admission.bd.context.dossier);T(papacc_server_service_admission_finish(1)==ERROR_INVALID_STATE);/* reset synthetic handles ONLY */native.admission.bd.context.dossier=NULL;native.admission.phase=1;T(!papacc_server_service_admission_finish(1));++cases;
+  owner();T(papacc_server_service_admission_n0_arm()==ERROR_INVALID_STATE);++cases;
++ /* Exact point-of-use count; direct auxiliary callers still validate context. */
++ n0_descriptor();owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));
++ context_calls=0;T(!psa_bd_current());T(context_calls==1);++cases;
++ context_calls=0;T(!psa_bd_aux_current(&native.admission.bd.binding,fixture_clock));T(context_calls==1);++cases;
++ context_calls=0;mode=20;T(psa_bd_current()==ERROR_ACCESS_DENIED&&context_calls==1);mode=0;++cases;
++ T(!papacc_server_service_admission_finish(1));owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));
++ context_calls=0;mode=1;T(psa_bd_current()==ERROR_ACCESS_DENIED&&context_calls==0);mode=0;++cases;
++ T(!papacc_server_service_admission_finish(1));owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));
++ context_calls=0;mode=2;T(psa_bd_current()==ERROR_INVALID_DATA&&context_calls==0);mode=0;++cases;
++ T(!papacc_server_service_admission_finish(1));owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));
++ context_calls=0;mode=6;T(psa_bd_current()==ERROR_INVALID_DATA&&context_calls==0);mode=0;++cases;
++ T(!papacc_server_service_admission_finish(1));owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));
++ context_calls=0;fixture_clock+=60001;T(psa_bd_current()==ERROR_INVALID_STATE&&context_calls==0);fixture_clock-=60001;++cases;
++ context_calls=0;T(!papacc_server_service_admission_stop());T(psa_bd_current()==ERROR_INVALID_STATE&&context_calls==0);T(!papacc_server_service_admission_finish(1));++cases;
++ /* Fresh call detects changes after an earlier successful validation. */
++ n0_descriptor();owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));T(!psa_bd_current());mode=1;T(psa_bd_current()==ERROR_ACCESS_DENIED);mode=0;T(!papacc_server_service_admission_finish(1));++cases;
++ printf("N0_CONTEXT_CALLS=1_PER_CURRENT_SUCCESS; DIRECT_AUX=1; DENIED_CONTEXT=1; TOKEN_CREATION_FILE_STALE_STOP_DENY_BEFORE_CONTEXT; SYNTHETIC_ONLY\n");
+  n0_descriptor();owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));T(papacc_server_service_admission_n0_arm()==ERROR_TIMEOUT);++cases;
+  ZeroMemory(c,sizeof(c));for(i=0;i<4;i++){c[i].private_bytes=c[i].commit=4*PS_BD_MIB;c[i].working_set=8*PS_BD_MIB;c[i].handles=64;c[i].threads=4;c[i].stack=128*1024;}
+  T(!papacc_server_service_admission_bd_metrics(c,GetTickCount64()));T(!papacc_server_service_admission_n0_arm()&&native.admission.lab);T(papacc_server_service_admission_n0_arm()==ERROR_INVALID_STATE);++cases;
+  native.admission.consumed=1;native.admission.intent=H(0x99);T(!papacc_server_service_admission_effect());T(!papacc_server_service_admission_stop());T(!papacc_server_service_admission_bd_revalidate(context));T(papacc_server_service_admission_effect()==ERROR_INVALID_STATE);T(!papacc_server_service_admission_finish(1));++cases;
+  n0_descriptor();owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));T(!papacc_server_service_admission_stop());T(papacc_server_service_admission_n0_arm()==ERROR_INVALID_STATE);T(!papacc_server_service_admission_finish(1));++cases;
+  /* Slow COMPLETE protected validation happens BEFORE this new sample. */
+- n0_descriptor();owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));context_delay=700;{ULONGLONG before=fixture_clock;T(!papacc_server_service_admission_bd_revalidate(context)&&fixture_clock>before+1000);}context_delay=0;
++ n0_descriptor();owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));context_delay=1400;{ULONGLONG before=fixture_clock;T(!papacc_server_service_admission_bd_revalidate(context)&&fixture_clock>before+1000);}context_delay=0;
+  ZeroMemory(c,sizeof(c));for(i=0;i<4;i++){c[i].private_bytes=c[i].commit=4*PS_BD_MIB;c[i].working_set=8*PS_BD_MIB;c[i].handles=64;c[i].threads=4;c[i].stack=128*1024;}
+  T(!papacc_server_service_admission_bd_metrics(c,fixture_clock));fixture_clock+=1000;T(!papacc_server_service_admission_n0_arm());T(!papacc_server_service_admission_finish(1));++cases;
+  n0_descriptor();owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));T(!papacc_server_service_admission_bd_metrics(c,fixture_clock));fixture_clock+=1001;T(papacc_server_service_admission_n0_arm()==ERROR_TIMEOUT&&!native.admission.consumed);T(!papacc_server_service_admission_finish(1));++cases;
+--- tests/service_busy_diagnostic_test.c.before
++++ tests/service_busy_diagnostic_test.c
+@@ -33,6 +33,7 @@
+ #define GetFileInformationByHandle aq_info
+ #define GetSecurityInfo aq_security
+ #define GetProcAddress aq_address
++static unsigned aux_fault_calls;
+ static unsigned cp_open_calls,cp_failed_closes,pss_capture_calls,trust_calls;
+ static unsigned census_child_fixture,census_close_fail;
+ static DWORD WINAPI rejected_pss(HANDLE process,PSS_CAPTURE_FLAGS flags,DWORD context,HPSS *snapshot)
+@@ -54,7 +55,7 @@
+ static BOOL WINAPI busy_next(HANDLE h,LPPROCESSENTRY32W p)
+ {(void)h;(void)p;++next_calls;SetLastError(ERROR_NO_MORE_FILES);return FALSE;}
+ static BOOL WINAPI busy_close(HANDLE h)
+-{if(h==(HANDLE)(ULONG_PTR)0x66666){++aq_closes;if(aq_close_fail){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}if(h==(HANDLE)(ULONG_PTR)0x44444){++cp_failed_closes;SetLastError(ERROR_ACCESS_DENIED);return FALSE;}if(h==(HANDLE)(ULONG_PTR)0x22222){++close_calls;if(census_close_fail){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}return CloseHandle(h);}
++{if((ULONG_PTR)h>=0x77770&&(ULONG_PTR)h<=0x77772){++aux_fault_calls;SetLastError(ERROR_ACCESS_DENIED);return FALSE;}if(h==(HANDLE)(ULONG_PTR)0x66666){++aq_closes;if(aq_close_fail){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}if(h==(HANDLE)(ULONG_PTR)0x44444){++cp_failed_closes;SetLastError(ERROR_ACCESS_DENIED);return FALSE;}if(h==(HANDLE)(ULONG_PTR)0x22222){++close_calls;if(census_close_fail){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}return CloseHandle(h);}
+ static DWORD WINAPI busy_free(HANDLE process,HPSS snapshot)
+ {(void)process;(void)snapshot;++free_calls;return ERROR_ACCESS_DENIED;}
+ #undef GetPerformanceInfo
+@@ -228,6 +229,16 @@
+  T(ig_n0_content_phase(1,1,5000,1000,999)<0);++cases;
+  T(ig_n0_content_phase(0,1,5000,1000,5001)==1);++cases;
+  {PS_BD_CONTEXT_STORAGE c;ZeroMemory(&c,sizeof(c));c.metric_window=1;T(ps_bd_context_pending(&c));++cases;}
++ /* Characterization of UNFIXED A1, not a passing retention contract.
++  * All handles here are distinct FAKE values; no real references are lost. */
++ ZeroMemory(lab_aux_retained,sizeof(lab_aux_retained));lab_aux_count=0;native.retained=0;aux_fault_calls=0;
++ T(!lab_close_aux((HANDLE)(ULONG_PTR)0x77770));T(lab_aux_count==1&&lab_aux_retained[0]==(HANDLE)(ULONG_PTR)0x77770);++cases;
++ T(!lab_close_aux((HANDLE)(ULONG_PTR)0x77771));T(lab_aux_count==2&&lab_aux_retained[1]==(HANDLE)(ULONG_PTR)0x77771);++cases;
++ T(!lab_close_aux((HANDLE)(ULONG_PTR)0x77772));T(lab_aux_count==2&&aux_fault_calls==3&&!native.retained);++cases;
++ T(cycle_cleanup()==ERROR_INVALID_STATE);T(aux_fault_calls==3);++cases;
++ printf("A1_CHARACTERIZATION=UNFIXED_DEFECT_REPRODUCED; FAILED_CLOSES=3; STORED=2; THIRD_NOT_TRACKED_BY_HELPER; NO_REAL_HANDLES; SECURITY_QUALIFICATION=STOP\n");
++ /* Reset only synthetic state. No retry of any uncertain handle. */
++ ZeroMemory(lab_aux_retained,sizeof(lab_aux_retained));lab_aux_count=0;
+  printf("REJECTION_REDUCTION=PASS; CENSUS_DENY_PRESERVED; NO_REJECTION_OPEN_PROCESS_PSS_OR_TRUST; HISTORICAL_CAPTURE_FIXTURE_ONLY\n");
+  printf("CONSOLE_CAPTURE_STORAGE bytes=%llu; NEW_REFS_PROCESS_FILE_TRUST_PLUS_SHARED_SNAPSHOT; NO_ADMISSION\n",(ULONGLONG)sizeof(ig_console_proof));
+  printf("BUSY_DIAGNOSTIC_MODEL=PASS cases=%u diagnostic_bytes=%llu; API_BUSY_CENSUS_FIRST_ERROR_LAST_ERROR_STOP_RETENTION_CLOSE_NO_RETRY; NO_PREFLIGHT_NO_SCM_NO_START\n",cases,(unsigned long long)sizeof(IG_DIAGNOSTIC));return 0;

@@ -1,3 +1,8 @@
+#include "server_store_hash_win32.h"
+#ifndef PAPACC_FIXTURE_STORE_HASH_DEFINED
+#define PAPACC_FIXTURE_STORE_HASH_DEFINED
+static PAPACC_STORE_HASH fixture_store_hash;
+#endif
 /* Offline component fixture. No CA, key, credential or operational authority.
  * Native TxF writes only the explicitly supplied new fixture path. */
 #include "server_configuration_body05_win32.h"
@@ -78,7 +83,7 @@ int main(int argc,char **argv){
  config_init(&c);CHECK(papacc_server_config_validate(&c)==0);CHECK(papacc_configuration_prepare05(&root,&c,0)==0);
  result=papacc_configuration_commit(&root);if(result!=0){printf("NATIVE_ROOT_COMMIT_NOT_PROVEN result=%d unresolved=%d\n",result,root.unresolved);return 3;}
  CHECK(papacc_configuration_publish(&root)==0);memcpy(base,root.committed,8192);memset(historical,0,sizeof(historical));
- CHECK(papacc_configuration_body05_encode(&root.slots[root.current].view,historical,sizeof(historical))==0);
+ CHECK(papacc_configuration_body05_encode(&fixture_store_hash,&root.slots[root.current].view,historical,sizeof(historical))==0);
  metadata_init();CHECK(papacc_configuration_issuer_hash06(&root,base,8192,hash));CHECK(papacc_issuer_image_init(image,&metadata,hash,papacc_configuration_issuer_hash06,&root)==0);
  CHECK(papacc_configuration_pin(&root,&pin,&pinned)==0);CHECK(papacc_configuration_issuer_prepare06(&root,image,1,1)==0);CHECK(papacc_configuration_abort(&root)==0);CHECK(papacc_configuration_unpin(&root,&pin,0)==0);
  CHECK(papacc_configuration_issuer_prepare06(&root,image,1,1)==0);

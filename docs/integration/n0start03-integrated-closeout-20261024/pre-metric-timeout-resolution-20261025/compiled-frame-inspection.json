@@ -1,0 +1,26 @@
+[
+  {
+    "profile": "Selected",
+    "config": "Debug",
+    "symbol": true,
+    "prologue": "ig_project_census:\r\n  00000000000136F0: push        rdi\r\n  00000000000136F2: sub         rsp,80h\r\n  00000000000136F9: lea         rdi,[rsp+30h]\r\n  00000000000136FE: mov         ecx,14h\r\n  0000000000013703: mov         eax,0CCCCCCCCh\r\n  0000000000013708: rep stos    dword ptr [rdi]\r\n  000000000001370A: mov         dword ptr [rsp+68h],0\r\n  0000000000013712: cmp         qword ptr [ig_n0_census_content],0\r\n  000000000001371A: je          0000000000013726\r\n  000000000001371C: mov         eax,139Fh\r\n  0000000000013721: jmp         0000000000013873\r\n  0000000000013726: cmp         dword ptr [ig_n0_positive],0\r\n  000000000001372D: je          000000000001386E\r\n  0000000000013733: cmp         dword p"
+  },
+  {
+    "profile": "Selected",
+    "config": "Release",
+    "symbol": true,
+    "prologue": "ig_project_census:\r\n  0000000000000000: push        rdi\r\n  0000000000000002: sub         rsp,60h\r\n  0000000000000006: cmp         qword ptr [ig_n0_census_content],0\r\n  000000000000000E: je          000000000000001B\r\n  0000000000000010: mov         eax,139Fh\r\n  0000000000000015: add         rsp,60h\r\n  0000000000000019: pop         rdi\r\n  000000000000001A: ret\r\n  000000000000001B: cmp         dword ptr [ig_n0_positive],0\r\n  0000000000000022: je          0000000000000191\r\n  0000000000000028: cmp         dword ptr [native+664h],0\r\n  000000000000002F: je          0000000000000191\r\n  0000000000000035: cmp         dword ptr [native+300h],0\r\n  000000000000003C: je          0000000000000191\r\n  000000"
+  },
+  {
+    "profile": "Legacy",
+    "config": "Debug",
+    "symbol": true,
+    "prologue": "ig_project_census:\r\n  00000000000136F0: push        rdi\r\n  00000000000136F2: sub         rsp,80h\r\n  00000000000136F9: lea         rdi,[rsp+30h]\r\n  00000000000136FE: mov         ecx,14h\r\n  0000000000013703: mov         eax,0CCCCCCCCh\r\n  0000000000013708: rep stos    dword ptr [rdi]\r\n  000000000001370A: mov         dword ptr [rsp+68h],0\r\n  0000000000013712: cmp         qword ptr [ig_n0_census_content],0\r\n  000000000001371A: je          0000000000013726\r\n  000000000001371C: mov         eax,139Fh\r\n  0000000000013721: jmp         0000000000013873\r\n  0000000000013726: cmp         dword ptr [ig_n0_positive],0\r\n  000000000001372D: je          000000000001386E\r\n  0000000000013733: cmp         dword p"
+  },
+  {
+    "profile": "Legacy",
+    "config": "Release",
+    "symbol": true,
+    "prologue": "ig_project_census:\r\n  0000000000000000: push        rdi\r\n  0000000000000002: sub         rsp,60h\r\n  0000000000000006: cmp         qword ptr [ig_n0_census_content],0\r\n  000000000000000E: je          000000000000001B\r\n  0000000000000010: mov         eax,139Fh\r\n  0000000000000015: add         rsp,60h\r\n  0000000000000019: pop         rdi\r\n  000000000000001A: ret\r\n  000000000000001B: cmp         dword ptr [ig_n0_positive],0\r\n  0000000000000022: je          0000000000000191\r\n  0000000000000028: cmp         dword ptr [native+664h],0\r\n  000000000000002F: je          0000000000000191\r\n  0000000000000035: cmp         dword ptr [native+300h],0\r\n  000000000000003C: je          0000000000000191\r\n  000000"
+  }
+]

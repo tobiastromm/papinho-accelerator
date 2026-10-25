@@ -1,0 +1,379 @@
+--- tests/roughtime_capacity_test.c
++++ tests/roughtime_capacity_test.c
+@@ -13,6 +13,20 @@
+ static unsigned checks,failures;
+ static void ck(int value,int line){++checks;if(!value){++failures;printf("FAIL line=%d\n",line);}}
+ #define CK(x) ck((x),__LINE__)
++
++#ifdef RT_LAB_TRANSCRIPT
++static PAPACC_SIZE lab_response_bytes[6];
++static int lab_read(const char *dir,const char *name,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE expected){
++ char path[2048];FILE *f;size_t n;int tail;if(strlen(dir)+strlen(name)+2>=sizeof(path))return 0;
++ sprintf(path,"%s/%s",dir,name);f=fopen(path,"rb");if(!f)return 0;n=fread(out,1,cap,f);tail=fgetc(f);fclose(f);return n==expected&&tail==EOF;
++}
++static int lab_load(RT_TEST_GRAPH *g,const char *dir){char name[64];unsigned i;
++ for(i=0;i<6;i++){sprintf(name,"request-%u.bin",i);if(!lab_read(dir,name,g->requests[i],2048,2048))return 0;
++  sprintf(name,"response-%u.bin",i);if(!lab_read(dir,name,g->responses[i],2048,480))return 0;lab_response_bytes[i]=480;}
++ return lab_read(dir,"long-term-keys.bin",g->sources,96,96)&&lab_read(dir,"nonce-randoms.bin",&g->randoms[0][0],192,192);
++}
++#endif
++
+ #ifdef RT_OPENSSL_TEST
+ #include "roughtime_openssl.h"
+ #include <openssl/provider.h>
+@@ -29,6 +43,9 @@
+  if(!v)return measured_alloc(n,f,line);if(!n){measured_free(v,f,line);return NULL;}
+  p=(RT_MEM_HEADER *)v-1;old=p->n-sizeof(*p);q=measured_alloc(n,f,line);if(!q)return NULL;memcpy(q,v,old<n?old:n);measured_free(v,f,line);return q;}
+ static void phase(const char *name){printf("phase=%s provider_live=%u provider_phase_peak=%u provider_cumulative_peak=%u explicit_graph=%u\n",name,(unsigned)live,(unsigned)phase_peak,(unsigned)peak,(unsigned)sizeof(RT_TEST_GRAPH));phase_peak=live;}
++#ifdef RT_LAB_TRANSCRIPT
++#include "roughtime_lab_checks.inc"
++#endif
+ static void capacity(RT_TEST_GRAPH *g){
+  OSSL_LIB_CTX *lib;OSSL_PROVIDER *provider;PAPACC_RT_OPENSSL backend;PAPACC_RT_CRYPTO crypto;
+  PAPACC_RT_BYTES requests[6],responses[6],slice;PAPACC_RT_REPLY replies[6],prior[6];
+@@ -46,6 +63,7 @@
+  phase("context_open_all_slots_reserved");
+  /* Existing AppendixB signatures are negative vectors, not positive source
+   * evidence. Every packet slot remains disjoint and physically touched. */
++ #ifndef RT_LAB_TRANSCRIPT
+  for(i=0;i<6;i++){
+   memset(g->randoms[i],(int)(i+1U),32);memcpy(keys+32*(i%3),vector_key,32);
+   CK(papacc_rt_request_data(&crypto,vector_key,g->randoms[i],g->requests[i])==PAPACC_RT_DATA_OK);
+@@ -53,13 +71,28 @@
+   requests[i].p=g->requests[i];requests[i].n=2048;responses[i].p=g->responses[i];responses[i].n=sizeof(vector_response);
+   CK(papacc_rt_packet_data(requests[i])==PAPACC_RT_DATA_OK);CK(papacc_rt_packet_data(responses[i])==PAPACC_RT_DATA_OK);
+  }
+- phase("six_requests_and_six_existing_negative_responses");
++ #else
++ for(i=0;i<6;i++){
++  requests[i].p=g->requests[i];requests[i].n=2048;responses[i].p=g->responses[i];responses[i].n=lab_response_bytes[i];
++  CK(papacc_rt_packet_data(requests[i])==PAPACC_RT_DATA_OK);CK(papacc_rt_packet_data(responses[i])==PAPACC_RT_DATA_OK);
++ }
++#endif
++ phase("six_requests_and_six_responses_all_slots_reserved");
++#ifdef RT_LAB_TRANSCRIPT
++ lab_checks(g,&crypto);phase("positive_lab_campaign_and_negative_regressions_complete");
++#endif
+  for(j=0;j<6;j++){
+   valid=crypto.verify(crypto.user,vector_key,dc,sizeof(dc),vector_dele,sizeof(vector_dele),vector_dele_sig);CK(!valid);
+   valid=crypto.verify(crypto.user,vector_pub,rc,sizeof(rc),vector_srep,sizeof(vector_srep),vector_srep_sig);CK(!valid);
+  }
+  memset(replies,0x55,sizeof(replies));memcpy(prior,replies,sizeof(replies));
++#ifdef RT_LAB_TRANSCRIPT
++ memcpy(keys,g->sources,96);g->randoms[0][0]^=1;
++#endif
+  CK(papacc_rt_campaign_data(&crypto,requests,responses,keys,&g->randoms[0][0],replies)==PAPACC_RT_INVALID);CK(!memcmp(prior,replies,sizeof(replies)));
++#ifdef RT_LAB_TRANSCRIPT
++ g->randoms[0][0]^=1;
++#endif
+  memset(&absent,0,sizeof(absent));CK(papacc_rt_interval_data(&replies[0],&absent,1,&lower,&upper)!=PAPACC_RT_DATA_OK);CK(lower==11&&upper==12);
+  CK(papacc_issuer_qualified_utc_read(NULL,&absent)==PAPACC_RESULT_NOT_SUPPORTED);
+  phase("negative_validation_output_preserved");
+@@ -78,10 +111,18 @@
+  OPENSSL_cleanup();printf("provider_live_after_test_cleanup=%u\n",(unsigned)live);CK(live==0);
+ }
+ #endif
+-int main(void){
+- RT_TEST_GRAPH *graph;PAPACC_RT_EXCHANGE exchange;PAPACC_U64 n=(PAPACC_U64)1000000000UL;
++int main(int argc,char **argv){
++ RT_TEST_GRAPH *graph;PAPACC_RT_EXCHANGE exchange;
++#ifdef RT_LAB_TRANSCRIPT
++ PAPACC_RT_BYTES packet;unsigned i;
++#endif
++ PAPACC_U64 n=(PAPACC_U64)1000000000UL;
+  CK(sizeof(RT_TEST_GRAPH)==52904U);graph=(RT_TEST_GRAPH *)malloc(sizeof(*graph));CK(graph!=NULL);if(!graph)return 1;
+- memset(graph,0,sizeof(*graph));memset(&exchange,0,sizeof(exchange));
++ (void)argc;(void)argv;memset(graph,0,sizeof(*graph));memset(&exchange,0,sizeof(exchange));
++#ifdef RT_LAB_TRANSCRIPT
++ CK(argc==2);if(argc!=2){free(graph);return 2;}if(!lab_load(graph,argv[1])){CK(0);free(graph);return 2;}CK(1);
++ for(i=0;i<6;i++){packet.p=graph->requests[i];packet.n=2048;CK(papacc_rt_packet_data(packet)==PAPACC_RT_DATA_OK);packet.p=graph->responses[i];packet.n=lab_response_bytes[i];CK(papacc_rt_packet_data(packet)==PAPACC_RT_DATA_OK);}
++#endif
+  CK(papacc_rt_exchange_start_data(&exchange,0,0)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_sent_data(&exchange,n)==PAPACC_RT_EXPIRED);
+  papacc_rt_exchange_stop_data(&exchange);CK(papacc_rt_exchange_received_data(&exchange,n)==PAPACC_RT_RETAINED);
+ #ifdef RT_OPENSSL_TEST
+
+--- /dev/null
++++ tests/roughtime_lab_checks.inc
+@@ -0,0 +1,57 @@
++/* LAB_ONLY integration checks. No key generation/signing or trust source. */
++static PAPACC_U32 lab_u32(const PAPACC_U8 *p){return (PAPACC_U32)p[0]|((PAPACC_U32)p[1]<<8)|((PAPACC_U32)p[2]<<16)|((PAPACC_U32)p[3]<<24);}
++static PAPACC_U8 *lab_field(PAPACC_U8 *map,PAPACC_SIZE size,const char *tag,PAPACC_SIZE *bytes){
++ PAPACC_U32 count;PAPACC_SIZE i,a,b;
++ if(size<8)return NULL;count=lab_u32(map);if(!count||count>32||size<8U*count)return NULL;
++ for(i=0;i<count;i++)if(!memcmp(map+4U*count+4U*i,tag,4)){
++  a=i?lab_u32(map+4U*i):0;b=i+1<count?lab_u32(map+4U*(i+1)):size-8U*count;
++  if(a>b||b>size-8U*count)return NULL;*bytes=b-a;return map+8U*count+a;
++ }return NULL;
++}
++static void lab_bad_reply(const PAPACC_RT_CRYPTO *crypto,PAPACC_RT_BYTES request,PAPACC_RT_BYTES response,const PAPACC_U8 *key){
++ PAPACC_RT_REPLY out,old;memset(&out,0x55,sizeof(out));old=out;
++ CK(papacc_rt_reply_data(crypto,request,response,key,&out)==PAPACC_RT_INVALID);CK(!memcmp(&out,&old,sizeof(out)));
++}
++static void lab_mutation(const PAPACC_RT_CRYPTO *crypto,PAPACC_RT_BYTES req,PAPACC_RT_BYTES resp,const PAPACC_U8 *key,PAPACC_U8 *byte){
++ PAPACC_U8 save;CK(byte!=NULL);if(!byte)return;save=*byte;*byte^=1;lab_bad_reply(crypto,req,resp,key);*byte=save;
++}
++static void lab_checks(RT_TEST_GRAPH *g,const PAPACC_RT_CRYPTO *crypto){
++ PAPACC_RT_BYTES req[6],resp[6];PAPACC_RT_REPLY out[6],saved[6];PAPACC_UTC_OBSERVATION q[6];
++ PAPACC_RT_EXCHANGE event,retained;PAPACC_U64 l=0,u=0;PAPACC_SIZE n,cn,sn,i,j;PAPACC_U8 *p,*cert,*srep,*dele,*v,save;
++ for(i=0;i<6;i++){req[i].p=g->requests[i];req[i].n=2048;resp[i].p=g->responses[i];resp[i].n=lab_response_bytes[i];}
++ if(papacc_rt_campaign_data(crypto,req,resp,g->sources,&g->randoms[0][0],out)!=PAPACC_RT_DATA_OK){CK(0);return;}CK(1);
++ for(i=0;i<6;i++){
++  CK(out[i].midpoint==(PAPACC_U64)2000000000UL&&out[i].radius==3);
++  CK(papacc_rt_reply_data(crypto,req[i],resp[i],g->sources+32*(i%3),&out[i])==PAPACC_RT_DATA_OK);
++  memset(&q[i],0,sizeof(q[i]));q[i].version=1;q[i].present=PAPACC_UTC_DATA_PRESENT;q[i].rho_den=1000000;q[i].rho_num=10;q[i].pal_error=100;
++  q[i].m0=(PAPACC_U64)i*1000000U;q[i].m1=q[i].m0+1000U;q[i].deadline=1000000000UL;
++  memset(&event,0,sizeof(event));CK(papacc_rt_exchange_start_data(&event,0,q[i].m0)==PAPACC_RT_DATA_OK);
++  CK(papacc_rt_exchange_sent_data(&event,q[i].m0+100)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_received_data(&event,q[i].m0+200)==PAPACC_RT_DATA_OK);
++  CK(papacc_rt_exchange_verified_data(&event,q[i].m0+300)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_received_data(&event,q[i].m0+400)==PAPACC_RT_INVALID);
++ }
++ CK(papacc_rt_hull_data(out,q,10000000UL,&l,&u)==PAPACC_RT_DATA_OK);CK(l==(PAPACC_U64)1999999997UL*1000000000UL);CK(u>(PAPACC_U64)2000000003UL*1000000000UL&&u-l<=30U*(PAPACC_U64)1000000000UL);
++ /* Every mutation begins with a cryptographically valid complete baseline. */
++ memcpy(saved,out,sizeof(out));save=g->randoms[1][0];g->randoms[1][0]^=1;memset(out,0x55,sizeof(out));memcpy(saved,out,sizeof(out));
++ CK(papacc_rt_campaign_data(crypto,req,resp,g->sources,&g->randoms[0][0],out)==PAPACC_RT_INVALID);CK(!memcmp(saved,out,sizeof(out)));g->randoms[1][0]=save;
++ p=g->responses[0]+12;n=resp[0].n-12;
++ v=lab_field(p,n,"NONC",&cn);lab_mutation(crypto,req[0],resp[0],g->sources,v);
++ v=lab_field(p,n,"SIG\0",&cn);lab_mutation(crypto,req[0],resp[0],g->sources,v);
++ cert=lab_field(p,n,"CERT",&cn);CK(cert!=NULL);if(!cert)return;
++ v=lab_field(cert,cn,"SIG\0",&sn);lab_mutation(crypto,req[0],resp[0],g->sources,v);
++ dele=lab_field(cert,cn,"DELE",&sn);CK(dele!=NULL);if(!dele)return;
++ v=lab_field(dele,sn,"PUBK",&j);lab_mutation(crypto,req[0],resp[0],g->sources,v);
++ srep=lab_field(p,n,"SREP",&sn);CK(srep!=NULL);if(!srep)return;
++ v=lab_field(srep,sn,"VER\0",&j);lab_mutation(crypto,req[0],resp[0],g->sources,v);
++ v=lab_field(p,n,"PATH",&cn);lab_mutation(crypto,req[0],resp[0],g->sources,v);
++ v=lab_field(p,n,"INDX",&cn);lab_mutation(crypto,req[0],resp[0],g->sources,v);
++ save=g->sources[0];g->sources[0]^=1;lab_bad_reply(crypto,req[0],resp[0],g->sources);g->sources[0]=save;
++ for(i=0;i<6;i++)for(j=0;j<lab_response_bytes[i];j++){resp[i].n=j;lab_bad_reply(crypto,req[i],resp[i],g->sources+32*(i%3));}
++ for(i=0;i<6;i++)resp[i].n=lab_response_bytes[i];
++ resp[0].n=2049;lab_bad_reply(crypto,req[0],resp[0],g->sources);resp[0].n=lab_response_bytes[0];req[0].n=2047;lab_bad_reply(crypto,req[0],resp[0],g->sources);req[0].n=2048;
++ memset(&event,0,sizeof(event));CK(papacc_rt_exchange_start_data(&event,0,0)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_sent_data(&event,1)==PAPACC_RT_DATA_OK);retained=event;
++ papacc_rt_exchange_stop_data(&event);CK(event.phase==retained.phase&&event.sent==retained.sent);CK(papacc_rt_exchange_received_data(&event,2)==PAPACC_RT_RETAINED);
++ memset(&event,0,sizeof(event));CK(papacc_rt_exchange_start_data(&event,0,0)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_sent_data(&event,1000000000UL)==PAPACC_RT_EXPIRED);
++ CK(papacc_issuer_qualified_utc_read(NULL,&q[0])==PAPACC_RESULT_NOT_SUPPORTED);
++ CK(papacc_rt_campaign_data(crypto,req,resp,g->sources,&g->randoms[0][0],out)==PAPACC_RT_DATA_OK);
++ printf("ROUGHTIME_TRANSCRIPT=LAB_ONLY RFC10049_CONFORMANCE=OFFLINE_SCOPE UTC_SOURCE=NOT_QUALIFIED complete_pairs=6\n");
++}
+
+--- /dev/null
++++ tests/roughtime_lab_generate.c
+@@ -0,0 +1,71 @@
++/* LAB ONLY. Private keys are ephemeral EVP objects, never exported.
++ * Output: raw RFC packets, public keys and public nonce-chain randomness.
++ * No network, OS-clock observation/change, CA, X509, CURRENT or authority. */
++#include "roughtime_openssl.h"
++#include <openssl/evp.h>
++#include <openssl/provider.h>
++#include <openssl/rand.h>
++#include <openssl/crypto.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++typedef struct KV { const char *tag; const unsigned char *p; size_t n; } KV;
++static void le32(unsigned char *p,unsigned long v){unsigned i;for(i=0;i<4;i++){p[i]=(unsigned char)v;v>>=8;}}
++static void le64(unsigned char *p,PAPACC_U64 v){unsigned i;for(i=0;i<8;i++){p[i]=(unsigned char)v;v>>=8;}}
++static unsigned long tagnum(const char *p){return (unsigned long)(unsigned char)p[0]|((unsigned long)(unsigned char)p[1]<<8)|((unsigned long)(unsigned char)p[2]<<16)|((unsigned long)(unsigned char)p[3]<<24);}
++static size_t pack(unsigned char *out,KV *items,unsigned n){unsigned i,j;size_t off=0;KV t;
++ for(i=0;i<n;i++)for(j=i+1;j<n;j++)if(tagnum(items[i].tag)>tagnum(items[j].tag)){t=items[i];items[i]=items[j];items[j]=t;}
++ le32(out,n);for(i=0;i<n;i++){if(i)le32(out+4*i,(unsigned long)off);memcpy(out+4*n+4*i,items[i].tag,4);memcpy(out+8*n+off,items[i].p,items[i].n);off+=items[i].n;}return 8*n+off;}
++static int sign(OSSL_LIB_CTX *ctx,EVP_PKEY *key,const unsigned char *prefix,size_t pn,const unsigned char *data,size_t n,unsigned char *sig){
++ unsigned char message[4096];EVP_MD_CTX *md;size_t sn=64;int ok=0;
++ if(pn>64||n>2048)return 0;memcpy(message,prefix,pn);memcpy(message+pn,data,n);md=EVP_MD_CTX_new();
++ if(md&&EVP_DigestSignInit_ex(md,NULL,NULL,ctx,"provider=default",key,NULL)==1)ok=EVP_DigestSign(md,sig,&sn,message,pn+n)==1&&sn==64;
++ EVP_MD_CTX_free(md);OPENSSL_cleanse(message,sizeof(message));return ok;}
++static int write_file(const char *directory,const char *name,const void *data,size_t n){char path[2048];FILE *f;int close_result;
++ if(strlen(directory)+strlen(name)+2>=sizeof(path))return 0;sprintf(path,"%s/%s",directory,name);f=fopen(path,"rb");if(f){fclose(f);return 0;}
++ f=fopen(path,"wb");if(!f)return 0;if(fwrite(data,1,n,f)!=n){fclose(f);return 0;}close_result=fclose(f);return close_result==0;}
++int main(int argc,char **argv){
++ OSSL_LIB_CTX *ctx=NULL;OSSL_PROVIDER *provider=NULL;EVP_PKEY *longkey[3]={NULL,NULL,NULL},*tempkey[3]={NULL,NULL,NULL};
++ PAPACC_RT_OPENSSL adapter;PAPACC_RT_CRYPTO crypto;PAPACC_RT_BYTES pieces[3];PAPACC_RT_REPLY verified;
++ unsigned char keys[96],randoms[192],requests[6][2048],responses[6][2048],pub[3][32],scratch[4096],nonce[32];size_t sizes[6],pn;
++ unsigned char dummy[2048],dummy_nonce[32],leaves[4][32],parent[2][32],root[32],path[64],prefix;
++ unsigned char dele[128],cert[224],srep[160],dsig[64],rsig[64],mint[8],maxt[8],mid[8],radi[4],one[4],type[4],index[4];
++ size_t dn,cn,sn,bn;unsigned i,j,source;KV item[7];char name[64];int ok=0;
++ static const unsigned char dc[]="Roughtime v1 delegation signature",rc[]="Roughtime v1 response signature";
++ if(argc!=2)return 2;if(OpenSSL_version_num()!=0x30500080UL)return 3;
++ if(!OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG,NULL))return 4;
++ ctx=OSSL_LIB_CTX_new();if(!ctx)goto done;provider=OSSL_PROVIDER_load(ctx,"default");if(!provider)goto done;
++ adapter.libctx=ctx;adapter.scratch=scratch;adapter.bytes=sizeof(scratch);crypto.user=&adapter;crypto.hash=papacc_rt_openssl_hash;crypto.verify=papacc_rt_openssl_verify;
++ for(i=0;i<3;i++){
++  longkey[i]=EVP_PKEY_Q_keygen(ctx,"provider=default","ED25519");tempkey[i]=EVP_PKEY_Q_keygen(ctx,"provider=default","ED25519");if(!longkey[i]||!tempkey[i])goto done;
++  pn=32;if(EVP_PKEY_get_raw_public_key(longkey[i],keys+32*i,&pn)!=1||pn!=32)goto done;
++  pn=32;if(EVP_PKEY_get_raw_public_key(tempkey[i],pub[i],&pn)!=1||pn!=32)goto done;
++ }
++ if(RAND_bytes_ex(ctx,randoms,sizeof(randoms),0)!=1)goto done;
++ le64(mint,(PAPACC_U64)2000000000UL-3600U);le64(maxt,(PAPACC_U64)2000000000UL+3600U);le64(mid,(PAPACC_U64)2000000000UL);le32(radi,3);le32(one,1);le32(type,1);le32(index,2);
++ for(i=0;i<6;i++){
++  source=i%3;if(!i)memcpy(nonce,randoms,32);else{
++   pieces[0].p=responses[i-1];pieces[0].n=sizes[i-1];pieces[1].p=randoms+32*i;pieces[1].n=32;if(!crypto.hash(crypto.user,pieces,2,nonce))goto done;}
++  if(papacc_rt_request_data(&crypto,keys+32*source,nonce,requests[i])!=PAPACC_RT_DATA_OK)goto done;
++  /* A four-leaf batch: actual request at index2, three other LAB requests.
++   * All hashing uses existing provider primitives, no custom crypto. */
++  prefix=0;for(j=0;j<4;j++){
++   if(j==2){pieces[1].p=requests[i];}else{if(RAND_bytes_ex(ctx,dummy_nonce,32,0)!=1)goto done;if(papacc_rt_request_data(&crypto,keys+32*source,dummy_nonce,dummy)!=PAPACC_RT_DATA_OK)goto done;pieces[1].p=dummy;}
++   pieces[0].p=&prefix;pieces[0].n=1;pieces[1].n=2048;if(!crypto.hash(crypto.user,pieces,2,leaves[j]))goto done;
++  }
++  prefix=1;for(j=0;j<2;j++){pieces[0].p=&prefix;pieces[0].n=1;pieces[1].p=leaves[2*j];pieces[1].n=32;pieces[2].p=leaves[2*j+1];pieces[2].n=32;if(!crypto.hash(crypto.user,pieces,3,parent[j]))goto done;}
++  pieces[1].p=parent[0];pieces[2].p=parent[1];if(!crypto.hash(crypto.user,pieces,3,root))goto done;memcpy(path,leaves[3],32);memcpy(path+32,parent[0],32);
++  item[0]=(KV){"PUBK",pub[source],32};item[1]=(KV){"MINT",mint,8};item[2]=(KV){"MAXT",maxt,8};dn=pack(dele,item,3);
++  if(!sign(ctx,longkey[source],dc,sizeof(dc),dele,dn,dsig))goto done;
++  item[0]=(KV){"SIG\0",dsig,64};item[1]=(KV){"DELE",dele,dn};cn=pack(cert,item,2);
++  item[0]=(KV){"VER\0",one,4};item[1]=(KV){"RADI",radi,4};item[2]=(KV){"MIDP",mid,8};item[3]=(KV){"VERS",one,4};item[4]=(KV){"ROOT",root,32};sn=pack(srep,item,5);
++  if(!sign(ctx,tempkey[source],rc,sizeof(rc),srep,sn,rsig))goto done;
++  item[0]=(KV){"SIG\0",rsig,64};item[1]=(KV){"NONC",nonce,32};item[2]=(KV){"TYPE",type,4};item[3]=(KV){"PATH",path,64};item[4]=(KV){"SREP",srep,sn};item[5]=(KV){"CERT",cert,cn};item[6]=(KV){"INDX",index,4};
++  memcpy(responses[i],"ROUGHTIM",8);bn=pack(responses[i]+12,item,7);le32(responses[i]+8,(unsigned long)bn);sizes[i]=bn+12;
++  if(papacc_rt_reply_data(&crypto,(PAPACC_RT_BYTES){requests[i],2048},(PAPACC_RT_BYTES){responses[i],sizes[i]},keys+32*source,&verified)!=PAPACC_RT_DATA_OK)goto done;
++ }
++ for(i=0;i<6;i++){sprintf(name,"request-%u.bin",i);if(!write_file(argv[1],name,requests[i],2048))goto done;sprintf(name,"response-%u.bin",i);if(!write_file(argv[1],name,responses[i],sizes[i]))goto done;}
++ if(!write_file(argv[1],"long-term-keys.bin",keys,96)||!write_file(argv[1],"nonce-randoms.bin",randoms,192))goto done;
++ ok=1;printf("ROUGHTIME_TRANSCRIPT=LAB_ONLY pairs=6 request_bytes=2048 response_bytes=%u private_keys_exported=0 network=0 authority=0\n",(unsigned)sizes[0]);
++ done:for(i=0;i<3;i++){EVP_PKEY_free(tempkey[i]);EVP_PKEY_free(longkey[i]);}OSSL_PROVIDER_unload(provider);OSSL_LIB_CTX_free(ctx);OPENSSL_cleanse(dummy_nonce,sizeof(dummy_nonce));OPENSSL_cleanse(scratch,sizeof(scratch));return ok?0:1;
++}
+
+--- tests/roughtime/CMakeLists.txt
++++ tests/roughtime/CMakeLists.txt
+@@ -38,3 +38,38 @@
+ add_test(NAME papacc.roughtime.offline_capacity COMMAND papacc_roughtime_capacity_test)
+ 
+ add_custom_command(TARGET papacc_roughtime_capacity_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PAPACC_PACKAGE_OPENSSL_ROOT}/runtime/libcrypto-3-x64.dll" "$<TARGET_FILE_DIR:papacc_roughtime_capacity_test>")
++
++# Public LAB_ONLY transcript; no key generation occurs during configure/test.
++foreach(item
++ "long-term-keys.bin|23415be05b7976ca4cdd0dc831e87dece5c5913cf38c058b0a24bf223d8c8b32"
++ "nonce-randoms.bin|c952c8c5228ea26a3947aed4cd4d4a0239bbc4b39c9db591ce7fb00a17bee3bc"
++ "request-0.bin|e931ba4b04dd3ff8aa8c72baf21f032d96bf68246f65d54834c2f9534a88de4f"
++ "request-1.bin|86d255d6bd3b1b3f13c61075aa13c2d734ccd344c122e38640f7bde9dd9d88a6"
++ "request-2.bin|2320b5d440d8318ae887176139146afd883cb76e3295a86812e8303ea0ab9a33"
++ "request-3.bin|265e9bcc6ab9dedf3e3c1aaa683b86b471151418e6a2187b4995ac78ebd13338"
++ "request-4.bin|565c36e45491844aa278f57a5c4194dc44fe8b9e395abbbdca8933f6677ea6b9"
++ "request-5.bin|e4c9d1c4a0503ae10ca8e54ccd85a09b5f1c0c342c0f22a18c3bc4e81a1b6ee9"
++ "response-0.bin|72de3e506ae72f2654f2c50968e6d3a7bc9a2d1017248186dbf7654be51aa107"
++ "response-1.bin|ec4b30b0af42ab92d29d797256e4c9faf1354e7bfca22b1001c70ff518066ca7"
++ "response-2.bin|cfbbadaa884f66dd527714edfd59f0fc531525b5c05bfcd3489820be7a785016"
++ "response-3.bin|78b3950a12b624a73cfdcd2903b13cd013e02d1921d7249cc2eb8a47b6d959d6"
++ "response-4.bin|30732d3aa1f9542b7fb24e88e96de17d482e323d467a600050db44c99f1cab1f"
++ "response-5.bin|89b4618a1d5f0c62f496002e3ded4da244aa6e85842dff40e4b8dfe89896f943"
++)
++ string(REPLACE "|" ";" pair "${item}")
++ list(GET pair 0 name)
++ list(GET pair 1 expected)
++ file(SHA256 "${ROOT}/tests/fixtures/roughtime-lab-20261021/${name}" actual)
++ if(NOT actual STREQUAL expected)
++  message(FATAL_ERROR "Pinned LAB_ONLY public transcript mismatch")
++ endif()
++endforeach()
++add_executable(papacc_roughtime_transcript_test
++ "${ROOT}/src/issuer/roughtime.c" "${ROOT}/src/issuer/qualified_utc.c"
++ "${ROOT}/src/issuer/roughtime_openssl.c" "${ROOT}/tests/roughtime_capacity_test.c")
++target_compile_definitions(papacc_roughtime_transcript_test PRIVATE RT_OPENSSL_TEST RT_LAB_TRANSCRIPT _CRT_SECURE_NO_WARNINGS)
++target_include_directories(papacc_roughtime_transcript_test PRIVATE "${ROOT}/include" "${ROOT}/src/issuer" "${PAPACC_PACKAGE_OPENSSL_ROOT}/include")
++target_compile_options(papacc_roughtime_transcript_test PRIVATE /W4 /WX)
++target_link_libraries(papacc_roughtime_transcript_test PRIVATE "${PAPACC_PACKAGE_OPENSSL_ROOT}/lib/libcrypto.lib")
++add_custom_command(TARGET papacc_roughtime_transcript_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PAPACC_PACKAGE_OPENSSL_ROOT}/runtime/libcrypto-3-x64.dll" "$<TARGET_FILE_DIR:papacc_roughtime_transcript_test>")
++add_test(NAME papacc.roughtime.lab_transcript COMMAND papacc_roughtime_transcript_test "${ROOT}/tests/fixtures/roughtime-lab-20261021")
+
+--- /dev/null
++++ tests/fixtures/roughtime-lab-20261021/manifest.json
+@@ -0,0 +1,80 @@
++{
++  "scope": "LAB_ONLY",
++  "generated_at_utc_record_not_qualified_time": "2026-10-21T23:22:02.095521+00:00",
++  "operation_sha256": "93130c8f4f60d04b274cd18833e081aa9de3f59ca601c78233837d54690e2943",
++  "files": [
++    {
++      "file": "long-term-keys.bin",
++      "bytes": 96,
++      "sha256": "23415be05b7976ca4cdd0dc831e87dece5c5913cf38c058b0a24bf223d8c8b32"
++    },
++    {
++      "file": "nonce-randoms.bin",
++      "bytes": 192,
++      "sha256": "c952c8c5228ea26a3947aed4cd4d4a0239bbc4b39c9db591ce7fb00a17bee3bc"
++    },
++    {
++      "file": "request-0.bin",
++      "bytes": 2048,
++      "sha256": "e931ba4b04dd3ff8aa8c72baf21f032d96bf68246f65d54834c2f9534a88de4f"
++    },
++    {
++      "file": "request-1.bin",
++      "bytes": 2048,
++      "sha256": "86d255d6bd3b1b3f13c61075aa13c2d734ccd344c122e38640f7bde9dd9d88a6"
++    },
++    {
++      "file": "request-2.bin",
++      "bytes": 2048,
++      "sha256": "2320b5d440d8318ae887176139146afd883cb76e3295a86812e8303ea0ab9a33"
++    },
++    {
++      "file": "request-3.bin",
++      "bytes": 2048,
++      "sha256": "265e9bcc6ab9dedf3e3c1aaa683b86b471151418e6a2187b4995ac78ebd13338"
++    },
++    {
++      "file": "request-4.bin",
++      "bytes": 2048,
++      "sha256": "565c36e45491844aa278f57a5c4194dc44fe8b9e395abbbdca8933f6677ea6b9"
++    },
++    {
++      "file": "request-5.bin",
++      "bytes": 2048,
++      "sha256": "e4c9d1c4a0503ae10ca8e54ccd85a09b5f1c0c342c0f22a18c3bc4e81a1b6ee9"
++    },
++    {
++      "file": "response-0.bin",
++      "bytes": 480,
++      "sha256": "72de3e506ae72f2654f2c50968e6d3a7bc9a2d1017248186dbf7654be51aa107"
++    },
++    {
++      "file": "response-1.bin",
++      "bytes": 480,
++      "sha256": "ec4b30b0af42ab92d29d797256e4c9faf1354e7bfca22b1001c70ff518066ca7"
++    },
++    {
++      "file": "response-2.bin",
++      "bytes": 480,
++      "sha256": "cfbbadaa884f66dd527714edfd59f0fc531525b5c05bfcd3489820be7a785016"
++    },
++    {
++      "file": "response-3.bin",
++      "bytes": 480,
++      "sha256": "78b3950a12b624a73cfdcd2903b13cd013e02d1921d7249cc2eb8a47b6d959d6"
++    },
++    {
++      "file": "response-4.bin",
++      "bytes": 480,
++      "sha256": "30732d3aa1f9542b7fb24e88e96de17d482e323d467a600050db44c99f1cab1f"
++    },
++    {
++      "file": "response-5.bin",
++      "bytes": 480,
++      "sha256": "89b4618a1d5f0c62f496002e3ded4da244aa6e85842dff40e4b8dfe89896f943"
++    }
++  ],
++  "private_material_exported": false,
++  "network": false,
++  "UTC_SOURCE": "NOT_QUALIFIED"
++}
+
+--- /dev/null
++++ tests/fixtures/roughtime-lab-20261021/LAB_ONLY.md
+@@ -0,0 +1,5 @@
++# Roughtime LAB_ONLY public transcript
++
++Generated once under explicit owner and official executor approval in task PACC-PHASE6-ROUGHTIME-FULL-TRANSCRIPT-ED11-1. Exact operation manifest SHA25693130c8f4f60d04b274cd18833e081aa9de3f59ca601c78233837d54690e2943. Each of six raw RFC10049 requests is2048 bytes; each corresponding response is480 bytes and uses a two-level Merkle proof. Three long-term TEST keypairs and three delegated TEST keypairs were ephemeral EVP objects. Only public key bytes and nonce-chain randomness are archived. No private key/seed was exported or retained in a fixture. No CA,X509,CURRENT,real credentials,.papacc generation,network or system-clock change.
++
++The fixed timestamp2000000000 and radius3 are synthetic LAB data, not observed or qualified UTC. Three LAB identities do not prove independent source administration. The public transcript authorizes no signature, delegation, issuer status, UPDATE or admission. Consumer tests never regenerate it. SHA256 values are pinned in the isolated test CMake and manifest.json. Full operational ED11 remains PARTIAL.
+
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/long-term-keys.bin SHA256 23415be05b7976ca4cdd0dc831e87dece5c5913cf38c058b0a24bf223d8c8b32
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/nonce-randoms.bin SHA256 c952c8c5228ea26a3947aed4cd4d4a0239bbc4b39c9db591ce7fb00a17bee3bc
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/request-0.bin SHA256 e931ba4b04dd3ff8aa8c72baf21f032d96bf68246f65d54834c2f9534a88de4f
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/request-1.bin SHA256 86d255d6bd3b1b3f13c61075aa13c2d734ccd344c122e38640f7bde9dd9d88a6
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/request-2.bin SHA256 2320b5d440d8318ae887176139146afd883cb76e3295a86812e8303ea0ab9a33
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/request-3.bin SHA256 265e9bcc6ab9dedf3e3c1aaa683b86b471151418e6a2187b4995ac78ebd13338
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/request-4.bin SHA256 565c36e45491844aa278f57a5c4194dc44fe8b9e395abbbdca8933f6677ea6b9
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/request-5.bin SHA256 e4c9d1c4a0503ae10ca8e54ccd85a09b5f1c0c342c0f22a18c3bc4e81a1b6ee9
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/response-0.bin SHA256 72de3e506ae72f2654f2c50968e6d3a7bc9a2d1017248186dbf7654be51aa107
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/response-1.bin SHA256 ec4b30b0af42ab92d29d797256e4c9faf1354e7bfca22b1001c70ff518066ca7
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/response-2.bin SHA256 cfbbadaa884f66dd527714edfd59f0fc531525b5c05bfcd3489820be7a785016
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/response-3.bin SHA256 78b3950a12b624a73cfdcd2903b13cd013e02d1921d7249cc2eb8a47b6d959d6
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/response-4.bin SHA256 30732d3aa1f9542b7fb24e88e96de17d482e323d467a600050db44c99f1cab1f
+Public LAB fixture tests/fixtures/roughtime-lab-20261021/response-5.bin SHA256 89b4618a1d5f0c62f496002e3ded4da244aa6e85842dff40e4b8dfe89896f943

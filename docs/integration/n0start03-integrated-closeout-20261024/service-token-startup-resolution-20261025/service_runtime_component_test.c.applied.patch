@@ -1,0 +1,42 @@
+--- tests/service_runtime_component_test.c.preimage
++++ tests/service_runtime_component_test.c
+@@ -40,9 +40,9 @@
+ static BOOL WINAPI m_token(HANDLE h,TOKEN_INFORMATION_CLASS kind,LPVOID b,DWORD capacity,PDWORD used)
+ {
+  DWORD n=0;(void)h;
+- if(kind==TokenStatistics){TOKEN_STATISTICS *v=b;n=sizeof(*v);if(capacity<n)return FALSE;ZeroMemory(v,n);v->TokenType=TokenPrimary;v->TokenId.LowPart=1;v->AuthenticationId.LowPart=2;v->ModifiedId.LowPart=model_mode==10U?2:1;}
++ if(kind==TokenStatistics){TOKEN_STATISTICS *v=b;n=sizeof(*v);if(capacity<n)return FALSE;ZeroMemory(v,n);v->TokenType=model_mode==17U?TokenImpersonation:TokenPrimary;v->TokenId.LowPart=1;v->AuthenticationId.LowPart=2;v->ModifiedId.LowPart=model_mode==10U?2:1;}
+  else if(kind==TokenUser){TOKEN_USER *v=b;PSID sid=model_mode==1U?model_admin:model_sid;n=sizeof(*v)+GetLengthSid(sid);if(capacity<n)return FALSE;ZeroMemory(b,capacity);v->User.Sid=(BYTE *)b+sizeof(*v);CopySid(GetLengthSid(sid),v->User.Sid,sid);}
+- else if(kind==TokenGroups){TOKEN_GROUPS *v=b;BYTE *next=(BYTE *)b+FIELD_OFFSET(TOKEN_GROUPS,Groups)+3U*sizeof(SID_AND_ATTRIBUTES);unsigned i;PSID sids[3];sids[0]=model_service;sids[1]=model_sid;sids[2]=model_admin;ZeroMemory(b,capacity);v->GroupCount=model_mode==2U?3U:2U;for(i=0;i<v->GroupCount;i++){v->Groups[i].Sid=next;v->Groups[i].Attributes=SE_GROUP_ENABLED;if(model_mode==4U&&i==1U)v->Groups[i].Attributes=SE_GROUP_USE_FOR_DENY_ONLY;CopySid(GetLengthSid(sids[i]),next,sids[i]);next+=GetLengthSid(sids[i]);}n=(DWORD)(next-(BYTE *)b);if(model_mode==5U)v->Groups[0].Sid=(BYTE *)b+capacity;}
++ else if(kind==TokenGroups){TOKEN_GROUPS *v=b;if(model_mode==16U){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}BYTE *next=(BYTE *)b+FIELD_OFFSET(TOKEN_GROUPS,Groups)+3U*sizeof(SID_AND_ATTRIBUTES);unsigned i;PSID sids[3];sids[0]=model_service;sids[1]=model_sid;sids[2]=model_admin;ZeroMemory(b,capacity);v->GroupCount=model_mode==2U?3U:(model_mode==13U?1U:2U);for(i=0;i<v->GroupCount;i++){v->Groups[i].Sid=next;v->Groups[i].Attributes=SE_GROUP_ENABLED;if(model_mode==4U&&i==1U)v->Groups[i].Attributes=SE_GROUP_USE_FOR_DENY_ONLY;if(model_mode==14U&&i==1U)v->Groups[i].Attributes=0;if(model_mode==15U&&i==1U)v->Groups[i].Attributes=SE_GROUP_ENABLED|SE_GROUP_USE_FOR_DENY_ONLY;if(model_mode==18U&&i==1U)v->Groups[i].Attributes=SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_OWNER;CopySid(GetLengthSid(sids[i]),next,sids[i]);next+=GetLengthSid(sids[i]);}n=(DWORD)(next-(BYTE *)b);if(model_mode==5U)v->Groups[0].Sid=(BYTE *)b+capacity;}
+  else if(kind==TokenPrivileges){TOKEN_PRIVILEGES *v=b;ZeroMemory(b,capacity);v->PrivilegeCount=0;n=(DWORD)FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges);}
+  else if(kind==TokenElevation){TOKEN_ELEVATION *v=b;v->TokenIsElevated=0;n=sizeof(*v);}
+  else return FALSE;*used=n;return TRUE;
+@@ -141,7 +141,26 @@
+  T(SetSecurityDescriptorDacl(&model_sd,TRUE,(PACL)model_acl_bytes,FALSE));T(SetSecurityDescriptorControl(&model_sd,SE_DACL_PROTECTED,SE_DACL_PROTECTED));
+  for(i=0;i<=5;i++){
+   ZeroMemory(&native.runtime,sizeof(native.runtime));model_mode=i;
+-  e=psr_token();T(i==0U?e==ERROR_SUCCESS:e!=ERROR_SUCCESS);T(psr_close()==ERROR_SUCCESS);
++  e=psr_token();T(i==0U?e==ERROR_SUCCESS:e!=ERROR_SUCCESS);
++#ifdef PAPACC_PSR_TRACE_LAB
++  if(i==0U)T(psrt_record.value_a==1U&&psrt_record.value_b==SE_GROUP_ENABLED);
++#endif
++  T(psr_close()==ERROR_SUCCESS);
++ }
++ /* Missing, disabled, contradictory enabled+deny-only, and query failure.
++  * These are API-substituted facts, not a reconstruction of the exited service. */
++ for(i=13U;i<=18U;i++){
++  ZeroMemory(&native.runtime,sizeof(native.runtime));model_mode=i;
++#ifdef PAPACC_PSR_TRACE_LAB
++  ZeroMemory(&psrt_record,sizeof(psrt_record));
++#endif
++  T(psr_token()!=ERROR_SUCCESS);
++#ifdef PAPACC_PSR_TRACE_LAB
++  if(i<16U){T(psrt_record.emitted&&psrt_record.returned==ERROR_ACCESS_DENIED&&!psrt_record.native_valid);
++   T(psrt_record.value_a==(i==13U?0U:1U));T(psrt_record.value_b==(i==15U?(SE_GROUP_ENABLED|SE_GROUP_USE_FOR_DENY_ONLY):0U));
++   T(psrt_record.predicate&&!strcmp(psrt_record.predicate,"token.specific_group.enabled"));}
++#endif
++  T(psr_close()==ERROR_SUCCESS);
+  }
+  ZeroMemory(&native.runtime,sizeof(native.runtime));model_mode=0;T(psr_token()==ERROR_SUCCESS);
+  native.runtime.parent=(HANDLE)(ULONG_PTR)1001;native.runtime.configuration=(HANDLE)(ULONG_PTR)1002;native.runtime.relative_image=(HANDLE)(ULONG_PTR)1003;

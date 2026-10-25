@@ -1,0 +1,16 @@
+--- a/tools/qualification/scm-protected-binding-readonly-uac.ps1
++++ b/tools/qualification/scm-protected-binding-readonly-uac.ps1
+@@ -82,10 +82,11 @@
+   $bound=@($lines|Where-Object{$_ -match '^SCM_LAB_PREPARE=BOUND_READ_ONLY;' -and $_ -match 'OPERATOR=S-1-5-21-785699550-1440458426-1682014700-1108;' -and $_ -match 'INSTALLATION=417614100:1966080:79426;' -and $_ -match 'ATTEMPT=[0-9a-f]{64}; SERVICE=PapinhoAccelerator; ACCOUNT=NT SERVICE\\PapinhoAccelerator;' -and $_ -match 'IMAGE_SHA256=3737e83be95613a2616b9fb764fe95d72796912746e9440e37b3ed2a77e01abb; CONFIGURATION_SHA256=a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44;'  -and $_ -match 'AUTHORIZATION=NOT_ACQUIRED; CREATE_SERVICE=DENY; SCOPE=LAB_ONLY$'}).Count -eq 1
+   $closed=@($lines|Where-Object{$_ -ceq 'SCM_LAB_BINDING=PREPARED_NOT_AUTHORIZED; STAGE=REVALIDATION; RESOURCES=CLOSED; NO_SCM_EFFECT; CA_CURRENT_AUTHORITY=DENY'}).Count -eq 1
+   $sidQualified=$null -ne $sid -and $sid -match '^S-1-5-80(-[0-9]+){5}$'
+-  $pass=$nativeExit -eq 0 -and $bound -and $closed -and $sidQualified
++  $dataPass=$nativeExit -eq 0 -and $bound -and $closed
++  $pass=$dataPass -and $sidQualified
+   $result=2;if($pass){$result=0}
+   Assert-Plain $ReceiptRoot
+-  $receipt=[ordered]@{purpose='SCM_PROTECTED_BINDING_READ_ONLY';operator=$operator;script_sha256=$selfHash;parent_output=$parent;native_output=$lines;native_exit=$nativeExit;native_bound_closed=($bound -and $closed);virtual_account='NT SERVICE\PapinhoAccelerator';resolved_sid=$sid;sid_error=$sidError;actual_service_token='NOT_QUALIFIED';positive_qualification=$pass;acl_mutations='NONE';scm_effects='NONE';current='DENY';ed11='PARTIAL';exit=$result}
++  $receipt=[ordered]@{purpose='SCM_PROTECTED_BINDING_READ_ONLY';operator=$operator;script_sha256=$selfHash;parent_output=$parent;native_output=$lines;native_exit=$nativeExit;native_bound_closed=($bound -and $closed);virtual_account='NT SERVICE\PapinhoAccelerator';resolved_sid=$sid;sid_error=$sidError;actual_service_token='NOT_QUALIFIED';positive_qualification=$pass;read_only_data_pass=$dataPass;sid_name_resolution=$sidQualified;sid_resolution_phase='BEFORE_SCM_REGISTRATION_NOT_AUTHORITATIVE';acl_mutations='NONE';scm_effects='NONE';current='DENY';ed11='PARTIAL';exit=$result}
+   $path=$ReceiptRoot+'\manual-'+[Guid]::NewGuid().ToString('N')+'.json'
+   $f=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+   try{$b=[Text.Encoding]::UTF8.GetBytes(($receipt|ConvertTo-Json -Depth 6));$f.Write($b,0,$b.Length);$f.Flush($true)}finally{$f.Dispose()}

@@ -1,0 +1,39 @@
+--- tools/qualification/personal-first-install-uac.ps1
++++ tools/qualification/personal-first-install-uac.ps1
+@@ -66,6 +66,7 @@
+ using System.Runtime.InteropServices;
+ public static class PaccUacQualificationNative {
+  [DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int n);
++ [DllImport("kernel32.dll",SetLastError=true)] public static extern bool FlushConsoleInputBuffer(IntPtr handle);
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] public static extern uint GetFileAttributesW(string path);
+  [DllImport("kernel32.dll",SetLastError=true)] public static extern bool GetConsoleMode(IntPtr h,out uint mode);
+  [DllImport("kernel32.dll")] public static extern uint WTSGetActiveConsoleSessionId();
+@@ -130,6 +131,18 @@
+  if($m[0].Groups[2].Value -eq 'RETAINED_UNKNOWN'){return 'RETAINED_UNKNOWN_NO_RETRY'}
+  if($m[0].Groups[1].Value -eq 'EXACT_CONFIRMATION_DATA_ONLY' -and $lines[0] -ceq 'CUSTODY_METADATA_ONLY: target=0 ca=0 effect_denied=1'){return 'READ_ONLY_WORKER_VERIFIED_FINAL_DENY'}
+  return 'DENIED_OR_CANCELLED'
++}
++function Wait-ForManualClose {
++ # Never let the ceremony Enter/paste/queued keys dismiss the result window.
++ # No pause in redirected negative tests; no confirmation or authority here.
++ if([Console]::IsInputRedirected -or [Console]::IsOutputRedirected){return}
++ try {
++  if('PaccUacQualificationNative' -as [type]){
++   [void][PaccUacQualificationNative]::FlushConsoleInputBuffer([PaccUacQualificationNative]::GetStdHandle(-10))
++  }
++  [Console]::WriteLine('Resultado preservado. Pressione F10 para fechar esta janela (Enter nao fecha).')
++  do {$closeKey=[Console]::ReadKey($true)} while($closeKey.Key -ne [ConsoleKey]::F10)
++ } catch {[Console]::WriteLine('RESULT_WINDOW_INPUT_UNAVAILABLE')}
+ }
+ function Is-UacCancellation($Exception) {
+  while($null -ne $Exception){
+@@ -220,5 +233,8 @@
+  }
+  [Console]::WriteLine('QUALIFICATION=DENY; REASON='+$reason)
+  $exitCode=2
+-} finally {foreach($s in $held){$s.Dispose()}}
++} finally {
++ try {foreach($s in $held){$s.Dispose()}}
++ finally {if($Mode -eq 'Elevated'){Wait-ForManualClose}}
++}
+ exit $exitCode

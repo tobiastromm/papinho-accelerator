@@ -1,0 +1,83 @@
+--- canonical/n0start03-raw1-input-native.cs
++++ candidate/q4-input-placement-native.CANDIDATE.cs
+@@ -41,10 +41,10 @@
+  const string Op="S-1-5-21-785699550-1440458426-1682014700-1108";
+  const string SdHash="0fcfd0572daee1f64b98daf960276db86f55043460ba700e927bfb46b31b4814";
+  const string ParentHash="688654f3c898e8ae3115cac83e777c4b24c9c57320fa8551b505d8dacc0ad579";
+- static readonly string[] Leaves={"papacc-n2-0b1de869e11493b7cb08fb329578f6ce.evidence","papacc-n2-0b1de869e11493b7cb08fb329578f6ce.approved"};
++ static readonly string[] Leaves={"papacc-n2-10584f02e11f92c92b43cddf0d9d316f.evidence","papacc-n2-10584f02e11f92c92b43cddf0d9d316f.approved"};
+  static readonly string[] Sources={"windows-origin-evidence.CANDIDATE.json","OPENED-WINDOWS-FILE.CANDIDATE.txt"};
+- static readonly string[] Hashes={"15b643829189855149826779e9b6a54c1650ed9df6360de63e90cd35bf4887d7","5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050"};
+- static readonly int[] Sizes={7573,397};
++ static readonly string[] Hashes={"bb548b4f2a866d33445d39e2bb72e0093b60b04380cc4da6fd70c4855a0038fa","c63209c7591f404eead7ca8e3e4b91b5b3c8db13e47ad0e637c6e2c3a36a46e6"};
++ static readonly int[] Sizes={8432,397};
+  [StructLayout(LayoutKind.Sequential)] struct Info {public uint attr; public System.Runtime.InteropServices.ComTypes.FILETIME c,a,w; public uint vol,sh,sl,links,hi,lo;}
+  [StructLayout(LayoutKind.Sequential)] struct SA {public int length;public IntPtr sd;[MarshalAs(UnmanagedType.Bool)]public bool inherit;}
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]static extern IntPtr CreateFileW(string p,uint a,uint s,IntPtr sa,uint d,uint f,IntPtr t);
+@@ -134,6 +134,7 @@
+    return true;
+   }catch{return false;}
+  }
++ public static bool PrimaryStatistics(byte[] stat) {return stat!=null&&stat.Length==56&&BitConverter.ToUInt32(stat,24)==1;}
+  void Operator() {
+   using(var thread=WindowsIdentity.GetCurrent(true)){if(thread!=null)throw new Exception("IMPERSONATION_DENY");}
+   using(var id=WindowsIdentity.GetCurrent()) {
+@@ -141,11 +142,21 @@
+    uint n;byte[] elevation=new byte[4],stat=new byte[56];
+    if(!GetTokenInformation(id.Token,20,elevation,4,out n)||n!=4||BitConverter.ToUInt32(elevation,0)!=1)throw new Exception("ELEVATION_DENY");
+    if(!GetTokenInformation(id.Token,10,stat,56,out n)||n!=56)throw new Exception("TOKEN_STATISTICS_DENY");
++   if(!PrimaryStatistics(stat))throw new Exception("TOKEN_PRIMARY_DENY");
+    if(tokenStatistics!=null&&!Equal(tokenStatistics,stat))throw new Exception("TOKEN_CHANGED");tokenStatistics=stat;
+   }
+  }
+  void Pin(string path,string hash) {
+   IntPtr h=Open(path,false);Info f=Facts(h,false);if(f.links!=1||PaccFileAcl.FileDigest(h)!=hash)throw new Exception("BOUND_INPUT_PIN "+path);
++  pinFiles.Add(h);pinIds.Add(Id(f));pinHashes.Add(hash);
++ }
++ public static bool WindowsFactsMatch(uint vol,uint hi,uint lo,uint sh,uint sl,uint links,string hash,string raw) {
++  return vol==417614100&&hi==327680&&lo==1591236&&sh==0&&sl==867840&&links==2&&hash=="b02ee54fb2ec69673386d41119ee8ed083a6eab3bfca6aa2155d20ce68ef8963"&&raw=="7852b616c03c57528c4f85f843fd2f671d49dbd66a965f227c2ffbf663a177e0";
++ }
++ void PinWindowsFile() {
++  IntPtr h=Open(@"C:\Windows\System32\conhost.exe",false);Info f=Facts(h,false);PathIs(h,@"C:\Windows\System32\conhost.exe");
++  string hash=PaccFileAcl.FileDigest(h),raw=PaccFileAcl.Digest(PaccFileAcl.Read(h));
++  if(!WindowsFactsMatch(f.vol,f.hi,f.lo,f.sh,f.sl,f.links,hash,raw))throw new Exception("WINDOWS_PROVENANCE_BINDING_DENY");
+   pinFiles.Add(h);pinIds.Add(Id(f));pinHashes.Add(hash);
+  }
+  public string VerifyRootReadOnly() {
+@@ -176,21 +187,22 @@
+   IntPtr sh=Open(sdPath,false);Info si=Facts(sh,false);if(si.sh!=0||si.sl!=152||si.links!=1)throw new Exception("CREATION_SD_FILE");
+   creation=ReadExact(sh,152);if(PaccFileAcl.Digest(creation)!=SdHash||!SafeDescriptor(creation))throw new Exception("CREATION_SD_PIN");
+   for(int i=0;i<2;i++){
+-   string path=Root+@"\docs\integration\n0start03-protected-dossier-qualification-20261024\"+Sources[i];IntPtr h=Open(path,false);Info f=Facts(h,false);
++   string path=Root+@"\docs\integration\n0start03-integrated-closeout-20261024\q4-n7-protected-inputs-and-activation-20261025\"+Sources[i];IntPtr h=Open(path,false);Info f=Facts(h,false);
+    if(f.sh!=0||f.sl!=Sizes[i]||f.links!=1)throw new Exception("SOURCE_SIZE_LINK");data[i]=ReadExact(h,Sizes[i]);
+    if(PaccFileAcl.Digest(data[i])!=Hashes[i])throw new Exception("SOURCE_HASH");sources.Add(h);sourceIds.Add(Id(f));
+   }
+   Pin(Root+@"\build\scm-protected-installation-binding-20261022\Selected\Release\papacc.conf","a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44");
+-  Pin(Root+@"\build\successor-exact-binding-20261024-runtime\Selected\Release\papacc_server_lab_host.exe","44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c");
++  Pin(Root+@"\build\q4-binding-20261025\Selected\Release\papacc_server_lab_host.exe","2386d63a256affd48c3dfbcd78ff36380400c86f61a0eeb68e209d6ed4520821");
+   Pin(Root+@"\docs\adr\DECISION-first-native-lab-diagnostic-boundary-20261024.md","bec9d0c275d5ee8bd68de4d42fe173a08f124a9900c119e7a08d23757d9d7941");
+   Pin(Root+@"\docs\adr\DECISION-canonical-lab-console-topology-bd-20261023.md","eb93002cf3f6d863a060fb97b7380389aa66b6fbe68e66c1af4fb17b988d3290");
+   Pin(Root+@"\docs\adr\DECISION-ed11-single-lab-diagnostic-native-boundary-20261023.md","e7031bd29c9bd174359ffcc3c9a021a6ad25a0256a5cf03b40c0866d3a5776b7");
+   Pin(Root+@"\docs\adr\DECISION-n0-n9-security-descriptor-digest-profile-20261024.md","8b042e2bbf6500aa90aa3407fcd3423f45d96cf6b16568ffa95b98f3d081c972");
+-  Pin(Root+@"\docs\adr\DECISION-first-independent-lab-successor-scope-20261024.md","9d2d5b30ef753a1190b089b9a7553576209381daf8e021d801d506eb0cfcc448");
+   Pin(Root+@"\docs\adr\DECISION-l5-p5-target-specific-historical-resource-coverage-20261024.md","23d509674be807f01d2c6301cd990f2212a05d6d4d707e56f9f924c6afbd7218");
+-  Pin(Root+@"\docs\adr\DECISION-independent-lab-successor-exact-binding-annex-20261024.md","2d91d64eace4613f64b2d17188642e85eb5ac41af5f6a5afa1f8e746eaeff27e");
+   Pin(Root+@"\docs\adr\DECISION-prestart-consumed-attempt-administrative-disposition-20261024.md","8fcdea4ae9c639bef55a5a9ef97eeb93044a1ccf441b62a6347253602f596c6e");
+-  Pin(Root+@"\docs\integration\prestart-administrative-disposition-acceptance-20261024\P3-EXACT-DISPOSITION-RECORDED.md","892d51b6a0033b3211c6483adb56d03d728c5f8285dfc8520cf73574c3ee5fad");
++  Pin(Root+@"\docs\adr\DECISION-q4-independent-service-token-observation-annex-20261025.md","590aa1c695adce55d6ba17e9ce508d747090c05c2d61cd44a7ced603cf6c4db4");
++  Pin(Root+@"\docs\adr\DECISION-n0start03-poststart-disposition-and-one-token-observation-20261025.md","97763395f521d0a8d15ee0afe22b61705897d6d97c2c1f8905ad9114e8b1b9ca");
++  Pin(Root+@"\docs\integration\n0start03-integrated-closeout-20261024\q2-protected-readback-native-result-20261025\Q2-EXACT-DISPOSITION-RECORDED.md","5794e17265af6e34d335591b0fed42e5d9048aec81e751578fd9f4132cf524e1");
++  PinWindowsFile();
+   for(int i=0;i<2;i++)Absence(i);
+   Check();
+  }
+@@ -214,7 +226,7 @@
+   CheckDirectories();
+   if(PaccFileAcl.Digest(PaccFileAcl.Read(dirs[dirs.Count-1]))!=ParentHash)throw new Exception("PARENT_RAW_PREIMAGE_CHANGED");
+   for(int i=0;i<sources.Count;i++){Info f=Facts(sources[i],false);if(Id(f)!=sourceIds[i]||f.sh!=0||f.sl!=Sizes[i]||f.links!=1||PaccFileAcl.Digest(ReadExact(sources[i],Sizes[i]))!=Hashes[i])throw new Exception("SOURCE_REPLACED");}
+-  for(int i=0;i<pinFiles.Count;i++){if(Id(Facts(pinFiles[i],false))!=pinIds[i]||PaccFileAcl.FileDigest(pinFiles[i])!=pinHashes[i])throw new Exception("BOUND_INPUT_CHANGED");}
++  for(int i=0;i<pinFiles.Count;i++){Info f=Facts(pinFiles[i],false);string hash=PaccFileAcl.FileDigest(pinFiles[i]);if(Id(f)!=pinIds[i]||hash!=pinHashes[i])throw new Exception("BOUND_INPUT_CHANGED");if(pinIds[i]=="417614100:327680:1591236"&&!WindowsFactsMatch(f.vol,f.hi,f.lo,f.sh,f.sl,f.links,hash,PaccFileAcl.Digest(PaccFileAcl.Read(pinFiles[i]))))throw new Exception("WINDOWS_PROVENANCE_CHANGED");}
+  }
+  public void Create(int i) {
+   Check();

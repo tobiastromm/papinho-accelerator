@@ -1,0 +1,46 @@
+{
+  "source": "docs/integration/qualified-issuer-utc-status-binding-20261021/UTC-STATUS-SOURCE-CONTRACT-PROPOSED.md",
+  "source_sha256": "44b1bedb55047b92feea828eb188d2161ba49610a1d687dc478c741bc22d4d3b",
+  "source_bytes": 12719,
+  "corrections": [
+    {
+      "clause": "Q1",
+      "byte_interval": [
+        2109,
+        2209
+      ],
+      "before": "intervalo UTC conservador [L,U] válido em m1; e término monotônico exclusivo de aplicabilidade D.",
+      "after": "intervalo UTC conservador [L,U] válido em m1; limite de taxa rho_num/rho_den e erro aditivo E do PAL conforme Q2; e término monotônico exclusivo de aplicabilidade D.",
+      "before_sha256": "286b1873a8973bec7d8a1781484604a4cbe5071fa89eacf529b3f651d5f65c7e",
+      "after_sha256": "c0163cd3d5f59f9ba28b9136c511a04f016978fb29aaf36a88e91b0c33cf32fd"
+    },
+    {
+      "clause": "Q2",
+      "byte_interval": [
+        3872,
+        4487
+      ],
+      "before": "A qualificação SHALL demonstrar o erro UTC e o erro relativo do monotônico local, inclusive comportamento de ajuste/slew/step, perda de sincronismo, suspensão/resume, mudança de fonte/configuração e restart. Para o cálculo Q3 deve existir limite factual e qualificado de taxa relativa rho_num/rho_den, com0<=rho_num<rho_den e rho_den>0. D e os limites de erro/taxa são resultados restritos do perfil de fonte/target qualificado, não parâmetros livres de aplicação nem tolerâncias para contornar certificados. Sem evidência que sustente valores finitos e sua vigência, não há observação positiva.",
+      "after": "A qualificação SHALL demonstrar o erro UTC e o erro relativo do monotônico local, inclusive comportamento de ajuste/slew/step, perda de sincronismo, suspensão/resume, mudança de fonte/configuração e restart. Para Q3, rho=rho_num/rho_den, com0<=rho_num<rho_den e rho_den>0, limita o avanço do UTC real POR unidade de avanço PAL, e NÃO o erro PAL por unidade UTC. Para quaisquer dois cortes ordenados cobertos pela mesma qualificação, com incremento medido d>=0 do PAL e tempo UTC real decorrido delta>=0, demonstrar: max(0,(1-rho)*d-E)<=delta<=(1+rho)*d+E. E é um limite aditivo não negativo em nanossegundos, factual e qualificado, que inclui resolução, quantização, leitura e conversão dos endpoints PAL não cobertas pelo termo de taxa. Essa desigualdade também SHALL cobrir d=0 entre leituras distintas. Não deduzir E=0 da unidade ns da API nem usar limite de orientação inversa sem demonstrar sua conversão conservadora.\n\nD, rho_num/rho_den e E são resultados restritos do perfil de fonte/target qualificado, não parâmetros livres de aplicação nem tolerâncias para contornar certificados. Exigir evidência de validade dos limites no intervalo inteiro até o efeito. Se continuidade dos limites não for comprovada em suspensão/retomada ou alteração de condições, invalidar a observação e negar propagação através desse evento. Sem evidência que sustente valores finitos e sua vigência, não há observação positiva.",
+      "before_sha256": "0ed0400d012e6d1d28b3103d6b1a40002fad6c22fe4f920d2512fbada2eee4bf",
+      "after_sha256": "fc89446589e0736885d3dc946d5d04044d0ed5d627c837e0ce37204505dc1d5e"
+    },
+    {
+      "clause": "Q3",
+      "byte_interval": [
+        5610,
+        6150
+      ],
+      "before": "Propagar conservadoramente para m, usando d=m-m1: Lm=L+floor(d*(rho_den-rho_num)/rho_den); Um=U+ceil(d*(rho_den+rho_num)/rho_den). Cálculos unsigned e arredondamentos para fora, com todos overflow/divisões verificados; não saturar, assumir rho=0 ou suprimir erro desconhecido. Essa propagação local não cria outro relógio nem UTC de origem monotônica: apenas conserva o intervalo cuja origem Q1/Q2 já foi comprovada. Fora da vigência, negar e exigir nova leitura factual; não estender D por atividade, query ou tempo de usuário.",
+      "after": "Propagar conservadoramente para m, usando d=m-m1 e os limites qualificados Q2: a=floor(d*(rho_den-rho_num)/rho_den); b=ceil(d*(rho_den+rho_num)/rho_den); dl=max(0,a-E); du=b+E; Lm=L+dl; Um=U+du. Computar dl=0 quando a<=E, sem subtração unsigned negativa; esse max é a definição do limite inferior físico de tempo decorrido, não tratamento permissivo de overflow. Cálculos unsigned e arredondamentos para fora, com toda soma/multiplicação/divisão e conversão verificadas; overflow/indeterminação nega, sem saturar ou suprimir erro desconhecido. Não assumir rho=0 ou E=0 sem prova; manter separadas a incerteza UTC [L,U] em m1 e a incerteza de duração PAL durante a propagação, sem deduzir componentes por sobreposição não demonstrada. Essa propagação local não cria outro relógio nem UTC de origem monotônica: apenas conserva o intervalo cuja origem Q1/Q2 já foi comprovada. Fora da vigência, negar e exigir nova leitura factual; não estender D por atividade, query ou tempo de usuário.",
+      "before_sha256": "ff4e8526b16b00a9286e6c71559395f592c1e9e92fe0b1c5b22537441595ac71",
+      "after_sha256": "459be377daf00cd1d9a14d640ad95ea73e456c8ef390aeb0589c73c229f8a62e"
+    }
+  ],
+  "reconstructed_corrected_sha256": "5231dea35d2cf7e20e1ad03e54a4b5f27dd37b1ac60dd334676f29f1e061930b",
+  "separate_revision2_sha256": "d20d62710797900eeb9f67997241eedb74ada8e2bcb8f15b85246975548c3a42",
+  "unchanged_Q0_Q4_Q5_Q6_Q7": true,
+  "original_not_modified": true,
+  "status": "PROPOSED",
+  "accepted_record_created": false
+}

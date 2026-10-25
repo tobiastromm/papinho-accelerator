@@ -1,0 +1,93 @@
+/* Explicit opt-in, isolated observer mechanism only. NO operational main/admission. */
+#define WIN32_LEAN_AND_MEAN 1
+#include <windows.h>
+#include <winternl.h>
+#include <aclapi.h>
+#include <sddl.h>
+#include <tlhelp32.h>
+#include <psapi.h>
+#include <processsnapshot.h>
+#include <winevt.h>
+#include <wintrust.h>
+#include <stdio.h>
+#include <string.h>
+#include "../apps/server/server_console_win32.h"
+static unsigned fixture_stop,fixture_mode,captures,frees,closes,opened,vqueries,samples,raw_peak,trace_error;
+static BOOL WINAPI trace_count(HANDLE,PDWORD);
+static unsigned count_queries;
+static DWORD WINAPI trace_capture(HANDLE,PSS_CAPTURE_FLAGS,DWORD,HPSS *);
+static DWORD WINAPI trace_free(HANDLE,HPSS);
+static DWORD WINAPI trace_marker_create(const PSS_ALLOCATOR *,HPSSWALK *);
+static DWORD WINAPI trace_marker_free(HPSSWALK);
+static HANDLE WINAPI trace_thread(DWORD,BOOL,DWORD);
+static BOOL WINAPI trace_close(HANDLE);
+static SIZE_T WINAPI trace_vquery(HANDLE,LPCVOID,PMEMORY_BASIC_INFORMATION,SIZE_T);
+static PAPACC_BOOL fixture_stop_requested(void){return fixture_stop?PAPACC_TRUE:PAPACC_FALSE;}
+static void fixture_request_stop(void){fixture_stop=1;}
+#define GetProcessHandleCount trace_count
+#define PssCaptureSnapshot trace_capture
+#define PssFreeSnapshot trace_free
+#define PssWalkMarkerCreate trace_marker_create
+#define PssWalkMarkerFree trace_marker_free
+#define OpenThread trace_thread
+#define CloseHandle trace_close
+#define VirtualQueryEx trace_vquery
+#define papacc_server_console_win32_stop_requested fixture_stop_requested
+#define papacc_server_console_win32_request_stop fixture_request_stop
+#define main NEVER_EXECUTE_OPERATIONAL_QUALIFIER_MAIN
+#include "../tools/qualification/scm-registration-lab.c"
+#undef main
+#undef GetProcessHandleCount
+#undef PssCaptureSnapshot
+#undef PssFreeSnapshot
+#undef PssWalkMarkerCreate
+#undef PssWalkMarkerFree
+#undef OpenThread
+#undef CloseHandle
+#undef VirtualQueryEx
+static BOOL WINAPI trace_count(HANDLE process,PDWORD n){++count_queries;if(fixture_mode==6&&count_queries==3){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return GetProcessHandleCount(process,n);}
+static void point(const char *site)
+{
+ DWORD saved=GetLastError(),n=0;if(!GetProcessHandleCount(GetCurrentProcess(),&n)){trace_error=1;SetLastError(saved);return;}
+ if(n>raw_peak)raw_peak=n;++samples;
+ printf("OBSERVER_POINT site=%s handles=%lu capture_slot_nonnull=%u marker_slot_nonnull=%u thread_slot_nonnull=%u vqueries=%u tick=%llu NO_ADMISSION\n",site,(unsigned long)n,ig_observer.snapshot!=NULL,ig_observer.marker!=NULL,ig_observer.thread!=NULL,vqueries,GetTickCount64());
+ SetLastError(saved);
+}
+static DWORD WINAPI trace_capture(HANDLE process,PSS_CAPTURE_FLAGS flags,DWORD context,HPSS *out)
+{DWORD e;++captures;point("PRE_CAPTURE");e=PssCaptureSnapshot(process,flags,context,out);point("POST_CAPTURE");return e;}
+static DWORD WINAPI trace_free(HANDLE process,HPSS snapshot)
+{DWORD e;++frees;if(fixture_mode==3){point("SNAPSHOT_FREE_INJECTED_UNKNOWN");return ERROR_ACCESS_DENIED;}e=PssFreeSnapshot(process,snapshot);point("POST_SNAPSHOT_FREE");return e;}
+static DWORD WINAPI trace_marker_create(const PSS_ALLOCATOR *allocator,HPSSWALK *out)
+{DWORD e=PssWalkMarkerCreate(allocator,out);point("POST_MARKER_CREATE");return e;}
+static DWORD WINAPI trace_marker_free(HPSSWALK marker)
+{DWORD e=PssWalkMarkerFree(marker);point("POST_MARKER_FREE");return e;}
+static HANDLE WINAPI trace_thread(DWORD access,BOOL inherit,DWORD tid)
+{HANDLE h=OpenThread(access,inherit,tid);DWORD e=GetLastError();++opened;point("POST_OPEN_THREAD");SetLastError(e);return h;}
+static BOOL WINAPI trace_close(HANDLE h)
+{BOOL ok;DWORD e;++closes;if(fixture_mode==2&&h==ig_observer.thread){SetLastError(ERROR_ACCESS_DENIED);point("THREAD_CLOSE_INJECTED_UNKNOWN");SetLastError(ERROR_ACCESS_DENIED);return FALSE;}ok=CloseHandle(h);e=GetLastError();point("POST_THREAD_CLOSE");SetLastError(e);return ok;}
+static SIZE_T WINAPI trace_vquery(HANDLE process,LPCVOID address,PMEMORY_BASIC_INFORMATION data,SIZE_T bytes)
+{SIZE_T n;DWORD e;++vqueries;if(fixture_mode==4&&vqueries==2){SetLastError(ERROR_ACCESS_DENIED);point("VQUERY_INJECTED_FAILURE");SetLastError(ERROR_ACCESS_DENIED);return 0;}n=VirtualQueryEx(process,address,data,bytes);e=GetLastError();point("DURING_ACTUAL_STACK_VA_WALK");SetLastError(e);return n;}
+int main(int argc,char **argv)
+{
+ IG_PROCESS metric;FILETIME birth,exit,kernel,user;DWORD e,before,after,started_closes,started_captures;ULONGLONG began;
+ if(argc!=3||strcmp(argv[1],"--isolated-observer-self"))return 64;
+ if(!strcmp(argv[2],"clean"))fixture_mode=0;else if(!strcmp(argv[2],"identity"))fixture_mode=1;else if(!strcmp(argv[2],"close-unknown"))fixture_mode=2;else if(!strcmp(argv[2],"snapshot-free-unknown"))fixture_mode=3;else if(!strcmp(argv[2],"vquery-fail"))fixture_mode=4;else if(!strcmp(argv[2],"stop"))fixture_mode=5;else if(!strcmp(argv[2],"trace-query-fail"))fixture_mode=6;else return 65;
+ setvbuf(stdout,NULL,_IONBF,0);puts("ISOLATED_ACTUAL_OBSERVER_BEGIN; NO_SCM_NO_FILES_NO_INTENT_NO_MUTEX_NO_SERVICE; FAULTS_SYNTHETIC");
+ native.thread=GetCurrentThreadId();cycle_stage="ISOLATED_OBSERVER_SELF";ZeroMemory(&metric,sizeof(metric));
+ if(!GetProcessTimes(GetCurrentProcess(),&birth,&exit,&kernel,&user)||!GetProcessHandleCount(GetCurrentProcess(),&before))return 66;
+ if(fixture_mode==1)++birth.dwLowDateTime;if(fixture_mode==5)fixture_stop=1;
+ began=GetTickCount64();point("BEFORE_ACTUAL_MEASURE");e=ig_measure_process(1,GetCurrentProcess(),GetCurrentProcessId(),&birth,&metric);point("AFTER_ACTUAL_MEASURE");
+ printf("ACTUAL_OBSERVER_RESULT code=%lu pre_pss_metric=%lu threads=%lu stack_committed_va=%llu vqueries=%u elapsed_ms=%llu snapshot_owned=%u marker_slot_nonnull=%u thread_slot_nonnull=%u retained=%u\n",(unsigned long)e,(unsigned long)metric.handles,(unsigned long)metric.threads,metric.stack,vqueries,GetTickCount64()-began,ig_observer.snapshot!=NULL,ig_observer.marker!=NULL,ig_observer.thread!=NULL,ig_observer.retained);
+ if(fixture_mode==2||fixture_mode==3){
+  started_closes=closes;started_captures=captures;if(e!=ERROR_ACCESS_DENIED||!ig_diagnostic.present||ig_diagnostic.code!=ERROR_ACCESS_DENIED||!ig_observer.retained||!ig_observer.snapshot||(fixture_mode==2&&!ig_observer.thread))return 67;
+  if(ig_observer_close_snapshot()!=ERROR_INVALID_STATE||closes!=started_closes)return 68;
+  if(ig_measure_process(1,GetCurrentProcess(),GetCurrentProcessId(),&birth,&metric)!=ERROR_INVALID_STATE||captures!=started_captures||closes!=started_closes||ig_diagnostic.code!=ERROR_ACCESS_DENIED)return 69;
+  printf("OBSERVER_UNKNOWN retained=1 no_second_close=1 no_new_capture=1 captures=%u closes=%u process_exit_containment=1 NOT_NATIVE_CLOSE_SUCCESS\n",captures,closes);return trace_error?70:2;
+ }
+ if(fixture_mode==6&&(e!=ERROR_ACCESS_DENIED||!ig_diagnostic.present||ig_diagnostic.code!=ERROR_ACCESS_DENIED))return 79;
+ if(fixture_mode==0&&(e||sizeof(IG_HANDLE_TRACE)!=40))return 71;if(fixture_mode==1&&(e!=ERROR_INVALID_DATA||captures))return 72;if(fixture_mode==5&&(e!=ERROR_OPERATION_ABORTED||captures))return 73;if(fixture_mode==4&&(!e||vqueries!=2))return 74;
+ if(ig_observer_close_snapshot()||ig_observer.retained||ig_observer.snapshot||ig_observer.marker||ig_observer.thread)return 75;
+ if(!GetProcessHandleCount(GetCurrentProcess(),&after))return 76;
+ if(fixture_mode==0&&(!vqueries||!metric.threads||!metric.stack||before!=after))return 77;
+ printf("OBSERVER_FIXTURE_PASS mode=%s before=%lu after=%lu sampled_peak=%u samples=%u elapsed_ms=%llu own_references_closed=1; FULL_OPERATIONAL_BUDGET=NOT_GRANTED; UNSAMPLED_PEAK=UNKNOWN\n",argv[2],(unsigned long)before,(unsigned long)after,raw_peak,samples,GetTickCount64()-began);return trace_error?78:0;
+}

@@ -1,0 +1,13 @@
+CANDIDATE ONLY — NOT EXECUTABLE UNTIL SPECIFIC OWNER APPROVAL AND EXACT RECORD REGISTRATION.
+
+& "C:\Projetos\PapinhoAccelerator\tools\qualification\scm-n0-protected-single-powershell.ps1" -Mode Prepare -Profile N0START03ReadOnly -ExpectedScriptSha256 daf6c078e08474cbb112198a02dcbc90efe441344a530f34e8ea8017b287c8ee -ExactApprovalSha256 <SHA256_OF_FUTURE_OWNER_APPROVED_RECORD>
+
+The only unknown command value is the future exact approval record SHA256. Do not substitute a request hash, historical approval hash or fixture hash. No Prepare has been authorized or run by this integration task. After separate approval, register the record exclusively at:
+C:\Projetos\PapinhoAccelerator\docs\integration\n0start03-fresh-native-readonly-preparation-20261024\EXACT-FRESH-READONLY-APPROVED.json
+Then produce the final command with the literal complete approval hash, before owner manual execution.
+
+Runtime literal confirmations (populate ONLY from fresh native output):
+PREPARE_N0_READ_ONLY 0b1de869e11493b7cb08fb329578f6ce <AUX_PID> <AUX_CREATION>
+BIND_BD_READ_ONLY 0b1de869e11493b7cb08fb329578f6ce <QUALIFIER_PID> <QUALIFIER_CREATION> <NATIVE_CHALLENGE>
+
+No new PowerShell, no retry, no Start/Stop/rebind/intent/image/sink/ACL/CA/bootstrap/CURRENT. Stop for mismatches, stale/UNKNOWN metrics, cap/headroom failure, confirmation failure or uncertain close; retain originals and first failure.

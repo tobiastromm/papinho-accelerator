@@ -1,0 +1,639 @@
+{
+  "scope": "Direct explicit sub rsp/esp compiler reservations only, not transitive stack or runtime high-water; pushes/native/provider/CRT/caller frames excluded. No reuse deduction.",
+  "configurations": {
+    "vc6-Debug": {
+      "qualified_utc.asm": {
+        "sha256": "3af614eafe659d114cb562b3bb94149747e306c418119a0af30b13df0a301a0e",
+        "sub_rsp_or_esp_bytes": {
+          "_papacc_utc_data_propagate": [
+            104
+          ],
+          "_add": [
+            8
+          ],
+          "_mul": [
+            8
+          ],
+          "_same": [
+            52
+          ],
+          "_shape": [
+            36
+          ],
+          "_papacc_utc_data_observe": [
+            76
+          ],
+          "_papacc_utc_data_query": [
+            8
+          ],
+          "_papacc_utc_data_within": [
+            20
+          ],
+          "_papacc_utc_data_filetime": [
+            16
+          ]
+        }
+      },
+      "roughtime.asm": {
+        "sha256": "b12b3a5bb290afe5ec9e0278cef7d851bee16d28ea32350d53acd9716c3afad0",
+        "sub_rsp_or_esp_bytes": {
+          "_papacc_rt_packet_data": [
+            16
+          ],
+          "_packet": [
+            8
+          ],
+          "_map": [
+            20
+          ],
+          "_papacc_rt_merkle_data": [
+            88
+          ],
+          "_hash": [
+            24
+          ],
+          "_papacc_rt_request_data": [
+            76
+          ],
+          "_disjoint": [
+            12
+          ],
+          "_papacc_rt_reply_data": [
+            324
+          ],
+          "_field": [
+            28
+          ],
+          "_papacc_rt_campaign_data": [
+            168
+          ],
+          "_add": [
+            8
+          ],
+          "_papacc_rt_interval_data": [
+            284
+          ],
+          "_papacc_rt_hull_data": [
+            80
+          ],
+          "_papacc_rt_exchange_start_data": [
+            8
+          ],
+          "_papacc_rt_exchange_sent_data": [
+            12
+          ],
+          "_check": [
+            16
+          ],
+          "_papacc_rt_exchange_received_data": [
+            20
+          ],
+          "_papacc_rt_exchange_verified_data": [
+            12
+          ],
+          "_papacc_rt_backoff_data": [
+            8
+          ]
+        }
+      },
+      "roughtime_capacity_test.asm": {
+        "sha256": "d1d85cf30cc04ae92b99bf06495e4c21140e67652444ef3f898dcaf2de9d8bba",
+        "sub_rsp_or_esp_bytes": {
+          "_main": [
+            72
+          ],
+          "_lab_load": [
+            72
+          ],
+          "_lab_read": [
+            2064
+          ]
+        }
+      }
+    },
+    "vc6-Release": {
+      "qualified_utc.asm": {
+        "sha256": "885a03f90db4d980b4c4c251cf168ff46d2b47ac37d705f7c1a22432bd5afcd6",
+        "sub_rsp_or_esp_bytes": {
+          "_papacc_utc_data_propagate": [
+            56
+          ],
+          "_papacc_utc_data_observe": [
+            16
+          ]
+        }
+      },
+      "roughtime.asm": {
+        "sha256": "708c37abbf8692c8e558cdfa5e5929fc87bd75a1929b840650369d8a682d417a",
+        "sub_rsp_or_esp_bytes": {
+          "_papacc_rt_packet_data": [
+            16
+          ],
+          "_map": [
+            8
+          ],
+          "_papacc_rt_merkle_data": [
+            64
+          ],
+          "_hash": [
+            24
+          ],
+          "_papacc_rt_request_data": [
+            72
+          ],
+          "_papacc_rt_reply_data": [
+            296
+          ],
+          "_papacc_rt_campaign_data": [
+            140
+          ],
+          "_papacc_rt_interval_data": [
+            240
+          ],
+          "_papacc_rt_hull_data": [
+            32
+          ]
+        }
+      },
+      "roughtime_capacity_test.asm": {
+        "sha256": "659216e511ac3bfe1a7e042e366e849311d024d759017bdbca2feff2cd1f6794",
+        "sub_rsp_or_esp_bytes": {
+          "_main": [
+            48
+          ],
+          "_lab_load": [
+            64
+          ],
+          "_lab_read": [
+            2048
+          ]
+        }
+      }
+    },
+    "msvc-Debug": {
+      "qualified_utc.asm": {
+        "sha256": "829b639cae5c7efd4b9d7c9ec81fbeebe90e4c2c8650bc27ee4ba8e4fa0be154",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_utc_data_propagate": [
+            136
+          ],
+          "papacc_utc_data_observe": [
+            88
+          ],
+          "papacc_utc_data_query": [
+            72
+          ],
+          "papacc_utc_data_within": [
+            72
+          ],
+          "papacc_utc_data_filetime": [
+            56
+          ],
+          "same": [
+            56
+          ]
+        }
+      },
+      "roughtime.asm": {
+        "sha256": "488b320d6b93eb528144baeca337d73fda9a7711e0cd8a1d86c5d084dadab17a",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_rt_merkle_data": [
+            200
+          ],
+          "papacc_rt_packet_data": [
+            104
+          ],
+          "papacc_rt_request_data": [
+            184
+          ],
+          "papacc_rt_reply_data": [
+            760
+          ],
+          "papacc_rt_campaign_data": [
+            296
+          ],
+          "papacc_rt_interval_data": [
+            360
+          ],
+          "papacc_rt_hull_data": [
+            104
+          ],
+          "papacc_rt_exchange_sent_data": [
+            56
+          ],
+          "papacc_rt_exchange_received_data": [
+            56
+          ],
+          "papacc_rt_exchange_verified_data": [
+            56
+          ],
+          "papacc_rt_backoff_data": [
+            24
+          ],
+          "u64": [
+            56
+          ],
+          "w32": [
+            24
+          ],
+          "disjoint": [
+            40
+          ],
+          "map": [
+            72
+          ],
+          "field": [
+            88
+          ],
+          "packet": [
+            72
+          ],
+          "hash": [
+            104
+          ]
+        }
+      },
+      "roughtime_capacity_test.asm": {
+        "sha256": "5cd4444d2e960a57bfcf58721f372615c011154b92bc23ce0b741e6f41a3ba46",
+        "sub_rsp_or_esp_bytes": {
+          "_vfprintf_l": [
+            56
+          ],
+          "printf": [
+            56
+          ],
+          "_vsnprintf_l": [
+            72
+          ],
+          "_vsprintf_l": [
+            56
+          ],
+          "sprintf": [
+            56
+          ],
+          "ck": [
+            40
+          ],
+          "lab_read": [
+            2152
+          ],
+          "lab_load": [
+            152
+          ],
+          "main": [
+            248
+          ]
+        }
+      }
+    },
+    "msvc-Release": {
+      "qualified_utc.asm": {
+        "sha256": "a158bc56042343c871332558625f9355847237bc25db08fbd551e454a2445dd4",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_utc_data_propagate": [
+            32
+          ],
+          "papacc_utc_data_observe": [
+            48
+          ],
+          "papacc_utc_data_query": [
+            48
+          ],
+          "same": [
+            32
+          ]
+        }
+      },
+      "roughtime.asm": {
+        "sha256": "d44436e8a96fff2583d8dab6642ddbb078f23b573809bf74f48b8f3e8645113b",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_rt_merkle_data": [
+            160
+          ],
+          "papacc_rt_packet_data": [
+            88
+          ],
+          "papacc_rt_request_data": [
+            128
+          ],
+          "papacc_rt_reply_data": [
+            440
+          ],
+          "papacc_rt_campaign_data": [
+            376
+          ],
+          "papacc_rt_interval_data": [
+            336
+          ],
+          "papacc_rt_hull_data": [
+            64
+          ],
+          "packet": [
+            56
+          ],
+          "hash": [
+            104
+          ]
+        }
+      },
+      "roughtime_capacity_test.asm": {
+        "sha256": "99a2a7211a89ed02d756a9b0ffdadcea151b3093aa301fd412778ce99727d109",
+        "sub_rsp_or_esp_bytes": {
+          "_vfprintf_l": [
+            56
+          ],
+          "printf": [
+            48
+          ],
+          "_vsnprintf_l": [
+            56
+          ],
+          "_vsprintf_l": [
+            56
+          ],
+          "sprintf": [
+            48
+          ],
+          "lab_read": [
+            2096
+          ],
+          "lab_load": [
+            2192
+          ],
+          "main": [
+            160
+          ]
+        }
+      }
+    },
+    "openssl-Debug": {
+      "qualified_utc.asm": {
+        "sha256": "f9acda3b50e40be1a6dca03c6fc730c69b7e82a35a07a5c8b0c4d371e9b9461f",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_utc_data_propagate": [
+            136
+          ],
+          "papacc_utc_data_observe": [
+            88
+          ],
+          "papacc_utc_data_query": [
+            72
+          ],
+          "papacc_utc_data_within": [
+            72
+          ],
+          "papacc_utc_data_filetime": [
+            56
+          ],
+          "same": [
+            56
+          ]
+        }
+      },
+      "roughtime.asm": {
+        "sha256": "b88eed5d27352229a9d00ac5a13bc39a4a98fb7da08d75726e33244dbe17a617",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_rt_merkle_data": [
+            200
+          ],
+          "papacc_rt_packet_data": [
+            104
+          ],
+          "papacc_rt_request_data": [
+            184
+          ],
+          "papacc_rt_reply_data": [
+            760
+          ],
+          "papacc_rt_campaign_data": [
+            296
+          ],
+          "papacc_rt_interval_data": [
+            360
+          ],
+          "papacc_rt_hull_data": [
+            104
+          ],
+          "papacc_rt_exchange_sent_data": [
+            56
+          ],
+          "papacc_rt_exchange_received_data": [
+            56
+          ],
+          "papacc_rt_exchange_verified_data": [
+            56
+          ],
+          "papacc_rt_backoff_data": [
+            24
+          ],
+          "u64": [
+            56
+          ],
+          "w32": [
+            24
+          ],
+          "disjoint": [
+            40
+          ],
+          "map": [
+            72
+          ],
+          "field": [
+            88
+          ],
+          "packet": [
+            72
+          ],
+          "hash": [
+            104
+          ]
+        }
+      },
+      "roughtime_capacity_test.asm": {
+        "sha256": "f48de28c4ce1b25ecaf611ae86a0a60aeaa26c73a1625d90844b0467aa0f527a",
+        "sub_rsp_or_esp_bytes": {
+          "_vfprintf_l": [
+            56
+          ],
+          "printf": [
+            56
+          ],
+          "_vsnprintf_l": [
+            72
+          ],
+          "_vsprintf_l": [
+            56
+          ],
+          "sprintf": [
+            56
+          ],
+          "ck": [
+            40
+          ],
+          "lab_read": [
+            2152
+          ],
+          "lab_load": [
+            152
+          ],
+          "measured_alloc": [
+            56
+          ],
+          "measured_free": [
+            56
+          ],
+          "measured_resize": [
+            72
+          ],
+          "phase": [
+            56
+          ],
+          "lab_field": [
+            88
+          ],
+          "lab_bad_reply": [
+            152
+          ],
+          "lab_mutation": [
+            88
+          ],
+          "lab_checks": [
+            2536
+          ],
+          "capacity": [
+            1560
+          ],
+          "main": [
+            248
+          ]
+        }
+      },
+      "roughtime_openssl.asm": {
+        "sha256": "b2eb839791c25294660001ebe3a20c0a5411565b60835023d9caf87877bf246d",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_rt_openssl_hash": [
+            168
+          ],
+          "papacc_rt_openssl_verify": [
+            104
+          ],
+          "separate": [
+            24
+          ]
+        }
+      }
+    },
+    "openssl-Release": {
+      "qualified_utc.asm": {
+        "sha256": "acc55f497eccb05e8f7ed156596489515be7a6f3d6e09e9fbb0bf836a9274deb",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_utc_data_propagate": [
+            32
+          ],
+          "papacc_utc_data_observe": [
+            48
+          ],
+          "papacc_utc_data_query": [
+            48
+          ],
+          "same": [
+            32
+          ]
+        }
+      },
+      "roughtime.asm": {
+        "sha256": "e82e94546d0feb1bca1ff258b442e518bfee577ab62135ec9f877cb34ab8605b",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_rt_merkle_data": [
+            160
+          ],
+          "papacc_rt_packet_data": [
+            88
+          ],
+          "papacc_rt_request_data": [
+            128
+          ],
+          "papacc_rt_reply_data": [
+            440
+          ],
+          "papacc_rt_campaign_data": [
+            376
+          ],
+          "papacc_rt_interval_data": [
+            336
+          ],
+          "papacc_rt_hull_data": [
+            64
+          ],
+          "packet": [
+            56
+          ],
+          "hash": [
+            104
+          ]
+        }
+      },
+      "roughtime_capacity_test.asm": {
+        "sha256": "bf587587b0a12da09ba67468ecc7983135a79af12f89ea4aeb23f9dfc06bd4e6",
+        "sub_rsp_or_esp_bytes": {
+          "_vfprintf_l": [
+            56
+          ],
+          "printf": [
+            48
+          ],
+          "_vsnprintf_l": [
+            56
+          ],
+          "_vsprintf_l": [
+            56
+          ],
+          "sprintf": [
+            48
+          ],
+          "lab_read": [
+            2096
+          ],
+          "lab_load": [
+            2192
+          ],
+          "measured_alloc": [
+            32
+          ],
+          "measured_resize": [
+            32
+          ],
+          "phase": [
+            56
+          ],
+          "lab_bad_reply": [
+            128
+          ],
+          "lab_mutation": [
+            144
+          ],
+          "lab_checks": [
+            2056
+          ],
+          "capacity": [
+            1408
+          ],
+          "main": [
+            160
+          ]
+        }
+      },
+      "roughtime_openssl.asm": {
+        "sha256": "4b7b26ba95fdca2cd9b832cb21966018c9f5c2890ee21c3f85a86e3827475182",
+        "sub_rsp_or_esp_bytes": {
+          "papacc_rt_openssl_hash": [
+            152
+          ],
+          "papacc_rt_openssl_verify": [
+            72
+          ]
+        }
+      }
+    }
+  }
+}

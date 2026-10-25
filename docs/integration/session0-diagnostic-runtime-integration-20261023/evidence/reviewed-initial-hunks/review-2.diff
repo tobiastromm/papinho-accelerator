@@ -1,0 +1,60 @@
+--- a/apps/server/server_service_runtime_win32.inc
++++ b/apps/server/server_service_runtime_win32.inc
+@@ -15,6 +15,10 @@
+  v[0]=&native.runtime.relative_image;v[1]=&native.runtime.configuration;v[2]=&native.runtime.access_token;
+  v[3]=&native.runtime.unexpected;v[4]=&native.runtime.check_token;v[5]=&native.runtime.token;v[6]=&native.runtime.parent;
+  if(host.terminal_receipt==2U||host.life.phase==PS_RETAINED||(host.run_active&&host.terminal_receipt!=1U))return PSRT_RETURN(ERROR_BUSY,"original_branch");
++#ifdef PSR_FILE_ENABLED
++ if(!psrd_quiescent())return ERROR_BUSY;
++ if(psrf_close(&native.runtime.diagnostic.file))return ERROR_BUSY;
++#endif
+  if(native.runtime.retained)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch"); /* first failure retained; never retry */
+  if(native.runtime.descriptor){if(LocalFree(native.runtime.descriptor)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.descriptor=NULL;}
+  if(native.runtime.approved_sid){if(LocalFree(native.runtime.approved_sid)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.approved_sid=NULL;}
+@@ -27,6 +31,12 @@
+  if(p<start||p-start>n||n-(DWORD)(p-start)<8U)return 0;
+  size=8U+4U*((BYTE *)sid)[1];return size<=n-(DWORD)(p-start)&&IsValidSid(sid)&&GetLengthSid(sid)==size;
+ }
++#ifdef PSR_FILE_ENABLED
++#include "server_service_psr_file_win32.inc"
++#define PSR_IMAGE_LEAF L"papacc_server_lab_host_ntstatus.exe"
++#else
++#define PSR_IMAGE_LEAF L"papacc_server_lab_host.exe"
++#endif
+ /* Snapshot contents are factual query output, not normalized synthetic grants. */
+ static DWORD psr_token(void)
+ {
+@@ -128,6 +138,9 @@
+ {
+  WCHAR device[256],path[512];size_t a,b;DWORD e;SERVICE_STATUS_PROCESS status;DWORD got=0;
+  PC_DOCUMENT document;PC_DIAGNOSTIC diagnostic;PC_TARGET target={1U,0};
++#ifdef PSR_FILE_ENABLED
++ e=psrd_bind();if(e)return e;
++#endif
+  PSRT_CONTEXT("PREPARE");
+  if(native.runtime.ready||native.runtime.retained||native.manager||native.service||native.image)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
+  e=ps_image_open();if(e)return PSRT_RETURN(e,"propagate_original");
+@@ -137,15 +150,20 @@
+  ZeroMemory(&status,sizeof(status));if(!PSRT_BOOL("QueryServiceStatusEx",(SERVICE_QUERY_STATUS),QueryServiceStatusEx(native.service,SC_STATUS_PROCESS_INFO,(BYTE *)&status,sizeof(status),&got))||got!=sizeof(status)||
+  status.dwProcessId!=GetCurrentProcessId()||status.dwCurrentState!=SERVICE_START_PENDING)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  e=psr_token();if(e)return PSRT_RETURN(e,"propagate_original");
+- a=wcslen(psr_parent);if(wcsncmp(native.image_path,psr_parent,a)||native.image_path[a]!=L'\\'||wcscmp(native.image_path+a+1,L"papacc_server_lab_host.exe"))return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
++ a=wcslen(psr_parent);if(wcsncmp(native.image_path,psr_parent,a)||native.image_path[a]!=L'\\'||wcscmp(native.image_path+a+1,PSR_IMAGE_LEAF))return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
+  if(!PSRT_COUNT("QueryDosDeviceW",QueryDosDeviceW(L"C:",device,256))||wcsncmp(device,L"\\Device\\",8))return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
+  a=wcslen(device);b=wcslen(psr_parent+2);if(a+b>=512)return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");memcpy(path,device,a*sizeof(WCHAR));memcpy(path+a,psr_parent+2,(b+1)*sizeof(WCHAR));
+  if((e=psr_open(NULL,path,&native.runtime.parent,1))||
+  (e=psr_open(native.runtime.parent,L"papacc.conf",&native.runtime.configuration,0))||
+- (e=psr_open(native.runtime.parent,L"papacc_server_lab_host.exe",&native.runtime.relative_image,0)))return PSRT_RETURN(e,"propagate_original");
++ (e=psr_open(native.runtime.parent,PSR_IMAGE_LEAF,&native.runtime.relative_image,0)))return PSRT_RETURN(e,"propagate_original");
+  if((e=psr_current()))return PSRT_RETURN(e,"propagate_current");
+  if(pc_parse(native.runtime.bytes,116U,&document,&diagnostic)!=PC_OK||pc_validate(&document,&target,&diagnostic)!=PC_OK)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+- native.runtime.ready=1U;PSRT_PREPARED();return ERROR_SUCCESS;
++#ifdef PSR_FILE_ENABLED
++ return psrd_prepare_complete();
++#else
++ native.runtime.ready=1U;PSRT_PREPARED();
++#endif
++ return ERROR_SUCCESS;
+ }
+ 
+ int papacc_server_service_qualification_managers_ready(const struct PAPACC_SERVER_IO_LOOP_WIN32 *l)

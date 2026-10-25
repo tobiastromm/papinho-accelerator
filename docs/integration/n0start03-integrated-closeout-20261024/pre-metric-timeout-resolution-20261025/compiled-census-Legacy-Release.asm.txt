@@ -1,0 +1,94 @@
+ig_project_census:
+  0000000000000000: push        rdi
+  0000000000000002: sub         rsp,60h
+  0000000000000006: cmp         qword ptr [ig_n0_census_content],0
+  000000000000000E: je          000000000000001B
+  0000000000000010: mov         eax,139Fh
+  0000000000000015: add         rsp,60h
+  0000000000000019: pop         rdi
+  000000000000001A: ret
+  000000000000001B: cmp         dword ptr [ig_n0_positive],0
+  0000000000000022: je          0000000000000191
+  0000000000000028: cmp         dword ptr [native+664h],0
+  000000000000002F: je          0000000000000191
+  0000000000000035: cmp         dword ptr [native+300h],0
+  000000000000003C: je          0000000000000191
+  0000000000000042: cmp         dword ptr [native+0C8Ch],0
+  0000000000000049: jne         0000000000000191
+  000000000000004F: call        lab_aux_gate
+  0000000000000054: test        eax,eax
+  0000000000000056: jne         0000000000000179
+  000000000000005C: mov         qword ptr [rsp+78h],rbp
+  0000000000000061: call        qword ptr [__imp_GetTickCount64]
+  0000000000000067: cmp         dword ptr [native+664h],0
+  000000000000006E: mov         rbp,rax
+  0000000000000071: je          000000000000017F
+  0000000000000077: cmp         qword ptr [native+658h],0
+  000000000000007F: je          000000000000017F
+  0000000000000085: call        psa_bd_current
+  000000000000008A: mov         edi,eax
+  000000000000008C: test        eax,eax
+  000000000000008E: jne         0000000000000184
+  0000000000000094: lea         rax,[native+58h]
+  000000000000009B: mov         qword ptr [rsp+70h],rbx
+  00000000000000A0: mov         qword ptr [rsp+30h],rax
+  00000000000000A5: mov         rax,qword ptr [native+0C78h]
+  00000000000000AC: mov         qword ptr [rsp+38h],rax
+  00000000000000B1: mov         rax,qword ptr [native+0C80h]
+  00000000000000B8: mov         qword ptr [rsp+40h],rax
+  00000000000000BD: mov         rax,qword ptr [native+2F8h]
+  00000000000000C4: mov         qword ptr [rsp+48h],rax
+  00000000000000C9: mov         qword ptr [rsp+80h],rsi
+  00000000000000D1: call        qword ptr [__imp_GetCurrentThreadId]
+  00000000000000D7: mov         dword ptr [rsp+50h],eax
+  00000000000000DB: xor         ebx,ebx
+  00000000000000DD: lea         rax,[rsp+30h]
+  00000000000000E2: mov         dword ptr [rsp+54h],ebx
+  00000000000000E6: mov         qword ptr [ig_n0_census_content],rax
+  00000000000000ED: call        ig_project_census_body
+  00000000000000F2: mov         qword ptr [ig_n0_census_content],rbx
+  00000000000000F9: mov         edi,eax
+  00000000000000FB: test        eax,eax
+  00000000000000FD: jne         000000000000012A
+  00000000000000FF: cmp         dword ptr [native+664h],ebx
+  0000000000000105: je          000000000000011E
+  0000000000000107: cmp         qword ptr [native+658h],rbx
+  000000000000010E: je          000000000000011E
+  0000000000000110: call        psa_bd_current
+  0000000000000115: mov         edi,eax
+  0000000000000117: mov         esi,2
+  000000000000011C: jmp         000000000000012F
+  000000000000011E: mov         edi,139Fh
+  0000000000000123: mov         esi,2
+  0000000000000128: jmp         000000000000012F
+  000000000000012A: mov         esi,1
+  000000000000012F: call        qword ptr [__imp_GetTickCount64]
+  0000000000000135: mov         rbx,rax
+  0000000000000138: sub         rbx,qword ptr [rsp+38h]
+  000000000000013D: call        qword ptr [__imp_GetTickCount64]
+  0000000000000143: mov         edx,dword ptr [rsp+54h]
+  0000000000000147: lea         rcx,[??_C@_0KD@KAKDFPGK@IG_CENSUS_CONTENT_WINDOW?5calls?$DN?$CF@]
+  000000000000014E: sub         rax,rbp
+  0000000000000151: mov         dword ptr [rsp+28h],edi
+  0000000000000155: mov         r9,rax
+  0000000000000158: mov         qword ptr [rsp+20h],rbx
+  000000000000015D: mov         r8d,esi
+  0000000000000160: call        ig_transport_printf
+  0000000000000165: mov         rsi,qword ptr [rsp+80h]
+  000000000000016D: mov         eax,edi
+  000000000000016F: mov         rbx,qword ptr [rsp+70h]
+  0000000000000174: mov         rbp,qword ptr [rsp+78h]
+  0000000000000179: add         rsp,60h
+  000000000000017D: pop         rdi
+  000000000000017E: ret
+  000000000000017F: mov         edi,139Fh
+  0000000000000184: mov         rbp,qword ptr [rsp+78h]
+  0000000000000189: mov         eax,edi
+  000000000000018B: add         rsp,60h
+  000000000000018F: pop         rdi
+  0000000000000190: ret
+  0000000000000191: call        ig_project_census_body
+  0000000000000196: add         rsp,60h
+  000000000000019A: pop         rdi
+  000000000000019B: ret
+

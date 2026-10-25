@@ -1,0 +1,24 @@
+--- tests/service_runtime_file_model_test.c.preimage
++++ tests/service_runtime_file_model_test.c
+@@ -39,6 +39,21 @@
+   T(psrf_valid(f,psrd_attempt,1)&&strstr((char *)f->text,hex)!=NULL&&native.runtime.diagnostic.receipt==1U&&psrd_quiescent());T(psr_close()==0);
+  }
+  }
++ /* The existing final frame must carry the differentiating facts. */
++ for(scenario=4U;scenario<=18U;scenario++){
++  if(scenario>4U&&scenario<13U)continue;if(scenario==16U||scenario==17U)continue;
++  dm_reset(0);T(ids());T(psrd_bind()==0);model_mode=scenario;
++  T(psr_token()==ERROR_ACCESS_DENIED);T(dm_size==2048&&psrd_quiescent());
++  f=(PSRF_FRAME *)(dm_disk+1024);T(psrf_valid(f,psrd_attempt,1));
++  T(strstr((char *)f->text,"predicate=token.specific_group.enabled")!=NULL);
++  T(strstr((char *)f->text,scenario==13U?"observed_a=0 observed_b=0":"observed_a=1 observed_b=")!=NULL);
++  if(scenario==15U)T(strstr((char *)f->text,"observed_b=20")!=NULL);
++  if(scenario==4U)T(strstr((char *)f->text,"observed_b=16")!=NULL);
++  if(scenario==18U)T(strstr((char *)f->text,"observed_b=10")!=NULL);
++  T(strstr((char *)f->text,"nt_valid=0")!=NULL&&strstr((char *)f->text,"token_handle=NOT_EXPORTED")!=NULL);
++  w=dm_writes;PSRT_RETURN(ERROR_INVALID_DATA,"later_failure_must_not_replace_first");T(dm_writes==w&&psrt_record.returned==ERROR_ACCESS_DENIED);
++  T(psr_close()==0);
++ }
+  dm_reset(0);host.stop=1;c=dm_creates;T(psrd_bind()==ERROR_CANCELLED&&dm_creates==c&&psrd_quiescent());
+  dm_reset(0);T(psrd_bind()==0);host.handle=(SERVICE_STATUS_HANDLE)(ULONG_PTR)9;host.thread=GetCurrentThreadId();host.run_active=1;T(ps_begin(&host.life));T(ps_stop(&host.life));papacc_server_service_runtime_closed();T(host.terminal_receipt==2&&host.life.phase==PS_RETAINED&&!psrd_quiescent());
+  dm_reset(0);T(psrd_bind()==0);T(psrd_prepare_complete()==0&&native.runtime.ready&&native.runtime.diagnostic.receipt==2&&psrd_quiescent());T(psr_close()==0);

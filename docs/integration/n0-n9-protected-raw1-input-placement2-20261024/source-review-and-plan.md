@@ -1,0 +1,33 @@
+# Colocação RAW1 em raiz existente — preparação 2
+
+Task PACC-PHASE6-N0-N9-PROTECTED-RAW1-INPUT-PLACEMENT-2. Escopo: preparar/qualificar offline e consultar por leitura; nenhuma colocação ou autorização de operação real. Branch main, HEAD 913c90cf2328f7939d8f5b927640601903ac6e91; baseline.json preserva as preimagens. Fontes: decisões RAW1 e N0–N9 accepted, B+D/ED11, ADR0030/0031/0032 e ED08/ED11 da specification1.0, plano anterior exact-protection-and-placement-plan.md e fonte nativa/manual/modelo anteriores. Não se repete auditoria de decisões concluídas, não se altera ADR accepted.
+
+## Evidência da raiz
+
+Recibo original N0R-20261024-01 SHA256 52c87ef41db38971f30f62912211abd9483aee2896ec9d3c5df3d19dace6afc1. Confirma first0/close0/created7/verified7/acquisition_closed7/retained0 e NATIVE_EXIT0. O owner forneceu adicionalmente launcher exit0. Não se reutiliza esse recibo como autorização da colocação. Não se recria ou adota diretório por nome.
+
+Identidades exigidas, volume417614100: PapinhoAccelerator 786432:1087874; Protected 851968:2672648; N0 720896:2672656. Todos os três devem continuar com original descriptor104, controle0x9004, hash688654f3c898e8ae3115cac83e777c4b24c9c57320fa8551b505d8dacc0ad579, owner/groupBA, SYSTEM/BA FA OI/CI na ordem original. C raiz417614100:327680:5 e ProgramData417614100:131072:227641 têm seus próprios hashes anteriores pinados, sem alteração de ACL.
+
+Consulta contemporânea pelo executor confirmou identidade/RAW dos dois primeiros ancestrais, mas retornou acesso negado nos três componentes protegidos. Nova consulta fora do sandbox também retornou acesso negado. NÃO se declara que a verificação contemporânea completa passou. Isso não é rejeição automática da ferramenta de aprovação, nem permissão para ajustar a ACL. root-readonly.json contém somente os dois resultados válidos; current-query-limitation.json registra explicitamente falhas, sem zeros ou linhas inventadas. Menor prova restante: VerifyRoot no token elevado do operador autorizado, com fechamento factual.
+
+## Implementação mínima preparada
+
+As três fontes anteriores são preservadas byte a byte. Novas fontes de engenharia reutilizam PaccN2PlacementSteps/PaccN2PlacementNative e PaccFileAcl, sem outro owner administrativo, serviço, registry, logger ou autoridade. Destino novo é somente C:\ProgramData\PapinhoAccelerator\Protected\N0. Configuração e binário permanecem nos caminhos históricos; nenhum rebind é efetuado.
+
+A API DirectoryPin exige exatamente as cinco identidades e respectivos descriptors RAW antes de efeitos e em cada Check. Originais de todos os ancestrais permanecem retidos com compartilhamento somente leitura, reparse/tipo/caminho final/identidade/noninherit verificados. Nova leitura por nome não substitui referência perdida. Um conflito de compartilhamento nega, sem enfraquecer flags. Fontes são lidas de handles originais e verificadas pelos mesmos bytes utilizados, evitando leitura de código por nome após hash. O helper preserva seus bytes/BOM originais; o código é extraído como texto após decode apropriado. Nenhuma chamada Apply/Equivalent/Encode/SetSecurityInfo do helper é utilizada.
+
+Descritor de CRIAÇÃO dos novos arquivos: 152 bytes originais, SHA2560fcfd0572daee1f64b98daf960276db86f55043460ba700e927bfb46b31b4814, distinto do descriptor104 dos diretórios e do RAW1 do arquivo Windows observado. OwnerSID1108/groupBA, DACL protegida: SYSTEM/BA FA e operador0x12019f, sem AU/Users/Everyone. Não se regenera SDDL. Owner Windows tem direitos implícitos; não há promessa contra owner/admin equivalente ou SO comprometido. SACL/auditoria/mandatory labels permanecem UNKNOWN.
+
+CreateFileW com SECURITY_ATTRIBUTES explícito, bInheritHandleFALSE, acesso0xc0020000, share0, CREATE_NEW1, flags0x00200080. Nenhum overwrite, adoção, retry, append, delete, rename ou setter de ACL. Colisão nega. Validação do handle original: disco/arquivo/não-reparse/não-herdável, caminho final, volume/id/link único, owner/group/DACL protegida ordenada e escritor autorizado. Bytes do descriptor retornado são guardados para revalidação exata do mesmo objeto, sem normalização. Controle de arquivo pode ser0x9004 ou0x9404 conforme o plano original, sem dispensar os três ACEs explícitos e protegidos; não confundir com gate estrito0x9004 dos diretórios. Não se afirma que a serialização de criação seja um RAW1 observado.
+
+Cada buffer original5358/326 é escrito uma vez, com contagem conferida, flush, readback/hash/size e revalidação. Falha parcial interrompe o segundo arquivo, preserva primeiro erro e efeitos. CloseHandle/LocalFree incertos retêm referências no contexto original, sem reacquisição por pathname, kill ou retry. BeginOnce impede replay no fluxo da mesma instância; colisões e recibo administrativo CreateNew impedem reutilização automática de nomes. Esse mecanismo de preparação não consome nem substitui o intent canônico LAB.
+
+## Identidade e recursos
+
+Operação candidata N2P-20261024-02, mesma tentativa75330d11cc7e4123ae62eadc9a59c2f5; não é nova tentativa LAB. Verificação obrigatória do SID1108, elevação, ausência de impersonation, estatísticas do token, host/boot236441/StartTime original, plano e confirmação exata. Dossiê estático não fabrica processos/token/métricas futuros. Proveniência histórica Valid/Catalog/IsOSBinary=True do arquivo Windows permanece com suas limitações; nenhuma equivalência com imagem mapeada/console é afirmada. Sem nova consulta de assinatura ou recorder.
+
+Cinco ancestrais, descriptor de criação, duas fontes, sete pins de config/binário/políticas/recibo e dois arquivos: até17 handles de arquivo/diretório diretamente rastreados, além do stream do recibo e referências transitórias de leitura/CodeDom/token. Buffers fixos5358/326/152; RAW por consulta limitado65536. Memória CLR, stack, compilador inbox, CRT/kernel/cache e custos do host não são zero nem limites integrais provados. Não é admissão ED11 operacional. Quatro papéis/128/quotas/freshness/headroom e NONE_GRANTED não mudam; nenhuma fonte de produção é alterada.
+
+## Qualificação e limite
+
+Compilação CodeDom real no Windows PowerShell5.1 x64: WarningLevel4, TreatWarningsAsErrors.50 verificações PASS, incluindo descriptors, diretório/RAW divergente, ACL insegura, colisão, hash, efeito parcial, fechamento incerto, Stop e replay; hash do script errado DENY. Modelos não acessam/criam a raiz real e não provam escrita negada com token alternativo. Nenhuma VerifyRoot positiva ou Place real executada pelo novo launcher. Sem alteração C/CMake/produto, não é necessário rebuild Selected/Legacy; não se reutiliza seu resultado como teste desse backend .NET. A prova nativa da raiz permanece pendente e mantém DENY.

@@ -1,0 +1,69 @@
+PS C:\WINDOWS\system32> Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+PS C:\WINDOWS\system32> & "C:\Projetos\PapinhoAccelerator\tools\qualification\scm-n0-protected-single-powershell.ps1" -Mode Cycle -Profile N0START03Positive -ExpectedScriptSha256 e817b72d792539199430ea9992d39478a6134664b9d5a6b8607fe3746d33e88d -ExactApprovalSha256 6084000c135683e437dc12ee7286699c30ac41ef19654844b53b401d00f0411c
+OPERATION=N0START-20261024-03; MODE=Cycle; N0-N9; ATTEMPT=0b1de869e11493b7cb08fb329578f6ce; auxiliary PID=20404 creation=134373884452861473
+ONE LAB: consume intent; exclusive image and sink; explicit rebind; ONE Start; at most ONE safe Stop; partial effects retained. No ACL remediation/delete/rollback/retry. Separate owner approval REQUIRED.
+Type exactly: START_N0_SINGLE_LAB N0START-20261024-03 0b1de869e11493b7cb08fb329578f6ce 20404 134373884452861473
+START_N0_SINGLE_LAB N0START-20261024-03 0b1de869e11493b7cb08fb329578f6ce 20404 134373884452861473
+IG_QUALIFIER_INSTANCE pid=24940 creation=31286358:301879555; ATTEMPT=0b1de869e11493b7cb08fb329578f6ce; POLICY=ACCEPTED; AUTHORITY=NONE
+N0-N9: IDENTIFIED_AUXILIARY_CANDIDATE pid=20404 creation=134373884452861473 session=1 file=417614100:327680:1591236 links=2
+OpenedFileHash=b02ee54fb2ec69673386d41119ee8ed083a6eab3bfca6aa2155d20ce68ef8963
+SecurityHash=7852b616c03c57528c4f85f843fd2f671d49dbd66a965f227c2ffbf663a177e0
+ProvenanceRecord=5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050
+CONSOLE_ASSOCIATION=UNPROVEN; MAPPED_IMAGE_PROVENANCE=UNPROVEN; N7_SINGLE_LAB_ONLY; NO_START_AUTHORITY
+B+D owner binding ONLY; no operational authority. Actor=20324 creation=134373884452824590; boot=236441; attempt=0b1de869e11493b7cb08fb329578f6ce
+Plan=45ab7fa0101f44b6aedeb3d0f9ac3b65d7775d87ff8b55b15f06e71ee61c5eb9
+Configuration=a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44
+Binary=44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c
+Policy=bec9d0c275d5ee8bd68de4d42fe173a08f124a9900c119e7a08d23757d9d7941
+Host=2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff
+Auxiliary is NOT authenticated console infrastructure. Type exactly:
+BIND_BD_READ_ONLY 0b1de869e11493b7cb08fb329578f6ce 24940 134373884722827523 14272664305718397270
+> BIND_BD_READ_ONLY 0b1de869e11493b7cb08fb329578f6ce 24940 134373884722827523 14272664305718397270
+IG_CENSUS_CONTENT_WINDOW calls=328 full_boundary_checks=2 elapsed_ms=406 oldest_age_ms=8750 first=0; VOLATILE_CHECKS_PER_ENTRY; NO_FRESHNESS_RESET_NO_CREDIT
+ONE INSTRUMENTED LAB ATTEMPT 0b1de869e11493b7cb08fb329578f6ce
+Existing PapinhoAcceleratorLab20261023; same virtual identity; DEMAND/STOPPED.
+Exclusive protected NEW papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe; SHA256 44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c.
+Config a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44; unchanged parent/dependencies.
+CREATE_NEW one protected diagnostic papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag; arm1024/final2048.
+One explicit LAB image rebind, ONE Start and at most ONE safe Stop. No delete, overwrite, rollback, retry or kill.
+ED11 preflight60s/final1s; host admission5GiB physical/9GiB commit, monitor floors4/8GiB. NONE_GRANTED credits.
+At most four participant processes; snapshot stack/kernel/cache remains partially UNKNOWN.
+No listener/network/CA/key/certificate/bootstrap/CURRENT/signature/authority. Retention remains UNKNOWN if not factual.
+Requires SEPARATE exact operation approval; preparing this launcher does not approve execution.
+Type ENTIRE line; Esc/mismatch cancels before intent consumption:
+INSTRUMENT_SCM_LAB 0b1de869e11493b7cb08fb329578f6ce
+> INSTRUMENT_SCM_LAB 0b1de869e11493b7cb08fb329578f6ce
+IG_PRECONSUME_ABSENT role=image status=c0000034; ORIGINAL_PARENT; READ_ONLY; NOT_A_RESERVATION
+IG_PRECONSUME_ABSENT role=sink status=c0000034; ORIGINAL_PARENT; READ_ONLY; NOT_A_RESERVATION
+IG_CENSUS_CONTENT_WINDOW calls=328 full_boundary_checks=2 elapsed_ms=406 oldest_age_ms=16484 first=0; VOLATILE_CHECKS_PER_ENTRY; NO_FRESHNESS_RESET_NO_CREDIT
+IG_PROCESS role=0 pid=20324 private=75100160 commit=75100160 ws=98152448 handles=722 threads=16 stack_committed_va=10514432 peak_commit=75796480 peak_ws=98902016; KERNEL_TRANSITIVE=UNKNOWN
+IG_IO role=0 read_ops=531 write_ops=109 read_bytes=1285172 write_bytes=20494
+IG_PROCESS role=1 pid=24940 private=1740800 commit=1740800 ws=5906432 handles=112 threads=4 stack_committed_va=98304 peak_commit=1748992 peak_ws=6074368; KERNEL_TRANSITIVE=UNKNOWN
+IG_IO role=1 read_ops=99692 write_ops=906 read_bytes=101901890 write_bytes=906
+IG_PROCESS role=3 pid=20404 private=4562944 commit=4562944 ws=17620992 handles=271 threads=8 stack_committed_va=208896 peak_commit=4562944 peak_ws=17625088; KERNEL_TRANSITIVE=UNKNOWN
+IG_IO role=3 read_ops=17 write_ops=0 read_bytes=7903 write_bytes=0
+IG_HOST tick=134294671 physical=7694032896 commit_available=13914529792 total_phys=21300559872 commit_pages=5702135 limit_pages=9099237 peak_commit_pages=8898064 page=4096 paged_pool=310399 nonpaged_pool=189691 cache=1630694
+IG_DIAGNOSTIC_CREATED=417614100:196608:2922916; SIZE=1024; PREPARER_CLOSED=1; NO_DELETE
+IG_PROCESS role=0 pid=20324 private=75100160 commit=75100160 ws=98152448 handles=722 threads=16 stack_committed_va=10514432 peak_commit=75796480 peak_ws=98902016; KERNEL_TRANSITIVE=UNKNOWN
+IG_IO role=0 read_ops=770 write_ops=117 read_bytes=1286260 write_bytes=21590
+IG_PROCESS role=1 pid=24940 private=1220608 commit=1220608 ws=5394432 handles=114 threads=4 stack_committed_va=98304 peak_commit=2351104 peak_ws=6111232; KERNEL_TRANSITIVE=UNKNOWN
+IG_IO role=1 read_ops=138774 write_ops=2103 read_bytes=142189242 write_bytes=437809
+IG_PROCESS role=3 pid=20404 private=4562944 commit=4562944 ws=17633280 handles=273 threads=8 stack_committed_va=208896 peak_commit=4562944 peak_ws=17637376; KERNEL_TRANSITIVE=UNKNOWN
+IG_IO role=3 read_ops=17 write_ops=0 read_bytes=7903 write_bytes=0
+IG_HOST tick=134295250 physical=7695671296 commit_available=13911805952 total_phys=21300559872 commit_pages=5702800 limit_pages=9099237 peak_commit_pages=8898064 page=4096 paged_pool=310399 nonpaged_pool=189691 cache=1630804
+IG_SERVICE state=2 pid=25396 win32=0 specific=0
+IG_DIAGNOSTIC stage=OBSERVE_FROM_START_PENDING api=n0_original_roles_missing resource=process_snapshot code=13 native=13 pid=0 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY
+IG_PROCESS role=0 pid=20324 private=75214848 commit=75214848 ws=98267136 handles=728 threads=18 stack_committed_va=10579968 peak_commit=84328448 peak_ws=107102208; KERNEL_TRANSITIVE=UNKNOWN
+IG_IO role=0 read_ops=910 write_ops=125 read_bytes=1287313 write_bytes=22651
+IG_PROCESS role=1 pid=24940 private=2351104 commit=2351104 ws=6131712 handles=115 threads=4 stack_committed_va=98304 peak_commit=2359296 peak_ws=6201344; KERNEL_TRANSITIVE=UNKNOWN
+IG_IO role=1 read_ops=158984 write_ops=3325 read_bytes=162844234 write_bytes=439032
+IG_SERVICE state=1 pid=0 win32=5 specific=0
+IG_DIAGNOSTIC_RECEIPT kind=1 length=525; ID_MATCH=1; NO_AUTHORITY
+IG_FIRST_RECORD=attempt=0b1de869e11493b7cb08fb329578f6ce service=PapinhoAcceleratorLab20261023 expected_config_sha=a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44 stage=psr_prepare
+PACC_PSR_FIRST_FAILURE pid=25396 tid=7812 object=TOKEN_PROCESS_AND_THREAD api=CreateWellKnownSid api_line=57 request=00000000 api_success=1 raw_win32=0 nt_valid=0 ntstatus=00000000 predicate=token.specific_group.enabled branch=authorization_or_native_mapping return_line=66 returned_win32=5 observed_a=0 observed_b=0 token_handle=NOT_EXPORTED
+
+IG_FINAL stage=OBSERVE_FROM_START_PENDING first=13 close=0 starts=1 stops=0 quiescent=1 intent_consumed=1 effect=2 diagnostic_created=1; ED11=PARTIAL; CREDITS=NONE_GRANTED; NO_RETRY_NO_DELETE
+TRANSPORT_LOCAL_CLOSE=CONFIRMED; pid=24940 creation=134373884722827523 first=0 retained=0
+Qualifier returned with factual final close receipt. F10 returns to this existing operator console; no retry.
+N0_CYCLE_EXIT=2; START_RESULT=SEE_NATIVE_RECEIPT; ED11=PARTIAL; PRODUCT_AUTHORITY=DENY
+PS C:\WINDOWS\system32>

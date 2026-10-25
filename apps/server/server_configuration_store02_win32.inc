@@ -17,10 +17,10 @@ static int store02_hash(const unsigned char*p,unsigned n,unsigned char out[32])
  if(h!=NULL&&BCryptDestroyHash(h)<0)ok=0;
  if(BCryptCloseAlgorithmProvider(a,0U)<0)ok=0;return ok;
 }
-static int store02_decode(unsigned char*b,PAPACC_CONFIG_VIEW*v)
+static int store02_decode(PAPACC_STORE_HASH *hash_ctx,unsigned char*b,PAPACC_CONFIG_VIEW*v)
 {
  unsigned i,j,pos=70U;PAPACC_SIZE*lengths[4];PAPACC_U8*refs[4];PAPACC_BOOL*valids[4];
- if(!record_valid(b)||store02_zero(b+8U,32U))return 0;
+ if(!record_valid(hash_ctx,b)||store02_zero(b+8U,32U))return 0;
  memset(v,0,sizeof(*v));memcpy(v->domain,b+8U,32U);v->revision=get64(b+40U);
  v->predecessor=get64(b+48U);v->policy_epoch=get64(b+56U);
  v->config.control_port=(PAPACC_U16)(((unsigned)b[64U]<<8)|b[65U]);
@@ -38,7 +38,7 @@ static int store02_decode(unsigned char*b,PAPACC_CONFIG_VIEW*v)
  if(!store02_zero(b+330U+8U*b[69U],480U-330U-8U*b[69U]))return 0;
  fix(v);return papacc_server_config_validate(&v->config)==PAPACC_RESULT_OK;
 }
-static int store02_select(unsigned char*b,const BY_HANDLE_FILE_INFORMATION*f,PAPACC_CONFIG_VIEW*out)
+static int store02_select(PAPACC_STORE_HASH *hash_ctx,unsigned char*b,const BY_HANDLE_FILE_INFORMATION*f,PAPACC_CONFIG_VIEW*out)
 {
  unsigned i,j,n;unsigned char d[32],prev[32];unsigned char*c,*w;PAPACC_CONFIG_VIEW candidate;PAPACC_U64 last_epoch=0U;
  if(memcmp(b,"PACL0202",8U)||get64(b+8U)!=2U||store02_zero(b+16U,32U))return 0;
@@ -53,7 +53,7 @@ static int store02_select(unsigned char*b,const BY_HANDLE_FILE_INFORMATION*f,PAP
   if(get64(c+32U)!=i+1U||get64(w+32U)!=i+1U||get64(c+40U)!=i||get64(w+40U)!=i||
     get64(c+48U)==0U||get64(c+48U)!=get64(w+48U)||get64(c+56U)!=512U)return 0;
   if(memcmp(c+64U,prev,32U)||memcmp(w+88U,prev,32U)||memcmp(c+96U,"CONF0101",8U)||!store02_zero(c+104U,24U)||!store02_zero(w+120U,8U))return 0;
-  if(!store02_hash(c,640U,d)||memcmp(d,w+56U,32U)||!store02_decode(c+128U,&candidate))return 0;
+  if(!store02_hash(c,640U,d)||memcmp(d,w+56U,32U)||!store02_decode(hash_ctx,c+128U,&candidate))return 0;
   if(memcmp(candidate.domain,b+16U,32U)||candidate.revision!=i+1U||candidate.predecessor!=i)return 0;
   if(candidate.policy_epoch<last_epoch)return 0;last_epoch=candidate.policy_epoch;
   if(!store02_hash(w,128U,prev))return 0;
@@ -67,13 +67,13 @@ static int store02_append(PAPACC_CONFIGURATION_COMMIT*o,const PAPACC_CONFIG_VIEW
 {
  unsigned char*c,*w,d[32];unsigned index;PAPACC_CONFIG_VIEW prior;
  if(v->revision==0U||v->revision>STORE02_CAP)return 0;
- if(o->published){memcpy(b,o->committed,PAPACC_CONFIG_STORE_BYTES);if(!store02_select(b,f,&prior)||prior.revision!=v->predecessor)return 0;}
+ if(o->published){memcpy(b,o->committed,PAPACC_CONFIG_STORE_BYTES);if(!store02_select(&o->store_hash,b,f,&prior)||prior.revision!=v->predecessor)return 0;}
  else{memset(b,0,PAPACC_CONFIG_STORE_BYTES);memcpy(b,"PACL0202",8U);put64(b+8U,2U);memcpy(b+16U,v->domain,32U);
   put64(b+104U,f->dwVolumeSerialNumber);put64(b+112U,((PAPACC_U64)f->nFileIndexHigh<<32)|f->nFileIndexLow);}
  index=(unsigned)v->revision-1U;c=b+STORE02_C+index*640U;w=b+STORE02_W+index*128U;
  memcpy(c,v->domain,32U);put64(c+32U,v->revision);put64(c+40U,v->predecessor);put64(c+48U,1000U+v->revision);
  put64(c+56U,512U);memcpy(c+64U,b+72U,32U);memcpy(c+96U,"CONF0101",8U);encode(v,c+128U);
- if(!digest(c+128U,0))return 0;
+ if(!digest(&o->store_hash,c+128U,0))return 0;
  memcpy(w,v->domain,32U);put64(w+32U,v->revision);put64(w+40U,v->predecessor);put64(w+48U,1000U+v->revision);
  if(!store02_hash(c,640U,d))return 0;memcpy(w+56U,d,32U);memcpy(w+88U,b+72U,32U);
  if(!store02_hash(w,128U,d))return 0;memcpy(b+72U,d,32U);put64(b+48U,v->revision);put64(b+56U,v->revision);put64(b+64U,v->revision);

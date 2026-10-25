@@ -1,0 +1,83 @@
+--- tools/qualification/n0start03-raw1-input-placement.ps1 (preimage)
++++ tools/qualification/n0start03-raw1-input-placement.ps1
+@@ -17,7 +17,7 @@
+ Import-Module ($PSHOME+'\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1') -ErrorAction Stop
+ $pins=@{
+  'scm-file-acl-native.ps1'='f52242fe74932d1539e83a742430ea523eda746ce39d8815b1b977cf6bb6ac75';
+- 'n0start03-raw1-input-native.cs'='f6c4f7b5403d71e1e63a5d41483712a66e0dd83ef6df4ec4bb3888d044bd6db9';
++ 'n0start03-raw1-input-native.cs'='b3bca77e036e9b6b6d42ed7001731b220c873a954de94e744380fe7ff3a69b80';
+  'n0-raw1-input-model.cs'='cf36dd132b71da337ec260de2739bafda993fe3da827430ed28c20da19c6ed00'
+ }
+ $sourceBytes=@{}
+@@ -75,6 +75,10 @@
+  if($query.Retained){$script:RetainedRootQuery=$query;while($true){[Threading.Thread]::Sleep(1000)}}
+  $global:LASTEXITCODE=2;if($result-eq'NONE'){$global:LASTEXITCODE=0};return
+ }
++$receipt=$root+'\docs\integration\n0start03-protected-input-placement-preparation-20261024\manual-N2P-20261024-03.txt'
++$owner=[PaccN2PlacementNative]::new();$first='NONE';$closed=$false;$receiptRetained=$false;$writer=$null;$stream=$null;$receiptStatus='NOT_CREATED'
++try {
++ $owner.Prepare()
+ Write-Host 'N2P-20261024-03; ATTEMPT=0b1de869e11493b7cb08fb329578f6ce; BOOT=236441'
+ Write-Host 'Create TWO NEW protected files only, 7573/397 bytes. Parent and existing files unchanged.'
+ Write-Host 'No Start/Stop/SCM/ACL remediation/admission pins/intent. No overwrite/delete/retry.'
+@@ -85,34 +89,38 @@
+ $confirmation=Read-Host ('Type exactly: '+$expected)
+ if($confirmation-cne$expected){throw 'CONFIRMATION_DENY_NO_EFFECT'}
+ Check-OperatorBoot
+-$receipt=$root+'\docs\integration\n0start03-protected-input-placement-preparation-20261024\manual-N2P-20261024-03.txt'
+-# Exclusive administrative evidence file. Not a registry or operational intent.
+-$stream=[IO.File]::Open($receipt,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
+-$writer=[IO.StreamWriter]::new($stream,[Text.UTF8Encoding]::new($false))
+-$owner=[PaccN2PlacementNative]::new();$first='NONE';$closed=$false;$receiptRetained=$false
+-try {
+- $writer.WriteLine('N2P-20261024-03; SCRIPT='+$ExpectedScriptSha256+'; CONFIRMED; OPERATIONAL_AUTHORITY=NONE');$writer.Flush()
+- try{$owner.Prepare()}catch{$first=[PaccN2PlacementSteps]::Describe($_.Exception)}
+- if($first-eq'NONE'){$first=[PaccN2PlacementSteps]::Run($owner);$closed=-not $owner.Retained}
+- else{$closed=$owner.Close()}
+- foreach($line in $owner.Evidence){Write-Host $line;$writer.WriteLine($line)}
+- $final='NATIVE_FIRST_ERROR='+$first+'; NATIVE_OWNED_CLOSED='+$closed+'; RETAINED='+$owner.Retained+'; ADMIN_RECEIPT_CLOSE=PENDING; PINS=EMPTY_DENY; ED11=PARTIAL; NO_RETRY'
+- Write-Host $final;$writer.WriteLine($final);$writer.Flush()
++
++ $owner.RevalidateBeforeEffects()
++ $first=[PaccN2PlacementSteps]::Run($owner);$closed=-not $owner.Retained
+ } catch {
+  if($first-eq'NONE'){$first=[PaccN2PlacementSteps]::Describe($_.Exception)}
++} finally {
+  if(-not $closed -and -not $owner.Retained){$closed=$owner.Close()}
+- Write-Host ('FIRST_ERROR='+$first+'; RECEIPT_OR_WORKFLOW_FAILED; NO_RETRY')
+-} finally {
+- try{$writer.Dispose()}catch{$receiptRetained=$true;if($first-eq'NONE'){$first='ADMINISTRATIVE_RECEIPT_CLOSE_UNKNOWN'};Write-Host 'ADMINISTRATIVE_RECEIPT_CLOSE_UNKNOWN; PRESERVE_EVIDENCE'}
+ }
++# Console evidence first; receipt is attempted only AFTER actual input creation.
++foreach($line in $owner.Evidence){Write-Host $line}
++$final='NATIVE_FIRST_ERROR='+$first+'; NATIVE_OWNED_CLOSED='+$closed+'; RETAINED='+$owner.Retained+'; PINS=EMPTY_DENY; ED11=PARTIAL; NO_RETRY'
++Write-Host $final
++if($owner.EffectsCreated){
++ try {
++  $stream=[IO.File]::Open($receipt,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
++  $writer=[IO.StreamWriter]::new($stream,[Text.UTF8Encoding]::new($false))
++  $writer.WriteLine('N2P-20261024-03; SCRIPT='+$ExpectedScriptSha256+'; OPERATIONAL_AUTHORITY=NONE')
++  foreach($line in $owner.Evidence){$writer.WriteLine($line)}
++  $writer.WriteLine($final);$writer.Flush();$receiptStatus='WRITTEN_CLOSE_PENDING'
++ }catch{
++  if($first-eq'NONE'){$first='ADMIN_RECEIPT_FAILED '+[PaccN2PlacementSteps]::Describe($_.Exception)}
++  $receiptStatus='FAILED_OR_PARTIAL';Write-Host ('ADMIN_RECEIPT_FAILED; FIRST_ERROR='+$first+'; PRESERVE_INPUTS_NO_RETRY')
++ }finally{
++  try{if($null-ne$writer){$writer.Dispose()}elseif($null-ne$stream){$stream.Dispose()};if($receiptStatus-eq'WRITTEN_CLOSE_PENDING'){$receiptStatus='CONFIRMED'}}catch{$receiptRetained=$true;$receiptStatus='CLOSE_UNKNOWN';if($first-eq'NONE'){$first='ADMIN_RECEIPT_CLOSE_UNKNOWN'}}
++ }
++}
++Write-Host ('FIRST_ERROR='+$first+'; ADMIN_RECEIPT_CLOSE='+$receiptStatus)
+ if($owner.Retained -or $receiptRetained){
+- $script:RetainedPlacement=$owner;$script:RetainedAdministrativeWriter=$writer
+- Write-Host 'RETAINED_UNKNOWN: original references remain in this process. Do not close/retry/kill.'
++ $script:RetainedPlacement=$owner;$script:RetainedAdministrativeWriter=$writer;$script:RetainedAdministrativeStream=$stream
++ Write-Host 'RETAINED_UNKNOWN: preserve owner and evidence; no close/kill/retry.'
+  while($true){[Threading.Thread]::Sleep(1000)}
+ }
+-Write-Host 'Native placement routine returned; own reference closure checked. No automatic retry.'
+-Write-Host ('FIRST_ERROR='+$first+'; ADMIN_RECEIPT_CLOSE=CONFIRMED')
+ $global:LASTEXITCODE=2
+-if($first-eq'NONE' -and $closed){$global:LASTEXITCODE=0}
++if($first-eq'NONE' -and $closed -and $receiptStatus-eq'CONFIRMED'){$global:LASTEXITCODE=0}
+ Write-Host ('N2_PLACEMENT_EXIT='+$global:LASTEXITCODE)
+-# Returns to this existing PowerShell. No F10/second shell/process exit handler.

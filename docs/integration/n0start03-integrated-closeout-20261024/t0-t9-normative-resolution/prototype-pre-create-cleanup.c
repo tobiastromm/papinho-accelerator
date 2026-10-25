@@ -1,0 +1,198 @@
+/* Isolated non-inherited IPC prototype. NO LAB/SCM/operational dispatch. */
+#define WIN32_LEAN_AND_MEAN 1
+#include <windows.h>
+#include <sddl.h>
+#include <aclapi.h>
+#include <bcrypt.h>
+#include <processsnapshot.h>
+#include <psapi.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <string.h>
+#include <stdint.h>
+#include <io.h>
+#include <fcntl.h>
+#include <errno.h>
+typedef struct NT_OWNER {HANDLE pipe,event;PROCESS_INFORMATION child,other;OVERLAPPED ov;DWORD first,frozen,pending,accepted,packets,close_calls,child_exit;FILETIME creation;FILE *retained_file;} NT_OWNER;
+static NT_OWNER owner;
+__declspec(noreturn) static void retain(DWORD e){if(!owner.first)owner.first=e;owner.frozen=1;printf("UNKNOWN_RETAINED first=%lu pending=%lu NO_RETRY_NO_KILL\n",(unsigned long)owner.first,(unsigned long)owner.pending);fflush(stdout);for(;;)Sleep(1000);}
+static void close_ref(HANDLE *h){if(!*h||*h==INVALID_HANDLE_VALUE)return;++owner.close_calls;if(!CloseHandle(*h))retain(GetLastError());*h=NULL;}
+static ULONGLONG birth(HANDLE p){FILETIME c,e,k,u;if(!GetProcessTimes(p,&c,&e,&k,&u))return 0;return ((ULONGLONG)c.dwHighDateTime<<32)|c.dwLowDateTime;}
+static int live(HANDLE p){return WaitForSingleObject(p,0)==WAIT_TIMEOUT;}
+static int same_token(HANDLE process,int mismatch)
+{
+ HANDLE a=NULL,b=NULL;BYTE x[256],y[256];DWORD n,sa,sb;TOKEN_STATISTICS ta,tb;int equal=0;
+ if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&a)||!OpenProcessToken(process,TOKEN_QUERY,&b))goto done;
+ if(!GetTokenInformation(a,TokenUser,x,sizeof(x),&n)||!GetTokenInformation(b,TokenUser,y,sizeof(y),&n))goto done;
+ if(!GetTokenInformation(a,TokenStatistics,&ta,sizeof(ta),&n)||!GetTokenInformation(b,TokenStatistics,&tb,sizeof(tb),&n))goto done;
+ if(!GetTokenInformation(a,TokenSessionId,&sa,sizeof(sa),&n)||!GetTokenInformation(b,TokenSessionId,&sb,sizeof(sb),&n))goto done;
+ equal=ta.TokenType==TokenPrimary&&tb.TokenType==TokenPrimary&&EqualSid(((TOKEN_USER *)x)->User.Sid,((TOKEN_USER *)y)->User.Sid)&&sa==sb&&ta.AuthenticationId.LowPart==tb.AuthenticationId.LowPart&&ta.AuthenticationId.HighPart==tb.AuthenticationId.HighPart&&!mismatch;
+ done:close_ref(&a);close_ref(&b);return equal;
+}
+static void measure(const char *phase){DWORD n;PROCESS_MEMORY_COUNTERS_EX memory;ZeroMemory(&memory,sizeof(memory));memory.cb=sizeof(memory);if(!GetProcessMemoryInfo(GetCurrentProcess(),(PROCESS_MEMORY_COUNTERS *)&memory,sizeof(memory)))retain(GetLastError());if(!GetProcessHandleCount(GetCurrentProcess(),&n))retain(GetLastError());printf("NT_SAMPLE phase=%s handles=%lu state_bytes=%zu pending=%lu private_bytes=%llu\n",phase,(unsigned long)n,sizeof(owner),(unsigned long)owner.pending,(ULONGLONG)memory.PrivateUsage);}
+static DWORD complete(BOOL ok,DWORD count)
+{
+ DWORD e;if(ok){owner.pending=0;return count;}e=GetLastError();if(e!=ERROR_IO_PENDING){owner.pending=0;owner.first=owner.first?owner.first:e;return MAXDWORD;}
+ owner.pending=1;if(WaitForSingleObject(owner.event,5000)!=WAIT_OBJECT_0){
+  if(!CancelIoEx(owner.pipe,&owner.ov)&&GetLastError()!=ERROR_NOT_FOUND)retain(GetLastError());
+  if(WaitForSingleObject(owner.event,5000)!=WAIT_OBJECT_0)retain(ERROR_TIMEOUT);
+  if(GetOverlappedResult(owner.pipe,&owner.ov,&count,FALSE)){owner.pending=0;return count;}
+  e=GetLastError();owner.pending=0;if(e!=ERROR_OPERATION_ABORTED)retain(e);owner.first=owner.first?owner.first:ERROR_TIMEOUT;return MAXDWORD;
+ }
+ if(!GetOverlappedResult(owner.pipe,&owner.ov,&count,FALSE)){owner.pending=0;owner.first=owner.first?owner.first:GetLastError();return MAXDWORD;}owner.pending=0;return count;
+}
+static void reset_io(void){if(owner.pending||owner.frozen)retain(ERROR_INVALID_STATE);ZeroMemory(&owner.ov,sizeof(owner.ov));owner.ov.hEvent=owner.event;if(!ResetEvent(owner.event))retain(GetLastError());}
+static DWORD io(int write,void *data,DWORD bytes){DWORD n=0;BOOL ok;reset_io();ok=write?WriteFile(owner.pipe,data,bytes,&n,&owner.ov):ReadFile(owner.pipe,data,bytes,&n,&owner.ov);return complete(ok,n);}
+static int start(PROCESS_INFORMATION *pi,const WCHAR *exe,const WCHAR *args,BOOL inherit,DWORD flags)
+{
+ WCHAR command[2048];STARTUPINFOW si;ZeroMemory(&si,sizeof(si));si.cb=sizeof(si);
+ if(_snwprintf_s(command,2048,_TRUNCATE,L"\"%ls\" %ls",exe,args)<0)return 0;
+ return CreateProcessW(exe,command,NULL,NULL,inherit,flags,NULL,NULL,&si,pi)!=0;
+}
+static void finish_process(PROCESS_INFORMATION *pi){if(!pi->hProcess)return;if(WaitForSingleObject(pi->hProcess,10000)!=WAIT_OBJECT_0)retain(ERROR_TIMEOUT); {DWORD code;if(!GetExitCodeProcess(pi->hProcess,&code))retain(GetLastError());if(pi==&owner.child)owner.child_exit=code;printf("NT_PARTICIPANT_EXIT pid=%lu code=%lu ORIGINAL_HANDLE\n",(unsigned long)pi->dwProcessId,(unsigned long)code);}close_ref(&pi->hThread);close_ref(&pi->hProcess);}
+static int audit_competitor(HANDLE pipe,HANDLE event)
+{
+ HPSS snap=NULL;HPSSWALK walk=NULL;PSS_HANDLE_ENTRY v;HANDLE imported=NULL;DWORD e,z,i,matches=0;HANDLE original[2];
+ typedef BOOL(WINAPI *CMP)(HANDLE,HANDLE);CMP cmp;FARPROC a=GetProcAddress(GetModuleHandleW(L"kernelbase.dll"),"CompareObjectHandles");if(!a)return 0;memcpy(&cmp,&a,sizeof(cmp));original[0]=pipe;original[1]=event;
+ e=PssCaptureSnapshot(owner.other.hProcess,(PSS_CAPTURE_FLAGS)(PSS_CAPTURE_HANDLES|PSS_CAPTURE_HANDLE_BASIC_INFORMATION|PSS_CAPTURE_HANDLE_NAME_INFORMATION|PSS_CAPTURE_HANDLE_TYPE_SPECIFIC_INFORMATION),0,&snap);if(e)return 0;
+ e=PssWalkMarkerCreate(NULL,&walk);if(e)retain(e);
+ for(;;){ZeroMemory(&v,sizeof(v));e=PssWalkSnapshot(snap,PSS_WALK_HANDLES,walk,&v,sizeof(v));if(e==ERROR_NO_MORE_ITEMS)break;if(e)retain(e);
+  if(!DuplicateHandle(owner.other.hProcess,v.Handle,GetCurrentProcess(),&imported,0,FALSE,DUPLICATE_SAME_ACCESS))retain(GetLastError());
+  for(i=0;i<2;i++){if(!original[i])continue;SetLastError(0);if(cmp(imported,original[i]))++matches;else{z=GetLastError();if(z&&z!=ERROR_NOT_SAME_OBJECT)retain(z);}}close_ref(&imported);
+ }
+ e=PssWalkMarkerFree(walk);if(e)retain(e);e=PssFreeSnapshot(GetCurrentProcess(),snap);if(e)retain(e);
+ printf("NT_COMPETITOR private_object_matches=%lu ORIGINAL_OBJECT_COMPARISON\n",(unsigned long)matches);return matches==0;
+}
+
+static DWORD client_endpoint_opens;
+static int parse_nonzero_decimal(const WCHAR *text,ULONGLONG limit,ULONGLONG *value)
+{
+ ULONGLONG result=0;unsigned digit;if(!text||!*text||*text==L'0')return 0;
+ while(*text){if(*text<L'0'||*text>L'9')return 0;digit=(unsigned)(*text-L'0');if(result>(limit-digit)/10)return 0;result=result*10+digit;++text;}
+ if(!result)return 0;*value=result;return 1;
+}
+static int local_endpoint(const WCHAR *name)
+{
+ static const WCHAR prefix[]=L"\\\\.\\pipe\\papacc-isolated-nt-";size_t i,n=sizeof(prefix)/sizeof(prefix[0])-1;
+ if(!name||wcslen(name)!=n+32||wcsncmp(name,prefix,n))return 0;
+ for(i=n;i<n+32;i++)if(!((name[i]>=L'0'&&name[i]<=L'9')||(name[i]>=L'a'&&name[i]<=L'f')))return 0;
+ return 1;
+}
+static int guard_model(void)
+{
+ const WCHAR *invalid[]={NULL,L"",L"0",L"01",L"+1",L"-1",L" 1",L"1 ",L"1x",L"18446744073709551616"};
+ const WCHAR *names[]={NULL,L"",L"\\\\remote.invalid\\pipe\\papacc-isolated-nt-00000000000000000000000000000000",L"\\\\?\\pipe\\papacc-isolated-nt-00000000000000000000000000000000",L"\\\\.\\pipe\\papacc-isolated-nt-0000000000000000000000000000000g",L"\\\\.\\pipe\\papacc-isolated-nt-00000000000000000000000000000000\\extra"};
+ ULONGLONG value;unsigned i,checks=0;
+ for(i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++){++checks;if(parse_nonzero_decimal(invalid[i],~(ULONGLONG)0,&value))return 91;}
+ ++checks;if(!parse_nonzero_decimal(L"18446744073709551615",~(ULONGLONG)0,&value)||value!=~(ULONGLONG)0)return 92;
+ ++checks;if(parse_nonzero_decimal(L"4294967296",MAXDWORD,&value))return 93;
+ ++checks;if(!parse_nonzero_decimal(L"4294967295",MAXDWORD,&value)||value!=MAXDWORD)return 94;
+ for(i=0;i<sizeof(names)/sizeof(names[0]);i++){++checks;if(local_endpoint(names[i]))return 95;}
+ ++checks;if(!local_endpoint(L"\\\\.\\pipe\\papacc-isolated-nt-0123456789abcdef0123456789abcdef"))return 96;
+ printf("NT_GUARD_MODEL checks=%u client_endpoint_opens=%lu NO_IO_NO_NETWORK\n",checks,(unsigned long)client_endpoint_opens);return client_endpoint_opens?97:0;
+}
+
+static int no_impersonation(void){HANDLE token=NULL;if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&token)){close_ref(&token);return 0;}return GetLastError()==ERROR_NO_TOKEN;}
+static int client(int argc,WCHAR **argv)
+{
+ HANDLE parent=NULL,pipe=NULL,input=NULL,error=NULL;DWORD pid,server,n,flags;int fd=-1;FILE *channel=NULL;ULONGLONG expected,parsed_pid;char c;WCHAR text[64];INPUT_RECORD key;
+ measure("CHILD_BASELINE");if(argc!=7)return 61;
+ if(!local_endpoint(argv[2])||!parse_nonzero_decimal(argv[3],MAXDWORD,&parsed_pid)||!parse_nonzero_decimal(argv[4],~(ULONGLONG)0,&expected)){printf("NT_ARGUMENT_DENIED endpoint_opens=%lu NO_CONNECTION\n",(unsigned long)client_endpoint_opens);return 61;}pid=(DWORD)parsed_pid;
+ if(!wcscmp(argv[6],L"impersonated")&&!ImpersonateSelf(SecurityImpersonation))retain(GetLastError());
+ if(!no_impersonation()){if(!wcscmp(argv[6],L"impersonated")&&!RevertToSelf())retain(GetLastError());printf("NT_IMPERSONATION_DENIED endpoint_opens=%lu REAL_THREAD_TOKEN_NO_CREDENTIALS\n",(unsigned long)client_endpoint_opens);return 84;}
+ if(!pid||!expected)return 83;
+ if(!wcscmp(argv[6],L"delayed"))Sleep(400);
+ parent=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,pid);if(!parent)return 62;
+ if(birth(parent)!=expected||!live(parent)||!same_token(parent,0)){close_ref(&parent);return 63;}
+ ++client_endpoint_opens;pipe=CreateFileW(argv[2],FILE_READ_DATA|FILE_WRITE_DATA|FILE_READ_ATTRIBUTES|FILE_WRITE_ATTRIBUTES|READ_CONTROL|SYNCHRONIZE,0,NULL,OPEN_EXISTING,SECURITY_SQOS_PRESENT|SECURITY_ANONYMOUS,NULL);if(pipe==INVALID_HANDLE_VALUE){pipe=NULL;close_ref(&parent);return 64;}
+ if(!GetNamedPipeServerProcessId(pipe,&server)||server!=(pid+(!wcscmp(argv[6],L"bad-server")?1:0))||birth(parent)!=expected||!live(parent)){close_ref(&pipe);close_ref(&parent);return 65;}
+ if(!GetHandleInformation(pipe,&flags)||(flags&HANDLE_FLAG_INHERIT))return 66;
+ if(!WriteFile(pipe,"H",1,&n,NULL)||n!=1){close_ref(&pipe);close_ref(&parent);return 78;}
+ if(!wcscmp(argv[6],L"replay-client")){static const char old[]="OLD_SESSION_STDOUT_AND_FINAL";if(!WriteFile(pipe,old,sizeof(old)-1,&n,NULL))retain(GetLastError());}
+ if(!wcscmp(argv[6],L"peer-exit"))ExitProcess(86);
+ if(!ReadFile(pipe,&c,1,&n,NULL)||n!=1||c!='A'){close_ref(&pipe);close_ref(&parent);return 67;}
+ if(!no_impersonation()){close_ref(&pipe);close_ref(&parent);return 84;}
+ measure("CHILD_AUTHENTICATED");close_ref(&parent);measure("CHILD_CHANNEL_STABLE"); /* peer authenticated, not a product admission */
+ if(!wcscmp(argv[6],L"early")){close_ref(&pipe);return 68;}
+ if(!wcscmp(argv[6],L"console")){
+  DWORD mode,clients[16],count,j;int parent_present=0,self_present=0;count=GetConsoleProcessList(clients,16);if(!count||count>16)return 81;for(j=0;j<count;j++){if(clients[j]==pid)parent_present=1;if(clients[j]==GetCurrentProcessId())self_present=1;}if(!parent_present||!self_present)return 82;printf("NT_CONSOLE_CLIENTS original_parent_and_self=1 console_association_not_authenticated\n");input=CreateFileW(L"CONIN$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);error=CreateFileW(L"CONOUT$",GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
+  if(input==INVALID_HANDLE_VALUE||error==INVALID_HANDLE_VALUE||!GetConsoleMode(input,&mode))return 69;
+  if(!WriteConsoleW(error,L"NT_STDERR\r\n",11,&n,NULL))return 70;
+  if(!ReadConsoleW(input,text,63,&n,NULL)||n>=64)return 71;text[n]=0;if(wcscmp(text,L"CONFIRM_NT\r\n"))return 72;
+  do{if(!ReadConsoleInputW(input,&key,1,&n))return 73;}while(key.EventType!=KEY_EVENT||!key.Event.KeyEvent.bKeyDown||key.Event.KeyEvent.wVirtualKeyCode!=VK_ESCAPE);
+  close_ref(&input);close_ref(&error);
+ }
+ /* Ownership native handle -> descriptor -> FILE; no duplicate or _dup2. */
+ if(!SetStdHandle(STD_OUTPUT_HANDLE,pipe))return 74;
+ if(!wcscmp(argv[6],L"server-close"))Sleep(100);
+ fd=_open_osfhandle((intptr_t)pipe,_O_WRONLY|_O_BINARY|_O_NOINHERIT);if(fd<0)retain(ERROR_INVALID_HANDLE);
+ channel=_fdopen(fd,"wb");if(!channel)retain(ERROR_NOT_ENOUGH_MEMORY);
+ if((HANDLE)_get_osfhandle(_fileno(channel))!=pipe||!GetHandleInformation(pipe,&flags)||(flags&HANDLE_FLAG_INHERIT))retain(ERROR_INVALID_HANDLE);
+ if(!wcscmp(argv[6],L"descendant")){WCHAR exe[MAX_PATH];if(!GetModuleFileNameW(NULL,exe,MAX_PATH)||!start(&owner.other,exe,L"--competitor",TRUE,CREATE_SUSPENDED))retain(GetLastError());if(!audit_competitor(pipe,NULL))retain(ERROR_INVALID_DATA);if(ResumeThread(owner.other.hThread)==(DWORD)-1)retain(GetLastError());finish_process(&owner.other);}
+ if(fprintf(channel,"%s","NT_STDOUT\n\nUTF16_HEX=03a9\nNT_CONFIRM_STOP\n")!=42||fflush(channel)!=0){unsigned long original=0;_get_doserrno(&original);printf("NT_CHILD_WRITE_ERROR win32=%lu CRT_ERROR=%d\n",original,errno);if(!SetStdHandle(STD_OUTPUT_HANDLE,NULL))retain(GetLastError());if(fclose(channel))retain(ERROR_WRITE_FAULT);channel=NULL;pipe=NULL;return 75;}
+ if(!GetHandleInformation(pipe,&flags)||(flags&HANDLE_FLAG_INHERIT))return 76;
+ if(!wcscmp(argv[6],L"close-unknown")){owner.pipe=pipe;owner.first=5;owner.frozen=1;owner.retained_file=channel;printf("SIMULATED_CLOSE_UNKNOWN original_retained NO_RETRY\n");fflush(stdout);ExitProcess(2);}
+ if(!SetStdHandle(STD_OUTPUT_HANDLE,NULL))retain(GetLastError());if(fclose(channel))retain(ERROR_WRITE_FAULT);channel=NULL;pipe=NULL;return 0;
+}
+
+static int verify_acl(HANDLE pipe,PSID user)
+{
+ PSECURITY_DESCRIPTOR sd=NULL;PACL dacl=NULL;SECURITY_DESCRIPTOR_CONTROL control=0;DWORD rev,i,e;BYTE system[SECURITY_MAX_SID_SIZE];DWORD size=sizeof(system);int ok=1;
+ e=GetSecurityInfo(pipe,SE_KERNEL_OBJECT,DACL_SECURITY_INFORMATION,NULL,NULL,&dacl,NULL,&sd);if(e)return 0;
+ if(!GetSecurityDescriptorControl(sd,&control,&rev)||!(control&SE_DACL_PROTECTED)||!dacl||dacl->AceCount!=2||!CreateWellKnownSid(WinLocalSystemSid,NULL,system,&size))ok=0;
+ if(ok)for(i=0;i<2;i++){ACCESS_ALLOWED_ACE *ace=NULL;if(!GetAce(dacl,i,(void **)&ace)||ace->Header.AceType!=ACCESS_ALLOWED_ACE_TYPE||ace->Header.AceFlags||!(ace->Mask&FILE_WRITE_DATA)||(i==1&&ace->Mask!=0x00120183)||!EqualSid(&ace->SidStart,i==0?(PSID)system:user)){ok=0;break;}}
+ if(LocalFree(sd))retain(ERROR_GEN_FAILURE);printf("NT_ENDPOINT_DACL protected=%u only_system_and_operator=%u SACL_UNQUERIED\n",(unsigned)((control&SE_DACL_PROTECTED)!=0),ok);return ok;
+}
+
+static int server(const WCHAR *exe,const WCHAR *mode)
+{
+ WCHAR name[256],args[1024],sddl[512],*sid=NULL;BYTE random[16],user[256];HANDLE token=NULL,console=NULL;PSECURITY_DESCRIPTOR sd=NULL;SECURITY_ATTRIBUTES sa;DWORD n,i,cpid,flags,childcode=0;ULONGLONG creation,child_creation;char buffer[256],accept='A';BOOL ok;int denied=0;
+ measure("BASELINE");if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&token)){close_ref(&token);return 20;}if(GetLastError()!=ERROR_NO_TOKEN)return 21;
+ if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token)||!GetTokenInformation(token,TokenUser,user,sizeof(user),&n)||!ConvertSidToStringSidW(((TOKEN_USER *)user)->User.Sid,&sid))return 22;
+ _snwprintf_s(sddl,512,_TRUNCATE,L"D:P(A;;GA;;;SY)(A;;0x00120183;;;%ls)",sid);if(LocalFree(sid))retain(ERROR_GEN_FAILURE);sid=NULL;close_ref(&token);
+ if(!ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl,SDDL_REVISION_1,&sd,NULL))return 23;
+ if(BCryptGenRandom(NULL,random,sizeof(random),BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0)return 24;
+ wcscpy_s(name,256,L"\\\\.\\pipe\\papacc-isolated-nt-");for(i=0;i<16;i++){WCHAR hex[3];_snwprintf_s(hex,3,_TRUNCATE,L"%02x",random[i]);wcscat_s(name,256,hex);}
+ sa.nLength=sizeof(sa);sa.lpSecurityDescriptor=sd;sa.bInheritHandle=FALSE;
+ owner.pipe=CreateNamedPipeW(name,PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED|FILE_FLAG_FIRST_PIPE_INSTANCE,PIPE_TYPE_BYTE|PIPE_READMODE_BYTE|PIPE_WAIT|PIPE_REJECT_REMOTE_CLIENTS,1,4096,4096,0,&sa);if(LocalFree(sd))retain(ERROR_GEN_FAILURE);sd=NULL;if(owner.pipe==INVALID_HANDLE_VALUE){owner.pipe=NULL;return 25;}
+ if(!verify_acl(owner.pipe,((TOKEN_USER *)user)->User.Sid))return 44;
+ if(!wcscmp(mode,L"collision")){HANDLE other=CreateNamedPipeW(name,PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED|FILE_FLAG_FIRST_PIPE_INSTANCE,PIPE_TYPE_BYTE|PIPE_REJECT_REMOTE_CLIENTS,1,4096,4096,0,NULL);DWORD e=GetLastError();if(other!=INVALID_HANDLE_VALUE)retain(ERROR_ALREADY_EXISTS);printf("NT_COLLISION_API_ERROR=%lu\n",(unsigned long)e);if(e!=ERROR_ACCESS_DENIED&&e!=ERROR_PIPE_BUSY)return 45;close_ref(&owner.pipe);printf("NT_COLLISION_REJECTED no_child=1\n");return 0;}
+ owner.event=CreateEventW(NULL,TRUE,FALSE,NULL);if(!owner.event)return 26;
+ if(!GetHandleInformation(owner.pipe,&flags)||(flags&1)||!GetHandleInformation(owner.event,&flags)||(flags&1))return 27;
+ measure("ENDPOINT_CREATED");reset_io();ok=ConnectNamedPipe(owner.pipe,&owner.ov);if(ok){owner.pending=0;}else if(GetLastError()==ERROR_PIPE_CONNECTED){SetEvent(owner.event);}else if(GetLastError()==ERROR_IO_PENDING)owner.pending=1;else return 28;
+ creation=birth(GetCurrentProcess());if(!creation)return 29;
+ _snwprintf_s(args,1024,_TRUNCATE,L"--client %ls %lu %llu x %ls",name,(unsigned long)GetCurrentProcessId(),creation+(!wcscmp(mode,L"bad-creation")?1:0),(!wcscmp(mode,L"wrong")||!wcscmp(mode,L"replay"))?L"delayed":mode);
+ if(!wcscmp(mode,L"bad-id-text"))_snwprintf_s(args,1024,_TRUNCATE,L"--client %ls %lux %llu x clean",name,(unsigned long)GetCurrentProcessId(),creation);
+ if(!wcscmp(mode,L"bad-local-name"))_snwprintf_s(args,1024,_TRUNCATE,L"--client %lsx %lu %llu x clean",name,(unsigned long)GetCurrentProcessId(),creation);
+ if(!wcscmp(mode,L"create-fail")){WCHAR missing[MAX_PATH];_snwprintf_s(missing,MAX_PATH,_TRUNCATE,L"%ls.absent",exe);if(start(&owner.child,missing,args,FALSE,0))retain(ERROR_INVALID_STATE);owner.first=GetLastError();if(owner.child.hProcess||owner.child.hThread)retain(owner.first);if(!CancelIoEx(owner.pipe,&owner.ov)&&GetLastError()!=ERROR_NOT_FOUND)retain(GetLastError());if(WaitForSingleObject(owner.event,5000)!=WAIT_OBJECT_0)retain(ERROR_TIMEOUT);if(GetOverlappedResult(owner.pipe,&owner.ov,&n,FALSE)||GetLastError()!=ERROR_OPERATION_ABORTED)retain(ERROR_INVALID_STATE);owner.pending=0;close_ref(&owner.pipe);close_ref(&owner.event);printf("NT_CREATE_FAILURE original_error=%lu child_created=0 pending=0\n",(unsigned long)owner.first);return owner.first==ERROR_FILE_NOT_FOUND?0:46;}
+ if(!start(&owner.child,exe,args,FALSE,0))return 30;close_ref(&owner.child.hThread);child_creation=birth(owner.child.hProcess);if(!child_creation||GetProcessId(owner.child.hProcess)!=owner.child.dwProcessId)retain(ERROR_INVALID_DATA);owner.creation.dwLowDateTime=(DWORD)child_creation;owner.creation.dwHighDateTime=(DWORD)(child_creation>>32);
+ if(!wcscmp(mode,L"wrong")||!wcscmp(mode,L"replay")){_snwprintf_s(args,1024,_TRUNCATE,L"--client %ls %lu %llu x %ls",name,(unsigned long)GetCurrentProcessId(),creation,!wcscmp(mode,L"replay")?L"replay-client":L"clean");if(!start(&owner.other,exe,args,FALSE,0))return 31;}
+ else {
+  if(!start(&owner.other,exe,L"--competitor",TRUE,CREATE_SUSPENDED))return 32;
+  if(!audit_competitor(owner.pipe,owner.event))return 33;if(ResumeThread(owner.other.hThread)==(DWORD)-1)retain(GetLastError());finish_process(&owner.other);
+ }
+ if(owner.pending){if(WaitForSingleObject(owner.event,2000)!=WAIT_OBJECT_0){if(!CancelIoEx(owner.pipe,&owner.ov)&&GetLastError()!=ERROR_NOT_FOUND)retain(GetLastError());if(WaitForSingleObject(owner.event,5000)!=WAIT_OBJECT_0)retain(ERROR_TIMEOUT);if(GetOverlappedResult(owner.pipe,&owner.ov,&n,FALSE)){owner.pending=0;}else{if(GetLastError()!=ERROR_OPERATION_ABORTED)retain(GetLastError());owner.pending=0;denied=1;}}else if(!GetOverlappedResult(owner.pipe,&owner.ov,&n,FALSE))return 34;else owner.pending=0;}
+ if(!denied){char hello=0;if(io(0,&hello,1)!=1||hello!='H')denied=1;}
+ if(!wcscmp(mode,L"peer-exit")&&WaitForSingleObject(owner.child.hProcess,10000)!=WAIT_OBJECT_0)retain(ERROR_TIMEOUT);
+ if(!denied){if(!GetNamedPipeClientProcessId(owner.pipe,&cpid)||cpid!=owner.child.dwProcessId||!live(owner.child.hProcess)||birth(owner.child.hProcess)!=(((ULONGLONG)owner.creation.dwHighDateTime<<32)|owner.creation.dwLowDateTime)||!same_token(owner.child.hProcess,!wcscmp(mode,L"token")))denied=1;}
+ if(!denied){if(!wcscmp(mode,L"ack-write-fail"))close_ref(&owner.pipe);if(io(1,&accept,1)!=1){denied=1;goto cleanup;}owner.accepted=1;
+  if(!wcscmp(mode,L"console")){INPUT_RECORD key;DWORD modebits;console=CreateFileW(L"CONIN$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(console==INVALID_HANDLE_VALUE||!GetConsoleMode(console,&modebits))return 36;
+   ZeroMemory(&key,sizeof(key));key.EventType=KEY_EVENT;key.Event.KeyEvent.bKeyDown=TRUE;key.Event.KeyEvent.wRepeatCount=1;
+   {const WCHAR *t=L"CONFIRM_NT\r";while(*t){key.Event.KeyEvent.uChar.UnicodeChar=*t;key.Event.KeyEvent.wVirtualKeyCode=*t==L'\r'?VK_RETURN:0;if(!WriteConsoleInputW(console,&key,1,&n))return 37;t++;}}
+   key.Event.KeyEvent.uChar.UnicodeChar=0;key.Event.KeyEvent.wVirtualKeyCode=VK_ESCAPE;if(!WriteConsoleInputW(console,&key,1,&n))return 38;
+  }
+  if(!wcscmp(mode,L"server-close")){close_ref(&owner.pipe);}else while(owner.packets<42){n=io(0,buffer,42-owner.packets);if(n==MAXDWORD||!n)break;buffer[n]=0;printf("AUTHENTICATED_CHANNEL:%s",buffer);owner.packets+=n;}
+ }
+ cleanup:
+ if(denied&&!owner.first)owner.first=ERROR_ACCESS_DENIED;
+ if(owner.pending)retain(ERROR_IO_PENDING);close_ref(&owner.pipe);close_ref(&owner.event);finish_process(&owner.child);finish_process(&owner.other);
+ if(console){INPUT_RECORD key;ZeroMemory(&key,sizeof(key));key.EventType=KEY_EVENT;key.Event.KeyEvent.bKeyDown=TRUE;key.Event.KeyEvent.wRepeatCount=1;key.Event.KeyEvent.wVirtualKeyCode=VK_F10;if(!FlushConsoleInputBuffer(console)||!WriteConsoleInputW(console,&key,1,&n)||!ReadConsoleInputW(console,&key,1,&n)||key.Event.KeyEvent.wVirtualKeyCode!=VK_F10)return 39;close_ref(&console);}
+ measure("PARENT_OWN_CLOSED");printf("NT_FINAL mode=%ls accepted=%lu bytes=%lu pending=%lu first=%lu closes=%lu child_exit=%lu parent_owned_slots=%u; NO_LAB_NO_ADMISSION\n",mode,(unsigned long)owner.accepted,(unsigned long)owner.packets,(unsigned long)owner.pending,(unsigned long)owner.first,(unsigned long)owner.close_calls,(unsigned long)owner.child_exit,(owner.pipe!=NULL)+(owner.event!=NULL)+(owner.child.hProcess!=NULL)+(owner.child.hThread!=NULL)+(owner.other.hProcess!=NULL)+(owner.other.hThread!=NULL));
+ (void)childcode;
+ if(!wcscmp(mode,L"bad-creation")||!wcscmp(mode,L"wrong")||!wcscmp(mode,L"token")||!wcscmp(mode,L"bad-server")||!wcscmp(mode,L"replay")||!wcscmp(mode,L"peer-exit")||!wcscmp(mode,L"bad-id-text")||!wcscmp(mode,L"bad-local-name")||!wcscmp(mode,L"ack-write-fail")||!wcscmp(mode,L"impersonated"))return denied&&!owner.accepted?0:40;
+ if(!wcscmp(mode,L"server-close"))return owner.child_exit==75?0:47;
+ if(!wcscmp(mode,L"early"))return owner.accepted&&owner.packets==0?0:41;
+ if(!wcscmp(mode,L"close-unknown"))return owner.child_exit==2?0:43;
+ return owner.accepted&&owner.packets==42&&owner.child_exit==0?0:42;
+}
+int wmain(int argc,WCHAR **argv){SetErrorMode(SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX);if(argc>=2&&!wcscmp(argv[1],L"--client"))return client(argc,argv);if(argc==2&&!wcscmp(argv[1],L"--guard-model"))return guard_model();if(argc==2&&!wcscmp(argv[1],L"--competitor")){Sleep(50);return 0;}if(argc!=2)return 60;{WCHAR exe[MAX_PATH];if(!GetModuleFileNameW(NULL,exe,MAX_PATH))return 59;{unsigned i;int code;for(i=0;i<5;i++){ZeroMemory(&owner,sizeof(owner));printf("NT_ITERATION=%u\n",i);code=server(exe,argv[1]);if(code)return code;}return 0;}}}

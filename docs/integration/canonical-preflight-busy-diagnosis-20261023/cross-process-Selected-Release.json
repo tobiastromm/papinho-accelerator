@@ -1,0 +1,218 @@
+{
+  "scope": "isolated fixtures, SAME canonical owner source; NO SCM/ACL/Start; orphan fixture release NOT claimed",
+  "cases": [
+    {
+      "case": "simultaneous-distinct-process",
+      "pid": 8896,
+      "enter": 170,
+      "output": [
+        "MUTEX_SD=O:S-1-5-21-785699550-1440458426-1682014700-1108D:P(A;;0x1f0001;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;0x1f0001;;;SY)(A;;0x1f0001;;;BA)",
+        "MUTEX_QUERY=0",
+        "IG_DIAGNOSTIC stage=CANONICAL_ADMISSION api=WaitForSingleObject resource=canonical_mutex_timeout code=170 native=258 pid=0 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY",
+        "ENTER=170 PID=8896 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    },
+    {
+      "case": "simultaneous-distinct-process",
+      "pid": 5184,
+      "enter": 0,
+      "output": [
+        "MUTEX_SD=O:S-1-5-21-785699550-1440458426-1682014700-1108D:P(A;;0x1f0001;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;0x1f0001;;;SY)(A;;0x1f0001;;;BA)",
+        "MUTEX_QUERY=0",
+        "ENTER=0 PID=5184 STORAGE=88",
+        "FINISH=0 PHASE=2 MUTEX=0 INTENT=0; NO_SCM_NO_START"
+      ]
+    },
+    {
+      "case": "probe-ordinary",
+      "pid": 9224,
+      "enter": 0,
+      "output": [
+        "MUTEX_SD=O:S-1-5-21-785699550-1440458426-1682014700-1108D:P(A;;0x1f0001;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;0x1f0001;;;SY)(A;;0x1f0001;;;BA)",
+        "MUTEX_QUERY=0",
+        "ENTER=0 PID=9224 STORAGE=88",
+        "FINISH=0 PHASE=2 MUTEX=0 INTENT=0; NO_SCM_NO_START"
+      ]
+    },
+    {
+      "case": "probe-wrong",
+      "pid": 2352,
+      "enter": 13,
+      "output": [
+        "ENTER=13 PID=2352 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    },
+    {
+      "case": "probe-identity",
+      "pid": 19660,
+      "enter": 13,
+      "output": [
+        "ENTER=13 PID=19660 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    },
+    {
+      "case": "stop-before-effect",
+      "pid": 9876,
+      "output": [
+        "MUTEX_SD=O:S-1-5-21-785699550-1440458426-1682014700-1108D:P(A;;0x1f0001;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;0x1f0001;;;SY)(A;;0x1f0001;;;BA)",
+        "MUTEX_QUERY=0",
+        "ENTER=0 PID=9876 STORAGE=88",
+        "STOP=0",
+        "AFTER_STOP=5023",
+        "FINISH=0 PHASE=2 MUTEX=0 INTENT=0; NO_SCM_NO_START"
+      ]
+    },
+    {
+      "case": "probe-ordinary",
+      "pid": 19900,
+      "enter": 183,
+      "output": [
+        "ENTER=183 PID=19900 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    },
+    {
+      "case": "ordinary-lease-no-authority",
+      "output": [
+        "MUTEX_SD=O:S-1-5-21-785699550-1440458426-1682014700-1108D:P(A;;0x1f0001;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;0x1f0001;;;SY)(A;;0x1f0001;;;BA)",
+        "MUTEX_QUERY=0",
+        "ENTER=0 PID=16436 STORAGE=88",
+        "CONSUME=5023",
+        "FINISH=0 PHASE=2 MUTEX=0 INTENT=0; NO_SCM_NO_START"
+      ]
+    },
+    {
+      "case": "double-consume",
+      "output": [
+        "MUTEX_SD=O:S-1-5-21-785699550-1440458426-1682014700-1108D:P(A;;0x1f0001;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;0x1f0001;;;SY)(A;;0x1f0001;;;BA)",
+        "MUTEX_QUERY=0",
+        "ENTER=0 PID=3064 STORAGE=88",
+        "CONSUME=0",
+        "DOUBLE=5023",
+        "FINISH=0 PHASE=2 MUTEX=0 INTENT=0; NO_SCM_NO_START"
+      ]
+    },
+    {
+      "case": "probe-lab",
+      "pid": 20528,
+      "enter": 80,
+      "output": [
+        "ENTER=80 PID=20528 STORAGE=88"
+      ]
+    },
+    {
+      "case": "probe-ordinary",
+      "pid": 22384,
+      "enter": 183,
+      "output": [
+        "ENTER=183 PID=22384 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    },
+    {
+      "case": "after-effect-quiescence",
+      "output": [
+        "MUTEX_SD=O:S-1-5-21-785699550-1440458426-1682014700-1108D:P(A;;0x1f0001;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;0x1f0001;;;SY)(A;;0x1f0001;;;BA)",
+        "MUTEX_QUERY=0",
+        "ENTER=0 PID=20932 STORAGE=88",
+        "CONSUME=0",
+        "EFFECT_MODEL=0",
+        "FINISH=0 PHASE=2 MUTEX=0 INTENT=0; NO_SCM_NO_START"
+      ]
+    },
+    {
+      "case": "probe-lab",
+      "pid": 19788,
+      "enter": 80,
+      "output": [
+        "ENTER=80 PID=19788 STORAGE=88"
+      ]
+    },
+    {
+      "case": "probe-ordinary",
+      "pid": 19220,
+      "enter": 183,
+      "output": [
+        "ENTER=183 PID=19220 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    },
+    {
+      "case": "probe-lab",
+      "pid": 17864,
+      "enter": 80,
+      "output": [
+        "ENTER=80 PID=17864 STORAGE=88"
+      ]
+    },
+    {
+      "case": "probe-ordinary",
+      "pid": 6472,
+      "enter": 183,
+      "output": [
+        "ENTER=183 PID=6472 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    },
+    {
+      "case": "unknown-live-retained-and-natural-fixture-exit",
+      "output": [
+        "MUTEX_SD=O:S-1-5-21-785699550-1440458426-1682014700-1108D:P(A;;0x1f0001;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;0x1f0001;;;SY)(A;;0x1f0001;;;BA)",
+        "MUTEX_QUERY=0",
+        "ENTER=0 PID=20656 STORAGE=88",
+        "CONSUME=0",
+        "EFFECT_MODEL=0",
+        "UNKNOWN=5023"
+      ],
+      "release": "NOT_CONFIRMED"
+    },
+    {
+      "case": "probe-lab",
+      "pid": 8960,
+      "enter": 80,
+      "output": [
+        "ENTER=80 PID=8960 STORAGE=88"
+      ]
+    },
+    {
+      "case": "probe-ordinary",
+      "pid": 15984,
+      "enter": 183,
+      "output": [
+        "ENTER=183 PID=15984 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    },
+    {
+      "case": "probe-ordinary",
+      "pid": 17636,
+      "enter": 183,
+      "output": [
+        "ENTER=183 PID=17636 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    },
+    {
+      "case": "unknown-before-effect-retained",
+      "output": [
+        "MUTEX_SD=O:S-1-5-21-785699550-1440458426-1682014700-1108D:P(A;;0x1f0001;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;0x1f0001;;;SY)(A;;0x1f0001;;;BA)",
+        "MUTEX_QUERY=0",
+        "ENTER=0 PID=19324 STORAGE=88",
+        "UNKNOWN_BEFORE_EFFECT=3"
+      ],
+      "release": "NOT_CONFIRMED"
+    },
+    {
+      "case": "probe-ordinary",
+      "pid": 21596,
+      "enter": 183,
+      "output": [
+        "ENTER=183 PID=21596 STORAGE=88",
+        "REJECT_CLOSE=0"
+      ]
+    }
+  ]
+}

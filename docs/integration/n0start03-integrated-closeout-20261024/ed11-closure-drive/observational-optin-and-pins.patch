@@ -1,0 +1,126 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3314,6 +3314,13 @@
+   add_executable(papacc_scm_instrumented_lab tools/qualification/scm-registration-lab.c)
+   option(PAPACC_ENABLE_N0_POSITIVE_LAB "Compile the separately approved N0 positive LAB entry (does not authorize execution)" OFF)
+   option(PAPACC_ENABLE_N0START03_READONLY_PINS "Explicit reviewed successor03 read-only pins; never authorizes execution" OFF)
++  option(PAPACC_ENABLE_READONLY_OBSERVER_HANDLE_TRACE "Opt-in collector handle samples within the existing successor read-only observer" OFF)
++  if(PAPACC_ENABLE_READONLY_OBSERVER_HANDLE_TRACE)
++    if(NOT PAPACC_ENABLE_N0START03_READONLY_PINS OR PAPACC_ENABLE_N0_POSITIVE_LAB)
++      message(FATAL_ERROR "Observer handle samples require successor read-only pins and forbid positive entry")
++    endif()
++    target_compile_definitions(papacc_scm_instrumented_lab PRIVATE PAPACC_READONLY_OBSERVER_HANDLE_TRACE=1)
++  endif()
+   if(PAPACC_ENABLE_N0START03_READONLY_PINS AND PAPACC_ENABLE_N0_POSITIVE_LAB)
+     message(FATAL_ERROR "Successor03 pin profile is read-only; positive route forbidden")
+   endif()
+@@ -3537,3 +3544,13 @@
+  set_target_properties(papacc_service_self_token_lifetime_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+  set_property(SOURCE tests/service_self_token_lifetime_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-registration-lab.c;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-instrumented-cycle-lab.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-aux-reservation-core.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-aux-reservation-bridge.inc;${CMAKE_CURRENT_SOURCE_DIR}/docs/integration/premonitor-self-token-lifetime-20261024/applied-branch.UNMODIFIED.inc")
+ endif()
++
++# Opt-in isolated actual observer/stack-VA test; never invokes qualifier main.
++if(WIN32 AND BUILD_TESTING)
++ add_executable(papacc_service_observer_stack_va_isolated_test tests/service_observer_stack_va_isolated_test.c)
++ target_compile_definitions(papacc_service_observer_stack_va_isolated_test PRIVATE PAPACC_READONLY_OBSERVER_HANDLE_TRACE=1 PAPACC_SCM_CYCLE_LAB=1 PAPACC_SCM_INSTRUMENTED_LAB=1 PAPACC_N0_N9_NATIVE_OWNER=1 _WIN32_WINNT=0x0603 WIN32_LEAN_AND_MEAN=1)
++ target_compile_options(papacc_service_observer_stack_va_isolated_test PRIVATE /W4 /WX)
++ target_link_libraries(papacc_service_observer_stack_va_isolated_test PRIVATE papacc_server_service psapi iphlpapi wevtapi wintrust user32 bcrypt)
++ set_target_properties(papacc_service_observer_stack_va_isolated_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++ set_property(SOURCE tests/service_observer_stack_va_isolated_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-registration-lab.c;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-instrumented-cycle-lab.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-instrumented-observer.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-aux-reservation-core.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-aux-reservation-bridge.inc")
++endif()
+--- a/tools/qualification/scm-instrumented-observer.inc
++++ b/tools/qualification/scm-instrumented-observer.inc
+@@ -17,11 +17,31 @@
+  if(ig_observer.snapshot){e=ig_diag_status(cycle_stage,"PssFreeSnapshot","thread_snapshot",PssFreeSnapshot(GetCurrentProcess(),ig_observer.snapshot),0);if(e){ig_observer.retained=1;return e;}ig_observer.snapshot=NULL;}
+  return 0;
+ }
++
++#ifdef PAPACC_READONLY_OBSERVER_HANDLE_TRACE
++#ifdef PAPACC_N0_POSITIVE_PINNED_LAB
++#error Readonly_observer_trace_must_not_enable_positive_path
++#endif
++/* Stack-local observational state only; no new owned handle, worker or authority. */
++typedef struct IG_HANDLE_TRACE {DWORD known,pre,capture,marker,walk_peak,last,peak,samples;ULONGLONG began;} IG_HANDLE_TRACE;
++static DWORD ig_handle_trace_point(IG_HANDLE_TRACE *t,unsigned phase)
++{
++ DWORD saved=GetLastError(),n=0,e;
++ if(!GetProcessHandleCount(GetCurrentProcess(),&n)){e=GetLastError();if(!e)e=ERROR_GEN_FAILURE;ig_diag_note(cycle_stage,"GetProcessHandleCount","readonly_observer_collector_sample",e,e,GetCurrentProcessId(),ig_diagnostic.current_role);SetLastError(e);return e;}
++ if(n>t->peak)t->peak=n;t->last=n;t->samples++;
++ if(phase==1){t->capture=n;t->known|=2U;}if(phase==2){t->marker=n;t->known|=4U;}if(phase==3){if(!(t->known&8U)||n>t->walk_peak)t->walk_peak=n;t->known|=8U;}if(phase==4)t->known|=16U;
++ SetLastError(saved);return 0;
++}
++#endif
++
+ static DWORD ig_measure_process(unsigned index,HANDLE process,DWORD pid,const FILETIME *expected_creation,IG_PROCESS *p)
+ {
+  {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
+ 
+  PROCESS_MEMORY_COUNTERS_EX m;PSS_THREAD_ENTRY t;DWORD e,n=0;ULONG_PTR allocations[64];unsigned allocation_count=0;IO_COUNTERS io;FILETIME creation,exit,kernel,user;
++#ifdef PAPACC_READONLY_OBSERVER_HANDLE_TRACE
++ IG_HANDLE_TRACE trace;ZeroMemory(&trace,sizeof(trace));trace.began=GetTickCount64();
++#endif
+  ig_diagnostic.current_role=index;ig_diagnostic.current_pid=pid;
+  p->powershell=index<4?ig_observer.powershell[index]:0; /* four-role topology; self-only test uses native role3 */
+  if(ig_observer.snapshot||ig_observer.marker||ig_observer.retained)return ERROR_INVALID_STATE;
+@@ -29,9 +49,19 @@
+  ZeroMemory(&m,sizeof(m));m.cb=sizeof(m);
+  if(!ig_diag_bool(cycle_stage,"GetProcessMemoryInfo","process_memory",GetProcessMemoryInfo(process,(PROCESS_MEMORY_COUNTERS *)&m,sizeof(m)))||!ig_diag_bool(cycle_stage,"GetProcessHandleCount","process_handles",GetProcessHandleCount(process,&p->handles))||!ig_diag_bool(cycle_stage,"GetProcessIoCounters","process_io",GetProcessIoCounters(process,&io)))return GetLastError();
+  p->private_bytes=m.PrivateUsage;p->commit=m.PagefileUsage;p->working_set=m.WorkingSetSize;
++#ifdef PAPACC_READONLY_OBSERVER_HANDLE_TRACE
++ /* p->handles belongs to the target; these additional samples belong to the collector. */
++ if((e=ig_handle_trace_point(&trace,0)))return e;trace.pre=trace.last;trace.known|=1U;
++#endif
+  if(index==4)printf("IG_CONSOLE_BASIC pid=%lu private=%llu commit=%llu ws=%llu handles=%lu peak_commit=%llu peak_ws=%llu; THREADS_STACK=UNKNOWN_UNTIL_SNAPSHOT\n",(unsigned long)pid,p->private_bytes,p->commit,p->working_set,(unsigned long)p->handles,(ULONGLONG)m.PeakPagefileUsage,(ULONGLONG)m.PeakWorkingSetSize);
+  e=ig_diag_status(cycle_stage,"PssCaptureSnapshot","thread_snapshot",PssCaptureSnapshot(process,(PSS_CAPTURE_FLAGS)(PSS_CAPTURE_THREADS|PSS_CAPTURE_THREAD_CONTEXT),CONTEXT_CONTROL,&ig_observer.snapshot),0);if(e){if(ig_observer.snapshot)ig_observer.retained=1;return e;}
++#ifdef PAPACC_READONLY_OBSERVER_HANDLE_TRACE
++ if((e=ig_handle_trace_point(&trace,1)))return e;
++#endif
+  e=ig_diag_status(cycle_stage,"PssWalkMarkerCreate","snapshot_marker",PssWalkMarkerCreate(NULL,&ig_observer.marker),0);if(e)return e;
++#ifdef PAPACC_READONLY_OBSERVER_HANDLE_TRACE
++ if((e=ig_handle_trace_point(&trace,2)))return e;
++#endif
+  for(;;){MEMORY_BASIC_INFORMATION mbi;ULONG_PTR at,allocation;unsigned regions=0,j;int duplicate=0;
+   e=ig_diag_status(cycle_stage,"PssWalkSnapshot","thread_snapshot_entry",PssWalkSnapshot(ig_observer.snapshot,PSS_WALK_THREADS,ig_observer.marker,&t,sizeof(t)),1);if(e==ERROR_NO_MORE_ITEMS)break;if(e)return e;
+   if(t.ExitStatus!=STILL_ACTIVE)continue;
+@@ -40,6 +70,9 @@
+   ig_observer.thread=ig_diag_handle(cycle_stage,"OpenThread","thread",OpenThread(THREAD_QUERY_INFORMATION|SYNCHRONIZE,FALSE,t.ThreadId));if(!ig_observer.thread)return GetLastError();
+   if(GetProcessIdOfThread(ig_observer.thread)!=pid||!ig_diag_bool(cycle_stage,"GetThreadTimes","thread_creation",GetThreadTimes(ig_observer.thread,&ct,&et,&kt,&ut))||memcmp(&ct,&t.CreateTime,sizeof(ct))||ig_diag_wait_live(cycle_stage,"WaitForSingleObject","thread_liveness",WaitForSingleObject(ig_observer.thread,0))!=WAIT_TIMEOUT)return ERROR_INVALID_DATA;
+   }
++#ifdef PAPACC_READONLY_OBSERVER_HANDLE_TRACE
++  if((e=ig_handle_trace_point(&trace,3)))return e;
++#endif
+   /* Supported snapshot CONTEXT_CONTROL. Inspect allocation metadata only;
+    * never reserved TebBaseAddress, stack bytes, register values in logs or keys. */
+   at=(ULONG_PTR)t.ContextRecord->Rsp;if(!at||!ig_diag_size(cycle_stage,"VirtualQueryEx","stack_allocation_metadata",VirtualQueryEx(process,(void *)at,&mbi,sizeof(mbi)))||mbi.Type!=MEM_PRIVATE||!mbi.AllocationBase)return ERROR_INVALID_DATA;
+@@ -56,11 +89,18 @@
+     at+=mbi.RegionSize;
+    }
+   }
++#ifdef PAPACC_READONLY_OBSERVER_HANDLE_TRACE
++  if((e=ig_handle_trace_point(&trace,3)))return e;
++#endif
+   if(ig_diag_wait_live(cycle_stage,"WaitForSingleObject","thread_liveness",WaitForSingleObject(ig_observer.thread,0))!=WAIT_TIMEOUT)return ERROR_INVALID_DATA;
+   if(!ig_diag_bool(cycle_stage,"CloseHandle","thread_handle",CloseHandle(ig_observer.thread))){ig_observer.retained=1;return GetLastError();}ig_observer.thread=NULL;
+  }
+  p->threads=n;if(!n)return ERROR_INVALID_DATA;
+  e=ig_observer_close_snapshot();if(e)return e;
++#ifdef PAPACC_READONLY_OBSERVER_HANDLE_TRACE
++ if((e=ig_handle_trace_point(&trace,4)))return e;
++ printf("IG_OBSERVER_WINDOW role=%u collector_pid=%lu pre=%lu capture=%lu marker=%lu walk_sampled_peak=%lu after_close=%lu sampled_peak=%lu samples=%lu known=%lu elapsed_ms=%llu state_bytes=%llu; COLLECTOR_TABLE_ONLY; UNSAMPLED_PEAK=UNKNOWN; NO_CREDIT\n",index,(unsigned long)GetCurrentProcessId(),(unsigned long)trace.pre,(unsigned long)trace.capture,(unsigned long)trace.marker,(unsigned long)trace.walk_peak,(unsigned long)trace.last,(unsigned long)trace.peak,(unsigned long)trace.samples,(unsigned long)trace.known,GetTickCount64()-trace.began,(ULONGLONG)sizeof(trace));
++#endif
+  if(index<4){
+  if(m.PeakPagefileUsage>ig_observer.peak_commit[index])ig_observer.peak_commit[index]=m.PeakPagefileUsage;
+  if(m.PeakWorkingSetSize>ig_observer.peak_ws[index])ig_observer.peak_ws[index]=m.PeakWorkingSetSize;
+--- a/tools/qualification/scm-n0-protected-single-powershell.ps1
++++ b/tools/qualification/scm-n0-protected-single-powershell.ps1
+@@ -12,8 +12,8 @@
+ $ErrorActionPreference='Stop'
+ $Root='C:\Projetos\PapinhoAccelerator'
+ $ExpectedPath=$Root+'\tools\qualification\scm-n0-protected-single-powershell.ps1'
+-$Qualifier='C:\Projetos\PapinhoAccelerator\build\n0start03-fresh-readonly-path-pin-integration-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
+-$QualifierHash='deeff3b9911ea720ebf5df2c31a1ae10657a19a7d64b6e37fee48029aee1944f'
++$Qualifier='C:\Projetos\PapinhoAccelerator\build\ed11-actual-observer-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
++$QualifierHash='635eaa3b55be85f7c21ac3f38084c304bcd527d39a0e6ad39fda3bf3d68283f5'
+ # Reviewed existing inputs. These pins grant no execution or Start authority.
+ $DossierHash=''
+ if($Profile-eq'N0START03ReadOnly'){$DossierHash='5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050'}

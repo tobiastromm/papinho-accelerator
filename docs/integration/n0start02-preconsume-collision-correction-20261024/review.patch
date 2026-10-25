@@ -1,0 +1,213 @@
+--- preimage/docs/capabilities/canonical-phase6-consolidation.md
++++ docs/capabilities/canonical-phase6-consolidation.md
+@@ -607,3 +607,10 @@
+ The existing observer now completes full protected content/identity validation before stamping oldest metric. The same canonical context retains original objects and performs live/token/file-ID/RAW1/SCM/census continuity checks inside a private validated observation window; it does not re-read all pinned content between sample and effect. The original dossier began timestamp and60s bound remain; sample/arm/consume/effect/Start1s and at most two pre-effect generations remain, with no refresh loop. Token/identity/SD divergence still denies. Missing validation stamp or stale dossier denies; read-only mode preserves complete validation. Existing diagnostics identify gate/metrics_at/current tick/age if another freshness rejection occurs; no new recorder. Context+8bytes, no new handles/thread/quota/credits.
+ 
+ Four new Selected/Legacy Debug/Release builds zero warnings;36 focal suite runs PASS (BD83/busy92),16 pre-acquisition CLI negatives and launcher AST/Review/pin/approval/output-drain fixtures PASS. These are offline/synthetic evidence, not fresh native admission. Previous intent is NOT_CONSUMED_HISTORICAL only, not reusable authorization. Candidate N0START-20261024-02 requires a NEW exact approval record and fresh canonical absent-claim check; old approval record/binaries preserved. No preflight/Start/SCM/ACL/trace/production effects; ED11 PARTIAL and authorities DENY.
++
++
++## N0START02 — correção pré-consumo (2026-10-24)
++
++[Revisão focal](../integration/n0start02-preconsume-collision-correction-20261024/source-review.md): o ciclo existente consulta imagem/sink por NtCreateFile FILE_OPEN relativo ao pai original antes do consumo, com revalidação e fechamento verificados; ausências incertas negam. FILE_CREATE/CREATE_NEW finais preservados; consulta não reserva. Gate exercitado por mocks nativos,36 suites/16 CLI negativas/launcher offline PASS,quatro builds sem warnings. Fixture de concorrência nativa bloqueado por1307 antes da aquisição,sem retry; não representa PASS nativo. Frame fixo96 bytes,slot cycle_file reaproveitado,sem novo owner/créditos/quotas.60s/1s preservados.
++
++Aprovação02 anterior continua CONDICIONAL e byte-exata; novo [pacote](../integration/n0start02-preconsume-collision-correction-20261024/operation-request.json) e [handoff](../integration/n0start02-preconsume-collision-correction-20261024/manual-handoff.md) exigem reaprovação específica. Registro executável AUSENTE; nenhuma operação positiva/preflight/SCM/ACL. ED11 PARTIAL; autoridades DENY; produção0.6.4 preservada.
+--- preimage/tests/service_busy_diagnostic_test.c
++++ tests/service_busy_diagnostic_test.c
+@@ -3,6 +3,9 @@
+ #define WIN32_LEAN_AND_MEAN
+ #endif
+ #include <windows.h>
++#include <winternl.h>
++#include <aclapi.h>
++#include <sddl.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <tlhelp32.h>
+@@ -10,6 +13,26 @@
+ #include <processsnapshot.h>
+ #include <winevt.h>
+ #include <wintrust.h>
++static unsigned aq_active,aq_mode,aq_calls,aq_closes,aq_close_fail,aq_parent_bad,aq_acl_bad,aq_race;
++static NTSTATUS aq_status[2];
++static BOOL WINAPI aq_info(HANDLE h,LPBY_HANDLE_FILE_INFORMATION p)
++{if(aq_active&&h==(HANDLE)(ULONG_PTR)0x88888){ZeroMemory(p,sizeof(*p));p->dwVolumeSerialNumber=417614100;p->nFileIndexHigh=1966080;p->nFileIndexLow=79426+(aq_parent_bad==1?1:0);p->dwFileAttributes=FILE_ATTRIBUTE_DIRECTORY;if(aq_parent_bad==2)p->dwFileAttributes|=FILE_ATTRIBUTE_REPARSE_POINT;return TRUE;}return GetFileInformationByHandle(h,p);}
++static DWORD WINAPI aq_security(HANDLE h,SE_OBJECT_TYPE type,SECURITY_INFORMATION mask,PSID *o,PSID *g,PACL *d,PACL *a,PSECURITY_DESCRIPTOR *sd)
++{if(aq_active&&h==(HANDLE)(ULONG_PTR)0x88888){(void)type;(void)mask;(void)o;(void)g;(void)d;(void)a;return ConvertStringSecurityDescriptorToSecurityDescriptorW((aq_acl_bad?L"O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;AU)":L"O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)"),1,sd,NULL)?0:GetLastError();}return GetSecurityInfo(h,type,mask,o,g,d,a,sd);}
++static NTSTATUS NTAPI aq_create(PHANDLE out,ACCESS_MASK access,POBJECT_ATTRIBUTES oa,PIO_STATUS_BLOCK io,PLARGE_INTEGER size,ULONG attr,ULONG share,ULONG disposition,ULONG options,PVOID ea,ULONG bytes)
++{unsigned i=aq_calls++;NTSTATUS st=aq_status[i<2?i:1];
++ if(aq_race&&disposition==2){*out=NULL;io->Status=(NTSTATUS)0xc0000035L;return io->Status;}
++ if(oa->RootDirectory!=(HANDLE)(ULONG_PTR)0x88888||access!=(FILE_READ_ATTRIBUTES|SYNCHRONIZE)||size||attr||share!=7||disposition!=1||options!=0x00200020U||ea||bytes||oa->Attributes!=0x1040U){st=(NTSTATUS)0xc000000dL;}
++ if(!oa->ObjectName||!oa->ObjectName->Buffer||wcscmp(oa->ObjectName->Buffer,i==0?L"papacc_server_lab_host_ntstatus.exe":L"papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag"))st=(NTSTATUS)0xc000000dL;
++ *out=(aq_mode!=2&&(st==0||aq_mode==1))?(HANDLE)(ULONG_PTR)0x66666:NULL;io->Status=st;return st;}
++static FARPROC WINAPI aq_address(HMODULE m,LPCSTR name)
++{if(aq_active&&!strcmp(name,"NtCreateFile")){typedef NTSTATUS (NTAPI *FN)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);FN f=aq_create;FARPROC p;memcpy(&p,&f,sizeof(p));return p;}return GetProcAddress(m,name);}
++static HANDLE WINAPI aq_file(LPCWSTR path,DWORD access,DWORD share,LPSECURITY_ATTRIBUTES sa,DWORD disposition,DWORD flags,HANDLE template_file)
++{if(aq_active){(void)path;(void)access;(void)share;(void)sa;(void)flags;(void)template_file;SetLastError(disposition==CREATE_NEW?ERROR_FILE_EXISTS:ERROR_INVALID_PARAMETER);return INVALID_HANDLE_VALUE;}return CreateFileW(path,access,share,sa,disposition,flags,template_file);}
++#define CreateFileW aq_file
++#define GetFileInformationByHandle aq_info
++#define GetSecurityInfo aq_security
++#define GetProcAddress aq_address
+ static unsigned cp_open_calls,cp_failed_closes,pss_capture_calls,trust_calls;
+ static unsigned census_child_fixture,census_close_fail;
+ static DWORD WINAPI rejected_pss(HANDLE process,PSS_CAPTURE_FLAGS flags,DWORD context,HPSS *snapshot)
+@@ -31,7 +54,7 @@
+ static BOOL WINAPI busy_next(HANDLE h,LPPROCESSENTRY32W p)
+ {(void)h;(void)p;++next_calls;SetLastError(ERROR_NO_MORE_FILES);return FALSE;}
+ static BOOL WINAPI busy_close(HANDLE h)
+-{if(h==(HANDLE)(ULONG_PTR)0x44444){++cp_failed_closes;SetLastError(ERROR_ACCESS_DENIED);return FALSE;}if(h==(HANDLE)(ULONG_PTR)0x22222){++close_calls;if(census_close_fail){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}return CloseHandle(h);}
++{if(h==(HANDLE)(ULONG_PTR)0x66666){++aq_closes;if(aq_close_fail){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}if(h==(HANDLE)(ULONG_PTR)0x44444){++cp_failed_closes;SetLastError(ERROR_ACCESS_DENIED);return FALSE;}if(h==(HANDLE)(ULONG_PTR)0x22222){++close_calls;if(census_close_fail){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}return CloseHandle(h);}
+ static DWORD WINAPI busy_free(HANDLE process,HPSS snapshot)
+ {(void)process;(void)snapshot;++free_calls;return ERROR_ACCESS_DENIED;}
+ #undef GetPerformanceInfo
+@@ -98,6 +121,31 @@
+  ZeroMemory(&ig_console_proof,sizeof(ig_console_proof));SetLastError(123456);ig_cp_capture(12345,54321);T(cp_open_calls==1&&ig_console_proof.invoked&&!ig_console_proof.process&&!ig_console_proof.image&&GetLastError()==123456&&ig_diagnostic.code==ERROR_BUSY);ig_cp_capture(12345,54321);T(cp_open_calls==1);++cases;
+  {HANDLE ref=(HANDLE)(ULONG_PTR)0x22222;unsigned old=close_calls;T(ig_cp_close_ref(&ref)&&!ref&&close_calls==old+1);T(ig_cp_close_ref(&ref)&&close_calls==old+1);}++cases;
+  {HANDLE ref=(HANDLE)(ULONG_PTR)0x44444;T(!ig_cp_close_ref(&ref)&&native.retained&&ref&&cp_failed_closes==1);T(!ig_cp_close_ref(&ref)&&cp_failed_closes==1);}++cases;
++ /* Actual preconsume gate, isolated native API faults; no operational entry. */
++ {unsigned k;NTSTATUS faults[]={(NTSTATUS)0xc0000022L,(NTSTATUS)0xc0000043L,(NTSTATUS)0xc000003aL,(NTSTATUS)0xc000050bL,(NTSTATUS)0xc0000001L,(NTSTATUS)0x103L,0};
++ for(k=0;k<19;k++){
++  ZeroMemory(&native.admission,sizeof(native.admission));ZeroMemory(&ig_gate,sizeof(ig_gate));ZeroMemory(&ig_diag,sizeof(ig_diag));ZeroMemory(&ig_absence,sizeof(ig_absence));ZeroMemory(&ig_diagnostic,sizeof(ig_diagnostic));
++  native.retained=0;cycle_file=NULL;cycle_effect=0;cycle_start_requested=0;aq_active=1;aq_mode=0;aq_calls=aq_closes=aq_close_fail=aq_parent_bad=aq_acl_bad=aq_race=0;
++  native.admission.phase=1;native.admission.owned=1;native.admission.mutex=(HANDLE)(ULONG_PTR)0x77777;native.admission.thread=GetCurrentThreadId();native.admission.bd.bound=1;native.admission.bd.binding.n0=1;
++  lab_parent=(HANDLE)(ULONG_PTR)0x88888;T(ConvertStringSidToSidW(L"S-1-5-21-785699550-1440458426-1682014700-1108",&lab_sid));T(lab_acl(lab_parent,0,0)==0);
++  aq_status[0]=aq_status[1]=(NTSTATUS)0xc0000034L;
++  if(k==1)aq_status[0]=0;if(k==2)aq_status[1]=0;if(k==3)aq_parent_bad=1;if(k==4)aq_parent_bad=2;
++  if(k>=5&&k<=10)aq_status[0]=faults[k-5];
++  if(k==11){aq_status[0]=0;aq_close_fail=1;}if(k==12)native.admission.owned=0;if(k==13)aq_mode=1;if(k==14){aq_mode=2;aq_status[0]=0;}if(k==15)aq_acl_bad=1;if(k==18)papacc_server_console_win32_request_stop();
++  e=ig_preconsume_absence();T(!ig_gate.consumed&&!native.admission.consumed&&!cycle_effect&&!ig_diag.created&&!cycle_start_requested);
++  if(k==0||k==16||k==17){T(e==0&&aq_calls==2&&ig_absence.mask==3&&!cycle_file);T(ig_preconsume_absence()==ERROR_INVALID_STATE&&aq_calls==2);}
++  else T(e!=0);
++  if(k==16){ig_gate.consumed=1;native.admission.consumed=1;aq_race=1;T(cycle_open_relative(1)==ERROR_FILE_EXISTS&&ig_gate.consumed&&!cycle_effect&&!cycle_file);}
++  if(k==17){PSRF_FILE f;SECURITY_ATTRIBUTES sa;BYTE attempt[32]={0};ZeroMemory(&f,sizeof(f));ZeroMemory(&sa,sizeof(sa));sa.nLength=sizeof(sa);sa.lpSecurityDescriptor=&sa;ig_gate.consumed=1;native.admission.consumed=1;T(psrf_create(&f,ig_diag_path,&sa,attempt)==ERROR_FILE_EXISTS&&f.consumed&&!f.created&&!f.handle&&ig_gate.consumed&&!cycle_effect);}
++  if(k==18)T(e==ERROR_OPERATION_ABORTED&&aq_calls==0);
++  if(k==1||k==2)T(e==ERROR_FILE_EXISTS&&aq_closes==1&&!cycle_file);
++  if(k==3||k==4||k==12||k==15)T(aq_calls==0);
++  if(k==10||k==11||k==13||k==14){T(native.retained&&ig_gate.retained);{unsigned saved=aq_calls;T(ig_preconsume_absence()==ERROR_INVALID_STATE&&aq_calls==saved);}}
++  T(LocalFree(lab_sid)==NULL);lab_sid=NULL;++cases;
++ }
++ printf("PRECONSUME_QUERY_FRAME_BYTES=%llu; NATIVE_API_FAULT_FIXTURES_ONLY\n",(unsigned long long)sizeof(ig_absence));
++ aq_active=0;lab_parent=NULL;cycle_file=NULL;native.retained=0;ZeroMemory(&native.admission,sizeof(native.admission));ZeroMemory(&ig_gate,sizeof(ig_gate));ZeroMemory(&ig_absence,sizeof(ig_absence));
++ }
+  /* All retained refs above are fake isolated handles, never live native refs. */
+  native.retained=0;ZeroMemory(&ig_console_proof,sizeof(ig_console_proof));papacc_server_console_win32_request_stop();ig_cp_capture(12345,54321);T(cp_open_calls==1&&ig_console_proof.facts.stopped&&!ig_cp_window_candidate(&ig_console_proof.facts));++cases;
+  T(pss_capture_calls==0&&trust_calls==0);++cases;
+--- preimage/tools/qualification/scm-instrumented-cycle-lab.inc
++++ tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -15,6 +15,70 @@
+ 
+ static unsigned ig_n0_rebound;
+ static const char *ig_n0_approval_sha;
++/* Fixed acquisition frame inside the SAME cycle owner. Even an unexpected
++ * STATUS_PENDING retains its original IOSB/OA/name storage without unwinding it.
++ * cycle_file is the existing named owner slot, reused only before placement. */
++typedef struct IG_ABSENCE_QUERY {
++ OBJECT_ATTRIBUTES attributes;UNICODE_STRING name;IO_STATUS_BLOCK io;
++ unsigned used,mask,pending;
++} IG_ABSENCE_QUERY;
++static IG_ABSENCE_QUERY ig_absence;
++static DWORD ig_absence_parent(void)
++{
++ DWORD e;
++ if(!lab_parent)return ERROR_INVALID_HANDLE;
++ if((e=lab_id(lab_parent,1966080,79426,1))||(e=lab_acl(lab_parent,0,1)))return e;
++ return 0;
++}
++static DWORD ig_absence_name(unsigned index)
++{
++ typedef NTSTATUS (NTAPI *CREATE)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);
++ const WCHAR *path,*leaf;size_t n,base;HMODULE module;FARPROC address;CREATE query;NTSTATUS status;DWORD e;
++ if(index>1||cycle_file||ig_absence.pending)return ERROR_INVALID_STATE;
++ if(papacc_server_console_win32_stop_requested())return ERROR_OPERATION_ABORTED;
++ path=index?ig_diag_path:cycle_path;base=wcslen(lab_parent_path);
++ if(wcsncmp(path,lab_parent_path,base)||path[base]!=L'\\')return ERROR_INVALID_NAME;
++ leaf=path+base+1;n=wcslen(leaf);if(!n||n>128||wcschr(leaf,L'\\')||wcschr(leaf,L'/'))return ERROR_INVALID_NAME;
++ module=GetModuleHandleW(L"ntdll.dll");if(!module)return ERROR_NOT_SUPPORTED;
++ address=GetProcAddress(module,"NtCreateFile");if(!address)return ERROR_NOT_SUPPORTED;memcpy(&query,&address,sizeof(query));
++ ZeroMemory(&ig_absence.attributes,sizeof(ig_absence.attributes));ZeroMemory(&ig_absence.io,sizeof(ig_absence.io));
++ ig_absence.io.Status=(NTSTATUS)0xc0000001L;
++ ig_absence.name.Buffer=(PWSTR)leaf;ig_absence.name.Length=(USHORT)(n*sizeof(WCHAR));ig_absence.name.MaximumLength=(USHORT)((n+1)*sizeof(WCHAR));
++ ig_absence.attributes.Length=sizeof(ig_absence.attributes);ig_absence.attributes.RootDirectory=lab_parent;
++ ig_absence.attributes.ObjectName=&ig_absence.name;ig_absence.attributes.Attributes=OBJ_CASE_INSENSITIVE|0x1000U;
++ status=query(&cycle_file,FILE_READ_ATTRIBUTES|SYNCHRONIZE,&ig_absence.attributes,&ig_absence.io,NULL,0,
++  FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,1U,0x00200020U,NULL,0);
++ if(status==(NTSTATUS)0x103L||ig_absence.io.Status==(NTSTATUS)0x103L){
++  ig_absence.pending=1;native.retained=1;ig_gate.retained=1;e=ERROR_IO_PENDING;
++ }else if(status==(NTSTATUS)0xc0000034L&&!cycle_file){
++  if((e=ig_absence_parent()))return e;
++  if(papacc_server_console_win32_stop_requested())return ERROR_OPERATION_ABORTED;
++  ig_absence.mask|=1U<<index;
++  printf("IG_PRECONSUME_ABSENT role=%s status=c0000034; ORIGINAL_PARENT; READ_ONLY; NOT_A_RESERVATION\n",index?"sink":"image");return 0;
++ }else if(status==0&&cycle_file&&cycle_file!=INVALID_HANDLE_VALUE){
++  if(!CloseHandle(cycle_file)){native.retained=1;ig_gate.retained=1;e=ERROR_INVALID_HANDLE;}
++  else {cycle_file=NULL;e=ERROR_FILE_EXISTS;}
++ }else if(cycle_file||status>=0){native.retained=1;ig_gate.retained=1;e=ERROR_INVALID_DATA;}
++ else e=ERROR_ACCESS_DENIED;
++ ig_diag_note(cycle_stage,"NtCreateFile",index?"preconsume_sink_name":"preconsume_image_name",e,(DWORD)status,0,4);
++ return e;
++}
++static DWORD ig_preconsume_absence(void)
++{
++ DWORD e;
++ if(native.retained||ig_gate.retained||ig_absence.used||cycle_file||ig_gate.consumed||cycle_effect||ig_diag.created||cycle_start_requested)return ERROR_INVALID_STATE;
++#ifdef PAPACC_SINGLE_LAB_ADMISSION
++ if(native.admission.phase!=1||!native.admission.owned||!native.admission.mutex||native.admission.thread!=GetCurrentThreadId())return ERROR_BUSY;
++ if(!native.admission.bd.bound||!native.admission.bd.binding.n0||native.admission.consumed||native.admission.effects||native.admission.stop)return ERROR_ACCESS_DENIED;
++#else
++ return ERROR_NOT_SUPPORTED;
++#endif
++ ig_absence.used=1;
++ if(papacc_server_console_win32_stop_requested())return ERROR_OPERATION_ABORTED;
++ if((e=ig_absence_parent())||(e=ig_absence_name(0))||(e=ig_absence_name(1)))return e;
++ return ig_absence.mask==3&&!cycle_file&&!ig_absence.pending?0:ERROR_INVALID_STATE;
++}
++
+ static int ig_recovery_range(const BYTE *buffer,const void *p,size_t bytes)
+ {ULONG_PTR base=(ULONG_PTR)buffer,at=(ULONG_PTR)p;return p&&at>=base&&at-base<=4096U&&bytes<=4096U-(at-base);}
+ static DWORD ig_recovery_readback(void)
+@@ -39,7 +103,7 @@
+  unsigned i;DWORD e;BY_HANDLE_FILE_INFORMATION id;
+  if(!expected||strlen(expected)!=64)return ERROR_ACCESS_DENIED;
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+- ig_approval_file=CreateFileW(L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0-n9-final-freshness-ordering-20261024\\EXACT-OPERATION-APPROVED.json",GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
++ ig_approval_file=CreateFileW(L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start02-preconsume-collision-correction-20261024\\EXACT-OPERATION-APPROVED.json",GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+  if(ig_approval_file==INVALID_HANDLE_VALUE){ig_approval_file=NULL;return lab_error();}
+  if(!GetFileInformationByHandle(ig_approval_file,&id)||id.nFileSizeHigh||!id.nFileSizeLow||id.nFileSizeLow>16384||id.nNumberOfLinks!=1||(id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)))return ERROR_INVALID_DATA;
+  e=lab_hash(ig_approval_file,expected);return e;
+@@ -292,6 +356,7 @@
+  if(GetFileAttributesW(ig_intent_path)!=INVALID_FILE_ATTRIBUTES){e=ERROR_FILE_EXISTS;goto done;}else if(GetLastError()!=ERROR_FILE_NOT_FOUND){e=lab_error();goto done;}
+  ig_observer.identity=IG_ID_ALL;
+  if(positive&&n0){cycle_stage="EXACT_POSITIVE_CONFIRMATION";if((e=ig_confirm()))goto done;}
++ if(positive&&n0){cycle_stage="PRECONSUME_ABSENCE";if((e=ig_preconsume_absence()))goto done;}
+  if(positive&&n0){cycle_stage="PRE_METRIC_REVALIDATION";
+   if((e=lab_operator_current())||(e=lab_bound(1))||(e=cycle_dependencies_current(0))||(e=cycle_readback(SERVICE_DEMAND_START,0))||(e=ig_project_census()))goto done;
+  }
+@@ -302,6 +367,7 @@
+  if(!n0&&((e=ig_confirm())||(e=lab_operator_current())||(e=lab_bound(1))||(e=cycle_dependencies_current(0))||(e=cycle_readback(SERVICE_DEMAND_START,0))||(e=ig_project_census())))goto done;
+  if(GetTickCount64()-ig_gate.preflight>60000U||papacc_server_console_win32_stop_requested()){e=ERROR_OPERATION_ABORTED;goto done;}
+  cycle_stage="CONSUME_INTENT";
++ if(n0&&(ig_absence.mask!=3||ig_absence.pending||cycle_file)){e=ERROR_INVALID_STATE;goto done;}
+  if(n0&&(e=papacc_server_service_admission_n0_arm()))goto done;
+  if((e=ig_consume(&ig_gate))||(e=ig_create_intent()))goto done;
+ #ifdef PAPACC_SINGLE_LAB_ADMISSION
+--- preimage/tools/qualification/scm-n0-protected-single-powershell.ps1
++++ tools/qualification/scm-n0-protected-single-powershell.ps1
+@@ -11,8 +11,8 @@
+ $ErrorActionPreference='Stop'
+ $Root='C:\Projetos\PapinhoAccelerator'
+ $ExpectedPath=$Root+'\tools\qualification\scm-n0-protected-single-powershell.ps1'
+-$Qualifier='C:\Projetos\PapinhoAccelerator\build\n0-n9-final-freshness-ordering-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
+-$QualifierHash='3b245bae8dbbbec3082e531f151183594d9e11e0ae833528b91193671c609880'
++$Qualifier='C:\Projetos\PapinhoAccelerator\build\n0start02-preconsume-collision-correction-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
++$QualifierHash='b482b959400b41e6e64ecb86858dfd00522a0aa988b36300dc7d70f4d3c33eae'
+ # Reviewed existing inputs. These pins grant no execution or Start authority.
+ $DossierHash='5a2b7203afdece0adca77be278d6b86c18cc2cf457cab87474ee7dce0311c294'
+ $EvidenceHash='babab3ea393b605802933054ab011e6fcb66b21bffcc80923448715e911f27e0'
+@@ -74,7 +74,7 @@
+  if([Console]::IsInputRedirected -or [Console]::IsOutputRedirected){throw 'INTERACTIVE_CONSOLE_REQUIRED'}
+  if($DossierHash -cnotmatch '^[0-9a-f]{64}$' -or $EvidenceHash -cnotmatch '^[0-9a-f]{64}$'){throw 'WINDOWS_PROVENANCE_UNKNOWN_DENY'}
+  Pin 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' '9785001b0dcf755eddb8af294a373c0b87b2498660f724e76c4d53f9c217c7a3'
+- if($Mode-eq'Cycle'){Pin ($Root+'\docs\integration\n0-n9-final-freshness-ordering-20261024\EXACT-OPERATION-APPROVED.json') $ExactApprovalSha256}
++ if($Mode-eq'Cycle'){Pin ($Root+'\docs\integration\n0start02-preconsume-collision-correction-20261024\EXACT-OPERATION-APPROVED.json') $ExactApprovalSha256}
+  Lock-QualifierPath
+  Pin $Qualifier $QualifierHash
+  Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-75330d11cc7e4123ae62eadc9a59c2f5.approved' $DossierHash

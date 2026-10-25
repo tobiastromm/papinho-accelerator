@@ -1,0 +1,85 @@
+/* ISOLATED EXPERIMENT ONLY. Not linked to the product or LAB launcher.
+ * Only starts the existing isolated observer test, never Prepare/SCM/LAB.
+ * Resource context belongs to the existing calling test supervisor. */
+#define WIN32_LEAN_AND_MEAN 1
+#include <windows.h>
+#include <wchar.h>
+#include <string.h>
+#include <stdint.h>
+#define NX_EXPORT __declspec(dllexport)
+#define NX_MAGIC 0x4e584931UL
+#define NX_COMMAND 2048
+/* Faults:1pipe failure;2CreateProcess denied;3uncertain writer close;
+ *4unsupported attrs;5cancel;6bad stdin;8stale;9contradictory pipe output. */
+typedef BOOL (WINAPI *NX_INIT)(LPPROC_THREAD_ATTRIBUTE_LIST,DWORD,DWORD,PSIZE_T);
+typedef BOOL (WINAPI *NX_UPDATE)(LPPROC_THREAD_ATTRIBUTE_LIST,DWORD,DWORD_PTR,PVOID,SIZE_T,PVOID,PSIZE_T);
+typedef VOID (WINAPI *NX_DELETE)(LPPROC_THREAD_ATTRIBUTE_LIST);
+typedef struct NX_CONTEXT {
+ DWORD magic,thread,attempted,first,frozen,created,exited,exit_code,busy,generation,disposed,fault;
+ DWORD acquisitions,closes,creates,peak_owned;
+ HANDLE read_pipe,write_pipe,input,error;
+ PROCESS_INFORMATION pi;FILETIME creation;
+ ULONGLONG began;
+ LPPROC_THREAD_ATTRIBUTE_LIST attributes;SIZE_T attribute_bytes,peak_attribute_bytes;DWORD attributes_initialized;
+ NX_DELETE delete_attributes;
+ HANDLE list[3];STARTUPINFOEXW startup;
+ WCHAR command[NX_COMMAND];
+} NX_CONTEXT;
+static DWORD nx_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+static DWORD nx_fail(NX_CONTEXT *c,DWORD e,int freeze){if(!c->first)c->first=e;if(freeze)c->frozen=1;return e;}
+static unsigned nx_owned(NX_CONTEXT *c){return (c->read_pipe!=NULL)+(c->write_pipe!=NULL)+(c->input!=NULL)+(c->error!=NULL)+(c->pi.hProcess!=NULL)+(c->pi.hThread!=NULL);}
+static void nx_acquired(NX_CONTEXT *c,unsigned n){unsigned k;c->acquisitions+=n;k=nx_owned(c);if(k>c->peak_owned)c->peak_owned=k;}
+static DWORD nx_guard(NX_CONTEXT *c){if(!c||c->magic!=NX_MAGIC)return ERROR_INVALID_PARAMETER;if(c->thread!=GetCurrentThreadId())return nx_fail(c,ERROR_INVALID_THREAD_ID,1);if(c->frozen||c->disposed)return ERROR_INVALID_STATE;return 0;}
+static DWORD nx_close(NX_CONTEXT *c,HANDLE *slot){DWORD e;if(!*slot)return 0;++c->closes;if(c->fault==3&&c->created&&slot==&c->write_pipe)return nx_fail(c,ERROR_ACCESS_DENIED,1);if(!CloseHandle(*slot)){e=nx_error();return nx_fail(c,e,1);}*slot=NULL;return 0;}
+static DWORD nx_free_attributes(NX_CONTEXT *c){if(!c->attributes)return 0;if(c->attributes_initialized){c->delete_attributes(c->attributes);c->attributes_initialized=0;}if(!HeapFree(GetProcessHeap(),0,c->attributes))return nx_fail(c,ERROR_GEN_FAILURE,1);c->attributes=NULL;c->attribute_bytes=0;return 0;}
+NX_EXPORT DWORD WINAPI NX_Bytes(void){return (DWORD)sizeof(NX_CONTEXT);}
+NX_EXPORT DWORD WINAPI NX_Init(NX_CONTEXT *c,DWORD bytes,DWORD fault){if(!c||bytes!=sizeof(*c))return ERROR_INVALID_PARAMETER;if(c->magic)return ERROR_ALREADY_EXISTS;ZeroMemory(c,sizeof(*c));c->magic=NX_MAGIC;c->thread=GetCurrentThreadId();c->began=GetTickCount64();c->fault=fault;if(fault==8)c->began-=60001ULL;return 0;}
+NX_EXPORT ULONGLONG WINAPI NX_Info(NX_CONTEXT *c,DWORD key){if(!c||c->magic!=NX_MAGIC)return ~(ULONGLONG)0;switch(key){case 0:return c->first;case 1:return c->frozen;case 2:return nx_owned(c);case 3:return c->created;case 4:return c->pi.dwProcessId;case 5:return ((ULONGLONG)c->creation.dwHighDateTime<<32)|c->creation.dwLowDateTime;case 6:return c->acquisitions;case 7:return c->closes;case 8:return c->creates;case 9:return c->peak_owned;case 10:return sizeof(*c);case 11:return c->attribute_bytes;case 12:return c->exited;case 13:return c->exit_code;case 14:return c->busy;case 15:return c->peak_attribute_bytes;default:return ~(ULONGLONG)0;}}
+NX_EXPORT DWORD WINAPI NX_Start(NX_CONTEXT *c,const WCHAR *exe,const WCHAR *args,HANDLE input,HANDLE error)
+{
+ DWORD e,flags;const WCHAR *leaf,*q;HMODULE kernel;FARPROC address;NX_INIT init;NX_UPDATE update;SIZE_T bytes=0;
+ FILETIME exit,kt,ut;SECURITY_ATTRIBUTES sa={sizeof(sa),NULL,TRUE};BOOL ok;
+ if((e=nx_guard(c)))return e;
+ if(c->attempted)return nx_fail(c,ERROR_ALREADY_EXISTS,0);c->attempted=1;
+ if(c->fault==5)return nx_fail(c,ERROR_OPERATION_ABORTED,0);
+ if(GetTickCount64()<c->began||GetTickCount64()-c->began>60000ULL)return nx_fail(c,ERROR_TIMEOUT,0);
+ if(!exe||!args||wcsnlen_s(exe,1024)>=1024||wcsnlen_s(args,1024)>=1024||wcschr(exe,L'"'))return nx_fail(c,ERROR_INVALID_PARAMETER,0);
+ leaf=wcsrchr(exe,L'\\');if(!leaf||_wcsicmp(leaf+1,L"papacc_service_observer_stack_va_isolated_test.exe"))return nx_fail(c,ERROR_ACCESS_DENIED,0);
+ /* Safety guard is NOT executable identity. Parent fixture separately pins bytes. */
+ if(wcsncmp(args,L"--isolated-observer-self ",25))return nx_fail(c,ERROR_ACCESS_DENIED,0);
+ for(q=args;*q;q++)if(!((*q>=L'0'&&*q<=L'9')||(*q>=L'a'&&*q<=L'z')||(*q>=L'A'&&*q<=L'Z')||*q==L'_'||*q==L'-'||*q==L' '))return nx_fail(c,ERROR_INVALID_PARAMETER,0);
+ if(c->fault==4)return nx_fail(c,ERROR_NOT_SUPPORTED,0);
+ kernel=GetModuleHandleW(L"kernel32.dll");if(!kernel)return nx_fail(c,ERROR_NOT_SUPPORTED,0);
+ address=GetProcAddress(kernel,"InitializeProcThreadAttributeList");if(!address)return nx_fail(c,ERROR_NOT_SUPPORTED,0);memcpy(&init,&address,sizeof(init));
+ address=GetProcAddress(kernel,"UpdateProcThreadAttribute");if(!address)return nx_fail(c,ERROR_NOT_SUPPORTED,0);memcpy(&update,&address,sizeof(update));
+ address=GetProcAddress(kernel,"DeleteProcThreadAttributeList");if(!address)return nx_fail(c,ERROR_NOT_SUPPORTED,0);memcpy(&c->delete_attributes,&address,sizeof(c->delete_attributes));
+ if(c->fault==6)input=INVALID_HANDLE_VALUE;
+ if(!input||input==INVALID_HANDLE_VALUE||input==(HANDLE)(LONG_PTR)-2||!error||error==INVALID_HANDLE_VALUE||error==(HANDLE)(LONG_PTR)-2)return nx_fail(c,ERROR_INVALID_HANDLE,0);
+ if(!GetHandleInformation(input,&flags)||!GetHandleInformation(error,&flags))return nx_fail(c,ERROR_INVALID_HANDLE,0);
+ if(c->fault==1)return nx_fail(c,ERROR_ACCESS_DENIED,0);
+ if(!CreatePipe(&c->read_pipe,&c->write_pipe,&sa,65536)){e=nx_error();return nx_fail(c,e,c->read_pipe||c->write_pipe);}
+ nx_acquired(c,2);if(c->fault==9)return nx_fail(c,ERROR_ACCESS_DENIED,1);
+ if(!SetHandleInformation(c->read_pipe,HANDLE_FLAG_INHERIT,0))return nx_fail(c,nx_error(),0);
+ if(!DuplicateHandle(GetCurrentProcess(),input,GetCurrentProcess(),&c->input,0,TRUE,DUPLICATE_SAME_ACCESS))return nx_fail(c,nx_error(),c->input!=NULL);nx_acquired(c,1);
+ if(!DuplicateHandle(GetCurrentProcess(),error,GetCurrentProcess(),&c->error,0,TRUE,DUPLICATE_SAME_ACCESS))return nx_fail(c,nx_error(),c->error!=NULL);nx_acquired(c,1);
+ SetLastError(0);ok=init(NULL,1,0,&bytes);if(ok||GetLastError()!=ERROR_INSUFFICIENT_BUFFER||!bytes||bytes>65536)return nx_fail(c,ERROR_INVALID_DATA,0);
+ c->attributes=(LPPROC_THREAD_ATTRIBUTE_LIST)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,bytes);if(!c->attributes)return nx_fail(c,ERROR_NOT_ENOUGH_MEMORY,0);c->attribute_bytes=bytes;c->peak_attribute_bytes=bytes;
+ if(!init(c->attributes,1,0,&bytes))return nx_fail(c,nx_error(),0);c->attributes_initialized=1;
+ c->list[0]=c->input;c->list[1]=c->write_pipe;c->list[2]=c->error;
+ if(!update(c->attributes,0,PROC_THREAD_ATTRIBUTE_HANDLE_LIST,c->list,sizeof(c->list),NULL,NULL))return nx_fail(c,nx_error(),0);
+ c->startup.StartupInfo.cb=sizeof(c->startup);c->startup.StartupInfo.dwFlags=STARTF_USESTDHANDLES;c->startup.StartupInfo.hStdInput=c->input;c->startup.StartupInfo.hStdOutput=c->write_pipe;c->startup.StartupInfo.hStdError=c->error;c->startup.lpAttributeList=c->attributes;
+ if(_snwprintf_s(c->command,NX_COMMAND,_TRUNCATE,L"\"%ls\" %ls",exe,args)<0)return nx_fail(c,ERROR_INSUFFICIENT_BUFFER,0);
+ if(c->fault==2)return nx_fail(c,ERROR_FILE_NOT_FOUND,0);
+ ++c->creates;
+ ok=CreateProcessW(exe,c->command,NULL,NULL,TRUE,EXTENDED_STARTUPINFO_PRESENT,NULL,NULL,&c->startup.StartupInfo,&c->pi);
+ if(!ok){e=nx_error();if(c->pi.hProcess||c->pi.hThread){nx_acquired(c,(c->pi.hProcess!=NULL)+(c->pi.hThread!=NULL));return nx_fail(c,e,1);}return nx_fail(c,e,0);}
+ c->created=1;nx_acquired(c,(c->pi.hProcess!=NULL)+(c->pi.hThread!=NULL));
+ if(!c->pi.hProcess||!c->pi.hThread||!c->pi.dwProcessId||!GetProcessTimes(c->pi.hProcess,&c->creation,&exit,&kt,&ut))return nx_fail(c,ERROR_INVALID_DATA,1);
+ /* Only checked successful closes zero slots. No original parent flag changes. */
+ if((e=nx_close(c,&c->write_pipe))||(e=nx_close(c,&c->input))||(e=nx_close(c,&c->error))||(e=nx_close(c,&c->pi.hThread))||(e=nx_free_attributes(c)))return e;
+ return 0;
+}
+NX_EXPORT HANDLE WINAPI NX_BorrowReader(NX_CONTEXT *c,DWORD *ticket){DWORD e;if((e=nx_guard(c))){SetLastError(e);return NULL;}if(!ticket||!c->created||!c->read_pipe||c->busy){SetLastError(nx_fail(c,ERROR_INVALID_STATE,1));return NULL;}if(++c->generation==0){SetLastError(nx_fail(c,ERROR_ARITHMETIC_OVERFLOW,1));return NULL;}c->busy=1;*ticket=c->generation;return c->read_pipe;}
+NX_EXPORT DWORD WINAPI NX_EndBorrow(NX_CONTEXT *c,DWORD ticket,DWORD error){DWORD e;if((e=nx_guard(c)))return e;if(!c->busy||ticket!=c->generation)return nx_fail(c,ERROR_INVALID_STATE,1);if(error)return nx_fail(c,error,1);c->busy=0;return 0;}
+NX_EXPORT DWORD WINAPI NX_Wait(NX_CONTEXT *c,DWORD timeout){DWORD wait;if(!c||c->magic!=NX_MAGIC||c->thread!=GetCurrentThreadId()||!c->pi.hProcess)return ERROR_INVALID_STATE;wait=WaitForSingleObject(c->pi.hProcess,timeout);if(wait==WAIT_OBJECT_0){if(!GetExitCodeProcess(c->pi.hProcess,&c->exit_code))return nx_fail(c,nx_error(),1);c->exited=1;}else if(wait==WAIT_FAILED)return nx_fail(c,nx_error(),1);return wait;}
+NX_EXPORT DWORD WINAPI NX_Close(NX_CONTEXT *c){DWORD e;if((e=nx_guard(c)))return e;if(c->busy||(c->created&&!c->exited))return nx_fail(c,ERROR_BUSY,1);if((e=nx_close(c,&c->pi.hThread))||(e=nx_close(c,&c->write_pipe))||(e=nx_close(c,&c->input))||(e=nx_close(c,&c->error))||(e=nx_close(c,&c->read_pipe))||(e=nx_close(c,&c->pi.hProcess))||(e=nx_free_attributes(c)))return e;c->disposed=1;return 0;}

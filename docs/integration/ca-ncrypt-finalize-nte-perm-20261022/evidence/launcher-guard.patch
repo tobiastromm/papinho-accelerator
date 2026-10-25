@@ -1,0 +1,24 @@
+--- C:\Projetos\PapinhoAccelerator\tools\qualification\ca-finalize-readonly-uac.ps1
++++ C:\Projetos\PapinhoAccelerator\tools\qualification\ca-finalize-readonly-uac.ps1
+@@ -79,16 +79,19 @@
+   $lines=@(& $Exe '--observe-existing' $Authority $Generation $KeyName $ExpectedSid $ServiceSid 2>&1 | ForEach-Object {$_.ToString()})
+   $code=$LASTEXITCODE
+   $lines | ForEach-Object {Write-Output $_}
++  $expectedPurpose='purpose=DIAGNOSTIC_OBSERVE_EXISTING; provider=Microsoft Software Key Storage Provider; scope=MACHINE; name='+$KeyName+'; operator='+$ExpectedSid+'; service='+$ServiceSid
++  $expectedClose='state=3; created=0; finalized=0; close_attempted=1; close_confirmed=1; key_owned=0; provider_owned=0; persisted_key_state=UNKNOWN'
++  $complete=$lines.Count -eq 4 -and $lines[0] -ceq $expectedPurpose -and $lines[3] -ceq $expectedClose -and ($code -eq 0 -or $code -eq 4)
+   $disposition='UNKNOWN'
+   if(@($lines | Where-Object {$_ -match '^status=0x00000000;' -or $_ -match '^first_snapshot_state=.*key_owned=1;'}).Count -gt 0){$disposition='PRESENT'}
+   # BAD_KEYSET is NOT automatically global absence or permission to recreate.
+   Assert-Plain $ReceiptRoot
+-  $receipt=[ordered]@{purpose='READ_ONLY_PREVIOUS_LAB_RECONCILIATION';operator=$operator;binary_sha256=$ExeHash;script_sha256=$selfHash;provider='Microsoft Software Key Storage Provider';scope='MACHINE';key_name=$KeyName;exit_code=$code;disposition=$disposition;output=$lines;key_creation='NOT_RUN';key_deletion='NOT_RUN';current='DENY';ed11='PARTIAL';utc_annotation=[DateTime]::UtcNow.ToString('o')}
++  $receipt=[ordered]@{purpose='READ_ONLY_PREVIOUS_LAB_RECONCILIATION';operator=$operator;binary_sha256=$ExeHash;script_sha256=$selfHash;provider='Microsoft Software Key Storage Provider';scope='MACHINE';key_name=$KeyName;exit_code=$code;disposition=$disposition;output=$lines;query_completed_and_closed=$complete;key_creation='NOT_RUN';key_deletion='NOT_RUN';current='DENY';ed11='PARTIAL';utc_annotation=[DateTime]::UtcNow.ToString('o')}
+   $file=Join-Path $ReceiptRoot (([Guid]::NewGuid().ToString('N'))+'.json')
+   $stream=[IO.File]::Open($file,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+   try {$writer=[IO.StreamWriter]::new($stream,[Text.UTF8Encoding]::new($false));try {$writer.Write(($receipt | ConvertTo-Json -Depth 6));$writer.Flush()} finally {$writer.Dispose()}} finally {$stream.Dispose()}
+   Write-Output ('RECEIPT='+$file+'; DISPOSITION='+$disposition+'; NO_NEW_KEY_OR_RETRY_AUTHORIZED')
+-  $result=0 # Query/receipt completed only; never custody or absence PASS.
++  if($complete){$result=0}else{$result=2} # Incomplete/retained query never succeeds.
+  }
+ } catch {Write-Output ('DENY: '+$_.Exception.Message);$result=2}
+ finally {if($exeStream){$exeStream.Dispose()};if($scriptStream){$scriptStream.Dispose()}}

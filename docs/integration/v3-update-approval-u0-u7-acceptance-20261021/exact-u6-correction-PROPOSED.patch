@@ -1,0 +1,11 @@
+--- a/docs/integration/v3-candidate-approval-status-producer-20261021/CANDIDATE-APPROVAL-PRODUCER-PROPOSED.md
++++ b/docs/integration/v3-candidate-approval-status-producer-20261021/CANDIDATE-APPROVAL-PRODUCER-PROPOSED.md
+@@ -50,7 +50,7 @@
+ 
+ O produtor abastece somente a preparação/validação UPDATE existente. A marca RESOLVED exige todas as fontes administrativas, identidade, status, integridade, predecessor completo e lifetime comprovados, além do ato; nem ato isolado nem status isolado bastam. Revalidar imediatamente antes de futuro efeito. Usar mesmo worker/CAS; CONFLICT/UNKNOWN nunca convertem candidata em CURRENT, rollback presumido ou retry destrutivo. Nenhuma publicação, assinatura, E0 positivo, TRUST/M1 ou admissão decorre desta proposta.
+ 
+-Persistir disposições somente pelos campos e transações PACROOT8/v3/PDG1/CP3 accepted. ROOT06/BODY0.5/D3/LST1/SNT1/v2 e layouts históricos ficam byte-exatos. A prova de origem não precisa ser serializada para conceder validade operacional após restart; recuperação autoritativa permanece DENY. Não usar ausência da prova transitória após restart como razão para reconstruí-la de PDG.
++Persistir disposições somente pelos campos e transações PACROOT8/v3/PDG1/CP3 accepted. ROOT06/BODY0.5/D3/LST1/SNT1/v2 e layouts históricos ficam byte-exatos. A prova de origem é transitória e não é serializada; sua ausência após restart não concede validade operacional, não restaura o ato UPDATE nem dispensa as provas factuais de recuperação e CURRENT. Recuperação autoritativa permanece DENY. Não usar ausência da prova transitória após restart como razão para reconstruí-la de PDG.
+ 
+ ## U7 Gate de implementação, ED11 e qualificação
+ 

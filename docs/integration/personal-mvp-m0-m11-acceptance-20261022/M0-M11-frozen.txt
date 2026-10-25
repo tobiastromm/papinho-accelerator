@@ -1,0 +1,66 @@
+## M0 — Escopo e precedência proposta
+
+Pessoal/local Windows: instalar/configurar, host e lifecycle SCM, CA protegida, MANUAL e AUTOMATIC, Browser primeiro consumidor, cadastro/listagem/revogação/histórico, desinstalação/reinstalação previsíveis e restauração somente de opções não secretas. Dois modos de provisão accepted continuam obrigatórios; MVP não redefine Phase6 como LAB, serviço ou só um modo de pareamento. Restantes obrigações Phase6 não são fechadas por este texto.
+
+Se aceita, esta especialização prevalecerá SOMENTE no perfil pessoal explicitamente selecionado sobre: CA technical profile20261018,3.5–3.6 e Owner conditions que exigem procedimento completo/backup/restore antes de inicialização/emissão; dependência de recuperação/fencing do2.4 aplicada à operação NORMAL; personal-ca-preinitialization20261022 P1/P2 e parte deP5, procedimento incorporado A/D/E/F correspondente. Procedimento recuperável anterior fica futuro, não requisito de disponibilidade pessoal. RECOVERY continua proibida. A matriz correlaciona exatamente essas mudanças, sem supersession integral.
+
+## M1 — Segurança que não é adiada
+
+KSP MACHINE/RSA2048/e65537/export0/signing-only, key/cert/SPKI, CA/TLS/chaves de clientes separados, token admin versus conta operacional local padrão dedicada, ACL mínima e testes factuais. CA_INITIALIZE explícito e distinto na cerimônia F0–F9 quando plano nomeia ambos os efeitos. Sem geração em startup, LAB produtivo, conta privilegiada default, key name como fato ou fallback. Proteger serial/reserva durável ANTES da assinatura, CSR/PoP, finalidade, validade/UTC qualificados, revogação, CURRENT/CAS, exclusividade nativa e retenção UNKNOWN. Não retirar guards para conseguir emitir.
+
+## M2 — Perda irreversível e nova instalação
+
+O MVP não promete backup/restore da identidade antiga nem migração de CA. Informar ANTES da confirmação: perda definitiva da identidade exige outra instalação/CA e novo pareamento de TODOS os clientes; .conf não restaura confiança. Falha de provider/ACL, ausência, corrupção ou UNKNOWN não provam perda definitiva e não autorizam substituir.
+
+Sucessor exige ato administrativo distinto de abandono irreversível, confirmação específica, contenção factual dos emissores antigos conhecidos, recursos antigos retidos/owners respeitados, novo alvo exclusivo e NOVAS identidades root/CA/geração. Não reutilizar nomes/keys/correlações incertas nem sobrescrever instalação antiga. Não transportar antigos Principal/serial/revogação para a nova root. Preservar evidência necessária conforme aposentadoria. Abandono não atesta revogação nos clientes nem destruição de clones; clientes retiram confiança antiga e pareiam explicitamente. Suspeita de comprometimento exige tratamento de incidente, não reset silencioso. Sem novo issuer/journal de recuperação.
+
+## M3 — Operação normal não é recuperação: tradeoff explícito
+
+Fault model PROPOSTO: OS local e administrador legítimo mantêm íntegro o armazenamento ORIGINAL, sem rollback administrativo, clonagem ou restore externo de identidade. Essa hipótese não é provada por hash/DACL/SID. O perfil NÃO garante detecção geral de replay do disco nem fencing global após clone/comprometimento. É redução explícita de garantia a aprovar, não garantia preservada por rótulo.
+
+Sob esse limite, emissão/revogação e restart NORMAL poderão usar história canônica original completa/validada, CURRENT/predecessor, reservas/burned serials/high-water monotônicos, key/policy binding, exclusividade entre processos e revalidação antes do efeito; sem exigir prova independente de backup/restore. Estado incompleto, origem incerta, continuidade contraditória, rollback observado, concorrência de writer, commit/assinatura UNKNOWN ou suspeita de restore continuam DENY e reconciliação query-only. Nenhuma autorização ou Session viva é restaurada do disco; restart reautentica/revalida, nunca gera CA.
+
+Mudança funcional deve separar provas por propósito/perfil no core/adapter. PROIBIDO setar PAPACC_ISSUER_ROOT_PROOFS=31 ou fingir COMPLETE_CHAIN/FENCED_HIGH_WATER de recuperação para satisfazer view_ok. Definir e revisar representação exata das provas de continuidade NORMAL, sem que sirvam para papacc_issuer_recover. RECOVERY/restore de geração antiga permanecem AUTHORITATIVE_RECOVERY=DENY; fencing/high-water independente continuam obrigatórios nesse caso. Sem provas normais suficientes, assinatura permanece DENY. Não é opção de desligar validação.
+
+## M4 — Rotação, aposentadoria e uninstall
+
+Manter CA profile1.4/3.7: rotação explícita da mesma autoridade íntegra/autorizada, nova geração, retenção certs/DER/revogações/serial/história/dependências até quiescência. Adiar só backup/restore da geração; não migrar chave. Irrecuperabilidade segue M2, não rotação automática. Nenhuma eliminação com borrow/worker/UNKNOWN.
+
+Remover serviço/binários não remove CA/CURRENT/root/config/dados. Preservar dados é padrão seguro; reinstalar sobre dados existentes exige validação/fluxo correspondente, nunca inferir NEW_INSTALL. Purge definitivo exige operação distinta especificamente confirmada/autorizada/contida, sem atestar revogação de certificados distribuídos. P1/P3/P8 especializam somente o sucessor explicitamente abandonado M2, não exceção para contornar incerteza. Não apagar LAB.
+
+## M5 — Windows SCM
+
+SCM hospeda o MESMO runtime/owner; sem segundo worker/root/listener administrativo. Conta padrão dedicada selecionada e token observado; accountSID não equivale a SCM serviceSID. Instalar/iniciar/parar/status/manual-auto/remover; sem SYSTEM/LocalService/Administrador default, senha em argv/log/config ou autoelevação runtime. CLI canônica administra SCM; serviço não confirma cerimônia interativa nem cria CA.
+
+Callbacks apenas sinalizam owner; STOP_PENDING/retenção e statusSCM são distintos de destruição. Sem liberação por timeout, TerminateProcess como cleanup, retry infinito ou DESTROYED fictício. Sem config/autoridade/ED11, startup operacional nega com erro factual, não abre rede por estar no SCM.
+
+## M6 — .conf settings-only
+
+Preservar gramática diretivas/blocos, sem INI/parser paralelo. Restauração em instalação NOVA importa allowlist suportada de opções não secretas: portas/binds revalidados localmente, opções/preferências/rede/limites válidos e retenção visível. Referências de autoridade/security/provider anterior, certificados, CA, root identity/CURRENT/serial/revogações/credenciais/pins/autorizações consumidas não são restaurados. Texto não concede confiança, cadastro ou quotas maiores.
+
+Diretiva GLOBAL proposta revoked_history_retention_days N: decimal unsigned32 0..4294967295, ausente=0;0=nunca ocultar por idade. Sem [Pairing]. Catálogo/projeção/campo persistido precisam revisão própria de patch/layout; sem padding ou reinterpretar BODY/ROOT históricos. Especificação única: ../integration/personal-mvp-consolidation-20261022/config-and-retention.md. Conta/segredo SCM não vai para .conf.
+
+## M7 — Clientes e R-ACTIVE
+
+Uma coleção canônica com views ativa e histórico revogado. Campos só com proveniência factual; data desconhecida aparece como tal. Revogar exige confirmação exata/autorização e commit/status/CURRENT factuais; só então sai da lista ativa. Filtro visual não revoga.
+
+Escolha NOVA PROPOSED para R-ACTIVE: após publicação factual da revogação, negar novas autenticações/admissões/OPEN/BIND e sinalizar Stop aos owners de TODAS as Sessions/operações daquela credencial, antes de novos efeitos autorizáveis. Não ampliar a outra credencial do Principal sem ato correspondente. Não mutar snapshot/grants nem desfazer bytes aceitos; CANCEL/FINAL/fences/cleanup seguem contratos. Quiescência/close factuais, UNKNOWN retido. Não afirmar desconexão/revogação ativa concluída sem prova de cada fase; propagação incerta bloqueia novos efeitos e resultado positivo da fase. Especializa somente POLICY_PENDING de issuer8/issuer-C2 P5.2, não é consequência implícita de status/TLS close.
+
+## M8 — Histórico visível e protegido
+
+Excluir do histórico só após revogação confirmada, com ato/commit canônico; não remover ativo. Decisão durável de ocultação na MESMA root, sem segundo cadastro. Manter tombstones/IDs/DER/hash/revogação/serial/high-water/evidência e leases obrigatórias. Ocultar não libera slot protegido, reativa credencial ou cria crédito. Layout/backing/versionamento exatos ainda exigem revisão. Coleção cheia nega novos registros, não purga tombstone para ganhar quota.
+
+Auto mede N dias de86400000ms desde revogação factual. Checked arithmetic e tempo qualificado: só ocultar se menor instante atual admissível >= maior instante de revogação + duração. Ausência/rollback/descontinuidade/overflow/UNKNOWN => manter visível. Default0 preserva view; sem depender de Browser/UTC escalar não qualificado. Ação manual independe de idade, não de revogação/autorização.
+
+## M9 — SDK e independência
+
+Preservar composite shared-owner-first, formatos/transportes de provisão accepted e chave automática no cliente; Browser primeiro, não único. Excluir configuração Browser não revoga servidor; revogar servidor independe de Browser online. Sync bilateral adiada. Nenhum contrato/código Browser/PST muda aqui. MANUAL/AUTOMATIC convergem no issuer/root/cadastro, não são qualificados por decoder.
+
+## M10 — Futuro e limites
+
+Backup integral autenticado/criptografado, recuperação antiga, migração, institucional/MDM e sync bilateral ficam futuros. .papaccbak é só nome/extensão candidata, sem bytes/crypto/API/compatibilidade; não é .papacc de provisão. Ver ../future/personal-backup-and-identity-recovery.md. Após aceitação o futuro não bloqueia MVP por existir; gates essenciais continuam bloqueando.
+
+## M11 — Aceitação e implementação
+
+Revisão oficial e aprovação específica do owner, sobretudo M3/M7, precedem novo registro accepted. Até lá TODAS normas anteriores vigem, inclusive backup/restore. Aprovação documental da proposta não autoriza código. Após aceitação, exigir autorização funcional específica, hunks, builds/testes e ED11. Não encerrar Phase6 sem capacidades reais/demais obrigações vigentes. Nenhuma alteração de números/quotas/wire/formatos históricos/produção0.6.4 ou TLS1.3/mTLS operacional.
+

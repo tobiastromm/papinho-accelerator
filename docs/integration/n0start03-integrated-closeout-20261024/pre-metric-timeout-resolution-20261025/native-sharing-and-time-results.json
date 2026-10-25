@@ -1,0 +1,192 @@
+{
+  "scope": "native synthetic held-file hash callback only; not full RAW1/SCM/owner or LAB timing",
+  "sharing_cases": [
+    {
+      "case": "write",
+      "result": "DENIED",
+      "error": 32
+    },
+    {
+      "case": "delete",
+      "result": "DENIED",
+      "error": 32
+    },
+    {
+      "case": "read_write",
+      "result": "DENIED",
+      "error": 32
+    }
+  ],
+  "writer_after_scope": "SUCCEEDED",
+  "all_owned_closed": true,
+  "handle_counts": {
+    "before": 107,
+    "held": 108,
+    "after": 107
+  },
+  "samples": [
+    {
+      "entries": 32,
+      "repeat": 0,
+      "method": "per_entry_content",
+      "volatile_checks": 34,
+      "hashes": 34,
+      "elapsed_ns": 58016800,
+      "collector_handles": 108
+    },
+    {
+      "entries": 32,
+      "repeat": 0,
+      "method": "scoped_content_only",
+      "volatile_checks": 36,
+      "hashes": 2,
+      "elapsed_ns": 3837400,
+      "collector_handles": 108
+    },
+    {
+      "entries": 32,
+      "repeat": 1,
+      "method": "per_entry_content",
+      "volatile_checks": 34,
+      "hashes": 34,
+      "elapsed_ns": 56702700,
+      "collector_handles": 108
+    },
+    {
+      "entries": 32,
+      "repeat": 1,
+      "method": "scoped_content_only",
+      "volatile_checks": 36,
+      "hashes": 2,
+      "elapsed_ns": 3392500,
+      "collector_handles": 108
+    },
+    {
+      "entries": 32,
+      "repeat": 2,
+      "method": "per_entry_content",
+      "volatile_checks": 34,
+      "hashes": 34,
+      "elapsed_ns": 56038000,
+      "collector_handles": 108
+    },
+    {
+      "entries": 32,
+      "repeat": 2,
+      "method": "scoped_content_only",
+      "volatile_checks": 36,
+      "hashes": 2,
+      "elapsed_ns": 3466500,
+      "collector_handles": 108
+    },
+    {
+      "entries": 256,
+      "repeat": 0,
+      "method": "per_entry_content",
+      "volatile_checks": 258,
+      "hashes": 258,
+      "elapsed_ns": 435110400,
+      "collector_handles": 108
+    },
+    {
+      "entries": 256,
+      "repeat": 0,
+      "method": "scoped_content_only",
+      "volatile_checks": 260,
+      "hashes": 2,
+      "elapsed_ns": 4550900,
+      "collector_handles": 108
+    },
+    {
+      "entries": 256,
+      "repeat": 1,
+      "method": "per_entry_content",
+      "volatile_checks": 258,
+      "hashes": 258,
+      "elapsed_ns": 436888900,
+      "collector_handles": 108
+    },
+    {
+      "entries": 256,
+      "repeat": 1,
+      "method": "scoped_content_only",
+      "volatile_checks": 260,
+      "hashes": 2,
+      "elapsed_ns": 4935600,
+      "collector_handles": 108
+    },
+    {
+      "entries": 256,
+      "repeat": 2,
+      "method": "per_entry_content",
+      "volatile_checks": 258,
+      "hashes": 258,
+      "elapsed_ns": 569872600,
+      "collector_handles": 108
+    },
+    {
+      "entries": 256,
+      "repeat": 2,
+      "method": "scoped_content_only",
+      "volatile_checks": 260,
+      "hashes": 2,
+      "elapsed_ns": 4634300,
+      "collector_handles": 108
+    },
+    {
+      "entries": 1024,
+      "repeat": 0,
+      "method": "per_entry_content",
+      "volatile_checks": 1026,
+      "hashes": 1026,
+      "elapsed_ns": 1953346600,
+      "collector_handles": 108
+    },
+    {
+      "entries": 1024,
+      "repeat": 0,
+      "method": "scoped_content_only",
+      "volatile_checks": 1028,
+      "hashes": 2,
+      "elapsed_ns": 8415600,
+      "collector_handles": 108
+    },
+    {
+      "entries": 1024,
+      "repeat": 1,
+      "method": "per_entry_content",
+      "volatile_checks": 1026,
+      "hashes": 1026,
+      "elapsed_ns": 1692966700,
+      "collector_handles": 108
+    },
+    {
+      "entries": 1024,
+      "repeat": 1,
+      "method": "scoped_content_only",
+      "volatile_checks": 1028,
+      "hashes": 2,
+      "elapsed_ns": 8307300,
+      "collector_handles": 108
+    },
+    {
+      "entries": 1024,
+      "repeat": 2,
+      "method": "per_entry_content",
+      "volatile_checks": 1026,
+      "hashes": 1026,
+      "elapsed_ns": 1692706500,
+      "collector_handles": 108
+    },
+    {
+      "entries": 1024,
+      "repeat": 2,
+      "method": "scoped_content_only",
+      "volatile_checks": 1028,
+      "hashes": 2,
+      "elapsed_ns": 8236200,
+      "collector_handles": 108
+    }
+  ],
+  "unknown": "unsampled peaks, Python/Windows transitive costs, real LAB duration"
+}

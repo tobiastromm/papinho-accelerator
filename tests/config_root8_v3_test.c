@@ -1,3 +1,8 @@
+#include "server_store_hash_win32.h"
+#ifndef PAPACC_FIXTURE_STORE_HASH_DEFINED
+#define PAPACC_FIXTURE_STORE_HASH_DEFINED
+static PAPACC_STORE_HASH fixture_store_hash;
+#endif
 /* Reuse the existing v2 DATA fixtures/builders, never native CURRENT/trust.
  * Public three-byte "certificate" is explicitly a MODEL, not X509 evidence. */
 #define main v2_fixture_entry_not_run
@@ -58,7 +63,7 @@ static int next3(unsigned version,PAPACC_SIZE bn)
  w16(f3+240,version);w64(f3+104,3);w64(f3+112,2);w64(f3+136,2);w64(f3+144,18);w64(f3+152,9);w64(f3+160,r64(base3+120));
  memcpy(f3+176,base3+r32(base3+56)+88,32);memcpy(f3+208,base3+bn-32U,32);memset(f3+r32(f3+56),0,512);
  w64(f3+r32(f3+244)+56,3);w64(f3+r32(f3+260)+56,3);
- for(j=0;j<(unsigned)f3[20];j++){q=f3+512U+1536U*j;config_init(j,3);CHECK(papacc_configuration_body05_encode(&view,q+512,1024)==PAPACC_RESULT_OK);CHECK(hash(&owner,q+512,1024,q+312));}
+ for(j=0;j<(unsigned)f3[20];j++){q=f3+512U+1536U*j;config_init(j,3);CHECK(papacc_configuration_body05_encode(&fixture_store_hash,&view,q+512,1024)==PAPACC_RESULT_OK);CHECK(hash(&owner,q+512,1024,q+312));}
  L=r32(f3+44);b=f3+r32(f3+40);memset(&lst,0,sizeof(lst));memcpy(lst.fields,b,L-32U);w64(lst.fields+56,2);w64(lst.fields+88,1);w64(lst.fields+64,18);w64(lst.fields+72,9);w64(lst.fields+80,r64(base3+120));
  for(j=0;j<N;j++){memcpy(lst.fields+128U+512U*j,base3+512U+1536U*j,512);memset(lst.fields+128U+512U*j+344U,0,40);}
  CHECK(pc_lst1_encode(&lst,b,L,&n,hash,&owner)==PC_LST1_OK);return seal3();

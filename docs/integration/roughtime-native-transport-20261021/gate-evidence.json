@@ -1,0 +1,38 @@
+{
+  "task": "PACC-PHASE6-ROUGHTIME-NATIVE-TRANSPORT-1",
+  "date": "2026-10-21",
+  "baseline_sha256": "1b307bb9b2a9b229deace59f3f2e3c4d3fd711969066e12db92a4a9292545312",
+  "input_sha256": {
+    "docs/adr/DECISION-roughtime-at-pt-corrected-rfc10049-20261021.md": "cb2a4d77135bd11c86e2e092514b08d1d66f41664856a38681353893fd609bb2",
+    "docs/integration/rfc10049-direct-evidence-pt0-closure-20261021/AT0-AT9-corrected-frozen-clause-bytes.txt": "d6a9739828bf81a15110f1bb9e15ffbf313a1b76fa38990fc14dae665882ddbf",
+    "docs/integration/rfc10049-direct-evidence-pt0-closure-20261021/PT0-PT7-corrected-frozen-clause-bytes.txt": "0000f0c6873de7d964aef6cef84beb36c5ca5b13652b3c6d4f753a88b1064265",
+    "docs/integration/roughtime-full-transcript-ed11-20261021/closeout.md": "88c986ff3d289d1d615fe24781032a3cbc2072942da2637c2d6283cba619ef39",
+    "docs/integration/roughtime-full-transcript-ed11-20261021/ed11-census.json": "2ee2a95a4bd5107e0b00ad7c71e4f8379b0a6b8ce8543fd5b97cc20f4c707cca",
+    "src/platform/pal_time.h": "553426f27778183deca94d74c4462bf1a7ac04992ddf297a7f01b0218f167a7f",
+    "src/platform/win32/pal_time_win32.c": "aeb230d2d2b88a89b2b10263fc387b2200a59b3b74405da4a86c5018cf54aaaf",
+    "src/issuer/qualified_utc.c": "0f0fa02a570a6f24081e5640606b7a0ae6c8628c66dfb23d2c5844d160c1ce68",
+    "src/issuer/roughtime.h": "a0851195e7ece384f9b886ce8da1fc65f78cfc1e56f07254513ed6bbe326bef9",
+    "src/issuer/roughtime.c": "3ab3832a491c9ff04b14e3a1087445f7a1bcbbeb7ae2c10484df749ccc7c777a"
+  },
+  "findings": {
+    "transport_profile": "UDP_ONLY_PORT_5319_NO_TCP_FALLBACK",
+    "source_representation": "NOT_PROVEN_CANONICAL_AUTHORIZED_SOURCE_KEY_STATUS_CURRENT_PIN",
+    "PAL": "DURATION_ONLY_NO_QUALIFIED_RHO_E_CONTINUITY",
+    "native_roughtime_callsite": "NOT_FOUND_IN_APPS_SRC_INCLUDE",
+    "existing_network_primitives": "TCP_OUTBOUND_AND_FACTUAL_SOCKET_TEARDOWN; NOT_A_ROUGHTIME_UDP_PRODUCER",
+    "ED11": "KNOWN_PRIOR_SCOPED_TEST_HEAP_406300_NOT_NATIVE_PEAK; SOCKET_STACK_COHORT_UNKNOWN"
+  },
+  "network_executed": false,
+  "loopback_executed": false,
+  "builds_tests": "NOT_RUN_NO_FUNCTIONAL_PATCH",
+  "baseline_projects": {
+    "Accelerator": {
+      "HEAD": "913c90cf2328f7939d8f5b927640601903ac6e91",
+      "branch": "main"
+    },
+    "Browser": {
+      "HEAD": "96f6cd2f9ec4f834999828fa13bb7d170db66a98",
+      "branch": "main"
+    }
+  }
+}

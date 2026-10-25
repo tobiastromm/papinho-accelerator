@@ -1,0 +1,102 @@
+/* Existing public CA and synthetic administrative images only. No store/CURRENT.
+ * Native canonical dispatch is exercised; signer positive explicitly MODEL. */
+#define _WIN32_WINNT 0x0600
+#include "config_root8_v4_test.c"
+#include <wincrypt.h>
+#include "root8_backing_fixtures.inc"
+static int prepare_slot(unsigned index,PAPACC_U64 revision)
+{config_init(0,revision);owner.slots[index].view=view;owner.slots[index].serial=++owner.next_serial;owner.pending=index;owner.prepared=1;memcpy(owner.domain,view.domain,32);return 1;}
+#include "server_config_root8_signer_win32.h"
+static unsigned signer_calls,borrow_calls;
+static unsigned char hash_input[PC_ROOT8_V4_MAX];
+static int hash_equivalence(void)
+{
+ static const unsigned lengths[]={0,3,55,56,63,64,65,480,992,1152,8192,16384,30560,30592,31808,31840};
+ unsigned j,k;PAPACC_U8 expected[32],actual[32];
+ for(k=0;k<sizeof(hash_input);k++)hash_input[k]=(PAPACC_U8)(k*17U+3U);
+ for(j=0;j<sizeof(lengths)/sizeof(lengths[0]);j++){
+  CHECK(papacc_configuration_issuer_hash06(&owner,hash_input,lengths[j],expected));
+  CHECK(papacc_configuration_storage_hash(&owner,hash_input,lengths[j],actual));
+  CHECK(!memcmp(expected,actual,32));
+ }
+ memset(actual,0x55,sizeof(actual));CHECK(!papacc_configuration_storage_hash(&owner,NULL,3U,actual));
+ for(j=0;j<32;j++)CHECK(actual[j]==0x55);return 1;
+}
+static int stop_inside;
+static PAPACC_ROOT8_CARRIER_DATA context;
+static unsigned __int64 ca_area[4096],signer_area[4096];
+static PAPACC_U8 cert_area[8192];static PAPACC_CONFIG_VIEW inspect_area;
+#ifdef PAPACC_DISPATCH_MODEL
+PC_ROOT8_RESULT papacc_root8_signer_data(void *opaque,unsigned kind,const PAPACC_U8 *p,
+ PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
+{
+ PAPACC_ROOT8_SIGNER_DATA *s=opaque;(void)p;(void)row;
+ if(kind!=8U||n!=16384U||!s||!s->ca||!header)return PC_ROOT8_INVALID;
+ signer_calls++;return PC_ROOT8_OK; /* ROUTING MODEL, not a certificate proof. */
+}
+#endif
+static PC_ROOT8_RESULT component_prepared(void *opaque,unsigned kind,const PAPACC_U8 *p,
+ PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
+{
+ PAPACC_CONFIG_V3_BORROW b;PAPACC_V3_UPDATE_COHORT *u=&owner.v3_update;
+ if(u->data_active){
+  if(papacc_configuration_candidate_borrow_data(&owner,u->invocation,u->candidate_serial,&b)!=PAPACC_RESULT_OK)return PC_ROOT8_INCOMPLETE;
+  borrow_calls++;
+  if(papacc_configuration_candidate_borrow_data(&owner,u->invocation+1U,u->candidate_serial,&b)==PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
+  if(papacc_configuration_v3_update_abort_data(&owner)==PAPACC_RESULT_OK||u->phase!=PAPACC_V3_UPDATE_HELD)return PC_ROOT8_INVALID;
+  if(stop_inside){papacc_configuration_stop(&owner);return PC_ROOT8_INCOMPLETE;}
+ }
+ /* Generic codec model retained for kinds5..7. Native DATA kind8 routes via
+  * protected ranges and public DER; kind9 uses actual strict point backend. */
+ if(kind==8U||kind==9U)return papacc_root8_issuer_carrier_data(opaque,kind,p,n,row,header);
+ return component3(NULL,kind,p,n,row,header);
+}
+static int prepared_cases(const char *ca_path,unsigned version,unsigned base_version,int stopped)
+{
+ PAPACC_CONFIG_PIN pin={0};PAPACC_CONFIG_V3_BORROW b;PAPACC_V3_UPDATE_COHORT *u=&owner.v3_update;
+ PAPACC_ISSUER_WINDOWS_WORKSPACE capture,caw,sw;PAPACC_U8 key[32],before[32],after[32];PAPACC_SIZE cn,bn;
+ char path[MAX_PATH];DWORD len;unsigned index,previous_calls;
+ memset(&owner,0,sizeof(owner));memset(&context,0,sizeof(context));stop_inside=0;
+ len=GetFullPathNameA("prepared-storage-MODEL-NO-STORE",MAX_PATH,path,NULL);CHECK(len&&len<MAX_PATH);
+ CHECK(papacc_configuration_commit_init03(&owner,path)==0);CHECK(hash_equivalence());CHECK(load_ca(ca_path,&cn,key));
+ CHECK(setup3(4,4,4));CHECK(bind_ca_data(key));CHECK(cp3());
+ if(base_version==4U){CHECK(upgrade4(3));CHECK(cp4());bn=z4;memcpy(base4,e4,bn);}else{bn=z3;memcpy(base3,e3,bn);}
+ memset(&capture,0,sizeof(capture));capture.bytes=arena;capture.capacity=sizeof(arena);CHECK(prepare_slot(1,2));
+ if(base_version==4U)CHECK(papacc_configuration_v4_capture_data(&owner,base4,bn,ca_der,cn,&capture,component4,NULL)==0);
+ else CHECK(papacc_configuration_v3_capture_data(&owner,base3,bn,ca_der,cn,&capture,component3,NULL)==0);
+ owner.prepared=0;owner.published=1;owner.current=1;owner.store02=8;
+ owner.slots[1].context_epoch=18;owner.slots[1].operational_epoch=9;owner.slots[1].issuer_revision=r64(owner.v3_backings[1].packet+120);
+ memcpy(owner.issuer_snapshots[1],owner.v3_backings[1].packet+r32(owner.v3_backings[1].packet+48)+8192,8192);owner.issuer_snapshot_valid[1]=1;
+ memcpy(owner.committed,owner.v3_backings[1].packet,bn);owner.committed_bytes=(DWORD)bn;
+ CHECK(papacc_configuration_storage_hash(&owner,owner.committed,bn,before));CHECK(papacc_configuration_pin(&owner,&pin,&view)==0);
+ if(base_version==4U){CHECK(next4(bn));}else{CHECK(next3(3,bn));if(version==4U)CHECK(upgrade4(3));}
+ if(version==4U)CHECK(papacc_configuration_v4_update_hold_data(&owner,&pin,e4,z4,2500000U,101U)==0);
+ else CHECK(papacc_configuration_v3_update_hold_data(&owner,&pin,e3,z3,2500000U,101U)==0);
+ index=u->candidate_index;CHECK(!pin.ticket&&!owner.v3_backings[index].serial&&u->phase==PAPACC_V3_UPDATE_HELD);
+ CHECK(papacc_configuration_candidate_borrow_data(&owner,u->invocation,u->candidate_serial,&b)!=0);
+ context.owner=&owner;context.v3_version=2U;context.candidate_invocation=u->invocation;context.candidate_serial=u->candidate_serial;
+ context.workspace=&inspect_area;context.floor=owner.v3_backings[1].packet+r32(owner.v3_backings[1].packet+48);context.floor_bytes=16384U;
+ memset(&caw,0,sizeof(caw));memset(&sw,0,sizeof(sw));caw.bytes=ca_area;caw.capacity=sizeof(ca_area);sw.bytes=signer_area;sw.capacity=sizeof(signer_area);
+ context.v3_ca_workspace=&caw;context.v3_signer_workspace=&sw;context.v3_certificate=cert_area;context.v3_certificate_capacity=sizeof(cert_area);context.v3_reserved=2500000U;
+ previous_calls=signer_calls;
+#ifdef PAPACC_DISPATCH_MODEL
+ CHECK(papacc_configuration_prepared_storage_validate_data(&owner,component_prepared,&context)==0);
+ CHECK(signer_calls>previous_calls&&borrow_calls&&!u->data_active&&u->phase==PAPACC_V3_UPDATE_HELD);
+#else
+ (void)previous_calls;CHECK(papacc_configuration_prepared_storage_validate_data(&owner,component_prepared,&context)!=0); /* existing fake3-byte cert rejected */
+#endif
+ CHECK(!owner.pending_commit.active&&!owner.pending_commit.next_bytes&&!owner.v3_backings[index].serial);
+ context.candidate_serial++;CHECK(papacc_configuration_prepared_storage_validate_data(&owner,component_prepared,&context)!=0);context.candidate_serial--;
+ owner.v3_backings[index].packet[600]^=1;CHECK(papacc_configuration_prepared_storage_validate_data(&owner,component_prepared,&context)!=0);owner.v3_backings[index].packet[600]^=1;
+ owner.v3_backings[1].packet[600]^=1;CHECK(papacc_configuration_prepared_storage_validate_data(&owner,component_prepared,&context)!=0);owner.v3_backings[1].packet[600]^=1;
+ CHECK(papacc_configuration_storage_hash(&owner,owner.committed,bn,after)&&!memcmp(before,after,32));
+ if(stopped){stop_inside=1;CHECK(papacc_configuration_prepared_storage_validate_data(&owner,component_prepared,&context)!=0);CHECK(owner.stopped&&!u->data_active&&u->predecessor_pin.ticket);}
+ CHECK(papacc_configuration_v3_update_abort_data(&owner)==0);CHECK(!u->phase&&!owner.prepared);
+ if(!stopped)CHECK(papacc_configuration_stop(&owner)==0);CHECK(papacc_configuration_finish(&owner)==0);
+ printf("PREPARED_DATA version=%u base=%u stopped=%d MODEL_NO_AUTHORITY\n",version,base_version,stopped);return 1;
+}
+int main(int argc,char **argv)
+{
+ if(argc!=2||!prepared_cases(argv[1],3,3,0)||!prepared_cases(argv[1],4,3,0)||!prepared_cases(argv[1],4,4,1))return 1;
+ printf("PASS %u PREPARED_DATA_ONLY NO_CURRENT NO_V4_WORKER\n",checks);return 0;
+}

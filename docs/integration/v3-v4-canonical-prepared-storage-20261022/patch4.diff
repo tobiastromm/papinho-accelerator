@@ -1,0 +1,104 @@
+--- a/apps/server/server_configuration_pending_win32.inc
++++ b/apps/server/server_configuration_pending_win32.inc
+@@ -203,8 +203,8 @@
+  link.administrative_epoch=slot->context_epoch;link.policy_epoch=slot->operational_epoch;
+  if(!slot->issuer_revision||slot->issuer_revision!=link.revision||!o->issuer_snapshot_valid[o->current]||
+   memcmp(o->issuer_snapshots[o->current],o->committed+8192,8192)||
+-  !papacc_configuration_issuer_hash06(o,p->previous,p->previous_bytes,link.previous_commit_digest)||
+-  papacc_issuer_link_encode(encoded,sizeof(encoded),o->committed,16384,&link,papacc_configuration_issuer_hash06,o)!=PAPACC_ISSUER_OK)goto done;
++  !papacc_configuration_storage_hash(o,p->previous,p->previous_bytes,link.previous_commit_digest)||
++  papacc_issuer_link_encode(encoded,sizeof(encoded),o->committed,16384,&link,papacc_configuration_storage_hash,o)!=PAPACC_ISSUER_OK)goto done;
+  /* Input proof is the confirmed native commit packet plus published slot.
+   * Reuse exactly the same completed worker storage; no second writer. */
+  if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
+@@ -228,7 +228,7 @@
+  if(!owner(o)||!out||pending_overlap(o,sizeof(*o),out,sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
+  EnterCriticalSection(&o->lock);
+  if(o->committed_bytes==16896&&!o->unresolved&&!o->pending_commit.active&&
+-  papacc_issuer_link_decode(o->committed+16384,512,o->committed,16384,out,papacc_configuration_issuer_hash06,o)==PAPACC_ISSUER_OK&&
++  papacc_issuer_link_decode(o->committed+16384,512,o->committed,16384,out,papacc_configuration_storage_hash,o)==PAPACC_ISSUER_OK&&
+   (!o->published||(o->slots[o->current].view.revision==out->revision&&
+    o->slots[o->current].context_epoch==out->administrative_epoch&&o->slots[o->current].operational_epoch==out->policy_epoch)))
+   r=PAPACC_RESULT_NOT_SUPPORTED; /* data exists; recovery/authority unsupported */
+@@ -258,11 +258,11 @@
+  if(papacc_configuration_pin_read(o,pin,&view,&A,&P)!=PAPACC_RESULT_OK||
+     papacc_configuration_current(o,&view)!=PAPACC_TRUE||
+     pc_root8_validate_no_issuer(o->committed,o->committed_bytes,
+-     papacc_configuration_issuer_hash06,o,papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK)goto done;
++     papacc_configuration_storage_hash,o,papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK)goto done;
+  q=d3_u32(fields+56);
+  if(memcmp(fields+72,o->domain,32)||d3_u64(fields+104)!=view.revision||
+     d3_u64(fields+q+64)!=A||d3_u64(fields+q+72)!=P||!A||!P||
+-    pc_root8_base_link(image,n,o->committed,o->committed_bytes,papacc_configuration_issuer_hash06,o,
++    pc_root8_base_link(image,n,o->committed,o->committed_bytes,papacc_configuration_storage_hash,o,
+      papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK)goto done;
+  q=d3_u32(image+56);for(i=0;i<512U;i++)if(image[q+i])goto done;
+  if(identity==NULL||identity==INVALID_HANDLE_VALUE||GetFileType(identity)!=FILE_TYPE_DISK||
+@@ -315,12 +315,12 @@
+     memcmp(o->committed,p->previous,p->previous_bytes))goto done;
+  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i]||o->slots[i].issuer_revision)goto done;
+  n=p->next_bytes;if(cap<n)goto done;fields=p->next;
+- if(pc_root8_validate_no_issuer(p->next,n,papacc_configuration_issuer_hash06,o,
++ if(pc_root8_validate_no_issuer(p->next,n,papacc_configuration_storage_hash,o,
+     papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK||memcmp(fields+72,o->domain,32)||
+-    pc_root8_base_link(p->next,n,p->previous,p->previous_bytes,papacc_configuration_issuer_hash06,o,
++    pc_root8_base_link(p->next,n,p->previous,p->previous_bytes,papacc_configuration_storage_hash,o,
+      papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK)goto done;
+  q=d3_u32(fields+56);for(i=0;i<512U;i++)if(fields[q+i])goto done;
+- if(!papacc_configuration_issuer_hash06(o,p->next,q,digest)||o->stopped||o->unresolved)goto done;
++ if(!papacc_configuration_storage_hash(o,p->next,q,digest)||o->stopped||o->unresolved)goto done;
+  /* No input from the caller is borrowed by this copy. Existing packet and
+   * old slots remain untouched; no pin or credit is acquired/released. */
+  memcpy(out,p->next,n);
+@@ -434,7 +434,7 @@
+  k=strlen(leaf);if(!k||k>64U||!strcmp(leaf,".")||!strcmp(leaf,"..")||leaf[k-1U]=='.')return PAPACC_RESULT_INVALID_ARGUMENT;
+  for(i=0;i<k;i++)if(!((leaf[i]>='a'&&leaf[i]<='z')||(leaf[i]>='A'&&leaf[i]<='Z')||
+     (leaf[i]>='0'&&leaf[i]<='9')||leaf[i]=='_'||leaf[i]=='-'||leaf[i]=='.'))return PAPACC_RESULT_INVALID_ARGUMENT;
+- if(pc_root8_validate_no_issuer(image,bytes,papacc_configuration_issuer_hash06,o,
++ if(pc_root8_validate_no_issuer(image,bytes,papacc_configuration_storage_hash,o,
+     papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK||d3_u32(fields+16)||d3_u64(fields+104)!=1U||
+     d3_u64(fields+112)||memcmp(fields+72,o->domain,32U))return PAPACC_RESULT_INVALID_ARGUMENT;
+  for(i=0;i<512U;i++)if(fields[d3_u32(fields+56)+i])return PAPACC_RESULT_INVALID_ARGUMENT;
+--- a/tests/v3_transaction_worker_win32_test.c
++++ b/tests/v3_transaction_worker_win32_test.c
+@@ -13,7 +13,7 @@
+  CHECK(papacc_configuration_commit_init03(&owner,argv[2])==0);
+  CHECK(setup3(4,4,4));CHECK(cp3());bn=z3;memcpy(base3,e3,bn);CHECK(next3(3,bn));
+  CHECK(pc_root8_v3_base_link(e3,z3,base3,bn,hash,&owner,component3,NULL)==PC_ROOT8_OK);
+- CHECK(sizeof(p->next)==PC_ROOT8_V3_MAX&&sizeof(owner.committed)==PC_ROOT8_V3_MAX);
++ CHECK(sizeof(p->next)==PAPACC_CONFIG_TRANSACTION_BYTES&&sizeof(owner.committed)==PAPACC_CONFIG_TRANSACTION_BYTES);
+  memcpy(owner.committed,base3,bn);owner.committed_bytes=(DWORD)bn;
+  memcpy(p->previous,base3,bn);p->previous_bytes=(DWORD)bn;memcpy(p->next,e3,z3);p->next_bytes=(DWORD)z3;
+  file=CreateFileA(argv[2],GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(file!=INVALID_HANDLE_VALUE);
+--- a/tests/store_hash_owner_win32_test.c
++++ b/tests/store_hash_owner_win32_test.c
+@@ -9,6 +9,7 @@
+ #define CK(b) ck((b),__LINE__)
+ int main(void){
+  PAPACC_STORE_HASH *a=&o.store_hash,*b=&o.pending_commit.store_hash;
++ unsigned char data[32];
+  BCRYPT_ALG_HANDLE aa,ba;BCRYPT_HASH_HANDLE ah,bh;char path[MAX_PATH];DWORD n;
+  n=GetTempPathA(MAX_PATH,path);CK(n&&n<MAX_PATH-48U);strcat_s(path,MAX_PATH,"papacc-hash-owner-NO-STORE");
+  CK(papacc_configuration_commit_init03(&o,path)==PAPACC_RESULT_OK);
+@@ -18,6 +19,8 @@
+  CK(BCryptCreateHash(b->algorithm,&b->hash,NULL,0,NULL,0,0)==0);
+  aa=a->algorithm;ah=a->hash;ba=b->algorithm;bh=b->hash;a->retained=b->retained=1;
+  a->cleanup_status=b->cleanup_status=(NTSTATUS)0xc0000001L;
++ memset(data,0x55,sizeof(data));CK(!papacc_configuration_storage_hash(&o,(const unsigned char *)"abc",3U,data));
++ CK(data[0]==0x55&&data[31]==0x55);CK(a->algorithm==aa&&a->hash==ah&&b->algorithm==ba&&b->hash==bh);
+  CK(papacc_configuration_stop(&o)==PAPACC_RESULT_OK);
+  CK(a->stopped&&b->stopped&&a->retained&&b->retained);
+  CK(a->algorithm==aa&&a->hash==ah&&b->algorithm==ba&&b->hash==bh);
+--- a/apps/server/server_store_data_hash_win32.inc
++++ b/apps/server/server_store_data_hash_win32.inc
+@@ -4,7 +4,9 @@
+ static int store_data_hash(PAPACC_STORE_HASH *c,const unsigned char *p,unsigned n,unsigned char out[32])
+ {
+  PACC_STORAGE_SHA256 hash;unsigned char value[32];unsigned left=n,chunk;int ok=0;
+- if(!c||!out||(!p&&n)||c->stopped||c->retained||c->algorithm||c->hash||
++ if(!c||!out||(!p&&n)||(n&&(ULONG_PTR)p>MAXULONG_PTR-(n-1U))||
++ (ULONG_PTR)out>MAXULONG_PTR-31U||
++ ((ULONG_PTR)out<=(ULONG_PTR)c?(ULONG_PTR)c-(ULONG_PTR)out<32U:(ULONG_PTR)out-(ULONG_PTR)c<sizeof(*c))||c->stopped||c->retained||c->algorithm||c->hash||
+  InterlockedCompareExchange(&c->active,1,0)!=0)return 0;
+  memset(&hash,0,sizeof(hash));
+  if(pacc_storage_sha_init(&hash)!=PACC_HASH_OK)goto done;

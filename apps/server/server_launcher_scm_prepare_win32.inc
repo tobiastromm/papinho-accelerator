@@ -1,0 +1,93 @@
+#include <wchar.h>
+/* Read-only SCM LAB binding, within the EXISTING launcher root. */
+#include <aclapi.h>
+#include "server_service_win32.h"
+#include "server_service_data.h"
+#include "../../tools/qualification/storage-hash-capsule/storage_sha256.h"
+static int scm_descriptor(const void *data,const BYTE *operator_sid)
+{
+ PACL acl;PSID owner;BOOL present,def;BYTE system[SECURITY_MAX_SID_SIZE],admins[SECURITY_MAX_SID_SIZE];DWORD sn=sizeof(system),an=sizeof(admins),i;
+ const DWORD write=GENERIC_ALL|GENERIC_WRITE|DELETE|WRITE_DAC|WRITE_OWNER|FILE_WRITE_DATA|FILE_APPEND_DATA|FILE_WRITE_EA|FILE_WRITE_ATTRIBUTES|FILE_DELETE_CHILD;
+ if(!data||!IsValidSecurityDescriptor((PSECURITY_DESCRIPTOR)data)||!GetSecurityDescriptorOwner((PSECURITY_DESCRIPTOR)data,&owner,&def)||!owner||!IsValidSid(owner)||
+ !CreateWellKnownSid(WinLocalSystemSid,NULL,system,&sn)||!CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admins,&an)||
+ (!EqualSid(owner,(PSID)operator_sid)&&!EqualSid(owner,system)&&!EqualSid(owner,admins))||
+ !GetSecurityDescriptorDacl((PSECURITY_DESCRIPTOR)data,&present,&acl,&def)||!present||!acl||!IsValidAcl(acl))return 0;
+ for(i=0;i<acl->AceCount;i++){
+  ACCESS_ALLOWED_ACE *ace;PACE_HEADER header;PSID sid;
+  if(!GetAce(acl,i,(void **)&header)||header->AceSize<FIELD_OFFSET(ACCESS_ALLOWED_ACE,SidStart)+8U)return 0;
+  if(header->AceFlags&INHERIT_ONLY_ACE)continue;
+  if(header->AceType!=ACCESS_ALLOWED_ACE_TYPE&&header->AceType!=ACCESS_DENIED_ACE_TYPE)return 0;
+  ace=(ACCESS_ALLOWED_ACE *)header;sid=(PSID)&ace->SidStart;
+  if(!IsValidSid(sid)||GetLengthSid(sid)>(DWORD)(header->AceSize-FIELD_OFFSET(ACCESS_ALLOWED_ACE,SidStart)))return 0;
+  if(header->AceType==ACCESS_ALLOWED_ACE_TYPE&&(ace->Mask&write)&&!EqualSid(sid,(PSID)operator_sid)&&!EqualSid(sid,system)&&!EqualSid(sid,admins))return 0;
+ }
+ return 1;
+}
+#ifndef PAPACC_SCM_DESCRIPTOR_TEST
+static int scm_acl_hash(PAPACC_PERSONAL_NATIVE_CONTEXT *n,HANDLE file,unsigned char out[32])
+{
+ int ok;DWORD bytes;
+ if(n->check_descriptor)return 0;
+ if(GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->check_descriptor)!=ERROR_SUCCESS)return 0;
+ ok=scm_descriptor(n->check_descriptor,n->sid);bytes=GetSecurityDescriptorLength(n->check_descriptor);
+ if(ok)ok=pacc_storage_hash_callback(NULL,(const unsigned char *)n->check_descriptor,bytes,out);
+ if(LocalFree(n->check_descriptor)){n->phase=2U;return 0;}n->check_descriptor=NULL;return ok;
+}
+static void scm_id(unsigned long id[3],const BY_HANDLE_FILE_INFORMATION *f)
+{id[0]=f->dwVolumeSerialNumber;id[1]=f->nFileIndexHigh;id[2]=f->nFileIndexLow;}
+int papacc_server_launcher_scm_prepare(const char *installation,const char *configuration,const PAPACC_SERVICE_IMAGE_VIEW *image,FILE *out,FILE *err)
+{
+ PAPACC_CONFIGURATION_COMMIT *c;PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;
+ PC_DOCUMENT document;PC_DIAGNOSTIC diagnostic;PC_TARGET target={1U,0};
+ PS_LAB_BINDING binding;PS_BINDING_FACTS facts;const WCHAR *leaf;int prepared=0,clean=1;unsigned i;
+ const char *stage="ENTRY";
+ if(!installation||!configuration||!image||!image->handle||!image->path||!image->sha256||!out||!err||image->owner_thread!=GetCurrentThreadId())return 2;
+ if(InterlockedCompareExchange(&state,PAPACC_LAUNCHER_ACTIVE,0)!=0)return 2;
+ if(next_invocation==(PAPACC_U64)-1){InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return 2;}
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+ if(papacc_server_service_admission_enter(NULL,NULL)!=ERROR_SUCCESS){InterlockedExchange(&state,PAPACC_LAUNCHER_FINISHED);return 2;}
+#endif
+ memset(&root,0,sizeof(root));root.invocation=++next_invocation;root.owner_thread=GetCurrentThreadId();c=&root.configuration_commit;p=&c->pending_commit;n=&p->personal_native;
+ c->writer=root.owner_thread;p->file=INVALID_HANDLE_VALUE;memset(&binding,0,sizeof(binding));memset(&facts,0,sizeof(facts));
+ root.reserved_bytes=PAPACC_C8_KNOWN_MANAGED_BYTES+sizeof(document)+sizeof(diagnostic)+sizeof(binding)+sizeof(facts)+papacc_server_service_storage_bytes()+sizeof(LONG)+4096U;
+ stage="CAPACITY";if(root.reserved_bytes>PAPACC_LAUNCHER_MANAGED_LIMIT)goto done;
+ stage="NATIVE_OPERATOR_PARENT";if(papacc_configuration_personal_native_open(c,installation)!=PAPACC_RESULT_OK){stage=p->bootstrap_token?"PARENT_OR_REVALIDATION":"OPERATOR_ELIGIBILITY_OR_CAPTURE";goto done;}
+ stage="PARENT_ACL";if(!scm_descriptor(n->descriptor,n->sid))goto done;
+ leaf=wcsrchr(image->path,(WCHAR)92);if(!leaf||!leaf[1])goto done;leaf++;
+ stage="RELATIVE_FILES";if(papacc_configuration_scm_lab_files_open(c,leaf,configuration)!=PAPACC_RESULT_OK)goto done;
+ stage="FILE_IDENTITY_BYTES";if(papacc_configuration_scm_lab_files_current(c,&image->identity)!=PAPACC_RESULT_OK)goto done;
+ stage="CONFIGURATION_DATA";if(pc_parse(p->next,n->source.nFileSizeLow,&document,&diagnostic)!=PC_OK||pc_validate(&document,&target,&diagnostic)!=PC_OK)goto done;
+ stage="ACL_IDENTITY";if(!scm_acl_hash(n,p->file,facts.config_acl)||!scm_acl_hash(n,n->scm_image,facts.image_acl)||
+ !pacc_storage_hash_callback(NULL,(const unsigned char *)n->descriptor,n->descriptor_bytes,facts.parent_acl))goto done;
+ scm_id(facts.installation,&n->parent);scm_id(facts.configuration,&n->source);scm_id(facts.executable,&image->identity);
+ facts.configuration_bytes=n->source.nFileSizeLow;memcpy(facts.image_hash,image->sha256,32);
+ if(!pacc_storage_hash_callback(NULL,p->next,facts.configuration_bytes,facts.config_hash)||!pacc_storage_hash_callback(NULL,n->sid,n->sid_bytes,facts.operator_id))goto done;
+ facts.token[0]=n->token.TokenId.LowPart;facts.token[1]=(unsigned long)n->token.TokenId.HighPart;
+ facts.token[2]=n->token.AuthenticationId.LowPart;facts.token[3]=(unsigned long)n->token.AuthenticationId.HighPart;
+ facts.token[4]=n->token.ModifiedId.LowPart;facts.token[5]=(unsigned long)n->token.ModifiedId.HighPart;
+ stage="ATTEMPT";if(BCryptGenRandom(NULL,facts.attempt,32U,BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0||!ps_lab_binding_capture(&binding,&facts))goto done;
+ stage="REVALIDATION";if(papacc_configuration_scm_lab_files_current(c,&image->identity)!=PAPACC_RESULT_OK||
+ !scm_acl_hash(n,p->file,facts.config_acl)||!scm_acl_hash(n,n->scm_image,facts.image_acl)||
+ !ps_lab_binding_complete(&binding,&facts,papacc_server_console_win32_stop_requested()))goto done;
+ prepared=1;
+ fprintf(out,"SCM_LAB_PREPARE=BOUND_READ_ONLY; OPERATOR=%s; INSTALLATION=%lu:%lu:%lu; CONFIGURATION=%lu:%lu:%lu; BYTES=%u; ATTEMPT=",
+ n->sid_text,facts.installation[0],facts.installation[1],facts.installation[2],facts.configuration[0],facts.configuration[1],facts.configuration[2],facts.configuration_bytes);
+ for(i=0;i<32;i++)fprintf(out,"%02x",facts.attempt[i]);
+ fprintf(out,"; SERVICE=PapinhoAccelerator; ACCOUNT=NT SERVICE%cPapinhoAccelerator; IMAGE=%lu:%lu:%lu; IMAGE_SHA256=",92,facts.executable[0],facts.executable[1],facts.executable[2]);
+ for(i=0;i<32;i++)fprintf(out,"%02x",facts.image_hash[i]);
+ fputs("; CONFIGURATION_SHA256=",out);for(i=0;i<32;i++)fprintf(out,"%02x",facts.config_hash[i]);
+ fputs("; AUTHORIZATION=NOT_ACQUIRED; CREATE_SERVICE=DENY; SCOPE=LAB_ONLY\n",out);
+ done:
+ ps_lab_binding_invalidate(&binding);
+ if(papacc_configuration_personal_native_close(c)!=PAPACC_RESULT_OK)clean=0;
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+ if(clean){if(papacc_server_service_admission_finish(1)!=ERROR_SUCCESS)clean=0;}
+ if(!clean)papacc_server_service_admission_retain();
+#endif
+ if(clean){SecureZeroMemory(p->next,sizeof(p->next));SecureZeroMemory(p->observed,sizeof(p->observed));InterlockedExchange(&state,PAPACC_LAUNCHER_FINISHED);}
+ else InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);
+ fprintf(err,"SCM_LAB_BINDING=%s; STAGE=%s; RESOURCES=%s; NO_SCM_EFFECT; CA_CURRENT_AUTHORITY=DENY\n",prepared?"PREPARED_NOT_AUTHORIZED":"DENY",stage,clean?"CLOSED":"RETAINED_UNKNOWN");
+ return prepared&&clean?0:2;
+}
+
+#endif

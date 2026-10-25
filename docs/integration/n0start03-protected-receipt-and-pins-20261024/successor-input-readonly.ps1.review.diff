@@ -1,0 +1,30 @@
+--- tools/qualification/n0-protected-input-readonly.ps1
++++ successor-input-readonly.ps1
+@@ -5,14 +5,15 @@
+ $ErrorActionPreference='Stop'
+ $root='C:\Projetos\PapinhoAccelerator';$tools=$root+'\tools\qualification'
+ function Hash([string]$p){$f=[IO.File]::Open($p,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);$s=[Security.Cryptography.SHA256]::Create();try{return ([BitConverter]::ToString($s.ComputeHash($f))).Replace('-','').ToLowerInvariant()}finally{$s.Dispose();$f.Dispose()}}
+-if((Hash ($tools+'\n0-protected-input-readonly.ps1'))-cne$ExpectedScriptSha256){throw 'SCRIPT_PIN_DENY'}
++if((Hash ($root+'\docs\integration\n0start03-protected-receipt-and-pins-20261024\successor-input-readonly.ps1'))-cne$ExpectedScriptSha256){throw 'SCRIPT_PIN_DENY'}
+ if([IntPtr]::Size-ne8 -or $PSVersionTable.PSEdition-ne'Desktop' -or $PSVersionTable.PSVersion.Major-ne5){throw 'WINDOWS_POWERSHELL_5_X64_REQUIRED'}
+ Import-Module ($PSHOME+'\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1') -ErrorAction Stop
+ if(('PaccFileAcl' -as [type]) -or ('PaccN0InputRead' -as [type])){throw 'FRESH_OPERATOR_PROCESS_REQUIRED'}
+-$pins=@{'scm-file-acl-native.ps1'='f52242fe74932d1539e83a742430ea523eda746ce39d8815b1b977cf6bb6ac75';'n0-protected-input-readonly.cs'='cd3678f0a593c1c9e5de2c81172d9d6534c9655379c3070bc81fac181e07aec3'}
++$pins=@{'scm-file-acl-native.ps1'='f52242fe74932d1539e83a742430ea523eda746ce39d8815b1b977cf6bb6ac75';'n0-protected-input-readonly.cs'='1ec26dc9bd04a468543836b42c574a8b872515b5f596398a1901613edf8b9cc0'}
+ $bytes=@{}
+ foreach($entry in $pins.GetEnumerator()){
+- $f=[IO.File]::Open(($tools+'\'+$entry.Key),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
++ $sourcePath=if($entry.Key-eq'n0-protected-input-readonly.cs'){$root+'\docs\integration\n0start03-protected-receipt-and-pins-20261024\successor-input-readonly.cs'}else{$tools+'\'+$entry.Key}
++ $f=[IO.File]::Open($sourcePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+  try{$m=[IO.MemoryStream]::new();try{$f.CopyTo($m);$b=$m.ToArray()}finally{$m.Dispose()}}finally{$f.Dispose()}
+  $sha=[Security.Cryptography.SHA256]::Create();try{$actual=([BitConverter]::ToString($sha.ComputeHash($b))).Replace('-','').ToLowerInvariant()}finally{$sha.Dispose()}
+  if($actual-cne$entry.Value){throw 'SOURCE_PIN_DENY'};$bytes[$entry.Key]=$b
+@@ -44,7 +45,7 @@
+  if($hostHash-cne'2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff' -or $boot.RecordId-ne236441 -or [DateTimeOffset]::Parse($start).UtcDateTime-ne[DateTimeOffset]::Parse('2026-10-23T18:36:34.5000000Z').UtcDateTime){throw 'HOST_BOOT_DENY'}
+ }
+ Check-OperatorBoot
+-if((Hash ($root+'\docs\integration\n0-n9-protected-raw1-input-placement2-20261024\manual-N2P-20261024-02.txt'))-cne'94bbf1efc64cb5cc1b8851ee9461907c401cfd7ca59096e06cbe41ce34b03c38'){throw 'N2P_RECEIPT_PIN_DENY'}
++if((Hash ($root+'\docs\integration\n0start03-protected-input-placement-preparation-20261024\manual-N2P-20261024-03.txt'))-cne'92574a6f1966358d054daa50484c7bd855d8a2a4fb4d5ed42edca938d231a1e9'){throw 'N2P_RECEIPT_PIN_DENY'}
+ $result=[PaccN0InputRead]::Run()
+ Write-Host ('N0_INPUT_READ_FIRST_ERROR='+$result+'; RETAINED='+[PaccN0InputRead]::Retained+'; FILES_CREATED=NO; PREFLIGHT=NO; PINS=EMPTY_DENY')
+ if([PaccN0InputRead]::Retained){Write-Host 'UNKNOWN_PRESERVE_OWNER_NO_RETRY';while($true){[Threading.Thread]::Sleep(1000)}}

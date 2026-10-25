@@ -1,0 +1,9 @@
+# Bounded resource reconciliation
+
+Compiler sizeof on all four x64 variants: descriptor976, inventory208, private BD state1552, instrumented PS_ADMISSION1640, IG_SAMPLE1416 bytes. Previous qualified admission1024/sample1112: +616/+304 bytes respectively, distinct objects (920 total); not physical peak or remaining quota credit. Ordinary noninstrumented owner layout unchanged. Storage/modeled sizes are not process measurements.
+
+Persistent new BD binding owns actor process/thread/token, real self process, auxiliary process/opened file/token: seven handles. Console confirmation adds two, known BD-local simultaneous maximum nine on this path; revalidation current-token handles are sequential and explicitly owned. These are a SUBSET, not a process ceiling. Existing admission mutex, intent, config, images, source/dossier refs, snapshot/PSS and runtime remain separately charged; caller/dossier adapter costs still unqualified. Twelve cleanup slots include error-path/transient refs, not twelve normal persistent handles.
+
+No added worker/thread or unbounded buffer. Native helper uses fixed1024-WCHAR image path, bounded256-byte token record and32-entry console client array; nested runtime/CRT/provider/kernel stacks remain UNKNOWN. Approved SID allocation and allocator overhead remain charged, no zero substitution. Shared admin+aux256MiB/1024 handles/64threads/32MiB observed stack; each native64MiB/128/16/8MiB unchanged. Exact concurrency/stack/process totals and host gates remain for separately approved factual qualification.
+
+Historical106 and141 handle observations are not reused as current handle PASS. Credits NONE_GRANTED; ED11 PARTIAL. New receipt storage/references cannot consume nominal margin automatically. UNKNOWN blocks release/replay; process absence and console closure are not cleanup receipts.

@@ -1,0 +1,269 @@
+--- a/tests/service_runtime_component_test.c
++++ b/tests/service_runtime_component_test.c
+@@ -44,6 +44,8 @@
+  else if(kind==TokenUser){TOKEN_USER *v=b;PSID sid=model_mode==1U?model_admin:model_sid;n=sizeof(*v)+GetLengthSid(sid);if(capacity<n)return FALSE;ZeroMemory(b,capacity);v->User.Sid=(BYTE *)b+sizeof(*v);CopySid(GetLengthSid(sid),v->User.Sid,sid);}
+  else if(kind==TokenGroups){TOKEN_GROUPS *v=b;if(model_mode==16U){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}BYTE *next=(BYTE *)b+FIELD_OFFSET(TOKEN_GROUPS,Groups)+3U*sizeof(SID_AND_ATTRIBUTES);unsigned i;PSID sids[3];sids[0]=model_service;sids[1]=model_sid;sids[2]=model_admin;ZeroMemory(b,capacity);v->GroupCount=model_mode==2U?3U:(model_mode==13U?1U:2U);for(i=0;i<v->GroupCount;i++){v->Groups[i].Sid=next;v->Groups[i].Attributes=SE_GROUP_ENABLED;if(model_mode==4U&&i==1U)v->Groups[i].Attributes=SE_GROUP_USE_FOR_DENY_ONLY;if(model_mode==14U&&i==1U)v->Groups[i].Attributes=0;if(model_mode==15U&&i==1U)v->Groups[i].Attributes=SE_GROUP_ENABLED|SE_GROUP_USE_FOR_DENY_ONLY;if(model_mode==18U&&i==1U)v->Groups[i].Attributes=SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_OWNER;CopySid(GetLengthSid(sids[i]),next,sids[i]);next+=GetLengthSid(sids[i]);}n=(DWORD)(next-(BYTE *)b);if(model_mode==5U)v->Groups[0].Sid=(BYTE *)b+capacity;}
+  else if(kind==TokenPrivileges){TOKEN_PRIVILEGES *v=b;ZeroMemory(b,capacity);v->PrivilegeCount=0;n=(DWORD)FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges);}
++ else if(kind==TokenHasRestrictions){if(model_mode==19U){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}if(capacity<sizeof(DWORD))return FALSE;*(DWORD *)b=1;n=1;}
++ else if(kind==TokenRestrictedSids){TOKEN_GROUPS *v=b;ZeroMemory(b,capacity);v->GroupCount=0;n=(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups);}
+  else if(kind==TokenElevation){TOKEN_ELEVATION *v=b;v->TokenIsElevated=0;n=sizeof(*v);}
+  else return FALSE;*used=n;return TRUE;
+ }
+--- a/tests/service_runtime_file_model_test.c
++++ b/tests/service_runtime_file_model_test.c
+@@ -50,14 +50,16 @@
+   if(scenario==15U)T(strstr((char *)f->text,"observed_b=20")!=NULL);
+   if(scenario==4U)T(strstr((char *)f->text,"observed_b=16")!=NULL);
+   if(scenario==18U)T(strstr((char *)f->text,"observed_b=10")!=NULL);
+-  T(strstr((char *)f->text,"nt_valid=0")!=NULL&&strstr((char *)f->text,"token_handle=NOT_EXPORTED")!=NULL);
++  T(strstr((char *)f->text,"q_error=0 q_known=15 q_complete=1")!=NULL);
++    T(strstr((char *)f->text,"filtered_raw=1 filtered_bytes=1 restricted_count=0")!=NULL);
++    T(strstr((char *)f->text,"nt_valid=0")!=NULL&&strstr((char *)f->text,"token_handle=NOT_EXPORTED")!=NULL);
+   w=dm_writes;PSRT_RETURN(ERROR_INVALID_DATA,"later_failure_must_not_replace_first");T(dm_writes==w&&psrt_record.returned==ERROR_ACCESS_DENIED);
+   T(psr_close()==0);
+  }
+  dm_reset(0);host.stop=1;c=dm_creates;T(psrd_bind()==ERROR_CANCELLED&&dm_creates==c&&psrd_quiescent());
+  dm_reset(0);T(psrd_bind()==0);host.handle=(SERVICE_STATUS_HANDLE)(ULONG_PTR)9;host.thread=GetCurrentThreadId();host.run_active=1;T(ps_begin(&host.life));T(ps_stop(&host.life));papacc_server_service_runtime_closed();T(host.terminal_receipt==2&&host.life.phase==PS_RETAINED&&!psrd_quiescent());
+- dm_reset(0);T(psrd_bind()==0);T(psrd_prepare_complete()==0&&native.runtime.ready&&native.runtime.diagnostic.receipt==2&&psrd_quiescent());T(psr_close()==0);
+- dm_reset(0);T(psrd_bind()==0);dm=7;T(psrd_prepare_complete()!=0&&!native.runtime.ready&&native.runtime.retained);host.handle=(SERVICE_STATUS_HANDLE)(ULONG_PTR)9;host.run_active=1;host.thread=GetCurrentThreadId();T(ps_begin(&host.life));T(!papacc_server_service_runtime_ready());T(psr_close()!=0);
++ dm_reset(0);T(ids());T(psrd_bind()==0);T(psr_token()==0);T(psrd_prepare_complete()==0&&native.runtime.ready&&native.runtime.diagnostic.receipt==2&&psrd_quiescent());f=(PSRF_FRAME *)(dm_disk+1024);T(psrf_valid(f,psrd_attempt,2));T(strstr((char *)f->text,"q_error=0 q_known=15 q_complete=1")!=NULL);T(strstr((char *)f->text,"sid_count=1 sid_attrs=00000004")!=NULL);T(psr_close()==0);
++ dm_reset(0);T(ids());T(psrd_bind()==0);T(psr_token()==0);dm=7;T(psrd_prepare_complete()!=0&&!native.runtime.ready&&native.runtime.retained);host.handle=(SERVICE_STATUS_HANDLE)(ULONG_PTR)9;host.run_active=1;host.thread=GetCurrentThreadId();T(ps_begin(&host.life));T(!papacc_server_service_runtime_ready());T(psr_close()!=0);
+  T(LocalFree(dm_parent_sd)==NULL);T(LocalFree(dm_file_sd)==NULL);T(LocalFree(dm_bad_sd)==NULL);
+  printf("CANONICAL_FILE_RUNTIME_MODEL=PASS bind_identity_owner_dacl_attempt_stop_partial_close_retention_quiescence_native_status_no_console; DIAGNOSTIC=%zu RUNTIME=%zu NATIVE=%zu TOTAL_STORAGE=%zu\n",sizeof(PS_DIAGNOSTIC),sizeof(PS_RUNTIME),sizeof(PS_NATIVE),papacc_server_service_storage_bytes());return 0;
+ }
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -1,3 +1,9 @@
++/* Diagnostic-only role correlation; frozen owner suppresses new queries. */
++#ifndef PT_OBSERVATION_H
++#define PT_STOP() (lab_aux_gate()!=0 || papacc_server_console_win32_stop_requested())
++#include "../../apps/server/server_service_observation_win32.h"
++#undef PT_STOP
++#endif
+ /* Successor of the SAME fixed SCM cycle; all positive effects MANUAL ONLY. */
+ #include <stdlib.h>
+ #ifdef PAPACC_N0_PRIVATE_STDOUT
+@@ -156,6 +162,7 @@
+  {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
+ 
+  PROCESSENTRY32W pe;DWORD e=0;unsigned j,n0_seen=0;
++ ULONGLONG snapshot_begin=0,snapshot_end=0;
+ #ifdef PAPACC_SINGLE_LAB_ADMISSION
+  if(native.admission.bd.used){
+   if(!native.admission.bd.bound)return ERROR_ACCESS_DENIED;
+@@ -163,7 +170,7 @@
+   e=ps_bd_inventory(&native.admission.bd.binding,&native.admission.bd.inventory,GetTickCount64());if(e)return e;
+  }
+ #endif
+-if(ig_guard_snapshot||native.retained)return ERROR_INVALID_STATE;ig_guard_snapshot=ig_diag_handle(cycle_stage,"CreateToolhelp32Snapshot","process_snapshot",CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0));if(ig_guard_snapshot==INVALID_HANDLE_VALUE){ig_guard_snapshot=NULL;return lab_error();}
++if(ig_guard_snapshot||native.retained)return ERROR_INVALID_STATE;snapshot_begin=GetTickCount64();ig_guard_snapshot=ig_diag_handle(cycle_stage,"CreateToolhelp32Snapshot","process_snapshot",CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0));if(ig_guard_snapshot==INVALID_HANDLE_VALUE){ig_guard_snapshot=NULL;return lab_error();}
+  ZeroMemory(&pe,sizeof(pe));pe.dwSize=sizeof(pe);if(!ig_diag_bool(cycle_stage,"Process32FirstW","process_snapshot_entry",Process32FirstW(ig_guard_snapshot,&pe)))return lab_error();
+  do{int participant=0,child=0;
+ #ifdef PAPACC_SINGLE_LAB_ADMISSION
+@@ -178,13 +185,23 @@
+  for(j=0;j<4;j++){if(ig_observer.pid[j]&&pe.th32ProcessID==ig_observer.pid[j])participant=1;if(ig_observer.pid[j]&&pe.th32ParentProcessID==ig_observer.pid[j])child=1;}
+  if(!participant&&(child||!_wcsnicmp(pe.szExeFile,L"papacc",6))){unsigned k;ig_diag_note(cycle_stage,"process_census_predicate","process_snapshot",ERROR_BUSY,ERROR_BUSY,pe.th32ProcessID,4);printf("IG_CENSUS_REJECT pid=%lu parent=%lu child=%u project_prefix=%u; NO_ADMISSION\n",(unsigned long)pe.th32ProcessID,(unsigned long)pe.th32ParentProcessID,(unsigned)child,(unsigned)(!_wcsnicmp(pe.szExeFile,L"papacc",6)));printf("IG_CENSUS_NAME_UTF16=");for(k=0;k<64U&&pe.szExeFile[k];k++)printf("%04x",(unsigned)(unsigned short)pe.szExeFile[k]);printf("; TRUNCATED=%u; SNAPSHOT_NAME_ONLY_NO_CREATION_PROOF\n",(unsigned)(k==64U&&pe.szExeFile[k]!=0));e=ERROR_BUSY;break;}}while(ig_diag_next(cycle_stage,"Process32NextW","process_snapshot_entry",Process32NextW(ig_guard_snapshot,&pe)));
+  if(!e&&GetLastError()!=ERROR_NO_MORE_FILES)e=lab_error();
++ snapshot_end=GetTickCount64();
+ #ifdef PAPACC_N0_N9_NATIVE_OWNER
+  if(!e&&native.admission.bd.bound&&native.admission.bd.binding.n0){unsigned expected=0;
+  for(j=0;j<PS_BD_ROLES;j++)if(native.admission.bd.inventory.present[j])expected|=1U<<j;
+  if(n0_seen!=expected){e=ERROR_INVALID_DATA;ig_diag_note(cycle_stage,"n0_original_roles_missing","process_snapshot",e,e,0,4);
+- printf("IG_CENSUS_ROLE_MASK expected=%u seen=%u missing=%u; ORIGINAL_INVENTORY; SNAPSHOT_ONLY_NOT_EXIT_PROOF\n",expected,n0_seen,expected&~n0_seen);}}
++ printf("IG_CENSUS_ROLE_MASK expected=%u seen=%u missing=%u; ORIGINAL_INVENTORY; SNAPSHOT_ONLY_NOT_EXIT_PROOF\n",expected,n0_seen,expected&~n0_seen);
++ /* Original borrowed inventory handles only. No PID reopen or census exception. */
++ for(j=0;j<PS_BD_ROLES;j++)if((expected&~n0_seen)&(1U<<j)){
++  DWORD saved=GetLastError();PT_ROLE q;
++  if(lab_aux_gate()){ZeroMemory(&q,sizeof(q));q.result=PT_STOPPED;q.error=ERROR_CANCELLED;}
++  else q=pt_role(native.admission.bd.inventory.role[j].handle,native.admission.bd.inventory.role[j].pid,native.admission.bd.inventory.role[j].creation,j,expected,n0_seen,0,snapshot_begin,snapshot_end,GetTickCount64());
++  printf("IG_CENSUS_ORIGINAL role=%u expected_pid=%lu expected_creation=%llu observed_pid=%lu observed_creation=%llu result=%lu query_error=%lu wait=%lu begin=%llu end=%llu observed=%llu; AFTER_SNAPSHOT_ONLY; NO_ADMISSION\n",j,(unsigned long)native.admission.bd.inventory.role[j].pid,native.admission.bd.inventory.role[j].creation,(unsigned long)q.pid,q.creation,(unsigned long)q.result,(unsigned long)q.error,(unsigned long)q.wait_result,q.snapshot_begin,q.snapshot_end,q.observed_at);
++  SetLastError(saved);
++ }
++ }}
+ #else
+- (void)n0_seen;
++ (void)n0_seen;(void)snapshot_begin;(void)snapshot_end;
+ #endif
+  if(!ig_diag_bool(cycle_stage,"CloseHandle","process_snapshot_handle",CloseHandle(ig_guard_snapshot))){native.retained=1;return ERROR_INVALID_HANDLE;}ig_guard_snapshot=NULL;
+  /* One self query at the post-census/pre-PSS boundary, not admission authority.
+--- a/apps/server/server_service_psr_file_win32.inc
++++ b/apps/server/server_service_psr_file_win32.inc
+@@ -82,7 +82,8 @@
+ 
+ static DWORD psrd_prepare_complete(void)
+ {
+- PSRT_PREPARED();if(native.runtime.diagnostic.error)return native.runtime.diagnostic.error;
++ DWORD observed=PSRT_PREPARED();if(observed)return observed;
++ if(native.runtime.diagnostic.error)return native.runtime.diagnostic.error;
+  if(native.runtime.diagnostic.receipt!=2U||!psrd_quiescent())return ERROR_WRITE_FAULT;
+  native.runtime.ready=1U;return ERROR_SUCCESS;
+ }
+--- a/apps/server/server_service_psr_trace_win32.inc
++++ b/apps/server/server_service_psr_trace_win32.inc
+@@ -8,6 +8,20 @@
+ #ifndef PSRT_OUTPUT
+ #define PSRT_OUTPUT(text,kind) OutputDebugStringA(text)
+ #endif
++/* Unknown metadata is explicit and never changes the original result. */
++#ifndef PSRT_OBSERVATION
++static DWORD psrt_observation_unavailable(char *out,size_t n){(void)_snprintf_s(out,n,_TRUNCATE," q_error=%lu q_known=0 q_complete=0",(unsigned long)ERROR_NOT_SUPPORTED);return ERROR_SUCCESS;}
++#define PSRT_OBSERVATION psrt_observation_unavailable
++#endif
++static void psrt_append_observation(char *text,size_t capacity)
++{
++ DWORD saved=GetLastError();char detail[224];size_t n=strlen(text),d;
++ (void)PSRT_OBSERVATION(detail,sizeof(detail));d=strlen(detail);
++ if(n&&text[n-1]=='\n')text[--n]=0;
++ if(n+d+2U<=capacity){memcpy(text+n,detail,d);text[n+d]='\n';text[n+d+1]=0;}
++ else if(n+27U<=capacity)strcat_s(text,capacity," q_capture=UNKNOWN_BOUNDS\n");
++ SetLastError(saved);
++}
+ typedef struct PSRT_BORROW {void *data;DWORD length,capacity;} PSRT_BORROW;
+ typedef struct PSRT_RECORD {
+  PSRT_BORROW token[3];const char *object,*api,*predicate;DWORD requested,raw,returned,line,value_a,value_b;LONG ntstatus;unsigned native_valid,success,emitted,began,prepared;
+@@ -16,7 +30,20 @@
+ #define PSRT_STORAGE_BYTES sizeof(psrt_record)
+ static void psrt_context(const char *tag){DWORD saved=GetLastError();char line[192];psrt_record.object=tag;psrt_record.predicate=NULL;
+  if(!psrt_record.began){psrt_record.began=1;(void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_BEGIN pid=%lu tid=%lu private_lab=1\n",(unsigned long)GetCurrentProcessId(),(unsigned long)GetCurrentThreadId());PSRT_OUTPUT(line,0U);}SetLastError(saved);}
+-static void psrt_prepared(void){DWORD saved=GetLastError();char line[192];if(!psrt_record.prepared){psrt_record.prepared=1;(void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_PREPARE_SUCCESS pid=%lu NOT_OPERATIONAL_ADMISSION\n",(unsigned long)GetCurrentProcessId());PSRT_OUTPUT(line,2U);}SetLastError(saved);}
++static DWORD psrt_prepared(void)
++{
++ DWORD saved=GetLastError(),error=0;char line[384],detail[224];int n;
++ if(psrt_record.prepared||psrt_record.emitted){SetLastError(saved);return ERROR_INVALID_STATE;}
++ error=PSRT_OBSERVATION(detail,sizeof(detail));
++ if(error){psrt_record.emitted=1;psrt_record.returned=error;
++  n=_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_FIRST_FAILURE pid=%lu predicate=diagnostic.token_observation returned_win32=%lu nt_valid=0%s\n",(unsigned long)GetCurrentProcessId(),(unsigned long)error,detail);
++  if(n>0)PSRT_OUTPUT(line,1U);
++ }else{psrt_record.prepared=1;
++  n=_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_PREPARE_SUCCESS pid=%lu NOT_OPERATIONAL_ADMISSION%s\n",(unsigned long)GetCurrentProcessId(),detail);
++  if(n>0)PSRT_OUTPUT(line,2U);
++ }
++ SetLastError(saved);return error;
++}
+ static BOOL psrt_bool(const char *name,unsigned line,DWORD requested,BOOL value)
+ {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+ static HANDLE psrt_handle(const char *name,unsigned line,DWORD requested,HANDLE value)
+@@ -65,7 +92,7 @@
+  psrt_record.emitted=1;psrt_record.returned=value;
+  n=_snprintf_s(text,sizeof(text),_TRUNCATE,"PACC_PSR_FIRST_FAILURE pid=%lu tid=%lu object=%s api=%s api_line=%lu request=%08lx api_success=%u raw_win32=%lu nt_valid=%u ntstatus=%08lx predicate=%s branch=%s return_line=%u returned_win32=%lu observed_a=%lu observed_b=%lu token_handle=NOT_EXPORTED\n",
+  (unsigned long)GetCurrentProcessId(),(unsigned long)GetCurrentThreadId(),psrt_record.object?psrt_record.object:"UNSET",psrt_record.api?psrt_record.api:"NONE",(unsigned long)psrt_record.line,(unsigned long)psrt_record.requested,psrt_record.success,(unsigned long)psrt_record.raw,psrt_record.native_valid,(unsigned long)(DWORD)psrt_record.ntstatus,psrt_record.predicate?psrt_record.predicate:"NONE",branch,line,(unsigned long)value,(unsigned long)psrt_record.value_a,(unsigned long)psrt_record.value_b);
+- if(n>0)PSRT_OUTPUT(text,1U);
++ if(n>0){psrt_append_observation(text,sizeof(text));PSRT_OUTPUT(text,1U);}
+  psrt_token_emit();
+  }
+  SetLastError(saved);return value;
+--- a/apps/server/server_service_runtime_win32.inc
++++ b/apps/server/server_service_runtime_win32.inc
+@@ -55,6 +55,10 @@
+  if(!PSRT_TOKEN("GetTokenInformation:TokenStatistics",TokenStatistics,&stats,sizeof(stats),&n,GetTokenInformation(native.runtime.token,TokenStatistics,&stats,sizeof(stats),&n))||!PSRT_PRED("token.statistics.length",n==sizeof(stats))||!PSRT_PRED("token.primary",stats.TokenType==TokenPrimary)||
+  !PSRT_TOKEN("GetTokenInformation:TokenUser",TokenUser,u,sizeof(native.runtime.user.bytes),&n,GetTokenInformation(native.runtime.token,TokenUser,u,sizeof(native.runtime.user.bytes),&n))||!PSRT_PRED("token.user.length",n<=sizeof(native.runtime.user.bytes))||
+  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
++#ifdef PAPACC_PSR_TRACE_LAB
++ /* Reuse owner storage; no ready/admission grant. Baseline survives early denial. */
++ native.runtime.statistics=stats;
++#endif
+  if(!PSRT_TOKEN("GetTokenInformation:TokenGroups",TokenGroups,g,sizeof(native.runtime.groups.bytes),&gn,GetTokenInformation(native.runtime.token,TokenGroups,g,sizeof(native.runtime.groups.bytes),&gn))||gn>sizeof(native.runtime.groups.bytes)||
+  gn<(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)||g->GroupCount>(gn-FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES)||
+  !PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an))||!PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinServiceSid,NULL,service,&sn)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+@@ -173,7 +177,8 @@
+ #ifdef PSR_FILE_ENABLED
+  return psrd_prepare_complete();
+ #else
+- native.runtime.ready=1U;PSRT_PREPARED();return ERROR_SUCCESS;
++ e=PSRT_PREPARED();if(e)return PSRT_RETURN(e,"diagnostic_observation");
++ native.runtime.ready=1U;return ERROR_SUCCESS;
+ #endif
+ }
+ 
+--- a/apps/server/server_service_win32.c
++++ b/apps/server/server_service_win32.c
+@@ -78,11 +78,27 @@
+ } PS_HOST;
+ static PS_HOST host;
+ #if defined(PAPACC_SCM_RUNTIME_LAB) && defined(PAPACC_PSR_TRACE_LAB)
++#define PT_STOP() (host.stop || native.runtime.retained || papacc_server_console_win32_stop_requested())
++#include "server_service_observation_win32.h"
++#undef PT_STOP
++static DWORD psrt_observation(char *,size_t);
++#define PSRT_OBSERVATION psrt_observation
+ #include "server_service_psr_trace_win32.inc"
++/* Uses only the original owner token and bounded snapshots. No new handles. */
++static DWORD psrt_observation(char *out,size_t capacity)
++{
++ PT_META m=pt_token(native.runtime.token,&native.runtime.statistics,
++ (const BYTE *)psrt_record.token[0].data,psrt_record.token[0].length,
++ (const BYTE *)psrt_record.token[1].data,psrt_record.token[1].length,native.service_sid);
++ (void)_snprintf_s(out,capacity,_TRUNCATE," q_error=%lu q_known=%lu q_complete=%lu sid_count=%lu sid_attrs=%08lx filtered_raw=%lu filtered_bytes=%lu restricted_count=%lu",
++ (unsigned long)m.error,(unsigned long)m.known,(unsigned long)m.complete,(unsigned long)m.matches,(unsigned long)m.attributes,(unsigned long)m.filtered_ever,(unsigned long)m.filter_bytes,(unsigned long)m.restricting_count);
++ return m.error?m.error:(m.complete?ERROR_SUCCESS:ERROR_INVALID_DATA);
++}
++
+ #else
+ #define PSRT_STORAGE_BYTES 0U
+ #define PSRT_VALUES(a,b) ((void)0)
+-#define PSRT_PREPARED() ((void)0)
++#define PSRT_PREPARED() ERROR_SUCCESS
+ #define PSRT_TOKEN(tag,cls,buf,capacity,length,expr) (expr)
+ #define PSRT_CONTEXT(tag) ((void)0)
+ #define PSRT_BOOL(tag,request,expr) (expr)
+--- /dev/null
++++ b/apps/server/server_service_observation_win32.h
+@@ -0,0 +1,58 @@
++/* Q0-Q9 private LAB diagnostic: borrowed originals only, never admission. */
++#ifndef PT_OBSERVATION_H
++#define PT_OBSERVATION_H
++#include <windows.h>
++#include <string.h>
++#ifndef PT_QUERY
++#define PT_QUERY GetTokenInformation
++#endif
++#ifndef PT_PID
++#define PT_PID GetProcessId
++#endif
++#ifndef PT_TIMES
++#define PT_TIMES GetProcessTimes
++#endif
++#ifndef PT_WAIT
++#define PT_WAIT WaitForSingleObject
++#endif
++#ifndef PT_STOP
++#define PT_STOP() 0
++#endif
++#define PT_ID 1U
++#define PT_GROUP 2U
++#define PT_FILTER 4U
++#define PT_RESTRICT 8U
++typedef struct PT_META {DWORD error,known,matches,attributes,filtered_ever,filter_bytes,restricting_count,complete;} PT_META;
++static __inline int pt_inside(const BYTE *b,DWORD n,PSID sid){ULONG_PTR s=(ULONG_PTR)b,v=(ULONG_PTR)sid;DWORD z;if(v<s||v-s>n||n-(DWORD)(v-s)<8U)return 0;z=8U+4U*((BYTE *)sid)[1];return z<=n-(DWORD)(v-s)&&IsValidSid(sid)&&GetLengthSid(sid)==z;}
++static __inline int pt_same(const TOKEN_STATISTICS *a,const TOKEN_STATISTICS *b){return a->TokenType==TokenPrimary&&b->TokenType==TokenPrimary&&!memcmp(&a->TokenId,&b->TokenId,sizeof(LUID))&&!memcmp(&a->AuthenticationId,&b->AuthenticationId,sizeof(LUID))&&!memcmp(&a->ModifiedId,&b->ModifiedId,sizeof(LUID));}
++static __inline DWORD pt_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
++/* TokenUser/groups/baseline are caller-owned snapshots; changed generation denies
++ * completeness. Query failures remain UNKNOWN, never absent/zero evidence. */
++static __inline PT_META pt_token_body(HANDLE token,const TOKEN_STATISTICS *baseline,const BYTE *user,DWORD un,const BYTE *groups,DWORD gn,PSID expected){
++ PT_META o;TOKEN_STATISTICS a,b;DWORD n,i,flag=0;const TOKEN_USER *u=(const TOKEN_USER *)user;const TOKEN_GROUPS *g=(const TOKEN_GROUPS *)groups;union {TOKEN_GROUPS aligned;BYTE bytes[512];} restricting;
++ ZeroMemory(&o,sizeof(o));if(PT_STOP()){o.error=ERROR_CANCELLED;return o;}
++ if(!token||!baseline||!user||un<sizeof(TOKEN_USER)||!pt_inside(user,un,u->User.Sid)||!expected||!IsValidSid(expected)||!EqualSid(u->User.Sid,expected)){o.error=ERROR_INVALID_OWNER;return o;}
++ if(!PT_QUERY(token,TokenStatistics,&a,sizeof(a),&n)){o.error=pt_error();return o;}if(n!=sizeof(a)||!pt_same(&a,baseline)){o.error=ERROR_INVALID_DATA;return o;}o.known|=PT_ID;
++ if(!groups||gn<(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)||g->GroupCount>(gn-FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES)){o.error=ERROR_INVALID_DATA;return o;}
++ for(i=0;i<g->GroupCount;i++){if(!pt_inside(groups,gn,g->Groups[i].Sid)){o.error=ERROR_INVALID_SID;return o;}if(EqualSid(g->Groups[i].Sid,expected)){o.matches++;o.attributes|=g->Groups[i].Attributes;}}o.known|=PT_GROUP;
++ if(PT_STOP()){o.error=ERROR_CANCELLED;return o;}if(!PT_QUERY(token,TokenHasRestrictions,&flag,sizeof(flag),&n)){o.error=pt_error();return o;}if(n!=sizeof(flag)&&n!=sizeof(BYTE)){o.error=ERROR_INVALID_DATA;return o;}o.filtered_ever=flag;o.filter_bytes=n;o.known|=PT_FILTER;
++ if(PT_STOP()){o.error=ERROR_CANCELLED;return o;}if(!PT_QUERY(token,TokenRestrictedSids,&restricting,sizeof(restricting),&n)){o.error=pt_error();return o;}if(n>sizeof(restricting)||n<(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)||restricting.aligned.GroupCount>(n-FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES)){o.error=ERROR_INVALID_DATA;return o;}
++ for(i=0;i<restricting.aligned.GroupCount;i++)if(!pt_inside(restricting.bytes,n,restricting.aligned.Groups[i].Sid)){o.error=ERROR_INVALID_SID;return o;}o.restricting_count=restricting.aligned.GroupCount;o.known|=PT_RESTRICT;
++ if(PT_STOP()){o.error=ERROR_CANCELLED;return o;}if(!PT_QUERY(token,TokenStatistics,&b,sizeof(b),&n)){o.error=pt_error();return o;}if(n!=sizeof(b)||!pt_same(&a,&b)){o.error=ERROR_INVALID_DATA;return o;}o.complete=1;return o;
++}
++/* No enum value authorizes an exception to the four-role census. */
++enum {PT_PRESENT=1,PT_MISSING_SIGNALED_AFTER_SNAPSHOT,PT_MISSING_LIVE_AFTER_SNAPSHOT,PT_IDENTITY_DIVERGENCE,PT_QUERY_FAILED,PT_TIME_INCONCLUSIVE,PT_STOPPED};
++typedef struct PT_ROLE {DWORD result,error,role,pid,wait_result;ULONGLONG creation,snapshot_begin,snapshot_end,observed_at;} PT_ROLE;
++static __inline PT_ROLE pt_role_body(HANDLE original,DWORD pid,ULONGLONG birth,unsigned role,unsigned expected,unsigned seen,DWORD enum_error,ULONGLONG begin,ULONGLONG end,ULONGLONG now){
++ PT_ROLE o;FILETIME ct,et,kt,ut;DWORD actual;ZeroMemory(&o,sizeof(o));o.role=role;o.snapshot_begin=begin;o.snapshot_end=end;o.observed_at=now;
++ if(PT_STOP()){o.result=PT_STOPPED;o.error=ERROR_CANCELLED;return o;}if(enum_error){o.result=PT_QUERY_FAILED;o.error=enum_error;return o;}
++ if(role>=4U||(expected&~15U)||(seen&~expected)||!(expected&(1U<<role))||end<begin||now<end||now-end>1000U){o.result=PT_TIME_INCONCLUSIVE;o.error=ERROR_INVALID_DATA;return o;}
++ if(seen&(1U<<role)){o.result=PT_PRESENT;return o;}if(!original){o.result=PT_QUERY_FAILED;o.error=ERROR_INVALID_HANDLE;return o;}
++ actual=PT_PID(original);if(!actual){o.result=PT_QUERY_FAILED;o.error=pt_error();return o;}o.pid=actual;if(!PT_TIMES(original,&ct,&et,&kt,&ut)){o.result=PT_QUERY_FAILED;o.error=pt_error();return o;}
++ o.creation=((ULONGLONG)ct.dwHighDateTime<<32)|ct.dwLowDateTime;if(actual!=pid||o.creation!=birth){o.result=PT_IDENTITY_DIVERGENCE;o.error=ERROR_INVALID_DATA;return o;}
++ o.wait_result=PT_WAIT(original,0);if(o.wait_result==WAIT_OBJECT_0)o.result=PT_MISSING_SIGNALED_AFTER_SNAPSHOT;else if(o.wait_result==WAIT_TIMEOUT)o.result=PT_MISSING_LIVE_AFTER_SNAPSHOT;else{o.result=PT_QUERY_FAILED;o.error=o.wait_result==WAIT_FAILED?pt_error():ERROR_INVALID_DATA;}return o;
++}
++/* Diagnostic queries cannot clobber the caller's original Win32 first error. */
++static __inline PT_META pt_token(HANDLE token,const TOKEN_STATISTICS *baseline,const BYTE *user,DWORD un,const BYTE *groups,DWORD gn,PSID expected){DWORD saved=GetLastError();PT_META o=pt_token_body(token,baseline,user,un,groups,gn,expected);SetLastError(saved);return o;}
++static __inline PT_ROLE pt_role(HANDLE original,DWORD pid,ULONGLONG birth,unsigned role,unsigned expected,unsigned seen,DWORD enum_error,ULONGLONG begin,ULONGLONG end,ULONGLONG now){DWORD saved=GetLastError();PT_ROLE o=pt_role_body(original,pid,birth,role,expected,seen,enum_error,begin,end,now);SetLastError(saved);return o;}
++#endif

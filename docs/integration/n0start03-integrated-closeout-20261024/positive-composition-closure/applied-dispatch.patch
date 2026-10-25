@@ -1,0 +1,36 @@
+--- a/tools/qualification/scm-registration-lab.c
++++ b/tools/qualification/scm-registration-lab.c
+@@ -114,6 +114,10 @@
+ }
+ #endif
+ #ifdef PAPACC_SCM_CYCLE_LAB
++#ifdef PAPACC_N0_PRIVATE_STDOUT
++/* Dispatch before runtime helpers; positive entry remains compile/runtime DENY. */
++#include "scm-n0-private-stdout-adapter.inc"
++#endif
+ #include "scm-runtime-cycle-lab.inc"
+ #else
+ int main(int argc,char **argv){
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -1,7 +1,4 @@
+ /* Successor of the SAME fixed SCM cycle; all positive effects MANUAL ONLY. */
+-#ifdef PAPACC_N0_PRIVATE_STDOUT
+-#include "scm-n0-private-stdout-adapter.inc"
+-#endif
+ #include <stdlib.h>
+ #define PAPACC_PSR_FILE_CAPSULE_LAB 1
+ #include "psr-file-capture-lab.inc"
+--- a/tools/qualification/scm-n0-private-stdout-adapter.inc
++++ b/tools/qualification/scm-n0-private-stdout-adapter.inc
+@@ -1,6 +1,7 @@
+-/* Classified scope: this include and its observer/N0/handle-table dependencies
+- * emit stdout via printf/puts only. No fprintf/fwrite/wprintf or stderr remap.
+- * Prior runtime helpers compiled before here retain original CRT semantics. */
++/* Scoped stdout dispatcher for the instrumented include composition.
++ * Installed before runtime helpers, so their printf/puts/fflush share the
++ * explicit stream. stderr/console and legacy/default builds are unchanged.
++ * Placement does not enable the positive entry or grant operational authority. */
+ #include <stdarg.h>
+ __declspec(noreturn) static void ig_transport_write_failed(void){papacc_server_console_win32_request_stop();native.retained=1;for(;;)Sleep(1000);}
+ static int ig_transport_printf(const char *format,...){va_list a;int n;va_start(a,format);n=PaccTransportVPrintf(format,a);va_end(a);if(n<0)ig_transport_write_failed();return n;}

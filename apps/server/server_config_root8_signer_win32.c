@@ -32,7 +32,7 @@ PC_ROOT8_RESULT papacc_root8_signer_data(void *ctx,unsigned kind,const PAPACC_U8
  if(c->already_reserved<known||c->already_reserved>PAPACC_ED11_PROCESS_LIMIT||
     sizeof(kind8_view)+sizeof(r)+sizeof(digest)>PAPACC_ED11_PROCESS_LIMIT-c->already_reserved)return PC_ROOT8_INCOMPLETE;
  if(c->workspace->stopped)return PC_ROOT8_INCOMPLETE;
- if(memcmp(header,"PACROOT8",8)||k16(header+8)!=3U||k16(header+10)!=512U||
+ if(memcmp(header,"PACROOT8",8)||(k16(header+8)!=3U&&k16(header+8)!=4U)||k16(header+10)!=512U||
     memcmp(row,"PACPDL01",8)||k16(row+8)!=1U||k16(row+10)!=384U||
     (k16(row+16)!=1U&&k16(row+16)!=2U)||k16(row+18)!=1U)return PC_ROOT8_INVALID;
  result=papacc_issuer_image_validate(p+8192,&kind8_view,c->hash,c->hash_context);

@@ -1,0 +1,1139 @@
+Microsoft (R) COFF/PE Dumper Version 14.51.36256.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file build\root08-issuer-factual-transaction-binding-20261020\Selected\Debug\CMakeFiles\papacc_server_run_win32.dir\apps\server\server_config_source_binding_win32.c.obj
+
+File Type: COFF OBJECT
+
+papacc_server_config_source_resolve:
+  0000000000000000: 4C 89 4C 24 20     mov         qword ptr [rsp+20h],r9
+  0000000000000005: 4C 89 44 24 18     mov         qword ptr [rsp+18h],r8
+  000000000000000A: 48 89 54 24 10     mov         qword ptr [rsp+10h],rdx
+  000000000000000F: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx
+  0000000000000014: 57                 push        rdi
+  0000000000000015: 48 81 EC 80 00 00  sub         rsp,80h
+                    00
+  000000000000001C: 48 8D 7C 24 30     lea         rdi,[rsp+30h]
+  0000000000000021: B9 14 00 00 00     mov         ecx,14h
+  0000000000000026: B8 CC CC CC CC     mov         eax,0CCCCCCCCh
+  000000000000002B: F3 AB              rep stos    dword ptr [rdi]
+  000000000000002D: 48 8B 8C 24 90 00  mov         rcx,qword ptr [rsp+90h]
+                    00 00
+  0000000000000035: 48 C7 44 24 60 38  mov         qword ptr [rsp+60h],14E38h
+                    4E 01 00
+  000000000000003E: 48 83 BC 24 B0 00  cmp         qword ptr [rsp+0B0h],0
+                    00 00 00
+  0000000000000047: 75 0A              jne         0000000000000053
+  0000000000000049: B8 01 00 00 00     mov         eax,1
+  000000000000004E: E9 C6 04 00 00     jmp         0000000000000519
+  0000000000000053: 41 B8 30 04 00 00  mov         r8d,430h
+  0000000000000059: 33 D2              xor         edx,edx
+  000000000000005B: 48 8B 8C 24 B0 00  mov         rcx,qword ptr [rsp+0B0h]
+                    00 00
+  0000000000000063: E8 00 00 00 00     call        memset
+  0000000000000068: 48 83 BC 24 90 00  cmp         qword ptr [rsp+90h],0
+                    00 00 00
+  0000000000000071: 74 30              je          00000000000000A3
+  0000000000000073: 48 83 BC 24 98 00  cmp         qword ptr [rsp+98h],0
+                    00 00 00
+  000000000000007C: 74 25              je          00000000000000A3
+  000000000000007E: 48 83 BC 24 A0 00  cmp         qword ptr [rsp+0A0h],0
+                    00 00 00
+  0000000000000087: 74 1A              je          00000000000000A3
+  0000000000000089: 48 8B 94 24 98 00  mov         rdx,qword ptr [rsp+98h]
+                    00 00
+  0000000000000091: 48 8B 8C 24 90 00  mov         rcx,qword ptr [rsp+90h]
+                    00 00
+  0000000000000099: E8 00 00 00 00     call        papacc_server_launcher_configuration_current
+  000000000000009E: 83 F8 01           cmp         eax,1
+  00000000000000A1: 74 21              je          00000000000000C4
+  00000000000000A3: 4C 8D 05 00 00 00  lea         r8,[$SG83060]
+                    00
+  00000000000000AA: 48 8B 94 24 B8 00  mov         rdx,qword ptr [rsp+0B8h]
+                    00 00
+  00000000000000B2: 48 8B 8C 24 B0 00  mov         rcx,qword ptr [rsp+0B0h]
+                    00 00
+  00000000000000BA: E8 00 00 00 00     call        deny
+  00000000000000BF: E9 55 04 00 00     jmp         0000000000000519
+  00000000000000C4: FF 15 00 00 00 00  call        qword ptr [__imp_GetCurrentThreadId]
+  00000000000000CA: 48 8B 8C 24 90 00  mov         rcx,qword ptr [rsp+90h]
+                    00 00
+  00000000000000D2: 3B 81 58 CA 04 00  cmp         eax,dword ptr [rcx+4CA58h]
+  00000000000000D8: 75 64              jne         000000000000013E
+  00000000000000DA: 48 8B 84 24 98 00  mov         rax,qword ptr [rsp+98h]
+                    00 00
+  00000000000000E2: 48 8B 8C 24 A0 00  mov         rcx,qword ptr [rsp+0A0h]
+                    00 00
+  00000000000000EA: 48 39 88 58 04 00  cmp         qword ptr [rax+458h],rcx
+                    00
+  00000000000000F1: 75 4B              jne         000000000000013E
+  00000000000000F3: 48 8B 84 24 90 00  mov         rax,qword ptr [rsp+90h]
+                    00 00
+  00000000000000FB: 83 78 40 00        cmp         dword ptr [rax+40h],0
+  00000000000000FF: 75 3D              jne         000000000000013E
+  0000000000000101: 48 8B 84 24 90 00  mov         rax,qword ptr [rsp+90h]
+                    00 00
+  0000000000000109: 83 B8 D0 93 00 00  cmp         dword ptr [rax+93D0h],0
+                    00
+  0000000000000110: 75 2C              jne         000000000000013E
+  0000000000000112: 48 8B 84 24 90 00  mov         rax,qword ptr [rsp+90h]
+                    00 00
+  000000000000011A: 83 B8 D4 93 00 00  cmp         dword ptr [rax+93D4h],0
+                    00
+  0000000000000121: 75 1B              jne         000000000000013E
+  0000000000000123: 48 8B 84 24 90 00  mov         rax,qword ptr [rsp+90h]
+                    00 00
+  000000000000012B: 83 B8 64 90 01 00  cmp         dword ptr [rax+19064h],0
+                    00
+  0000000000000132: 75 0A              jne         000000000000013E
+  0000000000000134: E8 00 00 00 00     call        papacc_server_console_win32_stop_requested
+  0000000000000139: 83 F8 01           cmp         eax,1
+  000000000000013C: 75 21              jne         000000000000015F
+  000000000000013E: 4C 8D 05 00 00 00  lea         r8,[$SG83063]
+                    00
+  0000000000000145: 48 8B 94 24 B8 00  mov         rdx,qword ptr [rsp+0B8h]
+                    00 00
+  000000000000014D: 48 8B 8C 24 B0 00  mov         rcx,qword ptr [rsp+0B0h]
+                    00 00
+  0000000000000155: E8 00 00 00 00     call        deny
+  000000000000015A: E9 BA 03 00 00     jmp         0000000000000519
+  000000000000015F: 48 81 7C 24 60 00  cmp         qword ptr [rsp+60h],300000h
+                    00 30 00
+  0000000000000168: 77 1B              ja          0000000000000185
+  000000000000016A: B8 00 00 30 00     mov         eax,300000h
+  000000000000016F: 48 2B 44 24 60     sub         rax,qword ptr [rsp+60h]
+  0000000000000174: 48 8B 8C 24 90 00  mov         rcx,qword ptr [rsp+90h]
+                    00 00
+  000000000000017C: 48 39 81 B8 0E 04  cmp         qword ptr [rcx+40EB8h],rax
+                    00
+  0000000000000183: 76 21              jbe         00000000000001A6
+  0000000000000185: 4C 8D 05 00 00 00  lea         r8,[$SG83066]
+                    00
+  000000000000018C: 48 8B 94 24 B8 00  mov         rdx,qword ptr [rsp+0B8h]
+                    00 00
+  0000000000000194: 48 8B 8C 24 B0 00  mov         rcx,qword ptr [rsp+0B0h]
+                    00 00
+  000000000000019C: E8 00 00 00 00     call        deny
+  00000000000001A1: E9 73 03 00 00     jmp         0000000000000519
+  00000000000001A6: 48 8B 8C 24 A8 00  mov         rcx,qword ptr [rsp+0A8h]
+                    00 00
+  00000000000001AE: E8 00 00 00 00     call        pc_view
+  00000000000001B3: 48 85 C0           test        rax,rax
+  00000000000001B6: 74 0E              je          00000000000001C6
+  00000000000001B8: 48 8B 84 24 A8 00  mov         rax,qword ptr [rsp+0A8h]
+                    00 00
+  00000000000001C0: 83 78 14 01        cmp         dword ptr [rax+14h],1
+  00000000000001C4: 74 21              je          00000000000001E7
+  00000000000001C6: 4C 8D 05 00 00 00  lea         r8,[$SG83069]
+                    00
+  00000000000001CD: 48 8B 94 24 B8 00  mov         rdx,qword ptr [rsp+0B8h]
+                    00 00
+  00000000000001D5: 48 8B 8C 24 B0 00  mov         rcx,qword ptr [rsp+0B0h]
+                    00 00
+  00000000000001DD: E8 00 00 00 00     call        deny
+  00000000000001E2: E9 32 03 00 00     jmp         0000000000000519
+  00000000000001E7: 48 8B 84 24 90 00  mov         rax,qword ptr [rsp+90h]
+                    00 00
+  00000000000001EF: 48 05 40 EC 03 00  add         rax,3EC40h
+  00000000000001F5: 48 89 44 24 48     mov         qword ptr [rsp+48h],rax
+  00000000000001FA: 48 8B 44 24 48     mov         rax,qword ptr [rsp+48h]
+  00000000000001FF: 48 89 44 24 58     mov         qword ptr [rsp+58h],rax
+  0000000000000204: 48 8B 44 24 48     mov         rax,qword ptr [rsp+48h]
+  0000000000000209: 83 B8 24 01 00 00  cmp         dword ptr [rax+124h],4
+                    04
+  0000000000000210: 0F 85 EB 00 00 00  jne         0000000000000301
+  0000000000000216: 48 8B 4C 24 48     mov         rcx,qword ptr [rsp+48h]
+  000000000000021B: E8 00 00 00 00     call        papacc_server_security_source_validate
+  0000000000000220: 85 C0              test        eax,eax
+  0000000000000222: 0F 85 D9 00 00 00  jne         0000000000000301
+  0000000000000228: 48 8B 44 24 48     mov         rax,qword ptr [rsp+48h]
+  000000000000022D: 83 B8 98 00 00 00  cmp         dword ptr [rax+98h],0
+                    00
+  0000000000000234: 0F 84 C7 00 00 00  je          0000000000000301
+  000000000000023A: 48 8B 44 24 48     mov         rax,qword ptr [rsp+48h]
+  000000000000023F: 48 83 B8 A0 00 00  cmp         qword ptr [rax+0A0h],0
+                    00 00
+  0000000000000247: 0F 84 B4 00 00 00  je          0000000000000301
+  000000000000024D: 48 8B 44 24 48     mov         rax,qword ptr [rsp+48h]
+  0000000000000252: 48 83 B8 A0 00 00  cmp         qword ptr [rax+0A0h],40h
+                    00 40
+  000000000000025A: 0F 87 A1 00 00 00  ja          0000000000000301
+  0000000000000260: 48 8B 44 24 58     mov         rax,qword ptr [rsp+58h]
+  0000000000000265: 48 83 78 60 00     cmp         qword ptr [rax+60h],0
+  000000000000026A: 0F 84 91 00 00 00  je          0000000000000301
+  0000000000000270: 48 8B 44 24 58     mov         rax,qword ptr [rsp+58h]
+  0000000000000275: 48 83 78 70 00     cmp         qword ptr [rax+70h],0
+  000000000000027A: 0F 84 81 00 00 00  je          0000000000000301
+  0000000000000280: 48 8B 44 24 58     mov         rax,qword ptr [rsp+58h]
+  0000000000000285: 48 83 78 30 00     cmp         qword ptr [rax+30h],0
+  000000000000028A: 74 75              je          0000000000000301
+  000000000000028C: 48 8B 44 24 58     mov         rax,qword ptr [rsp+58h]
+  0000000000000291: 48 83 78 38 08     cmp         qword ptr [rax+38h],8
+  0000000000000296: 75 69              jne         0000000000000301
+  0000000000000298: 41 B8 08 00 00 00  mov         r8d,8
+  000000000000029E: 48 8D 15 00 00 00  lea         rdx,[$SG83072]
+                    00
+  00000000000002A5: 48 8B 44 24 58     mov         rax,qword ptr [rsp+58h]
+  00000000000002AA: 48 8B 48 30        mov         rcx,qword ptr [rax+30h]
+  00000000000002AE: E8 00 00 00 00     call        memcmp
+  00000000000002B3: 85 C0              test        eax,eax
+  00000000000002B5: 75 4A              jne         0000000000000301
+  00000000000002B7: 48 8B 44 24 48     mov         rax,qword ptr [rsp+48h]
+  00000000000002BC: 48 8B 8C 24 98 00  mov         rcx,qword ptr [rsp+98h]
+                    00 00
+  00000000000002C4: 48 8B 49 48        mov         rcx,qword ptr [rcx+48h]
+  00000000000002C8: 48 39 88 A0 00 00  cmp         qword ptr [rax+0A0h],rcx
+                    00
+  00000000000002CF: 75 30              jne         0000000000000301
+  00000000000002D1: 48 8B 84 24 98 00  mov         rax,qword ptr [rsp+98h]
+                    00 00
+  00000000000002D9: 48 83 C0 50        add         rax,50h
+  00000000000002DD: 48 8B 4C 24 48     mov         rcx,qword ptr [rsp+48h]
+  00000000000002E2: 48 81 C1 A8 00 00  add         rcx,0A8h
+                    00
+  00000000000002E9: 48 8B 54 24 48     mov         rdx,qword ptr [rsp+48h]
+  00000000000002EE: 4C 8B 82 A0 00 00  mov         r8,qword ptr [rdx+0A0h]
+                    00
+  00000000000002F5: 48 8B D0           mov         rdx,rax
+  00000000000002F8: E8 00 00 00 00     call        memcmp
+  00000000000002FD: 85 C0              test        eax,eax
+  00000000000002FF: 74 21              je          0000000000000322
+  0000000000000301: 4C 8D 05 00 00 00  lea         r8,[$SG83073]
+                    00
+  0000000000000308: 48 8B 94 24 B8 00  mov         rdx,qword ptr [rsp+0B8h]
+                    00 00
+  0000000000000310: 48 8B 8C 24 B0 00  mov         rcx,qword ptr [rsp+0B0h]
+                    00 00
+  0000000000000318: E8 00 00 00 00     call        deny
+  000000000000031D: E9 F7 01 00 00     jmp         0000000000000519
+  0000000000000322: 48 8B 84 24 98 00  mov         rax,qword ptr [rsp+98h]
+                    00 00
+  000000000000032A: 48 83 C0 20        add         rax,20h
+  000000000000032E: B9 08 00 00 00     mov         ecx,8
+  0000000000000333: 48 6B C9 00        imul        rcx,rcx,0
+  0000000000000337: 48 89 44 0C 38     mov         qword ptr [rsp+rcx+38h],rax
+  000000000000033C: 48 8B 84 24 B8 00  mov         rax,qword ptr [rsp+0B8h]
+                    00 00
+  0000000000000344: 48 89 44 24 20     mov         qword ptr [rsp+20h],rax
+  0000000000000349: 4C 8B 8C 24 B0 00  mov         r9,qword ptr [rsp+0B0h]
+                    00 00
+  0000000000000351: 41 B8 01 00 00 00  mov         r8d,1
+  0000000000000357: 48 8D 54 24 38     lea         rdx,[rsp+38h]
+  000000000000035C: 48 8B 8C 24 A8 00  mov         rcx,qword ptr [rsp+0A8h]
+                    00 00
+  0000000000000364: E8 00 00 00 00     call        pc_bind_existing_models
+  0000000000000369: 89 44 24 50        mov         dword ptr [rsp+50h],eax
+  000000000000036D: 83 7C 24 50 00     cmp         dword ptr [rsp+50h],0
+  0000000000000372: 74 09              je          000000000000037D
+  0000000000000374: 8B 44 24 50        mov         eax,dword ptr [rsp+50h]
+  0000000000000378: E9 9C 01 00 00     jmp         0000000000000519
+  000000000000037D: 48 8B 94 24 98 00  mov         rdx,qword ptr [rsp+98h]
+                    00 00
+  0000000000000385: 48 8B 8C 24 90 00  mov         rcx,qword ptr [rsp+90h]
+                    00 00
+  000000000000038D: E8 00 00 00 00     call        papacc_server_launcher_configuration_current
+  0000000000000392: 83 F8 01           cmp         eax,1
+  0000000000000395: 75 37              jne         00000000000003CE
+  0000000000000397: 48 8B 84 24 90 00  mov         rax,qword ptr [rsp+90h]
+                    00 00
+  000000000000039F: 83 B8 D0 93 00 00  cmp         dword ptr [rax+93D0h],0
+                    00
+  00000000000003A6: 75 26              jne         00000000000003CE
+  00000000000003A8: E8 00 00 00 00     call        papacc_server_console_win32_stop_requested
+  00000000000003AD: 83 F8 01           cmp         eax,1
+  00000000000003B0: 74 1C              je          00000000000003CE
+  00000000000003B2: 48 8B 44 24 48     mov         rax,qword ptr [rsp+48h]
+  00000000000003B7: 83 B8 24 01 00 00  cmp         dword ptr [rax+124h],4
+                    04
+  00000000000003BE: 75 0E              jne         00000000000003CE
+  00000000000003C0: 48 8B 4C 24 48     mov         rcx,qword ptr [rsp+48h]
+  00000000000003C5: E8 00 00 00 00     call        papacc_server_security_source_validate
+  00000000000003CA: 85 C0              test        eax,eax
+  00000000000003CC: 74 21              je          00000000000003EF
+  00000000000003CE: 4C 8D 05 00 00 00  lea         r8,[$SG83077]
+                    00
+  00000000000003D5: 48 8B 94 24 B8 00  mov         rdx,qword ptr [rsp+0B8h]
+                    00 00
+  00000000000003DD: 48 8B 8C 24 B0 00  mov         rcx,qword ptr [rsp+0B0h]
+                    00 00
+  00000000000003E5: E8 00 00 00 00     call        deny
+  00000000000003EA: E9 2A 01 00 00     jmp         0000000000000519
+  00000000000003EF: 48 8B 84 24 98 00  mov         rax,qword ptr [rsp+98h]
+                    00 00
+  00000000000003F7: 48 05 38 04 00 00  add         rax,438h
+  00000000000003FD: 48 8B 8C 24 B0 00  mov         rcx,qword ptr [rsp+0B0h]
+                    00 00
+  0000000000000405: 48 81 C1 F0 03 00  add         rcx,3F0h
+                    00
+  000000000000040C: 41 B8 20 00 00 00  mov         r8d,20h
+  0000000000000412: 48 8B D0           mov         rdx,rax
+  0000000000000415: E8 00 00 00 00     call        memcpy
+  000000000000041A: 48 8B 84 24 B0 00  mov         rax,qword ptr [rsp+0B0h]
+                    00 00
+  0000000000000422: 48 8B 8C 24 98 00  mov         rcx,qword ptr [rsp+98h]
+                    00 00
+  000000000000042A: 48 8B 89 58 04 00  mov         rcx,qword ptr [rcx+458h]
+                    00
+  0000000000000431: 48 89 88 10 04 00  mov         qword ptr [rax+410h],rcx
+                    00
+  0000000000000438: 48 8B 84 24 B0 00  mov         rax,qword ptr [rsp+0B0h]
+                    00 00
+  0000000000000440: 48 8B 8C 24 98 00  mov         rcx,qword ptr [rsp+98h]
+                    00 00
+  0000000000000448: 48 8B 89 80 04 00  mov         rcx,qword ptr [rcx+480h]
+                    00
+  000000000000044F: 48 89 88 18 04 00  mov         qword ptr [rax+418h],rcx
+                    00
+  0000000000000456: 48 8B 84 24 B0 00  mov         rax,qword ptr [rsp+0B0h]
+                    00 00
+  000000000000045E: 48 8B 8C 24 98 00  mov         rcx,qword ptr [rsp+98h]
+                    00 00
+  0000000000000466: 48 8B 89 70 04 00  mov         rcx,qword ptr [rcx+470h]
+                    00
+  000000000000046D: 48 89 88 20 04 00  mov         qword ptr [rax+420h],rcx
+                    00
+  0000000000000474: 48 8B 84 24 98 00  mov         rax,qword ptr [rsp+98h]
+                    00 00
+  000000000000047C: 83 B8 98 04 00 00  cmp         dword ptr [rax+498h],0
+                    00
+  0000000000000483: 74 0A              je          000000000000048F
+  0000000000000485: C7 44 24 68 01 00  mov         dword ptr [rsp+68h],1
+                    00 00
+  000000000000048D: EB 08              jmp         0000000000000497
+  000000000000048F: C7 44 24 68 00 00  mov         dword ptr [rsp+68h],0
+                    00 00
+  0000000000000497: 48 8B 84 24 B0 00  mov         rax,qword ptr [rsp+0B0h]
+                    00 00
+  000000000000049F: 8B 4C 24 68        mov         ecx,dword ptr [rsp+68h]
+  00000000000004A3: 89 48 0C           mov         dword ptr [rax+0Ch],ecx
+  00000000000004A6: 48 8B 84 24 98 00  mov         rax,qword ptr [rsp+98h]
+                    00 00
+  00000000000004AE: 83 B8 98 04 00 00  cmp         dword ptr [rax+498h],0
+                    00
+  00000000000004B5: 74 16              je          00000000000004CD
+  00000000000004B7: 48 8B 84 24 98 00  mov         rax,qword ptr [rsp+98h]
+                    00 00
+  00000000000004BF: 48 8B 80 88 04 00  mov         rax,qword ptr [rax+488h]
+                    00
+  00000000000004C6: 48 89 44 24 70     mov         qword ptr [rsp+70h],rax
+  00000000000004CB: EB 09              jmp         00000000000004D6
+  00000000000004CD: 48 C7 44 24 70 00  mov         qword ptr [rsp+70h],0
+                    00 00 00
+  00000000000004D6: 48 8B 84 24 B0 00  mov         rax,qword ptr [rsp+0B0h]
+                    00 00
+  00000000000004DE: 48 8B 4C 24 70     mov         rcx,qword ptr [rsp+70h]
+  00000000000004E3: 48 89 88 28 04 00  mov         qword ptr [rax+428h],rcx
+                    00
+  00000000000004EA: 48 8B 84 24 B0 00  mov         rax,qword ptr [rsp+0B0h]
+                    00 00
+  00000000000004F2: C7 40 04 01 00 00  mov         dword ptr [rax+4],1
+                    00
+  00000000000004F9: 48 83 BC 24 B8 00  cmp         qword ptr [rsp+0B8h],0
+                    00 00 00
+  0000000000000502: 74 13              je          0000000000000517
+  0000000000000504: 48 8B 84 24 B8 00  mov         rax,qword ptr [rsp+0B8h]
+                    00 00
+  000000000000050C: 48 8D 0D 00 00 00  lea         rcx,[$SG83079]
+                    00
+  0000000000000513: 48 89 48 10        mov         qword ptr [rax+10h],rcx
+  0000000000000517: 33 C0              xor         eax,eax
+  0000000000000519: 48 8B F8           mov         rdi,rax
+  000000000000051C: 48 8B CC           mov         rcx,rsp
+  000000000000051F: 48 8D 15 00 00 00  lea         rdx,[papacc_server_config_source_resolve$rtcFrameData]
+                    00
+  0000000000000526: E8 00 00 00 00     call        _RTC_CheckStackVars
+  000000000000052B: 48 8B C7           mov         rax,rdi
+  000000000000052E: 48 81 C4 80 00 00  add         rsp,80h
+                    00
+  0000000000000535: 5F                 pop         rdi
+  0000000000000536: C3                 ret
+  0000000000000537: CC                 int         3
+  0000000000000538: CC                 int         3
+  0000000000000539: CC                 int         3
+  000000000000053A: CC                 int         3
+  000000000000053B: CC                 int         3
+  000000000000053C: CC                 int         3
+  000000000000053D: CC                 int         3
+  000000000000053E: CC                 int         3
+  000000000000053F: CC                 int         3
+papacc_server_config_initial_bootstrap_resolve:
+  0000000000000540: 4C 89 4C 24 20     mov         qword ptr [rsp+20h],r9
+  0000000000000545: 4C 89 44 24 18     mov         qword ptr [rsp+18h],r8
+  000000000000054A: 48 89 54 24 10     mov         qword ptr [rsp+10h],rdx
+  000000000000054F: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx
+  0000000000000554: 57                 push        rdi
+  0000000000000555: 48 81 EC 00 01 00  sub         rsp,100h
+                    00
+  000000000000055C: 48 8D 7C 24 30     lea         rdi,[rsp+30h]
+  0000000000000561: B9 34 00 00 00     mov         ecx,34h
+  0000000000000566: B8 CC CC CC CC     mov         eax,0CCCCCCCCh
+  000000000000056B: F3 AB              rep stos    dword ptr [rdi]
+  000000000000056D: 48 8B 8C 24 10 01  mov         rcx,qword ptr [rsp+110h]
+                    00 00
+  0000000000000575: 48 8B 05 00 00 00  mov         rax,qword ptr [__security_cookie]
+                    00
+  000000000000057C: 48 33 C4           xor         rax,rsp
+  000000000000057F: 48 89 84 24 F8 00  mov         qword ptr [rsp+0F8h],rax
+                    00 00
+  0000000000000587: 48 83 BC 24 20 01  cmp         qword ptr [rsp+120h],0
+                    00 00 00
+  0000000000000590: 75 0A              jne         000000000000059C
+  0000000000000592: B8 01 00 00 00     mov         eax,1
+  0000000000000597: E9 DE 05 00 00     jmp         0000000000000B7A
+  000000000000059C: 48 83 BC 24 10 01  cmp         qword ptr [rsp+110h],0
+                    00 00 00
+  00000000000005A5: 0F 84 B0 00 00 00  je          000000000000065B
+  00000000000005AB: 48 8B 84 24 10 01  mov         rax,qword ptr [rsp+110h]
+                    00 00
+  00000000000005B3: 48 39 84 24 20 01  cmp         qword ptr [rsp+120h],rax
+                    00 00
+  00000000000005BB: 77 46              ja          0000000000000603
+  00000000000005BD: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  00000000000005C5: 48 8B 8C 24 10 01  mov         rcx,qword ptr [rsp+110h]
+                    00 00
+  00000000000005CD: 48 2B C8           sub         rcx,rax
+  00000000000005D0: 48 8B C1           mov         rax,rcx
+  00000000000005D3: 48 3D 40 04 00 00  cmp         rax,440h
+  00000000000005D9: 73 0D              jae         00000000000005E8
+  00000000000005DB: C7 84 24 E0 00 00  mov         dword ptr [rsp+0E0h],1
+                    00 01 00 00 00
+  00000000000005E6: EB 0B              jmp         00000000000005F3
+  00000000000005E8: C7 84 24 E0 00 00  mov         dword ptr [rsp+0E0h],0
+                    00 00 00 00 00
+  00000000000005F3: 8B 84 24 E0 00 00  mov         eax,dword ptr [rsp+0E0h]
+                    00
+  00000000000005FA: 89 84 24 E4 00 00  mov         dword ptr [rsp+0E4h],eax
+                    00
+  0000000000000601: EB 44              jmp         0000000000000647
+  0000000000000603: 48 8B 84 24 10 01  mov         rax,qword ptr [rsp+110h]
+                    00 00
+  000000000000060B: 48 8B 8C 24 20 01  mov         rcx,qword ptr [rsp+120h]
+                    00 00
+  0000000000000613: 48 2B C8           sub         rcx,rax
+  0000000000000616: 48 8B C1           mov         rax,rcx
+  0000000000000619: 48 3D B8 10 05 00  cmp         rax,510B8h
+  000000000000061F: 73 0D              jae         000000000000062E
+  0000000000000621: C7 84 24 E8 00 00  mov         dword ptr [rsp+0E8h],1
+                    00 01 00 00 00
+  000000000000062C: EB 0B              jmp         0000000000000639
+  000000000000062E: C7 84 24 E8 00 00  mov         dword ptr [rsp+0E8h],0
+                    00 00 00 00 00
+  0000000000000639: 8B 84 24 E8 00 00  mov         eax,dword ptr [rsp+0E8h]
+                    00
+  0000000000000640: 89 84 24 E4 00 00  mov         dword ptr [rsp+0E4h],eax
+                    00
+  0000000000000647: 83 BC 24 E4 00 00  cmp         dword ptr [rsp+0E4h],0
+                    00 00
+  000000000000064F: 74 0A              je          000000000000065B
+  0000000000000651: B8 01 00 00 00     mov         eax,1
+  0000000000000656: E9 1F 05 00 00     jmp         0000000000000B7A
+  000000000000065B: 48 83 BC 24 18 01  cmp         qword ptr [rsp+118h],0
+                    00 00 00
+  0000000000000664: 0F 84 B0 00 00 00  je          000000000000071A
+  000000000000066A: 48 8B 84 24 18 01  mov         rax,qword ptr [rsp+118h]
+                    00 00
+  0000000000000672: 48 39 84 24 20 01  cmp         qword ptr [rsp+120h],rax
+                    00 00
+  000000000000067A: 77 46              ja          00000000000006C2
+  000000000000067C: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  0000000000000684: 48 8B 8C 24 18 01  mov         rcx,qword ptr [rsp+118h]
+                    00 00
+  000000000000068C: 48 2B C8           sub         rcx,rax
+  000000000000068F: 48 8B C1           mov         rax,rcx
+  0000000000000692: 48 3D 40 04 00 00  cmp         rax,440h
+  0000000000000698: 73 0D              jae         00000000000006A7
+  000000000000069A: C7 84 24 EC 00 00  mov         dword ptr [rsp+0ECh],1
+                    00 01 00 00 00
+  00000000000006A5: EB 0B              jmp         00000000000006B2
+  00000000000006A7: C7 84 24 EC 00 00  mov         dword ptr [rsp+0ECh],0
+                    00 00 00 00 00
+  00000000000006B2: 8B 84 24 EC 00 00  mov         eax,dword ptr [rsp+0ECh]
+                    00
+  00000000000006B9: 89 84 24 F0 00 00  mov         dword ptr [rsp+0F0h],eax
+                    00
+  00000000000006C0: EB 44              jmp         0000000000000706
+  00000000000006C2: 48 8B 84 24 18 01  mov         rax,qword ptr [rsp+118h]
+                    00 00
+  00000000000006CA: 48 8B 8C 24 20 01  mov         rcx,qword ptr [rsp+120h]
+                    00 00
+  00000000000006D2: 48 2B C8           sub         rcx,rax
+  00000000000006D5: 48 8B C1           mov         rax,rcx
+  00000000000006D8: 48 3D E8 E9 00 00  cmp         rax,0E9E8h
+  00000000000006DE: 73 0D              jae         00000000000006ED
+  00000000000006E0: C7 84 24 F4 00 00  mov         dword ptr [rsp+0F4h],1
+                    00 01 00 00 00
+  00000000000006EB: EB 0B              jmp         00000000000006F8
+  00000000000006ED: C7 84 24 F4 00 00  mov         dword ptr [rsp+0F4h],0
+                    00 00 00 00 00
+  00000000000006F8: 8B 84 24 F4 00 00  mov         eax,dword ptr [rsp+0F4h]
+                    00
+  00000000000006FF: 89 84 24 F0 00 00  mov         dword ptr [rsp+0F0h],eax
+                    00
+  0000000000000706: 83 BC 24 F0 00 00  cmp         dword ptr [rsp+0F0h],0
+                    00 00
+  000000000000070E: 74 0A              je          000000000000071A
+  0000000000000710: B8 01 00 00 00     mov         eax,1
+  0000000000000715: E9 60 04 00 00     jmp         0000000000000B7A
+  000000000000071A: 41 B8 40 04 00 00  mov         r8d,440h
+  0000000000000720: 33 D2              xor         edx,edx
+  0000000000000722: 48 8B 8C 24 20 01  mov         rcx,qword ptr [rsp+120h]
+                    00 00
+  000000000000072A: E8 00 00 00 00     call        memset
+  000000000000072F: 48 83 BC 24 10 01  cmp         qword ptr [rsp+110h],0
+                    00 00 00
+  0000000000000738: 74 28              je          0000000000000762
+  000000000000073A: FF 15 00 00 00 00  call        qword ptr [__imp_GetCurrentThreadId]
+  0000000000000740: 48 8B 8C 24 10 01  mov         rcx,qword ptr [rsp+110h]
+                    00 00
+  0000000000000748: 3B 81 58 CA 04 00  cmp         eax,dword ptr [rcx+4CA58h]
+  000000000000074E: 75 12              jne         0000000000000762
+  0000000000000750: 48 8B 84 24 10 01  mov         rax,qword ptr [rsp+110h]
+                    00 00
+  0000000000000758: 48 83 B8 98 00 00  cmp         qword ptr [rax+98h],0
+                    00 00
+  0000000000000760: 75 24              jne         0000000000000786
+  0000000000000762: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  000000000000076A: 4C 8D 05 00 00 00  lea         r8,[$SG83108]
+                    00
+  0000000000000771: 48 8B 94 24 28 01  mov         rdx,qword ptr [rsp+128h]
+                    00 00
+  0000000000000779: 48 8B C8           mov         rcx,rax
+  000000000000077C: E8 00 00 00 00     call        deny
+  0000000000000781: E9 F4 03 00 00     jmp         0000000000000B7A
+  0000000000000786: 48 8B 84 24 10 01  mov         rax,qword ptr [rsp+110h]
+                    00 00
+  000000000000078E: 48 05 38 04 00 00  add         rax,438h
+  0000000000000794: 48 89 44 24 38     mov         qword ptr [rsp+38h],rax
+  0000000000000799: 48 8B 84 24 10 01  mov         rax,qword ptr [rsp+110h]
+                    00 00
+  00000000000007A1: 48 05 F0 E7 03 00  add         rax,3E7F0h
+  00000000000007A7: 48 89 44 24 30     mov         qword ptr [rsp+30h],rax
+  00000000000007AC: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  00000000000007B1: 83 B8 94 8F 00 00  cmp         dword ptr [rax+8F94h],0
+                    00
+  00000000000007B8: 0F 85 DE 00 00 00  jne         000000000000089C
+  00000000000007BE: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  00000000000007C3: 83 B8 28 8C 01 00  cmp         dword ptr [rax+18C28h],0
+                    00
+  00000000000007CA: 0F 85 CC 00 00 00  jne         000000000000089C
+  00000000000007D0: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  00000000000007D5: 83 B8 90 8F 00 00  cmp         dword ptr [rax+8F90h],0
+                    00
+  00000000000007DC: 0F 85 BA 00 00 00  jne         000000000000089C
+  00000000000007E2: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  00000000000007E7: 83 B8 A4 8F 00 00  cmp         dword ptr [rax+8FA4h],0
+                    00
+  00000000000007EE: 0F 85 A8 00 00 00  jne         000000000000089C
+  00000000000007F4: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  00000000000007F9: 83 B8 30 8C 01 00  cmp         dword ptr [rax+18C30h],0
+                    00
+  0000000000000800: 0F 85 96 00 00 00  jne         000000000000089C
+  0000000000000806: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  000000000000080B: 83 B8 18 25 00 00  cmp         dword ptr [rax+2518h],0
+                    00
+  0000000000000812: 0F 85 84 00 00 00  jne         000000000000089C
+  0000000000000818: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  000000000000081D: 83 B8 14 25 00 00  cmp         dword ptr [rax+2514h],0
+                    00
+  0000000000000824: 75 76              jne         000000000000089C
+  0000000000000826: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  000000000000082B: 48 8B 8C 24 10 01  mov         rcx,qword ptr [rsp+110h]
+                    00 00
+  0000000000000833: 48 8B 89 98 00 00  mov         rcx,qword ptr [rcx+98h]
+                    00
+  000000000000083A: 48 39 88 C0 26 00  cmp         qword ptr [rax+26C0h],rcx
+                    00
+  0000000000000841: 75 59              jne         000000000000089C
+  0000000000000843: 48 8B 84 24 10 01  mov         rax,qword ptr [rsp+110h]
+                    00 00
+  000000000000084B: 83 78 40 00        cmp         dword ptr [rax+40h],0
+  000000000000084F: 75 4B              jne         000000000000089C
+  0000000000000851: 48 8B 84 24 10 01  mov         rax,qword ptr [rsp+110h]
+                    00 00
+  0000000000000859: 83 B8 58 CC 04 00  cmp         dword ptr [rax+4CC58h],0
+                    00
+  0000000000000860: 75 3A              jne         000000000000089C
+  0000000000000862: 48 8B 84 24 10 01  mov         rax,qword ptr [rsp+110h]
+                    00 00
+  000000000000086A: 83 B8 80 10 05 00  cmp         dword ptr [rax+51080h],0
+                    00
+  0000000000000871: 75 29              jne         000000000000089C
+  0000000000000873: 48 8B 84 24 10 01  mov         rax,qword ptr [rsp+110h]
+                    00 00
+  000000000000087B: 83 B8 B0 CA 04 00  cmp         dword ptr [rax+4CAB0h],0
+                    00
+  0000000000000882: 75 18              jne         000000000000089C
+  0000000000000884: E8 00 00 00 00     call        papacc_server_console_win32_stop_requested
+  0000000000000889: 85 C0              test        eax,eax
+  000000000000088B: 75 0F              jne         000000000000089C
+  000000000000088D: 48 8B 4C 24 38     mov         rcx,qword ptr [rsp+38h]
+  0000000000000892: E8 00 00 00 00     call        papacc_configuration_bootstrap_authority_valid
+  0000000000000897: 83 F8 01           cmp         eax,1
+  000000000000089A: 74 24              je          00000000000008C0
+  000000000000089C: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  00000000000008A4: 4C 8D 05 00 00 00  lea         r8,[$SG83111]
+                    00
+  00000000000008AB: 48 8B 94 24 28 01  mov         rdx,qword ptr [rsp+128h]
+                    00 00
+  00000000000008B3: 48 8B C8           mov         rcx,rax
+  00000000000008B6: E8 00 00 00 00     call        deny
+  00000000000008BB: E9 BA 02 00 00     jmp         0000000000000B7A
+  00000000000008C0: 48 8B 8C 24 18 01  mov         rcx,qword ptr [rsp+118h]
+                    00 00
+  00000000000008C8: E8 00 00 00 00     call        pc_view
+  00000000000008CD: 48 85 C0           test        rax,rax
+  00000000000008D0: 74 67              je          0000000000000939
+  00000000000008D2: 48 8B 84 24 18 01  mov         rax,qword ptr [rsp+118h]
+                    00 00
+  00000000000008DA: 83 78 14 01        cmp         dword ptr [rax+14h],1
+  00000000000008DE: 75 59              jne         0000000000000939
+  00000000000008E0: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  00000000000008E5: 83 B8 DC 26 00 00  cmp         dword ptr [rax+26DCh],1
+                    01
+  00000000000008EC: 75 4B              jne         0000000000000939
+  00000000000008EE: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  00000000000008F3: 48 05 50 04 00 00  add         rax,450h
+  00000000000008F9: 48 8B C8           mov         rcx,rax
+  00000000000008FC: E8 00 00 00 00     call        papacc_server_security_source_validate
+  0000000000000901: 85 C0              test        eax,eax
+  0000000000000903: 75 34              jne         0000000000000939
+  0000000000000905: 48 8D 54 24 70     lea         rdx,[rsp+70h]
+  000000000000090A: 48 8B 8C 24 10 01  mov         rcx,qword ptr [rsp+110h]
+                    00 00
+  0000000000000912: E8 00 00 00 00     call        papacc_server_launcher_configuration_policy_report
+  0000000000000917: 85 C0              test        eax,eax
+  0000000000000919: 75 1E              jne         0000000000000939
+  000000000000091B: 83 BC 24 B0 00 00  cmp         dword ptr [rsp+0B0h],0
+                    00 00
+  0000000000000923: 74 14              je          0000000000000939
+  0000000000000925: 83 BC 24 C0 00 00  cmp         dword ptr [rsp+0C0h],0
+                    00 00
+  000000000000092D: 74 0A              je          0000000000000939
+  000000000000092F: 83 BC 24 BC 00 00  cmp         dword ptr [rsp+0BCh],0
+                    00 00
+  0000000000000937: 74 24              je          000000000000095D
+  0000000000000939: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  0000000000000941: 4C 8D 05 00 00 00  lea         r8,[$SG83114]
+                    00
+  0000000000000948: 48 8B 94 24 28 01  mov         rdx,qword ptr [rsp+128h]
+                    00 00
+  0000000000000950: 48 8B C8           mov         rcx,rax
+  0000000000000953: E8 00 00 00 00     call        deny
+  0000000000000958: E9 1D 02 00 00     jmp         0000000000000B7A
+  000000000000095D: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  0000000000000962: 83 78 08 01        cmp         dword ptr [rax+8],1
+  0000000000000966: 74 24              je          000000000000098C
+  0000000000000968: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  0000000000000970: 4C 8D 05 00 00 00  lea         r8,[$SG83116]
+                    00
+  0000000000000977: 48 8B 94 24 28 01  mov         rdx,qword ptr [rsp+128h]
+                    00 00
+  000000000000097F: 48 8B C8           mov         rcx,rax
+  0000000000000982: E8 00 00 00 00     call        deny
+  0000000000000987: E9 EE 01 00 00     jmp         0000000000000B7A
+  000000000000098C: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  0000000000000991: 83 B8 E8 04 00 00  cmp         dword ptr [rax+4E8h],0
+                    00
+  0000000000000998: 74 44              je          00000000000009DE
+  000000000000099A: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  000000000000099F: 48 8B 4C 24 30     mov         rcx,qword ptr [rsp+30h]
+  00000000000009A4: 48 8B 49 28        mov         rcx,qword ptr [rcx+28h]
+  00000000000009A8: 48 39 88 F0 04 00  cmp         qword ptr [rax+4F0h],rcx
+                    00
+  00000000000009AF: 75 2D              jne         00000000000009DE
+  00000000000009B1: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  00000000000009B6: 48 83 C0 30        add         rax,30h
+  00000000000009BA: 48 8B 4C 24 30     mov         rcx,qword ptr [rsp+30h]
+  00000000000009BF: 48 81 C1 F8 04 00  add         rcx,4F8h
+                    00
+  00000000000009C6: 48 8B 54 24 30     mov         rdx,qword ptr [rsp+30h]
+  00000000000009CB: 4C 8B 82 F0 04 00  mov         r8,qword ptr [rdx+4F0h]
+                    00
+  00000000000009D2: 48 8B D0           mov         rdx,rax
+  00000000000009D5: E8 00 00 00 00     call        memcmp
+  00000000000009DA: 85 C0              test        eax,eax
+  00000000000009DC: 74 24              je          0000000000000A02
+  00000000000009DE: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  00000000000009E6: 4C 8D 05 00 00 00  lea         r8,[$SG83119]
+                    00
+  00000000000009ED: 48 8B 94 24 28 01  mov         rdx,qword ptr [rsp+128h]
+                    00 00
+  00000000000009F5: 48 8B C8           mov         rcx,rax
+  00000000000009F8: E8 00 00 00 00     call        deny
+  00000000000009FD: E9 78 01 00 00     jmp         0000000000000B7A
+  0000000000000A02: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  0000000000000A07: 48 81 B8 C8 26 00  cmp         qword ptr [rax+26C8h],300000h
+                    00 00 00 30 00
+  0000000000000A12: 77 1C              ja          0000000000000A30
+  0000000000000A14: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  0000000000000A19: B9 00 00 30 00     mov         ecx,300000h
+  0000000000000A1E: 48 2B 88 C8 26 00  sub         rcx,qword ptr [rax+26C8h]
+                    00
+  0000000000000A25: 48 8B C1           mov         rax,rcx
+  0000000000000A28: 48 3D 28 1E 01 00  cmp         rax,11E28h
+  0000000000000A2E: 73 24              jae         0000000000000A54
+  0000000000000A30: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  0000000000000A38: 4C 8D 05 00 00 00  lea         r8,[$SG83122]
+                    00
+  0000000000000A3F: 48 8B 94 24 28 01  mov         rdx,qword ptr [rsp+128h]
+                    00 00
+  0000000000000A47: 48 8B C8           mov         rcx,rax
+  0000000000000A4A: E8 00 00 00 00     call        deny
+  0000000000000A4F: E9 26 01 00 00     jmp         0000000000000B7A
+  0000000000000A54: 48 8B 44 24 30     mov         rax,qword ptr [rsp+30h]
+  0000000000000A59: B9 08 00 00 00     mov         ecx,8
+  0000000000000A5E: 48 6B C9 00        imul        rcx,rcx,0
+  0000000000000A62: 48 89 44 0C 48     mov         qword ptr [rsp+rcx+48h],rax
+  0000000000000A67: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  0000000000000A6F: 48 8B 8C 24 28 01  mov         rcx,qword ptr [rsp+128h]
+                    00 00
+  0000000000000A77: 48 89 4C 24 20     mov         qword ptr [rsp+20h],rcx
+  0000000000000A7C: 4C 8B C8           mov         r9,rax
+  0000000000000A7F: 41 B8 01 00 00 00  mov         r8d,1
+  0000000000000A85: 48 8D 54 24 48     lea         rdx,[rsp+48h]
+  0000000000000A8A: 48 8B 8C 24 18 01  mov         rcx,qword ptr [rsp+118h]
+                    00 00
+  0000000000000A92: E8 00 00 00 00     call        pc_bind_existing_models
+  0000000000000A97: 89 84 24 D4 00 00  mov         dword ptr [rsp+0D4h],eax
+                    00
+  0000000000000A9E: 83 BC 24 D4 00 00  cmp         dword ptr [rsp+0D4h],0
+                    00 00
+  0000000000000AA6: 74 0C              je          0000000000000AB4
+  0000000000000AA8: 8B 84 24 D4 00 00  mov         eax,dword ptr [rsp+0D4h]
+                    00
+  0000000000000AAF: E9 C6 00 00 00     jmp         0000000000000B7A
+  0000000000000AB4: 48 8B 4C 24 38     mov         rcx,qword ptr [rsp+38h]
+  0000000000000AB9: E8 00 00 00 00     call        papacc_configuration_bootstrap_custody_ready
+  0000000000000ABE: 83 F8 01           cmp         eax,1
+  0000000000000AC1: 75 09              jne         0000000000000ACC
+  0000000000000AC3: E8 00 00 00 00     call        papacc_server_console_win32_stop_requested
+  0000000000000AC8: 85 C0              test        eax,eax
+  0000000000000ACA: 74 24              je          0000000000000AF0
+  0000000000000ACC: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  0000000000000AD4: 4C 8D 05 00 00 00  lea         r8,[$SG83126]
+                    00
+  0000000000000ADB: 48 8B 94 24 28 01  mov         rdx,qword ptr [rsp+128h]
+                    00 00
+  0000000000000AE3: 48 8B C8           mov         rcx,rax
+  0000000000000AE6: E8 00 00 00 00     call        deny
+  0000000000000AEB: E9 8A 00 00 00     jmp         0000000000000B7A
+  0000000000000AF0: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  0000000000000AF5: 48 05 3C 8F 00 00  add         rax,8F3Ch
+  0000000000000AFB: 48 8B 8C 24 20 01  mov         rcx,qword ptr [rsp+120h]
+                    00 00
+  0000000000000B03: 48 81 C1 F0 03 00  add         rcx,3F0h
+                    00
+  0000000000000B0A: 41 B8 20 00 00 00  mov         r8d,20h
+  0000000000000B10: 48 8B D0           mov         rdx,rax
+  0000000000000B13: E8 00 00 00 00     call        memcpy
+  0000000000000B18: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  0000000000000B20: 48 8B 8C 24 10 01  mov         rcx,qword ptr [rsp+110h]
+                    00 00
+  0000000000000B28: 48 8B 89 98 00 00  mov         rcx,qword ptr [rcx+98h]
+                    00
+  0000000000000B2F: 48 89 88 30 04 00  mov         qword ptr [rax+430h],rcx
+                    00
+  0000000000000B36: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  0000000000000B3E: C7 80 38 04 00 00  mov         dword ptr [rax+438h],1
+                    01 00 00 00
+  0000000000000B48: 48 8B 84 24 20 01  mov         rax,qword ptr [rsp+120h]
+                    00 00
+  0000000000000B50: C7 80 3C 04 00 00  mov         dword ptr [rax+43Ch],0
+                    00 00 00 00
+  0000000000000B5A: 48 83 BC 24 28 01  cmp         qword ptr [rsp+128h],0
+                    00 00 00
+  0000000000000B63: 74 13              je          0000000000000B78
+  0000000000000B65: 48 8B 84 24 28 01  mov         rax,qword ptr [rsp+128h]
+                    00 00
+  0000000000000B6D: 48 8D 0D 00 00 00  lea         rcx,[$SG83128]
+                    00
+  0000000000000B74: 48 89 48 10        mov         qword ptr [rax+10h],rcx
+  0000000000000B78: 33 C0              xor         eax,eax
+  0000000000000B7A: 48 8B F8           mov         rdi,rax
+  0000000000000B7D: 48 8B CC           mov         rcx,rsp
+  0000000000000B80: 48 8D 15 00 00 00  lea         rdx,[papacc_server_config_initial_bootstrap_resolve$rtcFrameData]
+                    00
+  0000000000000B87: E8 00 00 00 00     call        _RTC_CheckStackVars
+  0000000000000B8C: 48 8B C7           mov         rax,rdi
+  0000000000000B8F: 48 8B 8C 24 F8 00  mov         rcx,qword ptr [rsp+0F8h]
+                    00 00
+  0000000000000B97: 48 33 CC           xor         rcx,rsp
+  0000000000000B9A: E8 00 00 00 00     call        __security_check_cookie
+  0000000000000B9F: 48 81 C4 00 01 00  add         rsp,100h
+                    00
+  0000000000000BA6: 5F                 pop         rdi
+  0000000000000BA7: C3                 ret
+  0000000000000BA8: CC                 int         3
+  0000000000000BA9: CC                 int         3
+  0000000000000BAA: CC                 int         3
+  0000000000000BAB: CC                 int         3
+  0000000000000BAC: CC                 int         3
+  0000000000000BAD: CC                 int         3
+  0000000000000BAE: CC                 int         3
+  0000000000000BAF: CC                 int         3
+papacc_server_config_initial_bootstrap_commit:
+  0000000000000BB0: 4C 89 4C 24 20     mov         qword ptr [rsp+20h],r9
+  0000000000000BB5: 4C 89 44 24 18     mov         qword ptr [rsp+18h],r8
+  0000000000000BBA: 48 89 54 24 10     mov         qword ptr [rsp+10h],rdx
+  0000000000000BBF: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx
+  0000000000000BC4: 56                 push        rsi
+  0000000000000BC5: 57                 push        rdi
+  0000000000000BC6: 48 81 EC 98 0D 00  sub         rsp,0D98h
+                    00
+  0000000000000BCD: 48 8D 7C 24 30     lea         rdi,[rsp+30h]
+  0000000000000BD2: B9 5A 03 00 00     mov         ecx,35Ah
+  0000000000000BD7: B8 CC CC CC CC     mov         eax,0CCCCCCCCh
+  0000000000000BDC: F3 AB              rep stos    dword ptr [rdi]
+  0000000000000BDE: 48 8B 8C 24 B0 0D  mov         rcx,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000BE6: 48 8B 05 00 00 00  mov         rax,qword ptr [__security_cookie]
+                    00
+  0000000000000BED: 48 33 C4           xor         rax,rsp
+  0000000000000BF0: 48 89 84 24 88 0D  mov         qword ptr [rsp+0D88h],rax
+                    00 00
+  0000000000000BF8: 48 83 BC 24 B0 0D  cmp         qword ptr [rsp+0DB0h],0
+                    00 00 00
+  0000000000000C01: 74 27              je          0000000000000C2A
+  0000000000000C03: 48 83 BC 24 C0 0D  cmp         qword ptr [rsp+0DC0h],0
+                    00 00 00
+  0000000000000C0C: 74 1C              je          0000000000000C2A
+  0000000000000C0E: 48 81 BC 24 C8 0D  cmp         qword ptr [rsp+0DC8h],0A20h
+                    00 00 20 0A 00 00
+  0000000000000C1A: 72 0E              jb          0000000000000C2A
+  0000000000000C1C: 48 81 BC 24 C8 0D  cmp         qword ptr [rsp+0DC8h],24C0h
+                    00 00 C0 24 00 00
+  0000000000000C28: 76 0A              jbe         0000000000000C34
+  0000000000000C2A: B8 01 00 00 00     mov         eax,1
+  0000000000000C2F: E9 D0 03 00 00     jmp         0000000000001004
+  0000000000000C34: 48 8B 84 24 B0 0D  mov         rax,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000C3C: 48 39 84 24 C0 0D  cmp         qword ptr [rsp+0DC0h],rax
+                    00 00
+  0000000000000C44: 77 48              ja          0000000000000C8E
+  0000000000000C46: 48 8B 84 24 C0 0D  mov         rax,qword ptr [rsp+0DC0h]
+                    00 00
+  0000000000000C4E: 48 8B 8C 24 B0 0D  mov         rcx,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000C56: 48 2B C8           sub         rcx,rax
+  0000000000000C59: 48 8B C1           mov         rax,rcx
+  0000000000000C5C: 48 3B 84 24 C8 0D  cmp         rax,qword ptr [rsp+0DC8h]
+                    00 00
+  0000000000000C64: 73 0D              jae         0000000000000C73
+  0000000000000C66: C7 84 24 70 0D 00  mov         dword ptr [rsp+0D70h],1
+                    00 01 00 00 00
+  0000000000000C71: EB 0B              jmp         0000000000000C7E
+  0000000000000C73: C7 84 24 70 0D 00  mov         dword ptr [rsp+0D70h],0
+                    00 00 00 00 00
+  0000000000000C7E: 8B 84 24 70 0D 00  mov         eax,dword ptr [rsp+0D70h]
+                    00
+  0000000000000C85: 89 84 24 74 0D 00  mov         dword ptr [rsp+0D74h],eax
+                    00
+  0000000000000C8C: EB 44              jmp         0000000000000CD2
+  0000000000000C8E: 48 8B 84 24 B0 0D  mov         rax,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000C96: 48 8B 8C 24 C0 0D  mov         rcx,qword ptr [rsp+0DC0h]
+                    00 00
+  0000000000000C9E: 48 2B C8           sub         rcx,rax
+  0000000000000CA1: 48 8B C1           mov         rax,rcx
+  0000000000000CA4: 48 3D B8 10 05 00  cmp         rax,510B8h
+  0000000000000CAA: 73 0D              jae         0000000000000CB9
+  0000000000000CAC: C7 84 24 78 0D 00  mov         dword ptr [rsp+0D78h],1
+                    00 01 00 00 00
+  0000000000000CB7: EB 0B              jmp         0000000000000CC4
+  0000000000000CB9: C7 84 24 78 0D 00  mov         dword ptr [rsp+0D78h],0
+                    00 00 00 00 00
+  0000000000000CC4: 8B 84 24 78 0D 00  mov         eax,dword ptr [rsp+0D78h]
+                    00
+  0000000000000CCB: 89 84 24 74 0D 00  mov         dword ptr [rsp+0D74h],eax
+                    00
+  0000000000000CD2: 83 BC 24 74 0D 00  cmp         dword ptr [rsp+0D74h],0
+                    00 00
+  0000000000000CDA: 74 0A              je          0000000000000CE6
+  0000000000000CDC: B8 01 00 00 00     mov         eax,1
+  0000000000000CE1: E9 1E 03 00 00     jmp         0000000000001004
+  0000000000000CE6: 4C 8D 8C 24 98 04  lea         r9,[rsp+498h]
+                    00 00
+  0000000000000CEE: 4C 8D 44 24 40     lea         r8,[rsp+40h]
+  0000000000000CF3: 48 8B 94 24 B8 0D  mov         rdx,qword ptr [rsp+0DB8h]
+                    00 00
+  0000000000000CFB: 48 8B 8C 24 B0 0D  mov         rcx,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000D03: E8 00 00 00 00     call        papacc_server_config_initial_bootstrap_resolve
+  0000000000000D08: 85 C0              test        eax,eax
+  0000000000000D0A: 75 14              jne         0000000000000D20
+  0000000000000D0C: 83 BC 24 78 04 00  cmp         dword ptr [rsp+478h],0
+                    00 00
+  0000000000000D14: 74 0A              je          0000000000000D20
+  0000000000000D16: 83 BC 24 7C 04 00  cmp         dword ptr [rsp+47Ch],0
+                    00 00
+  0000000000000D1E: 74 0A              je          0000000000000D2A
+  0000000000000D20: B8 04 00 00 00     mov         eax,4
+  0000000000000D25: E9 DA 02 00 00     jmp         0000000000001004
+  0000000000000D2A: 48 8B 84 24 B0 0D  mov         rax,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000D32: 48 05 38 04 00 00  add         rax,438h
+  0000000000000D38: 48 89 84 24 28 09  mov         qword ptr [rsp+928h],rax
+                    00 00
+  0000000000000D40: 48 C7 84 24 40 09  mov         qword ptr [rsp+940h],1AC28h
+                    00 00 28 AC 01 00
+  0000000000000D4C: 48 81 BC 24 40 09  cmp         qword ptr [rsp+940h],300000h
+                    00 00 00 00 30 00
+  0000000000000D58: 77 3F              ja          0000000000000D99
+  0000000000000D5A: B8 00 00 30 00     mov         eax,300000h
+  0000000000000D5F: 48 2B 84 24 40 09  sub         rax,qword ptr [rsp+940h]
+                    00 00
+  0000000000000D67: 48 8B 8C 24 B0 0D  mov         rcx,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000D6F: 48 39 81 B8 0E 04  cmp         qword ptr [rcx+40EB8h],rax
+                    00
+  0000000000000D76: 77 21              ja          0000000000000D99
+  0000000000000D78: 48 8B 84 24 B0 0D  mov         rax,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000D80: 48 8B 80 B8 0E 04  mov         rax,qword ptr [rax+40EB8h]
+                    00
+  0000000000000D87: 48 03 84 24 40 09  add         rax,qword ptr [rsp+940h]
+                    00 00
+  0000000000000D8F: 48 39 84 24 D8 0D  cmp         qword ptr [rsp+0DD8h],rax
+                    00 00
+  0000000000000D97: 73 0A              jae         0000000000000DA3
+  0000000000000D99: B8 05 00 00 00     mov         eax,5
+  0000000000000D9E: E9 61 02 00 00     jmp         0000000000001004
+  0000000000000DA3: B8 01 00 00 00     mov         eax,1
+  0000000000000DA8: 48 6B C0 14        imul        rax,rax,14h
+  0000000000000DAC: 48 8B 8C 24 C0 0D  mov         rcx,qword ptr [rsp+0DC0h]
+                    00 00
+  0000000000000DB4: 0F B6 04 01        movzx       eax,byte ptr [rcx+rax]
+  0000000000000DB8: 83 F8 01           cmp         eax,1
+  0000000000000DBB: 75 32              jne         0000000000000DEF
+  0000000000000DBD: B8 01 00 00 00     mov         eax,1
+  0000000000000DC2: 48 6B C0 15        imul        rax,rax,15h
+  0000000000000DC6: 48 8B 8C 24 C0 0D  mov         rcx,qword ptr [rsp+0DC0h]
+                    00 00
+  0000000000000DCE: 0F B6 04 01        movzx       eax,byte ptr [rcx+rax]
+  0000000000000DD2: 85 C0              test        eax,eax
+  0000000000000DD4: 75 19              jne         0000000000000DEF
+  0000000000000DD6: 48 83 BC 24 B8 0D  cmp         qword ptr [rsp+0DB8h],0
+                    00 00 00
+  0000000000000DDF: 74 0E              je          0000000000000DEF
+  0000000000000DE1: 48 8B 84 24 B8 0D  mov         rax,qword ptr [rsp+0DB8h]
+                    00 00
+  0000000000000DE9: 83 78 14 01        cmp         dword ptr [rax+14h],1
+  0000000000000DED: 74 0A              je          0000000000000DF9
+  0000000000000DEF: B8 03 00 00 00     mov         eax,3
+  0000000000000DF4: E9 0B 02 00 00     jmp         0000000000001004
+  0000000000000DF9: 48 8D 84 24 D0 04  lea         rax,[rsp+4D0h]
+                    00 00
+  0000000000000E01: 48 8B 8C 24 B0 0D  mov         rcx,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000E09: 48 8B F8           mov         rdi,rax
+  0000000000000E0C: 48 8D B1 F0 E7 03  lea         rsi,[rcx+3E7F0h]
+                    00
+  0000000000000E13: B9 50 04 00 00     mov         ecx,450h
+  0000000000000E18: F3 A4              rep movs    byte ptr [rdi],byte ptr [rsi]
+  0000000000000E1A: 48 8B 84 24 28 09  mov         rax,qword ptr [rsp+928h]
+                    00 00
+  0000000000000E22: 48 05 3C 8F 00 00  add         rax,8F3Ch
+  0000000000000E28: 41 B8 20 00 00 00  mov         r8d,20h
+  0000000000000E2E: 48 8B D0           mov         rdx,rax
+  0000000000000E31: 48 8D 8C 24 E8 08  lea         rcx,[rsp+8E8h]
+                    00 00
+  0000000000000E39: E8 00 00 00 00     call        memcpy
+  0000000000000E3E: 48 C7 84 24 08 09  mov         qword ptr [rsp+908h],1
+                    00 00 01 00 00 00
+  0000000000000E4A: 48 C7 84 24 10 09  mov         qword ptr [rsp+910h],0
+                    00 00 00 00 00 00
+  0000000000000E56: 48 C7 84 24 18 09  mov         qword ptr [rsp+918h],0
+                    00 00 00 00 00 00
+  0000000000000E62: 48 8B 84 24 B0 0D  mov         rax,qword ptr [rsp+0DB0h]
+                    00 00
+  0000000000000E6A: 48 05 60 04 00 00  add         rax,460h
+  0000000000000E70: 41 B9 00 04 00 00  mov         r9d,400h
+  0000000000000E76: 4C 8D 84 24 60 09  lea         r8,[rsp+960h]
+                    00 00
+  0000000000000E7E: 48 8D 94 24 D0 04  lea         rdx,[rsp+4D0h]
+                    00 00
+  0000000000000E86: 48 8B C8           mov         rcx,rax
+  0000000000000E89: E8 00 00 00 00     call        papacc_configuration_body05_encode
+  0000000000000E8E: 85 C0              test        eax,eax
+  0000000000000E90: 75 28              jne         0000000000000EBA
+  0000000000000E92: 48 8B 84 24 C0 0D  mov         rax,qword ptr [rsp+0DC0h]
+                    00 00
+  0000000000000E9A: 48 05 00 04 00 00  add         rax,400h
+  0000000000000EA0: 41 B8 00 04 00 00  mov         r8d,400h
+  0000000000000EA6: 48 8D 94 24 60 09  lea         rdx,[rsp+960h]
+                    00 00
+  0000000000000EAE: 48 8B C8           mov         rcx,rax
+  0000000000000EB1: E8 00 00 00 00     call        memcmp
+  0000000000000EB6: 85 C0              test        eax,eax
+  0000000000000EB8: 74 0A              je          0000000000000EC4
+  0000000000000EBA: B8 01 00 00 00     mov         eax,1
+  0000000000000EBF: E9 40 01 00 00     jmp         0000000000001004
+  0000000000000EC4: B8 24 00 00 00     mov         eax,24h
+  0000000000000EC9: 48 6B C0 00        imul        rax,rax,0
+  0000000000000ECD: 48 8B 8C 24 B8 0D  mov         rcx,qword ptr [rsp+0DB8h]
+                    00 00
+  0000000000000ED5: 8B 84 01 58 E9 00  mov         eax,dword ptr [rcx+rax+0E958h]
+                    00
+  0000000000000EDC: 48 6B C0 0C        imul        rax,rax,0Ch
+  0000000000000EE0: 48 8B 8C 24 B8 0D  mov         rcx,qword ptr [rsp+0DB8h]
+                    00 00
+  0000000000000EE8: 8B 84 01 9C E8 00  mov         eax,dword ptr [rcx+rax+0E89Ch]
+                    00
+  0000000000000EEF: 48 69 C0 6C 02 00  imul        rax,rax,26Ch
+                    00
+  0000000000000EF6: 48 8B 8C 24 B8 0D  mov         rcx,qword ptr [rsp+0DB8h]
+                    00 00
+  0000000000000EFE: 48 8D 44 01 18     lea         rax,[rcx+rax+18h]
+  0000000000000F03: 48 89 84 24 30 09  mov         qword ptr [rsp+930h],rax
+                    00 00
+  0000000000000F0B: B8 4C 00 00 00     mov         eax,4Ch
+  0000000000000F10: 48 6B C0 01        imul        rax,rax,1
+  0000000000000F14: 48 8B 8C 24 30 09  mov         rcx,qword ptr [rsp+930h]
+                    00 00
+  0000000000000F1C: 48 8D 44 01 0C     lea         rax,[rcx+rax+0Ch]
+  0000000000000F21: 48 8B C8           mov         rcx,rax
+  0000000000000F24: E8 00 00 00 00     call        strlen
+  0000000000000F29: 89 84 24 38 09 00  mov         dword ptr [rsp+938h],eax
+                    00
+  0000000000000F30: B8 01 00 00 00     mov         eax,1
+  0000000000000F35: 48 69 C0 0A 02 00  imul        rax,rax,20Ah
+                    00
+  0000000000000F3C: 48 8B 8C 24 C0 0D  mov         rcx,qword ptr [rsp+0DC0h]
+                    00 00
+  0000000000000F44: 0F B6 04 01        movzx       eax,byte ptr [rcx+rax]
+  0000000000000F48: 3B 84 24 38 09 00  cmp         eax,dword ptr [rsp+938h]
+                    00
+  0000000000000F4F: 75 6A              jne         0000000000000FBB
+  0000000000000F51: B8 01 00 00 00     mov         eax,1
+  0000000000000F56: 48 69 C0 0B 02 00  imul        rax,rax,20Bh
+                    00
+  0000000000000F5D: 48 8B 8C 24 C0 0D  mov         rcx,qword ptr [rsp+0DC0h]
+                    00 00
+  0000000000000F65: 0F B6 04 01        movzx       eax,byte ptr [rcx+rax]
+  0000000000000F69: 85 C0              test        eax,eax
+  0000000000000F6B: 75 4E              jne         0000000000000FBB
+  0000000000000F6D: 8B 84 24 38 09 00  mov         eax,dword ptr [rsp+938h]
+                    00
+  0000000000000F74: B9 4C 00 00 00     mov         ecx,4Ch
+  0000000000000F79: 48 6B C9 01        imul        rcx,rcx,1
+  0000000000000F7D: 48 8B 94 24 30 09  mov         rdx,qword ptr [rsp+930h]
+                    00 00
+  0000000000000F85: 48 8D 4C 0A 0C     lea         rcx,[rdx+rcx+0Ch]
+  0000000000000F8A: 48 8B 94 24 C0 0D  mov         rdx,qword ptr [rsp+0DC0h]
+                    00 00
+  0000000000000F92: 48 81 C2 18 02 00  add         rdx,218h
+                    00
+  0000000000000F99: 48 89 94 24 80 0D  mov         qword ptr [rsp+0D80h],rdx
+                    00 00
+  0000000000000FA1: 44 8B C0           mov         r8d,eax
+  0000000000000FA4: 48 8B D1           mov         rdx,rcx
+  0000000000000FA7: 48 8B 84 24 80 0D  mov         rax,qword ptr [rsp+0D80h]
+                    00 00
+  0000000000000FAF: 48 8B C8           mov         rcx,rax
+  0000000000000FB2: E8 00 00 00 00     call        memcmp
+  0000000000000FB7: 85 C0              test        eax,eax
+  0000000000000FB9: 74 07              je          0000000000000FC2
+  0000000000000FBB: B8 01 00 00 00     mov         eax,1
+  0000000000000FC0: EB 42              jmp         0000000000001004
+  0000000000000FC2: E8 00 00 00 00     call        papacc_server_console_win32_stop_requested
+  0000000000000FC7: 85 C0              test        eax,eax
+  0000000000000FC9: 74 07              je          0000000000000FD2
+  0000000000000FCB: B8 04 00 00 00     mov         eax,4
+  0000000000000FD0: EB 32              jmp         0000000000001004
+  0000000000000FD2: 48 8B 84 24 D8 0D  mov         rax,qword ptr [rsp+0DD8h]
+                    00 00
+  0000000000000FDA: 48 89 44 24 20     mov         qword ptr [rsp+20h],rax
+  0000000000000FDF: 4C 8B 8C 24 D0 0D  mov         r9,qword ptr [rsp+0DD0h]
+                    00 00
+  0000000000000FE7: 4C 8B 84 24 C8 0D  mov         r8,qword ptr [rsp+0DC8h]
+                    00 00
+  0000000000000FEF: 48 8B 94 24 C0 0D  mov         rdx,qword ptr [rsp+0DC0h]
+                    00 00
+  0000000000000FF7: 48 8B 8C 24 28 09  mov         rcx,qword ptr [rsp+928h]
+                    00 00
+  0000000000000FFF: E8 00 00 00 00     call        papacc_configuration_bootstrap_commit_begin
+  0000000000001004: 48 8B F8           mov         rdi,rax
+  0000000000001007: 48 8B CC           mov         rcx,rsp
+  000000000000100A: 48 8D 15 00 00 00  lea         rdx,[papacc_server_config_initial_bootstrap_commit$rtcFrameData]
+                    00
+  0000000000001011: E8 00 00 00 00     call        _RTC_CheckStackVars
+  0000000000001016: 48 8B C7           mov         rax,rdi
+  0000000000001019: 48 8B 8C 24 88 0D  mov         rcx,qword ptr [rsp+0D88h]
+                    00 00
+  0000000000001021: 48 33 CC           xor         rcx,rsp
+  0000000000001024: E8 00 00 00 00     call        __security_check_cookie
+  0000000000001029: 48 81 C4 98 0D 00  add         rsp,0D98h
+                    00
+  0000000000001030: 5F                 pop         rdi
+  0000000000001031: 5E                 pop         rsi
+  0000000000001032: C3                 ret
+  0000000000001033: CC                 int         3
+  0000000000001034: CC                 int         3
+  0000000000001035: CC                 int         3
+  0000000000001036: CC                 int         3
+  0000000000001037: CC                 int         3
+  0000000000001038: CC                 int         3
+  0000000000001039: CC                 int         3
+  000000000000103A: CC                 int         3
+  000000000000103B: CC                 int         3
+  000000000000103C: CC                 int         3
+  000000000000103D: CC                 int         3
+  000000000000103E: CC                 int         3
+  000000000000103F: CC                 int         3
+deny:
+  0000000000001040: 4C 89 44 24 18     mov         qword ptr [rsp+18h],r8
+  0000000000001045: 48 89 54 24 10     mov         qword ptr [rsp+10h],rdx
+  000000000000104A: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx
+  000000000000104F: 57                 push        rdi
+  0000000000001050: 48 83 EC 20        sub         rsp,20h
+  0000000000001054: 48 83 7C 24 30 00  cmp         qword ptr [rsp+30h],0
+  000000000000105A: 74 13              je          000000000000106F
+  000000000000105C: 41 B8 30 04 00 00  mov         r8d,430h
+  0000000000001062: 33 D2              xor         edx,edx
+  0000000000001064: 48 8B 4C 24 30     mov         rcx,qword ptr [rsp+30h]
+  0000000000001069: E8 00 00 00 00     call        memset
+  000000000000106E: 90                 nop
+  000000000000106F: 48 83 7C 24 38 00  cmp         qword ptr [rsp+38h],0
+  0000000000001075: 74 31              je          00000000000010A8
+  0000000000001077: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  000000000000107C: C7 00 07 00 00 00  mov         dword ptr [rax],7
+  0000000000001082: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  0000000000001087: C7 40 08 00 00 00  mov         dword ptr [rax+8],0
+                    00
+  000000000000108E: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  0000000000001093: C7 40 04 00 00 00  mov         dword ptr [rax+4],0
+                    00
+  000000000000109A: 48 8B 44 24 38     mov         rax,qword ptr [rsp+38h]
+  000000000000109F: 48 8B 4C 24 40     mov         rcx,qword ptr [rsp+40h]
+  00000000000010A4: 48 89 48 10        mov         qword ptr [rax+10h],rcx
+  00000000000010A8: B8 07 00 00 00     mov         eax,7
+  00000000000010AD: 48 83 C4 20        add         rsp,20h
+  00000000000010B1: 5F                 pop         rdi
+  00000000000010B2: C3                 ret
+
+  Summary
+
+          58 .chks64
+         3A1 .data
+        DF04 .debug$S
+          C8 .debug$T
+          5D .drectve
+          30 .pdata
+         250 .rdata
+           8 .rtc$IMZ
+           8 .rtc$TMZ
+        10B3 .text$mn
+          38 .xdata

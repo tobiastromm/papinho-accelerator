@@ -128,3 +128,28 @@ O worker existente agora compara integralmente CAS/read-back em blocos de512 byt
 ### Perfil Windows ED11 3 MiB — 2026-10-20
 
 [W1–W6 accepted](adr/DECISION-ed11-windows-3mib-process-profile-20261020.md) especializam somente o teto gerenciado por PROCESSO Windows do Accelerator explicitamente selecionado:3145728. Default/legacy/outros targets permanecem2097152; Browser e quotas individuais não mudam. CMake PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE=ON exige o candidato Windows API3/C8; inválidos rejeitam sem fallback. Guards usam uma constante privada única. Selected/Legacy Debug/Release e16 suítes por configuração passam; pressão de crédito/Stop/retenção são modelos, CAS/IO locais são nativos sobre fixtures. Censo conhecido2067655, cenário futuro ROOT08/issuer2142951; diferenças1078073/1002777 são aritméticas, não reservas nem qualificação. Estruturas/buffers não cresceram; worker atual16896 e binding CURRENT/pin/source ainda pendentes. ED11 total PARTIAL/provider-kernel UNKNOWN; CURRENT, assinatura, recuperação e admissão DENY. Pin0.6.4 e PST0.6.5 candidato preservados; box/ISA/NT4 não qualificados. Ver [prova e handoff](integration/ed11-windows-3mib-profile-20261020/profile-proof-and-handoff.md).
+
+
+## UTC qualificada â€” nÃºcleo independente, 2026-10-21
+
+Q0â€“Q7 accepted possui agora cÃ¡lculo DATA C89 em src/issuer/qualified_utc.h/.c, sem Win32/CNG no nÃºcleo. PropagaÃ§Ã£o rho/E conservadora, aritmÃ©tica checada e invalidaÃ§Ã£o/Stop preservam histÃ³rico. NÃ£o hÃ¡ fonte UTC qualificada: PAL e backend.utc atuais nÃ£o expÃµem as garantias necessÃ¡rias, aquisiÃ§Ã£o retorna NOT_SUPPORTED e issuer/UPDATE positivos permanecem DENY. Nenhuma instÃ¢ncia foi adicionada ao owner. MSVC Selected/Legacy e VC6 Debug/Release passam sem warnings;11583 verificaÃ§Ãµes DATA por configuraÃ§Ã£o,42 suÃ­tes CTest+2execuÃ§Ãµes VC6. NT4/box/ISA nÃ£o qualificados. Fixo1948880/1790872 inalterado; ativaÃ§Ã£o completa excedida, provider/kernel/stack UNKNOWN, ED11 PARTIAL. [Closeout](integration/qualified-utc-source-implementation-20261021/closeout.md) e [handoff](integration/qualified-utc-source-implementation-20261021/implementation-proof-and-source-handoff.md) delimitam fontes, lifetime, censo e integraÃ§Ã£o pendente. Sem Browser/PST/wire/pin0.6.4/CURRENT/assinatura/admissÃ£o alterados.
+
+
+### Roughtime offline DATA adapter - 2026-10-21
+
+The private C89 Roughtime core and Q-data bridge compile under VC6/MSVC Debug/Release. OpenSSL3.5.8 public verification is isolated in the explicit modern offline backend; it does not qualify NT4, box or ISA. No native UDP/source/CURRENT authority is enabled. See [qualified-time state](capabilities/qualified-time.md) and its scoped evidence.
+
+
+## Windows SCM candidate bridge — 2026-10-22
+
+Private server_service_data C89 syntax/lifetime helpers expose no Win32 types. The separate Windows adapter and canonical executable dispatch use existing SCM APIs, fixed binding denial, read-only query and explicit close retention; no alternate server runtime or public API/wire change. Modern MSVC x64 Selected/Legacy Debug/Release qualify the independent models/negative paths only. No NT4/box/ISA or productive SCM/account isolation qualification follows; normal production default/API2 is unchanged. [Precise implementation and missing factual sources](integration/windows-scm-lifecycle-20261022/implementation-proof-and-handoff.md).
+
+
+### Windows virtual service identity adapter — 2026-10-22
+
+Private C89 CLI DATA now selects service install with a fixed virtual identity and no password. Windows-only extension remains inside the existing SCM owner; image observation reuses the unchanged Accelerator-owned SHA256 capsule. No Win32 types added to portable core or public ABI. Selected/Legacy MSVC x64 Debug/Release independent components/models pass; Windows7+ is the selected optional-SCM floor, not a qualified target assertion. Positive runtime/token/ACL/ED11 remain denied; console dispatch is preserved. NT4/2000/XP/Vista SCM are outside this patch; future adapters/box/ISA remain architectural targets without qualification. [Precise proof and remaining gates](integration/windows-virtual-service-scm-integration-20261022/implementation-proof-and-handoff.md).
+
+
+### Protected optional-SCM LAB binding — 2026-10-22
+
+Private PS_LAB_BINDING C89 DATA contains immutable opaque observations and no authority; native token/parent/NtCreateFile/DACL adapters remain Windows-only. Same launcher/root/runtime with explicit lifecycle receipts, no separate service wait loop. Native positive eligibility, virtual-token/CA access, operational resources and real Windows7/NT4/box/ISA qualification remain open. Legacy here is the2MiB memory profile, not a legacy-OS qualification. Four modern MSVC Selected/Legacy Debug/Release builds and40 relevant final test/config combinations pass; console CLI/direct denied startup preserved. [Proof and precise boundaries](integration/windows-scm-protected-installation-binding-20261022/implementation-proof-and-handoff.md).

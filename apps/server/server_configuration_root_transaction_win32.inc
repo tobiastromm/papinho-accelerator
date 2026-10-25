@@ -527,6 +527,9 @@ PAPACC_RESULT papacc_server_launcher_configuration_v3_update_hold(
  PAPACC_ROOT_CURRENT_PIN base;PAPACC_CONFIGURATION_COMMIT *c;PAPACC_RESULT result,release;
  const PAPACC_RESOLVED_SERVER_SECURITY_CONFIGURATION *source=NULL;unsigned session;
  if(!preparation_owned(o))return PAPACC_RESULT_INVALID_STATE;c=&o->configuration_commit;
+ /* Explicit version dispatch in the SAME canonical preparation entry. */
+ if(!candidate||bytes<PC_ROOT8_V3_MIN||bytes>PC_ROOT8_V4_MAX||
+ (ULONG_PTR)candidate>MAXULONG_PTR-(bytes-1U)||(candidate[8]!=3U&&candidate[8]!=4U)||candidate[9])return PAPACC_RESULT_INVALID_ARGUMENT;
  /* Bounded dormant UPDATE only. Active/retained Session coexistence has no
   * qualified complete budget; do not infer it from the fixed census. */
  if(o->network.is_active||o->network.tcp_platform.initialized||o->io_loop.initialized||
@@ -538,7 +541,8 @@ PAPACC_RESULT papacc_server_launcher_configuration_v3_update_hold(
  memset(&base,0,sizeof(base));result=papacc_server_launcher_configuration_current_pin(o,&base);
  if(result!=PAPACC_RESULT_OK)return result;
  if(papacc_server_launcher_configuration_current(o,&base)!=PAPACC_TRUE)result=PAPACC_RESULT_INVALID_STATE;
- else result=papacc_configuration_v3_update_hold_data(c,&base.pin,candidate,bytes,reserved+sizeof(base),o->invocation);
+ else result=candidate[8]==3U?papacc_configuration_v3_update_hold_data(c,&base.pin,candidate,bytes,reserved+sizeof(base),o->invocation):
+  papacc_configuration_v4_update_hold_data(c,&base.pin,candidate,bytes,reserved+sizeof(base),o->invocation);
  if(base.pin.ticket){
   release=papacc_configuration_unpin(c,&base.pin,0);
   if(release!=PAPACC_RESULT_OK){
@@ -554,7 +558,7 @@ PAPACC_RESULT papacc_server_launcher_configuration_v3_update_hold(
  if(result!=PAPACC_RESULT_OK||!source)return result==PAPACC_RESULT_OK?PAPACC_RESULT_INVALID_STATE:result;
  return PAPACC_RESULT_NOT_SUPPORTED; /* HELD, not RESOLVED/VALIDATED or commit */
 }
-PAPACC_RESULT papacc_server_launcher_configuration_v3_update_validate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+static PAPACC_RESULT v3_update_current_sources(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
 {
  PAPACC_V3_UPDATE_COHORT *u;PAPACC_ROOT_CURRENT_PIN p;PAPACC_RESULT result;unsigned j;
  if(!preparation_owned(o)||papacc_server_console_win32_stop_requested()==PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
@@ -570,7 +574,32 @@ PAPACC_RESULT papacc_server_launcher_configuration_v3_update_validate(PAPACC_SER
  p.issuer_present=o->configuration_commit.issuer_snapshot_valid[p.pin.index]?PAPACC_TRUE:PAPACC_FALSE;
  p.issuer_revision=p.issuer_present?o->configuration_commit.slots[p.pin.index].issuer_revision:0;
  if(papacc_server_launcher_configuration_current(o,&p)!=PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;
- return PAPACC_RESULT_NOT_SUPPORTED; /* no candidate-source approval producer */
+ return PAPACC_RESULT_OK; /* Existing CURRENT/source only; no candidate approval. */
+}
+PAPACC_RESULT papacc_server_launcher_configuration_v3_update_approve(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_U8 *selected,PAPACC_SIZE bytes)
+{
+ PAPACC_RESULT result=v3_update_current_sources(o);
+ if(result!=PAPACC_RESULT_OK){
+  if(o==&root&&GetCurrentThreadId()==o->owner_thread&&o->configuration_commit.v3_update.act.state==PAPACC_V3_ACT_CAPTURED)
+   o->configuration_commit.v3_update.act.state=PAPACC_V3_ACT_INVALID;
+  return result;
+ }
+ result=papacc_configuration_v3_update_act_capture(&o->configuration_commit,selected,bytes);
+ if(result!=PAPACC_RESULT_OK)return result;
+ if(v3_update_current_sources(o)!=PAPACC_RESULT_OK){o->configuration_commit.v3_update.act.state=PAPACC_V3_ACT_INVALID;return PAPACC_RESULT_INVALID_STATE;}
+ return PAPACC_RESULT_NOT_SUPPORTED; /* Act captured, issuer UTC/status source absent. */
+}
+PAPACC_RESULT papacc_server_launcher_configuration_v3_update_validate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
+{
+ PAPACC_RESULT result=v3_update_current_sources(o);
+ if(result!=PAPACC_RESULT_OK){
+  if(o==&root&&GetCurrentThreadId()==o->owner_thread&&o->configuration_commit.v3_update.act.state==PAPACC_V3_ACT_CAPTURED)
+   o->configuration_commit.v3_update.act.state=PAPACC_V3_ACT_INVALID;
+  return result;
+ }
+ result=papacc_configuration_v3_update_act_revalidate(&o->configuration_commit);
+ if(result!=PAPACC_RESULT_OK)return result;
+ return PAPACC_RESULT_NOT_SUPPORTED; /* No qualified issuer UTC/status source. */
 }
 PAPACC_RESULT papacc_server_launcher_configuration_v3_update_commit(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
 {return papacc_server_launcher_configuration_v3_update_validate(o); /* unresolved never reaches packet11 */}
@@ -581,7 +610,8 @@ PAPACC_RESULT papacc_server_launcher_configuration_v3_update_abort(PAPACC_SERVER
  if(o!=&root||GetCurrentThreadId()!=o->owner_thread||!o->configuration_commit.initialized)return PAPACC_RESULT_INVALID_STATE;
  u=&o->configuration_commit.v3_update;
  if(!PAPACC_V3_UPDATE_BUSY(&o->configuration_commit)||u->invocation!=o->invocation)return PAPACC_RESULT_INVALID_STATE;
- if(o->configuration_commit.pending_commit.active||o->configuration_commit.pending_commit.thread||
+ if(u->data_active)return PAPACC_RESULT_INVALID_STATE;
+ if(u->act.retained_token||u->act.retained_process_token||o->configuration_commit.pending_commit.active||o->configuration_commit.pending_commit.thread||
  o->configuration_commit.pending_commit.transaction||(o->configuration_commit.pending_commit.file&&o->configuration_commit.pending_commit.file!=INVALID_HANDLE_VALUE)||
  o->configuration_commit.pending_commit.close_error||o->configuration_commit.unresolved||o->configuration_commit.committed_pending||
  o->configuration_commit.authority_lost||o->configuration_commit.pending_commit.result!=PAPACC_COMMIT_IDLE||o->configuration_commit.pending_commit.packet_format){

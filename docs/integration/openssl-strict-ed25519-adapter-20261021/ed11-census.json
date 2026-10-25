@@ -1,0 +1,136 @@
+{
+  "task": "PACC-PHASE6-OPENSSL-STRICT-ED25519-ADAPTER-1",
+  "scope": "isolated external downstream extension; no production instance or distribution",
+  "reports": {
+    "Debug": {
+      "pe_test_executable_including_harness_not_adapter_delta": {
+        "code": 42496,
+        "initialized": 39936,
+        "uninitialized": 0,
+        "image": 98304
+      },
+      "point_wrapper_frame": {
+        "frame_sub_rsp": 392,
+        "push_bytes": 0,
+        "calls": [
+          "__security_check_cookie",
+          "fe_isnonzero",
+          "ge_double_scalarmult_vartime",
+          "ge_frombytes_vartime",
+          "ge_p3_tobytes",
+          "ge_tobytes",
+          "memcmp"
+        ]
+      },
+      "multiplication_frame": {
+        "frame_sub_rsp": 2344,
+        "push_bytes": 0,
+        "calls": [
+          "__security_check_cookie",
+          "ge_add",
+          "ge_madd",
+          "ge_msub",
+          "ge_p1p1_to_p2",
+          "ge_p1p1_to_p3",
+          "ge_p2_0",
+          "ge_p2_dbl",
+          "ge_p3_dbl",
+          "ge_p3_to_cached",
+          "ge_sub",
+          "slide"
+        ]
+      },
+      "largest_internal_call_path_subtotal_including_return_slots": 4032,
+      "path": [
+        "papacc_ossl358_ed25519_point_check",
+        "ge_double_scalarmult_vartime",
+        "ge_add",
+        "fe_mul"
+      ],
+      "not_a_runtime_high_water_or_complete_bound": true,
+      "external_frames_not_bounded": [
+        "CRYPTO_memcmp",
+        "__security_check_cookie",
+        "memcmp",
+        "memmove",
+        "memset"
+      ],
+      "listing_sha256": "d1faa17dd0c05dc8916e275eb9f807c120cef6b71c5c11a38be94f09cb4ef537"
+    },
+    "Release": {
+      "pe_test_executable_including_harness_not_adapter_delta": {
+        "code": 28160,
+        "initialized": 39424,
+        "uninitialized": 0,
+        "image": 86016
+      },
+      "point_wrapper_frame": {
+        "frame_sub_rsp": 480,
+        "push_bytes": 8,
+        "calls": [
+          "CRYPTO_memcmp",
+          "__security_check_cookie",
+          "fe_invert",
+          "fe_mul",
+          "fe_tobytes",
+          "ge_double_scalarmult_vartime",
+          "ge_frombytes_vartime",
+          "memcmp"
+        ]
+      },
+      "multiplication_frame": {
+        "frame_sub_rsp": 2328,
+        "push_bytes": 48,
+        "calls": [
+          "__security_check_cookie",
+          "fe_mul",
+          "ge_add",
+          "ge_madd",
+          "ge_msub",
+          "ge_p2_dbl",
+          "ge_p3_to_cached",
+          "ge_sub",
+          "slide"
+        ]
+      },
+      "largest_internal_call_path_subtotal_including_return_slots": 3376,
+      "path": [
+        "papacc_ossl358_ed25519_point_check",
+        "ge_double_scalarmult_vartime",
+        "ge_add",
+        "fe_mul"
+      ],
+      "not_a_runtime_high_water_or_complete_bound": true,
+      "external_frames_not_bounded": [
+        "CRYPTO_memcmp",
+        "__security_check_cookie",
+        "memcmp",
+        "memmove"
+      ],
+      "listing_sha256": "80201e0c33d3e0af90a09410d735bcc5ba861968b13d9953bf09ef57af4bef4c"
+    }
+  },
+  "static_order_zero_identity_constants": 96,
+  "openssl_allocation_calls_during_focal_key_tests": {
+    "Debug": 0,
+    "Release": 0
+  },
+  "this_is_not_a_bound_on_CRT_kernel_or_future_backend_init": true,
+  "candidate_has_no_owned_heap_handles_threads_or_retained_pointers": true,
+  "synchronous_borrow_lifetime": "input32 bytes immutable until return; no escaping borrow; Stop at owner effect boundary, no asynchronous cancel or timeout free added",
+  "legacy_limit_unchanged": 2097152,
+  "windows_limit_only_explicit": 3145728,
+  "previous_known_selected_fixed_unchanged": 1952624,
+  "previous_known_legacy_fixed_unchanged": 1790872,
+  "previous_explicit_scenario_unchanged_not_operational_peak": 2172856,
+  "unknown": [
+    "full runtime stack high-water including external CRT/OpenSSL frames and caller",
+    "final linked backend image/data delta and loading/init",
+    "operational old-candidate/root/issuer/Roughtime retention/concurrency composition",
+    "native provider/kernel/source/evidence costs"
+  ],
+  "source_original_unchanged": true,
+  "quota_changed": false,
+  "ed11_total_status": "PARTIAL",
+  "activation": "DENY"
+}

@@ -1,0 +1,132 @@
+/* Same qualifier thread, no worker/console/receiver or process clone. */
+#include <processsnapshot.h>
+#include <winevt.h>
+#include "scm-instrumented-policy.h"
+typedef struct IG_NATIVE_OBSERVER {
+ HPSS snapshot;HPSSWALK marker;HANDLE thread;unsigned powershell[4];HANDLE process[4];FILETIME creation[4];DWORD pid[4];
+ unsigned count,identity,retained,bd_borrowed;PERFORMANCE_INFORMATION host;MEMORYSTATUSEX memory;
+ IG_SAMPLE sample;ULONGLONG peak_private[4],peak_commit[4],peak_ws[4],peak_stack[4];DWORD peak_handles[4],peak_threads[4];
+ EVT_HANDLE event_query,event;WCHAR xml[32768];
+} IG_NATIVE_OBSERVER;
+static IG_NATIVE_OBSERVER ig_observer;
+static DWORD ig_observer_close_snapshot(void)
+{
+ DWORD e;if(ig_observer.retained)return ERROR_INVALID_STATE;
+ if(ig_observer.thread){if(!ig_diag_bool(cycle_stage,"CloseHandle","thread_handle",CloseHandle(ig_observer.thread))){ig_observer.retained=1;return GetLastError();}ig_observer.thread=NULL;}
+ if(ig_observer.marker){e=ig_diag_status(cycle_stage,"PssWalkMarkerFree","snapshot_marker",PssWalkMarkerFree(ig_observer.marker),0);if(e){ig_observer.retained=1;return e;}ig_observer.marker=NULL;}
+ if(ig_observer.snapshot){e=ig_diag_status(cycle_stage,"PssFreeSnapshot","thread_snapshot",PssFreeSnapshot(GetCurrentProcess(),ig_observer.snapshot),0);if(e){ig_observer.retained=1;return e;}ig_observer.snapshot=NULL;}
+ return 0;
+}
+static DWORD ig_measure_process(unsigned index,HANDLE process,DWORD pid,const FILETIME *expected_creation,IG_PROCESS *p)
+{
+ PROCESS_MEMORY_COUNTERS_EX m;PSS_THREAD_ENTRY t;DWORD e,n=0;ULONG_PTR allocations[64];unsigned allocation_count=0;IO_COUNTERS io;FILETIME creation,exit,kernel,user;
+ ig_diagnostic.current_role=index;ig_diagnostic.current_pid=pid;
+ p->powershell=index<4?ig_observer.powershell[index]:0; /* four-role topology; self-only test uses native role3 */
+ if(ig_observer.snapshot||ig_observer.marker||ig_observer.retained)return ERROR_INVALID_STATE;
+ if(!ig_diag_bool(cycle_stage,"GetProcessTimes","process_creation",GetProcessTimes(process,&creation,&exit,&kernel,&user))||memcmp(&creation,expected_creation,sizeof(creation)))return ERROR_INVALID_DATA;
+ ZeroMemory(&m,sizeof(m));m.cb=sizeof(m);
+ if(!ig_diag_bool(cycle_stage,"GetProcessMemoryInfo","process_memory",GetProcessMemoryInfo(process,(PROCESS_MEMORY_COUNTERS *)&m,sizeof(m)))||!ig_diag_bool(cycle_stage,"GetProcessHandleCount","process_handles",GetProcessHandleCount(process,&p->handles))||!ig_diag_bool(cycle_stage,"GetProcessIoCounters","process_io",GetProcessIoCounters(process,&io)))return GetLastError();
+ p->private_bytes=m.PrivateUsage;p->commit=m.PagefileUsage;p->working_set=m.WorkingSetSize;
+ if(index==4)printf("IG_CONSOLE_BASIC pid=%lu private=%llu commit=%llu ws=%llu handles=%lu peak_commit=%llu peak_ws=%llu; THREADS_STACK=UNKNOWN_UNTIL_SNAPSHOT\n",(unsigned long)pid,p->private_bytes,p->commit,p->working_set,(unsigned long)p->handles,(ULONGLONG)m.PeakPagefileUsage,(ULONGLONG)m.PeakWorkingSetSize);
+ e=ig_diag_status(cycle_stage,"PssCaptureSnapshot","thread_snapshot",PssCaptureSnapshot(process,(PSS_CAPTURE_FLAGS)(PSS_CAPTURE_THREADS|PSS_CAPTURE_THREAD_CONTEXT),CONTEXT_CONTROL,&ig_observer.snapshot),0);if(e){if(ig_observer.snapshot)ig_observer.retained=1;return e;}
+ e=ig_diag_status(cycle_stage,"PssWalkMarkerCreate","snapshot_marker",PssWalkMarkerCreate(NULL,&ig_observer.marker),0);if(e)return e;
+ for(;;){MEMORY_BASIC_INFORMATION mbi;ULONG_PTR at,allocation;unsigned regions=0,j;int duplicate=0;
+  e=ig_diag_status(cycle_stage,"PssWalkSnapshot","thread_snapshot_entry",PssWalkSnapshot(ig_observer.snapshot,PSS_WALK_THREADS,ig_observer.marker,&t,sizeof(t)),1);if(e==ERROR_NO_MORE_ITEMS)break;if(e)return e;
+  if(t.ExitStatus!=STILL_ACTIVE)continue;
+  if(t.ProcessId!=pid||++n>64U||!t.ContextRecord||t.SizeOfContextRecord<sizeof(CONTEXT))return ERROR_INVALID_DATA;
+  {FILETIME ct,et,kt,ut;
+  ig_observer.thread=ig_diag_handle(cycle_stage,"OpenThread","thread",OpenThread(THREAD_QUERY_INFORMATION|SYNCHRONIZE,FALSE,t.ThreadId));if(!ig_observer.thread)return GetLastError();
+  if(GetProcessIdOfThread(ig_observer.thread)!=pid||!ig_diag_bool(cycle_stage,"GetThreadTimes","thread_creation",GetThreadTimes(ig_observer.thread,&ct,&et,&kt,&ut))||memcmp(&ct,&t.CreateTime,sizeof(ct))||ig_diag_wait_live(cycle_stage,"WaitForSingleObject","thread_liveness",WaitForSingleObject(ig_observer.thread,0))!=WAIT_TIMEOUT)return ERROR_INVALID_DATA;
+  }
+  /* Supported snapshot CONTEXT_CONTROL. Inspect allocation metadata only;
+   * never reserved TebBaseAddress, stack bytes, register values in logs or keys. */
+  at=(ULONG_PTR)t.ContextRecord->Rsp;if(!at||!ig_diag_size(cycle_stage,"VirtualQueryEx","stack_allocation_metadata",VirtualQueryEx(process,(void *)at,&mbi,sizeof(mbi)))||mbi.Type!=MEM_PRIVATE||!mbi.AllocationBase)return ERROR_INVALID_DATA;
+  allocation=(ULONG_PTR)mbi.AllocationBase;
+  for(j=0;j<allocation_count;j++)if(allocations[j]==allocation)duplicate=1;
+  if(!duplicate){
+   allocations[allocation_count++]=allocation;at=allocation;
+   for(;;){
+    if(++regions>1024U||!ig_diag_size(cycle_stage,"VirtualQueryEx","stack_allocation_metadata",VirtualQueryEx(process,(void *)at,&mbi,sizeof(mbi))))return ERROR_INVALID_DATA;
+    if((ULONG_PTR)mbi.AllocationBase!=allocation)break;
+    if(mbi.Type!=MEM_PRIVATE||!mbi.RegionSize||at+mbi.RegionSize<=at)return ERROR_INVALID_DATA;
+    if(mbi.State==MEM_COMMIT){if(p->stack>~(ULONGLONG)0-mbi.RegionSize)return ERROR_ARITHMETIC_OVERFLOW;p->stack+=mbi.RegionSize;}
+    else if(mbi.State!=MEM_RESERVE)return ERROR_INVALID_DATA;
+    at+=mbi.RegionSize;
+   }
+  }
+  if(ig_diag_wait_live(cycle_stage,"WaitForSingleObject","thread_liveness",WaitForSingleObject(ig_observer.thread,0))!=WAIT_TIMEOUT)return ERROR_INVALID_DATA;
+  if(!ig_diag_bool(cycle_stage,"CloseHandle","thread_handle",CloseHandle(ig_observer.thread))){ig_observer.retained=1;return GetLastError();}ig_observer.thread=NULL;
+ }
+ p->threads=n;if(!n)return ERROR_INVALID_DATA;
+ e=ig_observer_close_snapshot();if(e)return e;
+ if(index<4){
+ if(m.PeakPagefileUsage>ig_observer.peak_commit[index])ig_observer.peak_commit[index]=m.PeakPagefileUsage;
+ if(m.PeakWorkingSetSize>ig_observer.peak_ws[index])ig_observer.peak_ws[index]=m.PeakWorkingSetSize;
+ if(p->private_bytes>ig_observer.peak_private[index])ig_observer.peak_private[index]=p->private_bytes;
+ if(p->stack>ig_observer.peak_stack[index])ig_observer.peak_stack[index]=p->stack;
+ if(p->handles>ig_observer.peak_handles[index])ig_observer.peak_handles[index]=p->handles;
+ if(p->threads>ig_observer.peak_threads[index])ig_observer.peak_threads[index]=p->threads;
+ printf("IG_PROCESS role=%u pid=%lu private=%llu commit=%llu ws=%llu handles=%lu threads=%lu stack_committed_va=%llu peak_commit=%llu peak_ws=%llu; KERNEL_TRANSITIVE=UNKNOWN\n",index,(unsigned long)pid,p->private_bytes,p->commit,p->working_set,(unsigned long)p->handles,(unsigned long)p->threads,p->stack,ig_observer.peak_commit[index],ig_observer.peak_ws[index]);
+ }else{printf("IG_CONSOLE_RESOURCE pid=%lu private=%llu commit=%llu ws=%llu handles=%lu threads=%lu stack_committed_va=%llu peak_commit=%llu peak_ws=%llu; DIAGNOSTIC_ONLY_NOT_ADMITTED\n",(unsigned long)pid,p->private_bytes,p->commit,p->working_set,(unsigned long)p->handles,(unsigned long)p->threads,p->stack,(ULONGLONG)m.PeakPagefileUsage,(ULONGLONG)m.PeakWorkingSetSize);}
+ printf("IG_IO role=%u read_ops=%llu write_ops=%llu read_bytes=%llu write_bytes=%llu\n",index,io.ReadOperationCount,io.WriteOperationCount,io.ReadTransferCount,io.WriteTransferCount);
+ return 0;
+}
+static DWORD ig_observe_process(unsigned index)
+{return ig_measure_process(index,ig_observer.process[index],ig_observer.pid[index],&ig_observer.creation[index],&ig_observer.sample.process[index]);}
+static DWORD ig_observe(void)
+{
+ DWORD e;unsigned i;ig_diagnostic.current_role=4;ig_diagnostic.current_pid=0;ZeroMemory(&ig_observer.sample,sizeof(ig_observer.sample));ig_observer.sample.oldest=GetTickCount64();ig_observer.sample.count=ig_observer.count;ig_observer.sample.identity=ig_observer.identity;
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+ if(native.admission.bd.used){
+  const PS_BD_INVENTORY *v=&native.admission.bd.inventory;
+  if(!native.admission.bd.bound)return ERROR_ACCESS_DENIED;
+  e=papacc_server_service_admission_bd_revalidate(native.admission.bd.check);if(e)return e;
+  e=ps_bd_inventory(&native.admission.bd.binding,v,ig_observer.sample.oldest);if(e)return e;
+  ig_observer.sample.bd=1;ig_observer.sample.binding=native.admission.bd.binding;ig_observer.sample.inventory=*v;ig_observer.sample.count=v->count;
+  /* Proof freshness is independently enforced by owner; sample time is metric acquisition. */
+  ig_observer.bd_borrowed=1;
+  /* Original process references remain owned by canonical admission/host. */
+  for(i=0;i<PS_BD_ROLES;i++)if(v->present[i]){
+   ig_observer.process[i]=v->role[i].handle;ig_observer.pid[i]=v->role[i].pid;ig_observer.creation[i].dwLowDateTime=(DWORD)v->role[i].creation;ig_observer.creation[i].dwHighDateTime=(DWORD)(v->role[i].creation>>32);ig_observer.powershell[i]=i==PS_BD_ADMIN;
+  }
+ }
+#endif
+ ig_observer.host.cb=sizeof(ig_observer.host);ig_observer.memory.dwLength=sizeof(ig_observer.memory);
+ if(!ig_diag_bool(cycle_stage,"GetPerformanceInfo","host_commit_pool_cache",GetPerformanceInfo(&ig_observer.host,sizeof(ig_observer.host)))||!ig_diag_bool(cycle_stage,"GlobalMemoryStatusEx","host_physical",GlobalMemoryStatusEx(&ig_observer.memory)))return GetLastError();
+ if(ig_observer.host.CommitLimit<ig_observer.host.CommitTotal)return ERROR_INVALID_DATA;
+ ig_observer.sample.physical=ig_observer.memory.ullAvailPhys;if(!ig_observer.host.PageSize||(ULONGLONG)(ig_observer.host.CommitLimit-ig_observer.host.CommitTotal)>~(ULONGLONG)0/ig_observer.host.PageSize)return ERROR_ARITHMETIC_OVERFLOW;
+ ig_observer.sample.commit=(ULONGLONG)(ig_observer.host.CommitLimit-ig_observer.host.CommitTotal)*ig_observer.host.PageSize;
+ for(i=0;i<(ig_observer.sample.bd?PS_BD_ROLES:ig_observer.count);i++){if(ig_observer.sample.bd&&!ig_observer.sample.inventory.present[i])continue;e=ig_observe_process(i);if(e){ig_observer.sample.process[i].error=e;return e;}}
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+ if(ig_observer.sample.bd&&native.admission.bd.binding.n0){
+  PS_BD_COST costs[PS_BD_ROLES];ZeroMemory(costs,sizeof(costs));
+  for(i=0;i<PS_BD_ROLES;i++)if(ig_observer.sample.inventory.present[i]){IG_PROCESS *q=&ig_observer.sample.process[i];costs[i].private_bytes=q->private_bytes;costs[i].commit=q->commit;costs[i].working_set=q->working_set;costs[i].stack=q->stack;costs[i].handles=q->handles;costs[i].threads=q->threads;costs[i].error=q->error;}
+  e=papacc_server_service_admission_bd_metrics(costs,ig_observer.sample.oldest);if(e)return e;
+ }
+#endif
+ printf("IG_HOST tick=%llu physical=%llu commit_available=%llu total_phys=%llu commit_pages=%llu limit_pages=%llu peak_commit_pages=%llu page=%llu paged_pool=%llu nonpaged_pool=%llu cache=%llu\n",ig_observer.sample.oldest,ig_observer.sample.physical,ig_observer.sample.commit,ig_observer.memory.ullTotalPhys,(ULONGLONG)ig_observer.host.CommitTotal,(ULONGLONG)ig_observer.host.CommitLimit,(ULONGLONG)ig_observer.host.CommitPeak,(ULONGLONG)ig_observer.host.PageSize,(ULONGLONG)ig_observer.host.KernelPaged,(ULONGLONG)ig_observer.host.KernelNonpaged,(ULONGLONG)ig_observer.host.SystemCache);
+ return 0;
+}
+static DWORD ig_boot(void)
+{
+ DWORD n=0,used=0,props=0,e=0;WCHAR *a,*b,*start;char name[256],hex[65];BYTE hash[32];int bytes;unsigned i;
+ {typedef LONG (WINAPI *VERSION)(OSVERSIONINFOW *);VERSION version;FARPROC address;OSVERSIONINFOW v;
+ ZeroMemory(&v,sizeof(v));v.dwOSVersionInfoSize=sizeof(v);address=GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"RtlGetVersion");if(!address)return ERROR_NOT_SUPPORTED;memcpy(&version,&address,sizeof(version));
+ if(version(&v)<0||v.dwMajorVersion!=10||v.dwMinorVersion!=0||v.dwBuildNumber!=19045)return ERROR_OLD_WIN_VERSION;}
+
+ ig_observer.event_query=EvtQuery(NULL,L"System",L"*[System[Provider[@Name='Microsoft-Windows-Kernel-General'] and EventID=12]]",EvtQueryChannelPath|EvtQueryReverseDirection);
+ if(!ig_observer.event_query)return GetLastError();
+ if(!EvtNext(ig_observer.event_query,1,&ig_observer.event,0,0,&n)||n!=1)return GetLastError();
+ if(!EvtRender(NULL,ig_observer.event,EvtRenderEventXml,sizeof(ig_observer.xml),ig_observer.xml,&used,&props))return GetLastError();
+ if(used>sizeof(ig_observer.xml))return ERROR_INVALID_DATA;
+ a=wcsstr(ig_observer.xml,L"<EventRecordID>");if(!a||wcstoul(a+15,NULL,10)!=236441UL)return ERROR_INVALID_DATA;
+ start=wcsstr(ig_observer.xml,L"Name='StartTime'");if(!start)start=wcsstr(ig_observer.xml,L"Name=\"StartTime\"");
+ if(!start||(start=wcschr(start,L'>'))==NULL||wcsncmp(start+1,L"2026-10-23T18:36:34.5000000Z<",29))return ERROR_INVALID_DATA;
+ a=wcsstr(ig_observer.xml,L"<Computer>");if(!a||(b=wcsstr(a,L"</Computer>"))==NULL)return ERROR_INVALID_DATA;a+=10;
+ bytes=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,a,(int)(b-a),name,sizeof(name),NULL,NULL);if(bytes<=0)return ERROR_INVALID_DATA;
+ if(!pacc_storage_hash_callback(NULL,(BYTE *)name,(size_t)bytes,hash))return ERROR_INVALID_DATA;
+ for(i=0;i<32;i++){hex[2*i]="0123456789abcdef"[hash[i]>>4];hex[2*i+1]="0123456789abcdef"[hash[i]&15];}hex[64]=0;
+ if(strcmp(hex,"2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff"))return ERROR_INVALID_COMPUTERNAME;
+ if(!EvtClose(ig_observer.event)){ig_observer.retained=1;return GetLastError();}ig_observer.event=NULL;
+ if(!EvtClose(ig_observer.event_query)){ig_observer.retained=1;return GetLastError();}ig_observer.event_query=NULL;return e;
+}

@@ -1,0 +1,140 @@
+{
+  "schema": "PACC_EXACT_MANUAL_LAB_OPERATION_APPROVAL_V1",
+  "status": "OWNER_REAPPROVED_MANUAL_ONLY_SUBJECT_TO_FRESH_CANONICAL_GATES",
+  "operation": "N0START-20261024-02",
+  "attempt": "75330d11cc7e4123ae62eadc9a59c2f5",
+  "authority_source": "Explicit owner reapproval in conversation; not a native admission receipt",
+  "owner_reapproval_verbatim": "**OWNER REAPPROVAL — N0START-20261024-02**\n\nReaprovo especificamente a operação diagnóstica `N0START-20261024-02`, condicionada à revisão final do pacote atualizado, seus hashes e à reconciliação factual imediatamente anterior aos efeitos.\n\nA correção do gate pré-consumo foi qualificada offline, e a concorrência nativa passou nas quatro configurações após correção exclusiva do fixture. O owner canônico e os pins operacionais foram preservados.\n\nAutorizo exclusivamente, após todos os gates:\n\n- Consumo único do intent canônico.\n- Criação exclusiva da imagem instrumentada.\n- Criação exclusiva do sink/arm diagnóstico.\n- Um rebind explícito do ImagePath do serviço LAB.\n- Uma chamada StartService.\n- Até uma solicitação segura de Stop, quando permitida pelo estado factual.\n- Captura de NTSTATUS, métricas e recibos.\n- Retenção de efeitos parciais ou UNKNOWN.\n\nExijo:\n\n- Ausência factual de colisões antes do consumo.\n- CREATE_NEW/FILE_CREATE preservados.\n- Identidades, hashes, operador, token, host, boot, configuração e dossiê protegidos.\n- Exclusividade canônica.\n- SCM e recovery actions conformes.\n- Freshness 60s/1s e limites ED11 inalterados.\n- Confirmações exatas, sem reutilização de valores históricos.\n\nNão autorizo retry, overwrite, exclusão, rollback automático, kill, remediação de ACL, aumento de quotas ou alteração de contratos.\n\nNão autorizo listener, rede, CA, certificados, bootstrap, CURRENT ou promoção produtiva.\n\nRegistrar a aprovação executável somente após conferir o pacote atualizado e produzir seu hash literal completo.\n\n**Não executar automaticamente.** Entregar o comando manual final, com os pins atuais e sem variáveis pendentes.\n\nSe houver qualquer divergência, manter STOP.\n\nED11 permanece PARTIAL.\n\nCURRENT_PUBLICATION=DENY\n\nSIGNATURE_AUTHORITY=DENY\n\nAUTHORITATIVE_RECOVERY=DENY\n\nNEXT=OWNER_MANUAL_N0START_20261024_02",
+  "approved_request_sha256": "9f7443f233c4c08a052186a779e7e60f51b79d68594edab7f4d964ccd8a48f65",
+  "approved_request": {
+    "status": "PROPOSED_NOT_EXECUTION_AUTHORIZATION",
+    "operation": "N0START-20261024-02",
+    "attempt": "75330d11cc7e4123ae62eadc9a59c2f5",
+    "script_sha256": "573bf1ca9a95dc052c992a0893b47f06f9dd96a92f53d3aa41cdf5bcc25951c2",
+    "qualifier_sha256": "b482b959400b41e6e64ecb86858dfd00522a0aa988b36300dc7d70f4d3c33eae",
+    "host_sha256": "2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff",
+    "boot": 236441,
+    "operator_sid": "S-1-5-21-785699550-1440458426-1682014700-1108",
+    "service": "PapinhoAcceleratorLab20261023",
+    "instrumented_source_sha256": "eda84c0cf91ad1266cee462e62c89b84ffa5873853a0122215d15d666701361b",
+    "config_sha256": "a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44",
+    "effects_requested": [
+      "canonical one-shot intent CREATE_NEW before effects",
+      "instrumented image CREATE_NEW",
+      "diagnostic sink CREATE_NEW arm1024/final2048",
+      "one explicit service ImagePath rebind",
+      "one StartService",
+      "at most one safe Stop control",
+      "read-only metrics/token/status/capture queries",
+      "retention of partial or uncertain effects"
+    ],
+    "forbidden": [
+      "retry",
+      "overwrite",
+      "delete",
+      "rollback",
+      "kill",
+      "existing ACL modification",
+      "other service or owner",
+      "listener/network",
+      "CA/certificates/bootstrap/CURRENT"
+    ],
+    "residual": [
+      "N7 console association UNPROVEN",
+      "mapped image provenance UNPROVEN",
+      "kernel/cache/transitive stack/sample gaps UNKNOWN",
+      "host external contention",
+      "synchronous IO delay",
+      "possible resource/freshness DENY after consumption and partial effects",
+      "Preconsume absence is not an atomic reservation; post-query collision consumes attempt, preserves partial effects, no retry or rollback"
+    ],
+    "credits": "NONE_GRANTED",
+    "operational_admission": "NOT_YET_GRANTED",
+    "previous_operation_disposition": {
+      "operation": "N0START-20261024-01",
+      "evidence": "docs\\integration\\n0-n9-final-freshness-ordering-20261024\\owner-N0START-20261024-01-result.txt",
+      "consumed": "NO_HISTORICAL",
+      "effects": 0,
+      "live_claim_absence": "UNKNOWN_UNTIL_CANONICAL_ORIGINAL_PARENT_AND_MUTEX_CHECK",
+      "approval_reusable": false,
+      "rearm_or_delete_permitted": false
+    },
+    "approval_record_required": "C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start02-preconsume-collision-correction-20261024\\EXACT-OPERATION-APPROVED.json",
+    "approval_record_created": false,
+    "qualifier_path": "build/n0start02-preconsume-collision-correction-20261024/Selected/Release/papacc_scm_instrumented_lab.exe",
+    "preconsume_absence": {
+      "parent_native": "417614100:1966080:79426",
+      "image_name": "papacc_server_lab_host_ntstatus.exe",
+      "sink_name": "papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag",
+      "native_api": "NtCreateFile FILE_OPEN read attributes, original retained RootDirectory",
+      "required": "STATUS_OBJECT_NAME_NOT_FOUND and NULL handle, original parent revalidated",
+      "not_reservation": true,
+      "final_exclusive_creates_unchanged": true
+    },
+    "conditional_approval": {
+      "path": "docs\\integration\\n0-n9-final-freshness-ordering-20261024\\OWNER-APPROVAL-CONDITIONAL-N0START-20261024-02.json",
+      "sha256": "a203e711ea4bed5d04a2d471ca8225b3fcf65788d729f62a7fa469651a91cec2",
+      "execution_authority": false,
+      "new_exact_owner_approval_required": true
+    },
+    "qualification_limitations": [
+      "New absence gate exercised through real compiled code with mocked native APIs; not factual native namespace qualification",
+      "Optional isolated native cross-process test rejected CreateMutexExW with Win32 1307 before acquisition; no bypass or retry; offline lost-owner denial passed"
+    ],
+    "service_identity": {
+      "name": "PapinhoAcceleratorLab20261023",
+      "virtual_account": "NT SERVICE\\PapinhoAcceleratorLab20261023",
+      "sid": "S-1-5-80-3567404667-26456103-3018599297-139793421-3962028451",
+      "required_initial_state": "STOPPED_PID_0",
+      "recovery_triggers_startup": "MANDATORY_FRESH_READBACK_NO_REMEDIATION"
+    },
+    "operator_token": "NATIVE_FRESH_ELEVATED_SID_STATISTICS_NO_IMPERSONATION_BOUND_TO_EXACT_PLAN_NOT_HISTORICAL",
+    "plan_confirmation": "NATIVE_EXACT_PLAN_HASH_WITH_CONTEMPORARY_PROCESS_CREATION_CHALLENGE_NO_FUTURE_VALUES_INVENTED",
+    "protected_inputs": {
+      "root": "C:/ProgramData/PapinhoAccelerator/Protected/N0",
+      "evidence": {
+        "name": "papacc-n2-75330d11cc7e4123ae62eadc9a59c2f5.evidence",
+        "bytes": 5358,
+        "native": "417614100:196608:2841429",
+        "sha256": "babab3ea393b605802933054ab011e6fcb66b21bffcc80923448715e911f27e0"
+      },
+      "approved": {
+        "name": "papacc-n2-75330d11cc7e4123ae62eadc9a59c2f5.approved",
+        "bytes": 326,
+        "native": "417614100:131072:2841430",
+        "sha256": "5a2b7203afdece0adca77be278d6b86c18cc2cf457cab87474ee7dce0311c294"
+      },
+      "raw_child_descriptor_sha256": "0fcfd0572daee1f64b98daf960276db86f55043460ba700e927bfb46b31b4814",
+      "profile": "N2-SD-RAW1-OWNER-GROUP-DACL",
+      "revalidation": "ORIGINAL_NATIVE_HANDLES_IDENTITY_HASH_DESCRIPTOR_FRESHNESS_LIFETIME"
+    },
+    "policy_sha256": "bec9d0c275d5ee8bd68de4d42fe173a08f124a9900c119e7a08d23757d9d7941",
+    "ed11_sha256": "e7031bd29c9bd174359ffcc3c9a021a6ad25a0256a5cf03b40c0866d3a5776b7",
+    "raw1_decision_sha256": "8b042e2bbf6500aa90aa3407fcd3423f45d96cf6b16568ffa95b98f3d081c972",
+    "bd_decision_sha256": "eb93002cf3f6d863a060fb97b7380389aa66b6fbe68e66c1af4fb17b988d3290",
+    "limits": {
+      "native_handles_each": 128,
+      "administrative_handles_shared": 1024,
+      "process_roles": 4,
+      "freshness_context_ms": 60000,
+      "freshness_final_ms": 1000,
+      "host_credits": "NONE_GRANTED"
+    },
+    "production_pin": "0.6.4"
+  },
+  "final_review_sha256": "9ab52013f3fd650a1beff1dc0b7514ece427011fa2008978d16c127cf08be055",
+  "fixture_reconciliation": {
+    "closeout": "docs\\integration\\n0start02-native-concurrency-1307-20261024\\closeout.md",
+    "sha256": "f170ca4688fb1f6a31d9ba894445b3cc8a4ec8f3600f49a979a6b22cecffc9c4",
+    "results_sha256": "abf65ae2b3218027163f05ecaaf11eb65dc216f9e28ba38d85a534cd4bffe6d1",
+    "scope": "ISOLATED_FIXTURE_ONLY_NOT_OPERATIONAL_LAB_ADMISSION"
+  },
+  "execution": "ONE_FUTURE_MANUAL_OPERATION_ONLY_NO_CODEX_AUTOMATIC_EXECUTION_NO_RETRY",
+  "fresh_factual_gates": "Original parent/intent/image/sink absence; bound operator/token/host/boot/SCM/config/policies/RAW1/exclusivity/census/metrics/60s/1s/headroom/confirmation immediately before effects; divergence STOP",
+  "prior_approval_reusable": false,
+  "intent_disposition": "NOT_CONSUMED_HISTORICAL_ONLY_CURRENT_ABSENCE_REQUIRED_NO_REARM",
+  "ED11": "PARTIAL",
+  "CURRENT_PUBLICATION": "DENY",
+  "SIGNATURE_AUTHORITY": "DENY",
+  "AUTHORITATIVE_RECOVERY": "DENY"
+}

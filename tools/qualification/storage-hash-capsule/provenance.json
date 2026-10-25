@@ -1,0 +1,47 @@
+{
+  "release": "0.6",
+  "tag": "v0.6",
+  "tag_object": "7d8e767e79bb1750345e571ec89cca1da13b52df",
+  "commit": "8ef7680081c61b486622f2d983c0d3d21e83caad",
+  "release_sha256": "6705bba1714961b41a728dfc5debbe348d2966c117649392f8c8139efc83ff14",
+  "snapshot_sha256": "73cbdd89b82305e82d58154bccbd1f352ecc9dd097a0c19a7b0c4f09abd0fdaf",
+  "files": {
+    "LICENSE.txt": "771bf18c8633ea69ec9b07d2e604c4b99b7bef41b0f5ce6385d24df4448f61ca",
+    "inc/bearssl_hash.h": "adfe3039fe48962c7fd74a1031f6d9dde951fb12a6acdae65a39f4d8537d2ef9",
+    "src/codec/dec32be.c": "ebd7bf469655a9e4de4b3d1d01d4c54f19117def3e3b918242629c150979bd9c",
+    "src/codec/enc32be.c": "8090b5bd6959586e769814e9d3698ac1c454e31ee4dfd5a2b2eb95a805063ae4",
+    "src/hash/sha2small.c": "9e54f88610a5cc3adc92ab5a91cd21989695566d792a439c84ff176e5c6c0b0f"
+  },
+  "mismatches": [],
+  "initial_header_closure": "19 upstream files inspected; unused TLS declaration closure removed after W4 build warning before qualification",
+  "derived_header": {
+    "source": "src/inner.h",
+    "source_sha256": "05a4c5b30599a00deda2648fbb842c07eb783bc5a62589ba90c3fada36ad732a",
+    "regions": [
+      {
+        "name": "br_enc32be",
+        "sha256": "d6883322a4edbd8d960878fbef0782681b5dcc888717a6a687c77ce7f024a0a9"
+      },
+      {
+        "name": "br_dec32be",
+        "sha256": "d79a1b4359d1e632685bc42e6c4e3578be6adb3133f3160955dcac04da5dfdee"
+      },
+      {
+        "name": "br_enc64be",
+        "sha256": "d6a48346a01795432249f81bc49a40dfdb4397bcd934191a417f43ab62b57b09"
+      }
+    ],
+    "sha256": "6b5b2a1091390ec7758977785752f321c79c9ad2543399a355a13ecabeab46cf",
+    "configuration": "BR_BE_UNALIGNED=0; portable bytewise original branches",
+    "declarations": "Two original range-codec prototypes; no changed round or padding arithmetic"
+  },
+  "upstream_urls": {
+    "home": "https://www.bearssl.org/",
+    "release": "https://www.bearssl.org/bearssl-0.6.tar.gz",
+    "tags": "https://www.bearssl.org/gitweb/?p=BearSSL;a=tags",
+    "tag": "https://www.bearssl.org/gitweb/?p=BearSSL;a=tag;h=7d8e767e79bb1750345e571ec89cca1da13b52df",
+    "snapshot": "https://www.bearssl.org/gitweb/?p=BearSSL;a=snapshot;h=8ef7680081c61b486622f2d983c0d3d21e83caad;sf=tgz"
+  },
+  "retrieval": "2026-10-22; official HTTPS with curl certificate verification, no -k; no upstream artifact signature asserted",
+  "scope": "LAB-only original SHA256/SHA224 shared translation unit, three C files, one public header, derived portable encoding glue. No TLS compiled or linked."
+}

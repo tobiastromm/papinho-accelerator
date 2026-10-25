@@ -1,0 +1,55 @@
+{
+  "status": "PARTIAL",
+  "durable_layout_increment": 0,
+  "profiles": {
+    "Legacy": {
+      "limit": 2097152,
+      "known_managed": 1799600,
+      "nominal_remainder_not_operational_margin": 297552,
+      "root": 175112,
+      "pending": 43400
+    },
+    "Selected": {
+      "explicit_3MiB_selection": true,
+      "limit": 3145728,
+      "known_managed": 1965096,
+      "nominal_remainder_not_operational_margin": 1180632,
+      "root": 340608,
+      "pending": 73288
+    }
+  },
+  "resources": {
+    "worker_threads_max": 1,
+    "worker_stack_reservation_existing_bytes": 65536,
+    "new_target_handles_max": 1,
+    "lab_only_barrier_events_max": 2,
+    "unknown_retains_same_owner_blocks_new_submission": true,
+    "new_pin_tables": 0,
+    "new_CA_resources_acquired": 0
+  },
+  "measured_own_frames_excluding_return_and_callees_Selected_LAB": {
+    "Debug": {
+      "bootstrap_create_child": 600,
+      "personal_target_worker": 104,
+      "personal_target_start": 72,
+      "pending_worker": 344,
+      "native_close": 200
+    },
+    "Release": {
+      "bootstrap_create_child": 440,
+      "personal_target_worker": 56,
+      "personal_target_start": 104,
+      "pending_worker": 216,
+      "native_close": 88
+    }
+  },
+  "unknown": [
+    "native filesystem/handle/kernel costs",
+    "thread/runtime/CRT and full nested stack",
+    "token/security descriptor transitive allocation",
+    "CA provider/kernel and custody/coexistence",
+    "complete operational host admission"
+  ],
+  "complete_peak": null,
+  "operational_margin": null
+}

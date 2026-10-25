@@ -1,0 +1,142 @@
+{
+  "Debug": {
+    "papacc_configuration_personal_ca_match_data": {
+      "sub_rsp_bytes": 608,
+      "prologue": [
+        "papacc_configuration_personal_ca_match_data:",
+        "  0000000000006A30: 4C 89 4C 24 20     mov         qword ptr [rsp+20h],r9",
+        "  0000000000006A35: 4C 89 44 24 18     mov         qword ptr [rsp+18h],r8",
+        "  0000000000006A3A: 48 89 54 24 10     mov         qword ptr [rsp+10h],rdx",
+        "  0000000000006A3F: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx",
+        "  0000000000006A44: 57                 push        rdi",
+        "  0000000000006A45: 48 81 EC 60 02 00  sub         rsp,260h",
+        "                    00",
+        "  0000000000006A4C: 48 8D 7C 24 20     lea         rdi,[rsp+20h]",
+        "  0000000000006A51: B9 90 00 00 00     mov         ecx,90h",
+        "  0000000000006A56: B8 CC CC CC CC     mov         eax,0CCCCCCCCh",
+        "  0000000000006A5B: F3 AB              rep stos    dword ptr [rdi]"
+      ]
+    },
+    "papacc_configuration_personal_ca_bind": {
+      "sub_rsp_bytes": 64,
+      "prologue": [
+        "papacc_configuration_personal_ca_bind:",
+        "  00000000000073A0: 4C 89 4C 24 20     mov         qword ptr [rsp+20h],r9",
+        "  00000000000073A5: 4C 89 44 24 18     mov         qword ptr [rsp+18h],r8",
+        "  00000000000073AA: 48 89 54 24 10     mov         qword ptr [rsp+10h],rdx",
+        "  00000000000073AF: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx",
+        "  00000000000073B4: 57                 push        rdi",
+        "  00000000000073B5: 48 83 EC 40        sub         rsp,40h",
+        "  00000000000073B9: 48 83 7C 24 50 00  cmp         qword ptr [rsp+50h],0",
+        "  00000000000073BF: 74 2B              je          00000000000073EC",
+        "  00000000000073C1: 48 83 7C 24 58 00  cmp         qword ptr [rsp+58h],0",
+        "  00000000000073C7: 74 23              je          00000000000073EC",
+        "  00000000000073C9: FF 15 00 00 00 00  call        qword ptr [__imp_GetCurrentThreadId]"
+      ]
+    },
+    "papacc_configuration_personal_ca_current": {
+      "sub_rsp_bytes": 64,
+      "prologue": [
+        "papacc_configuration_personal_ca_current:",
+        "  0000000000007530: 4C 89 4C 24 20     mov         qword ptr [rsp+20h],r9",
+        "  0000000000007535: 4C 89 44 24 18     mov         qword ptr [rsp+18h],r8",
+        "  000000000000753A: 48 89 54 24 10     mov         qword ptr [rsp+10h],rdx",
+        "  000000000000753F: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx",
+        "  0000000000007544: 57                 push        rdi",
+        "  0000000000007545: 48 83 EC 40        sub         rsp,40h",
+        "  0000000000007549: 48 83 7C 24 50 00  cmp         qword ptr [rsp+50h],0",
+        "  000000000000754F: 74 55              je          00000000000075A6",
+        "  0000000000007551: FF 15 00 00 00 00  call        qword ptr [__imp_GetCurrentThreadId]",
+        "  0000000000007557: 48 8B 4C 24 50     mov         rcx,qword ptr [rsp+50h]",
+        "  000000000000755C: 39 81 70 8F 00 00  cmp         dword ptr [rcx+8F70h],eax"
+      ]
+    },
+    "papacc_configuration_personal_ca_release": {
+      "sub_rsp_bytes": 48,
+      "prologue": [
+        "papacc_configuration_personal_ca_release:",
+        "  0000000000007620: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx",
+        "  0000000000007625: 57                 push        rdi",
+        "  0000000000007626: 48 83 EC 30        sub         rsp,30h",
+        "  000000000000762A: 48 83 7C 24 40 00  cmp         qword ptr [rsp+40h],0",
+        "  0000000000007630: 74 13              je          0000000000007645",
+        "  0000000000007632: FF 15 00 00 00 00  call        qword ptr [__imp_GetCurrentThreadId]",
+        "  0000000000007638: 48 8B 4C 24 40     mov         rcx,qword ptr [rsp+40h]",
+        "  000000000000763D: 39 81 70 8F 00 00  cmp         dword ptr [rcx+8F70h],eax",
+        "  0000000000007643: 74 0A              je          000000000000764F",
+        "  0000000000007645: B8 04 00 00 00     mov         eax,4",
+        "  000000000000764A: E9 88 00 00 00     jmp         00000000000076D7"
+      ]
+    }
+  },
+  "Release": {
+    "papacc_configuration_personal_ca_match_data": {
+      "sub_rsp_bytes": 400,
+      "prologue": [
+        "papacc_configuration_personal_ca_match_data:",
+        "  0000000000000000: 40 55              push        rbp",
+        "  0000000000000002: 53                 push        rbx",
+        "  0000000000000003: 56                 push        rsi",
+        "  0000000000000004: 57                 push        rdi",
+        "  0000000000000005: 41 54              push        r12",
+        "  0000000000000007: 41 55              push        r13",
+        "  0000000000000009: 41 56              push        r14",
+        "  000000000000000B: 48 8D AC 24 70 FF  lea         rbp,[rsp-90h]",
+        "                    FF FF",
+        "  0000000000000013: 48 81 EC 90 01 00  sub         rsp,190h",
+        "                    00"
+      ]
+    },
+    "papacc_configuration_personal_ca_bind": {
+      "sub_rsp_bytes": 48,
+      "prologue": [
+        "papacc_configuration_personal_ca_bind:",
+        "  0000000000000000: 48 89 5C 24 18     mov         qword ptr [rsp+18h],rbx",
+        "  0000000000000005: 55                 push        rbp",
+        "  0000000000000006: 56                 push        rsi",
+        "  0000000000000007: 57                 push        rdi",
+        "  0000000000000008: 41 56              push        r14",
+        "  000000000000000A: 41 57              push        r15",
+        "  000000000000000C: 48 83 EC 30        sub         rsp,30h",
+        "  0000000000000010: 4C 8B BC 24 80 00  mov         r15,qword ptr [rsp+80h]",
+        "                    00 00",
+        "  0000000000000018: 4D 8B F1           mov         r14,r9",
+        "  000000000000001B: 49 8B E8           mov         rbp,r8"
+      ]
+    },
+    "papacc_configuration_personal_ca_current": {
+      "sub_rsp_bytes": 48,
+      "prologue": [
+        "papacc_configuration_personal_ca_current:",
+        "  0000000000000000: 48 89 5C 24 10     mov         qword ptr [rsp+10h],rbx",
+        "  0000000000000005: 55                 push        rbp",
+        "  0000000000000006: 56                 push        rsi",
+        "  0000000000000007: 57                 push        rdi",
+        "  0000000000000008: 41 56              push        r14",
+        "  000000000000000A: 41 57              push        r15",
+        "  000000000000000C: 48 83 EC 30        sub         rsp,30h",
+        "  0000000000000010: 4D 8B F9           mov         r15,r9",
+        "  0000000000000013: 4D 8B F0           mov         r14,r8",
+        "  0000000000000016: 48 8B EA           mov         rbp,rdx",
+        "  0000000000000019: 48 8B F1           mov         rsi,rcx"
+      ]
+    },
+    "papacc_configuration_personal_ca_release": {
+      "sub_rsp_bytes": 32,
+      "prologue": [
+        "papacc_configuration_personal_ca_release:",
+        "  0000000000000000: 40 57              push        rdi",
+        "  0000000000000002: 48 83 EC 20        sub         rsp,20h",
+        "  0000000000000006: 48 8B F9           mov         rdi,rcx",
+        "  0000000000000009: 48 85 C9           test        rcx,rcx",
+        "  000000000000000C: 74 53              je          0000000000000061",
+        "  000000000000000E: 48 89 5C 24 30     mov         qword ptr [rsp+30h],rbx",
+        "  0000000000000013: 8B 99 70 8F 00 00  mov         ebx,dword ptr [rcx+8F70h]",
+        "  0000000000000019: FF 15 00 00 00 00  call        qword ptr [__imp_GetCurrentThreadId]",
+        "  000000000000001F: 3B D8              cmp         ebx,eax",
+        "  0000000000000021: 48 8B 5C 24 30     mov         rbx,qword ptr [rsp+30h]",
+        "  0000000000000026: 75 39              jne         0000000000000061"
+      ]
+    }
+  }
+}

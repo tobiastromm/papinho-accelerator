@@ -1,0 +1,536 @@
+--- preimage/apps/server/server_service_admission_win32.inc
++++ apps/server/server_service_admission_win32.inc
+@@ -3,8 +3,8 @@
+ #include <sddl.h>
+ #ifndef PS_ADMISSION_TEST
+ static const WCHAR psa_name[]=L"Global\\PapinhoAccelerator.ED11.SingleLabAdmission";
+-static const WCHAR psa_launch_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.launch.log";
+-static const WCHAR psa_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.intent";
++static const WCHAR psa_launch_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-0b1de869e11493b7cb08fb329578f6ce.launch.log";
++static const WCHAR psa_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-0b1de869e11493b7cb08fb329578f6ce.intent";
+ #endif
+ #ifndef PSA_DIAGNOSTIC
+ #define PSA_DIAGNOSTIC(api,res,code,value) ((void)0)
+@@ -61,7 +61,7 @@
+  PSA.launch=CreateFileW(psa_launch_path,GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+  if(PSA.launch==INVALID_HANDLE_VALUE){PSA.launch=NULL;return psa_error();}
+  if(!GetFileInformationByHandle(PSA.launch,&id)||id.nNumberOfLinks!=1||(id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)))return ERROR_INVALID_DATA;
+- length=sprintf_s(expected,sizeof(expected),"ADMISSION=75330d11cc7e4123ae62eadc9a59c2f5; OWNER=%lu; CREATION=%llu\n",(unsigned long)pid,creation);
++ length=sprintf_s(expected,sizeof(expected),"ADMISSION=0b1de869e11493b7cb08fb329578f6ce; OWNER=%lu; CREATION=%llu\n",(unsigned long)pid,creation);
+  if(length<=0||!ReadFile(PSA.launch,observed,(DWORD)length,&n,NULL)||n!=(DWORD)length||memcmp(expected,observed,n))return ERROR_INVALID_DATA;
+  return 0;
+ }
+@@ -69,7 +69,7 @@
+ {
+  DWORD e,w;SECURITY_ATTRIBUTES sa;BY_HANDLE_FILE_INFORMATION id;
+  if(PSA.phase||PSA.mutex||PSA.intent||PSA.pending)return ERROR_INVALID_STATE;
+- if(attempt&&strcmp(attempt,"75330d11cc7e4123ae62eadc9a59c2f5"))return ERROR_INVALID_DATA;
++ if(attempt&&strcmp(attempt,"0b1de869e11493b7cb08fb329578f6ce"))return ERROR_INVALID_DATA;
+  if(attempt){
+   if(!PSA.launch||!PSA.launcher)return ERROR_ACCESS_DENIED;
+   if(!configuration||!GetFileInformationByHandle(configuration,&id))return ERROR_INVALID_HANDLE;
+@@ -128,7 +128,7 @@
+ 
+ DWORD papacc_server_service_admission_consume(void)
+ {
+- static const char record[]="ATTEMPT=75330d11cc7e4123ae62eadc9a59c2f5; CONSUMED; NO_RETRY_NO_RECOVERY; UNKNOWN_UNTIL_FACTUAL_CLOSE\r\n";
++ static const char record[]="ATTEMPT=0b1de869e11493b7cb08fb329578f6ce; CONSUMED; NO_RETRY_NO_RECOVERY; UNKNOWN_UNTIL_FACTUAL_CLOSE\r\n";
+  SECURITY_ATTRIBUTES sa;DWORD e,n;BY_HANDLE_FILE_INFORMATION id;
+  if(PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId()||PSA.consumed||PSA.stop||!PSA.lab)return ERROR_INVALID_STATE;
+ #if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
+--- preimage/apps/server/server_service_admission_bd_win32.h
++++ apps/server/server_service_admission_bd_win32.h
+@@ -4,6 +4,11 @@
+  * MODEL evidence exists ONLY in the isolated test translation unit. */
+ #include <windows.h>
+ #include <string.h>
++#if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL) || defined(PS_BD_SOURCE_ONLY)
++#include "../../tools/qualification/scm-successor-image-pin.h"
++#else
++#define PS_BD_N0_IMAGE_SHA ""
++#endif
+ #define PS_BD_ROLES 4U
+ enum { PS_BD_NATIVE_ID=1U,PS_BD_IMAGE_PROVENANCE=2U,PS_BD_FACTUAL_RELATION=4U,PS_BD_SESSION=8U,
+  PS_BD_LIVE=16U,PS_BD_METRICS=32U,PS_BD_REVALIDATED=64U,PS_BD_GENERATION=128U };
+@@ -62,11 +67,11 @@
+  if(!d||!ps_bd_id(&d->actor,&d->actor)||!d->control_thread||d->control_thread==INVALID_HANDLE_VALUE||!d->control_tid||
+  !d->configuration||d->configuration==INVALID_HANDLE_VALUE||!d->image||d->image==INVALID_HANDLE_VALUE||
+  !d->owner_pid||d->actor.pid==d->owner_pid||!d->owner_creation||!d->boot||!d->challenge||
+- d->attempt[32]||strcmp(d->attempt,"75330d11cc7e4123ae62eadc9a59c2f5")||!ps_bd_hex(d->plan)||!ps_bd_hex(d->config_hash)||!ps_bd_hex(d->image_hash)||!ps_bd_hex(d->policy)||!ps_bd_hex(d->host))return ERROR_INVALID_DATA;
++ d->attempt[32]||strcmp(d->attempt,"0b1de869e11493b7cb08fb329578f6ce")||!ps_bd_hex(d->plan)||!ps_bd_hex(d->config_hash)||!ps_bd_hex(d->image_hash)||!ps_bd_hex(d->policy)||!ps_bd_hex(d->host))return ERROR_INVALID_DATA;
+  if(d->n0){const PS_BD_AUX_INPUT *a=&d->auxiliary;
+   if(d->n0!=1U||d->boot!=236441ULL||strcmp(d->policy,PS_BD_N0_POLICY)||
+   strcmp(d->config_hash,"a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44")||
+-  strcmp(d->image_hash,"eda84c0cf91ad1266cee462e62c89b84ffa5873853a0122215d15d666701361b")||
++  strcmp(d->image_hash,PS_BD_N0_IMAGE_SHA)||
+   strcmp(d->host,"2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff")||
+   !ps_bd_id(&a->instance,&a->instance)||a->instance.pid==d->actor.pid||a->instance.pid==d->owner_pid||a->parent!=d->actor.pid||
+   a->instance.creation<=d->actor.creation||a->instance.session!=d->actor.session||!a->file||a->file==INVALID_HANDLE_VALUE||
+--- preimage/apps/server/server_service_psr_file_win32.inc
++++ apps/server/server_service_psr_file_win32.inc
+@@ -1,6 +1,6 @@
+ /* Same LAB runtime owner; no creation, external receiver or authority. */
+-static const BYTE psrd_attempt[33]="75330d11cc7e4123ae62eadc9a59c2f5";
+-static const WCHAR psrd_leaf[]=L"papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag";
++static const BYTE psrd_attempt[33]="0b1de869e11493b7cb08fb329578f6ce";
++static const WCHAR psrd_leaf[]=L"papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag";
+ static DWORD psrd_fail(DWORD e)
+ {
+  PS_DIAGNOSTIC *d=&native.runtime.diagnostic;if(!d->error)d->error=e?e:ERROR_GEN_FAILURE;
+@@ -70,7 +70,7 @@
+  DWORD saved=GetLastError(),e;PS_DIAGNOSTIC *d=&native.runtime.diagnostic;int n;
+  if(!kind||d->emitted){SetLastError(saved);return;}d->emitted=1U;
+  if(!d->bound||d->error){(void)psrd_fail(d->error?d->error:ERROR_INVALID_STATE);SetLastError(saved);return;}
+- n=_snprintf_s((char *)d->file.frame.text,PSRF_TEXT,_TRUNCATE,"attempt=75330d11cc7e4123ae62eadc9a59c2f5 service=PapinhoAcceleratorLab20261023 expected_config_sha=%s stage=psr_prepare\n%s",psr_config_sha,text);
++ n=_snprintf_s((char *)d->file.frame.text,PSRF_TEXT,_TRUNCATE,"attempt=0b1de869e11493b7cb08fb329578f6ce service=PapinhoAcceleratorLab20261023 expected_config_sha=%s stage=psr_prepare\n%s",psr_config_sha,text);
+  if(n<=0){(void)psrd_fail(ERROR_BUFFER_OVERFLOW);SetLastError(saved);return;}
+  e=psrf_finish(&d->file,psrd_attempt,d->file.frame.text,(DWORD)n,kind,&host.stop);
+  if(e){(void)psrd_fail(e);SetLastError(saved);return;}
+--- preimage/apps/server/server_service_runtime_win32.inc
++++ apps/server/server_service_runtime_win32.inc
+@@ -33,7 +33,7 @@
+ }
+ #ifdef PSR_FILE_ENABLED
+ #include "server_service_psr_file_win32.inc"
+-#define PSR_IMAGE_LEAF L"papacc_server_lab_host_ntstatus.exe"
++#define PSR_IMAGE_LEAF L"papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe"
+ #else
+ #define PSR_IMAGE_LEAF L"papacc_server_lab_host.exe"
+ #endif
+--- preimage/tools/qualification/scm-instrumented-policy.h
++++ tools/qualification/scm-instrumented-policy.h
+@@ -3,7 +3,7 @@
+ #define PACC_INSTRUMENTED_POLICY_H
+ #include <windows.h>
+ #include "../../apps/server/server_service_admission_bd_win32.h"
+-#define IG_ATTEMPT "75330d11cc7e4123ae62eadc9a59c2f5"
++#define IG_ATTEMPT "0b1de869e11493b7cb08fb329578f6ce"
+ #define IG_ID_ALL 511U
+ #define IG_GIB 1073741824ULL
+ #define IG_MIB 1048576ULL
+--- preimage/tools/qualification/scm-instrumented-cycle-lab.inc
++++ tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -10,8 +10,8 @@
+ static PSECURITY_DESCRIPTOR ig_diag_sd;
+ static unsigned ig_locked;
+ static OVERLAPPED ig_lock;
+-static const WCHAR ig_diag_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag";
+-static const WCHAR ig_intent_path[]=L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\first-instrumented-native-lab-start-preparation-20261023\\manual-native-intent.txt";
++static const WCHAR ig_diag_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag";
++static const WCHAR ig_intent_path[]=L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\successor-exact-binding-functional-20261024\\manual-native-intent.txt";
+ 
+ static unsigned ig_n0_rebound;
+ static const char *ig_n0_approval_sha;
+@@ -103,7 +103,7 @@
+  unsigned i;DWORD e;BY_HANDLE_FILE_INFORMATION id;
+  if(!expected||strlen(expected)!=64)return ERROR_ACCESS_DENIED;
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+- ig_approval_file=CreateFileW(L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start02-preconsume-collision-correction-20261024\\EXACT-OPERATION-APPROVED.json",GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
++ ig_approval_file=CreateFileW(L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\successor-exact-binding-functional-20261024\\EXACT-OPERATION-APPROVED.json",GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+  if(ig_approval_file==INVALID_HANDLE_VALUE){ig_approval_file=NULL;return lab_error();}
+  if(!GetFileInformationByHandle(ig_approval_file,&id)||id.nFileSizeHigh||!id.nFileSizeLow||id.nFileSizeLow>16384||id.nNumberOfLinks!=1||(id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)))return ERROR_INVALID_DATA;
+  e=lab_hash(ig_approval_file,expected);return e;
+@@ -165,12 +165,12 @@
+ static DWORD ig_confirm(void)
+ {
+  HANDLE in,out;DWORD im,om,n,w,e=0;WCHAR reply[128];
+- static const WCHAR text[]=L"ONE INSTRUMENTED LAB ATTEMPT 75330d11cc7e4123ae62eadc9a59c2f5\r\nExisting PapinhoAcceleratorLab20261023; same virtual identity; DEMAND/STOPPED.\r\nExclusive protected NEW papacc_server_lab_host_ntstatus.exe; SHA256 eda84c0cf91ad1266cee462e62c89b84ffa5873853a0122215d15d666701361b.\r\nConfig a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44; unchanged parent/dependencies.\r\nCREATE_NEW one protected diagnostic papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag; arm1024/final2048.\r\nOne explicit LAB image rebind, ONE Start and at most ONE safe Stop. No delete, overwrite, rollback, retry or kill.\r\nED11 preflight60s/final1s; host admission5GiB physical/9GiB commit, monitor floors4/8GiB. NONE_GRANTED credits.\r\nAt most four participant processes; snapshot stack/kernel/cache remains partially UNKNOWN.\r\nNo listener/network/CA/key/certificate/bootstrap/CURRENT/signature/authority. Retention remains UNKNOWN if not factual.\r\nRequires SEPARATE exact operation approval; preparing this launcher does not approve execution.\r\nType ENTIRE line; Esc/mismatch cancels before intent consumption:\r\nINSTRUMENT_SCM_LAB 75330d11cc7e4123ae62eadc9a59c2f5\r\n> ";
++ static const WCHAR text[]=L"ONE INSTRUMENTED LAB ATTEMPT 0b1de869e11493b7cb08fb329578f6ce\r\nExisting PapinhoAcceleratorLab20261023; same virtual identity; DEMAND/STOPPED.\r\nExclusive protected NEW papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe; SHA256 44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c.\r\nConfig a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44; unchanged parent/dependencies.\r\nCREATE_NEW one protected diagnostic papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag; arm1024/final2048.\r\nOne explicit LAB image rebind, ONE Start and at most ONE safe Stop. No delete, overwrite, rollback, retry or kill.\r\nED11 preflight60s/final1s; host admission5GiB physical/9GiB commit, monitor floors4/8GiB. NONE_GRANTED credits.\r\nAt most four participant processes; snapshot stack/kernel/cache remains partially UNKNOWN.\r\nNo listener/network/CA/key/certificate/bootstrap/CURRENT/signature/authority. Retention remains UNKNOWN if not factual.\r\nRequires SEPARATE exact operation approval; preparing this launcher does not approve execution.\r\nType ENTIRE line; Esc/mismatch cancels before intent consumption:\r\nINSTRUMENT_SCM_LAB 0b1de869e11493b7cb08fb329578f6ce\r\n> ";
+  in=CreateFileW(L"CONIN$",GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(in==INVALID_HANDLE_VALUE)return lab_error();
+  out=CreateFileW(L"CONOUT$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(out==INVALID_HANDLE_VALUE){e=lab_error();if(!lab_close_aux(in))return ERROR_INVALID_HANDLE;return e;}
+  if(!GetConsoleMode(in,&im)||!GetConsoleMode(out,&om)||(im&(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT))!=(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT)||!WriteConsoleW(out,text,(DWORD)wcslen(text),&w,NULL)||w!=wcslen(text)||!ReadConsoleW(in,reply,127,&n,NULL)){e=ERROR_ACCESS_DENIED;goto done;}
+  while(n&&(reply[n-1]==L'\r'||reply[n-1]==L'\n'))n--;reply[n]=0;
+- if(wcscmp(reply,L"INSTRUMENT_SCM_LAB 75330d11cc7e4123ae62eadc9a59c2f5")||papacc_server_console_win32_stop_requested())e=ERROR_CANCELLED;
++ if(wcscmp(reply,L"INSTRUMENT_SCM_LAB 0b1de869e11493b7cb08fb329578f6ce")||papacc_server_console_win32_stop_requested())e=ERROR_CANCELLED;
+  done:if(!lab_close_aux(in))e=ERROR_INVALID_HANDLE;if(!lab_close_aux(out))e=ERROR_INVALID_HANDLE;return e;
+ }
+ static DWORD ig_create_intent(void)
+@@ -302,6 +302,7 @@
+  positive=!strcmp(argv[1],"--cycle-lab");if((positive&&argc!=8)||(!positive&&argc!=7)){puts("IG_SEPARATE_APPROVAL_REQUIRED; EFFECTS=NONE");return 2;}
+ #ifdef PAPACC_N0_N9_NATIVE_OWNER
+  validated_arguments:
++ if(n0&&!ig_n0_inputs_ready()){puts("IG_SUCCESSOR_INPUTS=UNQUALIFIED; DENY_BEFORE_ACQUISITION_NO_PREFLIGHT_NO_EFFECT");return 2;}
+ #endif
+  setvbuf(stdout,NULL,_IONBF,0);native.thread=GetCurrentThreadId();
+  GetNativeSystemInfo(&sys);if(sys.wProcessorArchitecture!=PROCESSOR_ARCHITECTURE_AMD64){e=ERROR_NOT_SUPPORTED;goto done;}
+@@ -337,7 +338,7 @@
+  cycle_stage="SOURCE_IMAGE";
+  cycle_source_file=CreateFileW(cycle_source,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(cycle_source_file==INVALID_HANDLE_VALUE){cycle_source_file=NULL;e=lab_error();goto done;}
+  if((e=lab_hash(cycle_source_file,cycle_sha)))goto done;
+- native.command[0]=0;if(!lab_append(native.command,1050,L"\"")||!lab_append(native.command,1050,lab_parent_path)||!lab_append(native.command,1050,L"\\papacc_server_lab_host.exe\" service host")){e=ERROR_INVALID_DATA;goto done;}
++ native.command[0]=0;if(!lab_append(native.command,1050,L"\"")||!lab_append(native.command,1050,lab_parent_path)||!lab_append(native.command,1050,L"\\papacc_server_lab_host_ntstatus.exe\" service host")){e=ERROR_INVALID_DATA;goto done;}
+  cycle_stage="SCM_READBACK";
+  native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!native.manager){e=lab_error();goto done;}
+  native.service=OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS|(positive?(SERVICE_CHANGE_CONFIG|SERVICE_START|SERVICE_STOP):0));if(!native.service){e=lab_error();goto done;}
+--- preimage/tools/qualification/scm-runtime-cycle-lab.inc
++++ tools/qualification/scm-runtime-cycle-lab.inc
+@@ -7,9 +7,9 @@
+ #include <psapi.h>
+ #include <iphlpapi.h>
+ #ifdef PAPACC_SCM_INSTRUMENTED_LAB
+-static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\session0-diagnostic-runtime-integration-20261023\\Selected\\Release\\papacc_server_lab_host.exe";
+-static const WCHAR cycle_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server_lab_host_ntstatus.exe";
+-static const char cycle_sha[]="eda84c0cf91ad1266cee462e62c89b84ffa5873853a0122215d15d666701361b";
++static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\successor-exact-binding-20261024-runtime\\Selected\\Release\\papacc_server_lab_host.exe";
++static const WCHAR cycle_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe";
++static const char cycle_sha[]="44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c";
+ #else
+ static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\windows-service-protected-runtime-20261023\\Selected\\Release\\papacc_server_lab_host.exe";
+ static const WCHAR cycle_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server_lab_host.exe";
+@@ -27,7 +27,7 @@
+  typedef NTSTATUS (NTAPI *CREATE)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);
+  CREATE fn;FARPROC proc;UNICODE_STRING str;OBJECT_ATTRIBUTES oa;IO_STATUS_BLOCK io;NTSTATUS status;HMODULE module;
+  #ifdef PAPACC_SCM_INSTRUMENTED_LAB
+- static WCHAR leaf[]=L"papacc_server_lab_host_ntstatus.exe";
++ static WCHAR leaf[]=L"papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe";
+ #else
+  static WCHAR leaf[]=L"papacc_server_lab_host.exe";
+ #endif
+--- preimage/tools/qualification/scm-n0-context.inc
++++ tools/qualification/scm-n0-context.inc
+@@ -3,8 +3,8 @@
+ #include "scm-n0-context-model.h"
+ #include "scm-n0-context-pins.h"
+ #define ig_n0 native.admission.bd.context
+-static const WCHAR ig_n0_dossier_path[]=L"C:\\ProgramData\\PapinhoAccelerator\\Protected\\N0\\papacc-n2-75330d11cc7e4123ae62eadc9a59c2f5.approved";
+-static const WCHAR ig_n0_evidence_path[]=L"C:\\ProgramData\\PapinhoAccelerator\\Protected\\N0\\papacc-n2-75330d11cc7e4123ae62eadc9a59c2f5.evidence";
++static const WCHAR ig_n0_dossier_path[]=L"C:\\ProgramData\\PapinhoAccelerator\\Protected\\N0\\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.approved";
++static const WCHAR ig_n0_evidence_path[]=L"C:\\ProgramData\\PapinhoAccelerator\\Protected\\N0\\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.evidence";
+ static const WCHAR ig_n0_os_path[]=L"C:\\Windows\\System32\\conhost.exe";
+ static const WCHAR *ig_n0_policies[]={
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\adr\\DECISION-first-native-lab-diagnostic-boundary-20261024.md",
+@@ -20,8 +20,8 @@
+  n=sprintf_s(text,sizeof(text),
+  "%s;%s;%s;%s;%s;%s;%llu;%lu;%llu;%lu;%llu;%lu;%lu;%lu:%lu:%lu:%lu:%lu:%lu;%llu;"
+  "config=%lu:%lu:%lu:%lu:%lu;image=%lu:%lu:%lu:%lu:%lu;aux=%lu:%llu:%lu:%lu;file=%lu:%lu:%lu:%lu:%lu:%lu;%s;%s;%s;"
+- "APPROVAL=%s;INPUT_PROFILE=N2-SD-RAW1-OWNER-GROUP-DACL;INPUTS=417614100:131072:2841430:326,417614100:196608:2841429:5358;PLACEMENT=N2P-20261024-02;SERVICE=PapinhoAcceleratorLab20261023;SID=S-1-5-80-3567404667-26456103-3018599297-139793421-3962028451;OPERATOR=S-1-5-21-785699550-1440458426-1682014700-1108;ASSOCIATION=UNPROVEN;CREDITS=NONE_GRANTED",
+- ig_n0_positive?"N0START-20261024-02;CREATE_IMAGE;CREATE_SINK;REBIND;START1;STOP_MAX1":"N0_READ_ONLY",d->attempt,d->config_hash,d->image_hash,d->policy,d->host,d->boot,(unsigned long)d->owner_pid,d->owner_creation,
++ "APPROVAL=%s;INPUT_IDS=%lu:%lu:%lu:%lu,%lu:%lu:%lu:%lu;INPUT_PROFILE=N2-SD-RAW1-OWNER-GROUP-DACL;L1=2d91d64eace4613f64b2d17188642e85eb5ac41af5f6a5afa1f8e746eaeff27e;H=23d509674be807f01d2c6301cd990f2212a05d6d4d707e56f9f924c6afbd7218;P3=892d51b6a0033b3211c6483adb56d03d728c5f8285dfc8520cf73574c3ee5fad;SERVICE=PapinhoAcceleratorLab20261023;SID=S-1-5-80-3567404667-26456103-3018599297-139793421-3962028451;OPERATOR=S-1-5-21-785699550-1440458426-1682014700-1108;ASSOCIATION=UNPROVEN;CREDITS=NONE_GRANTED",
++ ig_n0_positive?"N0START-20261024-03;CREATE_IMAGE;CREATE_SINK;REBIND;START1;STOP_MAX1":"N0_READ_ONLY",d->attempt,d->config_hash,d->image_hash,d->policy,d->host,d->boot,(unsigned long)d->owner_pid,d->owner_creation,
+  (unsigned long)d->actor.pid,d->actor.creation,(unsigned long)d->actor.session,(unsigned long)d->control_tid,
+  (unsigned long)d->statistics.TokenId.LowPart,(unsigned long)d->statistics.TokenId.HighPart,
+  (unsigned long)d->statistics.AuthenticationId.LowPart,(unsigned long)d->statistics.AuthenticationId.HighPart,
+@@ -30,7 +30,9 @@
+  (unsigned long)d->image_id.dwVolumeSerialNumber,(unsigned long)d->image_id.nFileIndexHigh,(unsigned long)d->image_id.nFileIndexLow,(unsigned long)d->image_id.nFileSizeHigh,(unsigned long)d->image_id.nFileSizeLow,
+  (unsigned long)d->auxiliary.instance.pid,d->auxiliary.instance.creation,(unsigned long)d->auxiliary.instance.session,(unsigned long)d->auxiliary.parent,
+  (unsigned long)d->auxiliary.file_id.dwVolumeSerialNumber,(unsigned long)d->auxiliary.file_id.nFileIndexHigh,(unsigned long)d->auxiliary.file_id.nFileIndexLow,(unsigned long)d->auxiliary.file_id.nFileSizeHigh,(unsigned long)d->auxiliary.file_id.nFileSizeLow,(unsigned long)d->auxiliary.file_id.nNumberOfLinks,
+- d->auxiliary.file_hash,d->auxiliary.security_hash,d->auxiliary.provenance_hash,ig_n0_positive?ig_n0_approval_sha:"NONE");
++ d->auxiliary.file_hash,d->auxiliary.security_hash,d->auxiliary.provenance_hash,ig_n0_positive?ig_n0_approval_sha:"NONE",
++ (unsigned long)ig_n0.dossier_id.dwVolumeSerialNumber,(unsigned long)ig_n0.dossier_id.nFileIndexHigh,(unsigned long)ig_n0.dossier_id.nFileIndexLow,(unsigned long)ig_n0.dossier_id.nFileSizeLow,
++ (unsigned long)ig_n0.evidence_id.dwVolumeSerialNumber,(unsigned long)ig_n0.evidence_id.nFileIndexHigh,(unsigned long)ig_n0.evidence_id.nFileIndexLow,(unsigned long)ig_n0.evidence_id.nFileSizeLow);
+  if(n<=0||!pacc_storage_hash_callback(NULL,(const BYTE *)text,(size_t)n,digest))return ERROR_INVALID_DATA;ig_n0_hex(digest,out);return 0;
+ }
+ static DWORD ig_n0_sd(HANDLE file,const char *expected,int protect)
+@@ -108,7 +110,7 @@
+ {
+  DWORD e,n,i;FILETIME ct,et,kt,ut;BY_HANDLE_FILE_INFORMATION id;PS_BD_DESCRIPTOR *d=&ig_n0.descriptor;char text[512];LARGE_INTEGER zero;
+  /* No arbitrary argv hash/boolean may substitute separately reviewed provenance. */
+- if(!ps_bd_hex(IG_N0_DOSSIER_SHA)||!ps_bd_hex(IG_N0_EVIDENCE_SHA)){puts("IG_N0_PROVENANCE=UNKNOWN; QUALIFIED_DOSSIER_PIN_MISSING; DENY");return ERROR_NOT_SUPPORTED;}
++ if(!ig_n0_inputs_ready()){puts("IG_N0_PROVENANCE=UNKNOWN; QUALIFIED_DOSSIER_PIN_MISSING; DENY");return ERROR_NOT_SUPPORTED;}
+  if(ig_n0.prepared||ig_n0.dossier||ig_n0.evidence||ig_n0.auxiliary||ig_n0.actor||native.admission.bd.used)return ERROR_INVALID_STATE;
+  ig_n0.began=GetTickCount64();ZeroMemory(d,sizeof(*d));
+  if((e=ig_n0_roots_current(1)))return e;
+--- preimage/tools/qualification/scm-n0-context-model.h
++++ tools/qualification/scm-n0-context-model.h
+@@ -3,15 +3,16 @@
+ #define PAPACC_N0_CONTEXT_MODEL_H
+ #include <stdio.h>
+ #include <string.h>
++#include "scm-n0-context-pins.h"
+ typedef PS_BD_FILE_RECORD IG_N0_FILE_RECORD;
+ static int ig_n0_parse(const char *text,size_t bytes,IG_N0_FILE_RECORD *record)
+ {
+- IG_N0_FILE_RECORD x;char canonical[512];int n;ZeroMemory(&x,sizeof(x));
++ IG_N0_FILE_RECORD x;char canonical[512],attempt[33],operation[32];int n;ZeroMemory(&x,sizeof(x));
+  if(!text||!record||!bytes||bytes>=sizeof(canonical)||memchr(text,0,bytes)||text[bytes])return 0;
+- if(sscanf_s(text,"PACC_N2_OPENED_FILE_V1\nvolume=%lu\nhigh=%lu\nlow=%lu\nsize=%lu\nlinks=%lu\nsha256=%64s\nsecurity_sha256=%64s\nwindows_evidence_sha256=%64s\n",
+- &x.volume,&x.high,&x.low,&x.size,&x.links,x.hash,(unsigned)sizeof(x.hash),x.security,(unsigned)sizeof(x.security),x.evidence,(unsigned)sizeof(x.evidence))!=8||
++ if(sscanf_s(text,"PACC_N2_OPENED_FILE_V2\nattempt=%32s\noperation=%31s\nvolume=%lu\nhigh=%lu\nlow=%lu\nsize=%lu\nlinks=%lu\nsha256=%64s\nsecurity_sha256=%64s\nwindows_evidence_sha256=%64s\n",
++ attempt,(unsigned)sizeof(attempt),operation,(unsigned)sizeof(operation),&x.volume,&x.high,&x.low,&x.size,&x.links,x.hash,(unsigned)sizeof(x.hash),x.security,(unsigned)sizeof(x.security),x.evidence,(unsigned)sizeof(x.evidence))!=10||strcmp(attempt,"0b1de869e11493b7cb08fb329578f6ce")||strcmp(operation,"N0START-20261024-03")||
+  !x.volume||(!x.high&&!x.low)||!x.links||!x.size||x.size>16777216UL||!ps_bd_hex(x.hash)||!ps_bd_hex(x.security)||!ps_bd_hex(x.evidence))return 0;
+- n=sprintf_s(canonical,sizeof(canonical),"PACC_N2_OPENED_FILE_V1\nvolume=%lu\nhigh=%lu\nlow=%lu\nsize=%lu\nlinks=%lu\nsha256=%s\nsecurity_sha256=%s\nwindows_evidence_sha256=%s\n",x.volume,x.high,x.low,x.size,x.links,x.hash,x.security,x.evidence);
++ n=sprintf_s(canonical,sizeof(canonical),"PACC_N2_OPENED_FILE_V2\nattempt=%s\noperation=%s\nvolume=%lu\nhigh=%lu\nlow=%lu\nsize=%lu\nlinks=%lu\nsha256=%s\nsecurity_sha256=%s\nwindows_evidence_sha256=%s\n",attempt,operation,x.volume,x.high,x.low,x.size,x.links,x.hash,x.security,x.evidence);
+  if(n!=(int)bytes||memcmp(text,canonical,bytes))return 0;*record=x;return 1;
+ }
+ static __inline int ig_n0_fresh(ULONGLONG now,ULONGLONG observed,ULONGLONG maximum)
+@@ -23,12 +24,21 @@
+  return validated&&validated>=began&&ig_n0_fresh(now,validated,60000ULL)?0:-1;
+ }
+ /* Receipt-pinned identities, not operational authority or live metrics. */
++static __inline int ig_n0_input_match(const BY_HANDLE_FILE_INFORMATION *id,DWORD volume,DWORD high,DWORD low,DWORD bytes)
++{
++ return id&&volume&&(high||low)&&bytes&&id->dwVolumeSerialNumber==volume&&id->nFileIndexHigh==high&&id->nFileIndexLow==low&&
++ !id->nFileSizeHigh&&id->nFileSizeLow==bytes&&id->nNumberOfLinks==1U&&!(id->dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT));
++}
+ static __inline int ig_n0_input_identity(const BY_HANDLE_FILE_INFORMATION *id,unsigned which)
+ {
+- if(!id||which>1U||id->dwVolumeSerialNumber!=417614100UL||id->nFileSizeHigh||id->nNumberOfLinks!=1U||
+- (id->dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return 0;
+- return id->nFileIndexHigh==(which?196608UL:131072UL)&&id->nFileIndexLow==(which?2841429UL:2841430UL)&&id->nFileSizeLow==(which?5358UL:326UL);
++ if(which>1U)return 0;
++ return which?ig_n0_input_match(id,IG_N0_EVIDENCE_VOLUME,IG_N0_EVIDENCE_HIGH,IG_N0_EVIDENCE_LOW,IG_N0_EVIDENCE_BYTES):
++ ig_n0_input_match(id,IG_N0_DOSSIER_VOLUME,IG_N0_DOSSIER_HIGH,IG_N0_DOSSIER_LOW,IG_N0_DOSSIER_BYTES);
+ }
++static __inline int ig_n0_inputs_ready(void)
++{return ps_bd_hex(IG_N0_DOSSIER_SHA)&&ps_bd_hex(IG_N0_EVIDENCE_SHA)&&IG_N0_DOSSIER_VOLUME&&
++ (IG_N0_DOSSIER_HIGH||IG_N0_DOSSIER_LOW)&&IG_N0_DOSSIER_BYTES&&IG_N0_EVIDENCE_VOLUME&&
++ (IG_N0_EVIDENCE_HIGH||IG_N0_EVIDENCE_LOW)&&IG_N0_EVIDENCE_BYTES;}
+ static __inline int ig_n0_root_identity(const BY_HANDLE_FILE_INFORMATION *id,unsigned which)
+ {
+  static const DWORD hi[]={327680UL,131072UL,786432UL,851968UL,720896UL};
+--- preimage/tools/qualification/scm-n0-context-pins.h
++++ tools/qualification/scm-n0-context-pins.h
+@@ -1,11 +1,14 @@
+-/* Reviewed existing inputs; enabled ONLY in the explicit N0 LAB qualifier profiles. */
++/* Successor input pins intentionally EMPTY until separately qualified placement. */
+ #ifndef PAPACC_N0_CONTEXT_PINS_H
+ #define PAPACC_N0_CONTEXT_PINS_H
+-#if (defined(PAPACC_N0_READONLY_PINNED_LAB) || defined(PAPACC_N0_POSITIVE_PINNED_LAB)) && defined(PAPACC_N0_N9_NATIVE_OWNER) && defined(PAPACC_SCM_INSTRUMENTED_LAB)
+-#define IG_N0_DOSSIER_SHA "5a2b7203afdece0adca77be278d6b86c18cc2cf457cab87474ee7dce0311c294"
+-#define IG_N0_EVIDENCE_SHA "babab3ea393b605802933054ab011e6fcb66b21bffcc80923448715e911f27e0"
+-#else
+ #define IG_N0_DOSSIER_SHA ""
+ #define IG_N0_EVIDENCE_SHA ""
++#define IG_N0_DOSSIER_VOLUME 0UL
++#define IG_N0_DOSSIER_HIGH 0UL
++#define IG_N0_DOSSIER_LOW 0UL
++#define IG_N0_DOSSIER_BYTES 0UL
++#define IG_N0_EVIDENCE_VOLUME 0UL
++#define IG_N0_EVIDENCE_HIGH 0UL
++#define IG_N0_EVIDENCE_LOW 0UL
++#define IG_N0_EVIDENCE_BYTES 0UL
+ #endif
+-#endif
+--- preimage/tools/qualification/scm-n0-protected-single-powershell.ps1
++++ tools/qualification/scm-n0-protected-single-powershell.ps1
+@@ -11,13 +11,13 @@
+ $ErrorActionPreference='Stop'
+ $Root='C:\Projetos\PapinhoAccelerator'
+ $ExpectedPath=$Root+'\tools\qualification\scm-n0-protected-single-powershell.ps1'
+-$Qualifier='C:\Projetos\PapinhoAccelerator\build\n0start02-preconsume-collision-correction-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
+-$QualifierHash='b482b959400b41e6e64ecb86858dfd00522a0aa988b36300dc7d70f4d3c33eae'
++$Qualifier='C:\Projetos\PapinhoAccelerator\build\successor-exact-binding-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
++$QualifierHash='128a99408552cf72f3eaf0a4996f73b0724bda5a00680497efbd67b45c3dc864'
+ # Reviewed existing inputs. These pins grant no execution or Start authority.
+-$DossierHash='5a2b7203afdece0adca77be278d6b86c18cc2cf457cab87474ee7dce0311c294'
+-$EvidenceHash='babab3ea393b605802933054ab011e6fcb66b21bffcc80923448715e911f27e0'
+-$Attempt='75330d11cc7e4123ae62eadc9a59c2f5'
+-$Operation=if($Mode-eq'Cycle'){'N0START-20261024-02'}else{'N0PF-SUCCESSOR-READONLY'}
++$DossierHash=''
++$EvidenceHash=''
++$Attempt='0b1de869e11493b7cb08fb329578f6ce'
++$Operation='N0START-20261024-03'
+ $Operator='S-1-5-21-785699550-1440458426-1682014700-1108'
+ $script:N0RetainedProcess=$null
+ $script:N0RetainedPins=$null
+@@ -74,11 +74,11 @@
+  if([Console]::IsInputRedirected -or [Console]::IsOutputRedirected){throw 'INTERACTIVE_CONSOLE_REQUIRED'}
+  if($DossierHash -cnotmatch '^[0-9a-f]{64}$' -or $EvidenceHash -cnotmatch '^[0-9a-f]{64}$'){throw 'WINDOWS_PROVENANCE_UNKNOWN_DENY'}
+  Pin 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' '9785001b0dcf755eddb8af294a373c0b87b2498660f724e76c4d53f9c217c7a3'
+- if($Mode-eq'Cycle'){Pin ($Root+'\docs\integration\n0start02-preconsume-collision-correction-20261024\EXACT-OPERATION-APPROVED.json') $ExactApprovalSha256}
++ if($Mode-eq'Cycle'){Pin ($Root+'\docs\integration\successor-exact-binding-functional-20261024\EXACT-OPERATION-APPROVED.json') $ExactApprovalSha256}
+  Lock-QualifierPath
+  Pin $Qualifier $QualifierHash
+- Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-75330d11cc7e4123ae62eadc9a59c2f5.approved' $DossierHash
+- Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-75330d11cc7e4123ae62eadc9a59c2f5.evidence' $EvidenceHash
++ Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.approved' $DossierHash
++ Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.evidence' $EvidenceHash
+  Pin ($Root+'\docs\adr\DECISION-first-native-lab-diagnostic-boundary-20261024.md') 'bec9d0c275d5ee8bd68de4d42fe173a08f124a9900c119e7a08d23757d9d7941'
+  Pin ($Root+'\docs\adr\DECISION-canonical-lab-console-topology-bd-20261023.md') 'eb93002cf3f6d863a060fb97b7380389aa66b6fbe68e66c1af4fb17b988d3290'
+  Pin ($Root+'\docs\adr\DECISION-ed11-single-lab-diagnostic-native-boundary-20261023.md') 'e7031bd29c9bd174359ffcc3c9a021a6ad25a0256a5cf03b40c0866d3a5776b7'
+--- preimage/tests/service_busy_diagnostic_test.c
++++ tests/service_busy_diagnostic_test.c
+@@ -23,7 +23,7 @@
+ {unsigned i=aq_calls++;NTSTATUS st=aq_status[i<2?i:1];
+  if(aq_race&&disposition==2){*out=NULL;io->Status=(NTSTATUS)0xc0000035L;return io->Status;}
+  if(oa->RootDirectory!=(HANDLE)(ULONG_PTR)0x88888||access!=(FILE_READ_ATTRIBUTES|SYNCHRONIZE)||size||attr||share!=7||disposition!=1||options!=0x00200020U||ea||bytes||oa->Attributes!=0x1040U){st=(NTSTATUS)0xc000000dL;}
+- if(!oa->ObjectName||!oa->ObjectName->Buffer||wcscmp(oa->ObjectName->Buffer,i==0?L"papacc_server_lab_host_ntstatus.exe":L"papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag"))st=(NTSTATUS)0xc000000dL;
++ if(!oa->ObjectName||!oa->ObjectName->Buffer||wcscmp(oa->ObjectName->Buffer,i==0?L"papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe":L"papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag"))st=(NTSTATUS)0xc000000dL;
+  *out=(aq_mode!=2&&(st==0||aq_mode==1))?(HANDLE)(ULONG_PTR)0x66666:NULL;io->Status=st;return st;}
+ static FARPROC WINAPI aq_address(HMODULE m,LPCSTR name)
+ {if(aq_active&&!strcmp(name,"NtCreateFile")){typedef NTSTATUS (NTAPI *FN)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);FN f=aq_create;FARPROC p;memcpy(&p,&f,sizeof(p));return p;}return GetProcAddress(m,name);}
+@@ -151,9 +151,11 @@
+  T(pss_capture_calls==0&&trust_calls==0);++cases;
+  /* New adapter input tests: synthetic data only, never qualifier entry. */
+  {IG_N0_FILE_RECORD record;char text[512],bad[512];int size;unsigned old=cp_open_calls;
+- size=sprintf_s(text,sizeof(text),"PACC_N2_OPENED_FILE_V1\nvolume=1\nhigh=0\nlow=2\nsize=867840\nlinks=2\nsha256=%s\nsecurity_sha256=%s\nwindows_evidence_sha256=%s\n",
++ size=sprintf_s(text,sizeof(text),"PACC_N2_OPENED_FILE_V2\nattempt=0b1de869e11493b7cb08fb329578f6ce\noperation=N0START-20261024-03\nvolume=1\nhigh=0\nlow=2\nsize=867840\nlinks=2\nsha256=%s\nsecurity_sha256=%s\nwindows_evidence_sha256=%s\n",
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
+  T(size>0&&ig_n0_parse(text,(size_t)size,&record)&&record.volume==1&&record.low==2&&record.size==867840&&record.links==2);++cases;
++ strcpy_s(bad,sizeof(bad),text);memcpy(strstr(bad,"attempt=")+8,"75330d11cc7e4123ae62eadc9a59c2f5",32);T(!ig_n0_parse(bad,strlen(bad),&record));++cases;
++ strcpy_s(bad,sizeof(bad),text);strstr(bad,"N0START-20261024-03")[17]='2';T(!ig_n0_parse(bad,strlen(bad),&record));++cases;
+  strcpy_s(bad,sizeof(bad),text);bad[0]='X';T(!ig_n0_parse(bad,(size_t)size,&record));++cases;
+  strcpy_s(bad,sizeof(bad),text);bad[size-2]='z';T(!ig_n0_parse(bad,(size_t)size,&record));++cases;
+  T(!ig_n0_parse(text,(size_t)size-1,&record));++cases;
+@@ -166,11 +168,13 @@
+  b=a;b.statistics.ModifiedId.LowPart++;T(!ig_n0_plan(&b,y)&&strcmp(x,y));++cases;
+  b=a;b.auxiliary.file_hash[0]='f';T(!ig_n0_plan(&b,y)&&strcmp(x,y));++cases;
+  b=a;b.auxiliary.provenance_hash[0]='f';T(!ig_n0_plan(&b,y)&&strcmp(x,y));++cases;
++ ig_n0.dossier_id.nFileIndexLow=1;T(!ig_n0_plan(&a,y)&&strcmp(x,y));ig_n0.dossier_id.nFileIndexLow=0;++cases;
++ ig_n0.evidence_id.nFileIndexLow=1;T(!ig_n0_plan(&a,y)&&strcmp(x,y));ig_n0.evidence_id.nFileIndexLow=0;++cases;
+  b=a;b.configuration=(HANDLE)(ULONG_PTR)123;b.auxiliary.file=(HANDLE)(ULONG_PTR)456;T(!ig_n0_plan(&b,y)&&!strcmp(x,y));++cases;
+  }
+  {static const char original[]="PACC_N2_OPENED_FILE_V1\nvolume=417614100\nhigh=327680\nlow=1591236\nsize=867840\nlinks=2\nsha256=b02ee54fb2ec69673386d41119ee8ed083a6eab3bfca6aa2155d20ce68ef8963\nsecurity_sha256=7852b616c03c57528c4f85f843fd2f671d49dbd66a965f227c2ffbf663a177e0\nwindows_evidence_sha256=babab3ea393b605802933054ab011e6fcb66b21bffcc80923448715e911f27e0\n";
+  BYTE digest[32];char hash[65];IG_N0_FILE_RECORD original_record;
+- T(sizeof(original)-1==326&&ig_n0_parse(original,sizeof(original)-1,&original_record)&&original_record.volume==417614100UL&&original_record.links==2UL);++cases;
++ T(sizeof(original)-1==326&&!ig_n0_parse(original,sizeof(original)-1,&original_record));++cases;
+  T(pacc_storage_hash_callback(NULL,(const BYTE *)original,sizeof(original)-1,digest));ig_n0_hex(digest,hash);T(!strcmp(hash,"5a2b7203afdece0adca77be278d6b86c18cc2cf457cab87474ee7dce0311c294"));++cases;
+  }
+  /* Reject CRLF/noncanonical text; original record is exact LF bytes. */
+@@ -178,13 +182,13 @@
+  T(!ig_n0_parse(crlf,j,&parsed));++cases;
+  for(i=0;i<j;i++)if(crlf[i]=='\r'){memmove(crlf+i,crlf+i+1,j-i);--j;break;}T(!ig_n0_parse(crlf,j,&parsed));++cases;}
+  {BY_HANDLE_FILE_INFORMATION f;unsigned i;ZeroMemory(&f,sizeof(f));f.dwVolumeSerialNumber=417614100;f.nNumberOfLinks=1;f.nFileIndexHigh=131072;f.nFileIndexLow=2841430;f.nFileSizeLow=326;
+- T(ig_n0_input_identity(&f,0)&&!ig_n0_input_identity(&f,1));++cases;
++ T(!ig_n0_input_identity(&f,0)&&!ig_n0_input_identity(&f,1));T(ig_n0_input_match(&f,417614100,131072,2841430,326));++cases;
+  f.nFileIndexLow++;T(!ig_n0_input_identity(&f,0));f.nFileIndexLow--; ++cases;
+  f.nFileSizeLow++;T(!ig_n0_input_identity(&f,0));f.nFileSizeLow--; ++cases;
+  f.nNumberOfLinks=2;T(!ig_n0_input_identity(&f,0));f.nNumberOfLinks=1;++cases;
+  f.dwFileAttributes=FILE_ATTRIBUTE_REPARSE_POINT;T(!ig_n0_input_identity(&f,0));++cases;
+  f.dwFileAttributes=FILE_ATTRIBUTE_DIRECTORY;T(!ig_n0_input_identity(&f,0));++cases;
+- f.dwFileAttributes=0;f.nFileIndexHigh=196608;f.nFileIndexLow=2841429;f.nFileSizeLow=5358;T(ig_n0_input_identity(&f,1));++cases;
++ f.dwFileAttributes=0;f.nFileIndexHigh=196608;f.nFileIndexLow=2841429;f.nFileSizeLow=5358;T(!ig_n0_input_identity(&f,1));T(ig_n0_input_match(&f,417614100,196608,2841429,5358));++cases;
+  for(i=0;i<5;i++){static const DWORD hi[]={327680,131072,786432,851968,720896},lo[]={5,227641,1087874,2672648,2672656};f.nFileIndexHigh=hi[i];f.nFileIndexLow=lo[i];f.dwFileAttributes=FILE_ATTRIBUTE_DIRECTORY;
+  T(ig_n0_root_identity(&f,i));++cases;f.nFileIndexLow++;T(!ig_n0_root_identity(&f,i));++cases;}
+  }
+--- preimage/tests/service_bd_admission_test.c
++++ tests/service_bd_admission_test.c
+@@ -108,7 +108,7 @@
+ {
+  descriptor();bd_fixture.n0=1;strcpy_s(bd_fixture.policy,65,PS_BD_N0_POLICY);
+  strcpy_s(bd_fixture.config_hash,65,"a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44");
+- strcpy_s(bd_fixture.image_hash,65,"eda84c0cf91ad1266cee462e62c89b84ffa5873853a0122215d15d666701361b");
++ strcpy_s(bd_fixture.image_hash,65,PS_BD_N0_IMAGE_SHA);
+  strcpy_s(bd_fixture.host,65,"2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff");
+  bd_fixture.auxiliary.instance.handle=H(0x80);bd_fixture.auxiliary.instance.pid=42424243;bd_fixture.auxiliary.instance.creation=56;bd_fixture.auxiliary.instance.session=1;
+  bd_fixture.auxiliary.parent=bd_fixture.actor.pid;bd_fixture.auxiliary.file=H(0x82);bd_fixture.auxiliary.file_id=bd_fixture.image_id;
+@@ -124,7 +124,9 @@
+  PS_BD_COST c[4];unsigned i;IG_SAMPLE sample;DWORD e;
+ #endif
+  (void)ig_metric;(void)ig_preflight;(void)ig_final;(void)ig_consume;(void)ig_start;(void)ig_monitor;(void)ig_stop;(void)ig_retire;
+- descriptor();v=inventory(&bd_fixture);
++ descriptor();
++ {PS_BD_DESCRIPTOR bad=bd_fixture;strcpy_s(bad.attempt,33,"75330d11cc7e4123ae62eadc9a59c2f5");T(ps_bd_descriptor(&bad)==ERROR_INVALID_DATA);++cases;}
++v=inventory(&bd_fixture);
+ #ifdef PS_BD_SOURCE_ONLY
+  T(ps_bd_inventory(&bd_fixture,&v,100)==ERROR_NOT_SUPPORTED);++cases;
+  v.console.source=1;T(ps_bd_inventory(&bd_fixture,&v,100)==ERROR_NOT_SUPPORTED);++cases;
+@@ -170,7 +172,7 @@
+  owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));mode=12;T(papacc_server_service_admission_finish(1)==ERROR_INVALID_HANDLE&&native.admission.phase==3&&native.admission.bd.thread);T(papacc_server_service_admission_finish(1)==ERROR_INVALID_STATE);native.admission.phase=1;mode=0;T(!papacc_server_service_admission_finish(1));++cases;
+  n0_descriptor();v=inventory(&bd_fixture);v.console.known=PS_BD_N0_KNOWN;
+  T(!ps_bd_inventory(&bd_fixture,&v,100));++cases;
+- {PS_BD_DESCRIPTOR bad=bd_fixture;bad.policy[0]='0';T(ps_bd_descriptor(&bad)!=0);++cases;bad=bd_fixture;bad.auxiliary.provenance_hash[0]='z';T(ps_bd_descriptor(&bad)!=0);++cases;bad=bd_fixture;bad.auxiliary.parent++;T(ps_bd_descriptor(&bad)!=0);++cases;bad=bd_fixture;bad.auxiliary.instance.creation=bad.actor.creation;T(ps_bd_descriptor(&bad)!=0);++cases;bad=bd_fixture;bad.boot++;T(ps_bd_descriptor(&bad)!=0);++cases;}
++ {PS_BD_DESCRIPTOR bad=bd_fixture;bad.policy[0]='0';T(ps_bd_descriptor(&bad)!=0);++cases;bad=bd_fixture;strcpy_s(bad.image_hash,65,"eda84c0cf91ad1266cee462e62c89b84ffa5873853a0122215d15d666701361b");T(ps_bd_descriptor(&bad)!=0);++cases;bad=bd_fixture;bad.auxiliary.provenance_hash[0]='z';T(ps_bd_descriptor(&bad)!=0);++cases;bad=bd_fixture;bad.auxiliary.parent++;T(ps_bd_descriptor(&bad)!=0);++cases;bad=bd_fixture;bad.auxiliary.instance.creation=bad.actor.creation;T(ps_bd_descriptor(&bad)!=0);++cases;bad=bd_fixture;bad.boot++;T(ps_bd_descriptor(&bad)!=0);++cases;}
+  {PS_BD_INVENTORY x=v;x.present[2]=1;x.count=4;x.role[2].handle=H(0x88);x.role[2].pid=42424244;x.role[2].creation=58;x.role[2].session=0;T(!ps_bd_inventory(&bd_fixture,&x,100));++cases;x.role[2].session=1;T(ps_bd_inventory(&bd_fixture,&x,100)!=0);++cases;}
+  T(ps_bd_census(&bd_fixture,&v,100,v.role[3].pid,0,0)!=0);++cases;
+  T(!ps_bd_census(&bd_fixture,&v,100,v.role[3].pid,bd_fixture.actor.pid,0));++cases;
+--- preimage/tests/service_cross_admission_win32_test.c
++++ tests/service_cross_admission_win32_test.c
+@@ -31,8 +31,8 @@
+  HANDLE file;DWORD e,n;char mode;BY_HANDLE_FILE_INFORMATION id;
+  if(argc==6){
+   HANDLE token=NULL,thread_token=NULL;union {TOKEN_USER align;BYTE bytes[1024];} user;TOKEN_ELEVATION elevation;DWORD used=0;LPWSTR sid=NULL;
+-  static const WCHAR prefix[]=L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start02-native-concurrency-1307-20261024\\isolated\\";
+-  if(wcsstr(argv[2],L"..")||wcsstr(argv[3],L"..")||wcscmp(argv[4],L"ordinary")||wcsncmp(argv[1],L"Local\\PACC.Preconsume.Offline.",sizeof(L"Local\\PACC.Preconsume.Offline.")/sizeof(WCHAR)-1)||_wcsnicmp(argv[2],prefix,wcslen(prefix))||_wcsnicmp(argv[3],prefix,wcslen(prefix)))return 2;
++  static const WCHAR prefix[]=L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\successor-exact-binding-functional-20261024\\isolated\\";
++  if(wcsstr(argv[2],L"..")||wcsstr(argv[3],L"..")||wcscmp(argv[4],L"ordinary")||wcsncmp(argv[1],L"Local\\PACC.Successor.Offline.",sizeof(L"Local\\PACC.Successor.Offline.")/sizeof(WCHAR)-1)||_wcsnicmp(argv[2],prefix,wcslen(prefix))||_wcsnicmp(argv[3],prefix,wcslen(prefix)))return 2;
+   if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&thread_token)){CloseHandle(thread_token);return 2;}if(GetLastError()!=ERROR_NO_TOKEN)return 2;
+   if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))return 2;
+   if(!GetTokenInformation(token,TokenUser,&user,sizeof(user),&used)||!ConvertSidToStringSidW(user.align.User.Sid,&sid)){CloseHandle(token);return 2;}
+@@ -54,11 +54,11 @@
+   if(!GetProcessTimes(GetCurrentProcess(),&ct,&et,&kt,&ut))return 2;creation=((unsigned __int64)ct.dwHighDateTime<<32)|ct.dwLowDateTime;
+   log=CreateFileW(psa_launch_path,GENERIC_WRITE,FILE_SHARE_READ,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
+   if(log==INVALID_HANDLE_VALUE){printf("ENTER=%lu PID=%lu STORAGE=%llu\n",(unsigned long)GetLastError(),(unsigned long)GetCurrentProcessId(),(unsigned long long)sizeof(native.admission));CloseHandle(file);return 0;}
+-  length=sprintf_s(header,sizeof(header),"ADMISSION=75330d11cc7e4123ae62eadc9a59c2f5; OWNER=%lu; CREATION=%llu\n",(unsigned long)GetCurrentProcessId(),creation);
++  length=sprintf_s(header,sizeof(header),"ADMISSION=0b1de869e11493b7cb08fb329578f6ce; OWNER=%lu; CREATION=%llu\n",(unsigned long)GetCurrentProcessId(),creation);
+   if(length<=0||!WriteFile(log,header,(DWORD)length,&written,NULL)||written!=(DWORD)length||!FlushFileBuffers(log))return 2;
+   e=papacc_server_service_admission_bind_launch(GetCurrentProcessId(),creation);if(!CloseHandle(log)||e)return 2;
+  }
+- e=papacc_server_service_admission_enter(file,!wcscmp(argv[4],L"wrong")?"75330d11cc7e4123ae62eadc9a59c2f4":(!wcscmp(argv[4],L"ordinary")?NULL:"75330d11cc7e4123ae62eadc9a59c2f5"));
++ e=papacc_server_service_admission_enter(file,!wcscmp(argv[4],L"wrong")?"75330d11cc7e4123ae62eadc9a59c2f4":(!wcscmp(argv[4],L"ordinary")?NULL:"0b1de869e11493b7cb08fb329578f6ce"));
+  if(!CloseHandle(file))return 2;
+  printf("ENTER=%lu PID=%lu STORAGE=%llu\n",(unsigned long)e,(unsigned long)GetCurrentProcessId(),(unsigned long long)sizeof(native.admission));fflush(stdout);
+  if(e){DWORD close=papacc_server_service_admission_finish(1);printf("REJECT_CLOSE=%lu\n",(unsigned long)close);return close?2:0;}
+--- preimage/tests/service_runtime_file_model_test.c
++++ tests/service_runtime_file_model_test.c
+@@ -6,7 +6,7 @@
+ {
+  ZeroMemory(&native,sizeof(native));ZeroMemory(&host,sizeof(host));ZeroMemory(&psrt_record,sizeof(psrt_record));ZeroMemory(dm_disk,sizeof(dm_disk));
+  dm=mode;dm_size=1024;dm_pos=dm_writes=dm_closes=dm_creates=0;dm_stop=&host.stop;model_mode=model_stop_flag=0;
+- {PSRF_FRAME *f=(PSRF_FRAME *)dm_disk;memcpy(f->magic,psrf_magic,16);memcpy(f->attempt,psrd_attempt,32);f->version=1;f->check=psrf_checksum(f);if(mode==12)f->attempt[0]^=1;}
++ {PSRF_FRAME *f=(PSRF_FRAME *)dm_disk;memcpy(f->magic,psrf_magic,16);memcpy(f->attempt,psrd_attempt,32);if(mode==21)memcpy(f->attempt,"75330d11cc7e4123ae62eadc9a59c2f5",32);f->version=1;f->check=psrf_checksum(f);if(mode==12)f->attempt[0]^=1;}
+  if(mode==14)dm_size=2048;
+ }
+ int main(void)
+@@ -16,10 +16,10 @@
+  T(ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:S-1-5-21-785699550-1440458426-1682014700-1108G:BAD:P(A;;FA;;;BA)(A;;FA;;;SY)(A;;GRGX;;;BU)",SDDL_REVISION_1,&dm_parent_sd,NULL));
+  T(ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:S-1-5-21-785699550-1440458426-1682014700-1108G:BAD:P(A;;FA;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;FA;;;SY)(A;;FA;;;BA)(A;;0x120083;;;S-1-5-80-3567404667-26456103-3018599297-139793421-3962028451)",SDDL_REVISION_1,&dm_file_sd,NULL));
+  T(ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:S-1-5-18G:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;BU)",SDDL_REVISION_1,&dm_bad_sd,NULL));
+- for(scenario=0;scenario<=19;scenario++){
++ for(scenario=0;scenario<=21;scenario++){
+   if(scenario==17||scenario==18)continue;
+   dm_reset(scenario);memcpy(saved,dm_disk,1024);if(scenario==4)dm=0;result=psrd_bind();
+-  if(scenario==1||scenario==2||scenario==3||scenario==5||scenario==12||scenario==13||scenario==14||scenario==15||scenario==16){T(result!=0);T(dm_writes==0);if(native.runtime.retained){c=dm_closes;T(psr_close()!=0&&dm_closes==c);}continue;}
++  if(scenario==1||scenario==2||scenario==3||scenario==5||scenario==12||scenario==13||scenario==14||scenario==15||scenario==16||scenario==20||scenario==21){T(result!=0);T(dm_writes==0);if(native.runtime.retained){c=dm_closes;T(psr_close()!=0&&dm_closes==c);}continue;}
+   T(result==0&&native.runtime.diagnostic.bound);if(scenario==4)dm=0; /* replace only AFTER binding */
+   if(scenario==4)dm=4;
+   if(scenario==11){T(host.stop);}
+--- preimage/docs/capabilities/canonical-phase6-consolidation.md
++++ docs/capabilities/canonical-phase6-consolidation.md
+@@ -724,3 +724,12 @@
+ [Decisão designada L1](../adr/DECISION-independent-lab-successor-exact-binding-annex-20261024.md) registra aprovação específica do owner e revisão integral/hash conforme: N0START-20261024-03/tentativa0b1de869e11493b7cb08fb329578f6ce, somente identidade e vínculos normativos. Proposta original preservada byte-exatamente. Não ativa tentativa nem aprova pins/binários futuros. Pela aprovação ATUAL, implementação funcional NÃO autorizada; nova autorização específica necessária antes de modificar código, apesar da referência histórica X5 ao slice antes autorizado.
+ 
+ Mesmo owner/mutex/serviço, histórico/P3/L0–L9/H0–H9/UNKNOWN/reservas/limites intactos. N7 operacional NOT_GRANTED, orçamento REQUIRED_NOT_GRANTED, admissão DENY. Nenhum intent/imagem/sink/dossiê, fonte/launcher/recorder/pin, SCM/ACL/preflight/Start/Stop alterado/criado/executado. ED11 PARTIAL e autoridades produtivas DENY.
++
++
++## Sucessora -03 — binding implementado e qualificado offline (2026-10-24)
++
++Após autorização funcional explícita do owner, a [implementação/revisão](../integration/successor-exact-binding-functional-20261024/source-review-and-closeout.md) coordena identidade0b1de869e11493b7cb08fb329578f6ce/N0START-20261024-03 no owner existente, descriptor, intent/launch, recorder/sink/arm/imagem e launcher único. Mesmo mutex/exclusividade/Stop/exactly-once/retenção; histórico/P3/L0–L9/H0–H9/UNKNOWN e reservas preservados. [Matriz](../integration/successor-exact-binding-functional-20261024/binding-matrix.json) é documentação, não autoridade de runtime.
++
++Qualificador e runtime Selected/Legacy Debug/Release PASS, warnings0;36+12 suítes,24 negativos de CLI antes de aquisição, concorrência nativa isolada nas quatro configurações e4 casos PowerShell5.1 PASS. Correções de fixture e dependências diretas de includes documentadas; resultados intermediários não substituem qualificação final. Runtime final usa perfil original, diagnóstico4400 aninhado/total25120+CLI4=25124. Sem nova medição de handles/folga; fixture não garante redução operacional. Patch de stdout e linhas Write-Host administrativas preservados.
++
++Novo registro privado V2 exige tentativa/operação exatas; hashes/IDs dos inputs novos permanecem EMPTY/ZERO_UNQUALIFIED_DENY, não valores factuais. Nenhum arquivo protegido, intent, imagem instalada ou sink foi criado. Entrada N0 nega antes de aquisição/preflight enquanto faltarem pins. N7 operacional NOT_GRANTED, orçamento independente REQUIRED_NOT_GRANTED, identidade NÃO ATIVADA/admissão DENY. [Próximo handoff](../integration/successor-exact-binding-functional-20261024/protected-dossier-and-admission-handoff.md) pede aprovações separadas para conteúdo/colocação protegida e qualificação factual futura, sem comando positivo. Sem SCM/ACL/preflight/Start/Stop/rede ou produção0.6.4/PST/Browser/wire alterados; ED11 PARTIAL e autoridades produtivas DENY.
+--- preimage/tests/service_runtime_file_fixture.inc
++++ tests/service_runtime_file_fixture.inc
+@@ -18,7 +18,7 @@
+ static DWORD WINAPI dm_name(HANDLE h,LPWSTR out,DWORD size,DWORD flags)
+ {
+  const WCHAR *parent=L"\\\\?\\C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release";
+- const WCHAR *leaf=L"\\papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag";size_t n=wcslen(parent),m=h==(HANDLE)(ULONG_PTR)2001?0:wcslen(leaf);(void)flags;
++ const WCHAR *leaf=dm==20?L"\\papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag":L"\\papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag";size_t n=wcslen(parent),m=h==(HANDLE)(ULONG_PTR)2001?0:wcslen(leaf);(void)flags;
+  if(size<=n+m)return size+1;memcpy(out,parent,n*sizeof(WCHAR));memcpy(out+n,leaf,m*sizeof(WCHAR));out[n+m]=0;if(dm==15&&m)out[n+1]=L'X';return (DWORD)(n+m);
+ }
+ static BOOL WINAPI dm_security(HANDLE h,SECURITY_INFORMATION flags,PSECURITY_DESCRIPTOR out,DWORD size,LPDWORD used)
+--- preimage/CMakeLists.txt
++++ CMakeLists.txt
+@@ -5,7 +5,7 @@
+ if(MSVC AND CMAKE_GENERATOR MATCHES "Ninja")
+     set(CMAKE_C_COMPILER_LAUNCHER
+         "${CMAKE_CURRENT_SOURCE_DIR}/tools/msvc-ninja-utf8.cmd")
+-    set(CMAKE_CL_SHOWINCLUDES_PREFIX "ObservaÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o: incluindo arquivo: ")
++    set(CMAKE_CL_SHOWINCLUDES_PREFIX "ObservaÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o: incluindo arquivo: ")
+ endif()
+ 
+ include(CTest)
+@@ -3476,3 +3476,13 @@
+ if(WIN32)
+  set_property(SOURCE apps/server/server_service_win32.c tools/qualification/scm-registration-lab.c tests/service_busy_diagnostic_test.c tests/service_bd_admission_test.c tests/service_instrumented_policy_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_admission_bd_win32.h;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_admission_bd_win32.inc")
+ endif()
++
++# Exact successor binding: localized /showIncludes must not leave stale adapters.
++# The qualifier image pin is NOT a runtime-service dependency (no hash cycle).
++if(WIN32)
++ set_property(SOURCE tools/qualification/scm-registration-lab.c tests/service_busy_diagnostic_test.c tests/service_bd_admission_test.c tests/service_instrumented_policy_test.c
++  APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-context.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-context-model.h;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-context-pins.h;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-successor-image-pin.h")
++ set_property(SOURCE apps/server/server_service_win32.c tests/service_runtime_component_test.c tests/service_runtime_file_model_test.c
++  APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_runtime_win32.inc;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_psr_file_win32.inc")
++ set_property(SOURCE tests/service_runtime_file_model_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/service_runtime_component_test.c;${CMAKE_CURRENT_SOURCE_DIR}/tests/service_runtime_file_fixture.inc")
++endif()
+--- /dev/null
++++ tools/qualification/scm-successor-image-pin.h
+@@ -0,0 +1,5 @@
++#ifndef PAPACC_SUCCESSOR_IMAGE_PIN_H
++#define PAPACC_SUCCESSOR_IMAGE_PIN_H
++/* Observed Selected Release build; not operational approval. */
++#define PS_BD_N0_IMAGE_SHA "44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c"
++#endif

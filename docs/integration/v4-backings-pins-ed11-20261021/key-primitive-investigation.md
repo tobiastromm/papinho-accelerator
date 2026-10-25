@@ -1,0 +1,9 @@
+# Existing Ed25519 primitive investigation — NOT QUALIFIED
+
+No new crypto primitive/backend/provider was implemented or selected. The existing pinned OpenSSL3.5.8 lib/runtime were reused in a local public-byte-only probe. Source, exact build command, output and hashes are archived. EVP_PKEY_new_raw_public_key_ex and EVP_PKEY_public_check returned1 for zero,ff and identity-like public byte patterns. No keypair generation, private signing, CA/certificate, network or time operation occurred.
+
+Raw import/public_check success does not constitute a demonstrated strict/canonical mathematical Ed25519 public-key check for TS0-TS8. In particular the all-ff compressed representation is outside the canonical y encoding; the probe's acceptance is not used as validation. No custom curve decoding/arithmetic, replacement algorithm or permissive fallback is authorized. Existing Roughtime signature verification remains unchanged and separately validated; it is not silently relabeled as a standalone point-check API.
+
+KEY_PRIMITIVE_ADAPTER=NOT_QUALIFIED_STANDALONE_POINT_CHECK_ABSENT. The v4 DATA codec/capture continues to require its public key-validation component. Native source integration must return INCOMPLETE/UNSUPPORTED without a qualified adapter. The backing tests use an explicit synthetic key callback only to exercise memory/representation/lifetime. They neither validate their patterned keys cryptographically nor authorize any source. No LAB key is installed as production identity.
+
+A future adapter must identify an existing backend primitive with the required rejection semantics, documented guarantees, negative vectors and bounded full resources; if no such primitive is exposed, stop and obtain a focused governed backend decision rather than implement Ed25519 independently. Native v4 worker and operational UTC remain denied.

@@ -1,0 +1,16 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3372,6 +3372,13 @@
+   set_target_properties(papacc_service_runtime_${kind}_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+   add_test(NAME papacc.service.runtime_${kind} COMMAND papacc_service_runtime_${kind}_test)
+  endforeach()
++ add_executable(papacc_service_runtime_file_model_test tests/service_runtime_file_model_test.c)
++ target_compile_definitions(papacc_service_runtime_file_model_test PRIVATE PAPACC_SCM_REGISTRATION_LAB=1 PAPACC_SCM_RUNTIME_LAB=1 PAPACC_SERVICE_RUNTIME_MODEL=1 PAPACC_PSR_TRACE_LAB=1 PAPACC_PSR_FILE_RUNTIME_LAB=1)
++ target_link_libraries(papacc_service_runtime_file_model_test PRIVATE papacc_server_run_win32 papacc_server_service user32)
++ target_include_directories(papacc_service_runtime_file_model_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS})
++ target_compile_options(papacc_service_runtime_file_model_test PRIVATE /W4 /WX)
++ set_target_properties(papacc_service_runtime_file_model_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++ add_test(NAME papacc.service.runtime_file_model COMMAND papacc_service_runtime_file_model_test)
+  add_executable(papacc_service_runtime_closed_test tests/service_runtime_closed_test.c)
+  target_link_libraries(papacc_service_runtime_closed_test PRIVATE papacc_server_run_win32)
+  target_include_directories(papacc_service_runtime_closed_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS})

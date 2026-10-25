@@ -1,0 +1,647 @@
+--- a/tools/qualification/scm-registration-lab.c
++++ b/tools/qualification/scm-registration-lab.c
+@@ -5,6 +5,8 @@
+ #include <string.h>
+ #include <wchar.h>
+ #define PAPACC_SCM_REGISTRATION_LAB 1
++static DWORD lab_aux_gate(void);
++#define PAPACC_AUX_RESERVATION_GUARD() lab_aux_gate()
+ #include "../../apps/server/server_service_win32.c"
+ #define PAPACC_SCM_DESCRIPTOR_TEST 1
+ #include "../../apps/server/server_launcher_scm_prepare_win32.inc"
+@@ -12,12 +14,14 @@
+ static const WCHAR lab_image_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server.exe";
+ static const WCHAR lab_config_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc.conf";
+ static HANDLE lab_parent,lab_config,lab_token;static PSID lab_sid;static PSECURITY_DESCRIPTOR lab_pending_sd;
+-static HANDLE lab_aux_retained[2];static unsigned lab_aux_count;
+-static int lab_close_aux(HANDLE h){if(CloseHandle(h))return 1;if(lab_aux_count<2)lab_aux_retained[lab_aux_count++]=h;return 0;}
++#include "scm-aux-reservation-core.inc"
++#include "scm-aux-reservation-bridge.inc"
+ static int lab_append(WCHAR *out,size_t cap,const WCHAR *text){size_t n=wcslen(out),m=wcslen(text);if(n>=cap||m>=cap-n)return 0;memcpy(out+n,text,(m+1)*sizeof(WCHAR));return 1;}
+ static TOKEN_STATISTICS lab_stats;static unsigned char lab_sd_hash[3][32];
+ static DWORD lab_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+ static DWORD lab_acl(HANDLE h,unsigned index,int compare){
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  PSECURITY_DESCRIPTOR p=NULL;SECURITY_DESCRIPTOR_CONTROL control;DWORD rev,n,e;unsigned char hash[32];int ok;
+  if(lab_pending_sd)return ERROR_INVALID_STATE;
+  e=GetSecurityInfo(h,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&p);if(e)return e;
+@@ -44,6 +48,8 @@
+  done:SecureZeroMemory(&sha,sizeof(sha));SecureZeroMemory(block,sizeof(block));SecureZeroMemory(digest,sizeof(digest));return e;
+ }
+ static DWORD lab_bound_ex(int compare,int content){
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  DWORD e;if((e=lab_id(lab_parent,1966080,79426,1))||(e=lab_id(lab_config,393216,1120240,0))||
+  (e=lab_id(native.image,262144,1119989,0)))return e;
+  if((e=lab_acl(lab_parent,0,compare))||(e=lab_acl(lab_config,1,compare))||(e=lab_acl(native.image,2,compare)))return e;
+@@ -53,9 +59,9 @@
+ }
+ static DWORD lab_bound(int compare){return lab_bound_ex(compare,1);}
+ static DWORD lab_operator(void){
+- HANDLE th=NULL;BYTE user[256],admins[SECURITY_MAX_SID_SIZE];DWORD used=0,n=sizeof(admins);TOKEN_ELEVATION elev;TOKEN_ELEVATION_TYPE type;BOOL member=FALSE;
+- if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&th)){if(!lab_close_aux(th))return ERROR_INVALID_HANDLE;return ERROR_ACCESS_DENIED;}
+- if(GetLastError()!=ERROR_NO_TOKEN)return lab_error();
++ A1_LEASE th;DWORD e;BYTE user[256],admins[SECURITY_MAX_SID_SIZE];DWORD used=0,n=sizeof(admins);TOKEN_ELEVATION elev;TOKEN_ELEVATION_TYPE type;BOOL member=FALSE;
++ e=lab_aux_token(&th,GetCurrentThread(),1,TOKEN_QUERY);if(!e)return lab_aux_close_preserving(th,ERROR_ACCESS_DENIED);
++ if(e!=ERROR_NO_TOKEN)return e;
+  if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&lab_token))return lab_error();
+  if(!GetTokenInformation(lab_token,TokenUser,user,sizeof(user),&used)||!EqualSid(((TOKEN_USER *)user)->User.Sid,lab_sid)||
+  !GetTokenInformation(lab_token,TokenElevation,&elev,sizeof(elev),&used)||!elev.TokenIsElevated||
+@@ -65,20 +71,20 @@
+  return ERROR_SUCCESS;
+ }
+ static DWORD lab_operator_current(void){
+- HANDLE token=NULL,thread=NULL;TOKEN_STATISTICS s;DWORD n=0,e=0;
+- if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&thread)){if(!lab_close_aux(thread))return ERROR_INVALID_HANDLE;return ERROR_ACCESS_DENIED;}
+- if(GetLastError()!=ERROR_NO_TOKEN)return lab_error();
+- if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))return lab_error();
++ HANDLE token=NULL;A1_LEASE token_lease,thread_lease;TOKEN_STATISTICS s;DWORD n=0,e=0;
++ e=lab_aux_token(&thread_lease,GetCurrentThread(),1,TOKEN_QUERY);if(!e)return lab_aux_close_preserving(thread_lease,ERROR_ACCESS_DENIED);
++ if(e!=ERROR_NO_TOKEN)return e;
++ if((e=lab_aux_token(&token_lease,GetCurrentProcess(),0,TOKEN_QUERY)))return e;
++ if((e=lab_aux_borrow(token_lease,&token)))return lab_aux_close_preserving(token_lease,e);
+  if(!GetTokenInformation(token,TokenStatistics,&s,sizeof(s),&n)||memcmp(&s.TokenId,&lab_stats.TokenId,sizeof(LUID))||
+  memcmp(&s.AuthenticationId,&lab_stats.AuthenticationId,sizeof(LUID))||memcmp(&s.ModifiedId,&lab_stats.ModifiedId,sizeof(LUID)))e=ERROR_ACCESS_DENIED;
+- if(!lab_close_aux(token))return ERROR_INVALID_HANDLE;return e;
++ return lab_aux_close_preserving(token_lease,lab_aux_borrow_end(e));
+ }
+ #ifndef PAPACC_SCM_CYCLE_LAB
+ static DWORD lab_confirm(const char *attempt){
+- HANDLE in,out;DWORD im=0,om=0,written=0,n=0,e=0;WCHAR plan[2048],reply[128],expected[96],wide_attempt[33];unsigned k;size_t len;
+- in=CreateFileW(L"CONIN$",GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(in==INVALID_HANDLE_VALUE)return lab_error();
+- out=CreateFileW(L"CONOUT$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
+- if(out==INVALID_HANDLE_VALUE){e=lab_error();if(!lab_close_aux(in))return ERROR_INVALID_HANDLE;return e;}
++ int borrowed=0;HANDLE in=NULL,out=NULL;A1_LEASE in_lease,out_lease;DWORD im=0,om=0,written=0,n=0,e=0;WCHAR plan[2048],reply[128],expected[96],wide_attempt[33];unsigned k;size_t len;
++ if((e=lab_aux_console(&in_lease,&out_lease)))return e;
++ if((e=lab_aux_borrow_pair(in_lease,out_lease,&in,&out)))goto done;borrowed=1;
+  if(!GetConsoleMode(in,&im)||!GetConsoleMode(out,&om)||(im&(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT))!=(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT)){e=ERROR_ACCESS_DENIED;goto done;}
+  for(k=0;k<32;k++)wide_attempt[k]=(WCHAR)(unsigned char)attempt[k];wide_attempt[32]=0;
+  expected[0]=0;plan[0]=0;
+@@ -93,15 +99,15 @@
+  if(len>=2048||!WriteConsoleW(out,plan,(DWORD)len,&written,NULL)||written!=(DWORD)len||!ReadConsoleW(in,reply,127,&n,NULL)){e=lab_error();goto done;}
+  while(n&&(reply[n-1]==L'\r'||reply[n-1]==L'\n'))n--;reply[n]=0;
+  if(wcscmp(reply,expected))e=ERROR_CANCELLED;
+- done:if(!lab_close_aux(in))e=ERROR_INVALID_HANDLE;if(!lab_close_aux(out))e=ERROR_INVALID_HANDLE;return e;
++ done:if(borrowed)e=lab_aux_borrow_end(e);e=lab_aux_close_preserving(in_lease,e);return lab_aux_close_preserving(out_lease,e);
+ }
+ static DWORD lab_intent(const char *attempt){
+- HANDLE h;DWORD n=0,e=0;char text[256];size_t len;
++ HANDLE h=NULL;A1_LEASE lease;DWORD n=0,e=0;char text[256];size_t len;
+  static const char prefix[]="LAB=PapinhoAcceleratorLab20261023; ATTEMPT=",suffix[]="; EFFECT=NOT_YET_CONFIRMED; RETRY=DENY\r\n";
+- h=CreateFileW(L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\windows-virtual-service-native-lab-registration-20261023\\manual-native-intent.txt",GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
+- if(h==INVALID_HANDLE_VALUE)return lab_error();
++ if((e=lab_aux_file(&lease,L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\windows-virtual-service-native-lab-registration-20261023\\manual-native-intent.txt",GENERIC_WRITE,0,CREATE_NEW,FILE_ATTRIBUTE_NORMAL)))return e;
++ if((e=lab_aux_borrow(lease,&h)))return lab_aux_close_preserving(lease,e);
+  len=sizeof(prefix)-1;memcpy(text,prefix,len);memcpy(text+len,attempt,32);len+=32;memcpy(text+len,suffix,sizeof(suffix)-1);len+=sizeof(suffix)-1;
+- if(!WriteFile(h,text,(DWORD)len,&n,NULL)||n!=(DWORD)len||!FlushFileBuffers(h))e=lab_error();if(!lab_close_aux(h))e=ERROR_INVALID_HANDLE;return e;
++ if(!WriteFile(h,text,(DWORD)len,&n,NULL)||n!=(DWORD)len||!FlushFileBuffers(h))e=lab_error();return lab_aux_close_preserving(lease,lab_aux_borrow_end(e));
+ }
+ #endif
+ #ifdef PAPACC_SCM_CYCLE_LAB
+--- a/tools/qualification/scm-runtime-cycle-lab.inc
++++ b/tools/qualification/scm-runtime-cycle-lab.inc
+@@ -24,6 +24,8 @@
+ /* Native relative FILE_CREATE, never OPEN_IF/OVERWRITE. Protected parent retained. */
+ static DWORD cycle_open_relative(int create)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  typedef NTSTATUS (NTAPI *CREATE)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);
+  CREATE fn;FARPROC proc;UNICODE_STRING str;OBJECT_ATTRIBUTES oa;IO_STATUS_BLOCK io;NTSTATUS status;HMODULE module;
+  #ifdef PAPACC_SCM_INSTRUMENTED_LAB
+@@ -42,6 +44,8 @@
+ }
+ static DWORD cycle_dependencies_current_ex(int initial,int content)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  static const WCHAR *paths[]={L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\libcrypto-3-x64.dll",L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\libssl-3-x64.dll"};
+  static const char *hashes[]={"09eec573c9adea156ba2073f8cd61720d0aabeb7562d8498b4ecd21b710a3044","3fb3cd7804dbe3216c801b470e14461d80214ece99c637ae42ea3d8caf75d7ed"};
+  static const BYTE expected_sd[2][32]={{0x10,0x95,0x71,0x3b,0x09,0xc3,0xc1,0x46,0x27,0xe3,0x26,0x4e,0xd2,0xfc,0x73,0x1a,0x61,0x11,0x0a,0x0a,0x25,0x30,0x56,0xff,0xe9,0xd7,0xd3,0xe8,0x9d,0x27,0x68,0xa0}, {0x10,0x95,0x71,0x3b,0x09,0xc3,0xc1,0x46,0x27,0xe3,0x26,0x4e,0xd2,0xfc,0x73,0x1a,0x61,0x11,0x0a,0x0a,0x25,0x30,0x56,0xff,0xe9,0xd7,0xd3,0xe8,0x9d,0x27,0x68,0xa0}};
+@@ -61,6 +65,8 @@
+ static DWORD cycle_dependencies_current(int initial){return cycle_dependencies_current_ex(initial,1);}
+ static DWORD cycle_files(void)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  DWORD e;BY_HANDLE_FILE_INFORMATION now;
+  if((e=lab_bound(1))||(e=cycle_dependencies_current(0)))return e;
+  if(!cycle_file||!GetFileInformationByHandle(cycle_file,&now)||!ps_image_same(&now,&cycle_id))return ERROR_INVALID_DATA;
+@@ -103,10 +109,9 @@
+ }
+ static DWORD cycle_confirm(const char *attempt)
+ {
+- HANDLE in,out;DWORD im,om,written,n,e=0;WCHAR plan[4096],reply[128],expected[96],wa[33];unsigned k;
+- in=CreateFileW(L"CONIN$",GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(in==INVALID_HANDLE_VALUE)return lab_error();
+- out=CreateFileW(L"CONOUT$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
+- if(out==INVALID_HANDLE_VALUE){e=lab_error();if(!lab_close_aux(in))return ERROR_INVALID_HANDLE;return e;}
++ int borrowed=0;HANDLE in=NULL,out=NULL;A1_LEASE in_lease,out_lease;DWORD im,om,written,n,e=0;WCHAR plan[4096],reply[128],expected[96],wa[33];unsigned k;
++ if((e=lab_aux_console(&in_lease,&out_lease)))return e;
++ if((e=lab_aux_borrow_pair(in_lease,out_lease,&in,&out)))goto done;borrowed=1;
+  if(!GetConsoleMode(in,&im)||!GetConsoleMode(out,&om)||(im&(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT))!=(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT)){e=ERROR_ACCESS_DENIED;goto done;}
+  for(k=0;k<32;k++)wa[k]=(WCHAR)(unsigned char)attempt[k];wa[32]=0;plan[0]=0;expected[0]=0;
+  if(!lab_append(expected,96,L"CYCLE_SCM_LAB ")||!lab_append(expected,96,wa)||
+@@ -115,19 +120,21 @@
+  !lab_append(plan,4096,L"\r\nSHA256=62087dbe13712c468dc92c5848de684cbc7cba6f921d15259f895fa8664d2716\r\nCONFIG_SHA256=a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44\r\nDLL native IDs/hash/protected descriptors retained and revalidated. No ACL remediation.\r\nCreate ONE candidate with copied approved original-image owner/DACL; no overwrite/delete.\r\nRebind ONLY LAB image to quoted new path + service host; DISABLED -> DEMAND. Account/SID unchanged.\r\nONE Start -> RUNNING/status -> actual token/groups/privileges/access/resources/tables -> ONE Stop -> STOPPED/process exit.\r\nOne safety Stop is authorized if evidence capture fails after RUNNING, preserving first error.\r\nSuccess leaves DEMAND/STOPPED and candidate retained. Partial result/timeout is UNKNOWN; no restore/delete/retry/kill.\r\nUnknown live service or close failure retains qualifier process and refs; do not close/retry automatically.\r\nNo listener/network initialization, CA/key/cert/bootstrap/CURRENT/signature. KSP access NOT tested. ED11 PARTIAL.\r\nType ENTIRE exact line then Enter (visible input; Esc/mismatch cancels before effect):\r\n")||!lab_append(plan,4096,expected)||!lab_append(plan,4096,L"\r\n> ")){e=ERROR_INVALID_DATA;goto done;}
+  if(!WriteConsoleW(out,plan,(DWORD)wcslen(plan),&written,NULL)||written!=(DWORD)wcslen(plan)||!ReadConsoleW(in,reply,127,&n,NULL)){e=lab_error();goto done;}
+  while(n&&(reply[n-1]==L'\r'||reply[n-1]==L'\n'))n--;reply[n]=0;if(wcscmp(reply,expected)||papacc_server_console_win32_stop_requested())e=ERROR_CANCELLED;
+- done:if(!lab_close_aux(in))e=ERROR_INVALID_HANDLE;if(!lab_close_aux(out))e=ERROR_INVALID_HANDLE;return e;
++ done:if(borrowed)e=lab_aux_borrow_end(e);e=lab_aux_close_preserving(in_lease,e);return lab_aux_close_preserving(out_lease,e);
+ }
+ static DWORD cycle_intent(const char *attempt)
+ {
+- HANDLE h;DWORD n;char text[128];int count;
+- h=CreateFileW(L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\first-native-lab-service-start-stop-20261023\\manual-native-intent.txt",GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
+- if(h==INVALID_HANDLE_VALUE)return lab_error();
++ HANDLE h=NULL;A1_LEASE lease;DWORD n,e;char text[128];int count;
++ if((e=lab_aux_file(&lease,L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\first-native-lab-service-start-stop-20261023\\manual-native-intent.txt",GENERIC_WRITE,0,CREATE_NEW,FILE_ATTRIBUTE_NORMAL)))return e;
++ if((e=lab_aux_borrow(lease,&h)))return lab_aux_close_preserving(lease,e);
+  count=_snprintf_s(text,sizeof(text),_TRUNCATE,"ATTEMPT=%s; CYCLE_LAB_EFFECTS_REQUESTED; NO_RETRY; UNKNOWN_UNTIL_RECEIPT\r\n",attempt);
+- if(count<=0||count>=(int)sizeof(text)||!WriteFile(h,text,(DWORD)count,&n,NULL)||n!=(DWORD)count||!FlushFileBuffers(h)){DWORD e=lab_error();if(!lab_close_aux(h))return ERROR_INVALID_HANDLE;return e;}
+- return lab_close_aux(h)?ERROR_SUCCESS:ERROR_INVALID_HANDLE;
++ if(count<=0||count>=(int)sizeof(text)||!WriteFile(h,text,(DWORD)count,&n,NULL)||n!=(DWORD)count||!FlushFileBuffers(h)){e=lab_error();return lab_aux_close_preserving(lease,lab_aux_borrow_end(e));}
++ return lab_aux_close_preserving(lease,lab_aux_borrow_end(0));
+ }
+ static DWORD cycle_copy(void)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  DWORD e,n,w;BYTE block[4096];LARGE_INTEGER zero;BY_HANDLE_FILE_INFORMATION before,after;
+  cycle_stage="EXCLUSIVE_IMAGE_CREATE";
+  e=GetSecurityInfo(native.image,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&cycle_sd);if(e)return e;
+@@ -185,6 +192,8 @@
+ }
+ static DWORD cycle_live(DWORD pid)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  union {TOKEN_USER align;BYTE b[256];}u;
+  union {TOKEN_GROUPS align;BYTE b[8192];}g;
+  union {TOKEN_PRIVILEGES align;BYTE b[4096];}p;
+@@ -220,10 +229,10 @@
+  if((e=cycle_access_file(lab_parent,0))||(e=cycle_access_file(lab_config,1))||(e=cycle_access_file(cycle_file,2))||(e=cycle_access_file(cycle_dependencies[0],2))||(e=cycle_access_file(cycle_dependencies[1],2))||(e=cycle_no_endpoints(pid)))return e;
+  cycle_threads=CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD,0);if(cycle_threads==INVALID_HANDLE_VALUE){cycle_threads=NULL;return lab_error();}
+  ZeroMemory(&te,sizeof(te));te.dwSize=sizeof(te);if(!Thread32First(cycle_threads,&te))return lab_error();
+- do{if(te.th32OwnerProcessID==pid){HANDLE token=NULL;
++ do{if(te.th32OwnerProcessID==pid){A1_LEASE token;DWORD token_error;
+  cycle_thread=OpenThread(THREAD_QUERY_INFORMATION,FALSE,te.th32ThreadID);if(!cycle_thread)return lab_error();
+- if(OpenThreadToken(cycle_thread,TOKEN_QUERY,TRUE,&token)){if(!lab_close_aux(token))return ERROR_INVALID_HANDLE;return ERROR_ACCESS_DENIED;}
+- if(GetLastError()!=ERROR_NO_TOKEN)return lab_error();threads++;if(!CloseHandle(cycle_thread))return ERROR_INVALID_HANDLE;cycle_thread=NULL;}
++ token_error=lab_aux_token(&token,cycle_thread,1,TOKEN_QUERY);if(!token_error)return lab_aux_close_preserving(token,ERROR_ACCESS_DENIED);
++ if(token_error!=ERROR_NO_TOKEN)return token_error;threads++;if(!CloseHandle(cycle_thread))return ERROR_INVALID_HANDLE;cycle_thread=NULL;}
+  }while(Thread32Next(cycle_threads,&te));if(GetLastError()!=ERROR_NO_MORE_FILES)return lab_error();
+  ZeroMemory(&mem,sizeof(mem));mem.cb=sizeof(mem);
+  if(!GetProcessHandleCount(cycle_process,&handles)||!GetProcessMemoryInfo(cycle_process,(PROCESS_MEMORY_COUNTERS *)&mem,sizeof(mem)))return lab_error();
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -100,6 +100,8 @@
+ 
+ static DWORD ig_approval(const char *expected)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  unsigned i;DWORD e;BY_HANDLE_FILE_INFORMATION id;
+  if(!expected||strlen(expected)!=64)return ERROR_ACCESS_DENIED;
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+@@ -116,18 +118,22 @@
+ }
+ static DWORD ig_actor(unsigned role,DWORD pid,ULONGLONG creation)
+ {
+- FILETIME ct,et,kt,ut;WCHAR image[1024];DWORD cap=1024;ULONGLONG actual;HANDLE token=NULL;union {TOKEN_USER aligned;BYTE bytes[256];} u;DWORD n;
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
++ FILETIME ct,et,kt,ut;WCHAR image[1024];DWORD cap=1024;ULONGLONG actual;HANDLE token=NULL;A1_LEASE lease;union {TOKEN_USER aligned;BYTE bytes[256];} u;DWORD n;
+  if(role>1||!pid||pid==GetCurrentProcessId()||ig_observer.process[role])return ERROR_INVALID_PARAMETER;
+  ig_observer.process[role]=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,pid);if(!ig_observer.process[role])return lab_error();
+  if(!GetProcessTimes(ig_observer.process[role],&ct,&et,&kt,&ut)||!QueryFullProcessImageNameW(ig_observer.process[role],0,image,&cap)||_wcsicmp(image,L"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"))return ERROR_INVALID_DATA;
+  actual=((ULONGLONG)ct.dwHighDateTime<<32)|ct.dwLowDateTime;if(actual!=creation)return ERROR_INVALID_DATA;
+- if(!OpenProcessToken(ig_observer.process[role],TOKEN_QUERY,&token))return lab_error();
+- n=0;if(!GetTokenInformation(token,TokenUser,&u,sizeof(u),&n)||n>sizeof(u)||!cycle_sid_inside(u.bytes,n,u.aligned.User.Sid)||!EqualSid(u.aligned.User.Sid,lab_sid)){if(!lab_close_aux(token))return ERROR_INVALID_HANDLE;return ERROR_INVALID_OWNER;}
+- if(!lab_close_aux(token))return ERROR_INVALID_HANDLE;
++ {DWORD z=lab_aux_token(&lease,ig_observer.process[role],0,TOKEN_QUERY);if(z)return z;z=lab_aux_borrow(lease,&token);if(z)return lab_aux_close_preserving(lease,z);}
++ n=0;if(!GetTokenInformation(token,TokenUser,&u,sizeof(u),&n)||n>sizeof(u)||!cycle_sid_inside(u.bytes,n,u.aligned.User.Sid)||!EqualSid(u.aligned.User.Sid,lab_sid)){return lab_aux_close_preserving(lease,lab_aux_borrow_end(ERROR_INVALID_OWNER));}
++ {DWORD z=lab_aux_borrow_end(0);z=lab_aux_close_preserving(lease,z);if(z)return z;}
+  ig_observer.creation[role]=ct;ig_observer.pid[role]=pid;ig_observer.powershell[role]=1;return 0;
+ }
+ static DWORD ig_project_census(void)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  PROCESSENTRY32W pe;DWORD e=0;unsigned j,n0_seen=0;
+ #ifdef PAPACC_SINGLE_LAB_ADMISSION
+  if(native.admission.bd.used){
+@@ -170,17 +176,19 @@
+ }
+ static DWORD ig_confirm(void)
+ {
+- HANDLE in,out;DWORD im,om,n,w,e=0;WCHAR reply[128];
++ int borrowed=0;HANDLE in=NULL,out=NULL;A1_LEASE in_lease,out_lease;DWORD im,om,n,w,e=0;WCHAR reply[128];
+  static const WCHAR text[]=L"ONE INSTRUMENTED LAB ATTEMPT 0b1de869e11493b7cb08fb329578f6ce\r\nExisting PapinhoAcceleratorLab20261023; same virtual identity; DEMAND/STOPPED.\r\nExclusive protected NEW papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe; SHA256 44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c.\r\nConfig a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44; unchanged parent/dependencies.\r\nCREATE_NEW one protected diagnostic papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag; arm1024/final2048.\r\nOne explicit LAB image rebind, ONE Start and at most ONE safe Stop. No delete, overwrite, rollback, retry or kill.\r\nED11 preflight60s/final1s; host admission5GiB physical/9GiB commit, monitor floors4/8GiB. NONE_GRANTED credits.\r\nAt most four participant processes; snapshot stack/kernel/cache remains partially UNKNOWN.\r\nNo listener/network/CA/key/certificate/bootstrap/CURRENT/signature/authority. Retention remains UNKNOWN if not factual.\r\nRequires SEPARATE exact operation approval; preparing this launcher does not approve execution.\r\nType ENTIRE line; Esc/mismatch cancels before intent consumption:\r\nINSTRUMENT_SCM_LAB 0b1de869e11493b7cb08fb329578f6ce\r\n> ";
+- in=CreateFileW(L"CONIN$",GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(in==INVALID_HANDLE_VALUE)return lab_error();
+- out=CreateFileW(L"CONOUT$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(out==INVALID_HANDLE_VALUE){e=lab_error();if(!lab_close_aux(in))return ERROR_INVALID_HANDLE;return e;}
++ if((e=lab_aux_console(&in_lease,&out_lease)))return e;
++ if((e=lab_aux_borrow_pair(in_lease,out_lease,&in,&out)))goto done;borrowed=1;
+  if(!GetConsoleMode(in,&im)||!GetConsoleMode(out,&om)||(im&(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT))!=(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT)||!WriteConsoleW(out,text,(DWORD)wcslen(text),&w,NULL)||w!=wcslen(text)||!ReadConsoleW(in,reply,127,&n,NULL)){e=ERROR_ACCESS_DENIED;goto done;}
+  while(n&&(reply[n-1]==L'\r'||reply[n-1]==L'\n'))n--;reply[n]=0;
+  if(wcscmp(reply,L"INSTRUMENT_SCM_LAB 0b1de869e11493b7cb08fb329578f6ce")||papacc_server_console_win32_stop_requested())e=ERROR_CANCELLED;
+- done:if(!lab_close_aux(in))e=ERROR_INVALID_HANDLE;if(!lab_close_aux(out))e=ERROR_INVALID_HANDLE;return e;
++ done:if(borrowed)e=lab_aux_borrow_end(e);e=lab_aux_close_preserving(in_lease,e);return lab_aux_close_preserving(out_lease,e);
+ }
+ static DWORD ig_create_intent(void)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+ #ifdef PAPACC_SINGLE_LAB_ADMISSION
+  return papacc_server_service_admission_consume();
+ #else
+@@ -189,6 +197,8 @@
+ }
+ static DWORD ig_create_diagnostic(void)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  SECURITY_ATTRIBUTES sa={sizeof(sa),NULL,FALSE};DWORD e;
+  if(!ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:S-1-5-21-785699550-1440458426-1682014700-1108G:BAD:P(A;;FA;;;S-1-5-21-785699550-1440458426-1682014700-1108)(A;;FA;;;SY)(A;;FA;;;BA)(A;;0x120083;;;S-1-5-80-3567404667-26456103-3018599297-139793421-3962028451)",SDDL_REVISION_1,&ig_diag_sd,NULL))return lab_error();
+  sa.lpSecurityDescriptor=ig_diag_sd;e=psrf_create(&ig_diag,ig_diag_path,&sa,(const BYTE *)IG_ATTEMPT);if(e)return e;
+@@ -198,12 +208,15 @@
+ }
+ static DWORD ig_extract(void)
+ {
+- HANDLE h;BY_HANDLE_FILE_INFORMATION id;LARGE_INTEGER size,offset;DWORD n,e=0;PSRF_FRAME f;
+- h=CreateFileW(ig_diag_path,GENERIC_READ,0,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(h==INVALID_HANDLE_VALUE)return lab_error();
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
++ HANDLE h=NULL;A1_LEASE lease;BY_HANDLE_FILE_INFORMATION id;LARGE_INTEGER size,offset;DWORD n,e=0;PSRF_FRAME f;
++ if((e=lab_aux_file(&lease,ig_diag_path,GENERIC_READ,0,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT)))return e;
++ if((e=lab_aux_borrow(lease,&h)))return lab_aux_close_preserving(lease,e);
+  if(!GetFileInformationByHandle(h,&id)||!psrf_same(&id,&ig_diag.identity)||!GetFileSizeEx(h,&size)||size.QuadPart!=2048){e=ERROR_INVALID_DATA;goto done;}
+  offset.QuadPart=1024;if(!SetFilePointerEx(h,offset,NULL,FILE_BEGIN)||!ReadFile(h,&f,sizeof(f),&n,NULL)||n!=sizeof(f)||!psrf_valid(&f,(const BYTE *)IG_ATTEMPT,f.kind)||(f.kind!=1U&&f.kind!=2U)){e=ERROR_INVALID_DATA;goto done;}
+  printf("IG_DIAGNOSTIC_RECEIPT kind=%lu length=%lu; ID_MATCH=1; NO_AUTHORITY\n",(unsigned long)f.kind,(unsigned long)f.length);printf("IG_FIRST_RECORD=%.*s\n",(int)f.length,(const char *)f.text);
+- done:if(!lab_close_aux(h))return ERROR_INVALID_HANDLE;return e;
++ done:return lab_aux_close_preserving(lease,lab_aux_borrow_end(e));
+ }
+ #ifdef PAPACC_N0_N9_NATIVE_OWNER
+ #include "scm-n0-context.inc"
+@@ -245,6 +258,8 @@
+ {char *end;const char *p;if(!s||!*s)return 0;for(p=s;*p;p++)if(*p<'0'||*p>'9')return 0;*value=_strtoui64(s,&end,10);return !*end&&*value!=~(ULONGLONG)0&&*value!=0;}
+ static DWORD ig_bind_service(DWORD pid)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  DWORD n=1024;unsigned role=3;WCHAR image[1024];FILETIME et,kt,ut;
+ #ifdef PAPACC_SINGLE_LAB_ADMISSION
+  if(native.admission.bd.used){DWORD e;
+@@ -423,11 +438,12 @@
+    if(!e&&status.dwCurrentState==SERVICE_RUNNING){z=cycle_live(status.dwProcessId);if(z)e=z;}
+    if((status.dwControlsAccepted&SERVICE_ACCEPT_STOP)==0){if(!e)e=ERROR_INVALID_STATE;goto done;}
+    #ifdef PAPACC_SINGLE_LAB_ADMISSION
+-   (void)papacc_server_service_admission_stop();
++   if((z=papacc_server_service_admission_stop())!=0){if(!e)e=z;goto done;}
+ #endif
+    if((z=ig_stop(&ig_gate))!=0){if(!e)e=z;goto done;}cycle_stop_requested=1;
+    if(!ControlService(native.service,SERVICE_CONTROL_STOP,&stopped)){if(!e)e=lab_error();goto done;}
+   }
++  if(lab_aux_owner.state&A1_FROZEN)goto done; /* existing bounded safe Stop branch remains above */
+   if(papacc_server_console_win32_stop_requested()&&!e)e=ERROR_OPERATION_ABORTED;
+   if(GetTickCount64()-began>=30000U){if(!e)e=ERROR_TIMEOUT;goto done;}
+   Sleep(100);
+@@ -436,8 +452,9 @@
+  if(!diagnostic_attempted){DWORD z;diagnostic_attempted=1;z=ig_extract();if(z&&!e)e=z;}
+  if(!e)puts("IG_CYCLE_QUALIFIED; READINESS_TOKEN_STOP_QUIESCENCE_CAPTURE_FACTUAL; NO_AUTHORITY");
+  done:
++ if(lab_aux_owner.state&A1_FROZEN){ig_gate.retained=1;if(!e)e=lab_aux_owner.first_error?lab_aux_owner.first_error:ERROR_INVALID_STATE;}
+  if(e)ig_diag_note(cycle_stage,"gate_or_uninstrumented_api","qualifier",e,e,0,4);
+- if(ig_diag.created&&!diagnostic_attempted){DWORD z;diagnostic_attempted=1;z=ig_extract();if(z&&!e)e=z;}
++ if(!(lab_aux_owner.state&A1_FROZEN)&&ig_diag.created&&!diagnostic_attempted){DWORD z;diagnostic_attempted=1;z=ig_extract();if(z&&!e)e=z;}
+ #ifdef PAPACC_SINGLE_LAB_ADMISSION
+  if(native.admission.phase==3)ig_gate.retained=1;
+  if(!ig_retire(&ig_gate)||ig_observer.retained||ig_diag.retained)papacc_server_service_admission_retain();
+--- a/tools/qualification/scm-instrumented-observer.inc
++++ b/tools/qualification/scm-instrumented-observer.inc
+@@ -19,6 +19,8 @@
+ }
+ static DWORD ig_measure_process(unsigned index,HANDLE process,DWORD pid,const FILETIME *expected_creation,IG_PROCESS *p)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  PROCESS_MEMORY_COUNTERS_EX m;PSS_THREAD_ENTRY t;DWORD e,n=0;ULONG_PTR allocations[64];unsigned allocation_count=0;IO_COUNTERS io;FILETIME creation,exit,kernel,user;
+  ig_diagnostic.current_role=index;ig_diagnostic.current_pid=pid;
+  p->powershell=index<4?ig_observer.powershell[index]:0; /* four-role topology; self-only test uses native role3 */
+@@ -75,6 +77,8 @@
+ {return ig_measure_process(index,ig_observer.process[index],ig_observer.pid[index],&ig_observer.creation[index],&ig_observer.sample.process[index]);}
+ static DWORD ig_observe(void)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  DWORD e;unsigned i;ig_diagnostic.current_role=4;ig_diagnostic.current_pid=0;ZeroMemory(&ig_observer.sample,sizeof(ig_observer.sample));ig_observer.sample.oldest=GetTickCount64();ig_observer.sample.count=ig_observer.count;ig_observer.sample.identity=ig_observer.identity;
+ #ifdef PAPACC_SINGLE_LAB_ADMISSION
+  if(native.admission.bd.used){
+@@ -113,6 +117,8 @@
+ }
+ static DWORD ig_boot(void)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  DWORD n=0,used=0,props=0,e=0;WCHAR *a,*b,*start;char name[256],hex[65];BYTE hash[32];int bytes;unsigned i;
+  {typedef LONG (WINAPI *VERSION)(OSVERSIONINFOW *);VERSION version;FARPROC address;OSVERSIONINFOW v;
+  ZeroMemory(&v,sizeof(v));v.dwOSVersionInfoSize=sizeof(v);address=GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"RtlGetVersion");if(!address)return ERROR_NOT_SUPPORTED;memcpy(&version,&address,sizeof(version));
+--- a/tools/qualification/scm-n0-context.inc
++++ b/tools/qualification/scm-n0-context.inc
+@@ -37,6 +37,8 @@
+ }
+ static DWORD ig_n0_sd(HANDLE file,const char *expected,int protect)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  BYTE digest[32];char hash[65];DWORD e,n,revision;SECURITY_DESCRIPTOR_CONTROL control;int ok;
+  if(ig_n0.sd)return ERROR_INVALID_STATE;
+  e=GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&ig_n0.sd);if(e)return e;
+@@ -46,6 +48,8 @@
+ }
+ static DWORD ig_n0_open(const WCHAR *path,HANDLE *out,BY_HANDLE_FILE_INFORMATION *id,DWORD cap,int windows_file)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  WCHAR actual[1100];DWORD n,flags;*out=CreateFileW(path,GENERIC_READ|READ_CONTROL,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+  if(*out==INVALID_HANDLE_VALUE){*out=NULL;return lab_error();}
+  if(!GetHandleInformation(*out,&flags)||(flags&HANDLE_FLAG_INHERIT)||GetFileType(*out)!=FILE_TYPE_DISK||!GetFileInformationByHandle(*out,id)||id->nFileSizeHigh||!id->nFileSizeLow||id->nFileSizeLow>cap||(!windows_file&&id->nNumberOfLinks!=1)||!id->nNumberOfLinks||(id->dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)))return ERROR_INVALID_DATA;
+@@ -59,6 +63,8 @@
+ static const char *ig_n0_root_hashes[]={"9205e0643299861cdba58173a4e9e01db5a3bc63c4d8c5538bc2292dae214fc8","c0811643edc9703aa06642dfe053b7a0c3062cbaba03b6b169bde6962248f6a6","688654f3c898e8ae3115cac83e777c4b24c9c57320fa8551b505d8dacc0ad579","688654f3c898e8ae3115cac83e777c4b24c9c57320fa8551b505d8dacc0ad579","688654f3c898e8ae3115cac83e777c4b24c9c57320fa8551b505d8dacc0ad579"};
+ static DWORD ig_n0_roots_current(int acquire)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  unsigned i;DWORD e,n,flags,serial,component;BY_HANDLE_FILE_INFORMATION id;WCHAR actual[1100],filesystem[32];
+  if(!GetVolumeInformationW(L"C:\\",NULL,0,&serial,&component,&flags,filesystem,32))return lab_error();
+  if(!ig_n0_volume_profile(serial,flags,filesystem))return ERROR_INVALID_DATA;
+@@ -75,6 +81,8 @@
+ }
+ static DWORD ig_n0_current(const PS_BD_DESCRIPTOR *d)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  DWORD e,i;int content;BY_HANDLE_FILE_INFORMATION id;SERVICE_STATUS_PROCESS status;char plan[65];ULONGLONG now=GetTickCount64();
+  if(!ig_n0.prepared||!ig_n0_fresh(now,ig_n0.began,60000ULL)||!ps_bd_hex(IG_N0_DOSSIER_SHA)||!ps_bd_hex(IG_N0_EVIDENCE_SHA))return ERROR_ACCESS_DENIED;
+  content=ig_n0_content_phase(ig_n0_positive,ig_n0.metric_window,ig_n0.validated_at,ig_n0.began,now);
+@@ -108,6 +116,8 @@
+ }
+ static DWORD ig_n0_bind(DWORD actor,ULONGLONG birth,DWORD tid,DWORD auxiliary,ULONGLONG auxiliary_birth)
+ {
++ {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
++
+  DWORD e,n,i;FILETIME ct,et,kt,ut;BY_HANDLE_FILE_INFORMATION id;PS_BD_DESCRIPTOR *d=&ig_n0.descriptor;char text[512];LARGE_INTEGER zero;
+  /* No arbitrary argv hash/boolean may substitute separately reviewed provenance. */
+  if(!ig_n0_inputs_ready()){puts("IG_N0_PROVENANCE=UNKNOWN; QUALIFIED_DOSSIER_PIN_MISSING; DENY");return ERROR_NOT_SUPPORTED;}
+--- a/apps/server/server_service_admission_bd_win32.inc
++++ b/apps/server/server_service_admission_bd_win32.inc
+@@ -15,6 +15,10 @@
+  * auxiliary tuple. No raw flags or argv constitute that trusted adapter. */
+ static DWORD psa_bd_aux_current(const PS_BD_DESCRIPTOR *d,ULONGLONG now)
+ {
++#ifdef PAPACC_AUX_RESERVATION_GUARD
++ {DWORD aux_guard=PAPACC_AUX_RESERVATION_GUARD();if(aux_guard)return aux_guard;}
++#endif
++
+  FILETIME c,e,k,u;DWORD n=1024,session,used=0,flags,ids[32],count,i;WCHAR path[1024];BY_HANDLE_FILE_INFORMATION id;
+  TOKEN_STATISTICS stats;union {TOKEN_USER aligned;BYTE bytes[256];} user;
+  if(!PSA.bd.bound||!PSA.bd.aux_bound||PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId()||(PSA.stop&&!PSA.effects)||
+@@ -61,6 +65,10 @@
+ }
+ static DWORD psa_bd_current(void)
+ {
++#ifdef PAPACC_AUX_RESERVATION_GUARD
++ {DWORD aux_guard=PAPACC_AUX_RESERVATION_GUARD();if(aux_guard)return aux_guard;}
++#endif
++
+  const PS_BD_DESCRIPTOR *d=&PSA.bd.binding;FILETIME ct,et,kt,ut;DWORD n,session;WCHAR path[1024];TOKEN_STATISTICS s;TOKEN_ELEVATION elevation;
+  union {TOKEN_USER aligned;BYTE bytes[256];} u;BY_HANDLE_FILE_INFORMATION id;DWORD e;
+  if((PSA.stop&&!PSA.effects)||PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId())return ERROR_INVALID_STATE;
+@@ -105,6 +113,10 @@
+ }
+ DWORD papacc_server_service_admission_bd_bind(const PS_BD_DESCRIPTOR *d,PS_BD_CONTEXT_CHECK check)
+ {
++#ifdef PAPACC_AUX_RESERVATION_GUARD
++ {DWORD aux_guard=PAPACC_AUX_RESERVATION_GUARD();if(aux_guard)return aux_guard;}
++#endif
++
+  FILETIME ct,et,kt,ut;DWORD e;
+  if(PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId()||PSA.stop||PSA.consumed||PSA.bd.used||PSA.launcher||PSA.token)return ERROR_INVALID_STATE;
+  PSA.bd.used=1; /* No confirmation replay/rebinding, including failed binding. */
+--- /dev/null
++++ b/tools/qualification/scm-aux-reservation-core.inc
+@@ -0,0 +1,126 @@
++/* ISOLATED CANDIDATE MODEL ONLY. Not included by the operational owner. */
++#ifndef A1_RESERVATION_MODEL_H
++#define A1_RESERVATION_MODEL_H
++#include <windows.h>
++#include <stdint.h>
++#define A1_FREE 0U
++#define A1_RESERVED 1U
++#define A1_OWNED 2U
++#define A1_UNKNOWN 3U
++#define A1_FROZEN 0x10U
++#define A1_STOP 0x20U
++#define A1_BUSY 0x40U
++#define A1_RETAINED 0x80U
++typedef struct {
++ HANDLE handle[2]; /* exactly the two existing ownership slots */
++ ULONGLONG ticket0,ticket1; /* reject stale leases, including recycled values */
++ DWORD state,first_error,first_close_error;
++} A1_OWNER;
++typedef struct {unsigned slot;ULONGLONG ticket;} A1_LEASE;
++typedef DWORD (*A1_ACQUIRE)(void *,HANDLE *);
++typedef DWORD (*A1_CLOSE)(void *,HANDLE);
++typedef DWORD (*A1_USE)(void *,HANDLE);
++static unsigned a1_state(const A1_OWNER *o,unsigned i)
++{return (o->state>>(i*2U))&3U;}
++static void a1_state_set(A1_OWNER *o,unsigned i,unsigned state)
++{o->state=(o->state&~(3U<<(i*2U)))|(state<<(i*2U));}
++static ULONGLONG *a1_ticket(A1_OWNER *o,unsigned i)
++{return i?&o->ticket1:&o->ticket0;}
++static DWORD a1_note(A1_OWNER *o,DWORD e)
++{if(e&&!o->first_error)o->first_error=e;return e;}
++static DWORD a1_deny(A1_OWNER *o,DWORD e)
++{o->state|=A1_STOP;return a1_note(o,e);}
++static DWORD a1_gate(const A1_OWNER *o)
++{return (o->state&A1_FROZEN)?ERROR_INVALID_STATE:(o->state&A1_BUSY)?ERROR_BUSY:(o->state&A1_STOP)?ERROR_OPERATION_ABORTED:0;}
++static void a1_stop(A1_OWNER *o)
++{(void)a1_deny(o,ERROR_OPERATION_ABORTED);}
++static void a1_retain(A1_OWNER *o,DWORD cause)
++{o->state|=A1_FROZEN|A1_RETAINED;(void)a1_deny(o,cause?cause:ERROR_INVALID_STATE);}
++static int a1_match(A1_OWNER *o,A1_LEASE l,unsigned state)
++{return l.slot<2&&l.ticket&&*a1_ticket(o,l.slot)==l.ticket&&a1_state(o,l.slot)==state;}
++static DWORD a1_reserve(A1_OWNER *o,A1_LEASE *l)
++{
++ unsigned i;DWORD e=a1_gate(o);
++ if(e)return a1_deny(o,e);
++ if(!l)return a1_deny(o,ERROR_INVALID_PARAMETER);
++ for(i=0;i<2;i++)if(a1_state(o,i)==A1_FREE){
++  ULONGLONG *ticket=a1_ticket(o,i);
++  if(*ticket==~(ULONGLONG)0)return a1_deny(o,ERROR_ARITHMETIC_OVERFLOW);
++  ++*ticket;l->slot=i;l->ticket=*ticket;a1_state_set(o,i,A1_RESERVED);return 0;
++ }
++ return a1_deny(o,ERROR_TOO_MANY_OPEN_FILES);
++}
++/* Atomic at the single control-thread boundary: no callback between checks. */
++static DWORD a1_reserve_pair(A1_OWNER *o,A1_LEASE *a,A1_LEASE *b)
++{
++ DWORD e=a1_gate(o);if(e)return a1_deny(o,e);
++ if(!a||!b||a==b)return a1_deny(o,ERROR_INVALID_PARAMETER);
++ if(a1_state(o,0)!=A1_FREE||a1_state(o,1)!=A1_FREE)return a1_deny(o,ERROR_TOO_MANY_OPEN_FILES);
++ if(o->ticket0==~(ULONGLONG)0||o->ticket1==~(ULONGLONG)0)return a1_deny(o,ERROR_ARITHMETIC_OVERFLOW);
++ ++o->ticket0;++o->ticket1;a->slot=0;a->ticket=o->ticket0;b->slot=1;b->ticket=o->ticket1;
++ a1_state_set(o,0,A1_RESERVED);a1_state_set(o,1,A1_RESERVED);return 0;
++}
++static DWORD a1_cancel(A1_OWNER *o,A1_LEASE l)
++{
++ if(o->state&(A1_FROZEN|A1_BUSY))return a1_deny(o,ERROR_INVALID_STATE);
++ if(!a1_match(o,l,A1_RESERVED)||o->handle[l.slot])return a1_deny(o,ERROR_INVALID_PARAMETER);
++ a1_state_set(o,l.slot,A1_FREE);return 0;
++}
++/* The model adapter writes DIRECTLY to owner storage, never a local owner. */
++static DWORD a1_acquire(A1_OWNER *o,A1_LEASE l,A1_ACQUIRE api,void *arg,DWORD expected_absence)
++{
++ DWORD e,gate=a1_gate(o);HANDLE h;
++ if(gate)return a1_deny(o,gate);
++ if(!api||!a1_match(o,l,A1_RESERVED)||o->handle[l.slot])return a1_deny(o,ERROR_INVALID_PARAMETER);
++ o->state|=A1_BUSY;e=api(arg,&o->handle[l.slot]);o->state&=~A1_BUSY;h=o->handle[l.slot];
++ if((!e&&(!h||h==INVALID_HANDLE_VALUE))||(e&&h)){
++  a1_state_set(o,l.slot,A1_UNKNOWN);o->state|=A1_FROZEN|A1_RETAINED;
++  return a1_deny(o,e?e:ERROR_INVALID_DATA);
++ }
++ if(e){a1_state_set(o,l.slot,A1_FREE);if(e!=expected_absence)(void)a1_deny(o,e);return e;}
++ a1_state_set(o,l.slot,A1_OWNED);
++ return (o->state&A1_STOP)?(o->first_error?o->first_error:a1_note(o,ERROR_OPERATION_ABORTED)):0;
++}
++/* Scoped borrow: BUSY stays set for the ENTIRE native-use interval. */
++static DWORD a1_borrow_begin(A1_OWNER *o,A1_LEASE l,HANDLE *out)
++{
++ DWORD e=a1_gate(o);if(e)return a1_deny(o,e);
++ if(!out||!a1_match(o,l,A1_OWNED))return a1_deny(o,ERROR_INVALID_PARAMETER);
++ o->state|=A1_BUSY;*out=o->handle[l.slot];return 0;
++}
++static DWORD a1_borrow_pair_begin(A1_OWNER *o,A1_LEASE a,A1_LEASE b,HANDLE *in,HANDLE *out)
++{
++ DWORD e=a1_gate(o);if(e)return a1_deny(o,e);
++ if(!in||!out||in==out||a.slot==b.slot||!a1_match(o,a,A1_OWNED)||!a1_match(o,b,A1_OWNED))return a1_deny(o,ERROR_INVALID_PARAMETER);
++ o->state|=A1_BUSY;*in=o->handle[a.slot];*out=o->handle[b.slot];return 0;
++}
++static DWORD a1_borrow_end(A1_OWNER *o,DWORD result)
++{
++ if(!(o->state&A1_BUSY))return a1_deny(o,ERROR_INVALID_STATE);
++ o->state&=~A1_BUSY;if(result)(void)a1_deny(o,result);
++ return o->first_error&&(o->state&A1_STOP)?o->first_error:result;
++}
++#ifdef A1_ENABLE_CALLBACK_TEST_HELPER
++static DWORD a1_use(A1_OWNER *o,A1_LEASE l,A1_USE use,void *arg)
++{
++ HANDLE h;DWORD e;if(!use)return a1_deny(o,ERROR_INVALID_PARAMETER);
++ e=a1_borrow_begin(o,l,&h);if(e)return e;
++ e=use(arg,h);return a1_borrow_end(o,e);
++}
++#endif
++static DWORD a1_close(A1_OWNER *o,A1_LEASE l,A1_CLOSE close,void *arg)
++{
++ DWORD e;
++ /* Stop alone permits checked close; UNKNOWN prohibits dependent cleanup. */
++ if(o->state&(A1_FROZEN|A1_BUSY))return a1_deny(o,ERROR_INVALID_STATE);
++ if(!close||!a1_match(o,l,A1_OWNED))return a1_deny(o,ERROR_INVALID_PARAMETER);
++ o->state|=A1_BUSY;e=close(arg,o->handle[l.slot]);o->state&=~A1_BUSY;
++ if(e){a1_state_set(o,l.slot,A1_UNKNOWN);o->state|=A1_FROZEN|A1_RETAINED;
++  if(!o->first_close_error)o->first_close_error=e;
++  return a1_deny(o,e);
++ }
++ o->handle[l.slot]=NULL;a1_state_set(o,l.slot,A1_FREE);return 0;
++}
++static int a1_finish(const A1_OWNER *o)
++{return !(o->state&(A1_FROZEN|A1_BUSY|A1_RETAINED))&&a1_state(o,0)==A1_FREE&&a1_state(o,1)==A1_FREE;}
++#endif
+--- /dev/null
++++ b/tools/qualification/scm-aux-reservation-bridge.inc
+@@ -0,0 +1,85 @@
++/* REVIEW CANDIDATE ONLY: include after PS_NATIVE and the tested A1 core. */
++static A1_OWNER lab_aux_owner;
++#define lab_aux_retained lab_aux_owner.handle
++#define lab_aux_count (!a1_finish(&lab_aux_owner))
++static DWORD lab_aux_sync(DWORD e)
++{
++ if(lab_aux_owner.state&A1_STOP){
++  papacc_server_console_win32_request_stop();
++#ifdef PAPACC_SINGLE_LAB_ADMISSION
++  if(native.admission.phase==1)(void)papacc_server_service_admission_stop();
++#endif
++ }
++ if(lab_aux_owner.state&A1_FROZEN)native.retained=1;
++ /* DO NOT terminalize canonical phase before its separately authorized safe Stop. */
++ return (lab_aux_owner.state&A1_STOP)&&lab_aux_owner.first_error?lab_aux_owner.first_error:e;
++}
++static DWORD lab_aux_gate(void)
++{
++#ifdef PAPACC_SINGLE_LAB_ADMISSION
++ if(native.admission.phase==3&&!(lab_aux_owner.state&A1_FROZEN))a1_retain(&lab_aux_owner,ERROR_INVALID_STATE);
++#endif
++ if(native.retained&&!(lab_aux_owner.state&A1_FROZEN))a1_retain(&lab_aux_owner,ERROR_INVALID_STATE);
++ if(lab_aux_owner.state&A1_FROZEN)return lab_aux_sync(ERROR_INVALID_STATE);
++ if(papacc_server_console_win32_stop_requested())a1_stop(&lab_aux_owner);
++ {DWORD e=a1_gate(&lab_aux_owner);if(e)(void)a1_deny(&lab_aux_owner,e);return lab_aux_sync(e);}
++}
++typedef struct {HANDLE target;LPCWSTR path;DWORD kind,access,share,disposition,flags;} LAB_AUX_REQUEST;
++static DWORD lab_aux_api(void *arg,HANDLE *out)
++{
++ LAB_AUX_REQUEST *r=(LAB_AUX_REQUEST *)arg;DWORD e;
++ if(r->kind==0){if(OpenThreadToken(r->target,r->access,TRUE,out))return 0;e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
++ if(r->kind==1){if(OpenProcessToken(r->target,r->access,out))return 0;e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
++ *out=CreateFileW(r->path,r->access,r->share,NULL,r->disposition,r->flags,NULL);
++ if(*out!=INVALID_HANDLE_VALUE)return 0;
++ e=GetLastError();*out=NULL; /* documented CreateFile failure sentinel, no real ref */
++ return e?e:ERROR_GEN_FAILURE;
++}
++static DWORD lab_aux_open_reserved(A1_LEASE l,LAB_AUX_REQUEST *r)
++{
++ DWORD e=lab_aux_gate();if(e){if(!(lab_aux_owner.state&A1_FROZEN))(void)a1_cancel(&lab_aux_owner,l);return e;}
++ return lab_aux_sync(a1_acquire(&lab_aux_owner,l,lab_aux_api,r,r->kind==0?ERROR_NO_TOKEN:0));
++}
++static DWORD lab_aux_token(A1_LEASE *l,HANDLE target,int thread,DWORD access)
++{
++ LAB_AUX_REQUEST r;DWORD e=lab_aux_gate();if(e)return e;
++ ZeroMemory(&r,sizeof(r));r.target=target;r.kind=thread?0U:1U;r.access=access;
++ e=a1_reserve(&lab_aux_owner,l);if(e)return lab_aux_sync(e);return lab_aux_open_reserved(*l,&r);
++}
++static DWORD lab_aux_file(A1_LEASE *l,LPCWSTR path,DWORD access,DWORD share,DWORD disposition,DWORD flags)
++{
++ LAB_AUX_REQUEST r;DWORD e=lab_aux_gate();if(e)return e;
++ ZeroMemory(&r,sizeof(r));r.kind=2;r.path=path;r.access=access;r.share=share;r.disposition=disposition;r.flags=flags;
++ e=a1_reserve(&lab_aux_owner,l);if(e)return lab_aux_sync(e);return lab_aux_open_reserved(*l,&r);
++}
++static DWORD lab_aux_borrow(A1_LEASE l,HANDLE *out)
++{
++ DWORD e=lab_aux_gate();*out=NULL;if(e)return e;
++ return lab_aux_sync(a1_borrow_begin(&lab_aux_owner,l,out));
++}
++static DWORD lab_aux_borrow_pair(A1_LEASE a,A1_LEASE b,HANDLE *in,HANDLE *out)
++{
++ DWORD e=lab_aux_gate();*in=*out=NULL;if(e)return e;
++ return lab_aux_sync(a1_borrow_pair_begin(&lab_aux_owner,a,b,in,out));
++}
++static DWORD lab_aux_borrow_end(DWORD e)
++{return lab_aux_sync(a1_borrow_end(&lab_aux_owner,e));}
++static DWORD lab_aux_native_close(void *ignored,HANDLE h)
++{DWORD e;(void)ignored;if(CloseHandle(h))return 0;e=GetLastError();return e?e:ERROR_INVALID_HANDLE;}
++static DWORD lab_aux_close_preserving(A1_LEASE l,DWORD first)
++{
++ DWORD e;(void)a1_note(&lab_aux_owner,first);
++ if(native.retained&&!(lab_aux_owner.state&A1_FROZEN))a1_retain(&lab_aux_owner,first?first:ERROR_INVALID_STATE);
++ e=lab_aux_sync(a1_close(&lab_aux_owner,l,lab_aux_native_close,NULL));
++ return first?first:e;
++}
++static DWORD lab_aux_console(A1_LEASE *in,A1_LEASE *out)
++{
++ LAB_AUX_REQUEST r;DWORD e=lab_aux_gate();if(e)return e;
++ e=a1_reserve_pair(&lab_aux_owner,in,out);if(e)return lab_aux_sync(e);
++ ZeroMemory(&r,sizeof(r));r.kind=2;r.path=L"CONIN$";r.access=GENERIC_READ;r.share=FILE_SHARE_READ|FILE_SHARE_WRITE;r.disposition=OPEN_EXISTING;
++ e=lab_aux_open_reserved(*in,&r);
++ if(e){if(!(lab_aux_owner.state&A1_FROZEN))(void)a1_cancel(&lab_aux_owner,*out);return e;}
++ r.path=L"CONOUT$";r.access=GENERIC_READ|GENERIC_WRITE;e=lab_aux_open_reserved(*out,&r);
++ return e?lab_aux_close_preserving(*in,e):0;
++}

@@ -1,0 +1,34 @@
+{
+  "assumption": "All other qualifier handles equal the 126 sampled; no other additions/releases; positive successor not built or executed; OS/internal costs not bounded",
+  "not_peak": true,
+  "not_factual_positive_measurement": true,
+  "limit": 128,
+  "rows": [
+    {
+      "phase": "read-only historical self sample",
+      "additional_persistent_handles": 0,
+      "conditional_count": 126,
+      "observed": true
+    },
+    {
+      "phase": "consumed + copied image held / final preStart",
+      "additional_persistent_handles": 2,
+      "conditional_count": 128,
+      "observed": false
+    },
+    {
+      "phase": "service bound / first postStart metrics",
+      "additional_persistent_handles": 3,
+      "conditional_count": 129,
+      "observed": false
+    },
+    {
+      "phase": "cycle_live succeeded: process+intent+image+token+access+thread snapshot retained",
+      "additional_persistent_handles": 6,
+      "conditional_count": 132,
+      "observed": false
+    }
+  ],
+  "preStart_zero_spare": 0,
+  "conditioned_postStart_exceeds": true
+}

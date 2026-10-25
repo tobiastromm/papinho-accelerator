@@ -1,0 +1,69 @@
+{
+  "clean_builds": [
+    {
+      "profile": "Selected",
+      "configuration": "Debug",
+      "clean_suites": 16,
+      "warnings": 0,
+      "known_managed": 1952624,
+      "limit": 3145728,
+      "log": "v4-backing-Selected-Debug-clean.log",
+      "log_sha256": "55ab20131f641e29d7deb6dd2fdc2eb262a8c617174ee29d85decb4e87d0d489"
+    },
+    {
+      "profile": "Selected",
+      "configuration": "Release",
+      "clean_suites": 16,
+      "warnings": 0,
+      "known_managed": 1952624,
+      "limit": 3145728,
+      "log": "v4-backing-Selected-Release-clean.log",
+      "log_sha256": "0ee25a47568011aa5fa7c6d8c1f4a1d7d7b74f899df8feb92dbe18772c91219e"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Debug",
+      "clean_suites": 13,
+      "warnings": 0,
+      "known_managed": 1790872,
+      "limit": 2097152,
+      "log": "v4-backing-Legacy-Debug-clean.log",
+      "log_sha256": "5c2aefc0f4b1bcd57294f57fe32c33923013f30ec792ad28673a961c346d1e81"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Release",
+      "clean_suites": 13,
+      "warnings": 0,
+      "known_managed": 1790872,
+      "limit": 2097152,
+      "log": "v4-backing-Legacy-Release-clean.log",
+      "log_sha256": "d36e047917a233254bf35e53e9725b573a39403187a6630d7a5c571d65143dcb"
+    }
+  ],
+  "maximum_model_pin_regressions": [
+    {
+      "configuration": "Debug",
+      "checks": 250,
+      "v3_max_actual": 30592,
+      "v4_max_actual": 31840,
+      "log": "v4-backing-max-Debug.log",
+      "sha256": "042fd496904588673c4726b27ebb68927dc9c921071c35fd1e31721ad000ba5f"
+    },
+    {
+      "configuration": "Release",
+      "checks": 250,
+      "v3_max_actual": 30592,
+      "v4_max_actual": 31840,
+      "log": "v4-backing-max-Release.log",
+      "sha256": "f23d67c7f28a900c5d3f5967b49a8cefdf6e10744338e31f4f5196fc65ba4575"
+    }
+  ],
+  "historical_native_cases": 16,
+  "native_cases_sha256": "dce1b83ebebcaac3ced3029920fb0e21b226fe61dcb3bb96fb2c86d4f6d01f13",
+  "initial_warning": "C4459 local pin p3 shadowed fixture buffer; test-only rename, no warning suppression",
+  "incremental_failure": "three historical tests used stale ABI objects; ninja -t deps reported #deps0; exact same functional sources passed after clean-first",
+  "build_policy": "clean-first required for layout-header changes until existing include dependency tracking is separately fixed",
+  "network": false,
+  "key_validation": "NOT_QUALIFIED; synthetic key adapter in DATA tests"
+}

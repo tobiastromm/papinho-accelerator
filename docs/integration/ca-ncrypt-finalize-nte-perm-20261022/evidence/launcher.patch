@@ -1,0 +1,102 @@
+--- /dev/null
++++ tools/qualification/ca-finalize-readonly-uac.ps1
+@@ -0,0 +1,99 @@
++#requires -Version 5.1
++[CmdletBinding()]
++param([ValidateSet('Check','Launch','Elevated')][string]$Mode='Check',
++ [ValidatePattern('^$|^[0-9a-f]{64}$')][string]$ExpectedScriptSha256='')
++Set-StrictMode -Version Latest
++$ErrorActionPreference='Stop'
++$Root='C:\Projetos\PapinhoAccelerator'
++$ScriptPath=$Root+'\tools\qualification\ca-finalize-readonly-uac.ps1'
++$Exe=$Root+'\build\ca-finalize-readonly-diagnosis-20261022\readonly_diagnostic.exe'
++$ExeHash='8cf1e4a6057033594bc761e115b0e8d27344f1ac5f3814a337eb609d325c401b'
++$ExpectedSid='S-1-5-21-785699550-1440458426-1682014700-1108'
++$Authority='cb87632463bb48dd8a34fa8ea6f3911b'
++$Generation='030fa34dd44f41e8b143b9da09532cf2'
++$KeyName='PapinhoAccelerator.CA.cb87632463bb48dd8a34fa8ea6f3911b.030fa34dd44f41e8b143b9da09532cf2'
++$ServiceSid='S-1-5-19' # Exact previous LAB exclusion only, not product service.
++$PowerShellExe='C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
++$ReceiptRoot=$Root+'\docs\integration\ca-ncrypt-finalize-nte-perm-20261022\manual-results'
++function Assert-Plain([string]$Path) {
++ if(-not [IO.Path]::IsPathRooted($Path) -or [IO.Path]::GetFullPath($Path) -cne $Path){throw 'NONCANONICAL_PATH'}
++ $p=$Path
++ while($p){if(([IO.File]::GetAttributes($p) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'REPARSE_PATH'};$p=[IO.Path]::GetDirectoryName($p)}
++}
++function Stream-Hash([IO.Stream]$Stream) {
++ $Stream.Position=0;$sha=[Security.Cryptography.SHA256]::Create()
++ try {return ([BitConverter]::ToString($sha.ComputeHash($Stream))).Replace('-','').ToLowerInvariant()}
++ finally {$sha.Dispose();$Stream.Position=0}
++}
++function Open-Pinned([string]$Path,[string]$Hash) {
++ Assert-Plain $Path
++ $s=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
++ try {if((Stream-Hash $s) -cne $Hash){throw 'PIN_MISMATCH'};return $s} catch {$s.Dispose();throw}
++}
++Add-Type -TypeDefinition @"
++using System;
++using System.Runtime.InteropServices;
++public static class PaccCaReadonlyNative {
++ [DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int n);
++ [DllImport("kernel32.dll",SetLastError=true)] public static extern bool GetConsoleMode(IntPtr h,out uint mode);
++ [DllImport("advapi32.dll",SetLastError=true)] public static extern bool GetTokenInformation(IntPtr h,int cls,out int value,int size,out int returned);
++}
++"@
++function Observe-Operator {
++ $id=[Security.Principal.WindowsIdentity]::GetCurrent()
++ try {
++  $thread=[Security.Principal.WindowsIdentity]::GetCurrent($true);$impersonating=$null -ne $thread
++  if($impersonating){$thread.Dispose()}
++  $e=0;$t=0;$n=0;$im=0;$om=0
++  $eq=[PaccCaReadonlyNative]::GetTokenInformation($id.Token,20,[ref]$e,4,[ref]$n)
++  $tq=[PaccCaReadonlyNative]::GetTokenInformation($id.Token,18,[ref]$t,4,[ref]$n)
++  $admin=([Security.Principal.WindowsPrincipal]::new($id)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
++  $console=[PaccCaReadonlyNative]::GetConsoleMode([PaccCaReadonlyNative]::GetStdHandle(-10),[ref]$im) -and [PaccCaReadonlyNative]::GetConsoleMode([PaccCaReadonlyNative]::GetStdHandle(-11),[ref]$om)
++  return [pscustomobject]@{sid=$id.User.Value;elevated=($eq -and $e -eq 1);elevation_type=$t;query_ok=($eq -and $tq);administrators_enabled=$admin;impersonating=$impersonating;console=$console}
++ } finally {$id.Dispose()}
++}
++$scriptStream=$null;$exeStream=$null;$pause=$false;$result=2
++try {
++ if($PSCommandPath -cne $ScriptPath){throw 'SCRIPT_PATH_MISMATCH'}
++ Assert-Plain $ScriptPath
++ $scriptStream=[IO.File]::Open($ScriptPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
++ $selfHash=Stream-Hash $scriptStream
++ if($Mode -eq 'Elevated' -and ($ExpectedScriptSha256 -eq '' -or $selfHash -cne $ExpectedScriptSha256)){throw 'SCRIPT_PIN_MISMATCH'}
++ $exeStream=Open-Pinned $Exe $ExeHash
++ $operator=Observe-Operator
++ if($Mode -eq 'Check') {
++  $operator | ConvertTo-Json
++  Write-Output 'CHECK_ONLY; KEY_QUERY=NOT_RUN; KEY_CREATION=NOT_AVAILABLE; CURRENT=DENY'
++  $result=0
++ } elseif($Mode -eq 'Launch') {
++  if(-not $operator.console){throw 'NO_INTERACTIVE_CONSOLE'}
++  # MANUAL invocation only. Native UAC prompts directly; no credentials here.
++  $arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$ScriptPath+'" -Mode Elevated -ExpectedScriptSha256 '+$selfHash
++  try {$child=Start-Process -FilePath $PowerShellExe -Verb RunAs -ArgumentList $arguments -WorkingDirectory $Root -WindowStyle Normal -Wait -PassThru}
++  catch {throw 'UAC_CANCELLED_OR_LAUNCH_FAILED_DENY'}
++  Write-Output ('UAC_READONLY_EXIT='+$child.ExitCode);$result=$child.ExitCode
++ } else {
++  $pause=$operator.console
++  if(-not $operator.query_ok -or -not $operator.elevated -or $operator.elevation_type -eq 3 -or -not $operator.administrators_enabled -or $operator.impersonating -or -not $operator.console -or $operator.sid -cne $ExpectedSid){throw 'ELEVATED_OPERATOR_OR_CONSOLE_DENY'}
++  Write-Output ('READ-ONLY exact previous LAB object; operator='+$operator.sid)
++  $lines=@(& $Exe '--observe-existing' $Authority $Generation $KeyName $ExpectedSid $ServiceSid 2>&1 | ForEach-Object {$_.ToString()})
++  $code=$LASTEXITCODE
++  $lines | ForEach-Object {Write-Output $_}
++  $disposition='UNKNOWN'
++  if(@($lines | Where-Object {$_ -match '^status=0x00000000;' -or $_ -match '^first_snapshot_state=.*key_owned=1;'}).Count -gt 0){$disposition='PRESENT'}
++  # BAD_KEYSET is NOT automatically global absence or permission to recreate.
++  Assert-Plain $ReceiptRoot
++  $receipt=[ordered]@{purpose='READ_ONLY_PREVIOUS_LAB_RECONCILIATION';operator=$operator;binary_sha256=$ExeHash;script_sha256=$selfHash;provider='Microsoft Software Key Storage Provider';scope='MACHINE';key_name=$KeyName;exit_code=$code;disposition=$disposition;output=$lines;key_creation='NOT_RUN';key_deletion='NOT_RUN';current='DENY';ed11='PARTIAL';utc_annotation=[DateTime]::UtcNow.ToString('o')}
++  $file=Join-Path $ReceiptRoot (([Guid]::NewGuid().ToString('N'))+'.json')
++  $stream=[IO.File]::Open($file,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
++  try {$writer=[IO.StreamWriter]::new($stream,[Text.UTF8Encoding]::new($false));try {$writer.Write(($receipt | ConvertTo-Json -Depth 6));$writer.Flush()} finally {$writer.Dispose()}} finally {$stream.Dispose()}
++  Write-Output ('RECEIPT='+$file+'; DISPOSITION='+$disposition+'; NO_NEW_KEY_OR_RETRY_AUTHORIZED')
++  $result=0 # Query/receipt completed only; never custody or absence PASS.
++ }
++} catch {Write-Output ('DENY: '+$_.Exception.Message);$result=2}
++finally {if($exeStream){$exeStream.Dispose()};if($scriptStream){$scriptStream.Dispose()}}
++if($pause){
++ Write-Output 'Resultado preservado. Pressione F10 para fechar. Nenhuma nova chave foi criada.'
++ try {while([Console]::ReadKey($true).Key -ne [ConsoleKey]::F10){}} catch {Write-Output 'RESULT_WINDOW_INPUT_UNAVAILABLE';$result=2}
++}
++exit $result

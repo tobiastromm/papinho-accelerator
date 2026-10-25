@@ -1,0 +1,281 @@
+--- docs/integration/authenticated-time-at0-at9-review-20261021/AT0-AT9-REVISION2-PROPOSED.md
++++ docs/integration/roughtime-exact-profile-completion-20261021/AT0-AT9-REVISION3-PROPOSED.md
+@@ -1,79 +1,85 @@
+----
+-status: proposed
+-revision: 2
+-decision-date: 2026-10-21
+-scope-level: project
+-scope-target: authenticated time source under Q0-Q7
+-supersedes: []
+----
+-# Candidate: authenticated UTC observations through the existing issuer backend
+-
+-TASK=PACC-PHASE6-AUTHENTICATED-TIME-AT0-AT9-REVIEW-1. AT0-AT9 is PROPOSED for owner review,not ACCEPTED or an implementation authorization. Q0-Q7,issuer,U0-U7,E0-E8,root/C8,Model E and ED08/ED11 remain unchanged. No concrete protocol/API/codec/source is selected. Relevant official protocol sections were reviewed as documented in verified-references.json. Documentary HTTPS research is distinct from operational time traffic. Full concrete-profile/implementation/errata qualification remains a gate;no source is qualified by this review.
+-
+-## AT0 Direction
+-
+-Evidence refinement: prioritize R1 in protocol-matrix.md for the next protocol-profile review. No provider is selected. Preserve the complete referenced security model;do not silently reduce the assurance model to one signer or claim a measured footprint advantage.
+-
+-Prefer investigating B: an EXISTING protocol for fresh signed UTC interval evidence,acquired on demand from an explicitly trusted deployment source and verified through the administrative issuer backend. This is a candidate for the smallest conceptual integration,not measured proof of smallest code/memory cost. Do not invent a signed JSON/blob/protocol. NTS remains alternative A if its deployed backend offers better evidence or reuse;qualified existing local hardware may be preferable where already present. No new server/service is authorized.
+-
+-## AT1 One authority
+-
+-The same root/policy must govern source identity,verification credentials,time-observation purpose,configuration revision,validity,status and invalidation. An external source is a declared trust dependency,not another administrative root/issuer inside Accelerator. Issuer/package signer/CA is not automatically time authority. No trust store,registry,journal,worker or global time manager. A key/endpoint from a reply cannot enroll itself;PDG/decoded data/digests/booleans are not authority.
+-
+-No canonical time-source credential/configuration model has been demonstrated in current code. Map existing accepted fields before writing a binding. If insufficient,propose a minimal versioned root/layout extension for separate acceptance;do not add fields/reserved bytes to PACROOT8/v3,PDG1,CP3 or historical formats by inference. This candidate instantiates no source-key entry or new purpose enum.
+-
+-## AT2 Independent bootstrap
+-
+-The source key must be independently bound to the same administrative root/policy before any positive observation. Source credential replacement or withdrawal requires a governed configuration revision,not reply-driven enrollment. No protocol delegation or claimed time by itself proves current administrative trust/revocation status. Unknown/compromised source status denies;offline operation cannot silently waive status freshness. No general trust store is introduced.
+-
+-Establish source verification identity through an approved administrative ceremony and protected canonical configuration,independent of the observation under validation. Never use the response key or TLS certificate as its sole anchor. Do not bypass certificate dates using unqualified OS time. A source credential/status path requiring qualified UTC needs independently justified bootstrap;it cannot establish its authority solely by its own observation. Bare-key or other trust modes need exact protocol/trust review;none is implicitly authorized. Existing bootstrap/CURRENT/recovery guards remain distinct and currently block operational installation where facts are absent.
+-
+-## AT3 Freshness/replay
+-
+-Treat an acquisition campaign as distinct from an individual packet. Preserve every request/response and causal correlation required by the selected protocol until verification/quiescence;serial transport alone does not prove that earlier evidence storage can be reused. Signed-data freshness and freshness of the underlying time reading are separate obligations. Use the selected existing protocol rules rather than inventing a new challenge envelope.
+-
+-A concrete existing-protocol profile must authenticate complete response semantics,source identity and request correlation. Require a fresh unpredictable challenge from qualified entropy,one outstanding operation association,strict matching and governed single consumption. Exact challenge representation/length,generation,algorithms,signed fields,limits and replay rules come from separate profile review;no defaults here. Signing a nonce alone does not prove UTC was freshly sampled:causal capture semantics must be established by protocol and source qualification.
+-
+-Old signed evidence is auditable DATA,not current time. Offline imported tokens without proved freshness/bounded age are denied. Restart/VM restore/clone/entropy reuse need replay/fencing analysis;no new journal or restored observation authority.
+-
+-## AT4 Absolute bounds
+-
+-The acquisition example below is a conditional inclusion proof,not a claim that cryptography establishes clock correctness. Prove the source reading time is inside the locally bracketed interval;cover quantization,scale conversion and verification delay without underflow/overflow. Distinguish native protocol interval endpoint rules from issuer/X509 [notBefore,notAfter) rules. Missing source calibration/health,qualified PAL or endpoint conversion invalidates the proof.
+-
+-Qualify finite UTC error,scale,units,quantization,health and applicability,not merely cryptography. A signed error is an authenticated assertion;accuracy still requires deployment qualification. Define conservative exact conversion for era,leap/smear and native representation. Ambiguity/overflow denies;no silent scale conversion,grace or backdating.
+-
+-Conceptual acquisition example,NOT a new Q3 formula:if a trusted source bounds UTC at a causally proved generation instant by [Ls,Us],that instant is between local m0/m1,and qualified PAL gives maximum elapsed du for the ENTIRE acquisition interval,a conservative interval at m1 is [Ls,Us+du],with checked arithmetic. Include verification latency to m1. Never use half RTT or assume symmetric paths. Missing causality/source error/PAL bounds means no observation. Delay widens the interval and may deny effects. Exact wire-to-Q1 derivation remains a concrete-profile gate.
+-
+-## AT5 PAL/offline
+-
+-Keep rho in direction real UTC/PAL and additive E including d=0. Network authentication does not qualify the local oscillator/read error. Obtain finite target-specific rho,E and exclusive D with applicability evidence;no guessed values/holdover duration. Core remains portable without Win32/CNG. Every target needs equivalent evidence.
+-
+-No continuous internet requirement:approved LAN/local or periodically reachable sources are possible. Q0-Q7 still permit only SAME boundary/operation propagation after acquisition. This is not a reusable process clock/cache:new authorizing boundaries require fresh observations. Same-operation offline completion within qualified lifetime may be possible;indefinite offline approval/new operations without fresh evidence/post-restart authority are denied. No favorable averaging or automatic source failover after inconsistency.
+-
+-## AT6 Continuity/rollback
+-
+-A valid delegation interval is not evidence that its private key was never compromised. Independent key status/rotation/withdrawal and source trust revisions remain required. Disagreement handling cannot be replaced by picking a favorable response or assumed majority accuracy. Root freshness,fencing and source replay history remain distinct;no state restoration through signed archives.
+-
+-Use existing owner history and qualified continuity events. Manual wall-clock changes do not replace source time. Monotonic/native UTC regression,inconsistent intervals,source/key/config/revision change,expired quality,suspension/resume without continuity proof and UNKNOWN invalidate. Require requalification/new operation,no retry until favorable. Restart restores neither observation,CURRENT,UPDATE approval nor high-water/fencing. Signed history/hardware counters do not establish latest root revision.
+-
+-## AT7 Ownership/Stop
+-
+-Acquire/verify under the existing administrative backend/owner before E0. Reuse existing scheduling/transactions only with factual completion,ownership and reservation;no new worker is required/authorized. E0 acquire never performs network/device I/O. Protect credentials,request/response,verification/qualification contexts and root pins throughout lifetime. Root pins do not protect external buffers by inference.
+-
+-Stop prevents effects without blocking for cancellation. In-flight/uncertain work remains reachable/charged until factual completion,quiescence and close;timeout invalidates applicability,not ownership. Preserve RELEASE_INVALID,exactly-once and no fallback. UTC alone never authorizes issuer status,UPDATE,signature,CURRENT,TRUST/M1 or admission.
+-
+-## AT8 Profile/ED11 gates
+-
+-Review record R1-R7 distinguishes verified protocol evidence from project requirements. Exact parser/profile validation,full primary-text byte archive and complete errata/update review are still prerequisites to implementation acceptance. Count all campaign transcripts and status/rotation evidence,including retained intermediates;no resource limit is inferred from a small base message.
+-
+-Before implementation:local primary specification and exact version/errata;existing protocol/provider selection;algorithms,trust bootstrap,challenge/entropy/replay,authenticated domain,endpoint/transport policy,encoding/limits/errors/deadlines;qualified error/PAL;root binding/layout if needed;C89/VC6/platform/lifetime proof;full transitive ED11. None is accepted by this candidate.
+-
+-Count transport/TLS or signature state,credentials/keys,entropy,proofs/transcripts,cookies where applicable,parsers,request/response,history,snapshots/pins,stack/provider/kernel and retention. Reuse is not zero cost. Windows3MiB only explicit,legacy/other/per-client limits intact. Full conservative scenario already exceeds3MiB. No allocation/quota authorized;relative A/B/C costs remain unmeasured.
+-
+-## AT9 Owner decision
+-
+-Revision2 is a separate proposed artifact with exact corrections.patch against the preserved Revision1. It is not incorporated into any accepted ADR. Documentary references refine the recommendation,not operational authority. Candidate-profile questions are listed in protocol-profile-PROPOSED.md;all unresolved mandatory items keep NOT_SUPPORTED.
+-
+-Request architecture direction,preferably B subject to the above gates,or A/C with equivalent evidence. Later acceptance must follow governance and cannot be treated as profile/source/implementation qualification. No new wire,source configuration,root layout,clock adjustment,sync service or production effect. Missing evidence returns NOT_SUPPORTED. All current authority/admission gates remain DENY.
+-
+-[Protocol matrix](protocol-matrix.md) and [review/plan](review-bootstrap-and-plan.md) are review evidence,not accepted protocol contracts.
++---
++status: proposed
++revision: 3
++decision-date: 2026-10-21
++scope-level: project
++scope-target: authenticated time source under Q0-Q7
++supersedes: []
++---
++# Candidate: authenticated UTC observations through the existing issuer backend
++
++TASK=PACC-PHASE6-AUTHENTICATED-TIME-AT0-AT9-REVIEW-1. AT0-AT9 is PROPOSED for owner review,not ACCEPTED or an implementation authorization. Q0-Q7,issuer,U0-U7,E0-E8,root/C8,Model E and ED08/ED11 remain unchanged. The companion PT Revision2 proposes RFC 10049 version 1 and bounded UDP acquisition; no supplier, API or codec implementation is selected. Relevant official protocol sections were reviewed as documented in verified-references.json. Documentary HTTPS research is distinct from operational time traffic. Full concrete-profile/implementation/errata qualification remains a gate;no source is qualified by this review.
++
++## AT0 Direction
++
++Evidence refinement: prioritize R1 in protocol-matrix.md for the next protocol-profile review. No provider is selected. Preserve the complete referenced security model;do not silently reduce the assurance model to one signer or claim a measured footprint advantage.
++
++Prefer investigating B: an EXISTING protocol for fresh signed UTC interval evidence,acquired on demand from an explicitly trusted deployment source and verified through the administrative issuer backend. This is a candidate for the smallest conceptual integration,not measured proof of smallest code/memory cost. Do not invent a signed JSON/blob/protocol. NTS remains alternative A if its deployed backend offers better evidence or reuse;qualified existing local hardware may be preferable where already present. No new server/service is authorized.
++
++## AT1 One authority
++
++The same root/policy must govern source identity,verification credentials,time-observation purpose,configuration revision,validity,status and invalidation. An external source is a declared trust dependency,not another administrative root/issuer inside Accelerator. Issuer/package signer/CA is not automatically time authority. No trust store,registry,journal,worker or global time manager. A key/endpoint from a reply cannot enroll itself;PDG/decoded data/digests/booleans are not authority.
++
++No canonical time-source credential/configuration model has been demonstrated in current code. Map existing accepted fields before writing a binding. If insufficient,propose a minimal versioned root/layout extension for separate acceptance;do not add fields/reserved bytes to PACROOT8/v3,PDG1,CP3 or historical formats by inference. This candidate instantiates no source-key entry or new purpose enum.
++
++## AT2 Independent bootstrap: exact proposed bare-key boundary
++
++Use only an explicitly authorized long-term Ed25519 public key, exactly 32 raw bytes, bound to source identity, time-observation purpose, protocol profile revision and administrative status by the existing canonical root/policy. The initial key and its expected fingerprint must arrive in a separately authenticated administrative ceremony; compare SHA-256 over those exact 32 bytes with the independently authenticated expected value before proposing installation. A matching digest identifies bytes but is not authorization. Operator identity, authority for this configuration change, source independence, evidence origin and protected root revision must also be proved by existing administrative mechanisms. A discovered list, endpoint name, response CERT, OS clock or package signer cannot supply that authorization.
++
++No prior UTC is needed for mathematical verification of the pinned bare key or its protocol delegation: perform RFC 10049 validation against the authenticated response timestamp, separately from administrative source status. This avoids using an unqualified local civil clock to validate X.509 dates. It does not prove actual UTC, absence of compromise, administrative freshness or source correctness. The first observation additionally requires a protected, currently applicable administrative trust/status decision whose authority does not depend solely on that observation. If its expiry/status needs qualified UTC, obtain independently qualified evidence; otherwise DENY. There is no date bypass, timeless positive status or self-qualification.
++
++The RFC's temporary delegation is accepted only under the authorized long-term pin and exact protocol checks; it never enrolls another long-term key or delegates issuer privileges. Long-term rotation, replacement, withdrawal or compromise requires a separately authorized canonical revision. No automatic key overlap or old-key fallback is allowed: invalidate all operations using the changed profile before activating a replacement. Unknown or revoked status, missing independent revocation evidence or suspected compromise denies; a valid signature cannot clear that state. Requalification of source correctness and status is required before a new operation.
++
++Protect the entire trust revision and external evidence with their existing owners and the applicable canonical CURRENT/pin. Revalidate identity, purpose, status, revision and operation before acquisition and immediately before effect. A historical pin protects memory, not latest-revision authority. Stop prevents effects without releasing in-flight evidence. Retain changed/withdrawn revisions while any borrow or uncertain operation exists; release only at factual quiescence. Restart/restore never restores an observation, CURRENT, approval or a positive trust/status result; fresh governed revalidation is mandatory.
++
++This defines the proposed trust contract, not an implemented source. No current canonical source-key/status representation has been proved. Map existing accepted fields first; if insufficient, a separately accepted minimal versioned layout is required before persistence. Do not modify PACROOT8/v3, PDG1, CP3, reserved bytes or historical codecs here. Missing administrative source or CURRENT remains DENY, not a reason to invent one.
++
++## AT3 Freshness/replay
++
++Treat an acquisition campaign as distinct from an individual packet. Preserve every request/response and causal correlation required by the selected protocol until verification/quiescence;serial transport alone does not prove that earlier evidence storage can be reused. Signed-data freshness and freshness of the underlying time reading are separate obligations. Use the selected existing protocol rules rather than inventing a new challenge envelope.
++
++A concrete existing-protocol profile must authenticate complete response semantics,source identity and request correlation. Require a fresh unpredictable challenge from qualified entropy,one outstanding operation association,strict matching and governed single consumption. Exact challenge, wire validation, limits and replay rules are proposed in companion PT Revision2; no fallback defaults are authorized. Signing a nonce alone does not prove UTC was freshly sampled:causal capture semantics must be established by protocol and source qualification.
++
++Old signed evidence is auditable DATA,not current time. Offline imported tokens without proved freshness/bounded age are denied. Restart/VM restore/clone/entropy reuse need replay/fencing analysis;no new journal or restored observation authority.
++
++## AT4 Absolute bounds
++
++The acquisition example below is a conditional inclusion proof,not a claim that cryptography establishes clock correctness. Prove the source reading time is inside the locally bracketed interval;cover quantization,scale conversion and verification delay without underflow/overflow. Distinguish native protocol interval endpoint rules from issuer/X509 [notBefore,notAfter) rules. Missing source calibration/health,qualified PAL or endpoint conversion invalidates the proof.
++
++Qualify finite UTC error,scale,units,quantization,health and applicability,not merely cryptography. A signed error is an authenticated assertion;accuracy still requires deployment qualification. Define conservative exact conversion for era,leap/smear and native representation. Ambiguity/overflow denies;no silent scale conversion,grace or backdating.
++
++Conceptual acquisition example,NOT a new Q3 formula:if a trusted source bounds UTC at a causally proved generation instant by [Ls,Us],that instant is between local m0/m1,and qualified PAL gives maximum elapsed du for the ENTIRE acquisition interval,a conservative interval at m1 is [Ls,Us+du],with checked arithmetic. Include verification latency to m1. Never use half RTT or assume symmetric paths. Missing causality/source error/PAL bounds means no observation. Delay widens the interval and may deny effects. The exact conditional wire-to-Q1 derivation is proposed in companion PT3 Revision2; factual premises remain mandatory.
++
++## AT5 PAL/offline
++
++Keep rho in direction real UTC/PAL and additive E including d=0. Network authentication does not qualify the local oscillator/read error. Obtain finite target-specific rho,E and exclusive D with applicability evidence;no guessed values/holdover duration. Core remains portable without Win32/CNG. Every target needs equivalent evidence.
++
++No continuous internet requirement:approved LAN/local or periodically reachable sources are possible. Q0-Q7 still permit only SAME boundary/operation propagation after acquisition. This is not a reusable process clock/cache:new authorizing boundaries require fresh observations. Same-operation offline completion within qualified lifetime may be possible;indefinite offline approval/new operations without fresh evidence/post-restart authority are denied. No favorable averaging or automatic source failover after inconsistency.
++
++## AT6 Continuity/rollback
++
++A valid delegation interval is not evidence that its private key was never compromised. Independent key status/rotation/withdrawal and source trust revisions remain required. Disagreement handling cannot be replaced by picking a favorable response or assumed majority accuracy. Root freshness,fencing and source replay history remain distinct;no state restoration through signed archives.
++
++Use existing owner history and qualified continuity events. Manual wall-clock changes do not replace source time. Monotonic/native UTC regression,inconsistent intervals,source/key/config/revision change,expired quality,suspension/resume without continuity proof and UNKNOWN invalidate. Require requalification/new operation,no retry until favorable. Restart restores neither observation,CURRENT,UPDATE approval nor high-water/fencing. Signed history/hardware counters do not establish latest root revision.
++
++## AT7 Ownership/Stop
++
++Acquire/verify under the existing administrative backend/owner before E0. Reuse existing scheduling/transactions only with factual completion,ownership and reservation;no new worker is required/authorized. E0 acquire never performs network/device I/O. Protect credentials,request/response,verification/qualification contexts and root pins throughout lifetime. Root pins do not protect external buffers by inference.
++
++Stop prevents effects without blocking for cancellation. In-flight/uncertain work remains reachable/charged until factual completion,quiescence and close;timeout invalidates applicability,not ownership. Preserve RELEASE_INVALID,exactly-once and no fallback. UTC alone never authorizes issuer status,UPDATE,signature,CURRENT,TRUST/M1 or admission.
++
++## AT8 Profile/ED11 gates
++
++Review record R1-R7 distinguishes verified protocol evidence from project requirements. Exact parser/profile validation,full primary-text byte archive and complete errata/update review are still prerequisites to implementation acceptance. Count all campaign transcripts and status/rotation evidence,including retained intermediates;no resource limit is inferred from a small base message.
++
++Before implementation:local primary specification and exact version/errata;existing protocol/provider selection;algorithms,trust bootstrap,challenge/entropy/replay,authenticated domain,endpoint/transport policy,encoding/limits/errors/deadlines;qualified error/PAL;root binding/layout if needed;C89/VC6/platform/lifetime proof;full transitive ED11. None is accepted by this candidate.
++
++Count transport/TLS or signature state,credentials/keys,entropy,proofs/transcripts,cookies where applicable,parsers,request/response,history,snapshots/pins,stack/provider/kernel and retention. Reuse is not zero cost. Windows3MiB only explicit,legacy/other/per-client limits intact. Full conservative scenario already exceeds3MiB. No allocation/quota authorized;relative A/B/C costs remain unmeasured.
++
++## AT9 Owner decision
++
++Revision3 is a separate proposed artifact with the exact normative correction patch against preserved Revision2; the companion PT Revision2 supplies the bounded profile. It is not incorporated into any accepted ADR. Documentary references refine the recommendation,not operational authority. Candidate-profile terms are supplied by companion PT Revision2; missing factual qualification keeps NOT_SUPPORTED.
++
++Request architecture direction,preferably B subject to the above gates,or A/C with equivalent evidence. Later acceptance must follow governance and cannot be treated as profile/source/implementation qualification. No new wire,source configuration,root layout,clock adjustment,sync service or production effect. Missing evidence returns NOT_SUPPORTED. All current authority/admission gates remain DENY.
++
++[Protocol matrix](../authenticated-time-at0-at9-review-20261021/protocol-matrix.md) and [review/plan](../authenticated-time-at0-at9-review-20261021/review-bootstrap-and-plan.md) are review evidence,not accepted protocol contracts.
+
+--- docs/integration/authenticated-time-at0-at9-review-20261021/protocol-profile-PROPOSED.md
++++ docs/integration/roughtime-exact-profile-completion-20261021/PT0-PT7-REVISION2-PROPOSED.md
+@@ -1,42 +1,68 @@
+----
+-status: proposed
+-revision: 1
+-scope: candidate existing-protocol to Q0-Q7 verification boundary
+----
+-# PT0-PT7:conditional protocol-source profile
+-
+-This focal proposal accompanies AT0-AT9 Revision2. No field/API/wire/algorithm/layout is accepted or implemented. R1 denotes the official reference in protocol-matrix.md;that record is the sole concise protocol-fact summary. Prioritize its study as the owner-preferred B candidate,not operational selection. No vendor,key or endpoint is assigned.
+-
+-## PT0 Reference and assurance
+-
+-Any future R1 profile must use the exact published wire/version and full validation/acquisition/security model identified by the official specification,not a draft layout,custom envelope or silent reduced-assurance mode. Resolve normative updates/errata and all implementation limits before acceptance. If the deployment cannot provide the required source model,return NOT_SUPPORTED;do not claim its security properties for a smaller campaign. R3 remains an independently reviewed alternative;no combined synchronizer is proposed.
+-
+-## PT1 Canonical trust
+-
+-Preestablish source verification identity,purpose and configuration/status revision through the one administrative root/policy. First-contact trust must not come solely from the reply,discovered server list,system clock or package signer. Long-term trust bootstrap,rotation,withdrawal and compromised-key response require protected administrative evidence independent of the observation under validation. Unknown status denies;offline revocation freshness cannot be fabricated. Do not convert protocol-local delegation to issuer grants. No new trust store/CA/registry. If current root fields cannot express the binding,accept a minimal separate layout contract before persistence.
+-
+-## PT2 Operation and evidence
+-
+-Bind the whole acquisition campaign to the same existing owner,source profile,root CURRENT/pin,process/invocation,boundary,candidate/predecessor and entropy provenance. Match the existing protocol's complete request correlation and authenticated proof. Preserve all evidence required by that model;one packet is not the whole campaign. Do not use nonce freshness alone as reading freshness. New operation/restart/clone cannot reuse prior positive evidence or entropy state. No new worker,producer or journal.
+-
+-## PT3 Q1 construction
+-
+-Validate protocol bytes first,then independent source trust/status and semantic/time/quality facts. Only with a qualified source interval at a proved causal reading instant and qualified PAL bracket may the conditional receipt-interval proof in review-bootstrap-and-plan.md construct [L,U] at m1. Include source resolution/quantization,conversion and entire acquisition/verification delay. Do not treat a signed accuracy assertion as calibration proof. Preserve endpoint semantics and project validity intervals separately. Unknown error/scale/era/leap handling,underflow or overflow denies;no saturation or free tolerance.
+-
+-## PT4 Q2/Q3 use
+-
+-Require actual target/backend/source provenance,quality and finite rho,E,D. Keep rho in real UTC/PAL direction and E including d=0. Missing PAL guarantees cannot be replaced by protocol assertions about a remote oscillator. D is exclusive,monotonic and derived from qualified applicability,not a caller TTL;its derivation must not mix civil and monotonic units. Revalidate m1<=m<D,source status,profile,CURRENT,pins and operation immediately before effect. New authorizing boundary requires fresh acquisition. No indefinite offline clock/cache.
+-
+-## PT5 Continuity/status
+-
+-Manual steps,source/configuration/key/revision changes,regression,inconsistent intervals,unknown health and unproved suspension continuity invalidate the operation. Define measurable event coverage in the native adapter;generic successful reads are insufficient. No favorable source selection or automatic fallback. Fresh measurements never prove root latest revision/issuer uniqueness. Restart/archive integrity does not restore authority or bypass U6/fencing.
+-
+-## PT6 Lifetime/ED11
+-
+-Acquisition and crypto belong under existing administrative ownership before E0 exposure. Protect external buffers/keys/status references by their owners,not root pins alone. Stop prevents effects without waiting for I/O/crypto;uncertain completion retains graph/credits until factual quiescence/closure. Timeout invalidates applicability,not ownership. Keep E0 acquire synchronous borrow-only and RELEASE_INVALID without attempt/effect.
+-
+-Compile/probe full memory before hunks:source credential revisions,all campaign buffers/transcripts,crypto/transport/status,history,candidate/predecessor,pins,snapshots,stack/native/provider and retentions. No new quota or default Windows3MiB selection. Missing bounds or excess capacity stop dependent integration.
+-
+-## PT7 Acceptance gates
+-
+-Still UNSET/unqualified:actual source/key/status/bootstrap representation;exact transport/version/backend profile;source calibration/health/fault model;max reply/proof sizes,campaign storage/concurrency,deadlines/backoff/age/uncertainty policy;PAL rho/E/continuity;primitive availability/C89/VC6 compatibility;full operational ED11. These are mandatory named gaps,not permissive defaults. Filling them requires separate owner/normative review and exact functional patch approval. Native tests/network authorization are separate. UTC_SOURCE=NOT_QUALIFIED;all issuer/UPDATE/CURRENT/signature/recovery/TRUST/admission gates stay DENY.
++---
++status: proposed
++revision: 2
++scope: candidate existing-protocol to Q0-Q7 verification boundary
++---
++# PT0-PT7:conditional protocol-source profile
++
++This focal proposal accompanies AT0-AT9 Revision3. No field/API/wire/algorithm/layout is accepted or implemented. R1 is RFC 10049, pinned by rfc10049-reference.json in this review; the exact profile clauses below govern this proposed revision. Prioritize its study as the owner-preferred B candidate,not operational selection. No vendor,key or endpoint is assigned.
++
++## PT0 Exact reference, acquisition and byte limits
++
++Proposed profile RT1-UDP-2048 uses only RFC 10049 as published October 2026, Roughtime version 1. Its official text is pinned by rfc10049-reference.json. Incorporate the RFC's complete encoding, signature, delegation, request correlation, validation, grease and security rules by reference; no project wire fields, custom errors or experimental versions. Only version 1 is advertised/accepted. Unknown tags are handled by the RFC, not treated as extensions with authority. A normative erratum/update changing interpretation requires explicit profile revision before implementation; do not silently apply or ignore it. Errata disposition must be verified at the acceptance review.
++
++Configure exactly three sources operated by three distinct administrative parties. No vendor is selected. Source independence and at least one correct, calibrated source throughout the campaign must be independently qualified; signatures do not prove this premise. Perform exactly six sequential successful exchanges, source order A,B,C,A,B,C. Select the initial order using qualified entropy; chain fresh nonces exactly under RFC 10049 section 8.2. All six replies and causal-order checks are mandatory. Do not substitute another source or retry a failed exchange in this campaign. At most one campaign, one outstanding request and one transport operation exist per process, including retained/uncertain work. An occupied retention slot blocks a new campaign.
++
++Local admission limits, counted in octets including the RFC outer header: every outgoing request is exactly 2048 bytes; every incoming response is at most 2048 bytes and at most its corresponding request size. Use the RFC padding tag to reach the exact request size; no private framing/padding. This cap accepts only the representable subset of valid RFC replies; an oversized valid reply is unsupported locally, never truncated and parsed as complete. UDP path delivery/fragmentation is not assumed. Failure on the deployed path denies; TCP fallback is not enabled in this profile.
++
++Parser limits per datagram: four parsed maps (outer response, SREP, CERT, DELE), maximum map nesting depth three counting outer as one; at most 32 entries per map, 128 total entries; unknown values remain opaque bounded slices, never recursively parsed. Requests contain the RFC mandatory fields plus SRV and padding; responses require all RFC mandatory fields and exact fixed-field sizes. Enforce RFC offsets, alignment, sorted/unique tags, bounds and complete consumption before semantics; no trailing datagram bytes outside the declared packet, overlap, truncation or arithmetic wrap. Reject unsupported maps/limits rather than reinterpreting them. PATH is at most 32 hash nodes (1024 bytes), further constrained by the packet cap; version lists are bounded by the RFC and only the selected version is usable. No additional wire structures are defined.
++
++Reserve six immutable request slots and six immutable response slots of 2048 bytes each (24576 bytes). Also reserve six 32-byte nonce-chain random values (192 bytes), parser scratch 4096 bytes, hash/Ed25519 scratch budget 16384 bytes, six metadata slots of 256 bytes (1536 bytes), three source/evidence descriptor slots of 512 bytes (1536 bytes), and campaign/control storage 4096 bytes. These are proposed implementation ceilings, not measured sizes or authority-bearing record layouts. Descriptor limits include owned identity bytes but exclude external credential/status graphs, which must be separately charged. Complete C89/backend/stack feasibility must be proved; if any ceiling is insufficient, stop rather than allocate outside the census. See ed11-census.json.
++
++## PT1 Canonical trust
++
++Preestablish source verification identity,purpose and configuration/status revision through the one administrative root/policy. First-contact trust must not come solely from the reply,discovered server list,system clock or package signer. Long-term trust bootstrap,rotation,withdrawal and compromised-key response require protected administrative evidence independent of the observation under validation. Unknown status denies;offline revocation freshness cannot be fabricated. Do not convert protocol-local delegation to issuer grants. No new trust store/CA/registry. If current root fields cannot express the binding,accept a minimal separate layout contract before persistence.
++
++## PT2 Operation and evidence
++
++Bind the whole acquisition campaign to the same existing owner,source profile,root CURRENT/pin,process/invocation,boundary,candidate/predecessor and entropy provenance. Match the existing protocol's complete request correlation and authenticated proof. Preserve all evidence required by that model;one packet is not the whole campaign. Do not use nonce freshness alone as reading freshness. New operation/restart/clone cannot reuse prior positive evidence or entropy state. No new worker,producer or journal.
++
++## PT3 Exact conditional Q1 construction and uncertainty policy
++
++Validate the entire six-exchange campaign, canonical trust/status and RFC causal ordering before constructing any positive observation. Reject detected divergence for the entire operation; retain evidence, invalidate applicability and require explicit source requalification/new governed operation. Do not average, select a favorable server/interval, retry until favorable, or treat apparent majority as clock correctness. No reporting endpoint or automatic source-list updater is authorized by this profile; keep local evidence for the existing administrative review. RFC reporting requirements must be assessed explicitly if such an endpoint is separately configured.
++
++For each reply i, record m0_i before request generation and m1 after final campaign verification. Independently qualified source evidence must bound actual UTC at a proved processing/reading instant g_i between these cuts. Authenticate protocol bounds; source calibration/health must justify them. RADI is not PAL E. Convert native seconds to Q nanoseconds with checked unsigned arithmetic. Outward-enclose the RFC open interval by the closed [Ls_i,Us_i]=[(MIDP_i-RADI_i)*1000000000,(MIDP_i+RADI_i)*1000000000]. Reject negative lower endpoints, overflow, missing calibration, unknown leap/scale interpretation or bounds narrower than qualified source error. No smear assumption or double-counting: any extra source quantization/calibration uncertainty must already be included conservatively or cause rejection; never narrow authenticated bounds.
++
++Let d_i=m1-m0_i. Under qualified Q2 rho/E covering every cut, du_i=ceil(d_i*(rho_den+rho_num)/rho_den)+E. Form [Li,Ui]=[Ls_i,Us_i+du_i]. Use the hull of all six intervals: L=min(Li), U=max(Ui), not their intersection. This preserves inclusion if the qualified source model supplies at least one correct reply; inconsistent causal evidence still denies. All sums/products/conversions checked, no saturation. This is a conditional inclusion proof, not qualification of any deployed server or PAL.
++
++Reject U-L greater than 30000000000 ns (30 seconds) at m1 and again at the effect after Q3 propagation. This is a rejection ceiling, not granted accuracy, clock skew or extra certificate validity. Maximum local observation age at effect is strictly less than 1000000000 PAL ns (one second), in the same operation only. Also require effect before the campaign's total deadline and before every factual source/status/PAL applicability boundary. D is the minimum of those qualified monotonic boundaries and these two local caps; caps only shorten independently proved applicability and cannot create it. A civil expiry cannot be directly compared to monotonic D: revalidate through the full propagated interval under Q3. Unknown mapping or nonrepresentable exclusive deadline denies.
++
++Use the accepted Q2 direction and Q3 propagation unchanged, including E at d=0 and independent resolution/read/conversion errors. rho and E have no numeric defaults. No qualified PAL continuity means NOT_QUALIFIED even if all signatures pass. Rollback, unknown health, source/root/configuration change, suspension without continuity proof and restart invalidate; no query extends D. All issuer/certificate/delegation civil validity checks retain full interval inclusion in their accepted domains, separately from RFC delegation semantics.
++
++## PT4 Q2/Q3 use
++
++Require actual target/backend/source provenance,quality and finite rho,E,D. Keep rho in real UTC/PAL direction and E including d=0. Missing PAL guarantees cannot be replaced by protocol assertions about a remote oscillator. D is exclusive,monotonic and derived from qualified applicability,not a caller TTL;its derivation must not mix civil and monotonic units. Revalidate m1<=m<D,source status,profile,CURRENT,pins and operation immediately before effect. New authorizing boundary requires fresh acquisition. No indefinite offline clock/cache.
++
++## PT5 Continuity/status
++
++Manual steps,source/configuration/key/revision changes,regression,inconsistent intervals,unknown health and unproved suspension continuity invalidate the operation. Define measurable event coverage in the native adapter;generic successful reads are insufficient. No favorable source selection or automatic fallback. Fresh measurements never prove root latest revision/issuer uniqueness. Restart/archive integrity does not restore authority or bypass U6/fencing.
++
++## PT6 Lifetime/ED11
++
++Acquisition and crypto belong under existing administrative ownership before E0 exposure. Protect external buffers/keys/status references by their owners,not root pins alone. Stop prevents effects without waiting for I/O/crypto;uncertain completion retains graph/credits until factual quiescence/closure. Timeout invalidates applicability,not ownership. Keep E0 acquire synchronous borrow-only and RELEASE_INVALID without attempt/effect.
++
++Compile/probe full memory before hunks:source credential revisions,all campaign buffers/transcripts,crypto/transport/status,history,candidate/predecessor,pins,snapshots,stack/native/provider and retentions. No new quota or default Windows3MiB selection. Missing bounds or excess capacity stop dependent integration.
++
++## PT7 UDP transport, deadlines, failure and qualification gates
++
++Use only RFC 10049 UDP framing, one complete packet per datagram, no PST/PACC/Site TLS/operational listener. Send from the existing administrative backend as an outbound client, not an Accelerator service. Each authorized source has one administratively approved numeric unicast IP address (IPv4 or IPv6) and UDP port 5319. No hostname discovery, public-list enrollment, multicast, broadcast, redirect or runtime address fallback. No actual address is selected by this proposal. Endpoint matching filters unsolicited traffic; authentication is pinned-key RFC verification plus canonical source status, not IP identity. UDP gives no confidentiality; send only protocol-required public material and fresh qualified randomness, never issuer keys or client secrets.
++
++All deadlines use checked PAL monotonic nanoseconds and apply to the complete native operation including uncertainty/retention. From campaign start t0: total deadline t0+60000000000 (60 seconds). For each exchange beginning at si: send must factually complete before si+1000000000 (one second); one matching reply must factually arrive before si+4000000000 (four seconds), and no later than 3000000000 (three seconds) after send completion. Final verification of that exchange must finish before si+6000000000 (six seconds). Every cut must precede the total deadline. Equality with any deadline is expired. Overflow, failed/unknown PAL or continuity invalidates. These are rejection limits, not timing/CPU guarantees. Existing scheduling must enforce checks without a new worker.
++
++There is no retransmission within the campaign: six sends maximum; loss, malformed/unexpected packet, invalid signature, wrong source/nonce/type/version, oversize datagram, failure or expired cut terminates the campaign with no observation. Detect truncation at the datagram API and reject the entire packet. After accepting an exchange, any duplicate/late reply is never reassigned to the next request. A datagram received while awaiting another exchange that cannot be matched fails closed; a stale datagram cannot advance state. Socket receive buffering is bounded by the native adapter's separately measured resource budget. No unbounded drain loop. Correlation uses the entire retained RFC request/proof, not nonce equality alone.
++
++Across failed campaigns enforce exponential send backoff: initial one second, double per consecutive transport/protocol failure up to 86400 seconds, calculated without overflow. Reset this retry interval only after a properly signed response, as required by the RFC; independent administrative denial/health/quarantine is never cleared by that reset. In addition, campaigns start at most once per 60 monotonic seconds per process, whether successful or failed. No automatic retry after source divergence, compromised/unknown trust or quality failure; explicit requalification/new authorized operation is required. Restart cannot bypass guards by restoring authority: no campaign until administrative/entropy/PAL requalification; impose the maximum 86400-second local backoff unless an independently protected existing mechanism proves the applicable prior backoff. No new persistent journal is authorized.
++
++Stop forbids sends/new observations/effects immediately, requests supported native cancellation without waiting, and marks all results unusable. Timeout, cancel request or error does not prove completion or free memory. Keep one campaign graph and credits retained until every I/O/crypto callback/borrow is factually quiescent and native close is confirmed. A result of unknown completion remains RETAINED/DENY and blocks replacement; no retry, socket/buffer reuse or cleanup by timeout. After factual closure, release/zero operation buffers under existing ownership/exactly-once rules. Audit evidence retention beyond that point must use an existing approved bounded mechanism, not an added archive.
++
++The exact proposed transport/limits/trust policy is now defined above; operational gates remain distinct: accepted canonical source-key/status representation if required, actual authorized sources and independence/calibration, qualified entropy and PAL rho/E/continuity, primitive/backend C89 feasibility, all external lifetime protection, factual CURRENT, and complete measured ED11. Missing facts yield NOT_QUALIFIED/NOT_SUPPORTED, not permissive defaults. No positive issuer/UPDATE/CURRENT/signature/recovery/TRUST/admission authority follows. No implementation is authorized by this proposal.

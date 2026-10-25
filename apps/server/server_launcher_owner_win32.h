@@ -372,6 +372,9 @@ PAPACC_RESULT papacc_server_launcher_configuration_v3_evidence_preflight(
  * abort, never historical transaction_abort/close. No validated/commit state
  * is available without factual candidate sources. Stop preserves ownership. */
 PAPACC_RESULT papacc_server_launcher_configuration_v3_update_hold(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE);
+/* Explicit local act for the exact selected complete image. NOT_SUPPORTED can
+ * leave ACT_CAPTURED/STATUS_SOURCE_ABSENT; never RESOLVED/commit/TRUST. */
+PAPACC_RESULT papacc_server_launcher_configuration_v3_update_approve(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,const PAPACC_U8 *,PAPACC_SIZE);
 PAPACC_RESULT papacc_server_launcher_configuration_v3_update_validate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
 PAPACC_RESULT papacc_server_launcher_configuration_v3_update_commit(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
 PAPACC_RESULT papacc_server_launcher_configuration_v3_update_abort(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
@@ -454,5 +457,12 @@ PAPACC_RESULT papacc_server_launcher_supervision_finish(PAPACC_SERVER_LAUNCHER_O
 PAPACC_RESULT papacc_server_launcher_supervision_status(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,PAPACC_C8_SV_STATE *);
 PAPACC_RESULT papacc_server_launcher_supervision_cancel(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
 PAPACC_RESULT papacc_server_launcher_supervision_step(PAPACC_SERVER_SECURE_IO_WIN32 *,PAPACC_U64);
+#endif
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+int papacc_server_launcher_personal_first_install(const char *,const char *,const char *,FILE *);
+#endif
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+#include "server_service_win32.h"
+int papacc_server_launcher_scm_prepare(const char *,const char *,const PAPACC_SERVICE_IMAGE_VIEW *,FILE *,FILE *);
 #endif
 #endif

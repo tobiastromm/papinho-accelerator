@@ -1,4 +1,5 @@
 #include "server_config_root8_data_win32.h"
+#include "config_root8_time_source_key.h"
 #include "server_configuration_body05_win32.h"
 #include <string.h>
 static unsigned le16(const PAPACC_U8 *p){return (unsigned)p[0]|((unsigned)p[1]<<8);}
@@ -8,10 +9,10 @@ PC_ROOT8_RESULT papacc_root8_body05_data(void *ctx,unsigned kind,const PAPACC_U8
  PAPACC_SIZE n,const PAPACC_U8 *desc,const PAPACC_U8 *header)
 {
  PAPACC_CONFIG_VIEW v;PAPACC_SIZE i;const PAPACC_SERVER_CONFIG *c;PAPACC_RESULT result;
- (void)ctx;
+
  if(kind==6U)return PC_ROOT8_UNSUPPORTED;
  if(kind!=5U||!desc||!header||!p||n!=1024U)return PC_ROOT8_INVALID;
- result=papacc_configuration_body05_decode(p,n,&v);
+ result=papacc_configuration_body05_decode((PAPACC_STORE_HASH *)ctx,p,n,&v);
  if(result!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
  c=&v.config;
  if(memcmp(v.domain,header+72,32)||v.revision!=le64(header+104)||v.predecessor!=le64(header+112)||v.policy_epoch||
@@ -55,6 +56,14 @@ static const CERT_INFO *pinned_ca(const PAPACC_CONFIG_V3_BORROW *borrow,
  return info;
 error:workspace->native_error=GetLastError();return NULL;
 }
+static PAPACC_RESULT storage_signer_borrow(PAPACC_ROOT8_CARRIER_DATA *c,const PAPACC_U8 *header,PAPACC_CONFIG_V3_BORROW *out)
+{
+ if(!header||(header[8]!=3U&&header[8]!=4U)||header[9])return PAPACC_RESULT_INVALID_ARGUMENT;
+ if(c->v3_version==1U)return header[8]==3U?papacc_configuration_v3_borrow_data(c->owner,&c->v3_pin,out):PAPACC_RESULT_INVALID_STATE;
+ if(c->v3_version!=2U)return PAPACC_RESULT_INVALID_STATE;
+ if(c->candidate_invocation||c->candidate_serial)return papacc_configuration_candidate_borrow_data(c->owner,c->candidate_invocation,c->candidate_serial,out);
+ return papacc_configuration_storage_borrow_data(c->owner,&c->v3_pin,out,header[8]);
+}
 static PC_ROOT8_RESULT pinned_signer(PAPACC_ROOT8_CARRIER_DATA *context,
  const PAPACC_U8 *carrier,PAPACC_SIZE bytes,const PAPACC_U8 *row,const PAPACC_U8 *header)
 {
@@ -62,7 +71,7 @@ static PC_ROOT8_RESULT pinned_signer(PAPACC_ROOT8_CARRIER_DATA *context,
  PAPACC_ISSUER_WINDOWS_WORKSPACE *ca_workspace,*signer_workspace;PAPACC_RESULT result;
  PC_ROOT8_RESULT data_result;const CERT_INFO *ca;const void *areas[6];PAPACC_SIZE sizes[6],known;
  unsigned j,k;int found=0;
- if(!context||!context->owner||context->v3_version!=1U)return PC_ROOT8_INCOMPLETE;
+ if(!context||!context->owner||(context->v3_version!=1U&&context->v3_version!=2U))return PC_ROOT8_INCOMPLETE;
  ca_workspace=context->v3_ca_workspace;signer_workspace=context->v3_signer_workspace;
  if(!ca_workspace||!signer_workspace||!context->v3_certificate)return PC_ROOT8_INCOMPLETE;
  if(!pinned_range(ca_workspace,sizeof(*ca_workspace))||!pinned_range(signer_workspace,sizeof(*signer_workspace))||
@@ -80,7 +89,7 @@ static PC_ROOT8_RESULT pinned_signer(PAPACC_ROOT8_CARRIER_DATA *context,
   known+=sizes[j];for(k=0;k<j;k++)if(pinned_overlap(areas[j],sizes[j],areas[k],sizes[k]))return PC_ROOT8_INVALID;
  }
  if(context->v3_reserved<known||context->v3_reserved>PAPACC_ED11_PROCESS_LIMIT||ca_workspace->stopped||signer_workspace->stopped)return PC_ROOT8_INCOMPLETE;
- result=papacc_configuration_v3_borrow_data(context->owner,&context->v3_pin,&borrow);
+ result=storage_signer_borrow(context,header,&borrow);
  if(result!=PAPACC_RESULT_OK)return PC_ROOT8_INCOMPLETE;
  /* Only exact protected ranges: never accept unpinned clones by digest alone. */
  if(header!=borrow.packet||bytes!=16384U||carrier!=borrow.packet+pinned32(borrow.packet+48))return PC_ROOT8_INVALID;
@@ -90,11 +99,11 @@ static PC_ROOT8_RESULT pinned_signer(PAPACC_ROOT8_CARRIER_DATA *context,
  ca=pinned_ca(&borrow,ca_workspace);if(!ca)return PC_ROOT8_INCOMPLETE;
  memset(&signer,0,sizeof(signer));signer.ca=ca;signer.workspace=signer_workspace;
  signer.certificate=context->v3_certificate;signer.certificate_capacity=context->v3_certificate_capacity;
- signer.hash=papacc_configuration_issuer_hash06;signer.hash_context=context->owner;signer.already_reserved=context->v3_reserved;
+ signer.hash=papacc_configuration_storage_hash;signer.hash_context=context->owner;signer.already_reserved=context->v3_reserved;
  data_result=papacc_root8_signer_data(&signer,8U,carrier,bytes,row,header);
  if(data_result!=PC_ROOT8_OK)return data_result; /* no historical fallback */
  if(ca_workspace->stopped||signer_workspace->stopped||
- papacc_configuration_v3_borrow_data(context->owner,&context->v3_pin,&check)!=PAPACC_RESULT_OK)return PC_ROOT8_INCOMPLETE;
+ storage_signer_borrow(context,header,&check)!=PAPACC_RESULT_OK)return PC_ROOT8_INCOMPLETE;
  return PC_ROOT8_OK; /* PUBLIC DATA ONLY, never CURRENT/delegation/TRUST */
 }
 #endif
@@ -106,7 +115,11 @@ PC_ROOT8_RESULT papacc_root8_issuer_carrier_data(void *ctx,unsigned kind,
  PAPACC_ROOT8_CARRIER_DATA *c=ctx;PAPACC_ISSUER_VIEW v;
  PAPACC_ISSUER_CHECKPOINT_REPORT report;PAPACC_ISSUER_RECORD record;
  PAPACC_ISSUER_RESULT s;
- if(kind==5U)return papacc_root8_body05_data(NULL,kind,p,n,row,header);
+ if(kind==5U)return papacc_root8_body05_data(c&&c->owner?&c->owner->store_hash:NULL,kind,p,n,row,header);
+ if(kind==9U){
+  if(!c||!c->owner||c->owner->stopped||c->owner->unresolved||c->owner->authority_lost)return PC_ROOT8_INCOMPLETE;
+  return pc_root8_time_source_key_data(NULL,kind,p,n,row,header);
+ }
 #if defined(PAPACC_ED11_WINDOWS_3MIB) && defined(PAPACC_OFFLINE_D3_WORKER)
  if(kind==8U)return pinned_signer(c,p,n,row,header);
 #endif
@@ -114,17 +127,17 @@ PC_ROOT8_RESULT papacc_root8_issuer_carrier_data(void *ctx,unsigned kind,
  if(!c||!c->owner||!c->workspace||!header||!p||n!=16384U)return PC_ROOT8_INVALID;
  if(c->owner->stopped||c->owner->unresolved||c->owner->authority_lost)return PC_ROOT8_INCOMPLETE;
  if(!c->floor||c->floor_bytes!=16384U)return PC_ROOT8_INCOMPLETE;
- if(papacc_configuration_issuer_carrier_inspect06(c->owner,c->floor,c->floor_bytes,c->workspace,&v)!=PAPACC_RESULT_OK||
-    papacc_configuration_issuer_carrier_inspect06(c->owner,p,n,c->workspace,&v)!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
+ if(papacc_configuration_storage_carrier_inspect(c->owner,c->floor,c->floor_bytes,c->workspace,&v)!=PAPACC_RESULT_OK||
+    papacc_configuration_storage_carrier_inspect(c->owner,p,n,c->workspace,&v)!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
  if(memcmp(v.root,header+72,32)||v.revision!=le64(header+120)||memcmp(p,c->floor,8192))return PC_ROOT8_INVALID;
  s=papacc_issuer_checkpoint_assess(p+8192,8192,c->floor+8192,8192,
-    papacc_configuration_issuer_hash06,c->owner,0,&report);
+    papacc_configuration_storage_hash,c->owner,0,&report);
  if(s!=PAPACC_ISSUER_DENIED||report.state!=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED)return PC_ROOT8_INVALID;
  if(kind==6U)return PC_ROOT8_OK; /* relative DATA continuity; never recovery */
  if(!row||memcmp(row+40,v.authority,16)||memcmp(row+56,v.generation,16)||memcmp(row+568,v.ca_spki_digest,32))return PC_ROOT8_INVALID;
  if(row[22]==1U)return PC_ROOT8_OK;
  if(row[22]!=2U&&row[22]!=3U)return PC_ROOT8_INVALID;
- s=papacc_issuer_image_find(p+8192,row+72,&record,papacc_configuration_issuer_hash06,c->owner);
+ s=papacc_issuer_image_find(p+8192,row+72,&record,papacc_configuration_storage_hash,c->owner);
  if(s!=PAPACC_ISSUER_OK||record.request.purpose!=PAPACC_ISSUER_SERVER||
     memcmp(row+88,record.request.csr_digest,32)||memcmp(row+120,record.request.key_digest,32))return PC_ROOT8_INVALID;
  if(row[22]==3U)return PC_ROOT8_INCOMPLETE; /* DER/profile/SAN authority gate */

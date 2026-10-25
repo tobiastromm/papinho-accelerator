@@ -1,0 +1,13 @@
+# Procedimento candidato — aprovação operacional nova ainda AUSENTE
+
+Pedido SHA256 `64f20a0fcbe94782b3178c9da27ce0c76a989e478802d7e2262d3cef04d0e18b`. Mesmo escopo normativo03 e identidade0b1de869e11493b7cb08fb329578f6ce; nenhum GUID, intent, imagem ou sink novo foi criado nesta preparação. Aprovação anterior utilizada e preservada, jamais copiada/reutilizada. O recibo intent0 não rearma autoridade.
+
+Após aprovação original específica deste pedido, criar exclusivamente EXACT-POSITIVE-TIMEOUT-CORRECTION-APPROVED.json neste diretório, status EXACT_MANUAL_POSITIVE_OWNER_APPROVED, operation e attempt nessa ordem, UTF8 sem BOM/LF/indentação2 e campos estritos do candidato. Conferir prefixo141bytes nativo e SHA256 completo; registrar a fala original. Não sobrescrever aprovação histórica. Só então entregar comando com Mode Cycle, Profile N0START03Positive, script SHA256 `10fd6add1c4cd8cdb28845462a219c403b62271b4d5f894ee355279e293b150c` e SHA literal REAL do novo registro. Nenhum comando positivo com hash fictício/variável é fornecido agora.
+
+Usar um único Windows PowerShell5.1x64 já elevado, processo fresco sem classes/módulos carregados da execução anterior. Não encerrar à força processo retido/UNKNOWN; nova execução só após disposição factual compatível. Não reutilizar a janela com binding nativo anterior carregado. O script mantém esse gate. Não iniciar outro PowerShell pelo launcher.
+
+Confirmar os desafios apresentados com PID/criação/nonce ATUAIS: START_N0_SINGLE_LAB N0START-20261024-03 0b1de869e11493b7cb08fb329578f6ce mais tupla auxiliar atual; desafio B+D; INSTRUMENT_SCM_LAB 0b1de869e11493b7cb08fb329578f6ce. As confirmações consomem tempo real da janela existente; não se reinicia o relógio para compensar espera. Nunca automatizar confirmações nem usar dados históricos.
+
+Todos os gates frescos e ausência factual de intent/imagem/sink são obrigatórios. Consulta prévia não é reserva; FILE_CREATE/CREATE_NEW finais continuam. Nenhuma adoção/overwrite/rearm. Consumo, imagem, sink e rebind podem persistir antes de Start. Um Start e até um Stop seguro/legal, somente após autorização e gates. Escape solicita Stop; START_PENDING não implica controle aceito. Em falha/timeout/UNKNOWN não repetir, matar, apagar, restaurar ou forçar mutex. Preservar saída completa incluindo IG_CENSUS_CONTENT_WINDOW/IG_N0_TIME_ERROR, primeira falha, recibo e transport close. F10 somente segundo recibo factual. Nem close0 nem janela fechada provam quiescência global.
+
+128/1024, quatro papéis,60s/1s,headroom,memória/stack,NONE_GRANTED,RAW1/N7/P3/H/T preservados. ED11/Phase6 PARTIAL. CURRENT/assinatura/recuperação DENY.

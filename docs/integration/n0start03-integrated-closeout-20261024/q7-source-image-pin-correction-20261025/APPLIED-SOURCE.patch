@@ -1,0 +1,43 @@
+--- before/CMakeLists.txt
++++ after/CMakeLists.txt
+@@ -3624,3 +3624,10 @@
+ if(WIN32 AND MSVC AND BUILD_TESTING)
+  set_property(SOURCE tests/noninherited_transport_integration_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-private-stdout-adapter.inc")
+ endif()
++
++# Q4 image pins are generated after freezing the service image. Keep these
++# explicit even when localized MSVC /showIncludes dependency discovery fails.
++# The service image itself must not depend on its own derived digest.
++set_property(SOURCE tools/qualification/scm-registration-lab.c
++ APPEND PROPERTY OBJECT_DEPENDS
++ "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-q4-image-pin.h;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-successor-image-pin.h;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-lab-attempt-binding.h;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-context-pins.h")
+--- before/tools/qualification/scm-n0-protected-single-powershell.ps1
++++ after/tools/qualification/scm-n0-protected-single-powershell.ps1
+@@ -37,13 +37,13 @@
+ if($Profile-ceq'Q4TokenDiagnostic'){
+  $Attempt='10584f02e11f92c92b43cddf0d9d316f'
+  $Operation='N0TOKEN-20261025-01'
+- $Qualifier=$Root+'\build\q4-final-binding-20261025\Selected\Release\papacc_scm_instrumented_lab.exe'
+- $QualifierHash='57bb39d379edbbf22dba128a5db921c6dc06f02700bcb16b81914fde6e5dfb34'
++ $Qualifier=$Root+'\build\q7-source-pin-correction-20261025\Selected\Release\papacc_scm_instrumented_lab.exe'
++ $QualifierHash='d36828987cd8dedc1ad2faeae65d41af536e2afc024be1d025e3c6833d95808a'
+  $TransportNative=$Root+'\build\q4-final-binding-20261025\Selected\Release\papacc_n0_private_stdout.dll'
+  $TransportNativeHash='e66735a59cf1fc3c63776e4adb97f67e1e95cdb7f1963790659b0a19637756b5'
+  $DossierHash='c63209c7591f404eead7ca8e3e4b91b5b3c8db13e47ad0e637c6e2c3a36a46e6'
+  $EvidenceHash='bb548b4f2a866d33445d39e2bb72e0093b60b04380cc4da6fd70c4855a0038fa'
+- $ApprovalPath=$Root+'\docs\integration\n0start03-integrated-closeout-20261024\q4-final-pins-and-q7-readiness-20261025\EXACT-Q7-APPROVED.json'
++ $ApprovalPath=$Root+'\docs\integration\n0start03-integrated-closeout-20261024\q7-source-image-pin-correction-20261025\EXACT-Q7-CORRECTION-APPROVED.json'
+ }
+ $Operator='S-1-5-21-785699550-1440458426-1682014700-1108'
+ $script:N0RetainedProcess=$null
+--- before/tools/qualification/scm-instrumented-cycle-lab.inc
++++ after/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -124,7 +124,7 @@
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+  ig_approval_file=CreateFileW(
+ #if defined(PAPACC_Q4_TOKEN_DIAGNOSTIC)
+- L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\q4-final-pins-and-q7-readiness-20261025\\EXACT-Q7-APPROVED.json",
++ L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\q7-source-image-pin-correction-20261025\\EXACT-Q7-CORRECTION-APPROVED.json",
+ #elif defined(PAPACC_N0START03_PRIVATE_POSITIVE)
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\admin-handle-budget-resolution-20261025\\EXACT-POSITIVE-ADMIN-BUDGET-APPROVED.json",
+ #elif defined(PAPACC_N0_PRIVATE_STDOUT)

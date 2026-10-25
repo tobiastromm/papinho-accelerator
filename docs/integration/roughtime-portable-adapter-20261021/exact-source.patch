@@ -1,0 +1,431 @@
+--- /dev/null
++++ src/issuer/roughtime.h
+@@ -0,0 +1,50 @@
++#ifndef PAPACC_ROUGHTIME_H
++#define PAPACC_ROUGHTIME_H
++#include "qualified_utc.h"
++#define PAPACC_RT_PACKET 2048U
++#define PAPACC_RT_QUERIES 6U
++/* Private nonserialized DATA only. No source identity, CURRENT, status,
++ * calibration, entropy or clock is qualified by any result/field here.
++ * Existing administrative caller owns immutable buffers, backend and refs;
++ * serialize calls and retain the entire graph until factual quiescence.
++ * No allocation, network, thread, pin, borrow acquisition or release. */
++typedef struct PAPACC_RT_BYTES { const PAPACC_U8 *p; PAPACC_SIZE n; } PAPACC_RT_BYTES;
++typedef struct PAPACC_RT_CRYPTO {
++ void *user;
++ /* SHA512 truncated to32, over concatenated slices; Ed25519 exact context
++  * including terminating zero + message. Crypto success is not trust. */
++ int (*hash)(void *,const PAPACC_RT_BYTES *,unsigned,PAPACC_U8 *);
++ int (*verify)(void *,const PAPACC_U8 *,const PAPACC_U8 *,PAPACC_SIZE,
++               const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *);
++} PAPACC_RT_CRYPTO;
++typedef enum PAPACC_RT_RESULT {
++ PAPACC_RT_DATA_OK=0,PAPACC_RT_INVALID,PAPACC_RT_LIMIT,
++ PAPACC_RT_CRYPTO_UNAVAILABLE,PAPACC_RT_EXPIRED,PAPACC_RT_STOPPED,
++ PAPACC_RT_RETAINED,PAPACC_RT_NOT_QUALIFIED
++} PAPACC_RT_RESULT;
++typedef struct PAPACC_RT_REPLY { PAPACC_U64 midpoint; PAPACC_U32 radius; } PAPACC_RT_REPLY;
++/* Output must be disjoint from all inputs/backend state; output untouched
++ * on rejection. Success proves public wire/crypto properties only. */
++PAPACC_RT_RESULT papacc_rt_packet_data(PAPACC_RT_BYTES);
++PAPACC_RT_RESULT papacc_rt_request_data(const PAPACC_RT_CRYPTO *,const PAPACC_U8 *,const PAPACC_U8 *,PAPACC_U8 *);
++PAPACC_RT_RESULT papacc_rt_reply_data(const PAPACC_RT_CRYPTO *,PAPACC_RT_BYTES,PAPACC_RT_BYTES,const PAPACC_U8 *,PAPACC_RT_REPLY *);
++PAPACC_RT_RESULT papacc_rt_campaign_data(const PAPACC_RT_CRYPTO *,const PAPACC_RT_BYTES *,const PAPACC_RT_BYTES *,const PAPACC_U8 *,const PAPACC_U8 *,PAPACC_RT_REPLY *);
++/* Mathematical bound for one reply at final campaign cut, with qualified
++ * inputs supplied as DATA. Caller must independently prove every premise.
++ * Never calls papacc_issuer_qualified_utc_read or publishes an observation. */
++PAPACC_RT_RESULT papacc_rt_interval_data(const PAPACC_RT_REPLY *,const PAPACC_UTC_OBSERVATION *,PAPACC_U64,PAPACC_U64 *,PAPACC_U64 *);
++PAPACC_RT_RESULT papacc_rt_hull_data(const PAPACC_RT_REPLY *,const PAPACC_UTC_OBSERVATION *,PAPACC_U64,PAPACC_U64 *,PAPACC_U64 *);
++/* Offline transport-event accounting, not a resource owner or I/O producer.
++ * Zero initialize once. Pending is retained after Stop/deadline; native
++ * completion/closure belongs to existing owner, never inferred by this API. */
++typedef struct PAPACC_RT_EXCHANGE {
++ PAPACC_U64 campaign,start,sent,last;
++ unsigned phase,stopped,invalid;
++} PAPACC_RT_EXCHANGE;
++PAPACC_RT_RESULT papacc_rt_exchange_start_data(PAPACC_RT_EXCHANGE *,PAPACC_U64,PAPACC_U64);
++PAPACC_RT_RESULT papacc_rt_exchange_sent_data(PAPACC_RT_EXCHANGE *,PAPACC_U64);
++PAPACC_RT_RESULT papacc_rt_exchange_received_data(PAPACC_RT_EXCHANGE *,PAPACC_U64);
++PAPACC_RT_RESULT papacc_rt_exchange_verified_data(PAPACC_RT_EXCHANGE *,PAPACC_U64);
++void papacc_rt_exchange_stop_data(PAPACC_RT_EXCHANGE *);
++PAPACC_U32 papacc_rt_backoff_data(unsigned);
++#endif
+
+--- /dev/null
++++ src/issuer/roughtime.c
+@@ -0,0 +1,165 @@
++#include "roughtime.h"
++#include <string.h>
++#define RT_MAX (~(PAPACC_U64)0)
++#define RT_NS ((PAPACC_U64)1000000000UL)
++typedef struct RT_MAP { PAPACC_RT_BYTES b; PAPACC_SIZE base; unsigned count; } RT_MAP;
++static PAPACC_U32 u32(const PAPACC_U8 *p){return (PAPACC_U32)p[0]|((PAPACC_U32)p[1]<<8)|((PAPACC_U32)p[2]<<16)|((PAPACC_U32)p[3]<<24);}
++static PAPACC_U64 u64(const PAPACC_U8 *p){return (PAPACC_U64)u32(p)|((PAPACC_U64)u32(p+4)<<32);}
++static void w32(PAPACC_U8 *p,PAPACC_U32 x){unsigned i;for(i=0;i<4;i++){p[i]=(PAPACC_U8)x;x>>=8;}}
++static int add(PAPACC_U64 a,PAPACC_U64 b,PAPACC_U64 *out){if(a>RT_MAX-b)return 0;*out=a+b;return 1;}
++static int disjoint(const void *a,PAPACC_SIZE n,const void *b,PAPACC_SIZE m){
++ const PAPACC_U8 *x=(const PAPACC_U8 *)a,*y=(const PAPACC_U8 *)b;PAPACC_SIZE i;
++ if(!n||!m)return 1;
++ for(i=0;i<n;i++)if(x+i==y)return 0;
++ for(i=0;i<m;i++)if(y+i==x)return 0;
++ return 1;
++}
++static int map(PAPACC_RT_BYTES b,RT_MAP *m){
++ PAPACC_U32 count,prev=0,off=0,v;unsigned i;
++ if(!b.p||b.n<8)return 0;
++ count=u32(b.p);if(!count||count>32||b.n<(PAPACC_SIZE)count*8U)return 0;
++ m->b=b;m->count=(unsigned)count;m->base=(PAPACC_SIZE)count*8U;
++ for(i=0;i<m->count;i++){
++  v=u32(b.p+4U*m->count+4U*i);if(i&&v<=prev)return 0;prev=v;
++  if(i){v=u32(b.p+4U*i);if(v%4U||v<off||v>b.n-m->base)return 0;off=v;}
++ }
++ return 1;
++}
++static int field(const RT_MAP *m,const char *tag,PAPACC_SIZE exact,PAPACC_RT_BYTES *out){
++ PAPACC_U32 t=u32((const PAPACC_U8 *)tag);PAPACC_SIZE a,b;unsigned i;
++ for(i=0;i<m->count;i++)if(u32(m->b.p+4U*m->count+4U*i)==t){
++  a=i?u32(m->b.p+4U*i):0;b=i+1U<m->count?u32(m->b.p+4U*(i+1U)):m->b.n-m->base;
++  out->p=m->b.p+m->base+a;out->n=b-a;return exact==(PAPACC_SIZE)-1||out->n==exact;
++ }
++ return 0;
++}
++static int packet(PAPACC_RT_BYTES b,RT_MAP *m){
++ PAPACC_RT_BYTES body;
++ if(!b.p||b.n<20||b.n>PAPACC_RT_PACKET||memcmp(b.p,"ROUGHTIM",8)||u32(b.p+8)!=b.n-12)return 0;
++ body.p=b.p+12;body.n=b.n-12;return map(body,m);
++}
++PAPACC_RT_RESULT papacc_rt_packet_data(PAPACC_RT_BYTES b){RT_MAP m;return packet(b,&m)?PAPACC_RT_DATA_OK:PAPACC_RT_INVALID;}
++static int hash(const PAPACC_RT_CRYPTO *c,const PAPACC_U8 *a,PAPACC_SIZE an,const PAPACC_U8 *b,PAPACC_SIZE bn,const PAPACC_U8 *d,PAPACC_SIZE dn,PAPACC_U8 *out){
++ PAPACC_RT_BYTES v[3];v[0].p=a;v[0].n=an;v[1].p=b;v[1].n=bn;v[2].p=d;v[2].n=dn;return c->hash(c->user,v,3,out);
++}
++PAPACC_RT_RESULT papacc_rt_request_data(const PAPACC_RT_CRYPTO *c,const PAPACC_U8 *key,const PAPACC_U8 *nonce,PAPACC_U8 *out){
++ PAPACC_U8 srv[32],prefix=255;unsigned i;const char *tags[5]={"VER\0","SRV\0","NONC","TYPE","ZZZZ"};PAPACC_U32 offsets[4]={4,36,68,72};
++ if(!c||!key||!nonce||!out||!disjoint(out,2048,key,32)||!disjoint(out,2048,nonce,32))return PAPACC_RT_INVALID;
++ if(!c->hash)return PAPACC_RT_CRYPTO_UNAVAILABLE;
++ if(!hash(c,&prefix,1,key,32,NULL,0,srv))return PAPACC_RT_CRYPTO_UNAVAILABLE;
++ memset(out,0,2048);memcpy(out,"ROUGHTIM",8);w32(out+8,2036);w32(out+12,5);
++ for(i=0;i<4;i++)w32(out+16+4*i,offsets[i]);
++ for(i=0;i<5;i++)memcpy(out+32+4*i,tags[i],4);
++ w32(out+52,1);memcpy(out+56,srv,32);memcpy(out+88,nonce,32);return PAPACC_RT_DATA_OK;
++}
++PAPACC_RT_RESULT papacc_rt_reply_data(const PAPACC_RT_CRYPTO *c,PAPACC_RT_BYTES request,PAPACC_RT_BYTES response,const PAPACC_U8 *key,PAPACC_RT_REPLY *out){
++ RT_MAP req,top,srep,cert,dele;PAPACC_RT_BYTES pad,n,t,v,sig,path,sv,cv,dv,cs,pub,lo,hi,mid,rad,vers,root,idx,qn,qs;
++ PAPACC_U8 digest[32],next[32],prefix;PAPACC_U32 index,last=0,x;unsigned i;PAPACC_RT_REPLY result;
++ static const PAPACC_U8 dc[]="Roughtime v1 delegation signature",rc[]="Roughtime v1 response signature";
++ if(!c||!key||!out||!request.p||request.n!=2048||!response.p||response.n>2048||!disjoint(out,sizeof(*out),request.p,request.n)||!disjoint(out,sizeof(*out),response.p,response.n)||!disjoint(out,sizeof(*out),key,32))return PAPACC_RT_INVALID;
++ if(!c->hash||!c->verify)return PAPACC_RT_CRYPTO_UNAVAILABLE;
++ if(request.n!=2048||!packet(request,&req)||!packet(response,&top))return PAPACC_RT_INVALID;
++ if(!field(&req,"VER\0",4,&v)||u32(v.p)!=1||!field(&req,"TYPE",4,&t)||u32(t.p)||!field(&req,"NONC",32,&qn)||!field(&req,"SRV\0",32,&qs))return PAPACC_RT_INVALID;
++ if(req.count!=5||!field(&req,"ZZZZ",1924,&pad))return PAPACC_RT_INVALID;
++ for(i=0;i<pad.n;i++)if(pad.p[i])return PAPACC_RT_INVALID;
++ prefix=255;if(!hash(c,&prefix,1,key,32,NULL,0,digest))return PAPACC_RT_CRYPTO_UNAVAILABLE;
++ if(memcmp(qs.p,digest,32))return PAPACC_RT_INVALID;
++ if(!field(&top,"NONC",32,&n)||memcmp(n.p,qn.p,32)||!field(&top,"TYPE",4,&t)||u32(t.p)!=1||
++ !field(&top,"SIG\0",64,&sig)||!field(&top,"PATH",(PAPACC_SIZE)-1,&path)||path.n%32||path.n>1024||
++ !field(&top,"SREP",(PAPACC_SIZE)-1,&sv)||!field(&top,"CERT",(PAPACC_SIZE)-1,&cv)||!field(&top,"INDX",4,&idx)||
++ !map(sv,&srep)||!map(cv,&cert)||!field(&cert,"SIG\0",64,&cs)||!field(&cert,"DELE",(PAPACC_SIZE)-1,&dv)||!map(dv,&dele))return PAPACC_RT_INVALID;
++ if(!field(&srep,"VER\0",4,&v)||u32(v.p)!=1||!field(&srep,"RADI",4,&rad)||!u32(rad.p)||!field(&srep,"MIDP",8,&mid)||
++ !field(&srep,"VERS",(PAPACC_SIZE)-1,&vers)||!vers.n||vers.n%4||vers.n>128||!field(&srep,"ROOT",32,&root)||
++ !field(&dele,"PUBK",32,&pub)||!field(&dele,"MINT",8,&lo)||!field(&dele,"MAXT",8,&hi))return PAPACC_RT_INVALID;
++ result.midpoint=u64(mid.p);result.radius=u32(rad.p);
++ if(u64(lo.p)>result.midpoint||result.midpoint>u64(hi.p))return PAPACC_RT_INVALID;
++ x=0;for(i=0;i<vers.n/4;i++){PAPACC_U32 z=u32(vers.p+4*i);if(i&&z<=last)return PAPACC_RT_INVALID;last=z;if(z==1)x=1;}
++ if(!x)return PAPACC_RT_INVALID;
++ if(!c->verify(c->user,key,dc,sizeof(dc),dv.p,dv.n,cs.p)||!c->verify(c->user,pub.p,rc,sizeof(rc),sv.p,sv.n,sig.p))return PAPACC_RT_INVALID;
++ prefix=0;if(!hash(c,&prefix,1,request.p,request.n,NULL,0,digest))return PAPACC_RT_CRYPTO_UNAVAILABLE;
++ index=u32(idx.p);prefix=1;
++ for(i=0;i<path.n/32;i++){
++  const PAPACC_U8 *node=path.p+32*i;
++  if(!hash(c,&prefix,1,index&1U?node:digest,32,index&1U?digest:node,32,next))return PAPACC_RT_CRYPTO_UNAVAILABLE;
++  memcpy(digest,next,32);index>>=1;
++ }
++ if(index||memcmp(digest,root.p,32))return PAPACC_RT_INVALID;
++ *out=result;return PAPACC_RT_DATA_OK;
++}
++PAPACC_RT_RESULT papacc_rt_campaign_data(const PAPACC_RT_CRYPTO *c,const PAPACC_RT_BYTES *req,const PAPACC_RT_BYTES *resp,const PAPACC_U8 *keys,const PAPACC_U8 *randoms,PAPACC_RT_REPLY *out){
++ PAPACC_RT_REPLY values[6];PAPACC_U8 nonce[32];unsigned i,j;PAPACC_RT_RESULT result;PAPACC_U64 lower,upper;
++ if(!c||!req||!resp||!keys||!randoms||!out)return PAPACC_RT_INVALID;
++ for(i=0;i<6;i++)if(!req[i].p||req[i].n!=2048||!resp[i].p||resp[i].n>2048)return PAPACC_RT_INVALID;
++ for(i=0;i<6;i++)if(!disjoint(out,sizeof(values),req[i].p,req[i].n)||!disjoint(out,sizeof(values),resp[i].p,resp[i].n))return PAPACC_RT_INVALID;
++ if(!disjoint(out,sizeof(values),req,6U*sizeof(*req))||!disjoint(out,sizeof(values),resp,6U*sizeof(*resp))||!disjoint(out,sizeof(values),keys,96)||!disjoint(out,sizeof(values),randoms,192))return PAPACC_RT_INVALID;
++ if(!c->hash)return PAPACC_RT_CRYPTO_UNAVAILABLE;
++ for(i=0;i<6;i++){
++  for(j=0;j<i;j++)if(!memcmp(randoms+32*i,randoms+32*j,32))return PAPACC_RT_INVALID;
++  if(!i)memcpy(nonce,randoms,32);
++  else if(!hash(c,resp[i-1].p,resp[i-1].n,randoms+32*i,32,NULL,0,nonce))return PAPACC_RT_CRYPTO_UNAVAILABLE;
++  if(!req[i].p||req[i].n!=2048||memcmp(req[i].p+88,nonce,32))return PAPACC_RT_INVALID;
++  result=papacc_rt_reply_data(c,req[i],resp[i],keys+32*(i%3),&values[i]);if(result!=PAPACC_RT_DATA_OK)return result;
++  if(values[i].midpoint<values[i].radius||!add(values[i].midpoint,values[i].radius,&upper))return PAPACC_RT_LIMIT;
++  for(j=0;j<i;j++){lower=values[j].midpoint-values[j].radius;if(lower>upper)return PAPACC_RT_INVALID;}
++ }
++ memcpy(out,values,sizeof(values));return PAPACC_RT_DATA_OK;
++}
++PAPACC_RT_RESULT papacc_rt_interval_data(const PAPACC_RT_REPLY *r,const PAPACC_UTC_OBSERVATION *quality,PAPACC_U64 m,PAPACC_U64 *lower,PAPACC_U64 *upper){
++ PAPACC_UTC_OBSERVATION o;PAPACC_U64 ls,us,l,u;PAPACC_UTC_DATA_RESULT result;
++ if(!r||!quality||quality->m0>quality->m1||quality->m1>m||!lower||!upper||!disjoint(lower,sizeof(*lower),upper,sizeof(*upper))||!disjoint(lower,sizeof(*lower),quality,sizeof(*quality))||!disjoint(upper,sizeof(*upper),quality,sizeof(*quality))||!disjoint(lower,sizeof(*lower),r,sizeof(*r))||!disjoint(upper,sizeof(*upper),r,sizeof(*r))||r->midpoint<r->radius||!r->radius||!add(r->midpoint,r->radius,&us))return PAPACC_RT_INVALID;
++ ls=r->midpoint-r->radius;if(ls>RT_MAX/RT_NS||us>RT_MAX/RT_NS)return PAPACC_RT_LIMIT;
++ o=*quality;o.lower=0;o.upper=0;o.m1=o.m0;
++ result=papacc_utc_data_propagate(&o,&o.context,m,&l,&u);
++ if(result!=PAPACC_UTC_DATA_OK)return result==PAPACC_UTC_DATA_LIMIT?PAPACC_RT_LIMIT:PAPACC_RT_NOT_QUALIFIED;
++ /* Elapsed lower is deliberately not used: g may be anywhere in bracket. */
++ ls*=RT_NS;us*=RT_NS;if(!add(us,u,&us))return PAPACC_RT_LIMIT;
++ if(us-ls>30U*RT_NS)return PAPACC_RT_LIMIT;
++ *lower=ls;*upper=us;return PAPACC_RT_DATA_OK;
++}
++PAPACC_RT_RESULT papacc_rt_hull_data(const PAPACC_RT_REPLY *replies,const PAPACC_UTC_OBSERVATION *quality,PAPACC_U64 m,PAPACC_U64 *lower,PAPACC_U64 *upper){
++ PAPACC_U64 l,u,lo=0,hi=0;PAPACC_RT_RESULT result;unsigned i;
++ if(!replies||!quality||!lower||!upper||!disjoint(lower,sizeof(*lower),upper,sizeof(*upper))||
++ !disjoint(lower,sizeof(*lower),replies,6U*sizeof(*replies))||!disjoint(upper,sizeof(*upper),replies,6U*sizeof(*replies))||
++ !disjoint(lower,sizeof(*lower),quality,6U*sizeof(*quality))||!disjoint(upper,sizeof(*upper),quality,6U*sizeof(*quality)))return PAPACC_RT_INVALID;
++ for(i=0;i<6;i++){
++  /* Shared Q3 checks context correlation; still DATA, never provenance. */
++  if(papacc_utc_data_propagate(&quality[i],&quality[0].context,m,&l,&u)!=PAPACC_UTC_DATA_OK)return PAPACC_RT_NOT_QUALIFIED;
++  if(quality[i].rho_num!=quality[0].rho_num||quality[i].rho_den!=quality[0].rho_den||quality[i].pal_error!=quality[0].pal_error||quality[i].deadline!=quality[0].deadline)return PAPACC_RT_NOT_QUALIFIED;
++  result=papacc_rt_interval_data(&replies[i],&quality[i],m,&l,&u);if(result!=PAPACC_RT_DATA_OK)return result;
++  if(!i||l<lo)lo=l;if(!i||u>hi)hi=u;
++ }
++ if(hi-lo>30U*RT_NS)return PAPACC_RT_LIMIT;
++ *lower=lo;*upper=hi;return PAPACC_RT_DATA_OK;
++}
++static PAPACC_RT_RESULT check(PAPACC_RT_EXCHANGE *e,PAPACC_U64 now){
++ if(!e)return PAPACC_RT_INVALID;
++ if(e->stopped)return PAPACC_RT_RETAINED;
++ if(e->invalid||now<e->last){e->invalid=1;return PAPACC_RT_INVALID;}
++ e->last=now;
++ if(now<e->campaign||now-e->campaign>=60U*RT_NS){e->invalid=1;return PAPACC_RT_EXPIRED;}
++ return PAPACC_RT_DATA_OK;
++}
++PAPACC_RT_RESULT papacc_rt_exchange_start_data(PAPACC_RT_EXCHANGE *e,PAPACC_U64 campaign,PAPACC_U64 now){
++ if(!e||e->phase||e->stopped||e->invalid||now<campaign||now-campaign>=60U*RT_NS||campaign>RT_MAX-60U*RT_NS)return PAPACC_RT_INVALID;
++ e->campaign=campaign;e->start=now;e->last=now;e->phase=1;return PAPACC_RT_DATA_OK;
++}
++PAPACC_RT_RESULT papacc_rt_exchange_sent_data(PAPACC_RT_EXCHANGE *e,PAPACC_U64 now){
++ PAPACC_RT_RESULT r=check(e,now);if(r!=PAPACC_RT_DATA_OK)return r;
++ if(e->phase!=1){e->invalid=1;return PAPACC_RT_INVALID;}
++ if(now-e->start>=RT_NS){e->invalid=1;return PAPACC_RT_EXPIRED;}
++ e->sent=now;e->phase=2;return PAPACC_RT_DATA_OK;
++}
++PAPACC_RT_RESULT papacc_rt_exchange_received_data(PAPACC_RT_EXCHANGE *e,PAPACC_U64 now){
++ PAPACC_RT_RESULT r=check(e,now);if(r!=PAPACC_RT_DATA_OK)return r;
++ if(e->phase!=2){e->invalid=1;return PAPACC_RT_INVALID;}
++ if(now-e->start>=4U*RT_NS||now-e->sent>=3U*RT_NS){e->invalid=1;return PAPACC_RT_EXPIRED;}
++ e->phase=3;return PAPACC_RT_DATA_OK;
++}
++PAPACC_RT_RESULT papacc_rt_exchange_verified_data(PAPACC_RT_EXCHANGE *e,PAPACC_U64 now){
++ PAPACC_RT_RESULT r=check(e,now);if(r!=PAPACC_RT_DATA_OK)return r;
++ if(e->phase!=3){e->invalid=1;return PAPACC_RT_INVALID;}
++ if(now-e->start>=6U*RT_NS){e->invalid=1;return PAPACC_RT_EXPIRED;}
++ e->phase=4;return PAPACC_RT_DATA_OK;
++}
++void papacc_rt_exchange_stop_data(PAPACC_RT_EXCHANGE *e){if(e){e->stopped=1;e->invalid=1;}}
++PAPACC_U32 papacc_rt_backoff_data(unsigned failures){PAPACC_U32 n=1;while(failures>1U&&n<86400U){n=n>43200U?86400U:n*2U;--failures;}return n;}
+
+--- /dev/null
++++ src/issuer/roughtime_openssl.h
+@@ -0,0 +1,11 @@
++#ifndef PAPACC_RT_OPENSSL_H
++#define PAPACC_RT_OPENSSL_H
++#include "roughtime.h"
++/* Offline public verification adapter to the already pinned OpenSSL3.5.8.
++ * Caller owns/protects explicit OSSL_LIB_CTX and4096-byte scratch through
++ * synchronous return. No default context, autoload config, private operations,
++ * thread, native I/O or operational trust. Not VC6/NT4-qualified. */
++typedef struct PAPACC_RT_OPENSSL { void *libctx; PAPACC_U8 *scratch; PAPACC_SIZE bytes; } PAPACC_RT_OPENSSL;
++int papacc_rt_openssl_hash(void *,const PAPACC_RT_BYTES *,unsigned,PAPACC_U8 *);
++int papacc_rt_openssl_verify(void *,const PAPACC_U8 *,const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *);
++#endif
+
+--- /dev/null
++++ src/issuer/roughtime_openssl.c
+@@ -0,0 +1,26 @@
++#include "roughtime_openssl.h"
++#include <string.h>
++#include <openssl/evp.h>
++#include <openssl/crypto.h>
++static int separate(const PAPACC_U8 *a,PAPACC_SIZE n,const PAPACC_U8 *b,PAPACC_SIZE m){PAPACC_SIZE i;for(i=0;i<n;i++)if(a+i==b)return 0;for(i=0;i<m;i++)if(b+i==a)return 0;return 1;}
++int papacc_rt_openssl_hash(void *user,const PAPACC_RT_BYTES *parts,unsigned count,PAPACC_U8 *out){
++ PAPACC_RT_OPENSSL *c=(PAPACC_RT_OPENSSL *)user;EVP_MD *alg;EVP_MD_CTX *md;unsigned i,n=0;unsigned char digest[64];int ok=0;
++ if(!c||!c->libctx||!parts||!out||count>3||OpenSSL_version_num()!=0x30500080UL)return 0;
++ alg=EVP_MD_fetch((OSSL_LIB_CTX *)c->libctx,"SHA512","provider=default");md=EVP_MD_CTX_new();
++ if(!alg||!md)goto done;
++ if(EVP_DigestInit_ex2(md,alg,NULL)!=1)goto done;
++ for(i=0;i<count;i++){if(parts[i].n>2048||(parts[i].n&&!parts[i].p))goto done;if(parts[i].n&&EVP_DigestUpdate(md,parts[i].p,parts[i].n)!=1)goto done;}
++ if(EVP_DigestFinal_ex(md,digest,&n)!=1||n!=64)goto done;
++ memcpy(out,digest,32);ok=1;
++ done:EVP_MD_CTX_free(md);EVP_MD_free(alg);OPENSSL_cleanse(digest,sizeof(digest));return ok;
++}
++int papacc_rt_openssl_verify(void *user,const PAPACC_U8 *key,const PAPACC_U8 *prefix,PAPACC_SIZE pn,const PAPACC_U8 *data,PAPACC_SIZE n,const PAPACC_U8 *sig){
++ PAPACC_RT_OPENSSL *c=(PAPACC_RT_OPENSSL *)user;EVP_PKEY *p=NULL;EVP_MD_CTX *md=NULL;int ok=0;
++ if(!c||!c->libctx||!c->scratch||c->bytes!=4096||!key||!prefix||!data||!sig||pn>64||n>2048||OpenSSL_version_num()!=0x30500080UL)return 0;
++ if(!separate(c->scratch,c->bytes,prefix,pn)||!separate(c->scratch,c->bytes,data,n)||!separate(c->scratch,c->bytes,key,32)||!separate(c->scratch,c->bytes,sig,64))return 0;
++ memcpy(c->scratch,prefix,pn);memcpy(c->scratch+pn,data,n);
++ p=EVP_PKEY_new_raw_public_key_ex((OSSL_LIB_CTX *)c->libctx,"ED25519","provider=default",key,32);md=EVP_MD_CTX_new();
++ if(p&&md&&EVP_DigestVerifyInit_ex(md,NULL,NULL,(OSSL_LIB_CTX *)c->libctx,"provider=default",p,NULL)==1)
++  ok=EVP_DigestVerify(md,sig,64,c->scratch,pn+n)==1;
++ EVP_MD_CTX_free(md);EVP_PKEY_free(p);OPENSSL_cleanse(c->scratch,pn+n);return ok;
++}
+
+--- /dev/null
++++ tests/roughtime_test.c
+@@ -0,0 +1,89 @@
++#include "roughtime.h"
++#include <string.h>
++#include <stdio.h>
++#ifdef RT_OPENSSL_TEST
++#include "roughtime_openssl.h"
++#include <stdlib.h>
++#include <openssl/provider.h>
++#include <openssl/crypto.h>
++#include "roughtime_public_vector.inc"
++#endif
++static unsigned checks,failures;
++static void ck(int yes,int line){++checks;if(!yes){++failures;printf("FAIL line %d\n",line);}}
++#define CK(x) ck((x),__LINE__)
++/* Deliberately failing primitive stub, NEVER synthetic crypto success. */
++static int unavailable_hash(void *u,const PAPACC_RT_BYTES *p,unsigned n,PAPACC_U8 *o){(void)u;(void)p;(void)n;(void)o;return 0;}
++static int bad_sig(void *u,const PAPACC_U8 *k,const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *d,PAPACC_SIZE m,const PAPACC_U8 *s){(void)u;(void)k;(void)p;(void)n;(void)d;(void)m;(void)s;return 0;}
++static void events(void){
++ PAPACC_RT_EXCHANGE e,save;PAPACC_U64 n=(PAPACC_U64)1000000000UL;
++ memset(&e,0,sizeof(e));CK(papacc_rt_exchange_start_data(&e,10,10)==PAPACC_RT_DATA_OK);
++ CK(papacc_rt_exchange_sent_data(&e,20)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_received_data(&e,30)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_verified_data(&e,40)==PAPACC_RT_DATA_OK);
++ CK(papacc_rt_exchange_received_data(&e,50)==PAPACC_RT_INVALID); /* replay */
++ memset(&e,0,sizeof(e));CK(papacc_rt_exchange_start_data(&e,0,0)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_sent_data(&e,n)==PAPACC_RT_EXPIRED);save=e;
++ papacc_rt_exchange_stop_data(&e);CK(e.phase==save.phase&&e.start==save.start);CK(papacc_rt_exchange_received_data(&e,n)==PAPACC_RT_RETAINED);
++ memset(&e,0,sizeof(e));CK(papacc_rt_exchange_start_data(&e,0,0)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_sent_data(&e,1)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_received_data(&e,1+3*n)==PAPACC_RT_EXPIRED);
++ memset(&e,0,sizeof(e));CK(papacc_rt_exchange_start_data(&e,~(PAPACC_U64)0,~(PAPACC_U64)0)==PAPACC_RT_INVALID);
++ memset(&e,0,sizeof(e));CK(papacc_rt_exchange_start_data(&e,0,10)==PAPACC_RT_DATA_OK);CK(papacc_rt_exchange_sent_data(&e,9)==PAPACC_RT_INVALID);
++ CK(papacc_rt_backoff_data(1)==1);CK(papacc_rt_backoff_data(2)==2);CK(papacc_rt_backoff_data(1000)==86400);
++}
++static void bounds(void){
++ PAPACC_UTC_OBSERVATION q,qualities[6];PAPACC_RT_REPLY r,replies[6];PAPACC_U64 l=7,u=8;unsigned i;
++ memset(&q,0,sizeof(q));r.midpoint=100;r.radius=1;
++ CK(papacc_rt_interval_data(&r,&q,1,&l,&u)==PAPACC_RT_NOT_QUALIFIED);CK(l==7&&u==8);
++ q.version=1;q.present=PAPACC_UTC_DATA_PRESENT;q.rho_den=1000000;q.rho_num=10;q.pal_error=100;q.deadline=1000000000;
++ CK(papacc_rt_interval_data(&r,&q,100,&l,&u)==PAPACC_RT_DATA_OK);CK(l==(PAPACC_U64)99*1000000000UL);CK(u>(PAPACC_U64)101*1000000000UL);
++ for(i=0;i<6;i++){qualities[i]=q;replies[i]=r;}
++ CK(papacc_rt_hull_data(replies,qualities,100,&l,&u)==PAPACC_RT_DATA_OK);qualities[1].context.revision=1;CK(papacc_rt_hull_data(replies,qualities,100,&l,&u)==PAPACC_RT_NOT_QUALIFIED);
++ r.midpoint=~(PAPACC_U64)0;CK(papacc_rt_interval_data(&r,&q,100,&l,&u)!=PAPACC_RT_DATA_OK);
++ r.midpoint=0;CK(papacc_rt_interval_data(&r,&q,100,&l,&u)==PAPACC_RT_INVALID);
++ CK(papacc_issuer_qualified_utc_read(NULL,&q)==PAPACC_RESULT_NOT_SUPPORTED);
++}
++#ifdef RT_OPENSSL_TEST
++static int hex(unsigned char *out,const char *s){unsigned x,y;int count=0;while(s[0]&&s[1]){x=s[0]>='a'?(unsigned)(s[0]-'a'+10):(unsigned)(s[0]-'0');y=s[1]>='a'?(unsigned)(s[1]-'a'+10):(unsigned)(s[1]-'0');if(x>15||y>15)return 0;out[count++]=(unsigned char)(16*x+y);s+=2;}return *s?0:count;}
++typedef union RT_ALLOC_HEAD { size_t n; long double align; void *pointer; } RT_ALLOC_HEAD;
++static size_t rt_live,rt_peak;
++static void *rt_malloc(size_t n,const char *file,int line){RT_ALLOC_HEAD *p;(void)file;(void)line;if(n>(size_t)-1-sizeof(*p))return NULL;p=(RT_ALLOC_HEAD *)malloc(n+sizeof(*p));if(!p)return NULL;p->n=n+sizeof(*p);rt_live+=p->n;if(rt_live>rt_peak)rt_peak=rt_live;return p+1;}
++static void rt_free(void *v,const char *file,int line){RT_ALLOC_HEAD *p;(void)file;(void)line;if(!v)return;p=(RT_ALLOC_HEAD *)v-1;rt_live-=p->n;free(p);}
++static void *rt_realloc(void *v,size_t n,const char *file,int line){RT_ALLOC_HEAD *p;void *out;size_t old;if(!v)return rt_malloc(n,file,line);if(!n){rt_free(v,file,line);return NULL;}p=(RT_ALLOC_HEAD *)v-1;old=p->n-sizeof(*p);out=rt_malloc(n,file,line);if(!out)return NULL;memcpy(out,v,old<n?old:n);rt_free(v,file,line);return out;}
++static unsigned verify_calls;
++static int counted_verify(void *c,const PAPACC_U8 *k,const PAPACC_U8 *p,PAPACC_SIZE pn,const PAPACC_U8 *d,PAPACC_SIZE n,const PAPACC_U8 *sig){++verify_calls;return papacc_rt_openssl_verify(c,k,p,pn,d,n,sig);}
++static void real_crypto(void){
++ OSSL_LIB_CTX *lib;OSSL_PROVIDER *provider;PAPACC_RT_OPENSSL backend;PAPACC_RT_CRYPTO c;
++ unsigned char scratch[4096],key[32],sig[64],nonce[32],request[2048],response[2048],prior[2048],hash[32];
++ PAPACC_RT_BYTES v,req,resp;
++ static const unsigned char dc[]="Roughtime v1 delegation signature",rc[]="Roughtime v1 response signature";PAPACC_RT_REPLY out;unsigned i;
++ CK(CRYPTO_set_mem_functions(rt_malloc,rt_realloc,rt_free));printf("openssl_version=%lx\n",OpenSSL_version_num());lib=OSSL_LIB_CTX_new();CK(lib!=NULL);if(!lib)return;
++ provider=OSSL_PROVIDER_load(lib,"default");CK(provider!=NULL);if(!provider){OSSL_LIB_CTX_free(lib);return;}
++ backend.libctx=lib;backend.scratch=scratch;backend.bytes=sizeof(scratch);c.user=&backend;c.hash=papacc_rt_openssl_hash;c.verify=counted_verify;
++ /* RFC8032 section7.1 test1: public empty-message verification, no keygen/sign. */
++ CK(hex(key,"d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")==32);
++ CK(hex(sig,"e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b")==64);
++ CK(c.verify(c.user,key,(const unsigned char *)"",0,(const unsigned char *)"",0,sig));sig[0]^=1;CK(!c.verify(c.user,key,(const unsigned char *)"",0,(const unsigned char *)"",0,sig));
++ v.p=(const unsigned char *)"";v.n=0;CK(c.hash(c.user,&v,1,hash));CK(hash[0]==0xcf&&hash[1]==0x83);
++ v.p=vector_response;v.n=sizeof(vector_response);CK(papacc_rt_packet_data(v)==PAPACC_RT_DATA_OK);
++ for(i=0;i<sizeof(vector_response);i++){v.n=i;CK(papacc_rt_packet_data(v)==PAPACC_RT_INVALID);}
++ memset(nonce,7,sizeof(nonce));CK(papacc_rt_request_data(&c,key,nonce,request)==PAPACC_RT_DATA_OK);CK(!memcmp(request,"ROUGHTIM",8)&&request[8]==0xf4&&request[9]==7&&request[12]==5);CK(!memcmp(request+88,nonce,32));
++ memcpy(prior,request,2048);CK(papacc_rt_request_data(&c,key,request+88,request)==PAPACC_RT_INVALID);CK(!memcmp(prior,request,2048));
++ v.p=request;v.n=2048;CK(papacc_rt_packet_data(v)==PAPACC_RT_DATA_OK);request[24]=1;CK(papacc_rt_packet_data(v)==PAPACC_RT_INVALID);memcpy(request,prior,2048);
++ req.p=request;req.n=2048;resp.p=response;resp.n=2048;memset(response,0,sizeof(response));memcpy(response,"ROUGHTIM",8);response[8]=0xf4;response[9]=7;
++ memset(&out,0x55,sizeof(out));CK(papacc_rt_reply_data(&c,req,resp,key,&out)==PAPACC_RT_INVALID);
++ for(i=0;i<2048;i++){resp.n=i;CK(papacc_rt_reply_data(&c,req,resp,key,&out)==PAPACC_RT_INVALID);}
++ CK(out.midpoint==(PAPACC_U64)0x55555555UL*(((PAPACC_U64)1<<32)+1));
++ CK(!c.verify(c.user,vector_key,dc,sizeof(dc),vector_dele,sizeof(vector_dele),vector_dele_sig)); /* archived RFC example is not a positive vector */
++ CK(!c.verify(c.user,vector_pub,rc,sizeof(rc),vector_srep,sizeof(vector_srep),vector_srep_sig));
++ CK(papacc_rt_request_data(&c,vector_key,vector_nonce,request)==PAPACC_RT_DATA_OK);
++ req.p=request;req.n=2048;resp.p=vector_response;resp.n=sizeof(vector_response);verify_calls=0;
++ CK(papacc_rt_reply_data(&c,req,resp,vector_key,&out)==PAPACC_RT_INVALID);CK(verify_calls==1); /* invalid delegation rejected, no synthetic success */
++ request[88]^=1;verify_calls=0;CK(papacc_rt_reply_data(&c,req,resp,vector_key,&out)==PAPACC_RT_INVALID);CK(verify_calls==0);
++ OSSL_PROVIDER_unload(provider);OSSL_LIB_CTX_free(lib);printf("crypto_test_CRT_peak=%u live_before_cleanup=%u\n",(unsigned)rt_peak,(unsigned)rt_live);
++}
++#endif
++int main(void){
++ PAPACC_RT_CRYPTO c;PAPACC_U8 key[32],nonce[32],out[2048];memset(&c,0,sizeof(c));memset(key,0,32);memset(nonce,0,32);memset(out,0x55,sizeof(out));
++ CK(papacc_rt_request_data(&c,key,nonce,out)==PAPACC_RT_CRYPTO_UNAVAILABLE);c.hash=unavailable_hash;c.verify=bad_sig;CK(papacc_rt_request_data(&c,key,nonce,out)==PAPACC_RT_CRYPTO_UNAVAILABLE);CK(out[0]==0x55);
++ events();bounds();
++#ifdef RT_OPENSSL_TEST
++ real_crypto();
++#endif
++ printf("checks=%u failures=%u sizeof_exchange=%u sizeof_reply=%u\n",checks,failures,(unsigned)sizeof(PAPACC_RT_EXCHANGE),(unsigned)sizeof(PAPACC_RT_REPLY));return failures?1:0;
++}
+
+--- /dev/null
++++ tests/roughtime_public_vector.inc
+@@ -0,0 +1,10 @@
++/* Public RFC10049 AppendixB example, no generated key/signature.
++ * Verification vector only; not an authorized source or qualified time. */
++static const unsigned char vector_key[32]={0x16,0x70,0xf2,0x2d,0x5f,0xfa,0xf1,0xea,0x61,0x84,0xb7,0x45,0x25,0xb7,0x44,0x18,0x27,0x64,0x56,0xfa,0x57,0x0d,0xa5,0x5e,0xe4,0xf6,0x2f,0x44,0x37,0x65,0x38,0xe6};
++static const unsigned char vector_response[416]={0x52,0x4f,0x55,0x47,0x48,0x54,0x49,0x4d,0x94,0x01,0x00,0x00,0x07,0x00,0x00,0x00,0x40,0x00,0x00,0x00,0x60,0x00,0x00,0x00,0x64,0x00,0x00,0x00,0x64,0x00,0x00,0x00,0xc0,0x00,0x00,0x00,0x58,0x01,0x00,0x00,0x53,0x49,0x47,0x00,0x4e,0x4f,0x4e,0x43,0x54,0x59,0x50,0x45,0x50,0x41,0x54,0x48,0x53,0x52,0x45,0x50,0x43,0x45,0x52,0x54,0x49,0x4e,0x44,0x58,0x41,0x58,0xbe,0xb8,0x09,0x3a,0x06,0xb3,0x8b,0xff,0xe1,0x4b,0x5f,0x37,0xff,0x34,0x1c,0xb1,0x62,0x03,0x4f,0x6f,0x18,0x80,0xd1,0x3f,0xfc,0xd3,0x8d,0xc4,0xe3,0xf3,0xfd,0x43,0x95,0x95,0x82,0xb1,0x58,0xda,0xe9,0x19,0x5f,0xc1,0xa6,0x27,0x73,0x5c,0x1f,0x26,0xa4,0xe1,0x7e,0x17,0x2e,0x48,0x3a,0x27,0xad,0x31,0xb2,0x2a,0x78,0x01,0x30,0x61,0xf6,0x50,0x65,0x37,0xa2,0xd4,0xc9,0xee,0xb3,0x82,0x18,0xaa,0x49,0x63,0x30,0xc8,0xd9,0xb4,0x22,0xe7,0x31,0x43,0x15,0xb7,0xcd,0x33,0x2b,0xc2,0x3e,0x1d,0x01,0x00,0x00,0x00,0x05,0x00,0x00,0x00,0x04,0x00,0x00,0x00,0x08,0x00,0x00,0x00,0x10,0x00,0x00,0x00,0x14,0x00,0x00,0x00,0x56,0x45,0x52,0x00,0x52,0x41,0x44,0x49,0x4d,0x49,0x44,0x50,0x56,0x45,0x52,0x53,0x52,0x4f,0x4f,0x54,0x01,0x00,0x00,0x00,0x03,0x00,0x00,0x00,0x43,0x4b,0xb8,0x69,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x73,0xce,0x80,0x59,0x80,0x7f,0x3b,0x72,0xb1,0xce,0xcc,0x78,0x77,0x93,0xf9,0x71,0xb4,0x8e,0x7e,0xd2,0x54,0x03,0xc6,0xd6,0x56,0xd5,0x6b,0x43,0x7b,0x5c,0xf9,0xbd,0x02,0x00,0x00,0x00,0x40,0x00,0x00,0x00,0x53,0x49,0x47,0x00,0x44,0x45,0x4c,0x45,0x23,0x60,0x79,0xb5,0xb8,0xf9,0x78,0xf8,0xd5,0x29,0x81,0x34,0x3c,0x02,0xf5,0x36,0x68,0x19,0x38,0x0b,0x2a,0x87,0xf1,0x36,0x7e,0xba,0x26,0xf4,0xe9,0x79,0x04,0x09,0xd5,0x70,0xb8,0xde,0xd0,0x2e,0x9e,0xc5,0xb5,0xd8,0xf2,0x11,0x37,0x75,0x1b,0xd8,0x57,0x4d,0x40,0x96,0xbb,0xbc,0x39,0xc9,0x5e,0xfa,0x33,0x99,0x4f,0x9a,0xfc,0x03,0x03,0x00,0x00,0x00,0x20,0x00,0x00,0x00,0x28,0x00,0x00,0x00,0x50,0x55,0x42,0x4b,0x4d,0x49,0x4e,0x54,0x4d,0x41,0x58,0x54,0xaa,0xa5,0x8e,0x18,0x6a,0x8b,0x80,0x39,0xe2,0xf5,0xb6,0xd1,0xef,0xac,0x97,0x05,0x62,0x3f,0x2c,0x72,0x6c,0xd9,0xea,0x29,0x7c,0xe2,0x98,0x88,0x88,0x50,0x74,0x0c,0x68,0x10,0xaf,0x69,0x00,0x00,0x00,0x00,0xd8,0xc9,0xdf,0x69,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
++static const unsigned char vector_nonce[32]={0x30,0x61,0xf6,0x50,0x65,0x37,0xa2,0xd4,0xc9,0xee,0xb3,0x82,0x18,0xaa,0x49,0x63,0x30,0xc8,0xd9,0xb4,0x22,0xe7,0x31,0x43,0x15,0xb7,0xcd,0x33,0x2b,0xc2,0x3e,0x1d};
++static const unsigned char vector_dele[72]={0x03,0x00,0x00,0x00,0x20,0x00,0x00,0x00,0x28,0x00,0x00,0x00,0x50,0x55,0x42,0x4b,0x4d,0x49,0x4e,0x54,0x4d,0x41,0x58,0x54,0xaa,0xa5,0x8e,0x18,0x6a,0x8b,0x80,0x39,0xe2,0xf5,0xb6,0xd1,0xef,0xac,0x97,0x05,0x62,0x3f,0x2c,0x72,0x6c,0xd9,0xea,0x29,0x7c,0xe2,0x98,0x88,0x88,0x50,0x74,0x0c,0x68,0x10,0xaf,0x69,0x00,0x00,0x00,0x00,0xd8,0xc9,0xdf,0x69,0x00,0x00,0x00,0x00};
++static const unsigned char vector_dele_sig[64]={0x23,0x60,0x79,0xb5,0xb8,0xf9,0x78,0xf8,0xd5,0x29,0x81,0x34,0x3c,0x02,0xf5,0x36,0x68,0x19,0x38,0x0b,0x2a,0x87,0xf1,0x36,0x7e,0xba,0x26,0xf4,0xe9,0x79,0x04,0x09,0xd5,0x70,0xb8,0xde,0xd0,0x2e,0x9e,0xc5,0xb5,0xd8,0xf2,0x11,0x37,0x75,0x1b,0xd8,0x57,0x4d,0x40,0x96,0xbb,0xbc,0x39,0xc9,0x5e,0xfa,0x33,0x99,0x4f,0x9a,0xfc,0x03};
++static const unsigned char vector_pub[32]={0xaa,0xa5,0x8e,0x18,0x6a,0x8b,0x80,0x39,0xe2,0xf5,0xb6,0xd1,0xef,0xac,0x97,0x05,0x62,0x3f,0x2c,0x72,0x6c,0xd9,0xea,0x29,0x7c,0xe2,0x98,0x88,0x88,0x50,0x74,0x0c};
++static const unsigned char vector_srep[92]={0x05,0x00,0x00,0x00,0x04,0x00,0x00,0x00,0x08,0x00,0x00,0x00,0x10,0x00,0x00,0x00,0x14,0x00,0x00,0x00,0x56,0x45,0x52,0x00,0x52,0x41,0x44,0x49,0x4d,0x49,0x44,0x50,0x56,0x45,0x52,0x53,0x52,0x4f,0x4f,0x54,0x01,0x00,0x00,0x00,0x03,0x00,0x00,0x00,0x43,0x4b,0xb8,0x69,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x73,0xce,0x80,0x59,0x80,0x7f,0x3b,0x72,0xb1,0xce,0xcc,0x78,0x77,0x93,0xf9,0x71,0xb4,0x8e,0x7e,0xd2,0x54,0x03,0xc6,0xd6,0x56,0xd5,0x6b,0x43,0x7b,0x5c,0xf9,0xbd};
++static const unsigned char vector_srep_sig[64]={0x41,0x58,0xbe,0xb8,0x09,0x3a,0x06,0xb3,0x8b,0xff,0xe1,0x4b,0x5f,0x37,0xff,0x34,0x1c,0xb1,0x62,0x03,0x4f,0x6f,0x18,0x80,0xd1,0x3f,0xfc,0xd3,0x8d,0xc4,0xe3,0xf3,0xfd,0x43,0x95,0x95,0x82,0xb1,0x58,0xda,0xe9,0x19,0x5f,0xc1,0xa6,0x27,0x73,0x5c,0x1f,0x26,0xa4,0xe1,0x7e,0x17,0x2e,0x48,0x3a,0x27,0xad,0x31,0xb2,0x2a,0x78,0x01};
+
+--- /dev/null
++++ tests/roughtime/CMakeLists.txt
+@@ -0,0 +1,28 @@
++cmake_minimum_required(VERSION 3.20)
++project(papacc_roughtime_offline C)
++enable_testing()
++if(NOT WIN32 OR NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
++ message(FATAL_ERROR "Only explicitly qualified modern Windows x64 offline backend")
++endif()
++if(NOT PAPACC_ROUGHTIME_OPENSSL_358_OFFLINE OR NOT DEFINED PAPACC_PACKAGE_OPENSSL_ROOT)
++ message(FATAL_ERROR "Explicit pinned existing OpenSSL artifact required; no fallback")
++endif()
++foreach(item "lib/libcrypto.lib|e6047dadbf2b9c85b3bd52598fd6dbac78f9789de9b1c0a837712584ac883509" "runtime/libcrypto-3-x64.dll|09eec573c9adea156ba2073f8cd61720d0aabeb7562d8498b4ecd21b710a3044")
++ string(REPLACE "|" ";" pair "${item}")
++ list(GET pair 0 name)
++ list(GET pair 1 expected)
++ file(SHA256 "${PAPACC_PACKAGE_OPENSSL_ROOT}/${name}" actual)
++ if(NOT actual STREQUAL expected)
++  message(FATAL_ERROR "Pinned OpenSSL artifact mismatch")
++ endif()
++endforeach()
++get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
++add_executable(papacc_roughtime_crypto_test
++ "${ROOT}/src/issuer/roughtime.c" "${ROOT}/src/issuer/qualified_utc.c"
++ "${ROOT}/src/issuer/roughtime_openssl.c" "${ROOT}/tests/roughtime_test.c")
++target_compile_definitions(papacc_roughtime_crypto_test PRIVATE RT_OPENSSL_TEST)
++target_include_directories(papacc_roughtime_crypto_test PRIVATE "${ROOT}/include" "${ROOT}/src/issuer" "${PAPACC_PACKAGE_OPENSSL_ROOT}/include")
++target_compile_options(papacc_roughtime_crypto_test PRIVATE /W4 /WX)
++target_link_libraries(papacc_roughtime_crypto_test PRIVATE "${PAPACC_PACKAGE_OPENSSL_ROOT}/lib/libcrypto.lib")
++add_custom_command(TARGET papacc_roughtime_crypto_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PAPACC_PACKAGE_OPENSSL_ROOT}/runtime/libcrypto-3-x64.dll" "$<TARGET_FILE_DIR:papacc_roughtime_crypto_test>")
++add_test(NAME papacc.roughtime.offline_crypto COMMAND papacc_roughtime_crypto_test)
+
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -82,6 +82,20 @@
+     papacc_enable_warnings(papacc_issuer_checkpoint_test)
+     add_test(NAME papacc.issuer.checkpoint COMMAND papacc_issuer_checkpoint_test)
+     endif()
++endif()
++
++# Offline Roughtime DATA codec; never linked to a source/worker authority.
++add_library(papacc_roughtime STATIC src/issuer/roughtime.c)
++target_include_directories(papacc_roughtime PUBLIC src/issuer)
++target_link_libraries(papacc_roughtime PUBLIC papacc_issuer)
++set_target_properties(papacc_roughtime PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++papacc_enable_warnings(papacc_roughtime)
++if(BUILD_TESTING)
++ add_executable(papacc_roughtime_test tests/roughtime_test.c)
++ target_link_libraries(papacc_roughtime_test PRIVATE papacc_roughtime)
++ set_target_properties(papacc_roughtime_test PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++ papacc_enable_warnings(papacc_roughtime_test)
++ add_test(NAME papacc.issuer.roughtime_data COMMAND papacc_roughtime_test)
+ endif()
+ 
+ # Bounded offline manual-package DATA codec, never a crypto/provider authority.
+

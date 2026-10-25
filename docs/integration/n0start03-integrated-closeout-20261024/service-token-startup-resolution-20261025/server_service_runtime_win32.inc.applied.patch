@@ -1,0 +1,34 @@
+--- apps/server/server_service_runtime_win32.inc.preimage
++++ apps/server/server_service_runtime_win32.inc
+@@ -44,6 +44,9 @@
+  TOKEN_USER *u=(TOKEN_USER *)native.runtime.user.bytes;TOKEN_GROUPS *g=(TOKEN_GROUPS *)native.runtime.groups.bytes;
+  TOKEN_PRIVILEGES *priv=(TOKEN_PRIVILEGES *)native.runtime.privileges.bytes;
+  BYTE admin[SECURITY_MAX_SID_SIZE],service[SECURITY_MAX_SID_SIZE];DWORD an=sizeof(admin),sn=sizeof(service);int service_group=0,specific_group=0;
++#ifdef PAPACC_PSR_TRACE_LAB
++ DWORD specific_seen=0,specific_attributes=0;
++#endif
+  PSRT_CONTEXT("TOKEN_PROCESS_AND_THREAD");
+  if(native.runtime.unexpected||native.runtime.token)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
+  if(PSRT_BOOL("OpenThreadToken",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"unexpected_thread_impersonation_token");
+@@ -57,12 +60,21 @@
+  !PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an))||!PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinServiceSid,NULL,service,&sn)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  for(i=0;i<g->GroupCount;i++){
+   if(!psr_inside_sid(native.runtime.groups.bytes,gn,g->Groups[i].Sid))return PSRT_RETURN(ERROR_INVALID_SID,"original_branch");
++#ifdef PAPACC_PSR_TRACE_LAB
++  /* Bounded facts from the already validated original query; no new authority. */
++  if(EqualSid(g->Groups[i].Sid,native.service_sid)){specific_seen++;specific_attributes|=g->Groups[i].Attributes;}
++#endif
+   if((g->Groups[i].Attributes&SE_GROUP_ENABLED)&&!(g->Groups[i].Attributes&SE_GROUP_USE_FOR_DENY_ONLY)){
+    if(!PSRT_PRED("token.no_enabled_administrators",!EqualSid(g->Groups[i].Sid,admin)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+    if(EqualSid(g->Groups[i].Sid,service))service_group=1;
+    if(EqualSid(g->Groups[i].Sid,native.service_sid))specific_group=1;
+   }
+  }
++#ifdef PAPACC_PSR_TRACE_LAB
++ /* On this predicate only: observed_a=matching entry count, observed_b=OR attributes.
++  * More than one match is explicitly ambiguous; no token/SID/handle is exported. */
++ PSRT_VALUES(specific_seen,specific_attributes);
++#endif
+  if(!PSRT_PRED("token.service_group.enabled",service_group)||!PSRT_PRED("token.specific_group.enabled",specific_group))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+  if(!PSRT_TOKEN("GetTokenInformation:TokenPrivileges",TokenPrivileges,priv,sizeof(native.runtime.privileges.bytes),&pn,GetTokenInformation(native.runtime.token,TokenPrivileges,priv,sizeof(native.runtime.privileges.bytes),&pn))||pn>sizeof(native.runtime.privileges.bytes)||
+  pn<(DWORD)FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges)||priv->PrivilegeCount>(pn-FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges))/sizeof(LUID_AND_ATTRIBUTES)||

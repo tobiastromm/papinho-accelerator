@@ -1,0 +1,244 @@
+{
+  "scope": "MEMORY_ONLY_NATIVE_OFFICIAL_APIS_NO_CREATE_NO_ACL_MUTATION",
+  "original_provenance": "104-byte managed prepared creation candidate from prior read-only design, NOT GetSecurityInfo of an existing directory",
+  "original": {
+    "valid_by_IsValidSecurityDescriptor": true,
+    "revision": 1,
+    "bytes": 104,
+    "sha256": "688654f3c898e8ae3115cac83e777c4b24c9c57320fa8551b505d8dacc0ad579",
+    "control": "0x9004",
+    "owner": "S-1-5-32-544",
+    "group": "S-1-5-32-544",
+    "offsets": {
+      "owner": 20,
+      "group": 36,
+      "sacl": 0,
+      "dacl": 52
+    },
+    "acl_revision": 2,
+    "acl_size": 52,
+    "aces": [
+      {
+        "index": 0,
+        "type": 0,
+        "flags": "0x3",
+        "size": 20,
+        "mask": "0x1f01ff",
+        "sid": "S-1-5-18",
+        "raw_hex": "00031400ff011f00010100000000000512000000"
+      },
+      {
+        "index": 1,
+        "type": 0,
+        "flags": "0x3",
+        "size": 24,
+        "mask": "0x1f01ff",
+        "sid": "S-1-5-32-544",
+        "raw_hex": "00031800ff011f0001020000000000052000000020020000"
+      }
+    ],
+    "native_to_sddl": "O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+    "raw_hex": "01000490140000002400000000000000340000000102000000000005200000002002000001020000000000052000000020020000020034000200000000031400ff011f0001010000000000051200000000031800ff011f0001020000000000052000000020020000",
+    "intended_owner_group_protected_two_ordered_allow_aces_oi_ci": true,
+    "sacl_existing_object": "NOT_OBSERVED_MEMORY_CREATION_INPUT_ONLY"
+  },
+  "sddl_cases": [
+    {
+      "input_sddl": "O:BAG:BAD(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+      "ok": false,
+      "native_error": 87,
+      "byte_equal_original": false
+    },
+    {
+      "valid_by_IsValidSecurityDescriptor": true,
+      "revision": 1,
+      "bytes": 104,
+      "sha256": "5e279428c3af64613a74133c6d27952cd5de12fcc99d8126361277ded130e6a1",
+      "control": "0x9004",
+      "owner": "S-1-5-32-544",
+      "group": "S-1-5-32-544",
+      "offsets": {
+        "owner": 72,
+        "group": 88,
+        "sacl": 0,
+        "dacl": 20
+      },
+      "acl_revision": 2,
+      "acl_size": 52,
+      "aces": [
+        {
+          "index": 0,
+          "type": 0,
+          "flags": "0x3",
+          "size": 20,
+          "mask": "0x1f01ff",
+          "sid": "S-1-5-18",
+          "raw_hex": "00031400ff011f00010100000000000512000000"
+        },
+        {
+          "index": 1,
+          "type": 0,
+          "flags": "0x3",
+          "size": 24,
+          "mask": "0x1f01ff",
+          "sid": "S-1-5-32-544",
+          "raw_hex": "00031800ff011f0001020000000000052000000020020000"
+        }
+      ],
+      "native_to_sddl": "O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+      "raw_hex": "0100049048000000580000000000000014000000020034000200000000031400ff011f0001010000000000051200000000031800ff011f00010200000000000520000000200200000102000000000005200000002002000001020000000000052000000020020000",
+      "intended_owner_group_protected_two_ordered_allow_aces_oi_ci": true,
+      "sacl_existing_object": "NOT_OBSERVED_MEMORY_CREATION_INPUT_ONLY",
+      "input_sddl": "O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+      "ok": true,
+      "byte_equal_original": false
+    },
+    {
+      "valid_by_IsValidSecurityDescriptor": true,
+      "revision": 1,
+      "bytes": 104,
+      "sha256": "d8dcb5d58531887a8c7ba2b0912675ec78c5f71ee9bcdcba4175ff80c97019a0",
+      "control": "0x9404",
+      "owner": "S-1-5-32-544",
+      "group": "S-1-5-32-544",
+      "offsets": {
+        "owner": 72,
+        "group": 88,
+        "sacl": 0,
+        "dacl": 20
+      },
+      "acl_revision": 2,
+      "acl_size": 52,
+      "aces": [
+        {
+          "index": 0,
+          "type": 0,
+          "flags": "0x3",
+          "size": 20,
+          "mask": "0x1f01ff",
+          "sid": "S-1-5-18",
+          "raw_hex": "00031400ff011f00010100000000000512000000"
+        },
+        {
+          "index": 1,
+          "type": 0,
+          "flags": "0x3",
+          "size": 24,
+          "mask": "0x1f01ff",
+          "sid": "S-1-5-32-544",
+          "raw_hex": "00031800ff011f0001020000000000052000000020020000"
+        }
+      ],
+      "native_to_sddl": "O:BAG:BAD:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+      "raw_hex": "0100049448000000580000000000000014000000020034000200000000031400ff011f0001010000000000051200000000031800ff011f00010200000000000520000000200200000102000000000005200000002002000001020000000000052000000020020000",
+      "intended_owner_group_protected_two_ordered_allow_aces_oi_ci": true,
+      "sacl_existing_object": "NOT_OBSERVED_MEMORY_CREATION_INPUT_ONLY",
+      "input_sddl": "O:BAG:BAD:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+      "ok": true,
+      "byte_equal_original": false
+    },
+    {
+      "valid_by_IsValidSecurityDescriptor": true,
+      "revision": 1,
+      "bytes": 104,
+      "sha256": "1f66f1ddab5d9bbd9b4cd1218a026ae3f048a5fb4d969199f7374c7a5b9b9533",
+      "control": "0x8004",
+      "owner": "S-1-5-32-544",
+      "group": "S-1-5-32-544",
+      "offsets": {
+        "owner": 72,
+        "group": 88,
+        "sacl": 0,
+        "dacl": 20
+      },
+      "acl_revision": 2,
+      "acl_size": 52,
+      "aces": [
+        {
+          "index": 0,
+          "type": 0,
+          "flags": "0x3",
+          "size": 20,
+          "mask": "0x1f01ff",
+          "sid": "S-1-5-18",
+          "raw_hex": "00031400ff011f00010100000000000512000000"
+        },
+        {
+          "index": 1,
+          "type": 0,
+          "flags": "0x3",
+          "size": 24,
+          "mask": "0x1f01ff",
+          "sid": "S-1-5-32-544",
+          "raw_hex": "00031800ff011f0001020000000000052000000020020000"
+        }
+      ],
+      "native_to_sddl": "O:BAG:BAD:(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+      "raw_hex": "0100048048000000580000000000000014000000020034000200000000031400ff011f0001010000000000051200000000031800ff011f00010200000000000520000000200200000102000000000005200000002002000001020000000000052000000020020000",
+      "intended_owner_group_protected_two_ordered_allow_aces_oi_ci": false,
+      "sacl_existing_object": "NOT_OBSERVED_MEMORY_CREATION_INPUT_ONLY",
+      "input_sddl": "O:BAG:BAD:(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+      "ok": true,
+      "byte_equal_original": false
+    }
+  ],
+  "original_native_sddl_roundtrip": {
+    "valid_by_IsValidSecurityDescriptor": true,
+    "revision": 1,
+    "bytes": 104,
+    "sha256": "5e279428c3af64613a74133c6d27952cd5de12fcc99d8126361277ded130e6a1",
+    "control": "0x9004",
+    "owner": "S-1-5-32-544",
+    "group": "S-1-5-32-544",
+    "offsets": {
+      "owner": 72,
+      "group": 88,
+      "sacl": 0,
+      "dacl": 20
+    },
+    "acl_revision": 2,
+    "acl_size": 52,
+    "aces": [
+      {
+        "index": 0,
+        "type": 0,
+        "flags": "0x3",
+        "size": 20,
+        "mask": "0x1f01ff",
+        "sid": "S-1-5-18",
+        "raw_hex": "00031400ff011f00010100000000000512000000"
+      },
+      {
+        "index": 1,
+        "type": 0,
+        "flags": "0x3",
+        "size": 24,
+        "mask": "0x1f01ff",
+        "sid": "S-1-5-32-544",
+        "raw_hex": "00031800ff011f0001020000000000052000000020020000"
+      }
+    ],
+    "native_to_sddl": "O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+    "raw_hex": "0100049048000000580000000000000014000000020034000200000000031400ff011f0001010000000000051200000000031800ff011f00010200000000000520000000200200000102000000000005200000002002000001020000000000052000000020020000",
+    "intended_owner_group_protected_two_ordered_allow_aces_oi_ci": true,
+    "sacl_existing_object": "NOT_OBSERVED_MEMORY_CREATION_INPUT_ONLY",
+    "input_sddl": "O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)",
+    "ok": true,
+    "byte_equal_original": false
+  },
+  "D_P_vs_D_PAI": {
+    "byte_equal": false,
+    "differences": [
+      {
+        "offset": 3,
+        "D_P": 144,
+        "D_PAI": 148
+      }
+    ],
+    "control_xor": "0x400"
+  },
+  "localfree_success_count": 29,
+  "creation": "NOT_RUN",
+  "existing_object_security": "NOT_QUERIED_OR_CHANGED",
+  "Stop": "PRESERVED_NO_CREATOR_IMPLEMENTATION"
+}

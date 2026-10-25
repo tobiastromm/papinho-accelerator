@@ -1,0 +1,35 @@
+FIXTURE selected=1 config=Release pid=23332 scenario=close-unknown pss=1 qpc_frequency=10000000 NO_SCM_NO_LAB_NO_OPERATIONAL_AUTHORITY
+SAMPLE seq=1 phase=A_BASELINE tick=125328140 qpc=1253281717119 pid=23332 handles=54 named=0 application_named=0 fixture_only=0 aux=0 snapshot=0 marker=0 first=0 retained=0 child_metric=0 child_handles=0
+OBSERVER_READS count=128 before=54 after=54 self_handle_acquisitions=0 external_observer_handles=SEPARATE_TABLE
+REF seq=2 tick=125328140 qpc=1253281722737 phase=A_BASELINE op=ACQUIRE slot=0 generation=1 name=common_file kind=File handle=00000000000000EC extra=0 acquired=1253281722736 last_use=1253281722736
+IDENTITY slot=0 generation=1 type=File disk=1 native=417614100:327680:2720408 directory=0 links=1
+REF seq=3 tick=125328140 qpc=1253281742952 phase=A_BASELINE op=ACQUIRE slot=1 generation=1 name=common_file kind=File handle=000000000000009C extra=0 acquired=1253281742952 last_use=1253281742952
+IDENTITY slot=1 generation=1 type=File disk=1 native=417614100:393216:2720409 directory=0 links=1
+REF seq=4 tick=125328140 qpc=1253281762274 phase=A_BASELINE op=ACQUIRE slot=2 generation=1 name=common_file kind=File handle=00000000000000B0 extra=0 acquired=1253281762273 last_use=1253281762273
+IDENTITY slot=2 generation=1 type=File disk=1 native=417614100:131072:2720439 directory=0 links=1
+REF seq=5 tick=125328156 qpc=1253281781349 phase=A_BASELINE op=ACQUIRE slot=3 generation=1 name=common_file kind=File handle=00000000000000A0 extra=0 acquired=1253281781348 last_use=1253281781348
+IDENTITY slot=3 generation=1 type=File disk=1 native=417614100:458752:2720478 directory=0 links=1
+REF seq=6 tick=125328156 qpc=1253281800530 phase=A_BASELINE op=ACQUIRE slot=4 generation=1 name=common_file kind=File handle=00000000000000A4 extra=0 acquired=1253281800529 last_use=1253281800529
+IDENTITY slot=4 generation=1 type=File disk=1 native=417614100:262144:2720488 directory=0 links=1
+REF seq=7 tick=125328156 qpc=1253281817738 phase=A_BASELINE op=ACQUIRE slot=5 generation=1 name=common_file kind=File handle=00000000000000B8 extra=0 acquired=1253281817738 last_use=1253281817738
+IDENTITY slot=5 generation=1 type=File disk=1 native=417614100:131072:2720513 directory=0 links=1
+REF seq=8 tick=125328156 qpc=1253281833523 phase=A_BASELINE op=ACQUIRE slot=6 generation=1 name=base_operator_token kind=Token handle=00000000000000F4 extra=0 acquired=1253281833523 last_use=1253281833523
+IDENTITY slot=6 generation=1 type=Token token_id=0:355286166 token_type=1
+REF seq=9 tick=125328156 qpc=1253281837786 phase=A_BASELINE op=ACQUIRE slot=7 generation=1 name=approval_synthetic kind=File handle=00000000000000F8 extra=0 acquired=1253281837785 last_use=1253281837785
+IDENTITY slot=7 generation=1 type=File disk=1 native=417614100:393216:2722245 directory=0 links=1
+REF seq=10 tick=125328156 qpc=1253281852377 phase=A_BASELINE op=ACQUIRE slot=8 generation=1 name=fixture_unnamed_mutex kind=Mutex handle=00000000000000FC extra=0 acquired=1253281852377 last_use=1253281852377
+IDENTITY slot=8 generation=1 type=Mutex source=DOCUMENTED_CREATOR_API_NOT_NTQUERYOBJECT
+SAMPLE seq=11 phase=A_COMMON_NINE tick=125328156 qpc=1253281854983 pid=23332 handles=63 named=9 application_named=9 fixture_only=0 aux=0 snapshot=0 marker=0 first=0 retained=0 child_metric=0 child_handles=0
+REF seq=12 tick=125328156 qpc=1253281856973 phase=A_COMMON_NINE op=CLOSED_BY_ACTUAL_SELF_BRANCH slot=6 generation=1 name=base_operator_token kind=Token handle=00000000000000F4 extra=0 acquired=1253281833523 last_use=1253281833523
+SAMPLE seq=13 phase=A_SELF_TOKEN_CLOSED tick=125328156 qpc=1253281858989 pid=23332 handles=62 named=8 application_named=8 fixture_only=0 aux=0 snapshot=0 marker=0 first=0 retained=0 child_metric=0 child_handles=0
+A1_CLOSE slot=0 generation=2 handle=00000000000000F4 qpc=1253281860923 injected=0
+A1_LEASE slot=0 generation=3 handle=00000000000000F4 qpc=1253281869660 acquisition=REAL
+SAMPLE seq=14 phase=B_A1_ONE tick=125328156 qpc=1253281870513 pid=23332 handles=63 named=9 application_named=9 fixture_only=0 aux=1 snapshot=0 marker=0 first=0 retained=0 child_metric=0 child_handles=0
+A1_LEASE slot=1 generation=1 handle=0000000000000100 qpc=1253281872708 acquisition=REAL
+A1_PAIR_IDENTITIES type=File a=417614100:327680:2720408 b=417614100:327680:2720408 same_opened_object=1 qpc=1253281873696
+SAMPLE seq=15 phase=B_A1_TWO tick=125328156 qpc=1253281874819 pid=23332 handles=64 named=10 application_named=10 fixture_only=0 aux=2 snapshot=0 marker=0 first=0 retained=0 child_metric=0 child_handles=0
+A1_CLOSE slot=0 generation=3 handle=00000000000000F4 qpc=1253281876648 injected=1
+A1_UNKNOWN injected_close_not_called=1 first=1816 first_close=5 no_second_close=1 remaining_owned=1 freeze=1
+SAMPLE seq=16 phase=J_RETAINED_UNKNOWN tick=125328156 qpc=1253281878419 pid=23332 handles=64 named=10 application_named=10 fixture_only=0 aux=2 snapshot=0 marker=0 first=1816 retained=1 child_metric=0 child_handles=0
+RESULT scenario=close-unknown first=1816 owned_peak=10 app_peak=10 raw_peak=64 retained=1 close=UNPROVEN process_exit_containment=1 NOT_NATIVE_CLOSE_SUCCESS
+COMPOSITION_PARENT_CLOSED child=23332 creation=134373795223587225 exit=2 result_received=1 first=0 retained=0 NO_OPERATIONAL_AUTHORITY

@@ -1,0 +1,29 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -3278,3 +3278,26 @@
+   add_test(NAME papacc.personal_ca.${binding_variant} COMMAND papacc_personal_ca_${binding_variant}_test)
+  endforeach()
+ endif()
++
++# Personal SCM bridge: existing candidate executable only; fixed native binding
++# unavailable => mutations and productive service startup deny before effects.
++if(WIN32 AND PAPACC_ENABLE_CONFIG_ADMIN_CLI)
++ add_library(papacc_server_service STATIC apps/server/server_service_data.c apps/server/server_service_win32.c)
++ target_include_directories(papacc_server_service PUBLIC apps/server PRIVATE include)
++ target_link_libraries(papacc_server_service PUBLIC papacc_server_console_win32 advapi32)
++ set_target_properties(papacc_server_service PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++ target_compile_options(papacc_server_service PRIVATE /W4 /WX)
++ target_compile_definitions(papacc_server PRIVATE PAPACC_ENABLE_SERVICE_CLI=1)
++ target_link_libraries(papacc_server PRIVATE papacc_server_service)
++ set_property(SOURCE apps/server/main.c APPEND PROPERTY OBJECT_DEPENDS
++  "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/main.c.api3.inc;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_win32.h")
++ if(BUILD_TESTING)
++  foreach(kind lifecycle_data scm_native scm_query_model)
++   add_executable(papacc_service_${kind}_test tests/service_${kind}_test.c)
++   target_link_libraries(papacc_service_${kind}_test PRIVATE papacc_server_service)
++   target_compile_options(papacc_service_${kind}_test PRIVATE /W4 /WX)
++   set_target_properties(papacc_service_${kind}_test PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++   add_test(NAME papacc.service.${kind} COMMAND papacc_service_${kind}_test)
++  endforeach()
++ endif()
++endif()

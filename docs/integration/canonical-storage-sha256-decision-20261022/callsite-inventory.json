@@ -1,0 +1,471 @@
+[
+  {
+    "file": "apps/server/server_configuration_body04_win32.inc",
+    "line": 35,
+    "symbol": "digest",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "encode(&v->base,b);if(!digest(hash_ctx,b,0))return PAPACC_RESULT_INTERNAL_ERROR;"
+  },
+  {
+    "file": "apps/server/server_configuration_body04_win32.inc",
+    "line": 46,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,b,992U,hash))return PAPACC_RESULT_INTERNAL_ERROR;"
+  },
+  {
+    "file": "apps/server/server_configuration_body05_win32.inc",
+    "line": 16,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "return store03_hash(hash_ctx,b,992U,b+992U);"
+  },
+  {
+    "file": "apps/server/server_configuration_body05_win32.inc",
+    "line": 23,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "!store03_hash(hash_ctx,b,992U,hash)||memcmp(hash,b+992,32))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_body05_win32.inc",
+    "line": 31,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,old,992,old+992)||papacc_configuration_body04_decode(hash_ctx,old,1024,&typed)!=PAPACC_RESULT_OK)return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_bootstrap_commit_win32.inc",
+    "line": 61,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,p->next,p->next_bytes,hash)||memcmp(hash,proof.candidate,32U)){"
+  },
+  {
+    "file": "apps/server/server_configuration_commit_win32.c",
+    "line": 25,
+    "symbol": "digest",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "static int digest(PAPACC_STORE_HASH *hash_ctx,unsigned char *record,int verify)"
+  },
+  {
+    "file": "apps/server/server_configuration_commit_win32.c",
+    "line": 28,
+    "symbol": "papacc_store_hash",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "if(!papacc_store_hash(hash_ctx,record,480U,value))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_commit_win32.c",
+    "line": 81,
+    "symbol": "digest",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "return digest(hash_ctx,b,1);"
+  },
+  {
+    "file": "apps/server/server_configuration_commit_win32.c",
+    "line": 169,
+    "symbol": "digest",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "if(!digest(&o->store_hash,next,0)){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_INTERNAL_ERROR;}}"
+  },
+  {
+    "file": "apps/server/server_configuration_commit_win32.h",
+    "line": 166,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "int papacc_configuration_issuer_hash06(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8[32]);"
+  },
+  {
+    "file": "apps/server/server_configuration_d3_worker_win32.inc",
+    "line": 39,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "return store03_hash(hash_ctx,b,n-32U,hash)&&!memcmp(hash,b+n-32U,32);"
+  },
+  {
+    "file": "apps/server/server_configuration_d3_worker_win32.inc",
+    "line": 47,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "!store03_hash(hash_ctx,cp,480U,hash)||memcmp(hash,cp+480U,32)||"
+  },
+  {
+    "file": "apps/server/server_configuration_d3_worker_win32.inc",
+    "line": 48,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "!store03_hash(hash_ctx,a,aq,hash)||memcmp(hash,cp+88U,32)||"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "line": 2,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "int papacc_configuration_issuer_hash06(void *ctx,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 out[32])"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "line": 87,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "if(!papacc_configuration_issuer_hash06(o,base,PAPACC_CONFIG_STORE_BYTES,hash)||memcmp(hash,image+192,32))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "line": 88,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "if(!papacc_configuration_issuer_hash06(o,base,STORE03_FOOTER,hash)||memcmp(hash,base+STORE03_FOOTER,32))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_issuer06_win32.inc",
+    "line": 135,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "if(!papacc_configuration_issuer_hash06(o,o->committed,PAPACC_CONFIG_STORE_BYTES,hash)||memcmp(hash,image+192,32))goto done;"
+  },
+  {
+    "file": "apps/server/server_configuration_pending_win32.inc",
+    "line": 206,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "!papacc_configuration_issuer_hash06(o,p->previous,p->previous_bytes,link.previous_commit_digest)||"
+  },
+  {
+    "file": "apps/server/server_configuration_pending_win32.inc",
+    "line": 323,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "if(!papacc_configuration_issuer_hash06(o,p->next,q,digest)||o->stopped||o->unresolved)goto done;"
+  },
+  {
+    "file": "apps/server/server_configuration_pending_win32.inc",
+    "line": 442,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(&o->store_hash,image,(unsigned)bytes,proof.candidate))return PAPACC_RESULT_INTERNAL_ERROR;"
+  },
+  {
+    "file": "apps/server/server_configuration_restart04_win32.inc",
+    "line": 21,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "!store03_hash(&o->store_hash,o->committed,PAPACC_CONFIG_STORE_BYTES,hash)||memcmp(hash,w->image_sha256,32U))"
+  },
+  {
+    "file": "apps/server/server_configuration_restart_win32.inc",
+    "line": 21,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "!store03_hash(&o->store_hash,o->committed,PAPACC_CONFIG_STORE_BYTES,hash)||memcmp(hash,w->image_sha256,32U))"
+  },
+  {
+    "file": "apps/server/server_configuration_store02_win32.inc",
+    "line": 10,
+    "symbol": "store02_hash",
+    "classification": "OUT_OF_SCOPE",
+    "source": "static int store02_hash(const unsigned char*p,unsigned n,unsigned char out[32])"
+  },
+  {
+    "file": "apps/server/server_configuration_store02_win32.inc",
+    "line": 45,
+    "symbol": "store02_hash",
+    "classification": "OUT_OF_SCOPE",
+    "source": "if(!store02_hash(b,STORE02_FOOTER,d)||memcmp(d,b+STORE02_FOOTER,32U))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store02_win32.inc",
+    "line": 56,
+    "symbol": "store02_hash",
+    "classification": "OUT_OF_SCOPE",
+    "source": "if(!store02_hash(c,640U,d)||memcmp(d,w+56U,32U)||!store02_decode(hash_ctx,c+128U,&candidate))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store02_win32.inc",
+    "line": 59,
+    "symbol": "store02_hash",
+    "classification": "OUT_OF_SCOPE",
+    "source": "if(!store02_hash(w,128U,prev))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store02_win32.inc",
+    "line": 76,
+    "symbol": "digest",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "if(!digest(&o->store_hash,c+128U,0))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store02_win32.inc",
+    "line": 78,
+    "symbol": "store02_hash",
+    "classification": "OUT_OF_SCOPE",
+    "source": "if(!store02_hash(c,640U,d))return 0;memcpy(w+56U,d,32U);memcpy(w+88U,b+72U,32U);"
+  },
+  {
+    "file": "apps/server/server_configuration_store02_win32.inc",
+    "line": 79,
+    "symbol": "store02_hash",
+    "classification": "OUT_OF_SCOPE",
+    "source": "if(!store02_hash(w,128U,d))return 0;memcpy(b+72U,d,32U);put64(b+48U,v->revision);put64(b+56U,v->revision);put64(b+64U,v->revision);"
+  },
+  {
+    "file": "apps/server/server_configuration_store02_win32.inc",
+    "line": 80,
+    "symbol": "store02_hash",
+    "classification": "OUT_OF_SCOPE",
+    "source": "return store02_hash(b,STORE02_FOOTER,b+STORE02_FOOTER);"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 10,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "static int store03_hash(PAPACC_STORE_HASH *hash_ctx,const unsigned char *p,unsigned n,unsigned char out[32])"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 11,
+    "symbol": "papacc_store_hash",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "{return papacc_store_hash(hash_ctx,p,n,out);}"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 20,
+    "symbol": "digest",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "memset(b,0,1024U);encode(v,b);if(!digest(hash_ctx,b,0))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 28,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,b,992U,hash))return 0;memcpy(b+992U,hash,32U);return 1;"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 34,
+    "symbol": "digest",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "get64(b+56U)!=0U||b[69U]>PAPACC_CONFIG_IDS||!digest(hash_ctx,b,1))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 36,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "return store03_hash(hash_ctx,b,992U,hash)&&memcmp(hash,b+992U,32U)==0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 80,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,b,STORE03_FOOTER,d)||memcmp(d,b+STORE03_FOOTER,32U))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 91,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,c,1152U,d)||memcmp(d,w+56U,32U)||!store03_decode(hash_ctx,c+128U,&candidate))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 94,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,w,128U,prev))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 112,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(&o->store_hash,c,1152U,d))return 0;memcpy(w+56U,d,32U);memcpy(w+88U,b+72U,32U);"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 113,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(&o->store_hash,w,128U,d))return 0;memcpy(b+72U,d,32U);put64(b+48U,v->revision);put64(b+56U,v->revision);put64(b+64U,v->revision);"
+  },
+  {
+    "file": "apps/server/server_configuration_store03_win32.inc",
+    "line": 114,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "return store03_hash(&o->store_hash,b,STORE03_FOOTER,b+STORE03_FOOTER);"
+  },
+  {
+    "file": "apps/server/server_configuration_store04_win32.inc",
+    "line": 17,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,b,STORE03_FOOTER,d)||memcmp(d,b+STORE03_FOOTER,32U))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store04_win32.inc",
+    "line": 28,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,c,1152U,d)||memcmp(d,w+56U,32U)||!store04_decode(hash_ctx,c+128U,&candidate))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store04_win32.inc",
+    "line": 31,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,w,128U,prev))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store04_win32.inc",
+    "line": 49,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(&o->store_hash,c,1152U,d))return 0;memcpy(w+56U,d,32U);memcpy(w+88U,b+72U,32U);"
+  },
+  {
+    "file": "apps/server/server_configuration_store04_win32.inc",
+    "line": 50,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(&o->store_hash,w,128U,d))return 0;memcpy(b+72U,d,32U);put64(b+48U,v->revision);put64(b+56U,v->revision);put64(b+64U,v->revision);"
+  },
+  {
+    "file": "apps/server/server_configuration_store04_win32.inc",
+    "line": 51,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "return store03_hash(&o->store_hash,b,STORE03_FOOTER,b+STORE03_FOOTER);"
+  },
+  {
+    "file": "apps/server/server_configuration_store05_win32.inc",
+    "line": 5,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,b,STORE03_FOOTER,d)||memcmp(d,b+STORE03_FOOTER,32U))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store05_win32.inc",
+    "line": 16,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,c,1152U,d)||memcmp(d,w+56U,32U)||!store05_decode(hash_ctx,c+128U,&candidate))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store05_win32.inc",
+    "line": 19,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(hash_ctx,w,128U,prev))return 0;"
+  },
+  {
+    "file": "apps/server/server_configuration_store05_win32.inc",
+    "line": 37,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(&o->store_hash,c,1152U,d))return 0;memcpy(w+56U,d,32U);memcpy(w+88U,b+72U,32U);"
+  },
+  {
+    "file": "apps/server/server_configuration_store05_win32.inc",
+    "line": 38,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "if(!store03_hash(&o->store_hash,w,128U,d))return 0;memcpy(b+72U,d,32U);put64(b+48U,v->revision);put64(b+56U,v->revision);put64(b+64U,v->revision);"
+  },
+  {
+    "file": "apps/server/server_configuration_store05_win32.inc",
+    "line": 39,
+    "symbol": "store03_hash",
+    "classification": "IN_SCOPE",
+    "source": "return store03_hash(&o->store_hash,b,STORE03_FOOTER,b+STORE03_FOOTER);"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_backings_win32.inc",
+    "line": 31,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "return papacc_configuration_issuer_hash06(o,cursor,n,key);"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_backings_win32.inc",
+    "line": 68,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "!papacc_configuration_issuer_hash06(o,p,n,ph)||!papacc_configuration_issuer_hash06(o,ca,cn,ch))return PAPACC_RESULT_INVALID_STATE;"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_backings_win32.inc",
+    "line": 68,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "!papacc_configuration_issuer_hash06(o,p,n,ph)||!papacc_configuration_issuer_hash06(o,ca,cn,ch))return PAPACC_RESULT_INVALID_STATE;"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_backings_win32.inc",
+    "line": 99,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "if(!papacc_configuration_issuer_hash06(o,b->packet,b->packet_bytes,d)||memcmp(d,b->packet_hash,32)||"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_backings_win32.inc",
+    "line": 100,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "!papacc_configuration_issuer_hash06(o,b->ca,b->ca_bytes,d)||memcmp(d,b->ca_hash,32)||"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_update_act_win32.inc",
+    "line": 85,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "!papacc_configuration_issuer_hash06(o,b->packet,b->packet_bytes,digest)||memcmp(digest,u->act.candidate_hash,32)||"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_update_act_win32.inc",
+    "line": 86,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "!papacc_configuration_issuer_hash06(o,base->packet,base->packet_bytes,digest)||memcmp(digest,u->act.predecessor_hash,32))return PAPACC_RESULT_INVALID_STATE;"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_update_act_win32.inc",
+    "line": 99,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "if(!v3act_ready(o)||!papacc_configuration_issuer_hash06(o,b->packet,bytes,observed.candidate_hash)||"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_update_act_win32.inc",
+    "line": 100,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "!papacc_configuration_issuer_hash06(o,o->committed,o->committed_bytes,observed.predecessor_hash))return PAPACC_RESULT_INVALID_STATE;"
+  },
+  {
+    "file": "apps/server/server_configuration_v3_update_cohort_win32.inc",
+    "line": 30,
+    "symbol": "papacc_configuration_issuer_hash06",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "!store03_zero(image+q,512U)||!papacc_configuration_issuer_hash06(o,image,n-32U,digest)||memcmp(digest,image+n-32U,32))"
+  },
+  {
+    "file": "apps/server/server_store_hash_win32.h",
+    "line": 15,
+    "symbol": "papacc_store_hash",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "int papacc_store_hash(PAPACC_STORE_HASH *,const unsigned char *,unsigned,unsigned char [32]);"
+  },
+  {
+    "file": "apps/server/server_store_hash_win32.inc",
+    "line": 7,
+    "symbol": "papacc_store_hash",
+    "classification": "SHARED_REQUIRES_SPLIT",
+    "source": "int papacc_store_hash(PAPACC_STORE_HASH *c,const unsigned char *p,unsigned n,unsigned char out[32])"
+  }
+]

@@ -1,0 +1,11 @@
+# Exact authorized scope and STOP boundary
+
+TASK=PACC-PHASE6-WINDOWS-VIRTUAL-SERVICE-LAB-RUNTIME-1, 2026-10-23. Main HEAD913c90cf2328f7939d8f5b927640601903ac6e91. Scoped owner instruction authorizes independent LAB host build/negative qualification, not StartService or SCM mutation. Accepted virtual identity V0-V8, optional SCM, Model E, ED08 and ED11 remain unchanged.
+
+Registered LAB PapinhoAcceleratorLab20261023 is DISABLED/STOPPED/PID0. Exact old image is protected and unchanged. Its main service-name literal is productive. Existing fixed compile-time LAB profile may be used only in a private BUILD_TESTING qualification executable built from SAME main/service sources and linked to SAME runtime libraries. No runtime/argument/environment name selector or second server loop is authorized.
+
+Minimal code scope: LAB-only ServiceMain name/argument validation; product behavior/gates unchanged. Private model tests intercept SCM dispatcher/status/control APIs, test exact profile identity, startup denial, readiness/Stop races, quiescence receipts and retained outcomes. Four explicit Selected/Legacy Debug/Release builds; no native service start or mutation. LAB host remains denied by ps_binding_ready()==0. Model successes never qualify real TokenUser/ACL/CA denial.
+
+STOP: same-runtime ServiceMain has no protected configuration/token/installation producer; host callback supplies argc1, not a configured runtime request. Application operational admission remains closed; real runtime readiness currently follows network preparation. Do not bypass those conditions with a synthetic grant, a replacement idle loop or a compile-time readiness success. No positive runnable Start/Stop launcher may be armed before protected producer, actual token/access verification and resource admission are resolved.
+
+Prepare future manual lifecycle plan and a fail-closed check-only launcher if useful, without StartService/ChangeServiceConfig/ACL mutation. Future exact image rebinding and startup-mode change require specific approval: current registered image must not be silently replaced. No current instruction authorizes them. No CA/private-key access, listener, keys, certificates, bootstrap/CURRENT, new service/account/root/worker/registry, quota changes, commit/push/tag/release. Preserve WIP and historical LABs.

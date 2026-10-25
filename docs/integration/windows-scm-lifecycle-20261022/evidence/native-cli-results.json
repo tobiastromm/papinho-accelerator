@@ -1,0 +1,562 @@
+[
+  {
+    "profile": "Selected",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "status"
+    ],
+    "exit": 0,
+    "expected": [
+      0,
+      2
+    ],
+    "stdout": "SERVICE=ABSENT; IDENTITY=NOT_QUALIFIED\n",
+    "stderr": "",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "install",
+      "--account",
+      ".\\ModelOnlyUnqualified"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "start"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "stop"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "startup",
+      "automatic"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "startup",
+      "manual"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "remove"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "host"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "unknown"
+    ],
+    "exit": 1,
+    "expected": [
+      1
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=INVALID_COMMAND; expected install --account .\\name | start | stop | status | startup automatic|manual | remove\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "status"
+    ],
+    "exit": 0,
+    "expected": [
+      0,
+      2
+    ],
+    "stdout": "SERVICE=ABSENT; IDENTITY=NOT_QUALIFIED\n",
+    "stderr": "",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "install",
+      "--account",
+      ".\\ModelOnlyUnqualified"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "start"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "stop"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "startup",
+      "automatic"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "startup",
+      "manual"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "remove"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "host"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "",
+    "pass_case": true
+  },
+  {
+    "profile": "Selected",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "unknown"
+    ],
+    "exit": 1,
+    "expected": [
+      1
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=INVALID_COMMAND; expected install --account .\\name | start | stop | status | startup automatic|manual | remove\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "status"
+    ],
+    "exit": 0,
+    "expected": [
+      0,
+      2
+    ],
+    "stdout": "SERVICE=ABSENT; IDENTITY=NOT_QUALIFIED\n",
+    "stderr": "",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "install",
+      "--account",
+      ".\\ModelOnlyUnqualified"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "start"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "stop"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "startup",
+      "automatic"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "startup",
+      "manual"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "remove"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "host"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Debug",
+    "args": [
+      "service",
+      "unknown"
+    ],
+    "exit": 1,
+    "expected": [
+      1
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=INVALID_COMMAND; expected install --account .\\name | start | stop | status | startup automatic|manual | remove\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "status"
+    ],
+    "exit": 0,
+    "expected": [
+      0,
+      2
+    ],
+    "stdout": "SERVICE=ABSENT; IDENTITY=NOT_QUALIFIED\n",
+    "stderr": "",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "install",
+      "--account",
+      ".\\ModelOnlyUnqualified"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "start"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "stop"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "startup",
+      "automatic"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "startup",
+      "manual"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "remove"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=DENY; INSTALLATION_ACCOUNT_ACL_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "host"
+    ],
+    "exit": 2,
+    "expected": [
+      2
+    ],
+    "stdout": "",
+    "stderr": "",
+    "pass_case": true
+  },
+  {
+    "profile": "Legacy",
+    "configuration": "Release",
+    "args": [
+      "service",
+      "unknown"
+    ],
+    "exit": 1,
+    "expected": [
+      1
+    ],
+    "stdout": "",
+    "stderr": "SERVICE=INVALID_COMMAND; expected install --account .\\name | start | stop | status | startup automatic|manual | remove\n",
+    "pass_case": true
+  }
+]

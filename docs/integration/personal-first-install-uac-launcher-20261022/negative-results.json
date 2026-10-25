@@ -1,0 +1,50 @@
+[
+  {
+    "case": "check",
+    "exit": 2,
+    "stdout": "{\n    \"operator_sid\":  \"S-1-5-21-896877160-3262526087-2538948522-1003\",\n    \"operator_name\":  \"TCORP-TOBIAS\\\\CodexSandboxOffline\",\n    \"eligible\":  false,\n    \"interactive_console\":  false,\n    \"binary_sha256\":  \"bb618deffcd975060b2f860833f14cbbc50d61e49b595ad1f57181556961925a\",\n    \"confirmation_result\":  \"CHECK_ONLY_NO_EXECUTION\",\n    \"exit_code\":  null,\n    \"target_child_absent\":  true,\n    \"bootstrap\":  \"NOT_RUN\",\n    \"ca_custody\":  \"DENY\",\n    \"current_publication\":  \"DENY\",\n    \"signature_authority\":  \"DENY\",\n    \"ed11\":  \"PARTIAL\"\n}\n",
+    "stderr": ""
+  },
+  {
+    "case": "launch-without-console",
+    "exit": 2,
+    "stdout": "QUALIFICATION=DENY; REASON=NO_INTERACTIVE_CONSOLE_NO_UAC\n",
+    "stderr": ""
+  },
+  {
+    "case": "elevated-missing-binding",
+    "exit": 2,
+    "stdout": "QUALIFICATION=DENY; REASON=MISSING_ELEVATED_BINDING\n",
+    "stderr": ""
+  },
+  {
+    "case": "internal-argument-rejected",
+    "exit": 2,
+    "stdout": "QUALIFICATION=DENY; REASON=UNEXPECTED_INTERNAL_ARGUMENTS\n",
+    "stderr": ""
+  },
+  {
+    "case": "unknown-mode",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "C:\\Projetos\\PapinhoAccelerator\\tools\\qualification\\personal-first-install-uac.ps1 : N\u00c3\u00a3o \u00c3\u00a9 poss\u00c3\u00advel validar o argumento \nno par\u00c3\u00a2metro 'Mode'. O argumento \"arbitrary\" n\u00c3\u00a3o pertence ao conjunto \"Check;Launch;Elevated\" especificado pelo \natributo ValidateSet. Forne\u00c3\u00a7a um argumento que esteja no conjunto e tente o comando novamente.\n    + CategoryInfo          : InvalidData: (:) [personal-first-install-uac.ps1], ParentContainsErrorRecordException\n    + FullyQualifiedErrorId : ParameterArgumentValidationError,personal-first-install-uac.ps1\n \n"
+  },
+  {
+    "case": "sid-injection-rejected",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "C:\\Projetos\\PapinhoAccelerator\\tools\\qualification\\personal-first-install-uac.ps1 : N\u00c3\u00a3o \u00c3\u00a9 poss\u00c3\u00advel validar o argumento \nno par\u00c3\u00a2metro 'OriginSid'. O argumento \"S-1-5-1;whoami\" n\u00c3\u00a3o corresponde ao padr\u00c3\u00a3o \"^$|^S-1-[0-9-]+$\". Forne\u00c3\u00a7a um \nargumento que corresponda a \"^$|^S-1-[0-9-]+$\" e tente o comando novamente.\n    + CategoryInfo          : InvalidData: (:) [personal-first-install-uac.ps1], ParentContainsErrorRecordException\n    + FullyQualifiedErrorId : ParameterArgumentValidationError,personal-first-install-uac.ps1\n \n"
+  },
+  {
+    "case": "script-hash-divergent",
+    "exit": 2,
+    "stdout": "QUALIFICATION=DENY; REASON=SCRIPT_CHANGED_ACROSS_UAC\n",
+    "stderr": ""
+  },
+  {
+    "case": "wrong-script-location",
+    "exit": 2,
+    "stdout": "QUALIFICATION=DENY; REASON=UNTRUSTED_SCRIPT_LOCATION\n",
+    "stderr": ""
+  }
+]

@@ -1,0 +1,53 @@
+--- before/scm-instrumented-cycle-lab.inc
++++ after/scm-instrumented-cycle-lab.inc
+@@ -124,7 +124,7 @@
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+  ig_approval_file=CreateFileW(
+ #if defined(PAPACC_Q4_TOKEN_DIAGNOSTIC)
+- L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\q7-source-image-pin-correction-20261025\\EXACT-Q7-CORRECTION-APPROVED.json",
++ L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\q7-scm-readback-correction-20261025\\EXACT-Q7-SCM-CORRECTION-APPROVED.json",
+ #elif defined(PAPACC_N0START03_PRIVATE_POSITIVE)
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\admin-handle-budget-resolution-20261025\\EXACT-POSITIVE-ADMIN-BUDGET-APPROVED.json",
+ #elif defined(PAPACC_N0_PRIVATE_STDOUT)
+--- before/scm-n0-protected-single-powershell.ps1
++++ after/scm-n0-protected-single-powershell.ps1
+@@ -37,13 +37,13 @@
+ if($Profile-ceq'Q4TokenDiagnostic'){
+  $Attempt='10584f02e11f92c92b43cddf0d9d316f'
+  $Operation='N0TOKEN-20261025-01'
+- $Qualifier=$Root+'\build\q7-source-pin-correction-20261025\Selected\Release\papacc_scm_instrumented_lab.exe'
+- $QualifierHash='d36828987cd8dedc1ad2faeae65d41af536e2afc024be1d025e3c6833d95808a'
++ $Qualifier=$Root+'\build\q7-scm-readback-correction-20261025\Selected\Release\papacc_scm_instrumented_lab.exe'
++ $QualifierHash='bd9f4832b72467417fa49832fa493ae7af47a87d3b7ecf944ea0154c9fc6489d'
+  $TransportNative=$Root+'\build\q4-final-binding-20261025\Selected\Release\papacc_n0_private_stdout.dll'
+  $TransportNativeHash='e66735a59cf1fc3c63776e4adb97f67e1e95cdb7f1963790659b0a19637756b5'
+  $DossierHash='c63209c7591f404eead7ca8e3e4b91b5b3c8db13e47ad0e637c6e2c3a36a46e6'
+  $EvidenceHash='bb548b4f2a866d33445d39e2bb72e0093b60b04380cc4da6fd70c4855a0038fa'
+- $ApprovalPath=$Root+'\docs\integration\n0start03-integrated-closeout-20261024\q7-source-image-pin-correction-20261025\EXACT-Q7-CORRECTION-APPROVED.json'
++ $ApprovalPath=$Root+'\docs\integration\n0start03-integrated-closeout-20261024\q7-scm-readback-correction-20261025\EXACT-Q7-SCM-CORRECTION-APPROVED.json'
+ }
+ $Operator='S-1-5-21-785699550-1440458426-1682014700-1108'
+ $script:N0RetainedProcess=$null
+--- before/scm-runtime-cycle-lab.inc
++++ after/scm-runtime-cycle-lab.inc
+@@ -109,10 +109,18 @@
+  if(GetTickCount64()-began>=30000U)return ERROR_TIMEOUT; /* UNKNOWN; no kill/retry */
+  Sleep(50);}
+ }
++/* Exact preserved historical predecessor; never adopt current SCM text. */
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++static const WCHAR cycle_previous_image[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe";
++#endif
+ static DWORD cycle_readback(DWORD startup,int candidate)
+ {
+- WCHAR saved[1050];DWORD e;memcpy(saved,native.command,sizeof(saved));
+- if(candidate){native.command[0]=0;if(!lab_append(native.command,1050,L"\"")||!lab_append(native.command,1050,cycle_path)||!lab_append(native.command,1050,L"\" service host"))return ERROR_INVALID_DATA;}
++ WCHAR saved[1050];DWORD e;const WCHAR *expected=NULL;memcpy(saved,native.command,sizeof(saved));
++ if(candidate)expected=cycle_path;
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++ else expected=cycle_previous_image;
++#endif
++ if(expected){native.command[0]=0;if(!lab_append(native.command,1050,L"\"")||!lab_append(native.command,1050,expected)||!lab_append(native.command,1050,L"\" service host")){memcpy(native.command,saved,sizeof(saved));return ERROR_INVALID_DATA;}}
+  e=ps_virtual_readback_start(startup);
+  memcpy(native.command,saved,sizeof(saved));
+  if(!e&&native.query.aligned.dwErrorControl!=SERVICE_ERROR_NORMAL)e=ERROR_INVALID_DATA;

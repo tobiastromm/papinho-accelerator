@@ -1,0 +1,411 @@
+--- /dev/null
++++ b/apps/server/server_service_psr_trace_win32.inc
+@@ -0,0 +1,80 @@
++/* PROPOSED private LAB-only first-failure recorder. No authority or handles. */
++#if !defined(PAPACC_SCM_RUNTIME_LAB) || !defined(PAPACC_SCM_REGISTRATION_LAB)
++#error PSR tracing is restricted to the fixed private LAB profile
++#endif
++#include <stdio.h>
++typedef struct PSRT_BORROW {void *data;DWORD length,capacity;} PSRT_BORROW;
++typedef struct PSRT_RECORD {
++ PSRT_BORROW token[3];const char *object,*api,*predicate;DWORD requested,raw,returned,line,value_a,value_b;LONG ntstatus;unsigned native_valid,success,emitted,began,prepared;
++} PSRT_RECORD;
++static PSRT_RECORD psrt_record;
++#define PSRT_STORAGE_BYTES sizeof(psrt_record)
++static void psrt_context(const char *tag){DWORD saved=GetLastError();char line[192];psrt_record.object=tag;psrt_record.predicate=NULL;
++ if(!psrt_record.began){psrt_record.began=1;(void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_BEGIN pid=%lu tid=%lu private_lab=1\n",(unsigned long)GetCurrentProcessId(),(unsigned long)GetCurrentThreadId());OutputDebugStringA(line);}SetLastError(saved);}
++static void psrt_prepared(void){DWORD saved=GetLastError();char line[192];if(!psrt_record.prepared){psrt_record.prepared=1;(void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_PREPARE_SUCCESS pid=%lu NOT_OPERATIONAL_ADMISSION\n",(unsigned long)GetCurrentProcessId());OutputDebugStringA(line);}SetLastError(saved);}
++static BOOL psrt_bool(const char *name,unsigned line,DWORD requested,BOOL value)
++{DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
++static HANDLE psrt_handle(const char *name,unsigned line,DWORD requested,HANDLE value)
++{(void)psrt_bool(name,line,requested,value&&value!=INVALID_HANDLE_VALUE);return value;}
++static DWORD psrt_status(const char *name,unsigned line,DWORD requested,DWORD value)
++{DWORD saved=GetLastError();(void)psrt_bool(name,line,requested,value==0);psrt_record.raw=value;SetLastError(saved);return value;}
++static DWORD psrt_count(const char *name,unsigned line,DWORD value)
++{(void)psrt_bool(name,line,0,value!=0);return value;}
++static LONG psrt_nt(const char *name,unsigned line,DWORD requested,LONG value)
++{DWORD saved=GetLastError();(void)psrt_bool(name,line,requested,value>=0);psrt_record.ntstatus=value;psrt_record.native_valid=1;psrt_record.raw=0;SetLastError(saved);return value;}
++static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
++static void psrt_values(DWORD a,DWORD b){psrt_record.value_a=a;psrt_record.value_b=b;}
++static BOOL psrt_token(const char *name,unsigned line,TOKEN_INFORMATION_CLASS cls,void *data,DWORD capacity,DWORD *length,BOOL value)
++{
++ unsigned slot=3;(void)psrt_bool(name,line,TOKEN_QUERY,value);
++ if(cls==TokenUser)slot=0;else if(cls==TokenGroups)slot=1;else if(cls==TokenPrivileges)slot=2;
++ if(value&&length&&*length<=capacity&&slot<3){psrt_record.token[slot].data=data;psrt_record.token[slot].length=*length;psrt_record.token[slot].capacity=capacity;}
++ return value;
++}
++static const char *psrt_sid_hex(const PSRT_BORROW *b,PSID sid,char out[192])
++{
++ ULONG_PTR start=(ULONG_PTR)b->data,p=(ULONG_PTR)sid;DWORD n,i;
++ if(!b->data||b->length>b->capacity||p<start||p-start>b->length||b->length-(DWORD)(p-start)<8)return "UNAVAILABLE_OR_INVALID";
++ n=8U+4U*((BYTE *)sid)[1];if(n>68||n>b->length-(DWORD)(p-start))return "UNAVAILABLE_OR_INVALID";
++ for(i=0;i<n;i++){out[i*2]="0123456789abcdef"[((BYTE *)sid)[i]>>4];out[i*2+1]="0123456789abcdef"[((BYTE *)sid)[i]&15];}out[n*2]=0;return out;
++}
++static void psrt_token_emit(void)
++{
++ char line[384],sid[192];PSRT_BORROW *b;DWORD i,count;
++ b=&psrt_record.token[0];if(b->data&&b->length>=sizeof(TOKEN_USER)){
++ (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_TOKEN_USER pid=%lu sid_hex=%s\n",(unsigned long)GetCurrentProcessId(),psrt_sid_hex(b,((TOKEN_USER *)b->data)->User.Sid,sid));OutputDebugStringA(line);}
++ b=&psrt_record.token[1];if(b->data&&b->length>=(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)){
++ TOKEN_GROUPS *g=(TOKEN_GROUPS *)b->data;count=g->GroupCount;
++ if(count<=(b->length-FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES))for(i=0;i<count;i++){
++ (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_TOKEN_GROUP pid=%lu index=%lu sid_hex=%s attributes=%08lx\n",(unsigned long)GetCurrentProcessId(),(unsigned long)i,psrt_sid_hex(b,g->Groups[i].Sid,sid),(unsigned long)g->Groups[i].Attributes);OutputDebugStringA(line);}}
++ b=&psrt_record.token[2];if(b->data&&b->length>=(DWORD)FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges)){
++ TOKEN_PRIVILEGES *v=(TOKEN_PRIVILEGES *)b->data;count=v->PrivilegeCount;
++ if(count<=(b->length-FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges))/sizeof(LUID_AND_ATTRIBUTES))for(i=0;i<count;i++){
++ (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_TOKEN_PRIVILEGE pid=%lu index=%lu luid=%ld:%lu attributes=%08lx\n",(unsigned long)GetCurrentProcessId(),(unsigned long)i,(long)v->Privileges[i].Luid.HighPart,(unsigned long)v->Privileges[i].Luid.LowPart,(unsigned long)v->Privileges[i].Attributes);OutputDebugStringA(line);}}
++ (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_DIAG_END pid=%lu token_user_bytes=%lu token_group_bytes=%lu token_privilege_bytes=%lu absent_buffers=NOT_REACHED_NOT_SYNTHETIC\n",(unsigned long)GetCurrentProcessId(),(unsigned long)psrt_record.token[0].length,(unsigned long)psrt_record.token[1].length,(unsigned long)psrt_record.token[2].length);OutputDebugStringA(line);
++}
++static DWORD psrt_return(DWORD value,unsigned line,const char *branch)
++{
++ DWORD saved=GetLastError();char text[768];int n;
++ if(value&&!psrt_record.emitted){
++ psrt_record.emitted=1;psrt_record.returned=value;
++ n=_snprintf_s(text,sizeof(text),_TRUNCATE,"PACC_PSR_FIRST_FAILURE pid=%lu tid=%lu object=%s api=%s api_line=%lu request=%08lx api_success=%u raw_win32=%lu nt_valid=%u ntstatus=%08lx predicate=%s branch=%s return_line=%u returned_win32=%lu observed_a=%lu observed_b=%lu token_handle=NOT_EXPORTED\n",
++ (unsigned long)GetCurrentProcessId(),(unsigned long)GetCurrentThreadId(),psrt_record.object?psrt_record.object:"UNSET",psrt_record.api?psrt_record.api:"NONE",(unsigned long)psrt_record.line,(unsigned long)psrt_record.requested,psrt_record.success,(unsigned long)psrt_record.raw,psrt_record.native_valid,(unsigned long)(DWORD)psrt_record.ntstatus,psrt_record.predicate?psrt_record.predicate:"NONE",branch,line,(unsigned long)value,(unsigned long)psrt_record.value_a,(unsigned long)psrt_record.value_b);
++ if(n>0)OutputDebugStringA(text);
++ psrt_token_emit();
++ }
++ SetLastError(saved);return value;
++}
++#define PSRT_CONTEXT(tag) psrt_context(tag)
++#define PSRT_BOOL(tag,request,expr) psrt_bool(tag,__LINE__,request,(expr))
++#define PSRT_HANDLE(tag,request,expr) psrt_handle(tag,__LINE__,request,(expr))
++#define PSRT_STATUS(tag,request,expr) psrt_status(tag,__LINE__,request,(expr))
++#define PSRT_COUNT(tag,expr) psrt_count(tag,__LINE__,(expr))
++#define PSRT_NT(tag,request,expr) psrt_nt(tag,__LINE__,request,(expr))
++#define PSRT_PRED(tag,expr) psrt_pred(tag,(expr))
++#define PSRT_RETURN(value,branch) psrt_return((value),__LINE__,branch)
++
++#define PSRT_VALUES(a,b) psrt_values(a,b)
++#define PSRT_TOKEN(tag,cls,buf,capacity,length,expr) psrt_token(tag,__LINE__,cls,buf,capacity,length,(expr))
++
++#define PSRT_PREPARED() psrt_prepared()
+--- a/apps/server/server_service_win32.c
++++ b/apps/server/server_service_win32.c
+@@ -47,7 +47,23 @@
+  volatile LONG stop;DWORD thread;unsigned run_active,terminal_receipt;int argc;char **argv;int (*run)(int,char **);int result;
+ } PS_HOST;
+ static PS_HOST host;
+-size_t papacc_server_service_storage_bytes(void){return sizeof(native)+sizeof(host);}
++#if defined(PAPACC_SCM_RUNTIME_LAB) && defined(PAPACC_PSR_TRACE_LAB)
++#include "server_service_psr_trace_win32.inc"
++#else
++#define PSRT_STORAGE_BYTES 0U
++#define PSRT_VALUES(a,b) ((void)0)
++#define PSRT_PREPARED() ((void)0)
++#define PSRT_TOKEN(tag,cls,buf,capacity,length,expr) (expr)
++#define PSRT_CONTEXT(tag) ((void)0)
++#define PSRT_BOOL(tag,request,expr) (expr)
++#define PSRT_HANDLE(tag,request,expr) (expr)
++#define PSRT_STATUS(tag,request,expr) (expr)
++#define PSRT_COUNT(tag,expr) (expr)
++#define PSRT_NT(tag,request,expr) (expr)
++#define PSRT_PRED(tag,expr) (expr)
++#define PSRT_RETURN(value,branch) (value)
++#endif
++size_t papacc_server_service_storage_bytes(void){return sizeof(native)+sizeof(host)+PSRT_STORAGE_BYTES;}
+ /* Virtual identity needs no credential producer, but factual installation,
+  * configuration, ACL/token and operational admission are still absent. This
+  * cannot be supplied by argv, environment, SID string, elevation or SCM name. */
+--- a/apps/server/server_service_virtual_win32.inc
++++ b/apps/server/server_service_virtual_win32.inc
+@@ -11,31 +11,32 @@
+ {
+  DWORD n,read,e=ERROR_INVALID_DATA;BY_HANDLE_FILE_INFORMATION after;PACC_STORAGE_SHA256 hash;
+  unsigned char block[1024],digest[32];size_t i;HANDLE f;
+- if(native.image||native.image_ready)return ERROR_INVALID_STATE;
+- n=GetModuleFileNameW(NULL,native.image_path,1024);
+- if(!n)return ps_last_error();if(n>=1024)return ERROR_INSUFFICIENT_BUFFER;
++ PSRT_CONTEXT("CURRENT_MODULE_FILE");
++ if(native.image||native.image_ready)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
++ n=PSRT_COUNT("GetModuleFileNameW",GetModuleFileNameW(NULL,native.image_path,1024));
++ if(!n)return PSRT_RETURN(ps_last_error(),"native_api_failure");if(n>=1024)return PSRT_RETURN(ERROR_INSUFFICIENT_BUFFER,"original_branch");
+  if(!((native.image_path[0]>=L'A'&&native.image_path[0]<=L'Z')||(native.image_path[0]>=L'a'&&native.image_path[0]<=L'z'))||
+- native.image_path[1]!=L':'||native.image_path[2]!=L'\\')return ERROR_INVALID_NAME;
+- for(i=0;i<n;i++)if(native.image_path[i]==L'"'||native.image_path[i]<L' ')return ERROR_INVALID_NAME;
+- f=CreateFileW(native.image_path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+- if(f==INVALID_HANDLE_VALUE)return ps_last_error();native.image=f;
+- if(!GetFileInformationByHandle(f,&native.image_id))return ps_last_error();
+- if(native.image_id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY))return ERROR_ACCESS_DENIED;
+- memset(&hash,0,sizeof(hash));if(pacc_storage_sha_init(&hash)!=PACC_HASH_OK)return ERROR_INVALID_DATA;
++ native.image_path[1]!=L':'||native.image_path[2]!=L'\\')return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
++ for(i=0;i<n;i++)if(native.image_path[i]==L'"'||native.image_path[i]<L' ')return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
++ f=PSRT_HANDLE("CreateFileW",(GENERIC_READ),CreateFileW(native.image_path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL));
++ if(f==INVALID_HANDLE_VALUE)return PSRT_RETURN(ps_last_error(),"native_api_failure");native.image=f;
++ if(!PSRT_BOOL("GetFileInformationByHandle",(FILE_READ_ATTRIBUTES),GetFileInformationByHandle(f,&native.image_id)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
++ if(native.image_id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY))return PSRT_RETURN(ERROR_ACCESS_DENIED,"image.not_reparse_or_directory");
++ memset(&hash,0,sizeof(hash));if(pacc_storage_sha_init(&hash)!=PACC_HASH_OK)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  for(;;){
+   if(papacc_server_console_win32_stop_requested()) {e=ERROR_OPERATION_ABORTED;goto done;}
+-  if(!ReadFile(f,block,sizeof(block),&read,NULL)){e=ps_last_error();goto done;}
++  if(!PSRT_BOOL("ReadFile",(FILE_READ_DATA),ReadFile(f,block,sizeof(block),&read,NULL))){e=ps_last_error();goto done;}
+   if(!read)break;
+   if(pacc_storage_sha_update(&hash,block,read,NULL,NULL)!=PACC_HASH_OK)goto done;
+  }
+  if(pacc_storage_sha_final(&hash,digest,sizeof(digest),NULL,NULL)!=PACC_HASH_OK)goto done;
+- if(!GetFileInformationByHandle(f,&after)){e=ps_last_error();goto done;}
++ if(!PSRT_BOOL("GetFileInformationByHandle",(FILE_READ_ATTRIBUTES),GetFileInformationByHandle(f,&after))){e=ps_last_error();goto done;}
+  if(!ps_image_same(&native.image_id,&after)||papacc_server_console_win32_stop_requested())goto done;
+  native.command[0]=L'"';memcpy(native.command+1,native.image_path,(n+1U)*sizeof(wchar_t));
+  /* Fixed suffix only; no argv interpolation. 1024 path bound leaves room. */
+  memcpy(native.command+1+n,L"\" service host",sizeof(L"\" service host"));
+  memcpy(native.image_sha256,digest,32);native.image_ready=1U;e=ERROR_SUCCESS;
+- done:memset(&hash,0,sizeof(hash));memset(block,0,sizeof(block));memset(digest,0,sizeof(digest));return e;
++ done:memset(&hash,0,sizeof(hash));memset(block,0,sizeof(block));memset(digest,0,sizeof(digest));return PSRT_RETURN(e,"module_image_read_result");
+ }
+ /* Never dereference returned string pointers before validating buffer range,
+  * alignment and terminator inside the actually returned byte count. */
+@@ -53,19 +54,20 @@
+ {
+  QUERY_SERVICE_CONFIGW *q=&native.query.aligned;SERVICE_SID_INFO info;DWORD used=0,n=0,sidn,domainn;
+  SID_NAME_USE use;BYTE authority[6]={0,0,0,0,0,5};PSID sid=native.service_sid;
++ PSRT_CONTEXT("SCM_SERVICE_READBACK");
+  memset(&native.query,0,sizeof(native.query));
+- if(!QueryServiceConfigW(native.service,q,sizeof(native.query.bytes),&used))return ps_last_error();
++ if(!PSRT_BOOL("QueryServiceConfigW",(SERVICE_QUERY_CONFIG),QueryServiceConfigW(native.service,q,sizeof(native.query.bytes),&used)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+  if(used>sizeof(native.query.bytes)||used<sizeof(*q)||q->dwServiceType!=SERVICE_WIN32_OWN_PROCESS||
+  q->dwStartType!=expected_start||!ps_config_string(q->lpServiceStartName,used,ps_account,1)||
+  !ps_config_string(q->lpBinaryPathName,used,native.command,0)||
+- (q->lpDependencies&&!ps_config_string(q->lpDependencies,used,L"",0)))return ERROR_INVALID_DATA;
++ (q->lpDependencies&&!ps_config_string(q->lpDependencies,used,L"",0)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  memset(&info,0,sizeof(info));
+- if(!QueryServiceConfig2W(native.service,SERVICE_CONFIG_SERVICE_SID_INFO,(LPBYTE)&info,sizeof(info),&n))return ps_last_error();
+- if(n!=sizeof(info)||info.dwServiceSidType!=SERVICE_SID_TYPE_UNRESTRICTED)return ERROR_INVALID_DATA;
++ if(!PSRT_BOOL("QueryServiceConfig2W",(SERVICE_QUERY_CONFIG),QueryServiceConfig2W(native.service,SERVICE_CONFIG_SERVICE_SID_INFO,(LPBYTE)&info,sizeof(info),&n)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
++ if(n!=sizeof(info)||info.dwServiceSidType!=SERVICE_SID_TYPE_UNRESTRICTED)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  sidn=sizeof(native.service_sid);domainn=sizeof(native.sid_domain)/sizeof(wchar_t);
+- if(!LookupAccountNameW(NULL,ps_account,sid,&sidn,native.sid_domain,&domainn,&use))return ps_last_error();
++ if(!PSRT_BOOL("LookupAccountNameW",(0),LookupAccountNameW(NULL,ps_account,sid,&sidn,native.sid_domain,&domainn,&use)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+  if(sidn>sizeof(native.service_sid)||sidn<8U||!IsValidSid(sid)||GetLengthSid(sid)>sidn||
+- *GetSidSubAuthorityCount(sid)!=6||memcmp(GetSidIdentifierAuthority(sid),authority,6)||*GetSidSubAuthority(sid,0)!=80)return ERROR_INVALID_SID;
++ *GetSidSubAuthorityCount(sid)!=6||memcmp(GetSidIdentifierAuthority(sid),authority,6)||*GetSidSubAuthority(sid,0)!=80)return PSRT_RETURN(ERROR_INVALID_SID,"original_branch");
+  native.sid_size=GetLengthSid(sid);native.sid_use=use;native.readback=1U;return ERROR_SUCCESS;
+ }
+ static DWORD ps_virtual_readback(void){return ps_virtual_readback_start(PAPACC_SCM_START_MODE);}
+@@ -74,20 +76,20 @@
+  SERVICE_SID_INFO info;DWORD e;BY_HANDLE_FILE_INFORMATION current;
+  /* Caller must first prove configuration/target/authorization via existing
+   * gate. This private primitive is independently tested with modeled APIs. */
+- if(!native.manager||native.service||!native.image||!native.image_ready||native.install_effect)return ERROR_INVALID_STATE;
+- if(papacc_server_console_win32_stop_requested())return ERROR_OPERATION_ABORTED;
++ if(!native.manager||native.service||!native.image||!native.image_ready||native.install_effect)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
++ if(papacc_server_console_win32_stop_requested())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"original_branch");
+  if(!GetFileInformationByHandle(native.image,&current))return ps_last_error();
+- if(!ps_image_same(&native.image_id,&current))return ERROR_INVALID_DATA;
++ if(!ps_image_same(&native.image_id,&current))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  native.install_effect=1U; /* REQUESTED: an uncertain Create is never retried. */
+  native.service=CreateServiceW(native.manager,ps_name,ps_name,SERVICE_QUERY_CONFIG|SERVICE_CHANGE_CONFIG|SERVICE_QUERY_STATUS,
+  SERVICE_WIN32_OWN_PROCESS,PAPACC_SCM_START_MODE,SERVICE_ERROR_NORMAL,native.command,NULL,NULL,NULL,ps_account,NULL);
+- if(!native.service){e=ps_last_error();native.install_disposition=e==ERROR_SERVICE_EXISTS||e==ERROR_DUPLICATE_SERVICE_NAME||e==ERROR_SERVICE_MARKED_FOR_DELETE?1U:2U;return e;}
++ if(!native.service){e=ps_last_error();native.install_disposition=e==ERROR_SERVICE_EXISTS||e==ERROR_DUPLICATE_SERVICE_NAME||e==ERROR_SERVICE_MARKED_FOR_DELETE?1U:2U;return PSRT_RETURN(e,"propagate_original");}
+  native.install_disposition=3U; /* Created, not configured/finalized runtime. */
+- if(papacc_server_console_win32_stop_requested())return ERROR_OPERATION_ABORTED;
++ if(papacc_server_console_win32_stop_requested())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"original_branch");
+  info.dwServiceSidType=SERVICE_SID_TYPE_UNRESTRICTED;
+  if(!ChangeServiceConfig2W(native.service,SERVICE_CONFIG_SERVICE_SID_INFO,&info))return ps_last_error();
+- e=ps_virtual_readback();if(e)return e;
+- if(papacc_server_console_win32_stop_requested())return ERROR_OPERATION_ABORTED;
++ e=ps_virtual_readback();if(e)return PSRT_RETURN(e,"propagate_original");
++ if(papacc_server_console_win32_stop_requested())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"original_branch");
+  native.install_disposition=4U; /* Configuration confirmed, NOT token/ACL/readiness. */
+  return ERROR_SUCCESS;
+ }
+--- a/apps/server/server_service_runtime_win32.inc
++++ b/apps/server/server_service_runtime_win32.inc
+@@ -14,10 +14,10 @@
+  HANDLE *v[7];unsigned i;
+  v[0]=&native.runtime.relative_image;v[1]=&native.runtime.configuration;v[2]=&native.runtime.access_token;
+  v[3]=&native.runtime.unexpected;v[4]=&native.runtime.check_token;v[5]=&native.runtime.token;v[6]=&native.runtime.parent;
+- if(host.terminal_receipt==2U||host.life.phase==PS_RETAINED||(host.run_active&&host.terminal_receipt!=1U))return ERROR_BUSY;
+- if(native.runtime.retained)return ERROR_INVALID_STATE; /* first failure retained; never retry */
+- if(native.runtime.descriptor){if(LocalFree(native.runtime.descriptor)){native.runtime.retained=1U;return ERROR_INVALID_HANDLE;}native.runtime.descriptor=NULL;}
+- if(native.runtime.approved_sid){if(LocalFree(native.runtime.approved_sid)){native.runtime.retained=1U;return ERROR_INVALID_HANDLE;}native.runtime.approved_sid=NULL;}
++ if(host.terminal_receipt==2U||host.life.phase==PS_RETAINED||(host.run_active&&host.terminal_receipt!=1U))return PSRT_RETURN(ERROR_BUSY,"original_branch");
++ if(native.runtime.retained)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch"); /* first failure retained; never retry */
++ if(native.runtime.descriptor){if(LocalFree(native.runtime.descriptor)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.descriptor=NULL;}
++ if(native.runtime.approved_sid){if(LocalFree(native.runtime.approved_sid)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.approved_sid=NULL;}
+  for(i=0;i<7;i++)if(*v[i]){if(!CloseHandle(*v[i])){native.runtime.retained=1U;return ps_last_error();}*v[i]=NULL;}
+  native.runtime.ready=0U;native.runtime.managers_ready=0U;SecureZeroMemory(native.runtime.bytes,sizeof(native.runtime.bytes));return ERROR_SUCCESS;
+ }
+@@ -34,111 +34,118 @@
+  TOKEN_USER *u=(TOKEN_USER *)native.runtime.user.bytes;TOKEN_GROUPS *g=(TOKEN_GROUPS *)native.runtime.groups.bytes;
+  TOKEN_PRIVILEGES *priv=(TOKEN_PRIVILEGES *)native.runtime.privileges.bytes;
+  BYTE admin[SECURITY_MAX_SID_SIZE],service[SECURITY_MAX_SID_SIZE];DWORD an=sizeof(admin),sn=sizeof(service);int service_group=0,specific_group=0;
+- if(native.runtime.unexpected||native.runtime.token)return ERROR_INVALID_STATE;
+- if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected))return ERROR_ACCESS_DENIED;
+- if(GetLastError()!=ERROR_NO_TOKEN)return ps_last_error();
+- if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY|TOKEN_DUPLICATE,&native.runtime.token))return ps_last_error();
+- if(!GetTokenInformation(native.runtime.token,TokenStatistics,&stats,sizeof(stats),&n)||n!=sizeof(stats)||stats.TokenType!=TokenPrimary||
+- !GetTokenInformation(native.runtime.token,TokenUser,u,sizeof(native.runtime.user.bytes),&n)||n>sizeof(native.runtime.user.bytes)||
+- !psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid)||!EqualSid(u->User.Sid,native.service_sid))return ERROR_ACCESS_DENIED;
+- if(!GetTokenInformation(native.runtime.token,TokenGroups,g,sizeof(native.runtime.groups.bytes),&gn)||gn>sizeof(native.runtime.groups.bytes)||
++ PSRT_CONTEXT("TOKEN_PROCESS_AND_THREAD");
++ if(native.runtime.unexpected||native.runtime.token)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
++ if(PSRT_BOOL("OpenThreadToken",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"unexpected_thread_impersonation_token");
++ if(GetLastError()!=ERROR_NO_TOKEN)return PSRT_RETURN(ps_last_error(),"native_api_failure");
++ if(!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY|TOKEN_DUPLICATE),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY|TOKEN_DUPLICATE,&native.runtime.token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
++ if(!PSRT_TOKEN("GetTokenInformation:TokenStatistics",TokenStatistics,&stats,sizeof(stats),&n,GetTokenInformation(native.runtime.token,TokenStatistics,&stats,sizeof(stats),&n))||!PSRT_PRED("token.statistics.length",n==sizeof(stats))||!PSRT_PRED("token.primary",stats.TokenType==TokenPrimary)||
++ !PSRT_TOKEN("GetTokenInformation:TokenUser",TokenUser,u,sizeof(native.runtime.user.bytes),&n,GetTokenInformation(native.runtime.token,TokenUser,u,sizeof(native.runtime.user.bytes),&n))||!PSRT_PRED("token.user.length",n<=sizeof(native.runtime.user.bytes))||
++ !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
++ if(!PSRT_TOKEN("GetTokenInformation:TokenGroups",TokenGroups,g,sizeof(native.runtime.groups.bytes),&gn,GetTokenInformation(native.runtime.token,TokenGroups,g,sizeof(native.runtime.groups.bytes),&gn))||gn>sizeof(native.runtime.groups.bytes)||
+  gn<(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)||g->GroupCount>(gn-FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES)||
+- !CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an)||!CreateWellKnownSid(WinServiceSid,NULL,service,&sn))return ERROR_INVALID_DATA;
++ !PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an))||!PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinServiceSid,NULL,service,&sn)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  for(i=0;i<g->GroupCount;i++){
+-  if(!psr_inside_sid(native.runtime.groups.bytes,gn,g->Groups[i].Sid))return ERROR_INVALID_SID;
++  if(!psr_inside_sid(native.runtime.groups.bytes,gn,g->Groups[i].Sid))return PSRT_RETURN(ERROR_INVALID_SID,"original_branch");
+   if((g->Groups[i].Attributes&SE_GROUP_ENABLED)&&!(g->Groups[i].Attributes&SE_GROUP_USE_FOR_DENY_ONLY)){
+-   if(EqualSid(g->Groups[i].Sid,admin))return ERROR_ACCESS_DENIED;
++   if(!PSRT_PRED("token.no_enabled_administrators",!EqualSid(g->Groups[i].Sid,admin)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+    if(EqualSid(g->Groups[i].Sid,service))service_group=1;
+    if(EqualSid(g->Groups[i].Sid,native.service_sid))specific_group=1;
+   }
+  }
+- if(!service_group||!specific_group)return ERROR_ACCESS_DENIED;
+- if(!GetTokenInformation(native.runtime.token,TokenPrivileges,priv,sizeof(native.runtime.privileges.bytes),&pn)||pn>sizeof(native.runtime.privileges.bytes)||
++ if(!PSRT_PRED("token.service_group.enabled",service_group)||!PSRT_PRED("token.specific_group.enabled",specific_group))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
++ if(!PSRT_TOKEN("GetTokenInformation:TokenPrivileges",TokenPrivileges,priv,sizeof(native.runtime.privileges.bytes),&pn,GetTokenInformation(native.runtime.token,TokenPrivileges,priv,sizeof(native.runtime.privileges.bytes),&pn))||pn>sizeof(native.runtime.privileges.bytes)||
+  pn<(DWORD)FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges)||priv->PrivilegeCount>(pn-FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges))/sizeof(LUID_AND_ATTRIBUTES)||
+- !GetTokenInformation(native.runtime.token,TokenElevation,&elev,sizeof(elev),&n)||n!=sizeof(elev))return ERROR_INVALID_DATA;
++ !PSRT_TOKEN("GetTokenInformation:TokenElevation",TokenElevation,&elev,sizeof(elev),&n,GetTokenInformation(native.runtime.token,TokenElevation,&elev,sizeof(elev),&n))||n!=sizeof(elev))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  native.runtime.statistics=stats;native.runtime.group_bytes=gn;native.runtime.privilege_bytes=pn;native.runtime.elevated=elev.TokenIsElevated;
+  /* Keep full group/privilege entries/attributes through runtime quiescence. */
+- if(!DuplicateToken(native.runtime.token,SecurityImpersonation,&native.runtime.access_token))return ps_last_error();
++ if(!PSRT_BOOL("DuplicateToken",(TOKEN_DUPLICATE),DuplicateToken(native.runtime.token,SecurityImpersonation,&native.runtime.access_token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+  return ERROR_SUCCESS;
+ }
+ typedef NTSTATUS (NTAPI *PSR_CREATE)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);
+ static DWORD psr_open(HANDLE parent,const WCHAR *name,HANDLE *out,int directory)
+ {
+  UNICODE_STRING str;OBJECT_ATTRIBUTES attr;IO_STATUS_BLOCK io;HMODULE m;FARPROC proc;PSR_CREATE create;NTSTATUS status;size_t len;
+- if(*out||!name)return ERROR_INVALID_STATE;len=wcslen(name);if(!len||len>512U)return ERROR_INVALID_NAME;
+- m=GetModuleHandleW(L"ntdll.dll");if(!m)return ERROR_NOT_SUPPORTED;proc=GetProcAddress(m,"NtCreateFile");if(!proc)return ERROR_NOT_SUPPORTED;memcpy(&create,&proc,sizeof(create));
++ if(*out||!name)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");len=wcslen(name);if(!len||len>512U)return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
++ PSRT_CONTEXT(directory?"PARENT":(!wcscmp(name,L"papacc.conf")?"CONFIG":"IMAGE"));
++ m=GetModuleHandleW(L"ntdll.dll");if(!m)return PSRT_RETURN(ERROR_NOT_SUPPORTED,"original_branch");proc=GetProcAddress(m,"NtCreateFile");if(!proc)return PSRT_RETURN(ERROR_NOT_SUPPORTED,"original_branch");memcpy(&create,&proc,sizeof(create));
+  ZeroMemory(&attr,sizeof(attr));ZeroMemory(&io,sizeof(io));str.Buffer=(WCHAR *)name;str.Length=(USHORT)(len*sizeof(WCHAR));str.MaximumLength=str.Length;
+  attr.Length=sizeof(attr);attr.RootDirectory=parent;attr.ObjectName=&str;attr.Attributes=OBJ_CASE_INSENSITIVE|0x1000U;
+  status=create(out,(directory?(FILE_TRAVERSE|FILE_READ_ATTRIBUTES):GENERIC_READ)|READ_CONTROL|SYNCHRONIZE,&attr,&io,NULL,FILE_ATTRIBUTE_NORMAL,FILE_SHARE_READ,1U,directory?0x00200021U:0x00200060U,NULL,0U);
+- if(status<0){if(*out)native.runtime.retained=1U;return ERROR_ACCESS_DENIED;}return ERROR_SUCCESS;
++ (void)PSRT_NT("NtCreateFile",(directory?(FILE_TRAVERSE|FILE_READ_ATTRIBUTES):GENERIC_READ)|READ_CONTROL|SYNCHRONIZE,status);
++ if(status<0){if(*out)native.runtime.retained=1U;return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");}return ERROR_SUCCESS;
+ }
+ static DWORD psr_acl(HANDLE file,unsigned slot,int image)
+ {
+  PSECURITY_DESCRIPTOR sd=NULL;PSID approved=NULL;DWORD e,n,got=sizeof(native.runtime.access_privileges.bytes),granted=0;BOOL allowed=FALSE;int ok;SECURITY_DESCRIPTOR_CONTROL control;DWORD revision;
+  unsigned char hash[32];
+  GENERIC_MAPPING mapping={FILE_GENERIC_READ,FILE_GENERIC_WRITE,FILE_GENERIC_EXECUTE,FILE_ALL_ACCESS};
+- if(slot>=3U||native.runtime.descriptor||native.runtime.approved_sid)return ERROR_INVALID_STATE;
+- if(!ConvertStringSidToSidW(L"S-1-5-21-785699550-1440458426-1682014700-1108",&approved))return ps_last_error();native.runtime.approved_sid=approved;
+- e=GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&sd);native.runtime.descriptor=sd;if(e){if(sd)native.runtime.retained=1U;return e;}
+- n=GetSecurityDescriptorLength(sd);ok=n&&n<=65536U&&GetSecurityDescriptorControl(sd,&control,&revision)&&(control&SE_DACL_PROTECTED)&&scm_descriptor(sd,(BYTE *)approved);
+- if(ok)ok=AccessCheck(sd,native.runtime.access_token,MAXIMUM_ALLOWED,&mapping,(PRIVILEGE_SET *)native.runtime.access_privileges.bytes,&got,&granted,&allowed)&&got<=sizeof(native.runtime.access_privileges.bytes)&&allowed;
+- if(ok)ok=(granted&(FILE_WRITE_DATA|FILE_APPEND_DATA|FILE_WRITE_EA|FILE_WRITE_ATTRIBUTES|DELETE|WRITE_DAC|WRITE_OWNER|FILE_DELETE_CHILD))==0&&
+- (granted&(FILE_READ_DATA|(image?FILE_EXECUTE:0)))==(DWORD)(FILE_READ_DATA|(image?FILE_EXECUTE:0));
+- if(ok)ok=pacc_storage_hash_callback(NULL,(const unsigned char *)sd,n,hash)&&
+- (!(native.runtime.acl_captured&(1U<<slot))||!memcmp(hash,native.runtime.acl_hash[slot],32));
++ PSRT_CONTEXT(slot==0?"PARENT_ACL":slot==1?"CONFIG_ACL":"IMAGE_ACL");
++ if(slot>=3U||native.runtime.descriptor||native.runtime.approved_sid)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
++ if(!PSRT_BOOL("ConvertStringSidToSidW",(0),ConvertStringSidToSidW(L"S-1-5-21-785699550-1440458426-1682014700-1108",&approved)))return PSRT_RETURN(ps_last_error(),"native_api_failure");native.runtime.approved_sid=approved;
++ e=PSRT_STATUS("GetSecurityInfo",READ_CONTROL,GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&sd));native.runtime.descriptor=sd;if(e){if(sd)native.runtime.retained=1U;return PSRT_RETURN(e,"propagate_original");}
++ n=GetSecurityDescriptorLength(sd);ok=PSRT_PRED("sd.length",n&&n<=65536U)&&PSRT_BOOL("GetSecurityDescriptorControl",(0),GetSecurityDescriptorControl(sd,&control,&revision))&&PSRT_PRED("sd.protected",(control&SE_DACL_PROTECTED)!=0)&&PSRT_PRED("sd.scm_descriptor",scm_descriptor(sd,(BYTE *)approved));
++ if(ok)ok=PSRT_BOOL("AccessCheck",(MAXIMUM_ALLOWED),AccessCheck(sd,native.runtime.access_token,MAXIMUM_ALLOWED,&mapping,(PRIVILEGE_SET *)native.runtime.access_privileges.bytes,&got,&granted,&allowed))&&PSRT_PRED("accesscheck.privilege_buffer_bound",got<=sizeof(native.runtime.access_privileges.bytes))&&PSRT_PRED("accesscheck.access_status",allowed);
++ PSRT_VALUES(granted,got);
++ if(ok)ok=PSRT_PRED("acl.no_write_delete_owner",(granted&(FILE_WRITE_DATA|FILE_APPEND_DATA|FILE_WRITE_EA|FILE_WRITE_ATTRIBUTES|DELETE|WRITE_DAC|WRITE_OWNER|FILE_DELETE_CHILD))==0)&&
++ PSRT_PRED("acl.required_read_execute",(granted&(FILE_READ_DATA|(image?FILE_EXECUTE:0)))==(DWORD)(FILE_READ_DATA|(image?FILE_EXECUTE:0)));
++ if(ok)ok=PSRT_PRED("acl.hash",pacc_storage_hash_callback(NULL,(const unsigned char *)sd,n,hash))&&
++ PSRT_PRED("acl.immutable",(!(native.runtime.acl_captured&(1U<<slot))||!memcmp(hash,native.runtime.acl_hash[slot],32)));
+  if(ok&&!(native.runtime.acl_captured&(1U<<slot))){memcpy(native.runtime.acl_hash[slot],hash,32);native.runtime.acl_captured|=1U<<slot;}
+- if(LocalFree(sd)){native.runtime.retained=1U;return ERROR_INVALID_HANDLE;}native.runtime.descriptor=NULL;
+- if(LocalFree(approved)){native.runtime.retained=1U;return ERROR_INVALID_HANDLE;}native.runtime.approved_sid=NULL;
+- return ok?ERROR_SUCCESS:ERROR_ACCESS_DENIED;
++ if(LocalFree(sd)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.descriptor=NULL;
++ if(LocalFree(approved)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.approved_sid=NULL;
++ return PSRT_RETURN(ok?ERROR_SUCCESS:ERROR_ACCESS_DENIED,"acl.policy_or_effective_access");
+ }
+ static DWORD psr_current(void)
+ {
+  BY_HANDLE_FILE_INFORMATION a;TOKEN_STATISTICS stats;DWORD n,read;LARGE_INTEGER zero;unsigned char digest[32];char hex[65];unsigned i;
+- if(native.runtime.retained||papacc_server_console_win32_stop_requested()||!native.runtime.parent||!native.runtime.configuration||!native.runtime.token)return ERROR_OPERATION_ABORTED;
+- if(native.runtime.unexpected||native.runtime.check_token)return ERROR_INVALID_STATE;
+- if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected))return ERROR_ACCESS_DENIED;
+- if(GetLastError()!=ERROR_NO_TOKEN||!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&native.runtime.check_token))return ERROR_ACCESS_DENIED;
++ PSRT_CONTEXT("CURRENT_SOURCE_AND_TOKEN");
++ if(native.runtime.retained||papacc_server_console_win32_stop_requested()||!native.runtime.parent||!native.runtime.configuration||!native.runtime.token)return PSRT_RETURN(ERROR_OPERATION_ABORTED,"original_branch");
++ if(native.runtime.unexpected||native.runtime.check_token)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
++ if(PSRT_BOOL("OpenThreadToken",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
++ if(GetLastError()!=ERROR_NO_TOKEN||!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&native.runtime.check_token)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+  {
+- int same=GetTokenInformation(native.runtime.check_token,TokenStatistics,&stats,sizeof(stats),&n)&&n==sizeof(stats)&&
++ int same=PSRT_TOKEN("GetTokenInformation:TokenStatistics",TokenStatistics,&stats,sizeof(stats),&n,GetTokenInformation(native.runtime.check_token,TokenStatistics,&stats,sizeof(stats),&n))&&n==sizeof(stats)&&
+  !memcmp(&stats.TokenId,&native.runtime.statistics.TokenId,sizeof(LUID))&&
+  !memcmp(&stats.AuthenticationId,&native.runtime.statistics.AuthenticationId,sizeof(LUID))&&!memcmp(&stats.ModifiedId,&native.runtime.statistics.ModifiedId,sizeof(LUID));
+- if(!CloseHandle(native.runtime.check_token)){native.runtime.retained=1U;return ERROR_INVALID_HANDLE;}native.runtime.check_token=NULL;
+- if(!same)return ERROR_ACCESS_DENIED;
++ if(!CloseHandle(native.runtime.check_token)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.check_token=NULL;
++ if(!PSRT_PRED("token.same_id_auth_modified",same))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+  }
+- if(!GetFileInformationByHandle(native.runtime.parent,&a)||a.dwVolumeSerialNumber!=417614100UL||a.nFileIndexHigh!=1966080UL||a.nFileIndexLow!=79426UL||
+- !(a.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||(a.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return ERROR_INVALID_DATA;
+- if(!GetFileInformationByHandle(native.runtime.relative_image,&a)||!ps_image_same(&a,&native.image_id)||
+- (a.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return ERROR_INVALID_DATA;
+- if(!GetFileInformationByHandle(native.runtime.configuration,&a)||a.dwVolumeSerialNumber!=417614100UL||a.nFileIndexHigh!=393216UL||a.nFileIndexLow!=1120240UL||
+- a.nFileSizeHigh||a.nFileSizeLow!=116U||(a.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return ERROR_INVALID_DATA;
+- zero.QuadPart=0;if(!SetFilePointerEx(native.runtime.configuration,zero,NULL,FILE_BEGIN)||!ReadFile(native.runtime.configuration,native.runtime.bytes,sizeof(native.runtime.bytes),&read,NULL)||read!=116U)return ERROR_INVALID_DATA;
+- if(!pacc_storage_hash_callback(NULL,native.runtime.bytes,read,digest))return ERROR_INVALID_DATA;
++ if(!PSRT_BOOL("GetFileInformationByHandle",(FILE_READ_ATTRIBUTES),GetFileInformationByHandle(native.runtime.parent,&a))||a.dwVolumeSerialNumber!=417614100UL||a.nFileIndexHigh!=1966080UL||a.nFileIndexLow!=79426UL||
++ !(a.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||(a.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
++ if(!PSRT_BOOL("GetFileInformationByHandle",(FILE_READ_ATTRIBUTES),GetFileInformationByHandle(native.runtime.relative_image,&a))||!ps_image_same(&a,&native.image_id)||
++ (a.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
++ if(!PSRT_BOOL("GetFileInformationByHandle",(FILE_READ_ATTRIBUTES),GetFileInformationByHandle(native.runtime.configuration,&a))||a.dwVolumeSerialNumber!=417614100UL||a.nFileIndexHigh!=393216UL||a.nFileIndexLow!=1120240UL||
++ a.nFileSizeHigh||a.nFileSizeLow!=116U||(a.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
++ zero.QuadPart=0;if(!PSRT_BOOL("SetFilePointerEx",(FILE_READ_DATA),SetFilePointerEx(native.runtime.configuration,zero,NULL,FILE_BEGIN))||!PSRT_BOOL("ReadFile",(FILE_READ_DATA),ReadFile(native.runtime.configuration,native.runtime.bytes,sizeof(native.runtime.bytes),&read,NULL))||read!=116U)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
++ if(!pacc_storage_hash_callback(NULL,native.runtime.bytes,read,digest))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  for(i=0;i<32;i++){hex[2*i]="0123456789abcdef"[digest[i]>>4];hex[2*i+1]="0123456789abcdef"[digest[i]&15];}hex[64]=0;
+- if(strcmp(hex,psr_config_sha))return ERROR_INVALID_DATA;
+- {DWORD e;if((e=psr_acl(native.runtime.parent,0U,0))||(e=psr_acl(native.runtime.configuration,1U,0))||(e=psr_acl(native.runtime.relative_image,2U,1)))return e;}
++ if(strcmp(hex,psr_config_sha))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
++ {DWORD e;if((e=psr_acl(native.runtime.parent,0U,0))||(e=psr_acl(native.runtime.configuration,1U,0))||(e=psr_acl(native.runtime.relative_image,2U,1)))return PSRT_RETURN(e,"propagate_original");}
+  return ERROR_SUCCESS;
+ }
+ static DWORD psr_prepare(void)
+ {
+  WCHAR device[256],path[512];size_t a,b;DWORD e;SERVICE_STATUS_PROCESS status;DWORD got=0;
+  PC_DOCUMENT document;PC_DIAGNOSTIC diagnostic;PC_TARGET target={1U,0};
+- if(native.runtime.ready||native.runtime.retained||native.manager||native.service||native.image)return ERROR_INVALID_STATE;
+- e=ps_image_open();if(e)return e;
+- native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!native.manager)return ps_last_error();
+- native.service=OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS);if(!native.service)return ps_last_error();
+- e=ps_virtual_readback_start(SERVICE_DEMAND_START);if(e)return e;
+- ZeroMemory(&status,sizeof(status));if(!QueryServiceStatusEx(native.service,SC_STATUS_PROCESS_INFO,(BYTE *)&status,sizeof(status),&got)||got!=sizeof(status)||
+- status.dwProcessId!=GetCurrentProcessId()||status.dwCurrentState!=SERVICE_START_PENDING)return ERROR_INVALID_DATA;
+- e=psr_token();if(e)return e;
+- a=wcslen(psr_parent);if(wcsncmp(native.image_path,psr_parent,a)||native.image_path[a]!=L'\\'||wcscmp(native.image_path+a+1,L"papacc_server_lab_host.exe"))return ERROR_INVALID_NAME;
+- if(!QueryDosDeviceW(L"C:",device,256)||wcsncmp(device,L"\\Device\\",8))return ERROR_INVALID_NAME;
+- a=wcslen(device);b=wcslen(psr_parent+2);if(a+b>=512)return ERROR_INVALID_NAME;memcpy(path,device,a*sizeof(WCHAR));memcpy(path+a,psr_parent+2,(b+1)*sizeof(WCHAR));
++ PSRT_CONTEXT("PREPARE");
++ if(native.runtime.ready||native.runtime.retained||native.manager||native.service||native.image)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
++ e=ps_image_open();if(e)return PSRT_RETURN(e,"propagate_original");
++ native.manager=PSRT_HANDLE("OpenSCManagerW",(SC_MANAGER_CONNECT),OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT));if(!native.manager)return PSRT_RETURN(ps_last_error(),"native_api_failure");
++ native.service=PSRT_HANDLE("OpenServiceW",(SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS),OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS));if(!native.service)return PSRT_RETURN(ps_last_error(),"native_api_failure");
++ e=ps_virtual_readback_start(SERVICE_DEMAND_START);if(e)return PSRT_RETURN(e,"propagate_original");
++ ZeroMemory(&status,sizeof(status));if(!PSRT_BOOL("QueryServiceStatusEx",(SERVICE_QUERY_STATUS),QueryServiceStatusEx(native.service,SC_STATUS_PROCESS_INFO,(BYTE *)&status,sizeof(status),&got))||got!=sizeof(status)||
++ status.dwProcessId!=GetCurrentProcessId()||status.dwCurrentState!=SERVICE_START_PENDING)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
++ e=psr_token();if(e)return PSRT_RETURN(e,"propagate_original");
++ a=wcslen(psr_parent);if(wcsncmp(native.image_path,psr_parent,a)||native.image_path[a]!=L'\\'||wcscmp(native.image_path+a+1,L"papacc_server_lab_host.exe"))return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
++ if(!PSRT_COUNT("QueryDosDeviceW",QueryDosDeviceW(L"C:",device,256))||wcsncmp(device,L"\\Device\\",8))return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
++ a=wcslen(device);b=wcslen(psr_parent+2);if(a+b>=512)return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");memcpy(path,device,a*sizeof(WCHAR));memcpy(path+a,psr_parent+2,(b+1)*sizeof(WCHAR));
+  if((e=psr_open(NULL,path,&native.runtime.parent,1))||
+  (e=psr_open(native.runtime.parent,L"papacc.conf",&native.runtime.configuration,0))||
+- (e=psr_open(native.runtime.parent,L"papacc_server_lab_host.exe",&native.runtime.relative_image,0)))return e;
+- if((e=psr_current()))return e;
+- if(pc_parse(native.runtime.bytes,116U,&document,&diagnostic)!=PC_OK||pc_validate(&document,&target,&diagnostic)!=PC_OK)return ERROR_INVALID_DATA;
+- native.runtime.ready=1U;return ERROR_SUCCESS;
++ (e=psr_open(native.runtime.parent,L"papacc_server_lab_host.exe",&native.runtime.relative_image,0)))return PSRT_RETURN(e,"propagate_original");
++ if((e=psr_current()))return PSRT_RETURN(e,"propagate_current");
++ if(pc_parse(native.runtime.bytes,116U,&document,&diagnostic)!=PC_OK||pc_validate(&document,&target,&diagnostic)!=PC_OK)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
++ native.runtime.ready=1U;PSRT_PREPARED();return ERROR_SUCCESS;
+ }
+ 
+ int papacc_server_service_qualification_managers_ready(const struct PAPACC_SERVER_IO_LOOP_WIN32 *l)

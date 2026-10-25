@@ -1,0 +1,7 @@
+# Independent ED11 evaluation plan — no budget granted
+
+For N0TOKEN-20261025-01 /10584f02e11f92c92b43cddf0d9d316f only. Q2 remains documentary; real retained reservations unavailable. Opaque historical Windows/cache/kernel lifetimes remain UNKNOWN under accepted Q5 scope. Known controlled pending ownership or incompatible reservation DENYs; it cannot be relabeled opaque.
+
+Account original canonical owner/qualifier and service separately from shared PowerShell+auxiliary administration, charging each actual reference once. Preserve four actual roles,128 native handles each and1024 shared administrative handles. Include private stdout/CRT, PSS/stack-VA, observations, SCM/RPC and transient costs; sampled peaks are not a total unsampled peak. File persistence is not a live handle count or zero RAM/cache cost. Historical118/120 and1005 samples are not current grants.
+
+Require complete identity/census/RAW1/provenance and independent logical capacity before each future admitted effect. Preserve60-second global/final1-second freshness,5/9GiB admission headroom,4/8GiB monitor floors, Selected3MiB/Legacy2MiB controlled envelopes and every accepted memory/thread/stack cap. HOST_CREDITS=NONE_GRANTED. Freeze/Stop suppresses new acquisition, partial effects/UNKNOWN retained, no forced close/retry or cleanup. No reservation or budget is created by this plan. Fresh measurements and exact separate operational approval remain mandatory.

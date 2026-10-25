@@ -25,11 +25,48 @@ static int bootstrap_identity(HANDLE h,DWORD *volume,DWORD *high,DWORD *low,int 
  if(first){*volume=f.dwVolumeSerialNumber;*high=f.nFileIndexHigh;*low=f.nFileIndexLow;return 1;}
  return *volume==f.dwVolumeSerialNumber&&*high==f.nFileIndexHigh&&*low==f.nFileIndexLow;
 }
+/* Shared exclusive child primitive: caller retains the SAME parent handle.
+ * No parent reopen, authority capture, key operation, commit or publication. */
+static int bootstrap_create_child(PAPACC_CONFIG_PENDING *p)
+{
+ HMODULE module;FARPROC address;BOOTSTRAP_NT_CREATE create;
+ WCHAR leaf[65];UNICODE_STRING name;OBJECT_ATTRIBUTES attr;IO_STATUS_BLOCK io;
+ NTSTATUS status;unsigned i,n;
+ if(!p->bootstrap_parent||p->bootstrap_container||p->bootstrap_created||
+    InterlockedCompareExchange(&p->stop,0,0))return 0;
+ if(!bootstrap_identity(p->bootstrap_parent,&p->bootstrap_parent_volume,&p->bootstrap_parent_high,&p->bootstrap_parent_low,0)){
+  p->result=PAPACC_CAS_CONFLICT;return 0;}
+ for(n=0;n<65U&&p->previous[n];n++);
+ if(!n||n>64U||p->previous[n-1U]=='.')return 0;
+ for(i=0;i<n;i++){
+  unsigned char c=p->previous[i];
+  if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='-'||c=='_'||c=='.'))return 0;
+  leaf[i]=(WCHAR)c;
+ }
+ leaf[n]=0;module=GetModuleHandleA("ntdll.dll");if(!module)return 0;
+ address=GetProcAddress(module,"NtCreateFile");if(!address)return 0;memcpy(&create,&address,sizeof(create));
+ memset(&attr,0,sizeof(attr));memset(&io,0,sizeof(io));name.Buffer=leaf;name.Length=(USHORT)(n*2U);name.MaximumLength=name.Length;
+ attr.Length=sizeof(attr);attr.RootDirectory=p->bootstrap_parent;attr.ObjectName=&name;attr.Attributes=OBJ_CASE_INSENSITIVE|OBJ_DONT_REPARSE;
+ if(InterlockedCompareExchange(&p->stop,0,0))return 0;
+ status=create(&p->bootstrap_container,FILE_LIST_DIRECTORY|FILE_TRAVERSE|FILE_ADD_FILE|FILE_READ_ATTRIBUTES|SYNCHRONIZE,
+  &attr,&io,NULL,FILE_ATTRIBUTE_DIRECTORY,FILE_SHARE_READ,2U,0x00200021U,NULL,0U);
+ if(status<0){
+  p->native_error=(DWORD)status;
+  /* Name collision is definite nonreplacement. Other failures are not
+   * promoted to proven absence/rollback; preserve any returned reference. */
+  p->result=(status==(NTSTATUS)0xc0000035L&&!p->bootstrap_container)?PAPACC_CAS_CONFLICT:PAPACC_CAS_UNKNOWN;
+  return 0;
+ }
+ p->bootstrap_created=1U;
+ if(io.Information!=2U||!bootstrap_identity(p->bootstrap_container,&p->bootstrap_volume,&p->bootstrap_high,&p->bootstrap_low,1)){
+  p->result=PAPACC_CAS_UNKNOWN;return 0;}
+ return 1;
+}
 #include "server_configuration_bootstrap_commit_win32.inc"
 static void bootstrap_worker(PAPACC_CONFIG_PENDING *p)
 {
  HMODULE module;FARPROC address;BOOTSTRAP_NT_CREATE create;
- WCHAR path[MAX_PATH+5],leaf[65];UNICODE_STRING name;OBJECT_ATTRIBUTES attr;IO_STATUS_BLOCK io;
+ WCHAR path[MAX_PATH+5];UNICODE_STRING name;OBJECT_ATTRIBUTES attr;IO_STATUS_BLOCK io;
  NTSTATUS status;unsigned i,n,k;int admin;char drive[3],device[512];
  admin=bootstrap_admin(p);p->bootstrap_admin=admin?1U:0U;
 #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
@@ -54,14 +91,7 @@ static void bootstrap_worker(PAPACC_CONFIG_PENDING *p)
  if(status<0){p->native_error=(DWORD)status;p->bootstrap_parent=NULL;return;}
  if(!bootstrap_identity(p->bootstrap_parent,&p->bootstrap_parent_volume,&p->bootstrap_parent_high,&p->bootstrap_parent_low,1))goto unknown;
  if(InterlockedCompareExchange(&p->stop,0,0))return;
- n=(unsigned)strlen((char *)p->previous);for(i=0;i<=n;i++)leaf[i]=(WCHAR)p->previous[i];
- name.Buffer=leaf;name.Length=(USHORT)(n*2U);name.MaximumLength=name.Length;attr.RootDirectory=p->bootstrap_parent;
- /* FILE_CREATE returns the NEW directory handle atomically; no CreateDirectory/open gap. */
- status=create(&p->bootstrap_container,FILE_LIST_DIRECTORY|FILE_TRAVERSE|FILE_ADD_FILE|FILE_READ_ATTRIBUTES|SYNCHRONIZE,
-  &attr,&io,NULL,FILE_ATTRIBUTE_DIRECTORY,FILE_SHARE_READ,2U,0x00200021U,NULL,0U);
- if(status<0){p->native_error=(DWORD)status;p->bootstrap_container=NULL;return;}
- p->bootstrap_created=1U;
- if(io.Information!=2U||!bootstrap_identity(p->bootstrap_container,&p->bootstrap_volume,&p->bootstrap_high,&p->bootstrap_low,1))goto unknown;
+ if(!bootstrap_create_child(p))return;
 #ifdef PAPACC_ISSUER_STORAGE_COMPONENT_TEST
  if(p->test_entered){
   if(!SetEvent(p->test_entered)||WaitForSingleObject(p->test_release,INFINITE)!=WAIT_OBJECT_0)goto unknown;

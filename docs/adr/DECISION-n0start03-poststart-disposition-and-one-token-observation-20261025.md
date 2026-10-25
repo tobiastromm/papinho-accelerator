@@ -1,0 +1,81 @@
+---
+status: accepted
+revision: 1
+decision-date: 2026-10-25
+scope-level: project
+scope-target: governed local post-Start03 disposition and evaluation of one separately bound token/census observation
+supersedes: []
+---
+# Decision — post-Start03 disposition and one bounded token observation
+
+## Exact owner acceptance and review
+
+The owner explicitly approved Q0–Q9 revision1, whole candidate SHA256 `7eab14040096173ccf28a56c818737115046c94ba657cac51920b36754e9656f`, for governed post-Start03 disposition and one limited independent token observation under the proposal. The exact original remains PROPOSED and byte-identical; the approved copy and original approval are preserved in ../integration/n0start03-integrated-closeout-20261024/q0-q9-acceptance-and-integration-20261025/. This designated record registers normative acceptance only. Review confirms no material divergence and preserved P/L/H/N/RAW1/B/Model E/ED08/T0–T14 outside the exact conditional scope.
+
+Q3/Q5 separate local disposition from real reservations and explicitly retain UNKNOWN; their bounded opaque-residue risk is accepted within the approved terms, not a universal attribution/refund claim. Q4 permits evaluation of one future separately bound identity, not creation, implicit binding, second admission or operational execution. Q8 records the historical intent-path discrepancy without rewriting the old request. This is focal additional authority, not silent redefinition of P3 or standing H7 waiver.
+
+## Effect and separate gates
+
+Acceptance does NOT apply Q2; denied protected intent/sink verification and exact application approval remain pending. No new identity/name/intent/image/sink/dossier or operational approval is created. Existing used03 records/effects remain immutable. No Start/Stop, SCM/ACL mutation, cleanup, refund, CURRENT, signature or recovery authority follows.
+
+The owner's separate TASK PACC-PHASE6-ED11-Q0Q9-POSTSTART-INTEGRATION authorizes technical integration/qualification after this registration. That source of implementation authority is distinct from normative acceptance alone. Integration may prepare the bounded mechanism in existing private canonical owners without activating another scope/identity or positive admission. Exact future identity/annex/N7/independent-budget/protected-input/operational approvals remain mandatory.
+
+## Verbatim approved Q0–Q9
+
+The following body is incorporated byte-exactly, SHA256 `f9a85ed094ce913610495388a5cfe55f682915a9a3cb77112b23cc2635852116`. Historical PROPOSED/not-accepted/future wording describes the original proposal; its normative status is ACCEPTED solely through this record. Conditions for application and execution remain conditions, not automatic grants.
+
+## Q0 — exact boundary, not accepted
+
+Only N0START-20261024-03/0b1de869e11493b7cb08fb329578f6ce, existing PapinhoAcceleratorLab20261023, original host2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff and boot236441, existing virtual account/SID/config/parent and canonical owner/mutex. Historical pins are requirements, not new observations. No automatic host/boot repin, reboot-as-release, new service/registry/authority or productive permission.
+
+This is a proposed explicit successor/disposition decision because P3.2 excludes Start calls, L0/L7 authorize only03 and H7 ends after that one outcome. P0–P9/L0–L9/H0–H9 originals remain intact. No accepted clause is reinterpreted, no transition or scope is effective before exact owner approval/registration.
+
+## Q1 — immutable facts
+
+Preserve intent_consumed1, starts1, stops0, qualifier first13/OBSERVE_FROM_START_PENDING, service psr_prepare specific-group predicate5, own close0, transport first0/retained0 and quiescent1 ONLY for termination of the bound original service process. Global quiescence UNPROVEN. Preserve the exact used approval6084000c135683e437dc12ee7286699c30ac41ef19654844b53b401d00f0411c, requestbc50f330339d0097dec4383c0acceb5940001f4ae79eb0c7dc783a16b293ee9b, original output and native/source hashes. No new final receipt, reclassification as pre-Start, Stop-completed claim, retry or consumed identity reuse.
+
+## Q2 — documented local disposition, distinct from physical release
+
+A specifically approved documentary disposition may record CLOSED_ORIGINAL_LOCAL_REFERENCES_WITH_PERSISTENT_EFFECTS_AND_UNKNOWN_RETAINED only after jointly verifying original receipt/code/binary identity, checked closure of all controlled references/borrows, original process-object termination, and no known controlled pending callback/I/O/snapshot/lock/SCM work. Original handle creation checks in approved code and the final receipt are evidence only within the trusted code/OS scope; do not fabricate an unprinted service creation timestamp or missing census mask. Missing mandatory evidence or known controlled UNKNOWN denies application.
+
+Current file readback must distinguish historical creation IDs/content/RAW1 from a new ordinary path query. Record denied intent/sink reads as pending protected verification, not success. Do not apply this disposition before its exact evidence package is reviewed and specifically approved. It closes no persistent object and performs no native close/release or SCM action.
+
+## Q3 — categories and continuing obligations
+
+Separately record original closed own refs; ended service process; administrative shared lifetimes; persistent canonical consumed intent/image/sink/SCM ImagePath/dossier; opaque Windows/cache/kernel/transitive residue; real controlled reservations; and administrative allowance marker. File persistence is not a live handle, absence of a handle ledger is not universal release, and logical file bytes are not a RAM/cache estimate.
+
+UNKNOWN and each real retained reservation remain unavailable. No refund, credit1GiB, reused allowance, parallel reserve, quota increase or destructive eviction. A documentary local-close marker may permit evaluation only; it cannot finance or admit another attempt. References or incompatible obligations actually pending remain DENY.
+
+## Q4 — exactly one separately bound possible observation
+
+If the owner separately accepts this scope, evaluate at most one independent token/census observation. No identity/name is generated by this candidate. The owner must select/authorize selection and approve an exact annex binding a new unique identity, exclusive intent/image/sink/arm/dossier names and new approval, current binary/qualifier/launcher/recorder/config/policy hashes, same service/account/SID/owner/mutex, and protected provenance. Never reuse03 or adopt its files. New native IDs/PIDs/tokens/metrics cannot be invented.
+
+No generic diagnostic launcher or dynamic-policy exception. The implementation and bounded serializer of any new diagnostic component must be independently qualified in the existing canonical path before exact operational approval. Candidate isolated facts do not authorize integration or execution for a new scope.
+
+## Q5 — explicit residual coverage and independent budget
+
+Any extension of historical opaque-resource coverage to the03 residue plus one further observation requires express owner acceptance, not inheritance of H3. Deliberately unprovided guarantee: universal retrospective per-attempt attribution/cumulative cap of opaque Windows/kernel/cache/CRT residue after factually closed controlled references. Such residue remains UNKNOWN; physical extinction/global quiescence are not claimed. All observable/controlled resources, real reservations and compatibility remain required. Controlled UNKNOWN cannot be waived as opaque residue.
+
+Preserve128 handles per native process,1024 shared administrative handles, four actual roles, all memory/thread/stack caps, Selected3MiB/Legacy2MiB controlled budgets, freshness60s/final1s,5/9GiB headroom and4/8GiB monitor floors, NONE_GRANTED credits. Old993/995 samples or isolated reductions are not a budget grant. No simultaneous second owner/admission.
+
+## Q6 — bounded factual evidence, no eligibility relaxation
+
+Future observation must distinguish exact specific-SID count/raw attributes, ENABLED0x4 versus DEFAULT0x2/OWNER0x8, deny-only0x10, duplicate/ambiguous entries, restricted SID count, filtered-history query and query errors. Capture the query's returned length and raw values; never map failure to absent/zero. Revalidate original token ID/AuthID/ModifiedID/primary type around observation. Operator/auxiliary/qualifier tokens are not substitutes for a service token. No token/group/privilege adjustment or relaxed predicate is authorized.
+
+Missing-role diagnostics retain expected/seen/missing masks, original PID/creation, snapshot/observation ordering and original-handle wait/query outcome. Signaled after snapshot does not prove exit before snapshot. PID/creation divergence is not automatically proof of OS PID reuse; a present PID bit is not identity authentication. No missing-role exception or fifth role follows. Historical first13 and attributes remain unknown where unrecorded.
+
+## Q7 — effects require another exact manual approval
+
+Only after valid scope/annex, reconciled protected history, implementation/pins/dossier, specific N7, independent fresh gates and original owner exclusivity: one new canonical consume, exclusive new image and sink, explicit authorized rebind, one Start, at most one safe accepted Stop. This enumeration is a future limit, not permission. Early service refusal is valid diagnostic failure and consumes the operation; no repeated attempts until RUNNING.
+
+Before effects Stop/invalidity suppresses them. After effects suppress new effects, permit only the already approved safe Stop if factual state accepts it, preserve UNKNOWN and first errors. START_PENDING may not accept controls. No kill, cleanup, rollback, forced mutex release, overwrite, delete, rearm or retry. A new failure authorizes no further successor.
+
+## Q8 — intent-path divergence must be resolved explicitly
+
+The historical request future_effects.intent names docs/integration/successor-exact-binding-functional-20261024/manual-native-intent.txt. L1 X2 and the canonical psa_path instead bind build/scm-protected-installation-binding-20261022/Selected/Release/papacc-psr-0b1de869e11493b7cb08fb329578f6ce.intent. Preserve the old request bytes and record this discrepancy; do not retroactively approve or rewrite history. Future exact requests must resolve their intent fields from the actual canonical owner and approved annex and test exact agreement. Absence of the unused legacy docs path is not absence or release of canonical consumed intent.
+
+## Q9 — acceptance/application/execution remain distinct
+
+Keep PROPOSED until exact owner approval of this revision/hash, particularly Q3/Q5 separation and residual risk, Q4 one-observation scope and Q8 history discrepancy. Acceptance alone performs no disposition, generates no identity, modifies no launcher/pins/SCM/ACL, creates no protected/operational file and runs no service. Exact documentary application still requires Q2 evidence review; operational execution still requires a fully qualified new exact manual request. N7 is not inherited: explicit acceptance for the actual new identity/evidence remains mandatory. ED11/Phase6 PARTIAL; CURRENT/signature/recovery DENY.
+
+Related factual package: ../integration/n0start03-integrated-closeout-20261024/poststart-disposition-and-token-diagnosis-20261025/CONSOLIDATED-CLOSEOUT.md. Existing P/L/H/N/RAW1/B/Model E/ED08/T0–T14 remain authoritative outside any subsequently approved exact specialization.

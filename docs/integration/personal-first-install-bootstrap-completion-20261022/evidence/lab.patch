@@ -1,0 +1,84 @@
+--- apps/server/server_configuration_personal_data_win32.inc
++++ apps/server/server_configuration_personal_data_win32.inc
+@@ -37,6 +37,8 @@
+  p=&o->pending_commit;n=&p->personal_native;
+  if(p->active||p->thread||p->bootstrap_created||p->bootstrap_container||n->phase!=1U||
+     p->personal_data.phase!=PAPACC_PERSONAL_DATA_CAPTURED||p->personal_data.effectful||p->personal_data.consumed||
++    !n->plan_leaf[0]||!memchr(n->plan_leaf,0,sizeof(n->plan_leaf))||
++    memcmp(n->plan_leaf,p->previous,sizeof(n->plan_leaf))||
+     !authority||!generation||!service||!service_bytes||service_bytes>68U)return PAPACC_RESULT_INVALID_STATE;
+  if(papacc_configuration_personal_native_current(o)!=PAPACC_RESULT_OK||
+     papacc_configuration_personal_source_current(o)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
+--- tests/personal_target_component_win32_test.c
++++ tests/personal_target_component_win32_test.c
+@@ -1,7 +1,46 @@
+ #include "server_configuration_commit_win32.h"
+ #include <stdio.h>
++#include <bcrypt.h>
+ #include <string.h>
+ static PAPACC_CONFIGURATION_COMMIT o;
++/* This function is reachable ONLY via explicitly reviewed LAB case ca-lab.
++ * Real native key owner; modeled administrative/root authority stays absent. */
++static int lab_ca(PAPACC_CA_KEY *ca,const void *holder)
++{
++ BYTE token_user[sizeof(TOKEN_USER)+SECURITY_MAX_SID_SIZE],service[SECURITY_MAX_SID_SIZE],private_blob[2048];
++ DWORD bytes=0,service_bytes=sizeof(service),written=0;HANDLE token=NULL;SECURITY_STATUS status,export_status;
++ TOKEN_USER *user=(TOKEN_USER *)token_user;
++ static const BYTE authority[16]={0xcb,0x87,0x63,0x24,0x63,0xbb,0x48,0xdd,0x8a,0x34,0xfa,0x8e,0xa6,0xf3,0x91,0x1b};
++ static const BYTE generation[16]={0x03,0x0f,0xa3,0x4d,0xd4,0x4f,0x41,0xe8,0xb1,0x43,0xb9,0xda,0x09,0x53,0x2c,0xf2};
++ memset(ca,0,sizeof(*ca));memset(private_blob,0,sizeof(private_blob));
++ if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))return 0;
++ if(!GetTokenInformation(token,TokenUser,token_user,sizeof(token_user),&bytes)){
++  if(!CloseHandle(token))puts("LAB_TOKEN_CLOSE_UNKNOWN_RETAINED");return 0;}
++ if(!CloseHandle(token)){puts("LAB_TOKEN_CLOSE_UNKNOWN_RETAINED");return 0;}
++ if(!CreateWellKnownSid(WinLocalServiceSid,NULL,service,&service_bytes)||!IsValidSid(user->User.Sid))return 0;
++ /* LocalService is the explicitly selected LAB exclusion identity only,
++  * never guessed as the product's service identity. No export or certificate. */
++ status=papacc_ca_key_create(ca,authority,generation,user->User.Sid,service);
++ printf("LAB_CA status=%08lx created=%d finalization=%lu state=%u key_owned=%u provider_owned=%u\n",
++  (unsigned long)status,ca->created,ca->diagnostic_finalization,(unsigned)ca->state,ca->key!=0,ca->provider!=0);
++ if(status!=ERROR_SUCCESS)return 0; /* no reopen, rename, replacement or retry */
++ if(papacc_ca_key_validate(ca)!=ERROR_SUCCESS)return 0;
++ export_status=NCryptExportKey(ca->key,0,BCRYPT_RSAPRIVATE_BLOB,NULL,private_blob,sizeof(private_blob),&written,0);
++ SecureZeroMemory(private_blob,sizeof(private_blob));
++ if(export_status==ERROR_SUCCESS){puts("STOP_LAB_PRIVATE_EXPORT_UNEXPECTED");return 0;}
++ if(papacc_ca_key_borrow(ca,holder)!=ERROR_SUCCESS||ca->borrower!=holder)return 0;
++ if(papacc_ca_key_close(ca)==ERROR_SUCCESS||!ca->key||!ca->provider)return 0;
++ if(papacc_ca_key_return(ca,holder)!=ERROR_SUCCESS)return 0;
++ /* Exact disposable test key only. Successful NCryptDeleteKey consumes this
++  * owned key handle. Failure retains it: no double-free or retry. */
++ status=NCryptDeleteKey(ca->key,NCRYPT_SILENT_FLAG);
++ if(status!=ERROR_SUCCESS){ca->state=PAPACC_CA_KEY_RETAINED;ca->error=status;puts("STOP_LAB_DELETE_UNKNOWN_KEY_PROVIDER_RETAINED");return 0;}
++ ca->key=0;
++ if(papacc_ca_key_close(ca)!=ERROR_SUCCESS)return 0;
++ if(ca->state!=PAPACC_CA_KEY_CLOSED||ca->provider||!ca->close_confirmed)return 0;
++ puts("PASS LAB_CA_NATIVE_CUSTODY_VALIDATED PRIVATE_EXPORT_DENIED BORROW_PROTECTED LAB_KEY_DELETION_CONFIRMED NO_CERT_NO_AUTHORITY");return 1;
++}
++
+ #define CHECK(x) do{if(!(x)){printf("FAIL line=%u native=%08lx created=%u active=%d HANDLES_RETAINED_NOT_ASSUMED_RELEASED\n",(unsigned)__LINE__,o.pending_commit.native_error,o.pending_commit.bootstrap_created,o.pending_commit.active);return 1;}}while(0)
+ int main(int argc,char **argv)
+ {
+@@ -87,6 +126,7 @@
+   }
+   CHECK(!p->bootstrap_admin&&!o.published&&!o.committed_bytes&&!o.committed_pending);
+  }
++ if(!strcmp(mode,"ca-lab")){CHECK(p->bootstrap_created&&p->bootstrap_container&&!p->active&&!p->thread);CHECK(lab_ca(&ca,&o));}
+  if(closefail)p->test_unknown=2;
+  result=papacc_configuration_personal_native_close(&o);
+  if(closefail){
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -3241,11 +3241,12 @@
+ # Explicit isolated target effects; NEVER registered as an automatic CTest.
+ if(TARGET papacc_configuration_commit AND PAPACC_ENABLE_OFFLINE_D3_WORKER AND BUILD_TESTING)
+  add_executable(papacc_personal_target_component_test tests/personal_target_component_win32_test.c
++  apps/server/server_ca_key_win32.c
+   apps/server/server_configuration_commit_win32.c apps/server/server_config_root8_data_win32.c
+   apps/server/personal_plan_data.c apps/server/server_configuration_personal_custody_data_win32.c)
+  target_include_directories(papacc_personal_target_component_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} apps/server src/config src/issuer)
+  target_compile_definitions(papacc_personal_target_component_test PRIVATE PAPACC_OFFLINE_D3_WORKER=1 PAPACC_ISSUER_STORAGE_COMPONENT_TEST=1 PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST=1)
+- target_link_libraries(papacc_personal_target_component_test PRIVATE papacc_config_root8 papacc_server_config papacc_issuer papacc_storage_sha256 bcrypt ktmw32 advapi32)
++ target_link_libraries(papacc_personal_target_component_test PRIVATE papacc_config_root8 papacc_server_config papacc_issuer papacc_storage_sha256 bcrypt ktmw32 advapi32 ncrypt)
+  if(PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE)
+   target_link_libraries(papacc_personal_target_component_test PRIVATE papacc_root8_signer_data crypt32)
+  endif()

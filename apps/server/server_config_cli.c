@@ -1,3 +1,6 @@
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+#include "server_launcher_owner_win32.h"
+#endif
 #include "server_config_cli.h"
 #include "config_source.h"
 #include <string.h>
@@ -75,6 +78,48 @@ static int validate_source(const char *path, FILE *out, FILE *err)
     fputs("REFERENCES=NOT_APPLICABLE; VALIDATION_SCOPE=OFFLINE_ONLY; APPLY=DENY\n", out);
     return 0;
 }
+/* A declaration is input, never an authorization receipt. All argument
+ * borrows end at return. No file, token, native owner or worker is acquired.
+ * These span bounds match the existing source/native-parent/container limits;
+ * lexical acceptance is not native path identity or custody. */
+static int first_install_span(const char *value, size_t maximum)
+{
+    size_t i;
+    if (value == NULL || value[0] == '\0') return 0;
+    for (i = 0U; i <= maximum; ++i) {
+        if (value[i] == '\0') return 1;
+        if ((unsigned char)value[i] < 32U ||
+            (unsigned char)value[i] == 127U) return 0;
+    }
+    return 0;
+}
+static int first_install_entry(int argc, const char *const *argv, FILE *err)
+{
+    if (argc != 11 || strcmp(argv[3], "--declare") != 0 ||
+        strcmp(argv[4], "NEW_INSTALL") != 0 ||
+        strcmp(argv[5], "--source") != 0 ||
+        strcmp(argv[7], "--parent") != 0 ||
+        strcmp(argv[9], "--container") != 0 ||
+        !first_install_span(argv[6], 259U) ||
+        !first_install_span(argv[8], 259U) ||
+        !first_install_span(argv[10], 64U)) {
+        fputs("FIRST_INSTALL=INVALID_DECLARATION; BOOTSTRAP=DENY\n", err);
+        return 1;
+    }
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+    return papacc_server_launcher_personal_first_install(argv[6],argv[8],argv[10],err);
+#else
+    /* P1/P2: intentional NEW installation, not UPDATE/restore or absence
+     * detection. Neither a command flag nor caller-supplied SID authorizes it.
+     * No reusable act, revision, lifetime, pin or proof is manufactured. */
+    fputs("NEW_INSTALL=DECLARED_INPUT_ONLY; PURPOSE=INITIAL_ROOT; "
+        "OPERATOR=UNBOUND; AUTHORIZATION=ABSENT; TARGET=NATIVE_UNBOUND; "
+        "CONFIGURATION=NOT_OPENED; CUSTODY=NOT_ACQUIRED; "
+        "FIRST_INSTALL=DENY_UNTIL_QUALIFIED; BOOTSTRAP=DENY; "
+        "CURRENT_PUBLICATION=DENY\n", err);
+    return 2;
+#endif
+}
 int papacc_server_config_cli(int argc, const char *const *argv,
     FILE *out, FILE *err)
 {
@@ -88,6 +133,8 @@ int papacc_server_config_cli(int argc, const char *const *argv,
         fputs("CONFIG=INVALID_COMMAND\n", err); return 1;
     }
     command = argv[2];
+    if (strcmp(command, "first-install") == 0)
+        return first_install_entry(argc, argv, err);
     if (strcmp(command, "show-effective") == 0 && argc == 3) {
         fputs("SHOW_EFFECTIVE=UNAVAILABLE; CURRENT_PIN=ABSENT; NO_EFFECTIVE_STATE_EMITTED\n", err);
         return 2;

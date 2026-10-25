@@ -627,3 +627,53 @@ Existing CURRENT resolver does not supply candidate SNT/PDG approval provenance.
 ### Candidate approval/status producer gate - 2026-10-21
 
 Bootstrap native authorization is limited to initial custody; C8 Session authorization and config CLI validation do not produce candidate UPDATE approval. Scoped U0-U7 proposal separates an explicit local administrative act, protected candidate binding and issuer-derived certificate/delegation status. No functional implementation, trust or CURRENT is authorized by the proposal; ED11 unchanged/PARTIAL. [Proposal, conformance and handoff](../integration/v3-candidate-approval-status-producer-20261021/closeout.md).
+
+
+### U0-U7 acceptance review - 2026-10-21
+
+Acceptance remains pending: U6 contains ambiguous post-restart operational-validity wording against D3.7/G5. A one-fragment correction and separate Revision2 remain PROPOSED; original contract and accepted ADRs unchanged. No functional edits, builds, tests, network or authority grants. [Exact review, correction and hashes](../integration/v3-update-approval-u0-u7-acceptance-20261021/closeout.md).
+
+
+### UPDATE approval U0-U7 corrected contract accepted - 2026-10-21
+
+Exact U6 correction closes the prior restart ambiguity: historical dispositions persist only through accepted formats, while restart restores neither the administrative act nor CURRENT/operational authority. U0-U5/U7 frozen unchanged; normative acceptance grants no implementation, trust, signing, recovery, admission or memory reservation. Original proposals and earlier STOP remain preserved. ED11 PARTIAL; no builds/tests/network. [Acceptance, frozen clauses and hashes](../integration/update-approval-u6-correction-acceptance2-20261021/closeout.md).
+
+
+### UPDATE native act capture - 2026-10-21
+
+U0-U7 native identity capture/revalidation now extends the same canonical UPDATE cohort, binding an explicit exact-image act to the protected predecessor/candidate. Two uncertain token handles remain retained; no bootstrap reuse, new pin or authority. Qualified issuer/UTC status source remains absent, so resolution/commit/E0/TRUST stay DENY. Token query in current environment denied; MODEL correlation is not positive authority. Four final builds warning-free,74 suites and24 local native cases pass. Fixed Windows1948880 (+224), Legacy1790872 unchanged; full activation denied/ED11 PARTIAL. [Proof, source gate, tests, census and hashes](../integration/v3-update-approval-producer-implementation-20261021/closeout.md).
+
+
+### Qualified issuer UTC/status source gate - 2026-10-21
+
+Existing issuer UTC port/CNG delegation supplies no qualified origin, observation validity or rollback proof; PAL monotonic is not UTC. Q0-Q7 remains PROPOSED for same-owner qualified observations and status correlation, without a new clock/service or authority. No functional change or promotion of PDG/status DATA; U0-U7 stays SOURCE_ABSENT/DENY. ED11 unchanged/PARTIAL; builds/tests/network not rerun. [Source review, proposal and handoff](../integration/qualified-issuer-utc-status-binding-20261021/closeout.md).
+
+
+### Q0-Q7 acceptance review - 2026-10-21
+
+Acceptance suspended for Q2/Q3: relative-rate direction is ambiguous and propagation lacks an explicit additive PAL endpoint-resolution/read bound. Exact Q1-Q3 correction and separate Revision2 remain PROPOSED; original and accepted ADRs preserved. No code/builds/tests/network or positive UTC/status/trust qualification. [Review, corrections and hashes](../integration/qualified-utc-status-q0-q7-acceptance-20261021/closeout.md).
+
+
+### Corrected qualified UTC contract accepted - 2026-10-21
+
+Q0-Q7 corrected contract defines rho as real UTC advancement per PAL advancement and adds qualified additive endpoint error E with outward checked propagation. Prior R1/R2 resolved normatively; original proposals preserved. No real UTC source, rollback implementation, issuer status, UPDATE resolution or trust is qualified. No functional changes/builds/tests/network; ED11 PARTIAL and all operational gates remain DENY. [Decision, frozen bytes and hashes](../integration/qualified-utc-q2-q3-correction-acceptance2-20261021/closeout.md).
+
+
+## UTC qualificada â€” nÃºcleo independente, 2026-10-21
+
+Q0â€“Q7 accepted possui agora cÃ¡lculo DATA C89 em src/issuer/qualified_utc.h/.c, sem Win32/CNG no nÃºcleo. PropagaÃ§Ã£o rho/E conservadora, aritmÃ©tica checada e invalidaÃ§Ã£o/Stop preservam histÃ³rico. NÃ£o hÃ¡ fonte UTC qualificada: PAL e backend.utc atuais nÃ£o expÃµem as garantias necessÃ¡rias, aquisiÃ§Ã£o retorna NOT_SUPPORTED e issuer/UPDATE positivos permanecem DENY. Nenhuma instÃ¢ncia foi adicionada ao owner. MSVC Selected/Legacy e VC6 Debug/Release passam sem warnings;11583 verificaÃ§Ãµes DATA por configuraÃ§Ã£o,42 suÃ­tes CTest+2execuÃ§Ãµes VC6. NT4/box/ISA nÃ£o qualificados. Fixo1948880/1790872 inalterado; ativaÃ§Ã£o completa excedida, provider/kernel/stack UNKNOWN, ED11 PARTIAL. [Closeout](../integration/qualified-utc-source-implementation-20261021/closeout.md) e [handoff](../integration/qualified-utc-source-implementation-20261021/implementation-proof-and-source-handoff.md) delimitam fontes, lifetime, censo e integraÃ§Ã£o pendente. Sem Browser/PST/wire/pin0.6.4/CURRENT/assinatura/admissÃ£o alterados.
+
+
+## Windows UTC native investigation - 2026-10-21
+
+Read-only Windows diagnostic Debug/Release passed with zero warnings;256 raw samples and11583 core DATA checks per configuration. W32Time Running/Type=NTP and successful FILETIME/QPC reads do not qualify source authenticity,finite UTC uncertainty,rho,E or continuity. Positive adapter is stopped; existing acquisition stays NOT_SUPPORTED/output unchanged. No functional sources or quota changes; no clock change,suspend/restart or network. Fixed1948880/1790872 unchanged; ED11 PARTIAL,full activation DENY. [Investigation and source handoff](../integration/windows-qualified-utc-source-20261021/native-source-review-and-handoff.md) and [closeout](../integration/windows-qualified-utc-source-20261021/closeout.md) identify native observations separately from missing guarantees. Browser/PST/wire/pin0.6.4 and all operational gates preserved.
+
+
+## Authenticated time architecture candidate - 2026-10-21
+
+AT0-AT9 stays PROPOSED,not implementation authority. Review recommends investigating an existing signed UTC observation protocol on demand (B),with NTS and qualified existing hardware as alternatives. No concrete source/protocol selected;primary-spec,independent bootstrap,source error,PAL rho/E,continuity,root binding and ED11 gates remain. No continuous internet requirement/custom protocol introduced. Windows local clock NOT_QUALIFIED;issuer/UPDATE and operational gates DENY. [Comparison](../integration/authenticated-time-source-review-20261021/comparison-and-risks.md),[candidate](../adr/ADR-CANDIDATE-authenticated-time-source.md),[closeout](../integration/authenticated-time-source-review-20261021/closeout.md). No functional sources,builds,tests or network changed/run.
+
+
+## AT0-AT9 protocol evidence review - 2026-10-21
+
+Relevant official protocol references are now reviewed;the prior review remains history. AT0-AT9 Revision2 and focal PT0-PT7 stay PROPOSED. See the [protocol matrix](../integration/authenticated-time-at0-at9-review-20261021/protocol-matrix.md),[bootstrap/quality analysis](../integration/authenticated-time-at0-at9-review-20261021/review-bootstrap-and-plan.md) and [closeout](../integration/authenticated-time-at0-at9-review-20261021/closeout.md). No provider selected or protocol implemented. Original candidate and Q0-Q7/core preserved. Documentary HTTPS research only;no operational time traffic,builds,tests or clock changes. Source trust/status,PAL,concrete profile,root binding and capacity remain unqualified;all operational gates DENY,ED11 PARTIAL. No acceptance,quota or Browser/PST/wire/pin0.6.4 change.

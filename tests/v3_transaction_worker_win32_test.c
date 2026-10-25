@@ -13,7 +13,7 @@ int main(int argc,char **argv)
  CHECK(papacc_configuration_commit_init03(&owner,argv[2])==0);
  CHECK(setup3(4,4,4));CHECK(cp3());bn=z3;memcpy(base3,e3,bn);CHECK(next3(3,bn));
  CHECK(pc_root8_v3_base_link(e3,z3,base3,bn,hash,&owner,component3,NULL)==PC_ROOT8_OK);
- CHECK(sizeof(p->next)==PC_ROOT8_V3_MAX&&sizeof(owner.committed)==PC_ROOT8_V3_MAX);
+ CHECK(sizeof(p->next)==PAPACC_CONFIG_TRANSACTION_BYTES&&sizeof(owner.committed)==PAPACC_CONFIG_TRANSACTION_BYTES);
  memcpy(owner.committed,base3,bn);owner.committed_bytes=(DWORD)bn;
  memcpy(p->previous,base3,bn);p->previous_bytes=(DWORD)bn;memcpy(p->next,e3,z3);p->next_bytes=(DWORD)z3;
  file=CreateFileA(argv[2],GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(file!=INVALID_HANDLE_VALUE);

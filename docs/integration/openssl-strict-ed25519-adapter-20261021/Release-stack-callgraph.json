@@ -1,0 +1,145 @@
+{
+  "CRYPTO_memcmp": {
+    "external_unbounded_here": true
+  },
+  "__security_check_cookie": {
+    "external_unbounded_here": true
+  },
+  "fe_frombytes": {
+    "frame_sub_rsp": 24,
+    "push_bytes": 64,
+    "calls": []
+  },
+  "fe_invert": {
+    "frame_sub_rsp": 192,
+    "push_bytes": 40,
+    "calls": [
+      "fe_mul",
+      "fe_sq"
+    ]
+  },
+  "fe_mul": {
+    "frame_sub_rsp": 248,
+    "push_bytes": 64,
+    "calls": []
+  },
+  "fe_pow22523": {
+    "frame_sub_rsp": 160,
+    "push_bytes": 40,
+    "calls": [
+      "fe_mul",
+      "fe_sq"
+    ]
+  },
+  "fe_sq": {
+    "frame_sub_rsp": 136,
+    "push_bytes": 64,
+    "calls": []
+  },
+  "fe_sq2": {
+    "frame_sub_rsp": 136,
+    "push_bytes": 64,
+    "calls": []
+  },
+  "fe_tobytes": {
+    "frame_sub_rsp": 0,
+    "push_bytes": 56,
+    "calls": []
+  },
+  "ge_add": {
+    "frame_sub_rsp": 112,
+    "push_bytes": 56,
+    "calls": [
+      "fe_mul"
+    ]
+  },
+  "ge_double_scalarmult_vartime": {
+    "frame_sub_rsp": 2328,
+    "push_bytes": 48,
+    "calls": [
+      "__security_check_cookie",
+      "fe_mul",
+      "ge_add",
+      "ge_madd",
+      "ge_msub",
+      "ge_p2_dbl",
+      "ge_p3_to_cached",
+      "ge_sub",
+      "slide"
+    ]
+  },
+  "ge_frombytes_vartime": {
+    "frame_sub_rsp": 208,
+    "push_bytes": 56,
+    "calls": [
+      "CRYPTO_memcmp",
+      "__security_check_cookie",
+      "fe_frombytes",
+      "fe_mul",
+      "fe_pow22523",
+      "fe_sq",
+      "fe_tobytes"
+    ]
+  },
+  "ge_madd": {
+    "frame_sub_rsp": 112,
+    "push_bytes": 56,
+    "calls": [
+      "fe_mul"
+    ]
+  },
+  "ge_msub": {
+    "frame_sub_rsp": 112,
+    "push_bytes": 56,
+    "calls": [
+      "fe_mul"
+    ]
+  },
+  "ge_p2_dbl": {
+    "frame_sub_rsp": 136,
+    "push_bytes": 64,
+    "calls": [
+      "fe_sq",
+      "fe_sq2"
+    ]
+  },
+  "ge_p3_to_cached": {
+    "frame_sub_rsp": 32,
+    "push_bytes": 8,
+    "calls": [
+      "memmove"
+    ]
+  },
+  "ge_sub": {
+    "frame_sub_rsp": 112,
+    "push_bytes": 56,
+    "calls": [
+      "fe_mul"
+    ]
+  },
+  "memcmp": {
+    "external_unbounded_here": true
+  },
+  "memmove": {
+    "external_unbounded_here": true
+  },
+  "papacc_ossl358_ed25519_point_check": {
+    "frame_sub_rsp": 480,
+    "push_bytes": 8,
+    "calls": [
+      "CRYPTO_memcmp",
+      "__security_check_cookie",
+      "fe_invert",
+      "fe_mul",
+      "fe_tobytes",
+      "ge_double_scalarmult_vartime",
+      "ge_frombytes_vartime",
+      "memcmp"
+    ]
+  },
+  "slide": {
+    "frame_sub_rsp": 0,
+    "push_bytes": 8,
+    "calls": []
+  }
+}

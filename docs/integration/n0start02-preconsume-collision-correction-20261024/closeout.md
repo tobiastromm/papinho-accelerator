@@ -1,0 +1,37 @@
+# Fechamento — N0START02 pré-consumo
+
+CURRENT_TASK_COMPLETED=YES
+PRECONSUME_ABSENCE_GATE=IMPLEMENTED_OFFLINE_QUALIFIED_NATIVE_NAMESPACE_NOT_EXERCISED
+CANONICAL_PARENT_BINDING=ORIGINAL_LAB_PARENT_NATIVE_ID_AND_DESCRIPTOR_REVALIDATED
+CREATE_NEW_PRESERVED=YES
+INTENT_CONSUMPTION_ORDER=BIND_MUTEX_CONFIRM_ABSENCE_FULL_VALIDATION_METRICS_FINAL_REVALIDATION_CONSUME_EFFECTS
+FINAL_FRESHNESS=1000_MS_MAX_AND_GLOBAL_60000_MS_UNCHANGED
+BUILDS=SELECTED_LEGACY_DEBUG_RELEASE_PASS
+WARNINGS=0
+OFFLINE_TESTS=36_SUITE_RUNS_AND_LAUNCHER_FIXTURES_PASS_111_BUSY_FIXTURE_CASES
+NATIVE_TESTS=16_INVALID_CLI_NEGATIVES_PASS_BEFORE_ACQUISITION
+NATIVE_CONCURRENCY=BLOCKED_CREATE_MUTEX_1307_BEFORE_ACQUISITION_NO_RETRY
+NETWORK_TESTS=NOT_RUN
+PREFLIGHT_EXECUTED=NO
+START_EXECUTED=NO
+STOP_EXECUTED=NO
+SCM_MUTATIONS=NONE
+ACL_MUTATIONS=NONE
+ED11_TOTAL_STATUS=PARTIAL
+CURRENT_PUBLICATION=DENY
+SIGNATURE_AUTHORITY=DENY
+AUTHORITATIVE_RECOVERY=DENY
+PST_CHANGED=NO
+BROWSER_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+PRODUCTION_PIN=0.6.4
+WIP_PRESERVED=8960_BASELINE_FILES_RECONCILED_FOUR_SCOPED_CHANGES_NO_MISSING_OR_UNEXPECTED
+FIRST_UNRESOLVED_DIVERGENCE=NO_REMAINING_SOURCE_COLLISION_ORDER_GAP_NATIVE_CONCURRENCY_UNQUALIFIED_1307_FRESH_OPERATIONAL_FACTS_PENDING
+OPERATIONAL_ADMISSION=NOT_YET_GRANTED
+NEXT=N0START02_EXACT_OPERATION_REAPPROVAL
+
+Escopo concluído: implementação e qualificação offline da correção. O teste nativo adicional de concorrência não passou e não foi convertido em prova; ver isolated-cross-process-results.json. Não demonstra ausência real dos nomes nem admissão positiva. A exceção LAB e todos os gates existentes permanecem; só uma nova decisão exata pode autorizar futura execução manual.
+
+[Revisão de fonte](source-review.md), [pins](qualified-pins.json), [patch contra preimagens](review.patch), [preservação](preservation-verification.json), [solicitação de reaprovação](operation-request.json) e [handoff candidato](manual-handoff.md).
+
+Aprovação condicional anterior preservada SHA256 a203e711ea4bed5d04a2d471ca8225b3fcf65788d729f62a7fa469651a91cec2. Não foi copiada nem usada como hash executável. EXACT-OPERATION-APPROVED.json permanece ausente. Não executar o comando candidato com variável pendente nem reutilizar01/pins anteriores. Nova aprovação específica requerida pelo item7 da tarefa; fornecer hash literal somente após seu registro real.

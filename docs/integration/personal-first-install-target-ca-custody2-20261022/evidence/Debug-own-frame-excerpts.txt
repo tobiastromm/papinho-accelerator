@@ -1,0 +1,95 @@
+bootstrap_create_child:
+  00000000000193C0: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx
+  00000000000193C5: 57                 push        rdi
+  00000000000193C6: 48 81 EC 50 02 00  sub         rsp,250h
+                    00
+  00000000000193CD: 48 8D 7C 24 60     lea         rdi,[rsp+60h]
+  00000000000193D2: B9 7C 00 00 00     mov         ecx,7Ch
+  00000000000193D7: B8 CC CC CC CC     mov         eax,0CCCCCCCCh
+  00000000000193DC: F3 AB              rep stos    dword ptr [rdi]
+  00000000000193DE: 48 8B 8C 24 60 02  mov         rcx,qword ptr [rsp+260h]
+                    00 00
+  00000000000193E6: 48 8B 05 00 00 00  mov         rax,qword ptr [__security_cookie]
+                    00
+  00000000000193ED: 48 33 C4           xor         rax,rsp
+  00000000000193F0: 48 89 84 24 40 02  mov         qword ptr [rsp+240h],rax
+                    00 00
+  00000000000193F8: 48 8B 84 24 60 02  mov         rax,qword ptr [rsp+260h]
+                    00 00
+
+personal_target_worker:
+  000000000001BFE0: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx
+  000000000001BFE5: 57                 push        rdi
+  000000000001BFE6: 48 83 EC 60        sub         rsp,60h
+  000000000001BFEA: 48 8B 44 24 70     mov         rax,qword ptr [rsp+70h]
+  000000000001BFEF: 48 89 44 24 30     mov         qword ptr [rsp+30h],rax
+  000000000001BFF4: C7 44 24 38 00 00  mov         dword ptr [rsp+38h],0
+                    00 00
+  000000000001BFFC: 48 8B 44 24 70     mov         rax,qword ptr [rsp+70h]
+  000000000001C001: 83 B8 C4 1D 01 00  cmp         dword ptr [rax+11DC4h],5Dh
+                    5D
+  000000000001C008: 75 0A              jne         000000000001C014
+  000000000001C00A: C7 44 24 3C 01 00  mov         dword ptr [rsp+3Ch],1
+                    00 00
+  000000000001C012: EB 08              jmp         000000000001C01C
+  000000000001C014: C7 44 24 3C 00 00  mov         dword ptr [rsp+3Ch],0
+                    00 00
+  000000000001C01C: 8B 44 24 3C        mov         eax,dword ptr [rsp+3Ch]
+
+personal_target_start:
+  000000000001D2F0: 44 89 4C 24 20     mov         dword ptr [rsp+20h],r9d
+  000000000001D2F5: 4C 89 44 24 18     mov         qword ptr [rsp+18h],r8
+  000000000001D2FA: 48 89 54 24 10     mov         qword ptr [rsp+10h],rdx
+  000000000001D2FF: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx
+  000000000001D304: 57                 push        rdi
+  000000000001D305: 48 83 EC 40        sub         rsp,40h
+  000000000001D309: 48 8B 4C 24 50     mov         rcx,qword ptr [rsp+50h]
+  000000000001D30E: E8 00 00 00 00     call        owner
+  000000000001D313: 85 C0              test        eax,eax
+  000000000001D315: 74 5C              je          000000000001D373
+  000000000001D317: 48 83 7C 24 58 00  cmp         qword ptr [rsp+58h],0
+  000000000001D31D: 74 54              je          000000000001D373
+  000000000001D31F: 48 8B 44 24 50     mov         rax,qword ptr [rsp+50h]
+  000000000001D324: 83 B8 98 8F 00 00  cmp         dword ptr [rax+8F98h],0
+                    00
+  000000000001D32B: 75 46              jne         000000000001D373
+  000000000001D32D: 48 8B 44 24 50     mov         rax,qword ptr [rsp+50h]
+
+pending_worker:
+  000000000001C340: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx
+  000000000001C345: 57                 push        rdi
+  000000000001C346: 48 81 EC 50 01 00  sub         rsp,150h
+                    00
+  000000000001C34D: 48 8D 7C 24 50     lea         rdi,[rsp+50h]
+  000000000001C352: B9 40 00 00 00     mov         ecx,40h
+  000000000001C357: B8 CC CC CC CC     mov         eax,0CCCCCCCCh
+  000000000001C35C: F3 AB              rep stos    dword ptr [rdi]
+  000000000001C35E: 48 8B 8C 24 60 01  mov         rcx,qword ptr [rsp+160h]
+                    00 00
+  000000000001C366: 48 8B 05 00 00 00  mov         rax,qword ptr [__security_cookie]
+                    00
+  000000000001C36D: 48 33 C4           xor         rax,rsp
+  000000000001C370: 48 89 84 24 40 01  mov         qword ptr [rsp+140h],rax
+                    00 00
+  000000000001C378: 48 8B 84 24 60 01  mov         rax,qword ptr [rsp+160h]
+                    00 00
+
+papacc_configuration_personal_native_close:
+  0000000000007810: 48 89 4C 24 08     mov         qword ptr [rsp+8],rcx
+  0000000000007815: 57                 push        rdi
+  0000000000007816: 48 81 EC C0 00 00  sub         rsp,0C0h
+                    00
+  000000000000781D: 48 8D 7C 24 20     lea         rdi,[rsp+20h]
+  0000000000007822: B9 28 00 00 00     mov         ecx,28h
+  0000000000007827: B8 CC CC CC CC     mov         eax,0CCCCCCCCh
+  000000000000782C: F3 AB              rep stos    dword ptr [rdi]
+  000000000000782E: 48 8B 8C 24 D0 00  mov         rcx,qword ptr [rsp+0D0h]
+                    00 00
+  0000000000007836: 48 8B 05 00 00 00  mov         rax,qword ptr [__security_cookie]
+                    00
+  000000000000783D: 48 33 C4           xor         rax,rsp
+  0000000000007840: 48 89 84 24 B0 00  mov         qword ptr [rsp+0B0h],rax
+                    00 00
+  0000000000007848: 48 83 BC 24 D0 00  cmp         qword ptr [rsp+0D0h],0
+                    00 00 00
+

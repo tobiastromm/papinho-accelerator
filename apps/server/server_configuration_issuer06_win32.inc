@@ -2,7 +2,7 @@
 int papacc_configuration_issuer_hash06(void *ctx,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 out[32])
 {
  PAPACC_CONFIGURATION_COMMIT *o=ctx;NTSTATUS s=0,t;int ok;
- if(!owner(o)||o->unresolved||o->issuer_hash||o->issuer_hash_alg||!p||!out||n>ULONG_MAX)return 0;
+ if(!owner(o)||o->unresolved||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&o->pending_commit.store_hash)||o->issuer_hash||o->issuer_hash_alg||!p||!out||n>ULONG_MAX)return 0;
  s=BCryptOpenAlgorithmProvider((BCRYPT_ALG_HANDLE *)&o->issuer_hash_alg,BCRYPT_SHA256_ALGORITHM,NULL,0);
  if(s<0){if(!o->issuer_hash_error)o->issuer_hash_error=s;if(o->issuer_hash_alg)o->unresolved=1;return 0;}
  s=BCryptCreateHash(o->issuer_hash_alg,(BCRYPT_HASH_HANDLE *)&o->issuer_hash,NULL,0,NULL,0,0);
@@ -109,12 +109,47 @@ PAPACC_RESULT papacc_configuration_issuer_carrier_inspect06(
  memset(&f,0,sizeof(f));f.dwVolumeSerialNumber=(DWORD)get64(b+104);
  f.nFileIndexHigh=(DWORD)(get64(b+112)>>32);f.nFileIndexLow=(DWORD)get64(b+112);
  if(!issuer06_binding(o,b,b+8192,&f,&v)||
-    !store05_select((unsigned char *)b,&f,workspace)||
+    !store05_select(&o->store_hash,(unsigned char *)b,&f,workspace)||
     memcmp(workspace->domain,v.root,32)){
   memset(workspace,0,sizeof(*workspace));return PAPACC_RESULT_INVALID_STATE;}
  /* Header identity above is serialized DATA, not native namespace custody. */
  *out=v;out->epoch=0;out->proofs=0;return PAPACC_RESULT_OK;
 }
+/* Explicit storage DATA twin; historical API above stays native. */
+static int storage_binding06(PAPACC_CONFIGURATION_COMMIT *o,const unsigned char *base,const unsigned char *image,const BY_HANDLE_FILE_INFORMATION *f,PAPACC_ISSUER_VIEW *v)
+{
+ unsigned char hash[32];
+ if(memcmp(base,"PACL0501",8)||get64(base+8)!=5U||memcmp(base+16,image+32,32)||
+  get64(base+104)!=f->dwVolumeSerialNumber||get64(base+112)!=(((PAPACC_U64)f->nFileIndexHigh<<32)|f->nFileIndexLow))return 0;
+ if(!papacc_configuration_storage_hash(o,base,PAPACC_CONFIG_STORE_BYTES,hash)||memcmp(hash,image+192,32))return 0;
+ if(!papacc_configuration_storage_hash(o,base,STORE03_FOOTER,hash)||memcmp(hash,base+STORE03_FOOTER,32))return 0;
+ if(papacc_issuer_image_validate(image,v,papacc_configuration_storage_hash,o)!=PAPACC_ISSUER_OK)return 0;
+ return get64(image+24)==get64(base+48)+1U;
+}
+PAPACC_RESULT papacc_configuration_storage_carrier_inspect(
+ PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_U8 *b,PAPACC_SIZE n,
+ PAPACC_CONFIG_VIEW *workspace,PAPACC_ISSUER_VIEW *out)
+{
+ BY_HANDLE_FILE_INFORMATION f;PAPACC_ISSUER_VIEW v;
+ if(!owner(o)||!b||n!=PAPACC_ISSUER_ROOT_IMAGE_BYTES||!workspace||!out||
+    (ULONG_PTR)b>MAXULONG_PTR-(n-1U)||
+    (ULONG_PTR)workspace>MAXULONG_PTR-(sizeof(*workspace)-1U)||
+    (ULONG_PTR)out>MAXULONG_PTR-(sizeof(*out)-1U)||
+    issuer06_overlap(workspace,sizeof(*workspace),o,sizeof(*o))||
+    issuer06_overlap(out,sizeof(*out),o,sizeof(*o))||issuer06_overlap(workspace,sizeof(*workspace),b,n)||
+    issuer06_overlap(out,sizeof(*out),b,n)||issuer06_overlap(out,sizeof(*out),workspace,sizeof(*workspace)))return PAPACC_RESULT_INVALID_ARGUMENT;
+ memset(out,0,sizeof(*out));memset(workspace,0,sizeof(*workspace));
+ if(o->stopped||o->unresolved||o->authority_lost||pending_blocks(o)||o->committed_pending)return PAPACC_RESULT_INVALID_STATE;
+ memset(&f,0,sizeof(f));f.dwVolumeSerialNumber=(DWORD)get64(b+104);
+ f.nFileIndexHigh=(DWORD)(get64(b+112)>>32);f.nFileIndexLow=(DWORD)get64(b+112);
+ if(!storage_binding06(o,b,b+8192,&f,&v)||
+    !store05_select(&o->store_hash,(unsigned char *)b,&f,workspace)||
+    memcmp(workspace->domain,v.root,32)){
+  memset(workspace,0,sizeof(*workspace));return PAPACC_RESULT_INVALID_STATE;}
+ /* Header identity above is serialized DATA, not native namespace custody. */
+ *out=v;out->epoch=0;out->proofs=0;return PAPACC_RESULT_OK;
+}
+
 static int issuer06_append(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_VIEW *next,const BY_HANDLE_FILE_INFORMATION *f,unsigned char *b)
 {
  PAPACC_ISSUER_VIEW v;

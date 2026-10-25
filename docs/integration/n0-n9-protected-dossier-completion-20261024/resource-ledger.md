@@ -1,0 +1,7 @@
+# Resources and ownership
+
+No admission/owner/qualifier/launcher/runtime source or storage changed. Added only BUILD_TESTING focal executable and tests, linked existing SHA capsule+Advapi32. No product dependency or second authority/recorder. Existing instrumented admission3160/sample1416 unchanged; production owner remains conditional88. Four-role/128/shared budget/NONE_GRANTED unchanged.
+
+Focal engineering fixture owns one read-only fixed-file handle and two GetSecurityInfo descriptor copies plus one SDDL allocation, all checked close/LocalFree; failure would retain/UNKNOWN without a second close. Two raw descriptor248-byte outputs observed, not an allocator/kernel bound. Fixed arrays1024 block,512 WCHAR path,32-byte digests; model alternate descriptor1024-byte buffer. Hash/parser/provider/CRT/kernel stack not fully bounded; these are isolated diagnostic costs, not operational ED11 admission proof. No persistent data write outside external evidence artifacts/repository review documentation, no trace/worker/service/network listener/operational intent. Signature cmdlet trust retrieval policy not asserted cache-only.
+
+Future input files/dossier context remain charged to existing owner and admin budget; native IDs/protection/storage require exact qualification, not free metadata. Historical retention/UNKNOWN and boot boundary preserved. No proof of original orphan cleanup, no inferred RAM credits or quota increase.

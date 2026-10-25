@@ -1,0 +1,68 @@
+---
+status: proposed
+revision: 1
+date: 2026-10-21
+scope-level: project
+scope-target: Accelerator-only TIME_SOURCE public point validation
+---
+# Candidate: independent strict Ed25519 point validator
+
+Owner task PACC-PHASE6-INDEPENDENT-ED25519-BACKEND-AUDIT-1 forbids modifying
+or expanding PST for this purpose. This candidate honors that fixed boundary;
+it does not authorize implementation or accept a backend. Accepted P0-P5 and
+TS0-TS8/AT/PT/Q/Model E/ED08/ED11 remain unchanged.
+
+## Proposed decision for owner review
+
+S0. Prefer a bounded Accelerator-owned source-derived generic arithmetic subset
+of pinned OpenSSL3.5.8, with exact original notices/license, source ranges/hashes
+and reviewable adaptation manifest. Reuse the existing strict entry semantics:
+exact32 bytes, canonical valid point, nonidentity, integer[L]P=O. No new field
+or group arithmetic, signature-as-key-test or cofactor normalization.
+
+S1. One private C89 result boundary; VALID, INVALID, INTERNAL_ERROR and
+BACKEND_UNAVAILABLE, default denial. No curve structures cross it. No signing,
+key generation, generic crypto framework, providers/plugins, trust store,
+registry, authority, root, worker or wire change. No raw DATA grants source
+status, CURRENT, UTC or administrative authorization.
+
+S2. Build/distribute only with Accelerator-owned pinned source and recipes.
+No PST source modification, extension, package replacement, internal entry
+exports or build/runtime dependency on its checkout/tools/OpenSSL installation.
+PST remains TLS-only reference for this task. Existing historical handoff's
+possible future PST extension route is not an authorized next action under
+this owner direction; its historical evidence is preserved unchanged.
+
+S3. Keep arithmetic bodies unchanged where possible; isolate reviewed types/
+literal/C89 and public-data comparison glue, then demonstrate exact standalone
+symbol/dependency closure. Missing closure or changed mathematical semantics
+stops the integration. Apache2 notices and modified-file provenance required.
+No automatic upstream updates; maintainer owns tracked security/backport review.
+
+S4. Reserve corrected libsodium1.0.21 public API only after a separate explicit
+owner choice if S0 is unsuitable. Do not resume its port or add the library
+under this candidate. Monocypher/donna public signature APIs are not strict
+validators. Full independent OpenSSL is a heavier alternative, not selected.
+Implementation from scratch has no demonstrated justification.
+
+S5. Requalify the actual new component: preserved296 focal/2526 crypto/5940 LAB
+oracles, independent negative vectors including4L/8L, differential tests,
+modern Debug/Release and real VC6 backend/caller proofs. Header C89 compilation
+does not qualify NT4; box/ISA require their own factual target evidence.
+
+S6. Preserve existing owner/synchronous protected borrows, Stop/retention/
+quiescence, limits and unknown-error denial. Measure actual code/data/CRT/init,
+heap/scratch/full stack and root-v4/issuer/Roughtime coexistence before applying
+ED11 gates. No quota increase or presumed memory saving. ED11 remains PARTIAL.
+
+[Audit, comparison and implementation plan](../integration/independent-ed25519-backend-audit-20261021/comparison-and-recommendation.md)
+| [ED11 estimates](../integration/independent-ed25519-backend-audit-20261021/ed11-comparison.md)
+| [Pinned evidence](../integration/independent-ed25519-backend-audit-20261021/evidence-provenance.json).
+
+IMPLEMENTATION_AUTHORIZED=NO
+TIME_SOURCE_KEY_VALIDATION=DENY
+UTC_SOURCE=NOT_QUALIFIED
+CURRENT_PUBLICATION=DENY
+SIGNATURE_AUTHORITY=DENY
+AUTHORITATIVE_RECOVERY=DENY
+PST_MODIFICATION=DENY

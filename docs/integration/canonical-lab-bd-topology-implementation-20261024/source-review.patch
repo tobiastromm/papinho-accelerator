@@ -1,0 +1,602 @@
+--- preimage/CMakeLists.txt
++++ current/CMakeLists.txt
+@@ -3332,6 +3332,19 @@
+   set_target_properties(papacc_service_console_proof_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+   add_test(NAME papacc.service.console_proof COMMAND papacc_service_console_proof_test)
+ 
++  foreach(bd_kind model source_gate)
++   add_executable(papacc_service_bd_${bd_kind}_test tests/service_bd_admission_test.c)
++   target_compile_options(papacc_service_bd_${bd_kind}_test PRIVATE /W4 /WX)
++   target_compile_definitions(papacc_service_bd_${bd_kind}_test PRIVATE _WIN32_WINNT=0x0603 WIN32_LEAN_AND_MEAN=1)
++   if(bd_kind STREQUAL "model")
++    target_compile_definitions(papacc_service_bd_${bd_kind}_test PRIVATE PAPACC_SERVICE_BD_MODEL=1)
++   else()
++    target_compile_definitions(papacc_service_bd_${bd_kind}_test PRIVATE PS_BD_SOURCE_ONLY=1)
++   endif()
++   target_link_libraries(papacc_service_bd_${bd_kind}_test PRIVATE advapi32)
++   set_target_properties(papacc_service_bd_${bd_kind}_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++   add_test(NAME papacc.service.bd_${bd_kind} COMMAND papacc_service_bd_${bd_kind}_test)
++  endforeach()
+   add_executable(papacc_scm_instrumented_policy_test tests/service_instrumented_policy_test.c)
+   target_compile_options(papacc_scm_instrumented_policy_test PRIVATE /W4 /WX)
+   set_target_properties(papacc_scm_instrumented_policy_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+@@ -3434,3 +3447,7 @@
+ set_property(SOURCE apps/server/server_service_win32.c tools/qualification/scm-registration-lab.c tests/service_cross_admission_win32_test.c tests/service_busy_diagnostic_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-busy-diagnostic.h;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_admission_win32.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-instrumented-observer.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-instrumented-cycle-lab.inc")
+ 
+ set_property(SOURCE tests/service_busy_diagnostic_test.c tests/service_console_proof_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-console-proof.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-console-proof-model.h")
++
++if(WIN32)
++ set_property(SOURCE apps/server/server_service_win32.c tools/qualification/scm-registration-lab.c tests/service_busy_diagnostic_test.c tests/service_bd_admission_test.c tests/service_instrumented_policy_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_admission_bd_win32.h;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_admission_bd_win32.inc")
++endif()
+--- preimage/apps/server/server_service_admission_win32.h
++++ current/apps/server/server_service_admission_win32.h
+@@ -1,9 +1,13 @@
+ #ifndef PAPACC_SERVICE_ADMISSION_WIN32_H
+ #define PAPACC_SERVICE_ADMISSION_WIN32_H
+ /* Private single-LAB specialization of the existing SCM owner; no authority. */
++#include "server_service_admission_bd_win32.h"
+ typedef struct PS_ADMISSION {
+  HANDLE mutex,intent,launch,launcher;DWORD thread;unsigned phase,owned,consumed,effects,stop,lab;
+  PSECURITY_DESCRIPTOR pending,expected;HANDLE token;
++#if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
++ PS_BD_STATE bd;
++#endif
+ } PS_ADMISSION;
+ DWORD papacc_server_service_admission_bind_launch(DWORD,unsigned __int64);
+ DWORD papacc_server_service_admission_enter(HANDLE,const char *);
+@@ -12,4 +16,9 @@
+ DWORD papacc_server_service_admission_stop(void);
+ DWORD papacc_server_service_admission_finish(int);
+ void papacc_server_service_admission_retain(void);
++#if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
++DWORD papacc_server_service_admission_bd_bind(const PS_BD_DESCRIPTOR *,PS_BD_CONTEXT_CHECK);
++DWORD papacc_server_service_admission_bd_revalidate(PS_BD_CONTEXT_CHECK);
++DWORD papacc_server_service_admission_bd_close(int quiescent);
+ #endif
++#endif
+--- preimage/apps/server/server_service_admission_win32.inc
++++ current/apps/server/server_service_admission_win32.inc
+@@ -46,9 +46,15 @@
+  if(LocalFree(expected)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.expected=NULL;
+  if(psa_free_sd())return ERROR_INVALID_HANDLE;return e;
+ }
++#if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
++#include "server_service_admission_bd_win32.inc"
++#endif
+ DWORD papacc_server_service_admission_bind_launch(DWORD pid,unsigned __int64 creation)
+ {
+  FILETIME ct,et,kt,ut;BY_HANDLE_FILE_INFORMATION id;char expected[200],observed[200];DWORD n;int length;
++#if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
++ if(PSA.bd.used)return ERROR_INVALID_STATE;
++#endif
+  if(PSA.phase||PSA.mutex||PSA.launch||PSA.launcher||!pid||!creation)return ERROR_INVALID_STATE;
+  PSA.launcher=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,pid);if(!PSA.launcher)return psa_error();
+  if(!GetProcessTimes(PSA.launcher,&ct,&et,&kt,&ut)||(((unsigned __int64)ct.dwHighDateTime<<32)|ct.dwLowDateTime)!=creation||WaitForSingleObject(PSA.launcher,0)!=WAIT_TIMEOUT)return ERROR_INVALID_DATA;
+@@ -98,6 +104,9 @@
+  static const char record[]="ATTEMPT=75330d11cc7e4123ae62eadc9a59c2f5; CONSUMED; NO_RETRY_NO_RECOVERY; UNKNOWN_UNTIL_FACTUAL_CLOSE\r\n";
+  SECURITY_ATTRIBUTES sa;DWORD e,n;BY_HANDLE_FILE_INFORMATION id;
+  if(PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId()||PSA.consumed||PSA.stop||!PSA.lab)return ERROR_INVALID_STATE;
++#if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
++ if(PSA.bd.used){DWORD z=papacc_server_service_admission_bd_revalidate(PSA.bd.check);if(z)return z;z=ps_bd_inventory(&PSA.bd.binding,&PSA.bd.inventory,GetTickCount64());if(z)return z;}
++#endif
+  PSA.consumed=1;
+  if((e=psa_sd())!=0){PSA.phase=3;return e;}
+  sa.nLength=sizeof(sa);sa.lpSecurityDescriptor=PSA.pending;sa.bInheritHandle=FALSE;
+@@ -108,7 +117,13 @@
+  return 0;
+ }
+ DWORD papacc_server_service_admission_effect(void)
+-{if(PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId()||!PSA.consumed||!PSA.intent||PSA.stop)return ERROR_INVALID_STATE;PSA.effects=1;return 0;}
++{
++ if(PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId()||!PSA.consumed||!PSA.intent||PSA.stop)return ERROR_INVALID_STATE;
++#if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
++ if(PSA.bd.used){DWORD e=papacc_server_service_admission_bd_revalidate(PSA.bd.check);if(e)return e;e=ps_bd_inventory(&PSA.bd.binding,&PSA.bd.inventory,GetTickCount64());if(e)return e;}
++#endif
++ PSA.effects=1;return 0;
++}
+ DWORD papacc_server_service_admission_stop(void)
+ {if(PSA.phase!=1||PSA.thread!=GetCurrentThreadId())return ERROR_INVALID_STATE;PSA.stop=1;return 0;}
+ void papacc_server_service_admission_retain(void){if(PSA.phase)PSA.phase=3;}
+@@ -116,12 +131,18 @@
+ {
+  if(!PSA.phase&&!PSA.mutex){
+   if(!quiescent)return ERROR_INVALID_STATE;
+-  if(PSA.launch){if(!CloseHandle(PSA.launch)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.launch=NULL;}
++ #if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
++ {DWORD bd_close=papacc_server_service_admission_bd_close(1);if(bd_close)return bd_close;}
++#endif
++ if(PSA.launch){if(!CloseHandle(PSA.launch)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.launch=NULL;}
+   if(PSA.launcher){if(!CloseHandle(PSA.launcher)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.launcher=NULL;}
+   return 0;
+  }
+  if(PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId())return ERROR_INVALID_STATE;
+  if(!quiescent){PSA.phase=3;return ERROR_INVALID_STATE;}
++#if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
++ {DWORD bd_close=papacc_server_service_admission_bd_close(1);if(bd_close)return bd_close;}
++#endif
+  if(PSA.launch){if(!CloseHandle(PSA.launch)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.launch=NULL;}
+  if(PSA.launcher){if(!CloseHandle(PSA.launcher)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.launcher=NULL;}
+  if(PSA.intent){if(!CloseHandle(PSA.intent)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.intent=NULL;}
+--- preimage/apps/server/server_service_admission_bd_win32.h
++++ current/apps/server/server_service_admission_bd_win32.h
+@@ -0,0 +1,93 @@
++#ifndef PAPACC_SERVICE_ADMISSION_BD_WIN32_H
++#define PAPACC_SERVICE_ADMISSION_BD_WIN32_H
++/* Private bounded data/validators inside PS_ADMISSION, not another owner.
++ * MODEL evidence exists ONLY in the isolated test translation unit. */
++#include <windows.h>
++#include <string.h>
++#define PS_BD_ROLES 4U
++enum { PS_BD_NATIVE_ID=1U,PS_BD_IMAGE_PROVENANCE=2U,PS_BD_FACTUAL_RELATION=4U,PS_BD_SESSION=8U,
++ PS_BD_LIVE=16U,PS_BD_METRICS=32U,PS_BD_REVALIDATED=64U,PS_BD_GENERATION=128U };
++#define PS_BD_PROOF_ALL 255U
++#define PS_BD_MIB 1048576ULL
++enum { PS_BD_ADMIN=0,PS_BD_QUALIFIER=1,PS_BD_SERVICE=2,PS_BD_CONSOLE=3 };
++typedef struct PS_BD_ID {HANDLE handle;DWORD pid,session;ULONGLONG creation;} PS_BD_ID;
++typedef struct PS_BD_DESCRIPTOR {
++ PS_BD_ID actor;HANDLE control_thread,configuration,image;DWORD control_tid;
++ BYTE sid[SECURITY_MAX_SID_SIZE];DWORD sid_size;TOKEN_STATISTICS statistics;
++ BY_HANDLE_FILE_INFORMATION config_id,image_id;
++ char attempt[33],plan[65],config_hash[65],image_hash[65],policy[65],host[65];
++ DWORD owner_pid;ULONGLONG owner_creation,boot,challenge;
++} PS_BD_DESCRIPTOR;
++typedef struct PS_BD_PROOF {
++ PS_BD_ID actor,console;DWORD source,known;ULONGLONG boot,observed,generation;
++} PS_BD_PROOF;
++typedef struct PS_BD_INVENTORY {
++ PS_BD_ID role[PS_BD_ROLES];unsigned present[PS_BD_ROLES],count;PS_BD_PROOF console;
++} PS_BD_INVENTORY;
++typedef struct PS_BD_COST {
++ ULONGLONG private_bytes,commit,working_set,stack;DWORD handles,threads,error;
++} PS_BD_COST;
++typedef DWORD (*PS_BD_CONTEXT_CHECK)(const PS_BD_DESCRIPTOR *);
++typedef struct PS_BD_STATE {
++ PS_BD_DESCRIPTOR binding;PS_BD_INVENTORY inventory;
++ HANDLE thread,unexpected,input,output;PSID approved_sid;PS_BD_CONTEXT_CHECK check;unsigned used,bound;
++} PS_BD_STATE;
++static __inline int ps_bd_id(const PS_BD_ID *a,const PS_BD_ID *b)
++{return a->pid&&a->creation&&a->handle&&a->handle!=INVALID_HANDLE_VALUE&&b->handle&&b->handle!=INVALID_HANDLE_VALUE&&a->pid==b->pid&&a->creation==b->creation&&a->session==b->session;}
++static __inline int ps_bd_hex(const char s[65])
++{unsigned i;for(i=0;i<64;i++)if(!((s[i]>='0'&&s[i]<='9')||(s[i]>='a'&&s[i]<='f')))return 0;return !s[64];}
++static __inline DWORD ps_bd_descriptor(const PS_BD_DESCRIPTOR *d)
++{
++ if(!d||!ps_bd_id(&d->actor,&d->actor)||!d->control_thread||d->control_thread==INVALID_HANDLE_VALUE||!d->control_tid||
++ !d->configuration||d->configuration==INVALID_HANDLE_VALUE||!d->image||d->image==INVALID_HANDLE_VALUE||
++ !d->owner_pid||d->actor.pid==d->owner_pid||!d->owner_creation||!d->boot||!d->challenge||
++ d->attempt[32]||strcmp(d->attempt,"75330d11cc7e4123ae62eadc9a59c2f5")||!ps_bd_hex(d->plan)||!ps_bd_hex(d->config_hash)||!ps_bd_hex(d->image_hash)||!ps_bd_hex(d->policy)||!ps_bd_hex(d->host))return ERROR_INVALID_DATA;
++ if(d->sid_size<8||d->sid_size>sizeof(d->sid)||d->sid[0]!=SID_REVISION||d->sid[1]>SID_MAX_SUB_AUTHORITIES||d->sid_size!=8U+4U*d->sid[1])return ERROR_INVALID_SID;
++ return 0;
++}
++static __inline DWORD ps_bd_console(const PS_BD_DESCRIPTOR *d,const PS_BD_INVENTORY *v,ULONGLONG now)
++{
++ const PS_BD_PROOF *p=&v->console;
++ if(!v->present[PS_BD_CONSOLE]||p->known!=PS_BD_PROOF_ALL||!ps_bd_id(&d->actor,&p->actor)||
++ !ps_bd_id(&v->role[PS_BD_CONSOLE],&p->console)||p->boot!=d->boot||p->generation!=d->challenge||
++ p->console.session!=d->actor.session||now<p->observed||now-p->observed>60000U)return ERROR_ACCESS_DENIED;
++ /* No native source qualified yet. A mask/source supplied by a caller cannot
++  * assert factual association. Positive cases are synthetic tests ONLY. */
++#ifdef PAPACC_SERVICE_BD_MODEL
++ if(p->source==0x4d4f444cUL)return 0;
++#endif
++ return ERROR_NOT_SUPPORTED;
++}
++static __inline DWORD ps_bd_inventory(const PS_BD_DESCRIPTOR *d,const PS_BD_INVENTORY *v,ULONGLONG now)
++{
++ unsigned i,j,n=0;DWORD e=ps_bd_descriptor(d);if(e)return e;
++ if(!v||v->count>PS_BD_ROLES||!v->present[PS_BD_ADMIN]||!v->present[PS_BD_QUALIFIER])return ERROR_INVALID_DATA;
++ for(i=0;i<PS_BD_ROLES;i++){
++  if(v->present[i]>1U)return ERROR_INVALID_DATA;
++  if(!v->present[i]){if(v->role[i].pid||v->role[i].handle||v->role[i].creation)return ERROR_INVALID_DATA;continue;}
++  n++;if(!ps_bd_id(&v->role[i],&v->role[i])||v->role[i].session!=d->actor.session)return ERROR_INVALID_DATA;
++  for(j=0;j<i;j++)if(v->present[j]&&(v->role[i].pid==v->role[j].pid||v->role[i].handle==v->role[j].handle))return ERROR_INVALID_DATA;
++ }
++ if(n!=v->count||!ps_bd_id(&d->actor,&v->role[PS_BD_ADMIN])||v->role[PS_BD_QUALIFIER].pid!=d->owner_pid||v->role[PS_BD_QUALIFIER].creation!=d->owner_creation)return ERROR_INVALID_DATA;
++ return ps_bd_console(d,v,now);
++}
++static __inline DWORD ps_bd_census(const PS_BD_DESCRIPTOR *d,const PS_BD_INVENTORY *v,ULONGLONG now,DWORD pid,DWORD parent,unsigned project)
++{
++ unsigned i;int child=0;DWORD e=ps_bd_inventory(d,v,now);if(e)return e;
++ for(i=0;i<PS_BD_ROLES;i++)if(v->present[i]){if(v->role[i].pid==pid)return 0;if(v->role[i].pid==parent)child=1;}
++ return child||project?ERROR_BUSY:0; /* unchanged host baseline, never a name exemption */
++}
++static __inline DWORD ps_bd_costs(const PS_BD_INVENTORY *v,const PS_BD_COST c[PS_BD_ROLES])
++{
++ unsigned i;ULONGLONG a=0,b=0,w=0,s=0;DWORD h=0,t=0;
++ for(i=0;i<PS_BD_ROLES;i++)if(v->present[i]){
++  const PS_BD_COST *p=&c[i];ULONGLONG cap=(i==PS_BD_ADMIN||i==PS_BD_CONSOLE?256:64)*PS_BD_MIB;
++  if(p->error)return p->error;
++  if(p->private_bytes>cap||p->commit>cap||p->working_set>cap||p->stack>(i==PS_BD_ADMIN||i==PS_BD_CONSOLE?32:8)*PS_BD_MIB||
++  p->handles>(i==PS_BD_ADMIN||i==PS_BD_CONSOLE?1024U:128U)||!p->threads||p->threads>(i==PS_BD_ADMIN||i==PS_BD_CONSOLE?64U:16U))return ERROR_NOT_ENOUGH_QUOTA;
++  if(i==PS_BD_ADMIN||i==PS_BD_CONSOLE){a+=p->private_bytes;b+=p->commit;w+=p->working_set;s+=p->stack;h+=p->handles;t+=p->threads;}
++ }
++ /* Values are bounded above before summation: no unchecked unbounded input. */
++ return a<=256*PS_BD_MIB&&b<=256*PS_BD_MIB&&w<=256*PS_BD_MIB&&s<=32*PS_BD_MIB&&h<=1024U&&t<=64U?0:ERROR_NOT_ENOUGH_QUOTA;
++}
++#endif
+--- preimage/apps/server/server_service_admission_bd_win32.inc
++++ current/apps/server/server_service_admission_bd_win32.inc
+@@ -0,0 +1,84 @@
++/* SAME PS_ADMISSION owner. No entrypoint, registry, mutex or activation here. */
++static int psa_bd_file(const BY_HANDLE_FILE_INFORMATION *a,const BY_HANDLE_FILE_INFORMATION *b)
++{return a->dwVolumeSerialNumber==b->dwVolumeSerialNumber&&a->nFileIndexHigh==b->nFileIndexHigh&&a->nFileIndexLow==b->nFileIndexLow&&a->nFileSizeHigh==b->nFileSizeHigh&&a->nFileSizeLow==b->nFileSizeLow&&a->nNumberOfLinks==1&&!(a->dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT));}
++static DWORD psa_bd_no_impersonation(HANDLE thread)
++{
++ if(PSA.bd.unexpected)return ERROR_INVALID_STATE;
++ if(OpenThreadToken(thread,TOKEN_QUERY,TRUE,&PSA.bd.unexpected))return ERROR_ACCESS_DENIED;
++ return GetLastError()==ERROR_NO_TOKEN?0:psa_error();
++}
++static DWORD psa_bd_current(void)
++{
++ const PS_BD_DESCRIPTOR *d=&PSA.bd.binding;FILETIME ct,et,kt,ut;DWORD n,session;WCHAR path[1024];TOKEN_STATISTICS s;TOKEN_ELEVATION elevation;
++ union {TOKEN_USER aligned;BYTE bytes[256];} u;BY_HANDLE_FILE_INFORMATION id;DWORD e;
++ if(PSA.stop||PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId())return ERROR_INVALID_STATE;
++ if((e=psa_bd_no_impersonation(GetCurrentThread()))||(e=psa_bd_no_impersonation(PSA.bd.thread)))return e;
++ if(GetProcessId(PSA.launcher)!=d->actor.pid||GetProcessIdOfThread(PSA.bd.thread)!=d->actor.pid||GetThreadId(PSA.bd.thread)!=d->control_tid||
++ WaitForSingleObject(PSA.launcher,0)!=WAIT_TIMEOUT||WaitForSingleObject(PSA.bd.thread,0)!=WAIT_TIMEOUT||
++ !GetProcessTimes(PSA.launcher,&ct,&et,&kt,&ut)||(((ULONGLONG)ct.dwHighDateTime<<32)|ct.dwLowDateTime)!=d->actor.creation||
++ !ProcessIdToSessionId(d->actor.pid,&session)||session!=d->actor.session||!ProcessIdToSessionId(d->owner_pid,&session)||session!=d->actor.session)return ERROR_INVALID_DATA;
++ n=1024;if(!QueryFullProcessImageNameW(PSA.launcher,0,path,&n)||_wcsicmp(path,L"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"))return ERROR_INVALID_DATA;
++ ZeroMemory(&u,sizeof(u));n=0;
++ if(!GetTokenInformation(PSA.token,TokenUser,&u,sizeof(u),&n)||n<sizeof(TOKEN_USER)||n>sizeof(u)||
++ (BYTE *)u.aligned.User.Sid<u.bytes||(BYTE *)u.aligned.User.Sid>u.bytes+n-8U||
++ ((BYTE *)u.aligned.User.Sid)[1]>SID_MAX_SUB_AUTHORITIES||8U+4U*((BYTE *)u.aligned.User.Sid)[1]>n-(DWORD)((BYTE *)u.aligned.User.Sid-u.bytes)||
++ !IsValidSid(u.aligned.User.Sid)||GetLengthSid(u.aligned.User.Sid)>sizeof(u)-(size_t)((BYTE *)u.aligned.User.Sid-u.bytes)||!EqualSid(u.aligned.User.Sid,(PSID)d->sid))return ERROR_INVALID_OWNER;
++ if(!GetTokenInformation(PSA.token,TokenElevation,&elevation,sizeof(elevation),&n)||!elevation.TokenIsElevated||
++ !GetTokenInformation(PSA.token,TokenStatistics,&s,sizeof(s),&n)||s.TokenType!=TokenPrimary||
++ memcmp(&s.TokenId,&d->statistics.TokenId,sizeof(LUID))||memcmp(&s.AuthenticationId,&d->statistics.AuthenticationId,sizeof(LUID))||memcmp(&s.ModifiedId,&d->statistics.ModifiedId,sizeof(LUID)))return ERROR_ACCESS_DENIED;
++ if(!GetFileInformationByHandle(d->configuration,&id)||!psa_bd_file(&id,&d->config_id)||!GetFileInformationByHandle(d->image,&id)||!psa_bd_file(&id,&d->image_id))return ERROR_INVALID_DATA;
++ return PSA.bd.check?PSA.bd.check(d):ERROR_NOT_SUPPORTED;
++}
++static DWORD psa_bd_confirm(void)
++{
++ const PS_BD_DESCRIPTOR *d=&PSA.bd.binding;WCHAR text[1024],reply[192],expected[192];DWORD n=0,w=0,im,om;int length;
++ PSA.bd.input=CreateFileW(L"CONIN$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
++ if(PSA.bd.input==INVALID_HANDLE_VALUE){PSA.bd.input=NULL;return psa_error();}
++ PSA.bd.output=CreateFileW(L"CONOUT$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
++ if(PSA.bd.output==INVALID_HANDLE_VALUE){PSA.bd.output=NULL;return psa_error();}
++ if(!GetConsoleMode(PSA.bd.input,&im)||!GetConsoleMode(PSA.bd.output,&om)||(im&(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT))!=(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT))return ERROR_ACCESS_DENIED;
++ if(swprintf_s(expected,192,L"BIND_BD_READ_ONLY %hs %lu %llu %llu",d->attempt,(unsigned long)d->owner_pid,d->owner_creation,d->challenge)<0)return ERROR_INVALID_DATA;
++ length=swprintf_s(text,1024,L"B+D owner binding ONLY; no operational authority. Actor=%lu creation=%llu; boot=%llu; attempt=%hs\r\nPlan=%hs\r\nConfiguration=%hs\r\nBinary=%hs\r\nPolicy=%hs\r\nHost=%hs\r\nConsole remains DENY without factual proof. Type exactly:\r\n%ls\r\n> ",(unsigned long)d->actor.pid,d->actor.creation,d->boot,d->attempt,d->plan,d->config_hash,d->image_hash,d->policy,d->host,expected);
++ if(length<0||!WriteConsoleW(PSA.bd.output,text,(DWORD)length,&w,NULL)||w!=(DWORD)length||!ReadConsoleW(PSA.bd.input,reply,191,&n,NULL)||n>=192)return ERROR_ACCESS_DENIED;
++ reply[n]=0;while(n&&(reply[n-1]=='\r'||reply[n-1]=='\n'))reply[--n]=0;
++ return wcscmp(reply,expected)?ERROR_CANCELLED:0;
++}
++DWORD papacc_server_service_admission_bd_bind(const PS_BD_DESCRIPTOR *d,PS_BD_CONTEXT_CHECK check)
++{
++ FILETIME ct,et,kt,ut;DWORD e;
++ if(PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId()||PSA.stop||PSA.consumed||PSA.bd.used||PSA.launcher||PSA.token)return ERROR_INVALID_STATE;
++ PSA.bd.used=1; /* No confirmation replay/rebinding, including failed binding. */
++ if((e=ps_bd_descriptor(d)))return e;if(!check)return ERROR_NOT_SUPPORTED;
++ if(d->owner_pid!=GetCurrentProcessId()||!GetProcessTimes(GetCurrentProcess(),&ct,&et,&kt,&ut)||(((ULONGLONG)ct.dwHighDateTime<<32)|ct.dwLowDateTime)!=d->owner_creation)return ERROR_INVALID_DATA;
++ PSA.bd.binding=*d;PSA.bd.check=check;
++ if(!ConvertStringSidToSidW(L"S-1-5-21-785699550-1440458426-1682014700-1108",&PSA.bd.approved_sid))return psa_error();
++ if(!EqualSid(PSA.bd.approved_sid,(PSID)d->sid))return ERROR_INVALID_OWNER;
++ if(!DuplicateHandle(GetCurrentProcess(),d->actor.handle,GetCurrentProcess(),&PSA.launcher,0,FALSE,DUPLICATE_SAME_ACCESS)||
++ !DuplicateHandle(GetCurrentProcess(),d->control_thread,GetCurrentProcess(),&PSA.bd.thread,0,FALSE,DUPLICATE_SAME_ACCESS))return psa_error();
++ PSA.bd.binding.actor.handle=PSA.launcher;PSA.bd.binding.control_thread=PSA.bd.thread;
++ if(!OpenProcessToken(PSA.launcher,TOKEN_QUERY,&PSA.token))return psa_error();
++ if((e=psa_bd_current())||(e=psa_bd_confirm()))return e;
++ if(!CloseHandle(PSA.bd.input)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.bd.input=NULL;
++ if(!CloseHandle(PSA.bd.output)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.bd.output=NULL;
++ if((e=psa_bd_current()))return e;
++ PSA.bd.bound=1;PSA.bd.inventory.count=2;
++ PSA.bd.inventory.present[PS_BD_ADMIN]=PSA.bd.inventory.present[PS_BD_QUALIFIER]=1;
++ PSA.bd.inventory.role[PS_BD_ADMIN]=PSA.bd.binding.actor;
++ PSA.bd.inventory.role[PS_BD_QUALIFIER].handle=GetCurrentProcess();PSA.bd.inventory.role[PS_BD_QUALIFIER].pid=d->owner_pid;
++ PSA.bd.inventory.role[PS_BD_QUALIFIER].creation=d->owner_creation;PSA.bd.inventory.role[PS_BD_QUALIFIER].session=d->actor.session;
++ /* No fabricated service PID or console identity/source. R2 therefore DENIES. */
++ return 0;
++}
++DWORD papacc_server_service_admission_bd_revalidate(PS_BD_CONTEXT_CHECK check)
++{if(!PSA.bd.bound||!check||check!=PSA.bd.check)return ERROR_INVALID_STATE;return psa_bd_current();}
++DWORD papacc_server_service_admission_bd_close(int quiescent)
++{
++ HANDLE *refs[6];unsigned i;if(!PSA.bd.used)return 0;
++ if(PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId())return ERROR_INVALID_STATE;
++ if(!quiescent){PSA.phase=3;return ERROR_INVALID_STATE;}
++ refs[0]=&PSA.bd.input;refs[1]=&PSA.bd.output;refs[2]=&PSA.bd.unexpected;refs[3]=&PSA.token;refs[4]=&PSA.bd.thread;refs[5]=&PSA.launcher;
++ for(i=0;i<6;i++)if(*refs[i]){if(!CloseHandle(*refs[i])){PSA.phase=3;return ERROR_INVALID_HANDLE;}*refs[i]=NULL;}
++ if(PSA.bd.approved_sid){if(LocalFree(PSA.bd.approved_sid)){PSA.phase=3;return ERROR_INVALID_HANDLE;}PSA.bd.approved_sid=NULL;}
++ PSA.bd.bound=0;PSA.bd.check=NULL;PSA.bd.binding.actor.handle=NULL;PSA.bd.binding.control_thread=NULL;PSA.bd.binding.configuration=PSA.bd.binding.image=NULL;ZeroMemory(&PSA.bd.inventory,sizeof(PSA.bd.inventory));return 0;
++}
++
+--- preimage/tools/qualification/scm-instrumented-cycle-lab.inc
++++ current/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -35,9 +35,25 @@
+ }
+ static DWORD ig_project_census(void)
+ {
+- PROCESSENTRY32W pe;DWORD e=0;unsigned j;if(ig_guard_snapshot||native.retained)return ERROR_INVALID_STATE;ig_guard_snapshot=ig_diag_handle(cycle_stage,"CreateToolhelp32Snapshot","process_snapshot",CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0));if(ig_guard_snapshot==INVALID_HANDLE_VALUE){ig_guard_snapshot=NULL;return lab_error();}
++ PROCESSENTRY32W pe;DWORD e=0;unsigned j;
++#ifdef PAPACC_SINGLE_LAB_ADMISSION
++ if(native.admission.bd.used){
++  if(!native.admission.bd.bound)return ERROR_ACCESS_DENIED;
++  e=papacc_server_service_admission_bd_revalidate(native.admission.bd.check);if(e)return e;
++  e=ps_bd_inventory(&native.admission.bd.binding,&native.admission.bd.inventory,GetTickCount64());if(e)return e;
++ }
++#endif
++if(ig_guard_snapshot||native.retained)return ERROR_INVALID_STATE;ig_guard_snapshot=ig_diag_handle(cycle_stage,"CreateToolhelp32Snapshot","process_snapshot",CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0));if(ig_guard_snapshot==INVALID_HANDLE_VALUE){ig_guard_snapshot=NULL;return lab_error();}
+  ZeroMemory(&pe,sizeof(pe));pe.dwSize=sizeof(pe);if(!ig_diag_bool(cycle_stage,"Process32FirstW","process_snapshot_entry",Process32FirstW(ig_guard_snapshot,&pe)))return lab_error();
+  do{int participant=0,child=0;
++#ifdef PAPACC_SINGLE_LAB_ADMISSION
++ if(native.admission.bd.bound){
++  e=ps_bd_census(&native.admission.bd.binding,&native.admission.bd.inventory,GetTickCount64(),pe.th32ProcessID,pe.th32ParentProcessID,(unsigned)(!_wcsnicmp(pe.szExeFile,L"papacc",6)));
++  if(e){ig_diag_note(cycle_stage,"bd_census_predicate","process_snapshot",e,e,pe.th32ProcessID,4);break;}
++  continue;
++ }
++#endif
++
+  for(j=0;j<4;j++){if(ig_observer.pid[j]&&pe.th32ProcessID==ig_observer.pid[j])participant=1;if(ig_observer.pid[j]&&pe.th32ParentProcessID==ig_observer.pid[j])child=1;}
+  if(!participant&&(child||!_wcsnicmp(pe.szExeFile,L"papacc",6))){unsigned k;ig_diag_note(cycle_stage,"process_census_predicate","process_snapshot",ERROR_BUSY,ERROR_BUSY,pe.th32ProcessID,4);printf("IG_CENSUS_REJECT pid=%lu parent=%lu child=%u project_prefix=%u; NO_ADMISSION\n",(unsigned long)pe.th32ProcessID,(unsigned long)pe.th32ParentProcessID,(unsigned)child,(unsigned)(!_wcsnicmp(pe.szExeFile,L"papacc",6)));printf("IG_CENSUS_NAME_UTF16=");for(k=0;k<64U&&pe.szExeFile[k];k++)printf("%04x",(unsigned)(unsigned short)pe.szExeFile[k]);printf("; TRUNCATED=%u; SNAPSHOT_NAME_ONLY_NO_CREATION_PROOF\n",(unsigned)(k==64U&&pe.szExeFile[k]!=0));e=ERROR_BUSY;break;}}while(ig_diag_next(cycle_stage,"Process32NextW","process_snapshot_entry",Process32NextW(ig_guard_snapshot,&pe)));
+  if(!e&&GetLastError()!=ERROR_NO_MORE_FILES)e=lab_error();
+@@ -93,6 +109,16 @@
+  unsigned i;DWORD e;
+  if(ig_observer.retained||ig_diag.retained||ig_gate.retained||native.retained||!ig_retire(&ig_gate))return ERROR_INVALID_STATE;
+  if((e=ig_observer_close_snapshot()))return e;
++#ifdef PAPACC_SINGLE_LAB_ADMISSION
++ if(ig_observer.bd_borrowed){for(i=0;i<4;i++)ig_observer.process[i]=NULL;ig_observer.bd_borrowed=0;}
++ if(native.admission.bd.used){
++  /* End synchronous sample borrows before canonical references can close.
++   * Numeric measurements remain; a retired sample cannot authorize anything. */
++  ig_observer.sample.error=ERROR_INVALID_STATE;ig_observer.sample.bd=0;
++  ZeroMemory(&ig_observer.sample.binding,sizeof(ig_observer.sample.binding));ZeroMemory(&ig_observer.sample.inventory,sizeof(ig_observer.sample.inventory));
++  if((e=papacc_server_service_admission_bd_close(1)))return e;
++ }
++#endif
+  if(ig_observer.event){if(!EvtClose(ig_observer.event))return ERROR_INVALID_HANDLE;ig_observer.event=NULL;}
+  if(ig_observer.event_query){if(!EvtClose(ig_observer.event_query))return ERROR_INVALID_HANDLE;ig_observer.event_query=NULL;}
+  if(ig_guard_snapshot){if(!CloseHandle(ig_guard_snapshot))return ERROR_INVALID_HANDLE;ig_guard_snapshot=NULL;}
+@@ -112,11 +138,28 @@
+ {char *end;const char *p;if(!s||!*s)return 0;for(p=s;*p;p++)if(*p<'0'||*p>'9')return 0;*value=_strtoui64(s,&end,10);return !*end&&*value!=~(ULONGLONG)0&&*value!=0;}
+ static DWORD ig_bind_service(DWORD pid)
+ {
+- DWORD n=1024;WCHAR image[1024];FILETIME et,kt,ut;
+- if(cycle_process)return ig_observer.pid[3]==pid?0:ERROR_INVALID_DATA;
++ DWORD n=1024;unsigned role=3;WCHAR image[1024];FILETIME et,kt,ut;
++#ifdef PAPACC_SINGLE_LAB_ADMISSION
++ if(native.admission.bd.used){DWORD e;
++  if(!native.admission.bd.bound)return ERROR_ACCESS_DENIED;
++  e=papacc_server_service_admission_bd_revalidate(native.admission.bd.check);if(e)return e;
++  e=ps_bd_inventory(&native.admission.bd.binding,&native.admission.bd.inventory,GetTickCount64());if(e)return e;
++  role=PS_BD_SERVICE;
++ }
++#endif
++ if(cycle_process)return ig_observer.pid[role]==pid?0:ERROR_INVALID_DATA;
+  cycle_process=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,pid);if(!cycle_process)return lab_error();
+- if(!QueryFullProcessImageNameW(cycle_process,0,image,&n)||_wcsicmp(image,cycle_path)||!GetProcessTimes(cycle_process,&ig_observer.creation[3],&et,&kt,&ut))return ERROR_INVALID_DATA;
+- ig_observer.process[3]=cycle_process;ig_observer.pid[3]=pid;ig_observer.count=4;return 0;
++ if(!QueryFullProcessImageNameW(cycle_process,0,image,&n)||_wcsicmp(image,cycle_path)||!GetProcessTimes(cycle_process,&ig_observer.creation[role],&et,&kt,&ut))return ERROR_INVALID_DATA;
++ ig_observer.process[role]=cycle_process;ig_observer.pid[role]=pid;ig_observer.count=4;
++#ifdef PAPACC_SINGLE_LAB_ADMISSION
++ if(native.admission.bd.bound){DWORD session,e;PS_BD_INVENTORY *v=&native.admission.bd.inventory;
++  if(v->present[PS_BD_SERVICE]||!ProcessIdToSessionId(pid,&session))return ERROR_INVALID_DATA;
++  v->role[PS_BD_SERVICE].handle=cycle_process;v->role[PS_BD_SERVICE].pid=pid;v->role[PS_BD_SERVICE].session=session;
++  v->role[PS_BD_SERVICE].creation=((ULONGLONG)ig_observer.creation[role].dwHighDateTime<<32)|ig_observer.creation[role].dwLowDateTime;
++  v->present[PS_BD_SERVICE]=1;v->count++;e=ps_bd_inventory(&native.admission.bd.binding,v,GetTickCount64());if(e)return e;
++ }
++#endif
++ return 0;
+ }
+ int main(int argc,char **argv)
+ {
+--- preimage/tools/qualification/scm-instrumented-policy.h
++++ current/tools/qualification/scm-instrumented-policy.h
+@@ -2,12 +2,13 @@
+ #ifndef PACC_INSTRUMENTED_POLICY_H
+ #define PACC_INSTRUMENTED_POLICY_H
+ #include <windows.h>
++#include "../../apps/server/server_service_admission_bd_win32.h"
+ #define IG_ATTEMPT "75330d11cc7e4123ae62eadc9a59c2f5"
+ #define IG_ID_ALL 511U
+ #define IG_GIB 1073741824ULL
+ #define IG_MIB 1048576ULL
+ typedef struct IG_PROCESS {ULONGLONG private_bytes,commit,working_set,stack;DWORD handles,threads,error;unsigned powershell;} IG_PROCESS;
+-typedef struct IG_SAMPLE {ULONGLONG oldest,physical,commit;IG_PROCESS process[4];unsigned count,identity;DWORD error;} IG_SAMPLE;
++typedef struct IG_SAMPLE {ULONGLONG oldest,physical,commit;IG_PROCESS process[4];unsigned count,identity;DWORD error;unsigned bd;PS_BD_DESCRIPTOR binding;PS_BD_INVENTORY inventory;} IG_SAMPLE;
+ typedef struct IG_GATE {ULONGLONG preflight,last;unsigned preflight_valid,consumed,starts,stops,retained,quiescent;DWORD first;} IG_GATE;
+ static DWORD ig_fail(IG_GATE *g,DWORD e){if(!g->first)g->first=e;return e;}
+ static DWORD ig_metric(const IG_SAMPLE *s,int admission)
+@@ -16,6 +17,14 @@
+  if(s->error||!s->count||s->count>4)return s->error?s->error:ERROR_INVALID_DATA;
+  if(s->identity!=IG_ID_ALL)return ERROR_INVALID_OWNER;
+  if(s->physical<(admission?5:4)*IG_GIB||s->commit<(admission?9:8)*IG_GIB)return ERROR_NOT_ENOUGH_MEMORY;
++ if(s->bd){
++  PS_BD_COST c[PS_BD_ROLES];DWORD e=ps_bd_inventory(&s->binding,&s->inventory,s->oldest);
++  if(e)return e;if(s->count!=s->inventory.count)return ERROR_INVALID_DATA;ZeroMemory(c,sizeof(c));
++  for(i=0;i<PS_BD_ROLES;i++)if(s->inventory.present[i]){
++   const IG_PROCESS *p=&s->process[i];c[i].private_bytes=p->private_bytes;c[i].commit=p->commit;c[i].working_set=p->working_set;c[i].stack=p->stack;c[i].handles=p->handles;c[i].threads=p->threads;c[i].error=p->error;
++  }
++  return ps_bd_costs(&s->inventory,c);
++ }
+  for(i=0;i<s->count;i++){
+  const IG_PROCESS *p=&s->process[i];ULONGLONG cap=(p->powershell?256:64)*IG_MIB;
+  if(p->error)return p->error;
+--- preimage/tools/qualification/scm-instrumented-observer.inc
++++ current/tools/qualification/scm-instrumented-observer.inc
+@@ -4,7 +4,7 @@
+ #include "scm-instrumented-policy.h"
+ typedef struct IG_NATIVE_OBSERVER {
+  HPSS snapshot;HPSSWALK marker;HANDLE thread;unsigned powershell[4];HANDLE process[4];FILETIME creation[4];DWORD pid[4];
+- unsigned count,identity,retained;PERFORMANCE_INFORMATION host;MEMORYSTATUSEX memory;
++ unsigned count,identity,retained,bd_borrowed;PERFORMANCE_INFORMATION host;MEMORYSTATUSEX memory;
+  IG_SAMPLE sample;ULONGLONG peak_private[4],peak_commit[4],peak_ws[4],peak_stack[4];DWORD peak_handles[4],peak_threads[4];
+  EVT_HANDLE event_query,event;WCHAR xml[32768];
+ } IG_NATIVE_OBSERVER;
+@@ -76,12 +76,27 @@
+ static DWORD ig_observe(void)
+ {
+  DWORD e;unsigned i;ig_diagnostic.current_role=4;ig_diagnostic.current_pid=0;ZeroMemory(&ig_observer.sample,sizeof(ig_observer.sample));ig_observer.sample.oldest=GetTickCount64();ig_observer.sample.count=ig_observer.count;ig_observer.sample.identity=ig_observer.identity;
++#ifdef PAPACC_SINGLE_LAB_ADMISSION
++ if(native.admission.bd.used){
++  const PS_BD_INVENTORY *v=&native.admission.bd.inventory;
++  if(!native.admission.bd.bound)return ERROR_ACCESS_DENIED;
++  e=papacc_server_service_admission_bd_revalidate(native.admission.bd.check);if(e)return e;
++  e=ps_bd_inventory(&native.admission.bd.binding,v,ig_observer.sample.oldest);if(e)return e;
++  ig_observer.sample.bd=1;ig_observer.sample.binding=native.admission.bd.binding;ig_observer.sample.inventory=*v;ig_observer.sample.count=v->count;
++  if(v->console.observed<ig_observer.sample.oldest)ig_observer.sample.oldest=v->console.observed;
++  ig_observer.bd_borrowed=1;
++  /* Original process references remain owned by canonical admission/host. */
++  for(i=0;i<PS_BD_ROLES;i++)if(v->present[i]){
++   ig_observer.process[i]=v->role[i].handle;ig_observer.pid[i]=v->role[i].pid;ig_observer.creation[i].dwLowDateTime=(DWORD)v->role[i].creation;ig_observer.creation[i].dwHighDateTime=(DWORD)(v->role[i].creation>>32);ig_observer.powershell[i]=i==PS_BD_ADMIN;
++  }
++ }
++#endif
+  ig_observer.host.cb=sizeof(ig_observer.host);ig_observer.memory.dwLength=sizeof(ig_observer.memory);
+  if(!ig_diag_bool(cycle_stage,"GetPerformanceInfo","host_commit_pool_cache",GetPerformanceInfo(&ig_observer.host,sizeof(ig_observer.host)))||!ig_diag_bool(cycle_stage,"GlobalMemoryStatusEx","host_physical",GlobalMemoryStatusEx(&ig_observer.memory)))return GetLastError();
+  if(ig_observer.host.CommitLimit<ig_observer.host.CommitTotal)return ERROR_INVALID_DATA;
+  ig_observer.sample.physical=ig_observer.memory.ullAvailPhys;if(!ig_observer.host.PageSize||(ULONGLONG)(ig_observer.host.CommitLimit-ig_observer.host.CommitTotal)>~(ULONGLONG)0/ig_observer.host.PageSize)return ERROR_ARITHMETIC_OVERFLOW;
+  ig_observer.sample.commit=(ULONGLONG)(ig_observer.host.CommitLimit-ig_observer.host.CommitTotal)*ig_observer.host.PageSize;
+- for(i=0;i<ig_observer.count;i++){e=ig_observe_process(i);if(e){ig_observer.sample.process[i].error=e;return e;}}
++ for(i=0;i<(ig_observer.sample.bd?PS_BD_ROLES:ig_observer.count);i++){if(ig_observer.sample.bd&&!ig_observer.sample.inventory.present[i])continue;e=ig_observe_process(i);if(e){ig_observer.sample.process[i].error=e;return e;}}
+  printf("IG_HOST tick=%llu physical=%llu commit_available=%llu total_phys=%llu commit_pages=%llu limit_pages=%llu peak_commit_pages=%llu page=%llu paged_pool=%llu nonpaged_pool=%llu cache=%llu\n",ig_observer.sample.oldest,ig_observer.sample.physical,ig_observer.sample.commit,ig_observer.memory.ullTotalPhys,(ULONGLONG)ig_observer.host.CommitTotal,(ULONGLONG)ig_observer.host.CommitLimit,(ULONGLONG)ig_observer.host.CommitPeak,(ULONGLONG)ig_observer.host.PageSize,(ULONGLONG)ig_observer.host.KernelPaged,(ULONGLONG)ig_observer.host.KernelNonpaged,(ULONGLONG)ig_observer.host.SystemCache);
+  return 0;
+ }
+--- preimage/tests/service_bd_admission_test.c
++++ current/tests/service_bd_admission_test.c
+@@ -0,0 +1,146 @@
++/* Synthetic API fixtures only. NEVER executes qualifier main, preflight or SCM. */
++#include <windows.h>
++#include <stdio.h>
++#include <string.h>
++#include <wchar.h>
++#include <sddl.h>
++#include "../apps/server/server_service_admission_win32.h"
++#include "../tools/qualification/scm-instrumented-policy.h"
++#define H(n) ((HANDLE)(ULONG_PTR)(n))
++#define T(x) do{if(!(x)){printf("FAIL line=%d case=%u\n",__LINE__,cases);return 1;}}while(0)
++static PS_BD_DESCRIPTOR bd_fixture;
++static unsigned cases;
++#ifndef PS_BD_SOURCE_ONLY
++static unsigned mode,queries,closes,context_calls;static WCHAR confirmation[192];
++#endif
++static void descriptor(void)
++{
++ PSID sid=NULL;ZeroMemory(&bd_fixture,sizeof(bd_fixture));
++ bd_fixture.actor.handle=H(0x10);bd_fixture.actor.pid=42424242;bd_fixture.actor.creation=55;bd_fixture.actor.session=1;
++ bd_fixture.control_thread=H(0x20);bd_fixture.control_tid=123;bd_fixture.configuration=H(0x50);bd_fixture.image=H(0x60);
++ bd_fixture.owner_pid=GetCurrentProcessId();bd_fixture.owner_creation=77;bd_fixture.boot=236441;bd_fixture.challenge=100;
++ bd_fixture.statistics.TokenId.LowPart=1;bd_fixture.statistics.AuthenticationId.LowPart=2;bd_fixture.statistics.ModifiedId.LowPart=3;bd_fixture.statistics.TokenType=TokenPrimary;
++ if(!ConvertStringSidToSidW(L"S-1-5-21-785699550-1440458426-1682014700-1108",&sid))ExitProcess(3);
++ bd_fixture.sid_size=GetLengthSid(sid);CopySid(sizeof(bd_fixture.sid),bd_fixture.sid,sid);LocalFree(sid);
++ strcpy_s(bd_fixture.attempt,33,IG_ATTEMPT);memset(bd_fixture.plan,'a',64);memset(bd_fixture.config_hash,'b',64);memset(bd_fixture.image_hash,'c',64);memset(bd_fixture.policy,'d',64);memset(bd_fixture.host,'e',64);
++ bd_fixture.config_id.dwVolumeSerialNumber=1;bd_fixture.config_id.nFileIndexLow=2;bd_fixture.config_id.nNumberOfLinks=1;bd_fixture.image_id=bd_fixture.config_id;bd_fixture.image_id.nFileIndexLow=3;
++}
++static PS_BD_INVENTORY inventory(const PS_BD_DESCRIPTOR *d)
++{
++ PS_BD_INVENTORY v;ZeroMemory(&v,sizeof(v));v.count=3;v.present[0]=v.present[1]=v.present[3]=1;
++ v.role[0]=d->actor;v.role[1].handle=H(0x90);v.role[1].pid=d->owner_pid;v.role[1].creation=d->owner_creation;v.role[1].session=1;
++ v.role[3].handle=H(0x80);v.role[3].pid=42424243;v.role[3].creation=56;v.role[3].session=1;
++ v.console.actor=d->actor;v.console.console=v.role[3];v.console.known=PS_BD_PROOF_ALL;v.console.source=0x4d4f444cUL;v.console.boot=d->boot;v.console.generation=d->challenge;v.console.observed=100;return v;
++}
++#ifndef PS_BD_SOURCE_ONLY
++static const WCHAR psa_name[]=L"UNEXECUTED_BD_MODEL",psa_path[]=L"UNEXECUTED_BD_MODEL",psa_launch_path[]=L"UNEXECUTED_BD_MODEL";
++static BY_HANDLE_FILE_INFORMATION psa_identity;
++static struct {PS_ADMISSION admission;} native;
++static BOOL WINAPI m_duplicate(HANDLE a,HANDLE b,HANDLE c,LPHANDLE out,DWORD rights,BOOL inherit,DWORD options)
++{(void)a;(void)c;(void)rights;(void)inherit;(void)options;*out=b==H(0x10)?H(0x11):H(0x21);return TRUE;}
++static BOOL WINAPI m_times(HANDLE h,LPFILETIME a,LPFILETIME b,LPFILETIME c,LPFILETIME d)
++{ZeroMemory(a,sizeof(*a));ZeroMemory(b,sizeof(*b));ZeroMemory(c,sizeof(*c));ZeroMemory(d,sizeof(*d));a->dwLowDateTime=h==GetCurrentProcess()?77:(mode==2?99:55);return TRUE;}
++static DWORD WINAPI m_pid(HANDLE h){(void)h;return bd_fixture.actor.pid;}
++static DWORD WINAPI m_tid(HANDLE h){(void)h;return bd_fixture.control_tid;}
++static BOOL WINAPI m_session(DWORD pid,DWORD *s){(void)pid;*s=mode==7?2:1;return TRUE;}
++static DWORD WINAPI m_wait(HANDLE h,DWORD timeout){(void)h;(void)timeout;return mode==8?WAIT_OBJECT_0:WAIT_TIMEOUT;}
++static BOOL WINAPI m_image(HANDLE h,DWORD flags,LPWSTR text,PDWORD n)
++{(void)h;(void)flags;wcscpy_s(text,*n,mode==9?L"C:\\unrelated.exe":L"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");return TRUE;}
++static BOOL WINAPI m_thread_token(HANDLE h,DWORD rights,BOOL self,PHANDLE token)
++{(void)h;(void)rights;(void)self;if(mode==4){*token=H(0x31);return TRUE;}SetLastError(ERROR_NO_TOKEN);return FALSE;}
++static BOOL WINAPI m_process_token(HANDLE h,DWORD rights,PHANDLE token){(void)h;(void)rights;*token=H(0x30);return TRUE;}
++static BOOL WINAPI m_token(HANDLE h,TOKEN_INFORMATION_CLASS kind,LPVOID out,DWORD cap,PDWORD used)
++{
++ (void)h;++queries;
++ if(kind==TokenUser){TOKEN_USER *u=(TOKEN_USER *)out;DWORD n=(DWORD)sizeof(*u)+bd_fixture.sid_size;if(cap<n)return FALSE;*used=n;u->User.Sid=(BYTE *)out+sizeof(*u);CopySid(bd_fixture.sid_size,u->User.Sid,bd_fixture.sid);return TRUE;}
++ if(kind==TokenElevation){if(cap<sizeof(TOKEN_ELEVATION))return FALSE;((TOKEN_ELEVATION *)out)->TokenIsElevated=mode!=5;*used=sizeof(TOKEN_ELEVATION);return TRUE;}
++ if(kind==TokenStatistics){TOKEN_STATISTICS *s=(TOKEN_STATISTICS *)out;if(cap<sizeof(*s))return FALSE;*s=bd_fixture.statistics;if(mode==1)s->ModifiedId.LowPart++;*used=sizeof(*s);return TRUE;}return FALSE;
++}
++static BOOL WINAPI m_file(HANDLE h,LPBY_HANDLE_FILE_INFORMATION id)
++{*id=h==H(0x50)?bd_fixture.config_id:bd_fixture.image_id;if(mode==6)id->nFileIndexLow++;return TRUE;}
++static HANDLE WINAPI m_create(LPCWSTR path,DWORD access,DWORD share,LPSECURITY_ATTRIBUTES sa,DWORD disp,DWORD flags,HANDLE template_file)
++{(void)access;(void)share;(void)sa;(void)disp;(void)flags;(void)template_file;if(mode==10){SetLastError(ERROR_INVALID_HANDLE);return INVALID_HANDLE_VALUE;}return !wcscmp(path,L"CONIN$")?H(0x70):H(0x71);}
++static BOOL WINAPI m_console(HANDLE h,LPDWORD bits){(void)h;*bits=ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT;return TRUE;}
++static BOOL WINAPI m_write(HANDLE h,const void *text,DWORD n,LPDWORD used,LPVOID reserved)
++{const WCHAR *at=wcsstr((const WCHAR *)text,L"BIND_BD_READ_ONLY"),*end;(void)h;(void)reserved;if(!at)return FALSE;end=wcschr(at,'\r');if(!end||end-at>=190)return FALSE;wcsncpy_s(confirmation,192,at,(size_t)(end-at));*used=n;return TRUE;}
++static BOOL WINAPI m_read(HANDLE h,LPVOID text,DWORD n,LPDWORD used,PCONSOLE_READCONSOLE_CONTROL control)
++{(void)h;(void)control;if(mode==3)wcscpy_s((WCHAR *)text,n,L"WRONG CONFIRMATION");else wcscpy_s((WCHAR *)text,n,confirmation);*used=(DWORD)wcslen((WCHAR *)text);if(mode==11)mode=1;return TRUE;}
++static BOOL WINAPI m_close(HANDLE h){++closes;if(mode==12&&h==H(0x21)){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}
++static BOOL WINAPI m_release(HANDLE h){(void)h;return TRUE;}
++static DWORD context(const PS_BD_DESCRIPTOR *d)
++{++context_calls;return strcmp(d->plan,bd_fixture.plan)||strcmp(d->config_hash,bd_fixture.config_hash)||strcmp(d->image_hash,bd_fixture.image_hash)||strcmp(d->policy,bd_fixture.policy)||strcmp(d->host,bd_fixture.host)||d->boot!=bd_fixture.boot?ERROR_INVALID_DATA:0;}
++#define DuplicateHandle m_duplicate
++#define GetProcessTimes m_times
++#define GetProcessId m_pid
++#define GetProcessIdOfThread m_pid
++#define GetThreadId m_tid
++#define ProcessIdToSessionId m_session
++#define WaitForSingleObject m_wait
++#define QueryFullProcessImageNameW m_image
++#define OpenThreadToken m_thread_token
++#define OpenProcessToken m_process_token
++#define GetTokenInformation m_token
++#define GetFileInformationByHandle m_file
++#define CreateFileW m_create
++#define GetConsoleMode m_console
++#define WriteConsoleW m_write
++#define ReadConsoleW m_read
++#define CloseHandle m_close
++#define ReleaseMutex m_release
++#define PS_ADMISSION_TEST 1
++#include "../apps/server/server_service_admission_win32.inc"
++static void owner(void)
++{ZeroMemory(&native,sizeof(native));native.admission.phase=1;native.admission.owned=1;native.admission.thread=GetCurrentThreadId();native.admission.mutex=H(0x40);mode=queries=closes=context_calls=0;}
++#endif
++int main(void)
++{
++ PS_BD_INVENTORY v;
++#ifndef PS_BD_SOURCE_ONLY
++ PS_BD_COST c[4];unsigned i;IG_SAMPLE sample;DWORD e;
++#endif
++ (void)ig_metric;(void)ig_preflight;(void)ig_final;(void)ig_consume;(void)ig_start;(void)ig_monitor;(void)ig_stop;(void)ig_retire;
++ descriptor();v=inventory(&bd_fixture);
++#ifdef PS_BD_SOURCE_ONLY
++ T(ps_bd_inventory(&bd_fixture,&v,100)==ERROR_NOT_SUPPORTED);++cases;
++ v.console.source=1;T(ps_bd_inventory(&bd_fixture,&v,100)==ERROR_NOT_SUPPORTED);++cases;
++ v.console.known=0;T(ps_bd_inventory(&bd_fixture,&v,100)==ERROR_ACCESS_DENIED);++cases;
++ printf("BD_NATIVE_SOURCE_GATE=DENY cases=%u; NO_NATIVE_CONSOLE_PROVIDER_NO_PREFLIGHT_NO_HANDLE_MEASUREMENT\n",cases);return 0;
++#else
++ T(!ps_bd_inventory(&bd_fixture,&v,100));++cases;
++ for(i=1;i<=128;i<<=1){PS_BD_INVENTORY x=v;x.console.known^=i;T(ps_bd_inventory(&bd_fixture,&x,100)!=0);++cases;}
++ {PS_BD_INVENTORY x=v;x.console.console.creation++;T(ps_bd_inventory(&bd_fixture,&x,100)!=0);++cases;x=v;x.console.actor.pid++;T(ps_bd_inventory(&bd_fixture,&x,100)!=0);++cases;x=v;x.console.console.session++;T(ps_bd_inventory(&bd_fixture,&x,100)!=0);++cases;x=v;x.console.source=0;T(ps_bd_inventory(&bd_fixture,&x,100)!=0);++cases;x=v;x.count=5;T(ps_bd_inventory(&bd_fixture,&x,100)!=0);++cases;x=v;x.role[3].pid=x.role[0].pid;T(ps_bd_inventory(&bd_fixture,&x,100)!=0);++cases;x=v;x.present[2]=1;T(ps_bd_inventory(&bd_fixture,&x,100)!=0);++cases;}
++ {PS_BD_INVENTORY x=v;x.count=4;x.present[PS_BD_SERVICE]=1;x.role[PS_BD_SERVICE].handle=H(0x88);x.role[PS_BD_SERVICE].pid=42424244;x.role[PS_BD_SERVICE].creation=57;x.role[PS_BD_SERVICE].session=1;T(!ps_bd_inventory(&bd_fixture,&x,100));T(ps_bd_census(&bd_fixture,&x,100,9999,42424244,0)==ERROR_BUSY);++cases;}
++ T(ps_bd_inventory(&bd_fixture,&v,60101)!=0);++cases;
++ T(ps_bd_census(&bd_fixture,&v,100,9999,bd_fixture.actor.pid,0)==ERROR_BUSY);++cases;
++ T(ps_bd_census(&bd_fixture,&v,100,9999,0,1)==ERROR_BUSY);++cases;
++ T(!ps_bd_census(&bd_fixture,&v,100,v.role[3].pid,0,0));++cases;
++ ZeroMemory(c,sizeof(c));for(i=0;i<4;i++){c[i].private_bytes=4*PS_BD_MIB;c[i].commit=4*PS_BD_MIB;c[i].working_set=8*PS_BD_MIB;c[i].handles=64;c[i].threads=4;c[i].stack=128*1024;}
++ T(!ps_bd_costs(&v,c));++cases;c[0].handles=900;c[3].handles=125;T(ps_bd_costs(&v,c)!=0);++cases;c[0].handles=c[3].handles=64;c[1].handles=129;T(ps_bd_costs(&v,c)!=0);++cases;c[1].handles=64;
++ c[0].commit=200*PS_BD_MIB;c[3].commit=57*PS_BD_MIB;T(ps_bd_costs(&v,c)!=0);++cases;c[0].commit=c[3].commit=4*PS_BD_MIB;
++ {PS_BD_COST saved=c[0],other=c[3];
++ c[0].private_bytes=250*PS_BD_MIB;c[3].private_bytes=7*PS_BD_MIB;T(ps_bd_costs(&v,c)!=0);++cases;c[0]=saved;c[3]=other;
++ c[0].working_set=250*PS_BD_MIB;c[3].working_set=7*PS_BD_MIB;T(ps_bd_costs(&v,c)!=0);++cases;c[0]=saved;c[3]=other;
++ c[0].stack=30*PS_BD_MIB;c[3].stack=3*PS_BD_MIB;T(ps_bd_costs(&v,c)!=0);++cases;c[0]=saved;c[3]=other;
++ c[0].threads=60;c[3].threads=5;T(ps_bd_costs(&v,c)!=0);++cases;c[0]=saved;c[3]=other;
++ c[3].error=ERROR_NOT_SUPPORTED;T(ps_bd_costs(&v,c)==ERROR_NOT_SUPPORTED);++cases;c[3]=other;
++ }
++ ZeroMemory(&sample,sizeof(sample));sample.bd=1;sample.binding=bd_fixture;sample.inventory=v;sample.count=v.count;sample.identity=IG_ID_ALL;sample.oldest=100;sample.physical=5*IG_GIB;sample.commit=9*IG_GIB;
++ for(i=0;i<4;i++){sample.process[i].private_bytes=c[i].private_bytes;sample.process[i].commit=c[i].commit;sample.process[i].working_set=c[i].working_set;sample.process[i].handles=c[i].handles;sample.process[i].threads=c[i].threads;sample.process[i].stack=c[i].stack;}
++ T(!ig_metric(&sample,1));++cases;sample.process[1].handles=129;T(ig_metric(&sample,1)!=0);++cases;sample.process[1].handles=64;sample.inventory.console.known=0;T(ig_metric(&sample,1)!=0);++cases;
++ owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));T(native.admission.bd.bound&&native.admission.launcher&&native.admission.token);T(!papacc_server_service_admission_bd_revalidate(context));T(papacc_server_service_admission_consume()==ERROR_INVALID_STATE);T(papacc_server_service_admission_bd_bind(&bd_fixture,context)==ERROR_INVALID_STATE);T(!papacc_server_service_admission_finish(1));T(!native.admission.launcher&&!native.admission.token&&!native.admission.bd.thread&&!native.admission.bd.binding.actor.handle&&!native.admission.bd.inventory.role[0].handle);++cases;
++ for(i=1;i<=11;i++){owner();mode=i;e=papacc_server_service_admission_bd_bind(&bd_fixture,context);T(e!=0&&!native.admission.bd.bound);T(papacc_server_service_admission_bd_bind(&bd_fixture,context)==ERROR_INVALID_STATE);mode=0;T(!papacc_server_service_admission_finish(1));++cases;}
++ owner();{PS_BD_DESCRIPTOR bad=bd_fixture;bad.plan[0]='f';T(papacc_server_service_admission_bd_bind(&bad,context)!=0);T(!papacc_server_service_admission_finish(1));}++cases;
++ owner();{PS_BD_DESCRIPTOR bad=bd_fixture;bad.sid[bad.sid_size-1]^=1;T(papacc_server_service_admission_bd_bind(&bad,context)==ERROR_INVALID_OWNER);T(!papacc_server_service_admission_finish(1));}++cases;
++ owner();T(papacc_server_service_admission_bd_bind(&bd_fixture,NULL)==ERROR_NOT_SUPPORTED);T(!papacc_server_service_admission_finish(1));++cases;
++ owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));
++ native.admission.consumed=1;native.admission.intent=H(0x99);native.admission.bd.inventory=inventory(&native.admission.bd.binding);
++ native.admission.bd.inventory.console.observed=GetTickCount64();T(!papacc_server_service_admission_effect());
++ native.admission.bd.inventory.console.known=0;T(papacc_server_service_admission_effect()!=0);T(!papacc_server_service_admission_finish(1));++cases;
++ owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));T(!papacc_server_service_admission_stop());T(papacc_server_service_admission_bd_revalidate(context)!=0);T(!papacc_server_service_admission_finish(1));++cases;
++ owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));T(papacc_server_service_admission_finish(0)==ERROR_INVALID_STATE&&native.admission.phase==3&&native.admission.launcher&&native.admission.bd.thread);T(papacc_server_service_admission_finish(1)==ERROR_INVALID_STATE);T(papacc_server_service_admission_bd_close(1)==ERROR_INVALID_STATE);/* fake handles only: fixture release below is not a native cleanup receipt */native.admission.phase=1;mode=0;T(!papacc_server_service_admission_finish(1));++cases;
++ owner();T(!papacc_server_service_admission_bd_bind(&bd_fixture,context));mode=12;T(papacc_server_service_admission_finish(1)==ERROR_INVALID_HANDLE&&native.admission.phase==3&&native.admission.bd.thread);T(papacc_server_service_admission_finish(1)==ERROR_INVALID_STATE);native.admission.phase=1;mode=0;T(!papacc_server_service_admission_finish(1));++cases;
++ printf("BD_CORE_MODEL=PASS cases=%u; SYNTHETIC_PROOF_ONLY; OPERATOR_TOKEN_CREATION_CONFIRM_REPLAY_ROLES_ADMIN_BUDGET_129_STOP_RETENTION_UNKNOWN; NO_PREFLIGHT_NO_SCM_NO_START\n",cases);
++ printf("BD_STORAGE descriptor=%llu inventory=%llu state=%llu admission=%llu sample=%llu; FIXED_STORAGE_NO_ADDED_THREAD\n",(ULONGLONG)sizeof(PS_BD_DESCRIPTOR),(ULONGLONG)sizeof(PS_BD_INVENTORY),(ULONGLONG)sizeof(PS_BD_STATE),(ULONGLONG)sizeof(PS_ADMISSION),(ULONGLONG)sizeof(IG_SAMPLE));return 0;
++#endif
++}
++

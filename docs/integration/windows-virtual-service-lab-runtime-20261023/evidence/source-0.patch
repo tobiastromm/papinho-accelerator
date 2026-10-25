@@ -1,0 +1,17 @@
+--- apps/server/server_service_win32.c
++++ apps/server/server_service_win32.c
+@@ -166,7 +166,14 @@
+ }
+ static void WINAPI ps_main(DWORD argc,wchar_t **argv)
+ {
++#ifdef PAPACC_SCM_REGISTRATION_LAB
++ /* Table name alone is not identity for an own-process service. Fail closed
++  * for missing/mismatched LAB name or extra service-start arguments. This
++  * predicate never grants factual binding, token isolation or admission. */
++ if(argc!=1U||!argv||!argv[0]||_wcsicmp(argv[0],ps_name)){host.result=2;return;}
++#else
+  (void)argc;(void)argv;
++#endif
+  host.thread=GetCurrentThreadId();
+  if(!ps_begin(&host.life)){host.result=2;return;}
+  host.handle=RegisterServiceCtrlHandlerExW(ps_name,ps_handler,NULL);

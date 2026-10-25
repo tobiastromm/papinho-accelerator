@@ -1,0 +1,90 @@
+{
+  "msvc-Debug": {
+    "adapter_sections_raw_bytes": {
+      ".drectve": 24,
+      ".debug$S": 3136,
+      ".text$mn": 371,
+      ".xdata": 8,
+      ".pdata": 12,
+      ".data": 25,
+      ".debug$T": 112,
+      ".chks64": 64
+    },
+    "adapter_stack_all_pushes_plus_reserve_plus_return": 64,
+    "adapter_undefined_symbols": [
+      "papacc_time_source_ed25519_check",
+      "memcmp"
+    ],
+    "full_external_stack": "UNKNOWN",
+    "notes": "Subtotal counts all syntactic pushes; not runtime full-process highwater. String literals/metadata and CRT/helper costs remain charged, no implicit reuse."
+  },
+  "msvc-Release": {
+    "adapter_sections_raw_bytes": {
+      ".drectve": 24,
+      ".debug$S": 192,
+      ".text$mn": 199,
+      ".xdata": 8,
+      ".pdata": 12,
+      ".chks64": 48
+    },
+    "adapter_stack_all_pushes_plus_reserve_plus_return": 48,
+    "adapter_undefined_symbols": [
+      "papacc_time_source_ed25519_check"
+    ],
+    "full_external_stack": "UNKNOWN",
+    "notes": "Subtotal counts all syntactic pushes; not runtime full-process highwater. String literals/metadata and CRT/helper costs remain charged, no implicit reuse."
+  },
+  "vc6-Debug": {
+    "adapter_sections_raw_bytes": {
+      ".drectve": 19,
+      ".debug$S": 678,
+      ".text": 255,
+      ".data": 21,
+      ".debug$T": 100
+    },
+    "adapter_stack_all_pushes_plus_reserve_plus_return": 44,
+    "adapter_undefined_symbols": [
+      "_papacc_time_source_ed25519_check",
+      "_memcmp"
+    ],
+    "full_external_stack": "UNKNOWN",
+    "notes": "Subtotal counts all syntactic pushes; not runtime full-process highwater. String literals/metadata and CRT/helper costs remain charged, no implicit reuse."
+  },
+  "vc6-Release": {
+    "adapter_sections_raw_bytes": {
+      ".drectve": 19,
+      ".text": 208,
+      ".data": 18,
+      ".debug$F": 16
+    },
+    "adapter_stack_all_pushes_plus_reserve_plus_return": 24,
+    "adapter_undefined_symbols": [
+      "_papacc_time_source_ed25519_check"
+    ],
+    "full_external_stack": "UNKNOWN",
+    "notes": "Subtotal counts all syntactic pushes; not runtime full-process highwater. String literals/metadata and CRT/helper costs remain charged, no implicit reuse."
+  },
+  "coexistence": {
+    "managed_layout_delta": 0,
+    "existing_slots": 3,
+    "slot_bytes": 40120,
+    "all_slot_bytes": 120360,
+    "caller_arena_bytes": 32768,
+    "borrow_bytes": 104,
+    "selected_known_managed": 1952624,
+    "process_profile": "Existing explicitly selected test build only, default/Legacy unchanged",
+    "math_stack_previous_compiled_internal": {
+      "MSVC_Debug": 4032,
+      "MSVC_Release": 3392,
+      "VC6_Debug": 5916,
+      "VC6_Release": 5160
+    },
+    "core_costs": "Refer preserved subset extraction measurements; not omitted or claimed shared without proof",
+    "heap_buffers": "Adapter no allocator/no copy/no retained storage;32-byte key slice already within existing384-byte row. Normal CRT/init/OS costs not qualified",
+    "lifetime": "Source/header/row protected by caller existing synchronous borrow. Crypto returns before validation can seal backing; no retained callback pointer. Stop gates canonical dispatch; active inputs remain retained until return and owner factual quiescence. No asynchronous effects/new pin. Existing backings/capture/borrow/Stop/retention logic unchanged",
+    "full_stack_coexistence": "Codec,dispatch,adapter,math,CRT/helpers plus caller root/issuer/Roughtime concurrency need full operational bound; UNKNOWN is not zero",
+    "total_status": "PARTIAL",
+    "quota_changes": false,
+    "UTC_qualification": false
+  }
+}

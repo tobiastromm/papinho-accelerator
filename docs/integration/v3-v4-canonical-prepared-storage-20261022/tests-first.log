@@ -1,0 +1,35 @@
+Internal ctest changing into directory: C:/Projetos/PapinhoAccelerator/build/root08-issuer-factual-transaction-binding-20261020/Selected/Debug
+Test project C:/Projetos/PapinhoAccelerator/build/root08-issuer-factual-transaction-binding-20261020/Selected/Debug
+    Start 114: papacc.config_root8.v4_offline
+1/6 Test #114: papacc.config_root8.v4_offline ...***Failed    3.75 sec
+PASS 43935 V3_DATA_MODEL_ONLY NO_TRUST NO_CURRENT NO_SIGNATURE operation_buffers=154497 max=30592
+FAIL line=74 papacc_root8_issuer_carrier_data(&context,9U,keyrow,384U,keyrow,f4)==PC_ROOT8_INCOMPLETE
+
+    Start 116: papacc.phase6.memory_census
+2/6 Test #116: papacc.phase6.memory_census ......   Passed    0.04 sec
+    Start 129: papacc.v4.immutable_backings
+3/6 Test #129: papacc.v4.immutable_backings .....***Failed    0.08 sec
+FAIL line=20 papacc_configuration_v3_capture_data(&owner,e3,z3,ca_der,cn,&workspace,component3,NULL)==PAPACC_RESULT_OK
+
+    Start 133: papacc.v3.update_cohort
+4/6 Test #133: papacc.v3.update_cohort ..........   Passed    0.10 sec
+    Start 134: papacc.store_hash.lifetime
+5/6 Test #134: papacc.store_hash.lifetime .......   Passed    0.02 sec
+    Start 135: papacc.store_hash.owner
+6/6 Test #135: papacc.store_hash.owner ..........***Failed    0.05 sec
+FAIL 22
+FAIL 24
+FAIL 29
+FAIL 31
+checks=17 failures=4 SAME_OWNER_TWO_CONTEXTS_FOUR_REAL_REFERENCES_NO_STORE_NO_CURRENT
+
+
+50% tests passed, 3 tests failed out of 6
+
+Total Test time (real) =   4.06 sec
+
+The following tests FAILED:
+	114 - papacc.config_root8.v4_offline (Failed)
+	129 - papacc.v4.immutable_backings (Failed)
+	135 - papacc.store_hash.owner (Failed)
+Errors while running CTest

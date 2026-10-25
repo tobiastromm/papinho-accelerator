@@ -1,0 +1,108 @@
+{
+  "status": "CANDIDATE_NOT_APPROVED_NOT_EXECUTABLE",
+  "execution_authorized": false,
+  "owner_decision": null,
+  "owner_approval_source": null,
+  "registration": "NOT_REGISTERED",
+  "manual_only": true,
+  "maximum_executions": 1,
+  "no_retry": true,
+  "administrative_operation": "N0START-20261024-03",
+  "attempt": "0b1de869e11493b7cb08fb329578f6ce",
+  "scope": "ONE future manual fresh native read-only observation using the existing canonical owner; no positive effects",
+  "request_sha256": "6355099741186d2a0443a292b0dbe10953b4f23591dcfdd1e5d4590d16e1d717",
+  "pin_matrix_sha256": "87e82d9efb850cdea7742816e781ad0813f3878f0e323a6c89b66e9c88bd007b",
+  "launcher": {
+    "path": "C:\\Projetos\\PapinhoAccelerator\\tools\\qualification\\scm-n0-protected-single-powershell.ps1",
+    "bytes": 11871,
+    "sha256": "daf6c078e08474cbb112198a02dcbc90efe441344a530f34e8ea8017b287c8ee"
+  },
+  "qualifier": {
+    "path": "C:\\Projetos\\PapinhoAccelerator\\build\\n0start03-fresh-readonly-path-pin-integration-20261024\\Selected\\Release\\papacc_scm_instrumented_lab.exe",
+    "bytes": 91136,
+    "sha256": "deeff3b9911ea720ebf5df2c31a1ae10657a19a7d64b6e37fee48029aee1944f"
+  },
+  "expected_context": {
+    "host_sha256": "2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff",
+    "boot_record": 236441,
+    "boot_start": "2026-10-23T18:36:34.5000000Z",
+    "operator_sid": "S-1-5-21-785699550-1440458426-1682014700-1108",
+    "token": "elevated primary, Administrators enabled, no unexpected impersonation; validate factually",
+    "service": "PapinhoAcceleratorLab20261023",
+    "configuration_sha256": "a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44"
+  },
+  "protected_inputs": [
+    {
+      "role": "evidence",
+      "name": "papacc-n2-0b1de869e11493b7cb08fb329578f6ce.evidence",
+      "bytes": 7573,
+      "volume": 417614100,
+      "high": 2883584,
+      "low": 2416818,
+      "sha256": "15b643829189855149826779e9b6a54c1650ed9df6360de63e90cd35bf4887d7",
+      "raw1_profile": "N2-SD-RAW1-OWNER-GROUP-DACL",
+      "raw_descriptor_sha256": "0fcfd0572daee1f64b98daf960276db86f55043460ba700e927bfb46b31b4814",
+      "owner_sid": "S-1-5-21-785699550-1440458426-1682014700-1108",
+      "group_sid": "S-1-5-32-544",
+      "descriptor_bytes": 152,
+      "control": "0x9004",
+      "observation": "HISTORICAL_OWNER_READBACK; ORIGINAL_HANDLES_REQUIRE_FRESH_AUTHORIZED_REVALIDATION"
+    },
+    {
+      "role": "dossier",
+      "name": "papacc-n2-0b1de869e11493b7cb08fb329578f6ce.approved",
+      "bytes": 397,
+      "volume": 417614100,
+      "high": 1966080,
+      "low": 2672522,
+      "sha256": "5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050",
+      "raw1_profile": "N2-SD-RAW1-OWNER-GROUP-DACL",
+      "raw_descriptor_sha256": "0fcfd0572daee1f64b98daf960276db86f55043460ba700e927bfb46b31b4814",
+      "owner_sid": "S-1-5-21-785699550-1440458426-1682014700-1108",
+      "group_sid": "S-1-5-32-544",
+      "descriptor_bytes": 152,
+      "control": "0x9004",
+      "observation": "HISTORICAL_OWNER_READBACK; ORIGINAL_HANDLES_REQUIRE_FRESH_AUTHORIZED_REVALIDATION"
+    }
+  ],
+  "N7_ED11_decision_sha256": "c17aa105580aa7680e8d97042abc9daa32640dcf1e69dcdce49c59b8462109ac",
+  "H_decision_sha256": "23d509674be807f01d2c6301cd990f2212a05d6d4d707e56f9f924c6afbd7218",
+  "L1_decision_sha256": "2d91d64eace4613f64b2d17188642e85eb5ac41af5f6a5afa1f8e746eaeff27e",
+  "permitted_after_owner_approval": [
+    "read-only original-handle protected input/operator/token/host/boot validation",
+    "SCM configuration/status/recovery/triggers queries only",
+    "temporary existing canonical exclusivity",
+    "census and N0 identification",
+    "ED11 metrics for actual admin/qualifier/auxiliary and host; PSS/stack-VA",
+    "exact confirmations and factual close/retention"
+  ],
+  "forbidden": [
+    "automatic Prepare or native preflight by Codex",
+    "StartService or StopService",
+    "intent arm/creation/consume",
+    "image/sink/arm creation",
+    "rebind/SCM or ACL mutations",
+    "retry/overwrite/delete/rollback/kill/forced mutex release",
+    "quota increase/refund/credits",
+    "listener/network/CA/certificates/bootstrap/CURRENT/signature/authoritative recovery"
+  ],
+  "limits": {
+    "native_handles": 128,
+    "shared_admin_handles": 1024,
+    "roles": 4,
+    "freshness_ms": 60000,
+    "final_freshness_ms": 1000,
+    "admission_headroom_physical_GiB": 5,
+    "admission_headroom_commit_GiB": 9,
+    "host_credits": "NONE_GRANTED",
+    "independent_budget": "NOT_GRANTED"
+  },
+  "proof_limits": {
+    "IG_PROCESS": "pre-PSS handle count",
+    "intermediate_capture_thread_stack_walk_peak": "NOT_AVAILABLE",
+    "end_to_end_monotonic_duration": "UNKNOWN_UNLESS_FACTUALLY_OBSERVED",
+    "readonly_PASS": "NOT_POSITIVE_PEAK_OR_ED11_COMPLETION"
+  },
+  "future_exact_record_destination": "C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-fresh-native-readonly-preparation-20261024\\EXACT-FRESH-READONLY-APPROVED.json",
+  "instructions": "Template only. Do not put these bytes in the exact approval destination or use this candidate SHA256 as authorization. Only an explicit owner decision can produce an approved record and its distinct final hash. Preserve original record and no overwrite."
+}

@@ -1,0 +1,29 @@
+# Procedimento manual candidato — NÃO AUTORIZADO
+
+Este procedimento não deve ser executado antes de decisão específica do proprietário e registro exato exclusivo. A implementação e a preparação terminaram; a autorização técnica do chat não aprova a operação abaixo.
+
+1. O proprietário decide sobre o pedido READONLY-OPERATION-REQUEST.DRAFT.json deste pacote: UMA execução manual read-only, sem Start/Stop/intent/rebind/placement/ACL. Não reutilizar a aprovação histórica.
+2. Após aprovação explícita, registrar a decisão real exclusivamente no destino já integrado no C/launcher, sem sobrescrever nenhum arquivo. Conferir o pacote e calcular SHA256 dos bytes finais do registro. O candidato NOT-APPROVED deste pacote nunca deve ser instalado como aprovação. Nenhuma assinatura/CA é necessária ou autorizada para esse registro documental.
+3. Entregar então o comando final com SHA256 literal do registro aprovado. O comando candidato abaixo contém todos os valores técnicos conhecidos e apenas a dependência operacional ainda inexistente:
+
+```text
+& "C:\Projetos\PapinhoAccelerator\tools\qualification\scm-n0-protected-single-powershell.ps1" -Mode Prepare -Profile N0START03ReadOnly -ExpectedScriptSha256 690ee3b3d2346902765259e533ac304bf2101a513d7a3bf7618ebc7d3dad43e3 -ExactApprovalSha256 <SHA256_DO_FUTURO_REGISTRO_APROVADO>
+```
+
+4. O proprietário usa UM Windows PowerShell5.1 x64 já elevado, console interativo, operador autorizado e Administrators habilitado, sem impersonation. Não lançar outro PowerShell. Conferir o hash do script e do qualificador antes da chamada. Não executar Mode Cycle. Não alterar UAC, GPO ou ACL para fazê-lo passar; eventual restrição de execução deve ser resolvida pelo operador conforme sua política.
+5. A execução apresenta confirmações literais com observações NOVAS. Digitar somente o que a execução atual apresentar:
+
+```text
+PREPARE_N0_READ_ONLY 0b1de869e11493b7cb08fb329578f6ce <PID_AUX_ATUAL> <CRIACAO_AUX_ATUAL>
+BIND_BD_READ_ONLY 0b1de869e11493b7cb08fb329578f6ce <PID_QUALIFICADOR_ATUAL> <CRIACAO_QUALIFICADOR_ATUAL> <DESAFIO_NATIVO_ATUAL>
+```
+
+Não antecipar esses números nem copiar histórico. Os valores futuros não são pendências de implementação.
+
+6. A rota usa o owner/mutex canônico, revalida arquivos protegidos pelos originais e faz consultas SCM somente read-only, censo e métricas PowerShell/qualificador/auxiliar/host com PSS e stack-VA. Não cria ou consome intent, não cria imagem/sink/arm, não rebind, não chama Start/Stop. O serviço não ganha PID/token fictício antes de Start.
+7. STOP para divergência de identidade/hash/pin/RAW1/N7/proveniência/boot/host/token, aprovação ausente ou antiga, impersonation, topologia/concorrência imprevista, falha de SCM/recovery/triggers, freshness/headroom/128nativo/1024admin não conformes, confirmação divergente, Stop ou fechamento incerto. Preservar primeira falha e UNKNOWN/referências/dependências. Não repetir, matar, limpar, restaurar, sobrescrever ou liberar mutex à força.
+8. Preservar saída integral e recibo final. Só depois da saída factual e recibo de fechamento, F10 retorna ao console existente conforme o launcher. Em retenção/UNKNOWN, não tratar timeout ou janela fechada como término factual. Informar ao proprietário; nenhuma ação de StopService/cleanup é implicitamente autorizada por este procedimento.
+
+IG_PROCESS é contagem ANTES de PSS do processo alvo. IG_OBSERVER_WINDOW fornece amostras da tabela do COLETOR durante captura/marker/stack-VA e após fechamento; known=31 sinaliza campos preenchidos. Não somar coletor aos processos alvo ou ao orçamento administrativo. sampled_peak acima128 não qualifica a observação; nenhuma aprovação positiva segue mesmo com exit0. Picos entre os pontos continuam UNKNOWN. Falha de consulta retorna erro/retém conforme ownership original. Duração monotônica ponta a ponta UNKNOWN sem observação factual. Read-only conserva lab_token; a redução do self-token é positiva&&n0, sem alteração para medir melhor. Um PASS desta observação não comprova o pico positivo completo, não concede orçamento independente e não conclui ED11.
+
+Depois do resultado, reconciliar primeiro erro, fechamento, retenção e alcance das medidas. Qualquer Start/Stop/rebind ou operação positiva exige decisão própria. H0–H9/P3/UNKNOWN, quotas e créditos NONE_GRANTED continuam.

@@ -1,0 +1,14 @@
+--- a/apps/server/server_service_virtual_win32.inc
++++ b/apps/server/server_service_virtual_win32.inc
+@@ -64,9 +64,9 @@
+  if(n!=sizeof(info)||info.dwServiceSidType!=SERVICE_SID_TYPE_UNRESTRICTED)return ERROR_INVALID_DATA;
+  sidn=sizeof(native.service_sid);domainn=sizeof(native.sid_domain)/sizeof(wchar_t);
+  if(!LookupAccountNameW(NULL,ps_account,sid,&sidn,native.sid_domain,&domainn,&use))return ps_last_error();
+- if(sidn>sizeof(native.service_sid)||!IsValidSid(sid)||sidn!=GetLengthSid(sid)||
++ if(sidn>sizeof(native.service_sid)||!IsValidSid(sid)||GetLengthSid(sid)>sidn||
+  *GetSidSubAuthorityCount(sid)!=6||memcmp(GetSidIdentifierAuthority(sid),authority,6)||*GetSidSubAuthority(sid,0)!=80)return ERROR_INVALID_SID;
+- native.sid_size=sidn;native.sid_use=use;native.readback=1U;return ERROR_SUCCESS;
++ native.sid_size=GetLengthSid(sid);native.sid_use=use;native.readback=1U;return ERROR_SUCCESS;
+ }
+ static DWORD ps_install_virtual(void)
+ {

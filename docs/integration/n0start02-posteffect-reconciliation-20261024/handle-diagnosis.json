@@ -1,0 +1,33 @@
+{
+  "sample_initial": {
+    "powershell": 751,
+    "auxiliary": 271,
+    "shared_admin": 1022,
+    "qualifier": 122
+  },
+  "sample_final": {
+    "powershell": 759,
+    "auxiliary": 273,
+    "shared_admin": 1032,
+    "qualifier": 124
+  },
+  "delta": {
+    "powershell": 8,
+    "auxiliary": 2,
+    "shared_admin": 10,
+    "qualifier": 2
+  },
+  "limits": {
+    "shared_admin": 1024,
+    "qualifier": 128
+  },
+  "overage": 8,
+  "first_growth_point": "UNKNOWN_WITHIN_INTERVAL_BETWEEN_INITIAL_AND_FINAL_SAMPLES",
+  "exact_object_types_creation_and_close_times": "UNKNOWN_NO_HANDLE_EVENT_TRACE_OR_TABLE_SNAPSHOT_FOR_THIS_OPERATION",
+  "leak": "NOT_DEMONSTRATED",
+  "mandatory_explicit_launcher_acquisitions": "Pin and Lock calls finish before process start; no explicit Pin/Open/Lock in output-drain loop",
+  "native_effect_handles": "Canonical intent and retained reopened image belong to qualifier, not PowerShell/auxiliary; consistent with qualifier net+2, not individually event-proven",
+  "post_census_snapshot": "PSS remains mandatory metrics collector; any remote/internal side effects not attributable from counts",
+  "safe_close_reduction": "NOT_DEMONSTRATED; do not drop pins/control/process/pipe refs before final metric",
+  "minimum_correction": "NO_FUNCTIONAL_PATCH_JUSTIFIED; next separate scoped isolated external handle-table comparison of supervisor/auxiliary around output and mandatory metrics, no operational retry/no new recorder/no quota change"
+}

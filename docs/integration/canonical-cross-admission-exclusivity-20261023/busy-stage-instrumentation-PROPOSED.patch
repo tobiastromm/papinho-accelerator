@@ -1,0 +1,49 @@
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -39,7 +39,7 @@
+  ZeroMemory(&pe,sizeof(pe));pe.dwSize=sizeof(pe);if(!Process32FirstW(ig_guard_snapshot,&pe))return lab_error();
+  do{int participant=0,child=0;
+  for(j=0;j<4;j++){if(ig_observer.pid[j]&&pe.th32ProcessID==ig_observer.pid[j])participant=1;if(ig_observer.pid[j]&&pe.th32ParentProcessID==ig_observer.pid[j])child=1;}
+- if(!participant&&(child||!_wcsnicmp(pe.szExeFile,L"papacc",6))){e=ERROR_BUSY;break;}}while(Process32NextW(ig_guard_snapshot,&pe));
++ if(!participant&&(child||!_wcsnicmp(pe.szExeFile,L"papacc",6))){printf("IG_CENSUS_REJECT pid=%lu parent=%lu child=%u project_prefix=%u; NO_ADMISSION\n",(unsigned long)pe.th32ProcessID,(unsigned long)pe.th32ParentProcessID,(unsigned)child,(unsigned)(!_wcsnicmp(pe.szExeFile,L"papacc",6)));e=ERROR_BUSY;break;}}while(Process32NextW(ig_guard_snapshot,&pe));
+  if(!e&&GetLastError()!=ERROR_NO_MORE_FILES)e=lab_error();
+  if(!CloseHandle(ig_guard_snapshot)){native.retained=1;return ERROR_INVALID_HANDLE;}ig_guard_snapshot=NULL;return e;
+ }
+@@ -155,11 +155,14 @@
+   if(LocalFree(lab_pending_sd)){native.retained=1;e=ERROR_INVALID_HANDLE;goto done;}lab_pending_sd=NULL;
+   if(!secure){e=ERROR_ACCESS_DENIED;goto done;}
+  }
++ cycle_stage="CANONICAL_ADMISSION";
+  if((e=papacc_server_service_admission_enter(positive?lab_config:NULL,positive?IG_ATTEMPT:NULL)))goto done;
+ #endif
++ cycle_stage="SOURCE_IMAGE";
+  cycle_source_file=CreateFileW(cycle_source,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);if(cycle_source_file==INVALID_HANDLE_VALUE){cycle_source_file=NULL;e=lab_error();goto done;}
+  if((e=lab_hash(cycle_source_file,cycle_sha)))goto done;
+  native.command[0]=0;if(!lab_append(native.command,1050,L"\"")||!lab_append(native.command,1050,lab_parent_path)||!lab_append(native.command,1050,L"\\papacc_server_lab_host.exe\" service host")){e=ERROR_INVALID_DATA;goto done;}
++ cycle_stage="SCM_READBACK";
+  native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!native.manager){e=lab_error();goto done;}
+  native.service=OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS|(positive?(SERVICE_CHANGE_CONFIG|SERVICE_START|SERVICE_STOP):0));if(!native.service){e=lab_error();goto done;}
+  if((e=cycle_readback(SERVICE_DEMAND_START,0))||(e=cycle_status(&status)))goto done;
+@@ -167,10 +170,13 @@
+  /* Atomic lock on an existing protected native object, beyond config contents.
+   * Existing consumed historical intent denies the old positive cycle path. */
+  if(GetFileAttributesW(L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\first-native-lab-service-start-stop-20261023\\manual-native-intent.txt")==INVALID_FILE_ATTRIBUTES){e=ERROR_INVALID_STATE;goto done;}
++ cycle_stage="CONFIG_BYTE_LOCK";
+  ig_lock.Offset=4096;if(!LockFileEx(lab_config,LOCKFILE_EXCLUSIVE_LOCK|LOCKFILE_FAIL_IMMEDIATELY,0,1,0,&ig_lock)){e=lab_error();goto done;}ig_locked=1;
++ cycle_stage="PREFLIGHT_CENSUS";
+  if((e=ig_project_census()))goto done;
+  if(GetFileAttributesW(ig_intent_path)!=INVALID_FILE_ATTRIBUTES){e=ERROR_FILE_EXISTS;goto done;}else if(GetLastError()!=ERROR_FILE_NOT_FOUND){e=lab_error();goto done;}
+  ig_observer.identity=IG_ID_ALL;
++ cycle_stage="PREFLIGHT_METRICS";
+  if((e=ig_observe())||(e=ig_preflight(&ig_gate,&ig_observer.sample,GetTickCount64())))goto done;
+  if(!positive){puts("IG_PREPARED_READ_ONLY; NO_CREATE_NO_REBIND_NO_START; EXACT_OPERATION_APPROVAL_STILL_REQUIRED");goto done;}
+  if((e=ig_confirm())||(e=lab_operator_current())||(e=lab_bound(1))||(e=cycle_dependencies_current(0))||(e=cycle_readback(SERVICE_DEMAND_START,0))||(e=ig_project_census()))goto done;
+@@ -221,7 +227,7 @@
+ #endif
+  if(!ig_retire(&ig_gate)||ig_observer.retained||ig_diag.retained){printf("IG_RETAINED stage=%s first=%lu starts=%u stops=%u; REFERENCES_RETAINED; UNKNOWN; NO_CLOSE_NO_RETRY_NO_KILL\n",cycle_stage,(unsigned long)e,ig_gate.starts,ig_gate.stops);fflush(stdout);Sleep(INFINITE);return 2;}
+  close_error=ig_cleanup();if(close_error){printf("IG_RETAINED close=%lu first=%lu; UNKNOWN_NO_SECOND_CLOSE\n",(unsigned long)close_error,(unsigned long)e);fflush(stdout);Sleep(INFINITE);return 2;}
+- printf("IG_FINAL first=%lu close=0 starts=%u stops=%u quiescent=%u intent_consumed=%u effect=%u diagnostic_created=%u; ED11=PARTIAL; CREDITS=NONE_GRANTED; NO_RETRY_NO_DELETE\n",(unsigned long)e,ig_gate.starts,ig_gate.stops,ig_gate.quiescent,ig_gate.consumed,cycle_effect,ig_diag.created);
++ printf("IG_FINAL stage=%s first=%lu close=0 starts=%u stops=%u quiescent=%u intent_consumed=%u effect=%u diagnostic_created=%u; ED11=PARTIAL; CREDITS=NONE_GRANTED; NO_RETRY_NO_DELETE\n",cycle_stage,(unsigned long)e,ig_gate.starts,ig_gate.stops,ig_gate.quiescent,ig_gate.consumed,cycle_effect,ig_diag.created);
+  /* Referenced historical helpers remain compiled and testable, not called. */
+  (void)cycle_confirm;(void)cycle_intent;(void)cycle_wait;(void)ig_final;(void)psrf_capture;(void)k;(void)n;
+  return e?2:0;

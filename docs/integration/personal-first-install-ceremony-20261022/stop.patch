@@ -1,0 +1,36 @@
+--- a/apps/server/server_configuration_commit_win32.c
++++ b/apps/server/server_configuration_commit_win32.c
+@@ -288,6 +288,9 @@
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+  InterlockedExchange(&o->pending_commit.store_hash.stopped,1);
+ #endif
++#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
++ papacc_personal_data_invalidate(&o->pending_commit.personal_data);
++#endif
+  EnterCriticalSection(&o->lock);o->stopped=1;LeaveCriticalSection(&o->lock);return PAPACC_RESULT_OK;}
+ PAPACC_RESULT papacc_configuration_finish(PAPACC_CONFIGURATION_COMMIT *o)
+ {
+--- a/tests/personal_plan_data_win32_test.c
++++ b/tests/personal_plan_data_win32_test.c
+@@ -8,6 +8,7 @@
+ {
+  PAPACC_PERSONAL_PLAN_DATA *p=&owner_state.pending_commit.personal_data;unsigned i;
+  /* MODEL owner initialization only: no CSPRNG, filesystem, token or key call. */
++ InitializeCriticalSection(&owner_state.lock);
+  owner_state.initialized=1;owner_state.writer=GetCurrentThreadId();
+  CHECK(!papacc_personal_data_capture(p,nonce,plan,0));
+  CHECK(!papacc_personal_data_capture(p,nonce,plan,PAPACC_PERSONAL_PLAN_MAX+1U));
+@@ -42,5 +43,12 @@
+  CHECK(!papacc_personal_data_capture(p,nonce,p->plan,1));
+  CHECK(papacc_configuration_personal_data_capture(&owner_state,nonce,plan,sizeof(plan))==0);
+  CHECK(papacc_configuration_prepare(&owner_state,NULL,0,0)!=0); /* never authority */
++ CHECK(papacc_personal_data_present(p));
++ CHECK(papacc_personal_data_confirm(p,nonce,plan,sizeof(plan)));
++ CHECK(papacc_configuration_stop(&owner_state)==0);
++ CHECK(p->phase==PAPACC_PERSONAL_DATA_INVALID);
++ CHECK(!papacc_personal_data_consume(p,nonce,plan,sizeof(plan)));
++ CHECK(papacc_configuration_personal_data_retire(&owner_state)==0);
++ DeleteCriticalSection(&owner_state.lock);
+  printf("PERSONAL_DATA_ONLY_PASS STATE_BYTES=%lu NO_ELIGIBILITY_NO_CUSTODY_NO_EFFECT\n",(unsigned long)sizeof(*p));return 0;
+-}
++}

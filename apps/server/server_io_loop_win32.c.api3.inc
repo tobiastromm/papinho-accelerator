@@ -1091,6 +1091,20 @@ PAPACC_RESULT papacc_server_io_loop_win32_maintenance_budget(
 #endif
     return PAPACC_RESULT_OK;}
 PAPACC_RESULT papacc_server_io_loop_win32_maintenance(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U64 now){return papacc_server_io_loop_win32_maintenance_budget(l,now,1U);}
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+PAPACC_RESULT papacc_server_io_loop_win32_poll_closed(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U32 ms)
+{
+ PAPACC_U64 now;PAPACC_RESULT result;PAPACC_SIZE i;
+ if(!l||!l->initialized||!l->network||l->network->is_active||l->network->tcp_platform.initialized||l->network->listener_set.count||
+ l->acceptor||l->network->listener_set.is_active||l->network->listener_storage||l->egress_configured||l->dns_resolver_configured||l->network_job_manager.count||!l->connection_manager||!l->connection_manager->initialized||l->connection_manager->count||l->session_manager.count||
+ l->channel_manager.count||l->network_stream_manager.count||l->enabled_capabilities.count||l->c2_owner||ms>50U)return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<l->processor_capacity;i++)if(l->processor_slots[i].in_use)return PAPACC_RESULT_INVALID_STATE;
+ if(papacc_pal_monotonic_time_ns(&now)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INTERNAL_ERROR;
+ result=papacc_server_io_loop_win32_maintenance(l,now);
+ if(result==PAPACC_RESULT_OK&&ms)Sleep(ms); /* SAME bounded runtime loop; no select/socket. */
+ return result;
+}
+#endif
 PAPACC_RESULT papacc_server_io_loop_win32_poll_once(PAPACC_SERVER_IO_LOOP_WIN32*l,PAPACC_U32 ms){fd_set rs,ws;struct timeval tv;PAPACC_SIZE rc,wc=0,i,o;PAPACC_BOOL bw=PAPACC_FALSE;PAPACC_U64 now;int ready;PAPACC_RESULT r;if(l==NULL)return PAPACC_RESULT_INVALID_ARGUMENT;
 #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ENABLE_PST_OUTBOUND_TLS)
 if(papacc_server_launcher_generic_io_is_c8(l->network,l->acceptor,l)==PAPACC_TRUE)return PAPACC_RESULT_INVALID_STATE;

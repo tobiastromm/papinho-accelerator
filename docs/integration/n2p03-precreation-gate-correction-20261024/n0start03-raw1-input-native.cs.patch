@@ -1,0 +1,64 @@
+--- tools/qualification/n0start03-raw1-input-native.cs (preimage)
++++ tools/qualification/n0start03-raw1-input-native.cs
+@@ -53,7 +53,38 @@
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]static extern uint GetFinalPathNameByHandleW(IntPtr h,StringBuilder p,uint n,uint flags);
+  [DllImport("kernel32.dll",SetLastError=true)]static extern bool GetHandleInformation(IntPtr h,out uint flags);
+  [DllImport("kernel32.dll",SetLastError=true)]static extern uint GetFileType(IntPtr h);
+- [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]static extern uint GetFileAttributesW(string path);
++ [StructLayout(LayoutKind.Sequential)] struct US {public ushort length,maximum;public IntPtr buffer;}
++ [StructLayout(LayoutKind.Sequential)] struct OA {public uint length;public IntPtr root,name;public uint attributes;public IntPtr sd,qos;}
++ [DllImport("ntdll.dll")]static extern int NtCreateFile(IntPtr handle,uint access,IntPtr attributes,IntPtr io,IntPtr allocation,uint attr,uint share,uint disposition,uint options,IntPtr ea,uint eaLength);
++ readonly List<IntPtr> queryMemory=new List<IntPtr>();bool queryPending;
++ IntPtr Frame(int bytes){IntPtr p=Marshal.AllocHGlobal(bytes);queryMemory.Add(p);for(int i=0;i<bytes;i++)Marshal.WriteByte(p,i,0);return p;}
++ public static string AbsenceDecision(uint status,uint io,bool handle) {
++  if(status==0x103||io==0x103)return "PENDING_UNKNOWN";
++  if(status==0xc0000034&&!handle)return "ABSENT";
++  if(status==0&&handle)return "COLLISION";
++  return "DENY";
++ }
++ void Absence(int i) {
++  CheckDirectories();if(Stop())throw new Exception("STOP_REQUESTED");
++  string leaf=Leaves[i];if(leaf.Length==0||leaf.Length>128||leaf.IndexOfAny(new char[]{'\\','/',':'})>=0)throw new Exception("RELATIVE_LEAF_DENY");
++  IntPtr name=Frame((leaf.Length+1)*2),us=Frame(Marshal.SizeOf(typeof(US))),oa=Frame(Marshal.SizeOf(typeof(OA))),io=Frame(IntPtr.Size*2),output=Frame(IntPtr.Size);
++  Marshal.Copy(leaf.ToCharArray(),0,name,leaf.Length);
++  var u=new US();u.length=(ushort)(leaf.Length*2);u.maximum=(ushort)((leaf.Length+1)*2);u.buffer=name;Marshal.StructureToPtr(u,us,false);
++  var a=new OA();a.length=(uint)Marshal.SizeOf(typeof(OA));a.root=dirs[4];a.name=us;a.attributes=0x1040;Marshal.StructureToPtr(a,oa,false);
++  Marshal.WriteInt32(io,unchecked((int)0xc0000001));
++  uint status=unchecked((uint)NtCreateFile(output,0x100080,oa,io,IntPtr.Zero,0,7,1,0x00200020,IntPtr.Zero,0));
++  IntPtr h=Marshal.ReadIntPtr(output);uint ios=unchecked((uint)Marshal.ReadInt32(io));string decision=AbsenceDecision(status,ios,h!=IntPtr.Zero);
++  Evidence.Add("PRECREATE_QUERY index="+i+" status="+status.ToString("x8")+" io="+ios.ToString("x8")+" ORIGINAL_PARENT_READ_ONLY_NOT_RESERVATION");
++  if(decision=="PENDING_UNKNOWN"){queryPending=true;Retained=true;throw new Exception("ABSENCE_PENDING_UNKNOWN");}
++  if(h!=IntPtr.Zero&&h!=new IntPtr(-1)){
++   owned.Add(h);if(!PaccFileAcl.CloseHandle(h)){Retained=true;throw new Exception("ABSENCE_CLOSE_UNKNOWN");}owned.RemoveAt(owned.Count-1);
++  }
++  for(int n=queryMemory.Count-1;n>=0;n--){Marshal.FreeHGlobal(queryMemory[n]);queryMemory.RemoveAt(n);}
++  CheckDirectories();if(Stop())throw new Exception("STOP_REQUESTED");
++  if(decision!="ABSENT")throw new Exception("ABSENCE_"+decision+" NTSTATUS="+status.ToString("x8"));
++ }
++ public bool EffectsCreated {get{return files[0]!=IntPtr.Zero||files[1]!=IntPtr.Zero;}}
++ public void RevalidateBeforeEffects(){Check();for(int i=0;i<2;i++)Absence(i);}
+  [DllImport("kernel32.dll",SetLastError=true)]static extern bool WriteFile(IntPtr h,byte[] b,uint n,out uint written,IntPtr o);
+  [DllImport("kernel32.dll",SetLastError=true)]static extern bool ReadFile(IntPtr h,byte[] b,uint n,out uint read,IntPtr o);
+  [DllImport("kernel32.dll",SetLastError=true)]static extern bool FlushFileBuffers(IntPtr h);
+@@ -160,10 +191,7 @@
+   Pin(Root+@"\docs\adr\DECISION-independent-lab-successor-exact-binding-annex-20261024.md","2d91d64eace4613f64b2d17188642e85eb5ac41af5f6a5afa1f8e746eaeff27e");
+   Pin(Root+@"\docs\adr\DECISION-prestart-consumed-attempt-administrative-disposition-20261024.md","8fcdea4ae9c639bef55a5a9ef97eeb93044a1ccf441b62a6347253602f596c6e");
+   Pin(Root+@"\docs\integration\prestart-administrative-disposition-acceptance-20261024\P3-EXACT-DISPOSITION-RECORDED.md","892d51b6a0033b3211c6483adb56d03d728c5f8285dfc8520cf73574c3ee5fad");
+-  for(int i=0;i<2;i++) {
+-   if(GetFileAttributesW(Parent+"\\"+Leaves[i])!=0xffffffffu)throw new Exception("PREEXISTING_INPUT_NO_EFFECT");
+-   if(Marshal.GetLastWin32Error()!=2)throw Err("ABSENCE_UNPROVED");
+-  }
++  for(int i=0;i<2;i++)Absence(i);
+   Check();
+  }
+  bool stopped;
+@@ -210,7 +238,8 @@
+  public void Flush(int i) {if(!FlushFileBuffers(files[i]))throw Err("FLUSH_UNKNOWN");}
+  public void Readback(int i) {Info f=Facts(files[i],false);if(f.sh!=0||f.sl!=Sizes[i]||PaccFileAcl.Digest(ReadExact(files[i],Sizes[i]))!=Hashes[i])throw new Exception("SIZE_OR_DIGEST");Evidence.Add("VERIFIED "+Leaves[i]+" "+Hashes[i]);}
+  public bool Close() {
+-  if(PaccFileAcl.DescriptorRetained){Retained=true;return false;}
++  if(PaccFileAcl.DescriptorRetained||queryPending||Retained){Retained=true;return false;}
++  for(int n=queryMemory.Count-1;n>=0;n--){Marshal.FreeHGlobal(queryMemory[n]);queryMemory.RemoveAt(n);}
+   for(int i=owned.Count-1;i>=0;i--){if(!PaccFileAcl.CloseHandle(owned[i])){int error=Marshal.GetLastWin32Error();Retained=true;Evidence.Add("CLOSE_UNKNOWN WIN32="+error);return false;}owned.RemoveAt(i);}
+   Evidence.Add("OWNED_REFERENCES_CLOSED");return true;
+  }

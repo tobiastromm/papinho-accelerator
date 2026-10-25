@@ -1,0 +1,31 @@
+# ED11 boundary and reconciled census
+
+## Exact accepted interpretation
+
+PACC C2 specification revision1.0 §11.3 paragraph1 applies the controlled managed cap to C2 allocations, with metadata/staging/allocator/controller overhead. The selected Windows profile W1/W2 specializes only the Accelerator process managed ceiling to3145728; Legacy retains2097152. Neither is a total Private Bytes/working-set/OS-kernel limit. W4 still requires fixed/transient/caller/heap/stack/retained/native accounting and full target evidence; being outside the controlled cap does not remove a cost from ED11.
+
+§11.3 paragraph3 preserves candidate incremental user/kernel32MiB/8MiB for Accelerator beyond factual baseline; these are not qualified hard totals or RAM minima. Total, baseline, increment, peak, shared attribution, retention and available host margin must be distinct. Shared host credits must prevent the project's concurrent admissions spending one snapshot twice. The accepted incremental-envelope decision repeats this and forbids zero by omission, guessed headroom and a claimed opaque provider/kernel hard bound.
+
+§11.3 paragraph4 explicitly says: “Target metric, freshness/headroom values and any empirical-lab uncertainty exception require separate evidence-backed target approval before runtime admission.” Unknown mandatory bounds still deny; empirical observations do not silently become hard maxima. Therefore the current default is STOP, but an explicitly approved narrowly scoped LAB policy is already a contractual route. Requiring a universal per-file Windows byte ceiling as the ONLY possible route for every LAB experiment would omit this accepted clause. No such empirical target approval exists for this attempt today.
+
+ADR0034 separates approval/implementation/qualification/production. Its ED11 and rationale reject empirical totals as hard bounds. W4 preserves provider/kernel UNKNOWN and full transitive stack evidence. Model E/ADR0030/0031/0032 preserve owned references/borrows until factual closure; a successfully closed application file handle is release of that owned reference, NOT proof the OS destroyed every shared file object/cache page. No audited clause requires an empty global Cache Manager as a precondition for an application's own checked-handle-close fact. Conversely, persistent OS memory/effects remain in the native/shared census and cannot be labelled zero. Synchronous file calls/flush return and checked close are not whole-system quiescence, physical sector durability, old orphan cleanup or forced native cancellation.
+
+## A–E classification
+
+| Class | Normative obligation | Method and demonstrated boundary | Owner / admission |
+|---|---|---|---|
+| A: Accelerator-controlled storage |§11.3 controlled cap; W2/W4; actual multiplicity and phase accounting | sizeof/census/checked reservations plus compiler frame evidence. Diagnostic4400 included in runtime12080/native24904/storage25120; existing CLI4 separately25124. No new pool/allowance. Full transitive stack still incomplete | Existing canonical owner; hard controlled reservations and unchanged quotas; reject arithmetic/cap overflow |
+| B: requested/retained native refs | Model E; V5/V7; ED08 fact separation | Two directly owned diagnostic refs (parent+file); same held native identity, one append, flush/close receipts, no retry. OS process handle counters cross-check count, not object-byte cost | Existing runtime owner; any acquired-unknown ref stays charged, prevents readiness/retirement/STOPPED |
+| C: kernel/provider internals |§11.3 p3/p4; incremental decision; W4 | Process quota paged/nonpaged counters and host pool/cache/commit snapshots observed. No attributable universal per-file FILE_OBJECT/NTFS/Cache Manager byte ceiling demonstrated | OS/provider owns internal allocation; Accelerator remains responsible for requesting it and considering it in target admission. UNKNOWN denies absent separately approved LAB exception |
+| D: transient/shared resources |§11.3 shared attribution and retained quota; Model E | Phase max, common owner counted once, global deltas not singly attributed. Cached pages may outlive application handle; different lifetime from owned retained refs | Charge actual shared multiplicities once; close does not refund uncertain application credit or assert kernel-cache destruction |
+| E: resources outside process |§11.3 host/process physical/commit/address-space and concurrency | Host snapshots and exact-candidate --help loader/CRT observations; qualifier/PowerShell/SCM/observer separate owners; one snapshot is not a reservation | Host admission with factual fresh metrics, approved margin and project shared credits; no numeric host policy is qualified here |
+
+The actual kernel implementation can be further profiled with supported, appropriately reviewed tooling, but no contractual hard bound or full attribution is supplied by the audited SDK counters/listings. This report does not claim that all Windows profiling is impossible, exclude opaque costs, create memory architecture or reinterpret32/8MiB candidates as enforced ceilings.
+
+## Concrete count and phase reconciliation
+
+Capture frame1024 is INSIDE PSRF_FILE1120, which is INSIDE PS_DIAGNOSTIC4400; descriptor buffer1024 and WCHAR paths2224 also inside it. PS_RUNTIME12080 includes it; PS_NATIVE24904 includes runtime. Host96+trace120 yield25120; CLI atomic4 is already reserved separately. Do not add each nested size again. Single final1024 append plus immutable1024 arm gives2048 logical output, not physical/cache/kernel bytes.
+
+Preparer and writer are sequential for the file handle. Pinned parent overlaps each: maximum TWO directly owned measurement/diagnostic refs, consistent with observed +2 process handles. Service retains diagnostic refs during actual psr_prepare (which is not run by the file probe) and closes before ready; uncertainty retains the same owner state. Qualified finite request counts do not prove OS pool maxima.
+
+The old boot boundary excludes old volatile overlap without retroactive cleanup/refund; persistent SCM/files/history remain. No new boot, service or old-reference reconciliation is needed for this review. No global-cache reset/purge/reboot/driver/policy was used. New persistent fixtures have their own recorded identities/size/hashes and closed-handle facts, not CA/authority.

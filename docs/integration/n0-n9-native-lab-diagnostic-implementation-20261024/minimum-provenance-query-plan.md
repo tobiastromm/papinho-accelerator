@@ -1,0 +1,7 @@
+# Later opened Windows-file evidence — preparation only
+
+Owner confirms no qualified dossier exists. No query executed here. Use existing Windows tooling, not a new recorder/ETW or process parser. One later authorized read-only query should open the exact System32 conhost.exe and collect native file ID/volume identity, final path, reparse/link state, byte length/SHA256, security descriptor and Windows build/file version. Reuse existing native file/hash/security helpers and native fsutil queryfileid where suitable. Record host/boot/operator/time and tool identities.
+
+Independently verify Windows origin using existing qualified signature/catalog tooling, with offline/revocation policy explicit. Get-AuthenticodeSignature alone is not assumed offline or a sufficient Windows-origin verdict; publisher strings/version/company/path/hash alone cannot approve provenance. If catalog/signature trust is unavailable, preserve UNKNOWN. No tool install, policy change, CA/network, new trace or automatic retry. Preserve original file byte-exact.
+
+A file dossier qualifies only the OPENED file, not mapped process bytes or authenticated console ownership. At future read-only qualification retain original process and opened-file handles, validate the exact native IDs/hash/SD against this evidence, token/session/lifetime and plan/attempt binding, revalidate before/after confirmation; missing fact denies. No historical PID reuse. A separately reviewed adapter must consume evidence; preparation is not authorization or an executable manual preflight command.

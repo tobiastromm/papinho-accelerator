@@ -1,0 +1,50 @@
+--- a/tools/qualification/scm-runtime-cycle-lab.inc
++++ b/tools/qualification/scm-runtime-cycle-lab.inc
+@@ -7,6 +7,7 @@
+ #include <psapi.h>
+ #include <iphlpapi.h>
+ #ifdef PAPACC_SCM_INSTRUMENTED_LAB
++static unsigned ig_n0_positive; /* existing mode state, before helpers that use it */
+ static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\successor-exact-binding-20261024-runtime\\Selected\\Release\\papacc_server_lab_host.exe";
+ static const WCHAR cycle_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe";
+ static const char cycle_sha[]="44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c";
+@@ -190,6 +191,16 @@
+  for(i=0;i<udp6.align.dwNumEntries;i++)if(udp6.align.table[i].dwOwningPid==pid)return ERROR_ACCESS_DENIED;
+  puts("LAB_ENDPOINT_TABLES=NO_IPV4_IPV6_TCP_UDP_ROWS_FOR_PID_SNAPSHOT; NO_SOCKET_OPENED_BY_QUERY");return ERROR_SUCCESS;
+ }
++#ifdef PAPACC_SCM_INSTRUMENTED_LAB
++/* Last-use release of named live-validation owners, never auxiliary adoption.
++ * Preserve the original reference on uncertainty and freeze before any reuse. */
++static DWORD cycle_live_close_last(HANDLE *owned)
++{
++ DWORD e;if(!owned||!*owned)return ERROR_INVALID_HANDLE;
++ if(!CloseHandle(*owned)){e=lab_error();a1_retain(&lab_aux_owner,e);return lab_aux_sync(e);}
++ *owned=NULL;return 0;
++}
++#endif
+ static DWORD cycle_live(DWORD pid)
+ {
+  {DWORD aux_guard=lab_aux_gate();if(aux_guard)return aux_guard;}
+@@ -237,6 +248,12 @@
+  ZeroMemory(&mem,sizeof(mem));mem.cb=sizeof(mem);
+  if(!GetProcessHandleCount(cycle_process,&handles)||!GetProcessMemoryInfo(cycle_process,(PROCESS_MEMORY_COUNTERS *)&mem,sizeof(mem)))return lab_error();
+  printf("LAB_PROCESS_OBSERVATION threads=%lu handles=%lu working_set=%llu private_bytes=%llu peak_working_set=%llu; IMPERSONATION=NONE_OBSERVED_SNAPSHOT; STACK_KERNEL_PROVIDER=UNKNOWN; ED11=PARTIAL\n",(unsigned long)threads,(unsigned long)handles,(unsigned long long)mem.WorkingSetSize,(unsigned long long)mem.PrivateUsage,(unsigned long long)mem.PeakWorkingSetSize);
++#ifdef PAPACC_SCM_INSTRUMENTED_LAB
++ /* All successful last uses above have completed; process/image remain owned. */
++ if(ig_n0_positive){
++  if((e=cycle_live_close_last(&cycle_threads))||(e=cycle_live_close_last(&cycle_access))||(e=cycle_live_close_last(&cycle_token)))return e;
++ }
++#endif
+  return ERROR_SUCCESS;
+ }
+ static int cycle_can_retire(void){return !cycle_start_requested||cycle_quiescent;}
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -2,7 +2,6 @@
+ #include <stdlib.h>
+ #define PAPACC_PSR_FILE_CAPSULE_LAB 1
+ #include "psr-file-capture-lab.inc"
+-static unsigned ig_n0_positive;
+ #include "scm-instrumented-observer.inc"
+ static IG_GATE ig_gate;
+ static PSRF_FILE ig_diag;

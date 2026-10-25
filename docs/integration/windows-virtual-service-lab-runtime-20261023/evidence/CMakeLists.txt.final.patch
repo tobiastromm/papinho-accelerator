@@ -1,0 +1,35 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -3314,3 +3314,32 @@
+   endforeach()
+  endif()
+ endif()
++
++# Private LAB host shares canonical main/runtime; no positive startup grant.
++if(WIN32 AND BUILD_TESTING AND PAPACC_ENABLE_CONFIG_ADMIN_CLI AND PAPACC_ENABLE_CANONICAL_API3_CANDIDATE)
++ get_target_property(lab_host_sources papacc_server SOURCES)
++ add_executable(papacc_server_lab_host ${lab_host_sources} apps/server/server_service_win32.c)
++ # Direct LAB service object satisfies shared runtime references; the default
++ # service object in the static library is not extracted into this executable.
++ foreach(prop INCLUDE_DIRECTORIES COMPILE_DEFINITIONS COMPILE_OPTIONS LINK_LIBRARIES)
++  get_target_property(lab_host_property papacc_server ${prop})
++  if(lab_host_property)
++   set_property(TARGET papacc_server_lab_host PROPERTY ${prop} "${lab_host_property}")
++  endif()
++ endforeach()
++ target_compile_definitions(papacc_server_lab_host PRIVATE PAPACC_SCM_REGISTRATION_LAB=1)
++ target_compile_options(papacc_server_lab_host PRIVATE /W4 /WX)
++ target_link_options(papacc_server_lab_host PRIVATE "/MAP:${CMAKE_CURRENT_BINARY_DIR}/papacc_server_lab_host.map")
++ set_target_properties(papacc_server_lab_host PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++ papacc_stage_pst_runtime(papacc_server_lab_host)
++ foreach(profile product lab)
++  add_executable(papacc_service_host_${profile}_model tests/service_host_model_test.c)
++  if(profile STREQUAL "lab")
++   target_compile_definitions(papacc_service_host_${profile}_model PRIVATE PAPACC_SCM_REGISTRATION_LAB=1)
++  endif()
++  target_link_libraries(papacc_service_host_${profile}_model PRIVATE papacc_server_service)
++  target_compile_options(papacc_service_host_${profile}_model PRIVATE /W4 /WX)
++  set_target_properties(papacc_service_host_${profile}_model PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++  add_test(NAME papacc.service.host_${profile}_model COMMAND papacc_service_host_${profile}_model)
++ endforeach()
++endif()

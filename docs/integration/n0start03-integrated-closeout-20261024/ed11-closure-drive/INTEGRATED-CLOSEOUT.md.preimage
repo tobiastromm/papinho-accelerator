@@ -1,0 +1,112 @@
+# N0START-03 — Relatório consolidado de conclusão integrada
+
+TASK=PACC-PHASE6-N0START03-INTEGRATED-CLOSEOUT
+
+**Preparação técnica concluída. Pacote qualificado para decisão específica do proprietário sobre UMA observação manual nativa read-only.** Não há divergência técnica remanescente identificada. Aprovação operacional, registro exato e execução continuam ausentes. Não é autorização para Prepare ou Start/Stop.
+
+Este é o relatório principal da conclusão integrada. Os closeouts, STOP anteriores, recibos e artefatos continuam preservados como histórico. Não se criou nova tarefa operacional, tentativa, owner, launcher, serviço, registry, intent ou mecanismo de autoridade.
+
+## Revisão e trabalho realizado
+
+Projeto canônico C:\Projetos\PapinhoAccelerator; branch main, HEAD913c90cf2328f7939d8f5b927640601903ac6e91. Baseline desta revisão:11.020 arquivos versionados/WIP/não ignorados. Nenhum código, launcher ou pin precisou ser corrigido: os56 itens de fontes/políticas/dependências/artefatos do manifesto final anterior conferiram em tamanho e SHA256.
+
+A revisão confrontou o [closeout da integração](../n0start03-fresh-readonly-path-pin-integration-20261024/source-pin-review-and-closeout.md), pedido candidato, diff aplicado, matriz de pins, receita/flags, logs e testes anteriores, código atual e bytes reais. N0–N9/L0–L9/H0–H9/RAW1/ED11/Model E, P3 e Stop/UNKNOWN continuam como autoridades já aplicáveis; nenhum ADR accepted foi alterado. A direção futura C2 não muda por esta consolidação.
+
+[Revalidação do manifesto](baseline-artifact-dependency-revalidation.json) confirma:
+
+- Qualificador, launcher e C/headers correspondem à qualificação anterior; A1, B1 e self-token intactos.
+- Caminho e hash do executável no launcher são os bytes reais abaixo.
+- C, literal UTF-16 presente no executável e Pin do launcher convergem para o MESMO endereço exclusivo de aprovação nova.
+- Profile geralEMPTY_DENY; opt-in read-onlyON; opção positivaOFF; Cycle continua bloqueado antes de aquisição; Console.Out e confirmações preservados.
+- Novo registro exato ausente; aprovação histórica ea272d2a4aa33f42f1cb1c12c8418fdd793fde1e529067325bd9ab8b430dcb7e preservada e não reutilizada.
+
+[Dependências reais de conteúdo](actual-static-content-dependencies.json): papacc.conf116bytes, imagem original407552bytes, fonte instrumentada434688bytes, DLL libcrypto7217664bytes, DLL libssl1321472bytes e powershell.exe455680bytes correspondem aos hashes compilados/pinados. São leituras estáticas de conteúdo: não provam identidade nativa original, ACL/RAW1/proveniência atual, token, lifetime, SCM ou admissão fresca. Arquivos protegidos ProgramData não foram reabertos/modificados; seus IDs/descritores permanecem expectativas históricas que a operação autorizada deve revalidar pelos handles originais.
+
+O manifesto também valida os arquivos/lib estáticos reais do build. Isso não constitui atestado universal de carregamento, módulos mapeados, reservas físicas ou custos internos do Windows.
+
+## Builds e testes
+
+Selected Release final anterior: PASS, /W4 /WX, zero warnings, sob a mesma receita MSVC19.51 x64/Ninja/dependências qualificadas, produção0.6.4 preservada. As definições opt-in PAPACC_N0START03_READONLY_PINS=1 e PAPACC_N0_READONLY_PINNED_LAB=1 estão registradas no compile command; PAPACC_N0_POSITIVE_PINNED_LAB está ausente. A análise sintática anterior do launcher passou sem invocá-lo.
+
+Nesta revisão, o [check de dependências de build](build-dependency-check.json), para qualificador e15 targets offline, retornou `ninja: no work to do.` em dry-run. Não houve nova compilação, relink ou alteração de artefatos. Como fontes/dependências/testes são byte-exatos e não houve correção, não há motivo técnico para gerar hashes novos ou repetir a campanha.
+
+Os15 executáveis de teste reais correspondem aos hashes dos15 resultados PASS anteriores ([revalidação](offline-qualification-evidence-review.json)). Evidência preservada cobre A1 modelos/callers/fault injection, B1/BD/source gates, self-token217 assertions, policy/freshness/replay/Stop/UNKNOWN, RAW1 model e default/opt-in. Os corpos/algoritmos e os artefatos não mudaram. Esses resultados são modelos/APIs simuladas, não prova nativa factual de admissão. Nesta consolidação não se executou nenhum desses binários nem qualifier main, Prepare, Cycle, launcher ou serviço.
+
+## Artefatos e pins finais
+
+| Artefato | Caminho | Tamanho | SHA256 |
+|---|---|---:|---|
+| Qualificador Selected Release read-only | C:\Projetos\PapinhoAccelerator\build\n0start03-fresh-readonly-path-pin-integration-20261024\Selected\Release\papacc_scm_instrumented_lab.exe | 91136 | `deeff3b9911ea720ebf5df2c31a1ae10657a19a7d64b6e37fee48029aee1944f` |
+| Launcher canônico | C:\Projetos\PapinhoAccelerator\tools\qualification\scm-n0-protected-single-powershell.ps1 | 11871 | `daf6c078e08474cbb112198a02dcbc90efe441344a530f34e8ea8017b287c8ee` |
+
+Pins integrados SOMENTE read-only. Não são aprovação executável, crédito ou orçamento independente. Os hashes3093beaa/4e7f9cd0 e launcher anteriores continuam históricos, não alternativas de execução. [Matriz de pins](pin-review-matrix.csv) distingue bytes finais, fatos históricos e observações futuras obrigatórias.
+
+## Pacote único de decisão
+
+[Pedido consolidado DRAFT](READONLY-OPERATION-REQUEST.DRAFT.json), SHA256:
+
+`6355099741186d2a0443a292b0dbe10953b4f23591dcfdd1e5d4590d16e1d717`
+
+Escopo: UMA observação manual fresh read-only de N0START-20261024-03, mesma tentativa0b1de869e11493b7cb08fb329578f6ce e owner/mutex existentes. Não é nova identidade de tentativa nem reaproveitamento de intent consumido. O pedido preenche hashes, tamanhos, contexto esperado, identidades históricas de inputs, políticas/decisões e limites; tokens/PIDs/criações/desafio/métricas futuras permanecem null por dependerem da execução real.
+
+[Registro candidato inerte](APPROVAL-RECORD.CANDIDATE-NOT-APPROVED.json) está em endereço DIFERENTE do esperado pelo C. StatusCANDIDATE_NOT_APPROVED_NOT_EXECUTABLE, execution_authorized=false, owner_decision=null, owner_approval_source=null. É somente um esquema completo para revisão; não foi criado/assinado em nome do proprietário, e seu hash NÃO é autorização. Não deve ser copiado como se fosse aprovado. A aprovação real deverá referir a decisão explícita posterior do proprietário e produzir seus próprios bytes/hash.
+
+O destino exato integrado abaixo continua AUSENTE:
+
+`C:\Projetos\PapinhoAccelerator\docs\integration\n0start03-fresh-native-readonly-preparation-20261024\EXACT-FRESH-READONLY-APPROVED.json`
+
+[Procedimento manual candidato](manual-procedure.NOT-AUTHORIZED.md) reúne decisão, registro futuro exclusivo, conferência dos hashes, confirmações dinâmicas, limites de observação e Stop/retention. Comando candidato, NÃO EXECUTÁVEL enquanto faltar decisão/registro/hash aprovado:
+
+```text
+& "C:\Projetos\PapinhoAccelerator\tools\qualification\scm-n0-protected-single-powershell.ps1" -Mode Prepare -Profile N0START03ReadOnly -ExpectedScriptSha256 daf6c078e08474cbb112198a02dcbc90efe441344a530f34e8ea8017b287c8ee -ExactApprovalSha256 <SHA256_DO_FUTURO_REGISTRO_APROVADO>
+```
+
+A única dependência do comando é o hash de uma decisão que ainda não existe. Não há pin técnico pendente. O hash do pedido DRAFT ou do registro candidato não pode ocupar esse campo. Não se fabricou um hash executável antecipado nem aprovação em nome do proprietário.
+
+## Fronteira operacional restante — ações concretas
+
+1. **Proprietário decide** se autoriza UMA execução manual read-only do pedido consolidado identificado pelo SHA acima, com os dois artefatos finais pinados. Esta autorização técnica não cobre isso.
+2. **Somente após decisão explícita**, registrar o fato da aprovação exclusivamente no destino já integrado, preservando o histórico; conferir seus bytes e calcular SHA256 literal. Se houver colisão/divergência, STOP sem sobrescrever. Nenhum novo rebuild seria necessário apenas para preencher o hash desse registro, pois o hash é argumento da rota existente.
+3. **Entregar o comando final** com esse hash literal; **proprietário executa manualmente** em UM Windows PowerShell5.1 x64 já elevado e console interativo. Não lançar outro PowerShell. Valores de PID/criação/desafio são os apresentados nessa execução, nunca os históricos.
+4. **Reconciliar o resultado factual** — primeira falha, métricas, fechamento/retention — sem retry ou inferência de quiescência global. Start/Stop/efeitos positivos permanecem fora do escopo.
+
+São dependências operacionais reais, não subetapas técnicas artificiais. Nenhuma solicitação adicional de autorização para rebuild/pin/correção técnica está sendo criada. Todo trabalho técnico necessário identificado foi concluído/revalidado nesta tarefa.
+
+## Alcance da observação futura e limites
+
+Uma eventual operação aprovada consulta/revalida operador/token, host/boot, originais N0/RAW1, decisões aplicáveis, serviço/configuração/recovery/triggers SOMENTE read-only, exclusividade temporária, censo, PowerShell/auxiliar/qualificador, PSS/stack-VA e host/ED11, preservando primeira falha, Stop e retenção. Divergência de identidade/arquivo/ACL/proveniência/boot/token/SCM/censo/confirmação ou freshness/headroom/caps causa DENY. Fechamento incerto preserva referências/dependências e UNKNOWN sem retry/kill/cleanup forçado.
+
+Read-only NÃO aplica early-close do self-token (positive&&n0 preservado), nem percorre todos os efeitos positivos. IG_PROCESS permanece pré-PSS; pico intermediário NOT_AVAILABLE e duração monotônica ponta a ponta UNKNOWN sem medida factual. Nenhum instrumentador novo é necessário para autorizar essa observação no alcance declarado. Não considerar saída visível registro persistente garantido.
+
+128handles nativos/1024admin/quatro papéis/60s1s/headroom/NONE_GRANTED, N7 específico e H0–H9/P3/UNKNOWN/obrigações reais permanecem. A prova atual não concede orçamento nem demonstra o pico positivo. Nenhum serviço precisa de PID/token inventado antes de Start. ED11 permanece PARTIAL; CURRENT/signature/recovery autoritativaDENY; não há execução de CA/certs/bootstrap/rede.
+
+## Estado final
+
+CURRENT_TASK_COMPLETED=YES
+TECHNICAL_PREPARATION=COMPLETE
+TECHNICAL_DIVERGENCES=NONE_IDENTIFIED
+CORRECTIONS_THIS_REVIEW=NONE_REQUIRED
+BUILD=EXISTING_SELECTED_RELEASE_PASS_ZERO_WARNINGS_REVALIDATED_UP_TO_DATE
+TESTS=EXISTING_15_OFFLINE_PASS_UNCHANGED_BINARIES_AND_SOURCES
+REBUILD_THIS_REVIEW=NOT_NEEDED_NOT_RUN
+NEW_TEST_EXECUTIONS_THIS_REVIEW=NONE_REQUIRED
+OPERATIONAL_PINS=CONSISTENT_READONLY_ONLY
+READONLY_PACKAGE=READY_FOR_SPECIFIC_OWNER_DECISION
+APPROVAL_CANDIDATE=PREPARED_INERT_NOT_APPROVED
+EXACT_FRESH_APPROVAL_RECORD=ABSENT
+EXECUTION_AUTHORIZED=NO
+PREPARE_EXECUTED=NO
+PREFLIGHT_EXECUTED=NO
+START_EXECUTED=NO
+STOP_EXECUTED=NO
+SCM_QUERIES=NOT_RUN
+SCM_MUTATIONS=NONE
+ACL_MUTATIONS=NONE
+ED11_TOTAL_STATUS=PARTIAL
+POSITIVE_PATH_QUALIFICATION=NOT_DEMONSTRATED
+CURRENT_PUBLICATION=DENY
+SIGNATURE_AUTHORITY=DENY
+AUTHORITATIVE_RECOVERY=DENY
+WIP_PRESERVED=YES_ALL_PREEXISTING_FILES_UNCHANGED
+FIRST_UNRESOLVED_DIVERGENCE=NONE_TECHNICAL;OWNER_OPERATIONAL_DECISION_PENDING
+NEXT=SPECIFIC_OWNER_DECISION_FOR_ONE_MANUAL_NATIVE_READONLY_OBSERVATION

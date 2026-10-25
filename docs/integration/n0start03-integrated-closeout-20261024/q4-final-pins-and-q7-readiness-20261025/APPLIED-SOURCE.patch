@@ -1,0 +1,212 @@
+--- before/scm-instrumented-cycle-lab.inc
++++ after/scm-instrumented-cycle-lab.inc
+@@ -20,7 +20,11 @@
+ static unsigned ig_locked;
+ static OVERLAPPED ig_lock;
+ static const WCHAR ig_diag_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-" PACC_LAB_ATTEMPT_W L".diag";
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++static const WCHAR ig_intent_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-" PACC_LAB_ATTEMPT_W L".intent";
++#else
+ static const WCHAR ig_intent_path[]=L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\successor-exact-binding-functional-20261024\\manual-native-intent.txt";
++#endif
+ 
+ static unsigned ig_n0_rebound;
+ static const char *ig_n0_approval_sha;
+@@ -119,7 +123,9 @@
+  if(!expected||strlen(expected)!=64)return ERROR_ACCESS_DENIED;
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+  ig_approval_file=CreateFileW(
+-#ifdef PAPACC_N0START03_PRIVATE_POSITIVE
++#if defined(PAPACC_Q4_TOKEN_DIAGNOSTIC)
++ L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\q4-final-pins-and-q7-readiness-20261025\\EXACT-Q7-APPROVED.json",
++#elif defined(PAPACC_N0START03_PRIVATE_POSITIVE)
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\admin-handle-budget-resolution-20261025\\EXACT-POSITIVE-ADMIN-BUDGET-APPROVED.json",
+ #elif defined(PAPACC_N0_PRIVATE_STDOUT)
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\t0-t9-acceptance-and-integration\\EXACT-TRANSPORT-READONLY-APPROVED.json",
+--- before/scm-lab-attempt-binding.h
++++ after/scm-lab-attempt-binding.h
+@@ -6,8 +6,8 @@
+ #define PACC_LAB_ATTEMPT_W L"10584f02e11f92c92b43cddf0d9d316f"
+ #define PACC_LAB_OPERATION "N0TOKEN-20261025-01"
+ #define PACC_LAB_OPERATION_W L"N0TOKEN-20261025-01"
+-/* Protected inputs, exact N7, final binding and fresh budget remain absent. */
+-#define PACC_LAB_BINDING_READY 0
++/* Static binding only; exact Q7 and fresh admission remain mandatory. */
++#define PACC_LAB_BINDING_READY 1
+ #else
+ #define PACC_LAB_ATTEMPT "0b1de869e11493b7cb08fb329578f6ce"
+ #define PACC_LAB_ATTEMPT_W L"0b1de869e11493b7cb08fb329578f6ce"
+--- before/scm-n0-context-pins.h
++++ after/scm-n0-context-pins.h
+@@ -1,4 +1,4 @@
+-/* Successor input pins intentionally EMPTY until separately qualified placement. */
++/* Original receipt-pinned inputs; not execution or budget authority. */
+ #ifndef PAPACC_N0_CONTEXT_PINS_H
+ #define PAPACC_N0_CONTEXT_PINS_H
+ #if defined(PAPACC_N0START03_READONLY_PINS) && defined(PAPACC_N0_POSITIVE_PINNED_LAB)
+@@ -8,11 +8,22 @@
+ #error Private_positive03_requires_explicit_transport_and_positive_entry
+ #endif
+ #ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
+-#define IG_N0_N7_ED11_SHA ""
++#define IG_N0_N7_ED11_SHA "1d6bca5386e3520034570d17cf6f526fdef4c19b52aee633113e1bd8e5b40fe7"
+ #else
+ #define IG_N0_N7_ED11_SHA "c17aa105580aa7680e8d97042abc9daa32640dcf1e69dcdce49c59b8462109ac"
+ #endif
+-#if !defined(PAPACC_Q4_TOKEN_DIAGNOSTIC) && (defined(PAPACC_N0START03_READONLY_PINS) || defined(PAPACC_N0START03_PRIVATE_POSITIVE))
++#if defined(PAPACC_Q4_TOKEN_DIAGNOSTIC) && defined(PAPACC_N0START03_PRIVATE_POSITIVE)
++#define IG_N0_DOSSIER_SHA "c63209c7591f404eead7ca8e3e4b91b5b3c8db13e47ad0e637c6e2c3a36a46e6"
++#define IG_N0_EVIDENCE_SHA "bb548b4f2a866d33445d39e2bb72e0093b60b04380cc4da6fd70c4855a0038fa"
++#define IG_N0_DOSSIER_VOLUME 417614100UL
++#define IG_N0_DOSSIER_HIGH 327680UL
++#define IG_N0_DOSSIER_LOW 2932527UL
++#define IG_N0_DOSSIER_BYTES 397UL
++#define IG_N0_EVIDENCE_VOLUME 417614100UL
++#define IG_N0_EVIDENCE_HIGH 2555904UL
++#define IG_N0_EVIDENCE_LOW 433780UL
++#define IG_N0_EVIDENCE_BYTES 8432UL
++#elif !defined(PAPACC_Q4_TOKEN_DIAGNOSTIC) && (defined(PAPACC_N0START03_READONLY_PINS) || defined(PAPACC_N0START03_PRIVATE_POSITIVE))
+ #define IG_N0_DOSSIER_SHA "5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050"
+ #define IG_N0_EVIDENCE_SHA "15b643829189855149826779e9b6a54c1650ed9df6360de63e90cd35bf4887d7"
+ #define IG_N0_DOSSIER_VOLUME 417614100UL
+--- before/scm-n0-context.inc
++++ after/scm-n0-context.inc
+@@ -17,16 +17,18 @@
+ static const char *ig_n0_policy_hashes[]={PS_BD_N0_POLICY,"eb93002cf3f6d863a060fb97b7380389aa66b6fbe68e66c1af4fb17b988d3290","e7031bd29c9bd174359ffcc3c9a021a6ad25a0256a5cf03b40c0866d3a5776b7","8b042e2bbf6500aa90aa3407fcd3423f45d96cf6b16568ffa95b98f3d081c972"};
+ static void ig_n0_hex(const BYTE bytes[32],char out[65])
+ {unsigned i;for(i=0;i<32;i++){out[2*i]="0123456789abcdef"[bytes[i]>>4];out[2*i+1]="0123456789abcdef"[bytes[i]&15];}out[64]=0;}
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++#define IG_N0_DISPOSITION_PLAN "Q0=97763395f521d0a8d15ee0afe22b61705897d6d97c2c1f8905ad9114e8b1b9ca;Q4=590aa1c695adce55d6ba17e9ce508d747090c05c2d61cd44a7ced603cf6c4db4;Q2=5794e17265af6e34d335591b0fed42e5d9048aec81e751578fd9f4132cf524e1;"
++#else
++#define IG_N0_DISPOSITION_PLAN "L1=2d91d64eace4613f64b2d17188642e85eb5ac41af5f6a5afa1f8e746eaeff27e;H=23d509674be807f01d2c6301cd990f2212a05d6d4d707e56f9f924c6afbd7218;P3=892d51b6a0033b3211c6483adb56d03d728c5f8285dfc8520cf73574c3ee5fad;"
++#endif
+ static DWORD ig_n0_plan(const PS_BD_DESCRIPTOR *d,char out[65])
+ {
+-#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
+- (void)d;(void)out;return ERROR_ACCESS_DENIED; /* no fabricated future plan */
+-#else
+  BYTE digest[32];char text[2304];int n;
+  n=sprintf_s(text,sizeof(text),
+  "%s;%s;%s;%s;%s;%s;%llu;%lu;%llu;%lu;%llu;%lu;%lu;%lu:%lu:%lu:%lu:%lu:%lu;%llu;"
+  "config=%lu:%lu:%lu:%lu:%lu;image=%lu:%lu:%lu:%lu:%lu;aux=%lu:%llu:%lu:%lu;file=%lu:%lu:%lu:%lu:%lu:%lu;%s;%s;%s;"
+- "APPROVAL=%s;INPUT_IDS=%lu:%lu:%lu:%lu,%lu:%lu:%lu:%lu;INPUT_PROFILE=N2-SD-RAW1-OWNER-GROUP-DACL;L1=2d91d64eace4613f64b2d17188642e85eb5ac41af5f6a5afa1f8e746eaeff27e;H=23d509674be807f01d2c6301cd990f2212a05d6d4d707e56f9f924c6afbd7218;P3=892d51b6a0033b3211c6483adb56d03d728c5f8285dfc8520cf73574c3ee5fad;SERVICE=PapinhoAcceleratorLab20261023;SID=S-1-5-80-3567404667-26456103-3018599297-139793421-3962028451;OPERATOR=S-1-5-21-785699550-1440458426-1682014700-1108;ASSOCIATION=UNPROVEN;CREDITS=NONE_GRANTED;N7_ED11=%s",
++ "APPROVAL=%s;INPUT_IDS=%lu:%lu:%lu:%lu,%lu:%lu:%lu:%lu;INPUT_PROFILE=N2-SD-RAW1-OWNER-GROUP-DACL;" IG_N0_DISPOSITION_PLAN "SERVICE=PapinhoAcceleratorLab20261023;SID=S-1-5-80-3567404667-26456103-3018599297-139793421-3962028451;OPERATOR=S-1-5-21-785699550-1440458426-1682014700-1108;ASSOCIATION=UNPROVEN;CREDITS=NONE_GRANTED;N7_ED11=%s",
+  ig_n0_positive?"" PACC_LAB_OPERATION ";CREATE_IMAGE;CREATE_SINK;REBIND;START1;STOP_MAX1;T10_T14=1f293812e9fca107c7fa8ba20abe20fd8ffbca3cdf6e95e58465a95dadbe4dd5":"N0_READ_ONLY",d->attempt,d->config_hash,d->image_hash,d->policy,d->host,d->boot,(unsigned long)d->owner_pid,d->owner_creation,
+  (unsigned long)d->actor.pid,d->actor.creation,(unsigned long)d->actor.session,(unsigned long)d->control_tid,
+  (unsigned long)d->statistics.TokenId.LowPart,(unsigned long)d->statistics.TokenId.HighPart,
+@@ -40,7 +42,6 @@
+  (unsigned long)ig_n0.dossier_id.dwVolumeSerialNumber,(unsigned long)ig_n0.dossier_id.nFileIndexHigh,(unsigned long)ig_n0.dossier_id.nFileIndexLow,(unsigned long)ig_n0.dossier_id.nFileSizeLow,
+  (unsigned long)ig_n0.evidence_id.dwVolumeSerialNumber,(unsigned long)ig_n0.evidence_id.nFileIndexHigh,(unsigned long)ig_n0.evidence_id.nFileIndexLow,(unsigned long)ig_n0.evidence_id.nFileSizeLow,IG_N0_N7_ED11_SHA);
+  if(n<=0||!pacc_storage_hash_callback(NULL,(const BYTE *)text,(size_t)n,digest))return ERROR_INVALID_DATA;ig_n0_hex(digest,out);return 0;
+-#endif
+ }
+ static DWORD ig_n0_sd(HANDLE file,const char *expected,int protect)
+ {
+--- before/scm-n0-private-stdout-entry.inc
++++ after/scm-n0-private-stdout-entry.inc
+@@ -1,8 +1,5 @@
+ /* Closed bootstrap is not operational authority. Body still validates every pin. */
+ #include "scm-n0-private-stdout-profile.h"
+-#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
+-int main(int argc,char **argv){(void)argc;(void)argv;(void)ig_transport_body;fprintf(stderr,"Q4_BINDING_INCOMPLETE_DENY; NO_ACQUISITION_NO_EFFECT\n");return 2;}
+-#else
+ int main(int argc,char **argv){WCHAR name[96];ULONGLONG pid=0,created=0;DWORD error;int result;
+  if(!ig_transport_bootstrap(argc,argv)||!ig_transport_decimal(argv[11],MAXDWORD,&pid)||!ig_transport_decimal(argv[12],~(ULONGLONG)0,&created)||!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,argv[10],-1,name,96)){fprintf(stderr,"PRIVATE_STDOUT_BOOTSTRAP_DENY; NO_PREFLIGHT\n");return 2;}
+  error=PaccTransportClient(name,(DWORD)pid,created);
+@@ -11,4 +8,3 @@
+  if(PaccTransportClientClose())ig_transport_write_failed();return result;
+ }
+ 
+-#endif
+--- before/scm-n0-protected-single-powershell.ps1
++++ after/scm-n0-protected-single-powershell.ps1
+@@ -37,7 +37,13 @@
+ if($Profile-ceq'Q4TokenDiagnostic'){
+  $Attempt='10584f02e11f92c92b43cddf0d9d316f'
+  $Operation='N0TOKEN-20261025-01'
+- throw 'Q4_BINDING_INCOMPLETE_DENY: no protected inputs, N7, independent budget or operational approval; NO_PROCESS_NO_EFFECT'
++ $Qualifier=$Root+'\build\q4-final-binding-20261025\Selected\Release\papacc_scm_instrumented_lab.exe'
++ $QualifierHash='57bb39d379edbbf22dba128a5db921c6dc06f02700bcb16b81914fde6e5dfb34'
++ $TransportNative=$Root+'\build\q4-final-binding-20261025\Selected\Release\papacc_n0_private_stdout.dll'
++ $TransportNativeHash='e66735a59cf1fc3c63776e4adb97f67e1e95cdb7f1963790659b0a19637756b5'
++ $DossierHash='c63209c7591f404eead7ca8e3e4b91b5b3c8db13e47ad0e637c6e2c3a36a46e6'
++ $EvidenceHash='bb548b4f2a866d33445d39e2bb72e0093b60b04380cc4da6fd70c4855a0038fa'
++ $ApprovalPath=$Root+'\docs\integration\n0start03-integrated-closeout-20261024\q4-final-pins-and-q7-readiness-20261025\EXACT-Q7-APPROVED.json'
+ }
+ $Operator='S-1-5-21-785699550-1440458426-1682014700-1108'
+ $script:N0RetainedProcess=$null
+@@ -92,13 +98,21 @@
+  if($record.status-cne'EXACT_MANUAL_POSITIVE_OWNER_APPROVED'-or$record.operation-cne$Operation-or$record.attempt-cne$Attempt-or$record.mode-cne'Cycle'-or$record.manual_only-ne$true-or$record.automatic_execution-ne$false){throw 'POSITIVE_APPROVAL_TYPE_DENY'}
+  if($record.request_sha256-cnotmatch'^[0-9a-f]{64}$'-or$record.T10_T14_sha256-cne$T10DecisionHash){throw 'POSITIVE_APPROVAL_POLICY_DENY'}
+  if($record.artifacts.launcher.sha256-cne$ExpectedScriptSha256-or$record.artifacts.qualifier.sha256-cne$QualifierHash-or$record.artifacts.native_resource.sha256-cne$TransportNativeHash-or$record.artifacts.framework_binding.sha256-cne$TransportBindingHash){throw 'POSITIVE_APPROVAL_ARTIFACT_DENY'}
++ if($Profile-ceq'Q4TokenDiagnostic'){
++  if($record.Q0_Q9_sha256-isnot[string]-or$record.Q0_Q9_sha256-cne'97763395f521d0a8d15ee0afe22b61705897d6d97c2c1f8905ad9114e8b1b9ca'){throw 'Q7_POLICY_BINDING_DENY'}
++  if($record.Q4_annex_sha256-isnot[string]-or$record.Q4_annex_sha256-cne'590aa1c695adce55d6ba17e9ce508d747090c05c2d61cd44a7ced603cf6c4db4'){throw 'Q7_POLICY_BINDING_DENY'}
++  if($record.Q2_record_sha256-isnot[string]-or$record.Q2_record_sha256-cne'5794e17265af6e34d335591b0fed42e5d9048aec81e751578fd9f4132cf524e1'){throw 'Q7_POLICY_BINDING_DENY'}
++  if($record.N7_sha256-isnot[string]-or$record.N7_sha256-cne'1d6bca5386e3520034570d17cf6f526fdef4c19b52aee633113e1bd8e5b40fe7'){throw 'Q7_POLICY_BINDING_DENY'}
++  if($record.evaluation_plan_sha256-isnot[string]-or$record.evaluation_plan_sha256-cne'd93cff9c596ad68529fb836f1dc45280af9686828efcf939ac48621a01b4e9e6'){throw 'Q7_POLICY_BINDING_DENY'}
++  if($record.q7_activation_authorized-isnot[bool]-or$record.q7_activation_authorized-ne$true){throw 'Q7_EXACT_OWNER_AUTHORITY_REQUIRED'}
++ }
+  if($record.artifacts.launcher.path-cne$ExpectedPath-or$record.artifacts.qualifier.path-cne$Qualifier-or$record.artifacts.native_resource.path-cne$TransportNative-or$record.artifacts.framework_binding.path-cne$TransportBinding){throw 'POSITIVE_APPROVAL_PATH_DENY'}
+ }
+ try {
+  if($PSCommandPath -cne $ExpectedPath -or [IntPtr]::Size -ne 8 -or $PSVersionTable.PSEdition -cne 'Desktop' -or $PSVersionTable.PSVersion.Major-ne5 -or $PSVersionTable.PSVersion.Minor-ne1){throw 'SCRIPT_OR_RUNTIME_DIVERGENCE'}
+  Pin $ExpectedPath $ExpectedScriptSha256
+- if($Profile-cne'N0START03ReadOnly'-and$Profile-cne'N0START03Positive'){throw 'DEFAULT_PROFILE_EMPTY_DENY'}
+- if(($Profile-ceq'N0START03Positive'-and$Mode-cne'Cycle'-and$Mode-cne'Review')-or($Profile-ceq'N0START03ReadOnly'-and$Mode-ceq'Cycle')){throw 'PROFILE_MODE_MISMATCH_DENY'}
++ if($Profile-cne'N0START03ReadOnly'-and$Profile-cne'N0START03Positive'-and$Profile-cne'Q4TokenDiagnostic'){throw 'DEFAULT_PROFILE_EMPTY_DENY'}
++ if((($Profile-ceq'N0START03Positive'-or$Profile-ceq'Q4TokenDiagnostic')-and$Mode-cne'Cycle'-and$Mode-cne'Review')-or($Profile-ceq'N0START03ReadOnly'-and$Mode-ceq'Cycle')){throw 'PROFILE_MODE_MISMATCH_DENY'}
+  if($Mode-eq'Prepare' -and $ExactApprovalSha256-cnotmatch'^[0-9a-f]{64}$'){throw 'SEPARATE_EXACT_READONLY_APPROVAL_REQUIRED'}
+  if($Mode-eq'Review'){
+   if($Profile-ceq'N0START03Positive'){Pin ($Root+'\docs\adr\DECISION-n0start03-positive-private-transport-composition-20261025.md') $T10DecisionHash}
+@@ -116,8 +130,16 @@
+  if($DossierHash -cnotmatch '^[0-9a-f]{64}$' -or $EvidenceHash -cnotmatch '^[0-9a-f]{64}$'){throw 'WINDOWS_PROVENANCE_UNKNOWN_DENY'}
+  Pin 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' '9785001b0dcf755eddb8af294a373c0b87b2498660f724e76c4d53f9c217c7a3'
+  Pin $ApprovalPath $ExactApprovalSha256
+- if($Profile-ceq'N0START03Positive'){Assert-PositiveApproval $pins[$pins.Count-1];Pin ($Root+'\docs\adr\DECISION-n0start03-positive-private-transport-composition-20261025.md') $T10DecisionHash}
++ if($Profile-ceq'N0START03Positive'-or$Profile-ceq'Q4TokenDiagnostic'){Assert-PositiveApproval $pins[$pins.Count-1];Pin ($Root+'\docs\adr\DECISION-n0start03-positive-private-transport-composition-20261025.md') $T10DecisionHash}
++ if($Profile-ceq'Q4TokenDiagnostic'){
++  Pin ($Root+'\docs\adr\DECISION-q4-specific-n7-and-independent-evaluation-20261025.md') '1d6bca5386e3520034570d17cf6f526fdef4c19b52aee633113e1bd8e5b40fe7'
++  Pin ($Root+'\docs\adr\DECISION-q4-independent-service-token-observation-annex-20261025.md') '590aa1c695adce55d6ba17e9ce508d747090c05c2d61cd44a7ced603cf6c4db4'
++  Pin ($Root+'\docs\adr\DECISION-n0start03-poststart-disposition-and-one-token-observation-20261025.md') '97763395f521d0a8d15ee0afe22b61705897d6d97c2c1f8905ad9114e8b1b9ca'
++  Pin ($Root+'\docs\integration\n0start03-integrated-closeout-20261024\q2-protected-readback-native-result-20261025\Q2-EXACT-DISPOSITION-RECORDED.md') '5794e17265af6e34d335591b0fed42e5d9048aec81e751578fd9f4132cf524e1'
++  Pin ($Root+'\docs\integration\n0start03-integrated-closeout-20261024\q4-n7-protected-inputs-and-activation-20261025\INDEPENDENT-ED11-EVALUATION-PLAN.md') 'd93cff9c596ad68529fb836f1dc45280af9686828efcf939ac48621a01b4e9e6'
++ }else{
+  Pin ($Root+'\docs\adr\DECISION-n0start03-n7-and-ed11-evaluation-plan-20261024.md') 'c17aa105580aa7680e8d97042abc9daa32640dcf1e69dcdce49c59b8462109ac'
++ }
+  Lock-QualifierPath
+  Pin $Qualifier $QualifierHash
+  Pin ($Root+'\docs\adr\DECISION-n0start03-noninherited-local-transport-20261025.md') 'c9ac85be53fc0df9c356b6a0856c520dcf25d212593e2ec78ee05ef949f7c330'
+@@ -126,8 +148,8 @@
+  if('Pacc.N0PrivateStdout.Supervisor' -as [type]){throw 'FRESH_OPERATOR_PROCESS_REQUIRED'}
+  $bindingAssembly=[Reflection.Assembly]::LoadFrom($TransportBinding)
+  if(-not[String]::Equals($bindingAssembly.Location,$TransportBinding,[StringComparison]::OrdinalIgnoreCase)){throw 'BINDING_ASSEMBLY_LOCATION_DENY'}
+- Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.approved' $DossierHash
+- Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.evidence' $EvidenceHash
++ Pin ('C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-'+$Attempt+'.approved') $DossierHash
++ Pin ('C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-'+$Attempt+'.evidence') $EvidenceHash
+  Pin ($Root+'\docs\adr\DECISION-first-native-lab-diagnostic-boundary-20261024.md') 'bec9d0c275d5ee8bd68de4d42fe173a08f124a9900c119e7a08d23757d9d7941'
+  Pin ($Root+'\docs\adr\DECISION-canonical-lab-console-topology-bd-20261023.md') 'eb93002cf3f6d863a060fb97b7380389aa66b6fbe68e66c1af4fb17b988d3290'
+  Pin ($Root+'\docs\adr\DECISION-ed11-single-lab-diagnostic-native-boundary-20261023.md') 'e7031bd29c9bd174359ffcc3c9a021a6ad25a0256a5cf03b40c0866d3a5776b7'
+--- before/scm-q4-image-pin.h
++++ after/scm-q4-image-pin.h
+@@ -1,6 +1,6 @@
+ /* Derived Selected Release diagnostic image, not authority or protected placement. */
+ #ifndef PAPACC_Q4_IMAGE_PIN_H
+ #define PAPACC_Q4_IMAGE_PIN_H
+-#define PS_BD_N0_IMAGE_SHA "2386d63a256affd48c3dfbcd78ff36380400c86f61a0eeb68e209d6ed4520821"
+-#define PS_BD_N0_IMAGE_SHA_W L"2386d63a256affd48c3dfbcd78ff36380400c86f61a0eeb68e209d6ed4520821"
++#define PS_BD_N0_IMAGE_SHA "128834681905d861eb3252c1e0079e1d06a02b46c2f6d34ddb3612bcc85b3dc8"
++#define PS_BD_N0_IMAGE_SHA_W L"128834681905d861eb3252c1e0079e1d06a02b46c2f6d34ddb3612bcc85b3dc8"
+ #endif
+--- before/scm-runtime-cycle-lab.inc
++++ after/scm-runtime-cycle-lab.inc
+@@ -10,7 +10,7 @@
+ #ifdef PAPACC_SCM_INSTRUMENTED_LAB
+ static unsigned ig_n0_positive; /* existing mode state, before helpers that use it */
+ #ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
+-static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\q4-binding-20261025\\Selected\\Release\\papacc_server_lab_host.exe";
++static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\q4-final-binding-20261025\\Selected\\Release\\papacc_server_lab_host.exe";
+ #else
+ static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\successor-exact-binding-20261024-runtime\\Selected\\Release\\papacc_server_lab_host.exe";
+ #endif

@@ -1,0 +1,40 @@
+{
+  "runs": [
+    {
+      "test": "papacc_service_n0_sd_test",
+      "exe_sha256": "c64868cf8fe20f8f10a3fbef4d9bf6232497bef3f276a3e936fe462fe7fcb903",
+      "exit": 0,
+      "kind": "SYNTHETIC_NO_SCM_NO_ACTUAL_ACL_WRITE"
+    },
+    {
+      "test": "papacc_service_bd_model_test",
+      "exe_sha256": "4477a473d5d8cf198565ccf67121efb103f4417a4e0e80d67446f28680193bd2",
+      "exit": 0,
+      "kind": "SYNTHETIC_NO_SCM_NO_ACTUAL_ACL_WRITE"
+    },
+    {
+      "test": "psrf-model",
+      "exe_sha256": "b5473f7c62605e407fadc4b0f7621a7a1249431fa633f9f98af9cac5de544be3",
+      "exit": 0,
+      "kind": "SYNTHETIC_NO_SCM_NO_ACTUAL_ACL_WRITE"
+    }
+  ],
+  "exact_inputs": [
+    {
+      "file": "windows-origin-evidence.PREPARED.txt",
+      "bytes": 5358,
+      "sha256": "babab3ea393b605802933054ab011e6fcb66b21bffcc80923448715e911f27e0",
+      "unchanged": true
+    },
+    {
+      "file": "OPENED-WINDOWS-FILE.PREPARED.txt",
+      "bytes": 326,
+      "sha256": "5a2b7203afdece0adca77be278d6b86c18cc2cf457cab87474ee7dce0311c294",
+      "unchanged": true
+    }
+  ],
+  "builds": "NOT_RUN_NO_SOURCE_CHANGE",
+  "unauthorized_write": "STATIC_DACL_GRANT_ANALYSIS_ONLY_NO_REAL_ALTERNATE_TOKEN_WRITE",
+  "owner_unsafe_ace_tests": "Existing SD/BD model tests; proposed creation DACL parsed and scoped, no real object protection claimed",
+  "collision_substitution_digest_stop_retention_unknown": "Existing PSRF MODEL_PASS and BD/SD cases; sink fixture is not actual placement implementation qualification"
+}

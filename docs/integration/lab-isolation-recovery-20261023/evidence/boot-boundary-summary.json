@@ -1,0 +1,25 @@
+{
+  "purpose": "ONE_DISCRIMINATING_READ_ONLY_EXISTING_BOOT_BOUNDARY_CHECK",
+  "attempt": "563826bacc49449f954b20cc48ce9b36",
+  "anchorRecordId": 236214,
+  "filterXPath": "*[System[(EventRecordID=236214) or ((EventRecordID>236214) and ((Provider[@Name='Microsoft-Windows-Kernel-General'] and EventID=12) or (Provider[@Name='Microsoft-Windows-Kernel-Boot'] and EventID=27)))]]",
+  "maxEvents": 16,
+  "mutation": "NONE",
+  "queryStatus": "READ_ONLY_QUERY_COMPLETED",
+  "fullBootBoundaryProved": false,
+  "anchorPresent": true,
+  "postAnchorBootMarkers": 0,
+  "assessment": "RAW_MARKERS_ONLY_NO_TERMINATION_OR_CLEANUP_INFERRED",
+  "events": [
+    {
+      "recordId": 236214,
+      "provider": "Service Control Manager",
+      "eventId": 7023,
+      "timeUtc": "2026-10-23T07:19:51.8934865Z",
+      "service": "PapinhoAcceleratorLab20261023",
+      "error_resource": "%%5"
+    }
+  ],
+  "scope": "NO_POST_ANCHOR_SELECTED_BOOT_MARKER_FOUND_NOT_PROOF_OF_ABSENCE_OF_ALL_BOOT_OR_TERMINATION_EVENTS",
+  "next_evidence_strategy": "EXPLICITLY_QUALIFIED_FULL_NON_RESUMING_GENERATION_BOUNDARY_OR_NATIVE_RETAINED_CAPACITY_BOUND_REQUIRED_NO_REBOOT_EXECUTED"
+}

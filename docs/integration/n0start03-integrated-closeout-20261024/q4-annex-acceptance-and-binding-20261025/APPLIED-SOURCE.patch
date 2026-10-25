@@ -1,0 +1,358 @@
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -1,3 +1,4 @@
++#include "scm-lab-attempt-binding.h"
+ /* Diagnostic-only role correlation; frozen owner suppresses new queries. */
+ #ifndef PT_OBSERVATION_H
+ #define PT_STOP() (lab_aux_gate()!=0 || papacc_server_console_win32_stop_requested())
+@@ -18,7 +19,7 @@
+ static PSECURITY_DESCRIPTOR ig_diag_sd;
+ static unsigned ig_locked;
+ static OVERLAPPED ig_lock;
+-static const WCHAR ig_diag_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag";
++static const WCHAR ig_diag_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-" PACC_LAB_ATTEMPT_W L".diag";
+ static const WCHAR ig_intent_path[]=L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\successor-exact-binding-functional-20261024\\manual-native-intent.txt";
+ 
+ static unsigned ig_n0_rebound;
+@@ -216,12 +217,12 @@
+ static DWORD ig_confirm(void)
+ {
+  int borrowed=0;HANDLE in=NULL,out=NULL;A1_LEASE in_lease,out_lease;DWORD im,om,n,w,e=0;WCHAR reply[128];
+- static const WCHAR text[]=L"ONE INSTRUMENTED LAB ATTEMPT 0b1de869e11493b7cb08fb329578f6ce\r\nExisting PapinhoAcceleratorLab20261023; same virtual identity; DEMAND/STOPPED.\r\nExclusive protected NEW papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe; SHA256 44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c.\r\nConfig a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44; unchanged parent/dependencies.\r\nCREATE_NEW one protected diagnostic papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag; arm1024/final2048.\r\nOne explicit LAB image rebind, ONE Start and at most ONE safe Stop. No delete, overwrite, rollback, retry or kill.\r\nED11 preflight60s/final1s; host admission5GiB physical/9GiB commit, monitor floors4/8GiB. NONE_GRANTED credits.\r\nAt most four participant processes; snapshot stack/kernel/cache remains partially UNKNOWN.\r\nNo listener/network/CA/key/certificate/bootstrap/CURRENT/signature/authority. Retention remains UNKNOWN if not factual.\r\nRequires SEPARATE exact operation approval; preparing this launcher does not approve execution.\r\nType ENTIRE line; Esc/mismatch cancels before intent consumption:\r\nINSTRUMENT_SCM_LAB 0b1de869e11493b7cb08fb329578f6ce\r\n> ";
++ static const WCHAR text[]=L"ONE INSTRUMENTED LAB ATTEMPT " PACC_LAB_ATTEMPT_W L"\r\nExisting PapinhoAcceleratorLab20261023; same virtual identity; DEMAND/STOPPED.\r\nExclusive protected NEW papacc_server_lab_host_ntstatus_" PACC_LAB_ATTEMPT_W L".exe; SHA256 " PS_BD_N0_IMAGE_SHA_W L".\r\nConfig a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44; unchanged parent/dependencies.\r\nCREATE_NEW one protected diagnostic papacc-psr-" PACC_LAB_ATTEMPT_W L".diag; arm1024/final2048.\r\nOne explicit LAB image rebind, ONE Start and at most ONE safe Stop. No delete, overwrite, rollback, retry or kill.\r\nED11 preflight60s/final1s; host admission5GiB physical/9GiB commit, monitor floors4/8GiB. NONE_GRANTED credits.\r\nAt most four participant processes; snapshot stack/kernel/cache remains partially UNKNOWN.\r\nNo listener/network/CA/key/certificate/bootstrap/CURRENT/signature/authority. Retention remains UNKNOWN if not factual.\r\nRequires SEPARATE exact operation approval; preparing this launcher does not approve execution.\r\nType ENTIRE line; Esc/mismatch cancels before intent consumption:\r\nINSTRUMENT_SCM_LAB " PACC_LAB_ATTEMPT_W L"\r\n> ";
+  if((e=lab_aux_console(&in_lease,&out_lease)))return e;
+  if((e=lab_aux_borrow_pair(in_lease,out_lease,&in,&out)))goto done;borrowed=1;
+  if(!GetConsoleMode(in,&im)||!GetConsoleMode(out,&om)||(im&(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT))!=(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT)||!WriteConsoleW(out,text,(DWORD)wcslen(text),&w,NULL)||w!=wcslen(text)||!ReadConsoleW(in,reply,127,&n,NULL)){e=ERROR_ACCESS_DENIED;goto done;}
+  while(n&&(reply[n-1]==L'\r'||reply[n-1]==L'\n'))n--;reply[n]=0;
+- if(wcscmp(reply,L"INSTRUMENT_SCM_LAB 0b1de869e11493b7cb08fb329578f6ce")||papacc_server_console_win32_stop_requested())e=ERROR_CANCELLED;
++ if(wcscmp(reply,L"INSTRUMENT_SCM_LAB " PACC_LAB_ATTEMPT_W L"")||papacc_server_console_win32_stop_requested())e=ERROR_CANCELLED;
+  done:if(borrowed)e=lab_aux_borrow_end(e);e=lab_aux_close_preserving(in_lease,e);return lab_aux_close_preserving(out_lease,e);
+ }
+ static DWORD ig_create_intent(void)
+--- a/tools/qualification/scm-instrumented-policy.h
++++ b/tools/qualification/scm-instrumented-policy.h
+@@ -1,9 +1,10 @@
++#include "scm-lab-attempt-binding.h"
+ /* Private fixed-attempt admission, not a new quota/authority. */
+ #ifndef PACC_INSTRUMENTED_POLICY_H
+ #define PACC_INSTRUMENTED_POLICY_H
+ #include <windows.h>
+ #include "../../apps/server/server_service_admission_bd_win32.h"
+-#define IG_ATTEMPT "0b1de869e11493b7cb08fb329578f6ce"
++#define IG_ATTEMPT "" PACC_LAB_ATTEMPT ""
+ #define IG_ID_ALL 511U
+ #define IG_GIB 1073741824ULL
+ #define IG_MIB 1048576ULL
+--- a/tools/qualification/scm-n0-context-model.h
++++ b/tools/qualification/scm-n0-context-model.h
+@@ -1,3 +1,4 @@
++#include "scm-lab-attempt-binding.h"
+ /* Bounded input to the EXISTING owner context. Not authority or a recorder. */
+ #ifndef PAPACC_N0_CONTEXT_MODEL_H
+ #define PAPACC_N0_CONTEXT_MODEL_H
+@@ -10,7 +11,7 @@
+  IG_N0_FILE_RECORD x;char canonical[512],attempt[33],operation[32];int n;ZeroMemory(&x,sizeof(x));
+  if(!text||!record||!bytes||bytes>=sizeof(canonical)||memchr(text,0,bytes)||text[bytes])return 0;
+  if(sscanf_s(text,"PACC_N2_OPENED_FILE_V2\nattempt=%32s\noperation=%31s\nvolume=%lu\nhigh=%lu\nlow=%lu\nsize=%lu\nlinks=%lu\nsha256=%64s\nsecurity_sha256=%64s\nwindows_evidence_sha256=%64s\n",
+- attempt,(unsigned)sizeof(attempt),operation,(unsigned)sizeof(operation),&x.volume,&x.high,&x.low,&x.size,&x.links,x.hash,(unsigned)sizeof(x.hash),x.security,(unsigned)sizeof(x.security),x.evidence,(unsigned)sizeof(x.evidence))!=10||strcmp(attempt,"0b1de869e11493b7cb08fb329578f6ce")||strcmp(operation,"N0START-20261024-03")||
++ attempt,(unsigned)sizeof(attempt),operation,(unsigned)sizeof(operation),&x.volume,&x.high,&x.low,&x.size,&x.links,x.hash,(unsigned)sizeof(x.hash),x.security,(unsigned)sizeof(x.security),x.evidence,(unsigned)sizeof(x.evidence))!=10||strcmp(attempt,"" PACC_LAB_ATTEMPT "")||strcmp(operation,"" PACC_LAB_OPERATION "")||
+  !x.volume||(!x.high&&!x.low)||!x.links||!x.size||x.size>16777216UL||!ps_bd_hex(x.hash)||!ps_bd_hex(x.security)||!ps_bd_hex(x.evidence))return 0;
+  n=sprintf_s(canonical,sizeof(canonical),"PACC_N2_OPENED_FILE_V2\nattempt=%s\noperation=%s\nvolume=%lu\nhigh=%lu\nlow=%lu\nsize=%lu\nlinks=%lu\nsha256=%s\nsecurity_sha256=%s\nwindows_evidence_sha256=%s\n",attempt,operation,x.volume,x.high,x.low,x.size,x.links,x.hash,x.security,x.evidence);
+  if(n!=(int)bytes||memcmp(text,canonical,bytes))return 0;*record=x;return 1;
+--- a/tools/qualification/scm-n0-context-pins.h
++++ b/tools/qualification/scm-n0-context-pins.h
+@@ -7,8 +7,12 @@
+ #if defined(PAPACC_N0START03_PRIVATE_POSITIVE) && (!defined(PAPACC_N0_PRIVATE_STDOUT) || !defined(PAPACC_N0_POSITIVE_PINNED_LAB))
+ #error Private_positive03_requires_explicit_transport_and_positive_entry
+ #endif
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++#define IG_N0_N7_ED11_SHA ""
++#else
+ #define IG_N0_N7_ED11_SHA "c17aa105580aa7680e8d97042abc9daa32640dcf1e69dcdce49c59b8462109ac"
+-#if defined(PAPACC_N0START03_READONLY_PINS) || defined(PAPACC_N0START03_PRIVATE_POSITIVE)
++#endif
++#if !defined(PAPACC_Q4_TOKEN_DIAGNOSTIC) && (defined(PAPACC_N0START03_READONLY_PINS) || defined(PAPACC_N0START03_PRIVATE_POSITIVE))
+ #define IG_N0_DOSSIER_SHA "5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050"
+ #define IG_N0_EVIDENCE_SHA "15b643829189855149826779e9b6a54c1650ed9df6360de63e90cd35bf4887d7"
+ #define IG_N0_DOSSIER_VOLUME 417614100UL
+--- a/tools/qualification/scm-n0-context.inc
++++ b/tools/qualification/scm-n0-context.inc
+@@ -1,3 +1,4 @@
++#include "scm-lab-attempt-binding.h"
+ /* Private adapter for PS_ADMISSION. explicit N0 LAB entries only; no new owner. */
+ #include <bcrypt.h>
+ #include "scm-n0-context-model.h"
+@@ -5,8 +6,8 @@
+ #include "scm-n0-census-content.h"
+ static IG_N0_CENSUS_CONTENT *ig_n0_census_content;
+ #define ig_n0 native.admission.bd.context
+-static const WCHAR ig_n0_dossier_path[]=L"C:\\ProgramData\\PapinhoAccelerator\\Protected\\N0\\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.approved";
+-static const WCHAR ig_n0_evidence_path[]=L"C:\\ProgramData\\PapinhoAccelerator\\Protected\\N0\\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.evidence";
++static const WCHAR ig_n0_dossier_path[]=L"C:\\ProgramData\\PapinhoAccelerator\\Protected\\N0\\papacc-n2-" PACC_LAB_ATTEMPT_W L".approved";
++static const WCHAR ig_n0_evidence_path[]=L"C:\\ProgramData\\PapinhoAccelerator\\Protected\\N0\\papacc-n2-" PACC_LAB_ATTEMPT_W L".evidence";
+ static const WCHAR ig_n0_os_path[]=L"C:\\Windows\\System32\\conhost.exe";
+ static const WCHAR *ig_n0_policies[]={
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\adr\\DECISION-first-native-lab-diagnostic-boundary-20261024.md",
+@@ -18,12 +19,15 @@
+ {unsigned i;for(i=0;i<32;i++){out[2*i]="0123456789abcdef"[bytes[i]>>4];out[2*i+1]="0123456789abcdef"[bytes[i]&15];}out[64]=0;}
+ static DWORD ig_n0_plan(const PS_BD_DESCRIPTOR *d,char out[65])
+ {
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++ (void)d;(void)out;return ERROR_ACCESS_DENIED; /* no fabricated future plan */
++#else
+  BYTE digest[32];char text[2304];int n;
+  n=sprintf_s(text,sizeof(text),
+  "%s;%s;%s;%s;%s;%s;%llu;%lu;%llu;%lu;%llu;%lu;%lu;%lu:%lu:%lu:%lu:%lu:%lu;%llu;"
+  "config=%lu:%lu:%lu:%lu:%lu;image=%lu:%lu:%lu:%lu:%lu;aux=%lu:%llu:%lu:%lu;file=%lu:%lu:%lu:%lu:%lu:%lu;%s;%s;%s;"
+  "APPROVAL=%s;INPUT_IDS=%lu:%lu:%lu:%lu,%lu:%lu:%lu:%lu;INPUT_PROFILE=N2-SD-RAW1-OWNER-GROUP-DACL;L1=2d91d64eace4613f64b2d17188642e85eb5ac41af5f6a5afa1f8e746eaeff27e;H=23d509674be807f01d2c6301cd990f2212a05d6d4d707e56f9f924c6afbd7218;P3=892d51b6a0033b3211c6483adb56d03d728c5f8285dfc8520cf73574c3ee5fad;SERVICE=PapinhoAcceleratorLab20261023;SID=S-1-5-80-3567404667-26456103-3018599297-139793421-3962028451;OPERATOR=S-1-5-21-785699550-1440458426-1682014700-1108;ASSOCIATION=UNPROVEN;CREDITS=NONE_GRANTED;N7_ED11=%s",
+- ig_n0_positive?"N0START-20261024-03;CREATE_IMAGE;CREATE_SINK;REBIND;START1;STOP_MAX1;T10_T14=1f293812e9fca107c7fa8ba20abe20fd8ffbca3cdf6e95e58465a95dadbe4dd5":"N0_READ_ONLY",d->attempt,d->config_hash,d->image_hash,d->policy,d->host,d->boot,(unsigned long)d->owner_pid,d->owner_creation,
++ ig_n0_positive?"" PACC_LAB_OPERATION ";CREATE_IMAGE;CREATE_SINK;REBIND;START1;STOP_MAX1;T10_T14=1f293812e9fca107c7fa8ba20abe20fd8ffbca3cdf6e95e58465a95dadbe4dd5":"N0_READ_ONLY",d->attempt,d->config_hash,d->image_hash,d->policy,d->host,d->boot,(unsigned long)d->owner_pid,d->owner_creation,
+  (unsigned long)d->actor.pid,d->actor.creation,(unsigned long)d->actor.session,(unsigned long)d->control_tid,
+  (unsigned long)d->statistics.TokenId.LowPart,(unsigned long)d->statistics.TokenId.HighPart,
+  (unsigned long)d->statistics.AuthenticationId.LowPart,(unsigned long)d->statistics.AuthenticationId.HighPart,
+@@ -36,6 +40,7 @@
+  (unsigned long)ig_n0.dossier_id.dwVolumeSerialNumber,(unsigned long)ig_n0.dossier_id.nFileIndexHigh,(unsigned long)ig_n0.dossier_id.nFileIndexLow,(unsigned long)ig_n0.dossier_id.nFileSizeLow,
+  (unsigned long)ig_n0.evidence_id.dwVolumeSerialNumber,(unsigned long)ig_n0.evidence_id.nFileIndexHigh,(unsigned long)ig_n0.evidence_id.nFileIndexLow,(unsigned long)ig_n0.evidence_id.nFileSizeLow,IG_N0_N7_ED11_SHA);
+  if(n<=0||!pacc_storage_hash_callback(NULL,(const BYTE *)text,(size_t)n,digest))return ERROR_INVALID_DATA;ig_n0_hex(digest,out);return 0;
++#endif
+ }
+ static DWORD ig_n0_sd(HANDLE file,const char *expected,int protect)
+ {
+--- a/tools/qualification/scm-n0-private-stdout-entry.inc
++++ b/tools/qualification/scm-n0-private-stdout-entry.inc
+@@ -1,5 +1,8 @@
+ /* Closed bootstrap is not operational authority. Body still validates every pin. */
+ #include "scm-n0-private-stdout-profile.h"
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++int main(int argc,char **argv){(void)argc;(void)argv;(void)ig_transport_body;fprintf(stderr,"Q4_BINDING_INCOMPLETE_DENY; NO_ACQUISITION_NO_EFFECT\n");return 2;}
++#else
+ int main(int argc,char **argv){WCHAR name[96];ULONGLONG pid=0,created=0;DWORD error;int result;
+  if(!ig_transport_bootstrap(argc,argv)||!ig_transport_decimal(argv[11],MAXDWORD,&pid)||!ig_transport_decimal(argv[12],~(ULONGLONG)0,&created)||!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,argv[10],-1,name,96)){fprintf(stderr,"PRIVATE_STDOUT_BOOTSTRAP_DENY; NO_PREFLIGHT\n");return 2;}
+  error=PaccTransportClient(name,(DWORD)pid,created);
+@@ -7,3 +10,5 @@
+  result=ig_transport_body(argc-4,argv);
+  if(PaccTransportClientClose())ig_transport_write_failed();return result;
+ }
++
++#endif
+--- a/tools/qualification/scm-n0-private-stdout-profile.h
++++ b/tools/qualification/scm-n0-private-stdout-profile.h
+@@ -1,9 +1,10 @@
++#include "scm-lab-attempt-binding.h"
+ /* Closed bootstrap/policy helpers, no I/O or authority. T10-T14 exact03 only. */
+ #ifndef PACC_PRIVATE_STDOUT_PROFILE_H
+ #define PACC_PRIVATE_STDOUT_PROFILE_H
+ #include <windows.h>
+ #include <string.h>
+-#define IG_PRIVATE_POSITIVE_APPROVAL_PREFIX "{\n  \"status\": \"EXACT_MANUAL_POSITIVE_OWNER_APPROVED\",\n  \"operation\": \"N0START-20261024-03\",\n  \"attempt\": \"0b1de869e11493b7cb08fb329578f6ce\",\n"
++#define IG_PRIVATE_POSITIVE_APPROVAL_PREFIX "{\n  \"status\": \"EXACT_MANUAL_POSITIVE_OWNER_APPROVED\",\n  \"operation\": \"" PACC_LAB_OPERATION "\",\n  \"attempt\": \"" PACC_LAB_ATTEMPT "\",\n"
+ static __inline int ig_transport_decimal(const char *s,ULONGLONG limit,ULONGLONG *out){ULONGLONG n=0;unsigned d;if(!s||!*s||*s=='0')return 0;for(;*s;s++){if(*s<'0'||*s>'9')return 0;d=(unsigned)(*s-'0');if(n>(limit-d)/10)return 0;n=n*10+d;}*out=n;return n!=0;}
+ static __inline int ig_transport_hex(const char *s){unsigned i;if(!s||strlen(s)!=64)return 0;for(i=0;i<64;i++)if(!((s[i]>='0'&&s[i]<='9')||(s[i]>='a'&&s[i]<='f')))return 0;return 1;}
+ static __inline int ig_transport_bootstrap(int argc,char **argv)
+@@ -16,7 +17,7 @@
+ #elif defined(PAPACC_N0START03_READONLY_PINS)
+  if(strcmp(argv[1],"--prepare-n0"))return 0;
+ #endif
+- if(strcmp(argv[2],"0b1de869e11493b7cb08fb329578f6ce")||strcmp(argv[9],"--private-stdout")||!ig_transport_hex(argv[8])||strcmp(argv[3],argv[11])||strcmp(argv[4],argv[12])||!strcmp(argv[3],argv[6]))return 0;
++ if(strcmp(argv[2],"" PACC_LAB_ATTEMPT "")||strcmp(argv[9],"--private-stdout")||!ig_transport_hex(argv[8])||strcmp(argv[3],argv[11])||strcmp(argv[4],argv[12])||!strcmp(argv[3],argv[6]))return 0;
+  for(i=3;i<=7;i++)if(!ig_transport_decimal(argv[i],(i==4||i==7)?~(ULONGLONG)0:MAXDWORD,&n))return 0;
+  if(!ig_transport_decimal(argv[11],MAXDWORD,&n)||!ig_transport_decimal(argv[12],~(ULONGLONG)0,&n))return 0;
+  if(strlen(argv[10])!=z+32||strncmp(argv[10],prefix,z))return 0;
+--- a/tools/qualification/scm-n0-protected-single-powershell.ps1
++++ b/tools/qualification/scm-n0-protected-single-powershell.ps1
+@@ -2,7 +2,7 @@
+ [CmdletBinding()]
+ param(
+  [ValidateSet('Review','Prepare','Cycle')][string]$Mode='Prepare',
+- [ValidateSet('EMPTY_DENY','N0START03ReadOnly','N0START03Positive')][string]$Profile='EMPTY_DENY',
++ [ValidateSet('EMPTY_DENY','N0START03ReadOnly','N0START03Positive','Q4TokenDiagnostic')][string]$Profile='EMPTY_DENY',
+  [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedScriptSha256,
+  [ValidatePattern('^[0-9a-f]{64}$')][string]$ExactApprovalSha256,
+  [uint32]$AuxiliaryPid=0,
+@@ -34,6 +34,11 @@
+ if($Profile-ceq'N0START03ReadOnly' -or $Profile-ceq'N0START03Positive'){$EvidenceHash='15b643829189855149826779e9b6a54c1650ed9df6360de63e90cd35bf4887d7'}
+ $Attempt='0b1de869e11493b7cb08fb329578f6ce'
+ $Operation='N0START-20261024-03'
++if($Profile-ceq'Q4TokenDiagnostic'){
++ $Attempt='10584f02e11f92c92b43cddf0d9d316f'
++ $Operation='N0TOKEN-20261025-01'
++ throw 'Q4_BINDING_INCOMPLETE_DENY: no protected inputs, N7, independent budget or operational approval; NO_PROCESS_NO_EFFECT'
++}
+ $Operator='S-1-5-21-785699550-1440458426-1682014700-1108'
+ $script:N0RetainedProcess=$null
+ $script:N0RetainedPins=$null
+--- a/tools/qualification/scm-runtime-cycle-lab.inc
++++ b/tools/qualification/scm-runtime-cycle-lab.inc
+@@ -1,3 +1,4 @@
++#include "scm-lab-attempt-binding.h"
+ /* One-shot manual LAB cycle in the SAME existing SCM adapter/owner.
+  * Included only by the isolated registration qualification build. */
+ #include <winsock2.h>
+@@ -8,9 +9,18 @@
+ #include <iphlpapi.h>
+ #ifdef PAPACC_SCM_INSTRUMENTED_LAB
+ static unsigned ig_n0_positive; /* existing mode state, before helpers that use it */
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\q4-binding-20261025\\Selected\\Release\\papacc_server_lab_host.exe";
++#else
+ static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\successor-exact-binding-20261024-runtime\\Selected\\Release\\papacc_server_lab_host.exe";
+-static const WCHAR cycle_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe";
++#endif
++static const WCHAR cycle_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server_lab_host_ntstatus_" PACC_LAB_ATTEMPT_W L".exe";
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++#include "scm-q4-image-pin.h"
++static const char cycle_sha[]=PS_BD_N0_IMAGE_SHA;
++#else
+ static const char cycle_sha[]="44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c";
++#endif
+ #else
+ static const WCHAR cycle_source[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\windows-service-protected-runtime-20261023\\Selected\\Release\\papacc_server_lab_host.exe";
+ static const WCHAR cycle_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server_lab_host.exe";
+@@ -30,7 +40,7 @@
+  typedef NTSTATUS (NTAPI *CREATE)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);
+  CREATE fn;FARPROC proc;UNICODE_STRING str;OBJECT_ATTRIBUTES oa;IO_STATUS_BLOCK io;NTSTATUS status;HMODULE module;
+  #ifdef PAPACC_SCM_INSTRUMENTED_LAB
+- static WCHAR leaf[]=L"papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe";
++ static WCHAR leaf[]=L"papacc_server_lab_host_ntstatus_" PACC_LAB_ATTEMPT_W L".exe";
+ #else
+  static WCHAR leaf[]=L"papacc_server_lab_host.exe";
+ #endif
+--- a/tools/qualification/scm-successor-image-pin.h
++++ b/tools/qualification/scm-successor-image-pin.h
+@@ -1,5 +1,10 @@
+ #ifndef PAPACC_SUCCESSOR_IMAGE_PIN_H
+ #define PAPACC_SUCCESSOR_IMAGE_PIN_H
+ /* Observed Selected Release build; not operational approval. */
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++#include "scm-q4-image-pin.h"
++#else
+ #define PS_BD_N0_IMAGE_SHA "44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c"
++#define PS_BD_N0_IMAGE_SHA_W L"44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c"
+ #endif
++#endif
+--- a/apps/server/server_service_admission_bd_win32.h
++++ b/apps/server/server_service_admission_bd_win32.h
+@@ -1,3 +1,4 @@
++#include "../../tools/qualification/scm-lab-attempt-binding.h"
+ #ifndef PAPACC_SERVICE_ADMISSION_BD_WIN32_H
+ #define PAPACC_SERVICE_ADMISSION_BD_WIN32_H
+ /* Private bounded data/validators inside PS_ADMISSION, not another owner.
+@@ -67,7 +68,7 @@
+  if(!d||!ps_bd_id(&d->actor,&d->actor)||!d->control_thread||d->control_thread==INVALID_HANDLE_VALUE||!d->control_tid||
+  !d->configuration||d->configuration==INVALID_HANDLE_VALUE||!d->image||d->image==INVALID_HANDLE_VALUE||
+  !d->owner_pid||d->actor.pid==d->owner_pid||!d->owner_creation||!d->boot||!d->challenge||
+- d->attempt[32]||strcmp(d->attempt,"0b1de869e11493b7cb08fb329578f6ce")||!ps_bd_hex(d->plan)||!ps_bd_hex(d->config_hash)||!ps_bd_hex(d->image_hash)||!ps_bd_hex(d->policy)||!ps_bd_hex(d->host))return ERROR_INVALID_DATA;
++ d->attempt[32]||strcmp(d->attempt,"" PACC_LAB_ATTEMPT "")||!ps_bd_hex(d->plan)||!ps_bd_hex(d->config_hash)||!ps_bd_hex(d->image_hash)||!ps_bd_hex(d->policy)||!ps_bd_hex(d->host))return ERROR_INVALID_DATA;
+  if(d->n0){const PS_BD_AUX_INPUT *a=&d->auxiliary;
+   if(d->n0!=1U||d->boot!=236441ULL||strcmp(d->policy,PS_BD_N0_POLICY)||
+   strcmp(d->config_hash,"a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44")||
+--- a/apps/server/server_service_admission_win32.inc
++++ b/apps/server/server_service_admission_win32.inc
+@@ -1,10 +1,11 @@
++#include "../../tools/qualification/scm-lab-attempt-binding.h"
+ /* Included only in the SAME PS_NATIVE owner; not a second manager. */
+ #include <aclapi.h>
+ #include <sddl.h>
+ #ifndef PS_ADMISSION_TEST
+ static const WCHAR psa_name[]=L"Global\\PapinhoAccelerator.ED11.SingleLabAdmission";
+-static const WCHAR psa_launch_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-0b1de869e11493b7cb08fb329578f6ce.launch.log";
+-static const WCHAR psa_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-0b1de869e11493b7cb08fb329578f6ce.intent";
++static const WCHAR psa_launch_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-" PACC_LAB_ATTEMPT_W L".launch.log";
++static const WCHAR psa_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc-psr-" PACC_LAB_ATTEMPT_W L".intent";
+ #endif
+ #ifndef PSA_DIAGNOSTIC
+ #define PSA_DIAGNOSTIC(api,res,code,value) ((void)0)
+@@ -61,7 +62,7 @@
+  PSA.launch=CreateFileW(psa_launch_path,GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+  if(PSA.launch==INVALID_HANDLE_VALUE){PSA.launch=NULL;return psa_error();}
+  if(!GetFileInformationByHandle(PSA.launch,&id)||id.nNumberOfLinks!=1||(id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)))return ERROR_INVALID_DATA;
+- length=sprintf_s(expected,sizeof(expected),"ADMISSION=0b1de869e11493b7cb08fb329578f6ce; OWNER=%lu; CREATION=%llu\n",(unsigned long)pid,creation);
++ length=sprintf_s(expected,sizeof(expected),"ADMISSION=" PACC_LAB_ATTEMPT "; OWNER=%lu; CREATION=%llu\n",(unsigned long)pid,creation);
+  if(length<=0||!ReadFile(PSA.launch,observed,(DWORD)length,&n,NULL)||n!=(DWORD)length||memcmp(expected,observed,n))return ERROR_INVALID_DATA;
+  return 0;
+ }
+@@ -69,7 +70,7 @@
+ {
+  DWORD e,w;SECURITY_ATTRIBUTES sa;BY_HANDLE_FILE_INFORMATION id;
+  if(PSA.phase||PSA.mutex||PSA.intent||PSA.pending)return ERROR_INVALID_STATE;
+- if(attempt&&strcmp(attempt,"0b1de869e11493b7cb08fb329578f6ce"))return ERROR_INVALID_DATA;
++ if(attempt&&strcmp(attempt,"" PACC_LAB_ATTEMPT ""))return ERROR_INVALID_DATA;
+  if(attempt){
+   if(!PSA.launch||!PSA.launcher)return ERROR_ACCESS_DENIED;
+   if(!configuration||!GetFileInformationByHandle(configuration,&id))return ERROR_INVALID_HANDLE;
+@@ -128,7 +129,7 @@
+ 
+ DWORD papacc_server_service_admission_consume(void)
+ {
+- static const char record[]="ATTEMPT=0b1de869e11493b7cb08fb329578f6ce; CONSUMED; NO_RETRY_NO_RECOVERY; UNKNOWN_UNTIL_FACTUAL_CLOSE\r\n";
++ static const char record[]="ATTEMPT=" PACC_LAB_ATTEMPT "; CONSUMED; NO_RETRY_NO_RECOVERY; UNKNOWN_UNTIL_FACTUAL_CLOSE\r\n";
+  SECURITY_ATTRIBUTES sa;DWORD e,n;BY_HANDLE_FILE_INFORMATION id;
+  if(PSA.phase!=1||!PSA.owned||PSA.thread!=GetCurrentThreadId()||PSA.consumed||PSA.stop||!PSA.lab)return ERROR_INVALID_STATE;
+ #if defined(PAPACC_SCM_INSTRUMENTED_LAB) || defined(PAPACC_SERVICE_BD_MODEL)
+--- a/apps/server/server_service_psr_file_win32.inc
++++ b/apps/server/server_service_psr_file_win32.inc
+@@ -1,6 +1,7 @@
++#include "../../tools/qualification/scm-lab-attempt-binding.h"
+ /* Same LAB runtime owner; no creation, external receiver or authority. */
+-static const BYTE psrd_attempt[33]="0b1de869e11493b7cb08fb329578f6ce";
+-static const WCHAR psrd_leaf[]=L"papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag";
++static const BYTE psrd_attempt[33]="" PACC_LAB_ATTEMPT "";
++static const WCHAR psrd_leaf[]=L"papacc-psr-" PACC_LAB_ATTEMPT_W L".diag";
+ static DWORD psrd_fail(DWORD e)
+ {
+  PS_DIAGNOSTIC *d=&native.runtime.diagnostic;if(!d->error)d->error=e?e:ERROR_GEN_FAILURE;
+@@ -70,7 +71,7 @@
+  DWORD saved=GetLastError(),e;PS_DIAGNOSTIC *d=&native.runtime.diagnostic;int n;
+  if(!kind||d->emitted){SetLastError(saved);return;}d->emitted=1U;
+  if(!d->bound||d->error){(void)psrd_fail(d->error?d->error:ERROR_INVALID_STATE);SetLastError(saved);return;}
+- n=_snprintf_s((char *)d->file.frame.text,PSRF_TEXT,_TRUNCATE,"attempt=0b1de869e11493b7cb08fb329578f6ce service=PapinhoAcceleratorLab20261023 expected_config_sha=%s stage=psr_prepare\n%s",psr_config_sha,text);
++ n=_snprintf_s((char *)d->file.frame.text,PSRF_TEXT,_TRUNCATE,"attempt=" PACC_LAB_ATTEMPT " service=PapinhoAcceleratorLab20261023 expected_config_sha=%s stage=psr_prepare\n%s",psr_config_sha,text);
+  if(n<=0){(void)psrd_fail(ERROR_BUFFER_OVERFLOW);SetLastError(saved);return;}
+  e=psrf_finish(&d->file,psrd_attempt,d->file.frame.text,(DWORD)n,kind,&host.stop);
+  if(e){(void)psrd_fail(e);SetLastError(saved);return;}
+--- a/apps/server/server_service_runtime_win32.inc
++++ b/apps/server/server_service_runtime_win32.inc
+@@ -1,3 +1,4 @@
++#include "../../tools/qualification/scm-lab-attempt-binding.h"
+ /* Private LAB producer, inside SAME SCM owner. No creation or authority. */
+ #include <aclapi.h>
+ #include <sddl.h>
+@@ -33,7 +34,7 @@
+ }
+ #ifdef PSR_FILE_ENABLED
+ #include "server_service_psr_file_win32.inc"
+-#define PSR_IMAGE_LEAF L"papacc_server_lab_host_ntstatus_0b1de869e11493b7cb08fb329578f6ce.exe"
++#define PSR_IMAGE_LEAF L"papacc_server_lab_host_ntstatus_" PACC_LAB_ATTEMPT_W L".exe"
+ #else
+ #define PSR_IMAGE_LEAF L"papacc_server_lab_host.exe"
+ #endif
+--- /dev/null
++++ b/tools/qualification/scm-lab-attempt-binding.h
+@@ -0,0 +1,18 @@
++/* Private compile-time tuple; never a runtime identity selector or authority. */
++#ifndef PAPACC_LAB_ATTEMPT_BINDING_H
++#define PAPACC_LAB_ATTEMPT_BINDING_H
++#ifdef PAPACC_Q4_TOKEN_DIAGNOSTIC
++#define PACC_LAB_ATTEMPT "10584f02e11f92c92b43cddf0d9d316f"
++#define PACC_LAB_ATTEMPT_W L"10584f02e11f92c92b43cddf0d9d316f"
++#define PACC_LAB_OPERATION "N0TOKEN-20261025-01"
++#define PACC_LAB_OPERATION_W L"N0TOKEN-20261025-01"
++/* Protected inputs, exact N7, final binding and fresh budget remain absent. */
++#define PACC_LAB_BINDING_READY 0
++#else
++#define PACC_LAB_ATTEMPT "0b1de869e11493b7cb08fb329578f6ce"
++#define PACC_LAB_ATTEMPT_W L"0b1de869e11493b7cb08fb329578f6ce"
++#define PACC_LAB_OPERATION "N0START-20261024-03"
++#define PACC_LAB_OPERATION_W L"N0START-20261024-03"
++#define PACC_LAB_BINDING_READY 1
++#endif
++#endif
+--- /dev/null
++++ b/tools/qualification/scm-q4-image-pin.h
+@@ -0,0 +1,6 @@
++/* Derived Selected Release diagnostic image, not authority or protected placement. */
++#ifndef PAPACC_Q4_IMAGE_PIN_H
++#define PAPACC_Q4_IMAGE_PIN_H
++#define PS_BD_N0_IMAGE_SHA "2386d63a256affd48c3dfbcd78ff36380400c86f61a0eeb68e209d6ed4520821"
++#define PS_BD_N0_IMAGE_SHA_W L"2386d63a256affd48c3dfbcd78ff36380400c86f61a0eeb68e209d6ed4520821"
++#endif

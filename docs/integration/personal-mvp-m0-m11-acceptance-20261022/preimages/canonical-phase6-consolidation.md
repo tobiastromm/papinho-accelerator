@@ -1,0 +1,212 @@
+# ConsolidaÃ§Ã£o canÃ´nica Phase 6 â€” estado factual
+
+Atualizado em 2026-10-18, sob a decisÃ£o accepted de consolidaÃ§Ã£o canÃ´nica.
+
+ProduÃ§Ã£o PST0.6.4/API2 permanece separada do candidato normal0.6.5/API3/SPI4 e R2 TEST_ONLY. O slice anterior de socket ownership preserva seus builds e20 testes nos escopos originais.
+
+O novo perfil opt-in PAPACC_ENABLE_CANONICAL_C8_ROOT incorpora uma root durÃ¡vel e reutiliza o participante C2 canÃ´nico, com material/leases Secure, configuraÃ§Ã£o BODY0.4, commit local e CURRENT/epoch pÃ³s-commit. Debug/Release compilam com zero warnings finais. Quatorze execuÃ§Ãµes offline finais passaram: transaÃ§Ã£o real local (commit/abort), retenÃ§Ã£o sem reuso, censo, manager vazio e fixtures sintÃ©ticas de ownership/Stop.
+
+O layout gerenciado declarado soma1539192 bytes. O caso offline registrou reserva combinada1796899, limite2097152 inalterado. Provider/kernel continuam UNKNOWN; ED11 total PARTIAL. Isso nÃ£o comprova capacidade fÃ­sica ou admissÃ£o operacional.
+
+Hooks privados C2/CONTROL/roles e root binding foram incorporados e compilados. Attachment positivo cria wait-set/wake TCP e nÃ£o foi executado. Startup continua negado; dispatch operacional C2/C3 e qualificaÃ§Ã£o conjunta ainda nÃ£o estÃ£o concluÃ­dos.
+
+MODE_C_SITE_TLS_CATALOG=ADMINISTRATIVE_AUTHORITY_ACCEPTED. A decisÃ£o mode-c-site-tls-profile-authority-20261018 registra a autoridade administrativa existente. CatÃ¡logo privado BODY0.5 e binding CURRENT/revisÃ£o/epoch foram integrados; templates S6 e Network Egress nÃ£o fornecem autoridade. Site TLS permanece DENY. Nenhuma Session/Principal/grant factual foi fabricado. Preservados Model E, ED08 e fronteiras de fechamento factual, sem qualificaÃ§Ã£o nativa nova de rede.
+
+[Closeout atual e limites](../integration/canonical-root-c2-c3-wiring-20261018/closeout.md) Â· [Slice anterior de socket ownership](../integration/canonical-socket-ownership-20261018/closeout.md). Nenhuma alteraÃ§Ã£o PST, Browser, wire ou pin; PST0.6.5 sÃ³ serÃ¡ publicado apÃ³s o fechamento integral da Phase6. A direÃ§Ã£o futura de egress/policy nÃ£o foi transformada em autoridade Site TLS.
+
+AtualizaÃ§Ã£o Site TLS: [closeout](../integration/mode-c-site-tls-authority-20261018/closeout.md). Builds isolados Debug/Release sem warnings e22 execuÃ§Ãµes offline finais passaram. Known managed1539192, reserva do caso1796899, limite2097152 inalterado. O dispatch continua parcial; ALPN/quotas/leases operacionais e trust Site deverÃ£o ser aplicados antes de habilitaÃ§Ã£o. Nenhuma Session/TLS foi qualificada.
+
+CorreÃ§Ã£o exata do dispatch em2026-10-18: [closeout](../integration/c2-c3-exact-correction-20261018/closeout.md). A revisÃ£o oficial aprovou8 hunks funcionais, com preimagens e hashes. Debug/Release e22 execuÃ§Ãµes offline passaram sem warnings finais. Reserva efetiva1796915, limite2097152 inalterado; provider/kernel UNKNOWN. Esta atualizaÃ§Ã£o supera apenas a falha de compilaÃ§Ã£o do WIP parcial, nÃ£o concede qualificaÃ§Ã£o nativa do dispatch nem admissÃ£o.
+
+Minimal Mode C receipt slice2026-10-18: [closeout](../integration/mode-c-minimal-pair-receipt-20261018/closeout.md). Existing collector gains112 fixed bytes for public OPEN_RESULT identity/provenance mirrors; no token/payload, new collector or authority. Normal API3 Debug/Release builds pass with zero warnings; two C receipt checks, two compiled layouts and19 Python synthetic cases pass. Compiled known-managed1539320; previous combined reservation plus112 is1797027 arithmetically, not a newly executed combined transaction census. Provider/kernel UNKNOWN; all operational admission gates remain DENY. Correlation validates reported artifacts only, not native authenticity/qualification. Canonical Browser was not modified; exact handoff and remaining real-receipt/provenance-export gaps are documented. No production pin/wire/PST change or Phase6 closeout follows.
+Factual timestamp correction2026-10-18: [closeout](../integration/mode-c-factual-timestamps-20261018/closeout.md) and reconciled Browser handoff. Official review approved original observation/validation/recorded-expiry export and local clock-domain coherence only. No new Mode C threshold or ADR0052 extension. FRESHNESS_POLICY=NOT_ESTABLISHED; VALIDITY_RESULT=INCOMPLETE even when timestamps are coherent. Normal API3 Debug/Release zero warnings;47 Python offline cases and own-process idle-root/native copy checks passed, without network or native Mode C qualification. Compiled known managed remains1539320; persistent delta0, caller-owned provenance1200 (+32 bytes). Stop/retention/credits and all admission DENY unchanged. Browser's existing minimal receipts were read/reconciled, not reimplemented or modified.
+Hybrid external ED11 observer2026-10-18: the existing C1 diagnostic sampler now accepts an inherited process-object handle, validates actual PID/creation/image-file bytes, and records process/host metrics independently of the product owner. No product launch/termination, PID reopening, owner wait or operational authority. The existing offline Mode C consumer checks log integrity, producer-lifetime identity and begin/completion/closure records; phase association and validity remain INCOMPLETE, all admission DENY. Debug/Release MSVC builds pass with zero warnings; native cases observe Python test processes only, not Mode C. Slow queries remain PENDING without a completion record; close failure retains diagnostic ownership. No forced termination or cancellation-by-CloseHandle is claimed. Existing Browser resource observation is acknowledged; Browser files are unchanged. See [closeout and Aâ€“H handoff](../integration/mode-c-hybrid-external-observer-20261018/closeout.md). Provider/kernel and quantitative Mode C validity remain unqualified; no operational quota changed.
+
+### papacc.conf â€” subset offline, 2026-10-19
+
+A [decisÃ£o textual focal](../adr/DECISION-papacc-conf-textual-grammar-20261019.md) aceita end explÃ­cito, indentaÃ§Ã£o visual, UTF8/escapes e comentÃ¡rios/desativaÃ§Ã£o sob N1â€“N8. O [slice parser/listeners](../integration/papacc-conf-parser-listeners-20261019/closeout.md) adiciona biblioteca portÃ¡vel opt-in, AST/candidate com presenÃ§a e coleÃ§Ã£o de listeners, diagnÃ³stico e validaÃ§Ã£o estrutural bounded. Debug/Release MSVC passaram sem warnings e121 verificaÃ§Ãµes por execuÃ§Ã£o; cenÃ¡rios sÃ£o offline/sintÃ©ticos. NÃ£o implementa source administrativa operacional, resoluÃ§Ã£o factual de seguranÃ§a/grants, ativaÃ§Ã£o, config apply, CURRENT ou codec binÃ¡rio novo. Modelo/CLI singulares existentes ainda exigem integraÃ§Ã£o posterior; nÃ£o alegar conformidade operacional integral ADR0009. ACLs futuras continuam preservadas sem diretivas fictÃ­cias; blocos fora do subset sÃ£o rejeitados. Quotas, produÃ§Ã£o0.6.4, PST/wire/Browser e gates DENY preservados; ED11 total PARTIAL, provider/kernel UNKNOWN. Nenhum firmware box/ISA qualificado.
+
+
+### Binding administrativo de candidates â€” 2026-10-19
+
+O [bridge read-only canÃ´nico](../integration/config-admin-resolution-listener-binding-20261019/closeout.md) separa VALIDATED, MODEL_BOUND e RESOLVED. Reutiliza modelos/validador/bind targets e o pin CURRENT/source existentes. Somente wrapper da Ãºnica root pode marcar resoluÃ§Ã£o factual; sem publication/grants/config apply/listener/rede. Subset ALL/Secure/OPEN/NONE; provider_ref nomeado e interface_ref textual sem fonte governada sÃ£o rejeitados, nÃ£o fabricados. Identidade/policy/refs correspondem ao snapshot existente, nÃ£o viram registry paralelo. Debug/Release do servidor e testes offline passaram sem warnings finais; positive MODEL_BOUND sintÃ©tico e native guard de negaÃ§Ã£o nÃ£o qualificam positive RESOLVED num produto real. Codec da coleÃ§Ã£o Ã© PROPOSED, BODY/ROOT intactos, source AST/modelo sem Legacy implÃ­cito; CLI/runtime singular produtivo ainda nÃ£o migrado. Root layout176680/known managed1801168 inalterado; workspace caller1072 alÃ©m do AST/input e allowance sÃ­ncrono contabilizados pelo guard, sem quota aumentada ou ED11 PASS. Provider/kernel UNKNOWN; todos gates DENY, PST0.6.4 preservado.
+
+
+### LST1 offline codec accepted and implemented (2026-10-19)
+
+DECISION-lst1-offline-codec-revision2-20261019 accepts only C1-C5 of the exact revision2. The new opt-in PAPACC_ENABLE_OFFLINE_LST1 library owns explicit header/record byte fields and delegates SHA256 to the existing adapter. It is not linked into papacc_server. No AST dump, root/BODY persistence, CURRENT, CLI apply, reference resolution, grants or listener activation. CLOSED/CERTIFICATE_IDENTITY remain candidate representations but are UNSUPPORTED in this first codec. SELECTED roundtrip is data-only; topology applicability and named-provider gates remain denied/pending.
+
+Debug/Release compile with zero warnings and 20 selected test invocations pass; the codec performs6723 internal checks per configuration using synthetic configuration and the existing native SHA256 adapter. Core also compiles under GCC strict C90 without Win32/CNG headers; this does not qualify box/ISA/NT4. Compiled model2176 bytes, no persistent product delta, no new pin/worker, provider/kernel UNKNOWN and ED11 PARTIAL. Existing BODY/root bytes and history are untouched. See docs/integration/lst1-revision2-implementation-20261019/closeout.md for census, approval/preimages, failures corrected and future same-root integration gate. Earlier codec-pending notes are historical.
+
+
+### D3 ROOT8 normative acceptance (2026-10-19)
+
+[DECISION-config-root-envelope-d3-revision3-20261019](../adr/DECISION-config-root-envelope-d3-revision3-20261019.md) accepts only exact D3.0-D3.8 of Revision3 after official executor review. ROOT8/version1 layout2592..25792 bytes is normative; no codec/root integration or operational qualification was implemented by this acceptance. LST1 remains historical base-only fragment; BODY05/ROOT06/PACICP01 are unchanged. Historical ROOT06 migration, safe issuer adapter integration, bootstrap/update authority, native lifecycle and complete ED11 reservation remain independent gates. D2/D4 and their existing document statuses were not changed or promoted by reference. CURRENT/publication/recovery and admission remain DENY; no build/test/network or CA/certificate operation. See docs/integration/config-d3-revision3-acceptance-20261019/closeout.md for exact source hashes, scope and review. Earlier proposed-layout notes remain historical.
+
+
+### D3 independent codec implementation, root integration denied (2026-10-19)
+
+The accepted D3 private ROOT8 codec is implemented as an opt-in OFF library, not linked to papacc_server. It reuses LST1 record validation/base codec and existing BODY05/SHA adapters with owned byte results. No historical BODY/root bytes, root participant, worker, CAS, store or CURRENT were changed. Native data adapter accepts BODY05 validation only; ROOT06 issuer carrier is explicitly UNSUPPORTED pending the separate integration gate. Encoding bootstrap/update is data-only, not administrative proof.
+
+Debug/Release zero warnings; 34 selected offline invocations pass, codec44782 checks per configuration plus existing LST1/regressions. GCC strict C90 core compilation passed. Synthetic histories/checkpoints and real existing native BODY/SHA calls are reported separately from native administrative evidence. Root8 CAS, authorized bootstrap/update, Stop/retained publication and issuer/migration qualification are NOT established by these tests. Existing dormant-root Stop/retention/selected-denial tests remain scoped evidence.
+
+Compiled ROOT8 model25760 bytes. Naively coexisting current dormant ALL reservation1974203 + existing source caller85560 + ROOT8 model25760 + output25792 totals2111315, exceeding2097152 by14163 before further proven transitive costs. Integration stays DENY without quota increase or premature release. No new product persistent storage, pins or worker. See docs/integration/config-d3-envelope-implementation-20261019/closeout.md and ed11-census.json. All admission/publication/recovery gates remain closed; provider/kernel UNKNOWN.
+
+
+### D3 no-carrier bounded memory reconciliation (2026-10-19)
+
+Existing portable codec now provides bounded owned encode/decode for the explicitly no-issuer profile:9376-byte fields +9408-byte encoded output, retaining all four candidate/base listeners and full validation. General codec/layout remain unchanged; issuer carrier stays UNSUPPORTED. No buffer sharing, root/issuer reserve reduction or retained/pinned reuse. Official exact patches, Debug/Release zero warnings,34 final offline invocations and GCC strict C90 pass.
+
+The previously reported ALL coexistence scenario drops2111315->2078547 (delta-32768, margin18605 under2097152); SELECTED2078563/margin18589. This is a diagnostic single-operation subtotal, not an operational reservation or complete future ROOT8 root census. Concurrent/retained buffers remain separately charged; native/transitive/provider/kernel costs and actual root integration not qualified. CURRENT/recovery/admission DENY. See docs/integration/d3-ed11-coexistence-20261019/closeout.md and lifetime-proof-and-root-handoff.md. This updates the preceding factual memory blocker without changing the architecture or accepted gates.
+
+
+### Same-worker D3 no-issuer adapter (2026-10-19)
+
+Existing canonical pending worker now has explicit ROOT06 and opt-in offline ROOT8/version1 update paths. Native identity for D3 is carried outside serialized bytes. Full data/history validation and actual CURRENT/base pin are required by entry; existing ROOT06 issuer roots/carrier remain rejected by D3. Same thread/arrays; no bootstrap/active owner call, CURRENT/epoch, new registry or operational authority. D3 native success retains a confirmed packet and denies old authority until future root transaction completion; issuer/Session slots untouched. Option OFF by default.
+
+Final Debug/Release zero warnings;58 final offline invocations pass, including real local TxF/CAS and historical ROOT06 snapshots/history. CURRENT/CP contexts are synthetic; UNKNOWN/pause explicitly injected. Do not interpret this as operational publication/Mode C/ED11 qualification. Managed scenario conservatively retains caller pair and adds all new explicit scratch: ALL2089095, SELECTED2089111 under2097152. Margins8057/8041, no quota increase; provider/kernel/transitive and future collection publication remain unqualified. See docs/integration/d3-canonical-worker-no-issuer-20261019/closeout.md and worker-proof-and-root-handoff.md. All admission/recovery/publication gates remain DENY.
+
+
+### D2/D4 bootstrap/update normative boundary accepted (2026-10-19)
+
+DECISION-config-bootstrap-update-boundary-20261019.md now directly accepts ONLY exact D2â€“D2.3 and D4 from the preserved Revision2 proposal, after the owner's eight conditions and official executor approval. Accepted D3 Revision3 and all codecs/other norms unchanged. Explicit authorized virgin-store proof is required for bootstrap; CURRENT/base pin/CAS for update. Absence of CURRENT/file or CREATE_NEW alone does not establish no prior history. No authority or grants from preparation, no fallback on conflict/UNKNOWN.
+
+This normative step applies no functional patch or operational publication. Existing D3 worker remains an offline confirmed-packet adapter; actual bootstrap/collection snapshots/transaction completion and their complete ED11 graph remain pending. Source-level integration review resumed; details and exact preimages/hashes in docs/integration/config-d2-d4-normative-acceptance-20261019/closeout.md and transaction-resumption-handoff.md. All admission/CURRENT/recovery gates remain closed; no previous tests are new implementation evidence.
+
+
+### D3 confirmed COMMITTED export; bootstrap proof remains denied (2026-10-19)
+
+The same-root offline adapter now exports a full caller-owned D3 collection and128-byte COMMITTED receipt only after factual same-worker native success and closed resources, with integrity/history checks. No A/P/I, CURRENT, slot/pin/credit mutation or new worker/registry. Original input buffer can be reused only after begin returned and worker owns its frozen copies. Debug/Release zero warnings,58 offline invocations pass, including native file readback; operational CURRENT/CP contexts remain synthetic fixtures. Peak managed scenario2089223, margin7929, provider/kernel/transitive/full root publication still unqualified.
+
+Owner confirms no approved positive first-initialization history procedure/source exists: INITIAL_BOOTSTRAP=DENY; absent file/CURRENT, CREATE_NEW and empty directory are insufficient. No automatic marker/procedure/new authority created. Existing factual CURRENT/base-pin/CAS update guards preserved. Full transaction/collection publication remains pending. See docs/integration/d3-root-transaction-continuation-20261019/closeout.md and initial-bootstrap-proof-handoff-proposed.md (PROPOSED only). All admission/publication/recovery gates closed; historical formats and accepted D2/D4/D3 intact.
+
+
+### Candidate configuration CLI; local bootstrap still denied (2026-10-19)
+
+The accepted local-bootstrap ceremony is normative; no native bootstrap adapter is qualified by this slice. The current path_ok/absolute-path worker lacks proof of continuous namespace custody and factually resolved bootstrap participants. No container is created, no marker or new authority introduced, no CURRENT/epoch published.
+
+An OFF-by-default PAPACC_ENABLE_CONFIG_ADMIN_CLI frontend reuses papacc_server.exe in the API3 candidate. Dispatch precedes console/root/network acquisition and always returns before runtime for config commands. validate executes the existing bounded parser and target validator, reports source location, does not echo tokens/secrets, and rejects external references without factual authority. Structural-only candidates with no external objects can pass offline validation; this is not RESOLVED. diff and show-effective explicitly report CURRENT pin unavailable; apply explicitly denies before IO. These commands do not implement factual comparison, effective-state export or application yet.
+
+Debug/Release /WX builds pass without compiler/linker warnings. Fifty actual CLI cases, eighteen focused CTests and twenty-four D3/ROOT06 component regressions pass. Native local persistence and synthetic authority/pause/UNKNOWN contexts are distinguished; there is no native ceremony or operational qualification. Root storage delta zero, prior managed runtime scenario2089223 unchanged; CLI workspace68112 occurs before runtime construction, not concurrently with its retained graph. CRT/transitive/native costs remain unqualified; provider/kernel UNKNOWN and ED11 PARTIAL. All admissions/publication/recovery denied. Details: docs/integration/local-bootstrap-config-cli-20261019/closeout.md.
+
+
+### Bootstrap namespace phase and initial resolver boundary (2026-10-19)
+
+A new opt-in phase in the existing pending worker atomically creates a directory relative to a held native parent and retains both handles/identities in the existing root packet. OBJ_DONT_REPARSE, enabled-admin checks, Stop, nonwaiting poll, exact-close retention and overwrite denial are implemented. No new worker/root/registry/journal. The separate initial resolver checks this exact custody plus initial source/model/policy without requiring or fabricating CURRENT; its explicit initial result leaves epochs absent. The update CURRENT resolver is unchanged.
+
+This is PARTIAL: no initial D3 store commit using custody and no positive authorized initial reference case are qualified. The current medium-integrity executor is not an enabled administrator. Native tests use a compile-isolated diagnostic primitive path that cannot assert administrative readiness. Production bootstrap preflight and CLI apply remain denied; no CURRENT/epoch, listeners, CA/certificates or network.16 native namespace cases,18 focused CTests,24 historical D3/ROOT06 component regressions,50 CLI cases and4 census/guard invocations passed across Debug/Release; final builds zero warnings. Conservative managed subtotal2093407/2097152; provider/kernel UNKNOWN, ED11 PARTIAL. Full evidence and exact reviewed operations: docs/integration/bootstrap-boundary-execution-20261019/implementation-proof-and-remaining-gates.md. Earlier findings of no implementation are historical; full bootstrap completion remains pending.
+
+
+## Bootstrap D3 retained-reference commit â€” 2026-10-19
+
+The scoped retained-reference commit is implemented and passes native diagnostic component tests; native administrative proof is required by the initial resolver. Positive real administrative qualification is unavailable in the current token context, so bootstrap and CURRENT remain denied. Managed census: 2,093,415 bytes, total ED11 PARTIAL; provider/kernel UNKNOWN. No network, issuer carrier, admission or production migration is enabled. See [bootstrap closeout](../integration/bootstrap-d3-commit-authorization-20261019/closeout.md).
+
+
+### ReconciliaÃ§Ã£o ED11 Phase 6 â€” 2026-10-19
+
+O validador D3 no-issuer somente leitura remove uma cÃ³pia temporÃ¡ria redundante de 9376 bytes em caminhos transacionais serializados, preservando decode owned, formatos, guards, pins e retenÃ§Ã£o. CenÃ¡rio conhecido conservador: 2084039/2097152, margem 13113; nÃ£o Ã© o pico completo futuro de signer/X509. Custos adicionais conhecidos CNG/core/CSR: 4896, antes de inputs/outputs/stacks/retidos ainda sem bound; ativaÃ§Ã£o continua DENY. Provider/kernel UNKNOWN, ED11 total PARTIAL, sem rede ou liberaÃ§Ã£o PST0.6.5. Ver [censo e prova](../integration/phase6-ed11-full-composition-20261019/composition-lifetime-proof-and-handoff.md).
+
+### First-install declaration input â€” 2026-10-22
+
+The existing opt-in candidate config CLI recognizes explicit NEW_INSTALL input and bounded source/parent/container arguments. It denies before any acquisition: operator and native target remain UNBOUND, configuration is not opened, custody is absent. No reusable administrative approval is issued; this is not a qualified bootstrap entry. MSVC Debug/Release and native negative CLI tests pass. Factual operator/operation authorization, custody and operational ED11 remain gates. No bootstrap, publication, certificates or network ran. See [scoped implementation and closeout](../integration/first-install-administrative-entry-20261022/closeout.md). Historical readiness findings remain preserved.
+
+### AutorizaÃ§Ã£o pessoal/local de primeira instalaÃ§Ã£o â€” 2026-10-22
+
+A [decisÃ£o F0â€“F9 consolidada](../adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md) aceita, apÃ³s revisÃ£o oficial, a polÃ­tica PERSONAL_LOCAL: fatos nativos de contexto/direitos, declaraÃ§Ã£o atribuÃ­da e confirmaÃ§Ã£o do plano exato, associaÃ§Ã£o protegida pelo adapter e admissibilidade decidida pelo Accelerator. Institucional fica DEFERRED; nÃ£o se exige infraestrutura corporativa. Identificador e consumo pertencem Ã  tentativa local, sem revogaÃ§Ã£o externa obrigatÃ³ria ou aprovaÃ§Ã£o OS fictÃ­cia. CA_INITIALIZE continua ato explÃ­cito distinto sob issuer; nenhum efeito foi executado. Esta Ã© aceitaÃ§Ã£o normativa, nÃ£o implementaÃ§Ã£o/qualificaÃ§Ã£o da CLI, fonte/material, custÃ³dia, CA, ED11 ou CURRENT. Todos os gates operacionais permanecem DENY, ED11 PARTIAL. [Provas de incorporaÃ§Ã£o e closeout](../integration/personal-first-install-authorization-closure-20261022/closeout.md). Propostas e STOPs anteriores permanecem histÃ³ricos.
+
+### CerimÃ´nia pessoal â€” componente DATA no owner, 2026-10-22
+
+Plano DATA bounded/copied, sequÃªncia de confirmaÃ§Ã£o/consumo e invalidaÃ§Ã£o por Stop foram incorporados ao packet do mesmo owner. O gate de custÃ³dia real nega enquanto nÃ£o houver parent/operador/plano protegidos antes da confirmaÃ§Ã£o. CLI continua input-only DENY; nÃ£o hÃ¡ autorizaÃ§Ã£o, RNG, apresentaÃ§Ã£o/confirmacÃ£o reais ou referÃªncia CA qualificados. ApÃ³s clean rebuild, MSVC Debug/Release passam nove suÃ­tes cada; modelos DATA nÃ£o sÃ£o prova administrativa. Legacy known1799192, incremento8240; ED11 total PARTIAL, limites inalterados. [ImplementaÃ§Ã£o parcial e handoff nativo](../integration/personal-first-install-ceremony-20261022/closeout.md). NÃ£o executados bootstrap, CA/certificados, CURRENT ou rede.
+
+### CerimÃ´nia pessoal â€” ligaÃ§Ã£o nativa read-only, 2026-10-22
+
+A CLI candidata agora liga o mesmo owner ao preflight nativo de operador/parent, plano no console, confirmaÃ§Ã£o exata da tentativa e consumo DATA. A descriÃ§Ã£o input-only anterior Ã© histÃ³rica. NÃ£o cria alvo nem adquire custÃ³dia CA; bootstrap permanece DENY. MSVC Debug/Release passam dez suÃ­tes cada, 30 casos negativos CLI e seis recusas explÃ­citas de entrada redirecionada. O preflight real foi negado: operador/parent elegÃ­veis e confirmaÃ§Ã£o interativa positiva nÃ£o estÃ£o qualificados. Incremento fixo304 bytes, Legacy known1.799.496; recursos nativos e stack completos continuam UNKNOWN, ED11 PARTIAL. [Closeout, hashes e limitaÃ§Ãµes](../integration/personal-first-install-native-ceremony-20261022/closeout.md). Nenhum bootstrap, chave, certificado, CURRENT ou rede executado.
+
+### QualificaÃ§Ã£o positiva pessoal â€” STOP de ambiente, 2026-10-22
+
+Probe nativo read-only aprovado confirmou token limitado, Administrators nÃ£o habilitado e stdin/stdout sem console. A cerimÃ´nia positiva nÃ£o foi executada; nÃ£o houve elevaÃ§Ã£o, confirmaÃ§Ã£o sintÃ©tica ou efeito de instalaÃ§Ã£o. Fontes funcionais permanecem byte-exatas; ED11 PARTIAL, custÃ³dia CA e publicaÃ§Ã£o DENY. [CondiÃ§Ã£o exata e evidÃªncias](../integration/personal-first-install-positive-native-qualification-20261022/closeout.md).
+
+### Personal target/CA â€” independent DATA boundary, 2026-10-22
+
+Same-owner query now reports target/optional PAPACC_CA_KEY metadata without acquisition, exported handles, stored references or effects; all combinations keep effect_denied=1. CLI genuinely has no CA reference. Actual protected-parent handoff to exclusive creation remains absent: historical begin clears/reopens packet context and must not receive the live personal graph. No guard was relaxed. Final MSVC Debug/Release pass ten suites each and30 negative CLI cases, zero final warnings; model metadata does not prove custody. Fixed known1,799,496 unchanged; native/CA/full nested resources UNKNOWN, ED11 PARTIAL. [Scoped partial integration and remaining boundary](../integration/personal-first-install-target-ca-custody-20261022/closeout.md). No target/key/certificate/bootstrap/CURRENT/network effect.
+
+### Personal protected worker handoff â€” read-only, 2026-10-22
+
+The existing worker now accepts a private read-only phase using the SAME retained parent/token/source and frozen attempt/leaf/configuration, without clearing the packet or reopening the parent. Single consumption, nonblocking poll, factual signal/close and retained-reference guards are implemented. VERIFIED is read-only only; historical child-creation gate stays DENY and CA reference remains absent. MSVC Debug/Release: ten suites each and30 CLI negatives PASS, zero final warnings. Positive native handoff is unqualified on the limited-token/no-console host. Fixed known1,799,600 (+104); same64KiB worker stack charged once, opaque/full nested costs UNKNOWN, ED11 PARTIAL. [Closeout and exact source hashes](../integration/first-install-protected-worker-handoff-20261022/closeout.md). No child, key, certificate, bootstrap, CURRENT or network executed.
+
+### Personal UAC qualification launcher â€” prepared, 2026-10-22
+
+A fixed-path/hash-bound PowerShell launcher prepares native RunAs in a visible console for owner-only manual read-only qualification. Effective operator is re-observed after UAC; different user is not assumed equivalent, and CLI still requires its exact attempt confirmation. Binary/DLL/source pins, console guards and filtered nonsecret receipts are implemented. Eight negative process cases and17 helper checks PASS without elevation. Owner-authorized ExecutionPolicy Bypass is per process; persistent AllSigned/UAC policy unchanged. Positive UAC/native execution is PREPARED_NOT_EXECUTED; CA/CURRENT/signature/recovery DENY, ED11 PARTIAL. [Manual instructions and closeout](../integration/personal-first-install-uac-launcher-20261022/README.md). No compiled product source, PST, Browser, wire or production0.6.4 changed.
+
+Personal qualification manual follow-up (2026-10-22): receipts now prove an eligible operator and interactive console; attempts returned DENIED_OR_CANCELLED with no target. Full positive ceremony remains unqualified. The reviewed launcher preserves result/error display until F10, discarding queued console input; Enter no longer dismisses it. Eight negative process cases and17 helper checks pass, with no agent-side elevation. [Updated manual instructions](../integration/personal-first-install-uac-launcher-20261022/README.md).
+
+Personal confirmation UI correction (2026-10-22): CLI shows > and echoes printable declaration input/Backspace instead of silently consuming console events. Exact phrase/gates unchanged. F10 is the sole result pause. Debug/Release ten suites each,30 CLI negatives and8 launcher negatives/17 helper checks pass; real-console echo/positive ceremony awaits owner observation. [Validation and new pins](../integration/personal-first-install-visible-confirmation-20261022/closeout.md).
+
+Owner manual result (2026-10-22): current pinned binary passed the single positive personal read-only ceremony with eligible operator/console, visible exact confirmation and same-packet worker verification. Receipt reports child absent and final CLI2; owner corrected the launcher exit to -1073741510 (STATUS_CONTROL_C_EXIT), so its clean completion is not established. This is PASS_SCOPED_MANUAL_READ_ONLY, superseding the absent positive-path observation. No child/CA/bootstrap/CURRENT effect, ED11 remains PARTIAL; broader fault/resource qualification is pending. [Verified receipt and limits](../integration/personal-first-install-uac-launcher-20261022/manual-readonly-success-20261022.md).
+
+Outer-launcher correction (2026-10-22): prior reading of launcher0 was incorrect. Owner reports STATUS_CONTROL_C_EXIT (-1073741510); CLI exact-confirmation/read-only-worker receipt is preserved, but whole-launcher teardown is NOT qualified. No operational gates change.
+
+Subsequent owner F10 execution (2026-10-22), distinct from the earlier interruption: receipt48091b1698c841e6a63bb11ee5b0ab30 verifies READ_ONLY_WORKER_VERIFIED_FINAL_DENY, eligible console/operator, matching binary and child absent; owner outer screenshot clearly shows launcher exit0 after F10. Single manual read-only path and normal launcher return now observed. Earlier STATUS_CONTROL_C_EXIT remains historical. No bootstrap/child/CA/CURRENT effect; ED11 PARTIAL and operational gates remain DENY. [Scoped evidence](../integration/personal-first-install-uac-launcher-20261022/manual-readonly-success-20261022.md).
+
+
+### Personal target creation â€” native LAB qualification, 2026-10-22
+
+The existing pending owner/worker now shares relative exclusive child creation through private packet13. Four MSVC Legacy/Selected Debug/Release builds pass without warnings; ten suites per build and44 isolated native cases pass, using actual filesystem identities with MODEL authorization only. UNKNOWN and cleanup failure retain the same owner and prevent replay/reuse; child closes before parent after factual quiescence. No new durable layout or pin table. The production entry remains gated: current CLI/F10 plan is read-only, not an effect or CA_INITIALIZE grant; factual CA owner reference and complete operational ED11 remain absent. F10 binary/UI/launcher/receipt stay byte-exact; no UAC repeat, CA, bootstrap, CURRENT or network. ED11 PARTIAL; nominal memory remainder grants no capacity. [Scoped implementation, exact evidence and remaining dependency](../integration/personal-first-install-target-ca-custody2-20261022/closeout.md).
+
+
+### Personal effect-plan DATA and factual CA STOP â€” 2026-10-22
+
+The same owner can prepare an explicit bounded NEW_INSTALL/CA_INITIALIZE/root-preparation DATA plan before presentation, with separate exact declaration and irreversible consumption; presented/confirmed F10 read-only attempts cannot be promoted. Product CLI effects remain gated. Four MSVC Legacy/Selected Debug/Release builds pass without warnings;44 offline suite runs and44 no-key native LAB cases pass. A separately officially approved one-key LAB custody attempt FAILED at NCryptFinalizeKey with NTE_PERM0x80090010; no READY reference, export test, borrow, certificate or root/commit followed. Handles reported CLOSED does not prove absence of the named persistent LAB key. No reopen/retry/deletion or replacement was attempted. DATA adds8 bytes; full native/CA resources remain UNKNOWN, ED11 PARTIAL. Prior F10 artifacts remain byte-exact, with no UAC repeat. [Exact failed key identity, approved operation, evidence and STOP](../integration/personal-first-install-bootstrap-completion-20261022/closeout.md).
+
+
+### CA finalization failure â€” read-only diagnosis, 2026-10-22
+
+The exact October22 LAB object's MACHINE/SILENT read-only open returned NTE_BAD_KEYSET0x80090016; previous disposition remains UNKNOWN. Official executor now observes Tobias with filtered token3, distinct from elevated/interactive F10; historical LAB SID/elevation were not logged. Direct FILE_ADD_FILE AccessCheck on the machine key directory denies this filtered token. This proves a current access barrier, not the unique cause of the prior NCryptFinalizeKey=NTE_PERM. No product correction, key retry/creation/deletion, ACL/UAC/KSP change, network or bootstrap was performed. A hash-pinned native-UAC read-only launcher is prepared for manual reconciliation only; no elevated operation was run by the agent. ED11 PARTIAL and all operational gates DENY. [Exact context, scope, evidence and manual command](../integration/ca-ncrypt-finalize-nte-perm-20261022/closeout.md).
+
+
+Subsequent owner elevated read-only query (2026-10-22): receipt607304b978194007a40ab1132474878a verifies expected Tobias SID, full elevation, enabled Administrators and console. Wrapper exit0 reflects completed diagnostics; child exit4/NCryptOpenKey0x80090016 leaves previous LAB disposition UNKNOWN and original Finalize cause unresolved. No new key, ACL change, deletion, bootstrap or CURRENT. ED11 PARTIAL. [Verified manual evidence](../integration/ca-ncrypt-finalize-nte-perm-20261022/manual-elevated-observation-20261022.md).
+
+
+## 2026-10-22 â€” CA KSP reconciliation / new LAB gate
+
+Elevated read-only observation completed; previous MACHINE LAB key disposition and original Finalize NTE_PERM cause remain UNKNOWN. No KSP probe or generation repeated. A distinct, single disposable LAB identity and standalone harness are prepared; Debug/Release build and safe non-effectful branches pass. Effectful execution requires separate exact approval and preflight/receipt gates. No product source changes, operational custody/authority or ED11 PASS. See [reconciliation and next gate](../integration/ca-ksp-state-reconciliation-20261022/closeout.md).
+
+
+## 2026-10-22 — elevated CA LAB collision gate
+
+Prepared manual native-UAC launcher pins the existing binaries and enforces operator/console and exclusive diagnostic receipt gates. Only Check and negative branches were executed; no KSP query, generation or finalization. Creation remains unavailable because the existing BAD_KEYSET diagnostic cannot establish factual absence under the task section3 STOP requirement. Previous key remains UNKNOWN; no custody reference or authority created, ED11 PARTIAL. See [focused closeout](../integration/ca-custody-elevated-lab-finalization-20261022/closeout.md).
+
+
+## 2026-10-22 — CA LAB non-overwrite reconciliation
+
+Official NCrypt contract documents collision refusal without overwrite, but not an atomic create/set/finalize transaction. Existing backend already omits overwrite. Prior absolute absence-oracle requirement is proposed for LAB-only correction through G1–G5, pending official review. No accepted clause or launcher changed; no native operation executed. Previous key UNKNOWN, ED11 PARTIAL and authority DENY preserved. See [focused review](../integration/ca-lab-atomic-key-exclusivity-20261022/closeout.md).
+
+
+## 2026-10-22 - CA LAB non-overwrite gate acceptance
+
+G1-G5 accepted for the exact independent disposable LAB scope, with explicit lifetime distinctions and no full-sequence atomicity. Prior absolute absence proof is replaced normatively by provider-side non-overwrite creation results. Previous key remains UNKNOWN; implementation/execution, productive custody and authority remain denied; ED11 PARTIAL. Launcher update is prepared only; current script unchanged. See [decision](../adr/DECISION-ca-lab-nonoverwrite-gate-20261022.md) and [closeout](../integration/ca-lab-nonoverwrite-gate-acceptance-20261022/closeout.md).
+
+
+## 2026-10-22 - CA LAB finalization launcher completion
+
+Accepted G1-G5 implemented only in the existing manual UAC launcher and standalone LAB executor. Exact no-overwrite flags and Stop guards; phase status logging; no deletion API. On positive success the key remains persisted LAB-only, handles closed. Debug/Release warning-free, negative guards/output models and safe context branches pass; no positive key operation or UAC launch executed. Owner manual command prepared; old key UNKNOWN, no productive custody/authority, ED11 PARTIAL. See [closeout](../integration/ca-lab-finalization-launcher-completion-20261022/closeout.md) and [manual command](../integration/ca-lab-finalization-launcher-completion-20261022/manual-command.md).
+
+
+## 2026-10-22 - owner elevated CA LAB success
+
+Manual owner execution now verified against consumed/result receipts and pinned binary/script: Create, properties, Finalize and public validation succeeded, expected borrow close denied, final handles closed, LAB key persisted without deletion. Previous LAB remains UNKNOWN; this does not establish the historical NTE_PERM cause or productive custody. ED11 PARTIAL; publication/signature/recovery DENY. See [verified manual result](../integration/ca-lab-finalization-launcher-completion-20261022/manual-elevated-result-20261022.md).
+
+
+## 2026-10-22 - personal CA custody reference binding
+
+Private same-owner CA DATA match/bind/current/release interfaces implemented with canonical borrow, exact attempt/plan/operator/parent/child/configuration association and monotonic acquisition. Retirement/close/finish block while borrowed; Stop does not release. Both known LAB identities excluded; no key opened/created/deleted or LAB authority reused. Legacy/Selected Debug/Release warning-free; 36 focused offline/native-negative runs pass after fixing a demonstrated UTF-8 Ninja include-prefix dependency defect and clean rebuilding new directories only. Packet adds16 aligned bytes; known totals1799624/1965120, transitive/provider/kernel still UNKNOWN, ED11 PARTIAL. End-to-end task remains incomplete: CLI is read-only, native effect gate denied, no same-invocation factual CA_INITIALIZE producer/reference. See [proof and remaining boundary](../integration/personal-first-install-ca-custody-binding-20261022/closeout.md).
+
+
+## 2026-10-22 - personal CA preinitialization normative procedure accepted
+
+Owner-approved procedural direction accepted under the [designated decision](../adr/DECISION-personal-ca-preinitialization-20261022.md), with exact preserved source/procedure hashes and [conformance review](../integration/personal-ca-preinitialization-acceptance-20261022/conformance-review.md). wbadmin remains an image-backup candidate; two BitLocker-protected offline media and a dedicated local standard operational account are the direction, not provisioned or qualified sources. SAM account SID/actual TokenUser is distinguished from SCM per-service SID; no SCM host or isolated token claim. KSP recovery and operational isolation unproved; real backup/restore not run. Normative approval is separate from factual CA_INITIALIZE integration and full ED11; CURRENT/signature/authoritative recovery DENY, ED11 PARTIAL. No functional changes or productive effects.
+
+
+## 2026-10-22 - personal Phase6 MVP scope consolidation proposed
+
+Owner prioritizes a functional personal Windows Accelerator: installation/SCM, protected local CA, manual/automatic pairing and client management. One [M0-M11 proposal](../adr/ADR-CANDIDATE-phase6-personal-mvp.md) identifies exact backup/restore and normal-continuity specializations plus explicit active-revocation policy; not accepted yet. Existing obligations remain effective. Existing configuration grammar is retained, proposed global retention defaults0; visible-history deletion preserves protected revocation/tombstones. No functional or operational effects. [Scope, inventories, matrix, roadmap and unique SCM prompt](../integration/personal-mvp-consolidation-20261022/scope.md); [future .papaccbak](../future/personal-backup-and-identity-recovery.md). ED11 PARTIAL; CURRENT/signature/authoritative recovery DENY; production0.6.4 preserved.

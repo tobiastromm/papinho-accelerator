@@ -1,0 +1,307 @@
+--- a/apps/server/server_store_data_hash_win32.inc
++++ b/apps/server/server_store_data_hash_win32.inc
+@@ -0,0 +1,41 @@
++/* Private deterministic storage DATA. Existing context remains the sole owner.
++ * Old uncertain BCrypt references are neither reset nor released here. */
++#include "../../tools/qualification/storage-hash-capsule/storage_sha256.h"
++static int store_data_hash(PAPACC_STORE_HASH *c,const unsigned char *p,unsigned n,unsigned char out[32])
++{
++ PACC_STORAGE_SHA256 hash;unsigned char value[32];unsigned left=n,chunk;int ok=0;
++ if(!c||!out||(!p&&n)||c->stopped||c->retained||c->algorithm||c->hash||
++ InterlockedCompareExchange(&c->active,1,0)!=0)return 0;
++ memset(&hash,0,sizeof(hash));
++ if(pacc_storage_sha_init(&hash)!=PACC_HASH_OK)goto done;
++ while(left){
++  if(c->stopped)goto done;
++  chunk=left>PACC_STORAGE_HASH_CHUNK?PACC_STORAGE_HASH_CHUNK:left;
++  if(pacc_storage_sha_update(&hash,p,chunk,NULL,NULL)!=PACC_HASH_OK)goto done;
++  p+=chunk;left-=chunk;
++ }
++ if(c->stopped||pacc_storage_sha_final(&hash,value,sizeof(value),NULL,NULL)!=PACC_HASH_OK||c->stopped)goto done;
++ memcpy(out,value,32);ok=1;
++done:
++ /* Synchronous quiescence: no input/output/native borrow survives. Preserve
++  * prior native statuses/references and the monotonic Stop flag. */
++ memset(&hash,0,sizeof(hash));memset(value,0,sizeof(value));
++ InterlockedExchange(&c->active,0);return ok;
++}
++static int storage_digest(PAPACC_STORE_HASH *c,unsigned char *record,int verify)
++{
++ unsigned char value[32];
++ if(!store_data_hash(c,record,480U,value))return 0;
++ if(verify)return memcmp(value,record+480U,32U)==0;
++ memcpy(record+480U,value,32U);return 1;
++}
++int papacc_configuration_storage_hash(void *ctx,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 out[32])
++{
++ PAPACC_CONFIGURATION_COMMIT *o=ctx;
++ if(!owner(o)||o->stopped||o->unresolved||o->authority_lost||!p||!out||n>ULONG_MAX||
++ papacc_store_hash_blocked(&o->store_hash)||o->issuer_hash||o->issuer_hash_alg)return 0;
++#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
++ if(papacc_store_hash_blocked(&o->pending_commit.store_hash))return 0;
++#endif
++ return store_data_hash(&o->store_hash,p,(unsigned)n,out);
++}
+--- a/apps/server/server_configuration_commit_win32.c
++++ b/apps/server/server_configuration_commit_win32.c
+@@ -18,6 +18,8 @@
+  return papacc_store_hash_blocked(&o->store_hash);
+ #endif
+ }
++#include "server_store_data_hash_win32.inc"
++
+ static void put64(unsigned char *p,PAPACC_U64 v)
+ {unsigned i;for(i=0U;i<8U;++i){p[7U-i]=(unsigned char)(v&255U);v>>=8;}}
+ static PAPACC_U64 get64(const unsigned char *p)
+--- a/apps/server/server_configuration_commit_win32.h
++++ b/apps/server/server_configuration_commit_win32.h
+@@ -163,6 +163,8 @@
+ /* Private ROOT06 component, same file and owner. No normative/live CURRENT.
+  * Caller must establish application dormancy; readers/retained slots deny.
+  * Epoch and admission proofs are never inferred from stored issuer bytes. */
++/* Storage math only; no issuer/status/authorization result. */
++int papacc_configuration_storage_hash(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 [32]);
+ int papacc_configuration_issuer_hash06(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8[32]);
+ PAPACC_RESULT papacc_configuration_issuer_prepare06(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_U64,PAPACC_U64);
+ PAPACC_RESULT papacc_configuration_issuer_copy06(PAPACC_CONFIGURATION_COMMIT *,PAPACC_U8 *);
+@@ -174,6 +176,7 @@
+  * Caller owns immutable16384 input and disjoint workspace/output. No CURRENT,
+  * epoch/proof bits, source lease, key binding or recovery authority returned.
+  * Embedded file identity is checked for internal consistency only. */
++PAPACC_RESULT papacc_configuration_storage_carrier_inspect(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_CONFIG_VIEW *,PAPACC_ISSUER_VIEW *);
+ PAPACC_RESULT papacc_configuration_issuer_carrier_inspect06(
+  PAPACC_CONFIGURATION_COMMIT *,const PAPACC_U8 *,PAPACC_SIZE,
+  PAPACC_CONFIG_VIEW *,PAPACC_ISSUER_VIEW *);
+--- a/apps/server/server_configuration_store03_win32.inc
++++ b/apps/server/server_configuration_store03_win32.inc
+@@ -8,7 +8,7 @@
+ static int store03_zero(const unsigned char*p,unsigned n)
+ {unsigned i;for(i=0;i<n;++i)if(p[i])return 0;return 1;}
+ static int store03_hash(PAPACC_STORE_HASH *hash_ctx,const unsigned char *p,unsigned n,unsigned char out[32])
+-{return papacc_store_hash(hash_ctx,p,n,out);}
++{return store_data_hash(hash_ctx,p,n,out);}
+ static void p03_put16(unsigned char *b,unsigned n){b[0]=(unsigned char)(n>>8);b[1]=(unsigned char)n;}
+ static unsigned p03_get16(const unsigned char *b){return ((unsigned)b[0]<<8)|b[1];}
+ static void p03_put32(unsigned char *b,PAPACC_U32 n){b[0]=(unsigned char)(n>>24);b[1]=(unsigned char)(n>>16);b[2]=(unsigned char)(n>>8);b[3]=(unsigned char)n;}
+@@ -17,7 +17,7 @@
+ {
+  unsigned i,pos;unsigned char hash[32];const PAPACC_ADMIN_POLICY *p=&v->config.policy;
+  if(p->representation!=0U||!p->present||v->policy_epoch!=0U||papacc_server_config_validate(&v->config)!=PAPACC_RESULT_OK)return 0;
+- memset(b,0,1024U);encode(v,b);if(!digest(hash_ctx,b,0))return 0;
++ memset(b,0,1024U);encode(v,b);if(!storage_digest(hash_ctx,b,0))return 0;
+  memcpy(b+512U,"ADMP0301",8U);b[520U]=1U;b[521U]=(unsigned char)p->profile;
+  b[522U]=(unsigned char)p->admission;p03_put16(b+524U,p->listener_port);
+  b[526U]=(unsigned char)p->enabled_count;b[527U]=(unsigned char)p->rule_count;memcpy(b+528U,p->identity,32U);
+@@ -31,7 +31,7 @@
+ {
+  unsigned i;unsigned char hash[32];PAPACC_U64 rev=get64(b+40U),pred=get64(b+48U);
+  if(memcmp(b,"PACCFC01",8U)||rev==0U||pred==((PAPACC_U64)-1)||rev!=pred+1U||
+-    get64(b+56U)!=0U||b[69U]>PAPACC_CONFIG_IDS||!digest(hash_ctx,b,1))return 0;
++    get64(b+56U)!=0U||b[69U]>PAPACC_CONFIG_IDS||!storage_digest(hash_ctx,b,1))return 0;
+  for(i=0U;i<4U;++i)if(b[70U+i*65U]>64U)return 0;
+  return store03_hash(hash_ctx,b,992U,hash)&&memcmp(hash,b+992U,32U)==0;
+ }
+--- a/apps/server/server_configuration_body04_win32.inc
++++ b/apps/server/server_configuration_body04_win32.inc
+@@ -32,7 +32,7 @@
+  /* All semantic rejection occurs before touching the caller's destination. */
+  if(!body04_model(v))return PAPACC_RESULT_INVALID_STATE;
+  p=&v->base.config.policy;memset(b,0,PAPACC_CONFIG_BODY04_BYTES);
+- encode(&v->base,b);if(!digest(hash_ctx,b,0))return PAPACC_RESULT_INTERNAL_ERROR;
++ encode(&v->base,b);if(!storage_digest(hash_ctx,b,0))return PAPACC_RESULT_INTERNAL_ERROR;
+  memcpy(b+512U,"ADMP0401",8U);b[520U]=1U;b[521U]=(PAPACC_U8)p->profile;
+  b[522U]=(PAPACC_U8)p->admission;p03_put16(b+524U,p->listener_port);
+  b[526U]=(PAPACC_U8)p->enabled_count;b[527U]=(PAPACC_U8)p->rule_count;
+--- a/apps/server/server_configuration_v3_backings_win32.inc
++++ b/apps/server/server_configuration_v3_backings_win32.inc
+@@ -28,7 +28,7 @@
+  if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,signed_info->ToBeSigned.pbData,signed_info->ToBeSigned.cbData,CRYPT_DECODE_NOCOPY_FLAG,NULL,info,&n))goto error;
+  cursor+=rounded;left-=rounded;n=left;
+  if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_PUBLIC_KEY_INFO,&info->SubjectPublicKeyInfo,0,NULL,cursor,&n))goto error;
+- return papacc_configuration_issuer_hash06(o,cursor,n,key);
++ return papacc_configuration_storage_hash(o,cursor,n,key);
+ error:w->native_error=GetLastError();return 0;
+ }
+ static int v3b_free_prepared(PAPACC_CONFIGURATION_COMMIT *o)
+@@ -59,13 +59,13 @@
+  LeaveCriticalSection(&o->lock);
+  /* Owner-thread serialized, nonreentrant ports; never called on Stop path.
+   * Validation outside lock: no native/codec call in the Stop/close path. */
+- result=version==3U?pc_root8_v3_validate(p,n,papacc_configuration_issuer_hash06,o,component,cc):pc_root8_v4_validate(p,n,papacc_configuration_issuer_hash06,o,component,cc);
++ result=version==3U?pc_root8_v3_validate(p,n,papacc_configuration_storage_hash,o,component,cc):pc_root8_v4_validate(p,n,papacc_configuration_storage_hash,o,component,cc);
+  if(result!=PC_ROOT8_OK)return PAPACC_RESULT_INVALID_STATE;
+  off=v3b32(p+48);
+- if(papacc_issuer_image_validate(p+off+8192,&iv,papacc_configuration_issuer_hash06,o)!=PAPACC_ISSUER_OK||
++ if(papacc_issuer_image_validate(p+off+8192,&iv,papacc_configuration_storage_hash,o)!=PAPACC_ISSUER_OK||
+  memcmp(iv.root,p+72,32)||iv.revision!=v3b64(p+120)||
+  !v3b_ca(o,ca,cn,w,key)||memcmp(key,iv.ca_spki_digest,32)||
+- !papacc_configuration_issuer_hash06(o,p,n,ph)||!papacc_configuration_issuer_hash06(o,ca,cn,ch))return PAPACC_RESULT_INVALID_STATE;
++ !papacc_configuration_storage_hash(o,p,n,ph)||!papacc_configuration_storage_hash(o,ca,cn,ch))return PAPACC_RESULT_INVALID_STATE;
+  /* Every SNT row refers to this same public issuer/CA, not a second catalog. */
+  for(j=0;j<(unsigned)(p[252]|((unsigned)p[253]<<8));j++){
+  const PAPACC_U8 *row=p+v3b32(p+244)+64U+768U*j;
+@@ -96,8 +96,8 @@
+  if(o->stopped||o->unresolved||o->authority_lost||!p->ticket||!slot->readers||slot->serial!=p->serial||b->serial!=p->serial)goto done;
+  for(j=0;j<32U;j++)if(o->tickets[j].ticket==p->ticket&&o->tickets[j].serial==p->serial&&o->tickets[j].index==p->index)break;
+  if(j==32U||(version!=3U&&version!=4U)||b->packet_bytes<(version==3U?PC_ROOT8_V3_MIN:PC_ROOT8_V4_MIN)||b->packet_bytes>(version==3U?PC_ROOT8_V3_MAX:PC_ROOT8_V4_MAX)||b->packet[8]!=version||b->packet[9]||!b->ca_bytes||b->ca_bytes>PAPACC_CONFIG_V3_CA_BYTES)goto done;
+- if(!papacc_configuration_issuer_hash06(o,b->packet,b->packet_bytes,d)||memcmp(d,b->packet_hash,32)||
+- !papacc_configuration_issuer_hash06(o,b->ca,b->ca_bytes,d)||memcmp(d,b->ca_hash,32)||
++ if(!papacc_configuration_storage_hash(o,b->packet,b->packet_bytes,d)||memcmp(d,b->packet_hash,32)||
++ !papacc_configuration_storage_hash(o,b->ca,b->ca_bytes,d)||memcmp(d,b->ca_hash,32)||
+  memcmp(slot->view.domain,b->packet+72,32)||slot->view.revision!=v3b64(b->packet+104)||
+  slot->view.predecessor!=v3b64(b->packet+112)||
+  (slot->issuer_revision&&slot->issuer_revision!=v3b64(b->packet+120)))goto done;
+--- a/apps/server/server_configuration_v3_update_cohort_win32.inc
++++ b/apps/server/server_configuration_v3_update_cohort_win32.inc
+@@ -27,7 +27,7 @@
+  memcmp(image+176,base.packet+v3b32(base.packet+56)+88,32)||
+  memcmp(image+208,base.packet+base.packet_bytes-32U,32)||
+  memcmp(image+off,base.packet+v3b32(base.packet+48),16384U)||
+- !store03_zero(image+q,512U)||!papacc_configuration_issuer_hash06(o,image,n-32U,digest)||memcmp(digest,image+n-32U,32))
++ !store03_zero(image+q,512U)||!papacc_configuration_storage_hash(o,image,n-32U,digest)||memcmp(digest,image+n-32U,32))
+  return PAPACC_RESULT_INVALID_ARGUMENT;
+  /* Hash/native work has returned; no pending child borrows the inputs. */
+  EnterCriticalSection(&o->lock);u=&o->v3_update;
+--- a/apps/server/server_configuration_v3_update_act_win32.inc
++++ b/apps/server/server_configuration_v3_update_act_win32.inc
+@@ -82,8 +82,8 @@
+  base->packet_bytes<PC_ROOT8_V3_MIN||base->packet_bytes>PC_ROOT8_V3_MAX||
+  o->committed_bytes!=base->packet_bytes||o->pending_commit.previous_bytes!=base->packet_bytes||
+  memcmp(o->committed,base->packet,base->packet_bytes)||memcmp(o->pending_commit.previous,base->packet,base->packet_bytes)||
+- !papacc_configuration_issuer_hash06(o,b->packet,b->packet_bytes,digest)||memcmp(digest,u->act.candidate_hash,32)||
+- !papacc_configuration_issuer_hash06(o,base->packet,base->packet_bytes,digest)||memcmp(digest,u->act.predecessor_hash,32))return PAPACC_RESULT_INVALID_STATE;
++ !papacc_configuration_storage_hash(o,b->packet,b->packet_bytes,digest)||memcmp(digest,u->act.candidate_hash,32)||
++ !papacc_configuration_storage_hash(o,base->packet,base->packet_bytes,digest)||memcmp(digest,u->act.predecessor_hash,32))return PAPACC_RESULT_INVALID_STATE;
+  return PAPACC_RESULT_OK; /* Correlation ONLY, no native identity or status. */
+ }
+ PAPACC_RESULT papacc_configuration_v3_update_act_capture(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_U8 *selected,PAPACC_SIZE bytes)
+@@ -96,8 +96,8 @@
+  if(u->reserved>PAPACC_ED11_PROCESS_LIMIT||bytes+4096U>PAPACC_ED11_PROCESS_LIMIT-u->reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  memset(&observed,0,sizeof(observed));
+  if(!v3act_native(&u->act,&observed))return PAPACC_RESULT_INVALID_STATE;
+- if(!v3act_ready(o)||!papacc_configuration_issuer_hash06(o,b->packet,bytes,observed.candidate_hash)||
+- !papacc_configuration_issuer_hash06(o,o->committed,o->committed_bytes,observed.predecessor_hash))return PAPACC_RESULT_INVALID_STATE;
++ if(!v3act_ready(o)||!papacc_configuration_storage_hash(o,b->packet,bytes,observed.candidate_hash)||
++ !papacc_configuration_storage_hash(o,o->committed,o->committed_bytes,observed.predecessor_hash))return PAPACC_RESULT_INVALID_STATE;
+  observed.state=PAPACC_V3_ACT_CAPTURED;observed.status=PAPACC_V3_STATUS_SOURCE_ABSENT;u->act=observed;
+  return papacc_configuration_v3_update_act_revalidate(o);
+ }
+--- a/apps/server/server_config_root8_data_win32.c
++++ b/apps/server/server_config_root8_data_win32.c
+@@ -91,7 +91,7 @@
+  ca=pinned_ca(&borrow,ca_workspace);if(!ca)return PC_ROOT8_INCOMPLETE;
+  memset(&signer,0,sizeof(signer));signer.ca=ca;signer.workspace=signer_workspace;
+  signer.certificate=context->v3_certificate;signer.certificate_capacity=context->v3_certificate_capacity;
+- signer.hash=papacc_configuration_issuer_hash06;signer.hash_context=context->owner;signer.already_reserved=context->v3_reserved;
++ signer.hash=papacc_configuration_storage_hash;signer.hash_context=context->owner;signer.already_reserved=context->v3_reserved;
+  data_result=papacc_root8_signer_data(&signer,8U,carrier,bytes,row,header);
+  if(data_result!=PC_ROOT8_OK)return data_result; /* no historical fallback */
+  if(ca_workspace->stopped||signer_workspace->stopped||
+@@ -119,17 +119,17 @@
+  if(!c||!c->owner||!c->workspace||!header||!p||n!=16384U)return PC_ROOT8_INVALID;
+  if(c->owner->stopped||c->owner->unresolved||c->owner->authority_lost)return PC_ROOT8_INCOMPLETE;
+  if(!c->floor||c->floor_bytes!=16384U)return PC_ROOT8_INCOMPLETE;
+- if(papacc_configuration_issuer_carrier_inspect06(c->owner,c->floor,c->floor_bytes,c->workspace,&v)!=PAPACC_RESULT_OK||
+-    papacc_configuration_issuer_carrier_inspect06(c->owner,p,n,c->workspace,&v)!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
++ if(papacc_configuration_storage_carrier_inspect(c->owner,c->floor,c->floor_bytes,c->workspace,&v)!=PAPACC_RESULT_OK||
++    papacc_configuration_storage_carrier_inspect(c->owner,p,n,c->workspace,&v)!=PAPACC_RESULT_OK)return PC_ROOT8_INVALID;
+  if(memcmp(v.root,header+72,32)||v.revision!=le64(header+120)||memcmp(p,c->floor,8192))return PC_ROOT8_INVALID;
+  s=papacc_issuer_checkpoint_assess(p+8192,8192,c->floor+8192,8192,
+-    papacc_configuration_issuer_hash06,c->owner,0,&report);
++    papacc_configuration_storage_hash,c->owner,0,&report);
+  if(s!=PAPACC_ISSUER_DENIED||report.state!=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED)return PC_ROOT8_INVALID;
+  if(kind==6U)return PC_ROOT8_OK; /* relative DATA continuity; never recovery */
+  if(!row||memcmp(row+40,v.authority,16)||memcmp(row+56,v.generation,16)||memcmp(row+568,v.ca_spki_digest,32))return PC_ROOT8_INVALID;
+  if(row[22]==1U)return PC_ROOT8_OK;
+  if(row[22]!=2U&&row[22]!=3U)return PC_ROOT8_INVALID;
+- s=papacc_issuer_image_find(p+8192,row+72,&record,papacc_configuration_issuer_hash06,c->owner);
++ s=papacc_issuer_image_find(p+8192,row+72,&record,papacc_configuration_storage_hash,c->owner);
+  if(s!=PAPACC_ISSUER_OK||record.request.purpose!=PAPACC_ISSUER_SERVER||
+     memcmp(row+88,record.request.csr_digest,32)||memcmp(row+120,record.request.key_digest,32))return PC_ROOT8_INVALID;
+  if(row[22]==3U)return PC_ROOT8_INCOMPLETE; /* DER/profile/SAN authority gate */
+--- a/apps/server/server_configuration_issuer06_win32.inc
++++ b/apps/server/server_configuration_issuer06_win32.inc
+@@ -115,6 +115,41 @@
+  /* Header identity above is serialized DATA, not native namespace custody. */
+  *out=v;out->epoch=0;out->proofs=0;return PAPACC_RESULT_OK;
+ }
++/* Explicit storage DATA twin; historical API above stays native. */
++static int storage_binding06(PAPACC_CONFIGURATION_COMMIT *o,const unsigned char *base,const unsigned char *image,const BY_HANDLE_FILE_INFORMATION *f,PAPACC_ISSUER_VIEW *v)
++{
++ unsigned char hash[32];
++ if(memcmp(base,"PACL0501",8)||get64(base+8)!=5U||memcmp(base+16,image+32,32)||
++  get64(base+104)!=f->dwVolumeSerialNumber||get64(base+112)!=(((PAPACC_U64)f->nFileIndexHigh<<32)|f->nFileIndexLow))return 0;
++ if(!papacc_configuration_storage_hash(o,base,PAPACC_CONFIG_STORE_BYTES,hash)||memcmp(hash,image+192,32))return 0;
++ if(!papacc_configuration_storage_hash(o,base,STORE03_FOOTER,hash)||memcmp(hash,base+STORE03_FOOTER,32))return 0;
++ if(papacc_issuer_image_validate(image,v,papacc_configuration_storage_hash,o)!=PAPACC_ISSUER_OK)return 0;
++ return get64(image+24)==get64(base+48)+1U;
++}
++PAPACC_RESULT papacc_configuration_storage_carrier_inspect(
++ PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_U8 *b,PAPACC_SIZE n,
++ PAPACC_CONFIG_VIEW *workspace,PAPACC_ISSUER_VIEW *out)
++{
++ BY_HANDLE_FILE_INFORMATION f;PAPACC_ISSUER_VIEW v;
++ if(!owner(o)||!b||n!=PAPACC_ISSUER_ROOT_IMAGE_BYTES||!workspace||!out||
++    (ULONG_PTR)b>MAXULONG_PTR-(n-1U)||
++    (ULONG_PTR)workspace>MAXULONG_PTR-(sizeof(*workspace)-1U)||
++    (ULONG_PTR)out>MAXULONG_PTR-(sizeof(*out)-1U)||
++    issuer06_overlap(b,n,o,sizeof(*o))||issuer06_overlap(workspace,sizeof(*workspace),o,sizeof(*o))||
++    issuer06_overlap(out,sizeof(*out),o,sizeof(*o))||issuer06_overlap(workspace,sizeof(*workspace),b,n)||
++    issuer06_overlap(out,sizeof(*out),b,n)||issuer06_overlap(out,sizeof(*out),workspace,sizeof(*workspace)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ memset(out,0,sizeof(*out));memset(workspace,0,sizeof(*workspace));
++ if(o->stopped||o->unresolved||o->authority_lost||pending_blocks(o)||o->prepared||o->committed_pending)return PAPACC_RESULT_INVALID_STATE;
++ memset(&f,0,sizeof(f));f.dwVolumeSerialNumber=(DWORD)get64(b+104);
++ f.nFileIndexHigh=(DWORD)(get64(b+112)>>32);f.nFileIndexLow=(DWORD)get64(b+112);
++ if(!storage_binding06(o,b,b+8192,&f,&v)||
++    !store05_select(&o->store_hash,(unsigned char *)b,&f,workspace)||
++    memcmp(workspace->domain,v.root,32)){
++  memset(workspace,0,sizeof(*workspace));return PAPACC_RESULT_INVALID_STATE;}
++ /* Header identity above is serialized DATA, not native namespace custody. */
++ *out=v;out->epoch=0;out->proofs=0;return PAPACC_RESULT_OK;
++}
++
+ static int issuer06_append(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_CONFIG_VIEW *next,const BY_HANDLE_FILE_INFORMATION *f,unsigned char *b)
+ {
+  PAPACC_ISSUER_VIEW v;
+--- a/apps/server/server_configuration_pending_win32.h
++++ b/apps/server/server_configuration_pending_win32.h
+@@ -6,8 +6,8 @@
+ /* Storage capacity only: format/admission/authority guards remain independent.
+  * Historical codec constants and non-selected targets are unchanged. */
+ #if defined(PAPACC_ED11_WINDOWS_3MIB)
+-#include "../../src/config/config_root8_v3.h"
+-#define PAPACC_CONFIG_TRANSACTION_BYTES PC_ROOT8_V3_MAX
++#include "../../src/config/config_root8_v4.h"
++#define PAPACC_CONFIG_TRANSACTION_BYTES PC_ROOT8_V4_MAX
+ #else
+ #define PAPACC_CONFIG_TRANSACTION_BYTES PAPACC_ISSUER_LINKED_ROOT_BYTES
+ #endif
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3124,3 +3124,26 @@
+  target_compile_options(papacc_store_hash_owner_test PRIVATE /W4 /WX)
+  add_test(NAME papacc.store_hash.owner COMMAND papacc_store_hash_owner_test)
+ endif()
++
++# Same qualified Accelerator-owned capsule, private storage-only build binding.
++if(WIN32 AND TARGET papacc_configuration_commit)
++ set(PACC_STORAGE_CAPSULE "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/storage-hash-capsule")
++ add_library(papacc_storage_sha256 STATIC
++  ${PACC_STORAGE_CAPSULE}/storage_sha256.c ${PACC_STORAGE_CAPSULE}/memory_ops.c
++  ${PACC_STORAGE_CAPSULE}/vendor/bearssl-0.6/src/hash/sha2small.c
++  ${PACC_STORAGE_CAPSULE}/vendor/bearssl-0.6/src/codec/dec32be.c
++  ${PACC_STORAGE_CAPSULE}/vendor/bearssl-0.6/src/codec/enc32be.c)
++ target_include_directories(papacc_storage_sha256 PUBLIC ${PACC_STORAGE_CAPSULE}/vendor/bearssl-0.6/inc
++  PRIVATE ${PACC_STORAGE_CAPSULE} ${PACC_STORAGE_CAPSULE}/adapter_include)
++ target_compile_options(papacc_storage_sha256 PRIVATE /W4 /WX /Oi- /FI${PACC_STORAGE_CAPSULE}/memory_bind.h)
++ set_target_properties(papacc_storage_sha256 PROPERTIES C_STANDARD 90 C_EXTENSIONS NO)
++ get_property(pacc_storage_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
++ foreach(pacc_storage_target IN LISTS pacc_storage_targets)
++  get_target_property(pacc_storage_sources ${pacc_storage_target} SOURCES)
++  if("${pacc_storage_sources}" MATCHES "server_configuration_commit_win32[.]c")
++   target_link_libraries(${pacc_storage_target} PRIVATE papacc_storage_sha256)
++  endif()
++ endforeach()
++ set_property(SOURCE apps/server/server_configuration_commit_win32.c APPEND PROPERTY OBJECT_DEPENDS
++  "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_store_data_hash_win32.inc")
++endif()

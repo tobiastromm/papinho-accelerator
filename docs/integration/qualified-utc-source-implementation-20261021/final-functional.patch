@@ -1,0 +1,313 @@
+--- a/src/issuer/qualified_utc.h
++++ b/src/issuer/qualified_utc.h
+@@ -0,0 +1,54 @@
++#ifndef PAPACC_QUALIFIED_UTC_H
++#define PAPACC_QUALIFIED_UTC_H
++#include <papacc/types.h>
++/* Private, nonserialized DATA calculus for Q0-Q7. Numeric fields, pointers,
++ * presence and DATA_OK are NEVER qualification or administrative authority.
++ * No producer of qualified observations exists in this implementation.
++ * All storage belongs to the caller's existing administrative owner. It must
++ * protect referenced owners/pins until factual quiescence, including failure
++ * and Stop. These functions neither acquire nor release a borrow/resource.
++ * Calls are serialized by that owner. Outputs must be disjoint from inputs. */
++#define PAPACC_UTC_DATA_VERSION 1U
++/* Presence bits 0..12: context, native, m0, m1, lower, upper,
++ * rho_num, rho_den, E, D, read result, quality result, qualified bounds.
++ * This is DATA only, not a route for asserting factual results. */
++#define PAPACC_UTC_DATA_PRESENT 0x1fffU
++#define PAPACC_UTC_NS_PER_SECOND ((PAPACC_U64)1000000000UL)
++typedef struct PAPACC_UTC_CONTEXT {
++ const void *owner,*backend,*source,*pin;
++ PAPACC_U8 root[32],candidate[32];
++ PAPACC_U64 process_lifetime,invocation,revision,qualification,continuity,boundary;
++} PAPACC_UTC_CONTEXT;
++typedef struct PAPACC_UTC_OBSERVATION {
++ PAPACC_U32 version,present;
++ PAPACC_RESULT read_result,quality_result;
++ PAPACC_UTC_CONTEXT context;
++ PAPACC_U64 native_utc,m0,m1,lower,upper,rho_num,rho_den,pal_error,deadline;
++} PAPACC_UTC_OBSERVATION;
++typedef enum PAPACC_UTC_DATA_RESULT {
++ PAPACC_UTC_DATA_OK=0,PAPACC_UTC_DATA_INVALID,PAPACC_UTC_DATA_UNKNOWN,
++ PAPACC_UTC_DATA_LIMIT,PAPACC_UTC_DATA_EXPIRED,PAPACC_UTC_DATA_DISCONTINUITY,
++ PAPACC_UTC_DATA_STOPPED
++} PAPACC_UTC_DATA_RESULT;
++typedef struct PAPACC_UTC_HISTORY {
++ PAPACC_UTC_OBSERVATION last;
++ PAPACC_U64 last_monotonic;
++ unsigned has_last,invalid,stopped;
++} PAPACC_UTC_HISTORY;
++/* Zero-initialize once per governed operation, never reset after failure to
++ * retry until a favorable UTC. Restart cannot restore authority/history.
++ * Failure invalidates applicability but preserves last/context and ownership.
++ * Source/context changes require explicit requalification and a new operation. */
++PAPACC_UTC_DATA_RESULT papacc_utc_data_propagate(const PAPACC_UTC_OBSERVATION *,const PAPACC_UTC_CONTEXT *,PAPACC_U64,PAPACC_U64 *,PAPACC_U64 *);
++PAPACC_UTC_DATA_RESULT papacc_utc_data_observe(PAPACC_UTC_HISTORY *,const PAPACC_UTC_OBSERVATION *);
++PAPACC_UTC_DATA_RESULT papacc_utc_data_query(PAPACC_UTC_HISTORY *,const PAPACC_UTC_CONTEXT *,PAPACC_U64,PAPACC_U64 *,PAPACC_U64 *);
++void papacc_utc_data_invalidate(PAPACC_UTC_HISTORY *);
++void papacc_utc_data_stop(PAPACC_UTC_HISTORY *);
++PAPACC_UTC_DATA_RESULT papacc_utc_data_within(PAPACC_U64,PAPACC_U64,PAPACC_U64,PAPACC_U64);
++PAPACC_UTC_DATA_RESULT papacc_utc_data_filetime(PAPACC_U64,PAPACC_U64 *);
++struct PAPACC_ISSUER_BACKEND;
++/* Existing scalar backend.utc and PAL do not expose Q2 provenance, finite E,
++ * rate or continuity. Always NOT_SUPPORTED, without reading UTC, issuing I/O,
++ * writing output, or treating backend/test callbacks as evidence. */
++PAPACC_RESULT papacc_issuer_qualified_utc_read(const struct PAPACC_ISSUER_BACKEND *,PAPACC_UTC_OBSERVATION *);
++#endif
+--- a/src/issuer/qualified_utc.c
++++ b/src/issuer/qualified_utc.c
+@@ -0,0 +1,112 @@
++#include "qualified_utc.h"
++#include <string.h>
++#define UTC_MAX (~(PAPACC_U64)0)
++static int add(PAPACC_U64 a,PAPACC_U64 b,PAPACC_U64 *v)
++{
++ if(a>UTC_MAX-b)return 0;
++ *v=a+b;return 1;
++}
++static int mul(PAPACC_U64 a,PAPACC_U64 b,PAPACC_U64 *v)
++{
++ if(b&&a>UTC_MAX/b)return 0;
++ *v=a*b;return 1;
++}
++static int same(const PAPACC_UTC_CONTEXT *a,const PAPACC_UTC_CONTEXT *b)
++{
++ return a->owner==b->owner&&a->backend==b->backend&&a->source==b->source&&a->pin==b->pin&&
++ !memcmp(a->root,b->root,32)&&!memcmp(a->candidate,b->candidate,32)&&
++ a->process_lifetime==b->process_lifetime&&a->invocation==b->invocation&&
++ a->revision==b->revision&&a->qualification==b->qualification&&
++ a->continuity==b->continuity&&a->boundary==b->boundary;
++}
++static PAPACC_UTC_DATA_RESULT shape(const PAPACC_UTC_OBSERVATION *o)
++{
++ if(!o||o->version!=PAPACC_UTC_DATA_VERSION)return PAPACC_UTC_DATA_INVALID;
++ if(o->present!=PAPACC_UTC_DATA_PRESENT||o->read_result!=PAPACC_RESULT_OK||
++ o->quality_result!=PAPACC_RESULT_OK)return PAPACC_UTC_DATA_UNKNOWN;
++ if(o->lower>o->upper||o->m0>o->m1||o->m1>=o->deadline||
++ !o->rho_den||o->rho_num>=o->rho_den)return PAPACC_UTC_DATA_INVALID;
++ return PAPACC_UTC_DATA_OK;
++}
++PAPACC_UTC_DATA_RESULT papacc_utc_data_propagate(const PAPACC_UTC_OBSERVATION *o,
++ const PAPACC_UTC_CONTEXT *c,PAPACC_U64 m,PAPACC_U64 *lower,PAPACC_U64 *upper)
++{
++ PAPACC_UTC_DATA_RESULT r;PAPACC_U64 d,p,a,b,n,dl,du,l,u;
++ if(!c||!lower||!upper||lower==upper)return PAPACC_UTC_DATA_INVALID;
++ r=shape(o);if(r!=PAPACC_UTC_DATA_OK)return r;
++ if(!same(&o->context,c)||m<o->m1)return PAPACC_UTC_DATA_DISCONTINUITY;
++ if(m>=o->deadline)return PAPACC_UTC_DATA_EXPIRED;
++ d=m-o->m1;
++ /* A representable result with an unrepresentable intermediate is denied,
++  * never saturated or silently approximated. All roundings are outward. */
++ if(!mul(d,o->rho_den-o->rho_num,&p))return PAPACC_UTC_DATA_LIMIT;
++ a=p/o->rho_den;
++ if(!add(o->rho_den,o->rho_num,&n)||!mul(d,n,&p))return PAPACC_UTC_DATA_LIMIT;
++ b=p/o->rho_den;
++ if(p%o->rho_den&&!add(b,1,&b))return PAPACC_UTC_DATA_LIMIT;
++ dl=a<=o->pal_error?0:a-o->pal_error;
++ if(!add(b,o->pal_error,&du)||!add(o->lower,dl,&l)||!add(o->upper,du,&u))return PAPACC_UTC_DATA_LIMIT;
++ *lower=l;*upper=u;return PAPACC_UTC_DATA_OK;
++}
++PAPACC_UTC_DATA_RESULT papacc_utc_data_observe(PAPACC_UTC_HISTORY *h,const PAPACC_UTC_OBSERVATION *o)
++{
++ PAPACC_UTC_DATA_RESULT r;PAPACC_U64 l,u;
++ if(!h)return PAPACC_UTC_DATA_INVALID;
++ if(h->stopped)return PAPACC_UTC_DATA_STOPPED;
++ if(h->invalid)return PAPACC_UTC_DATA_INVALID;
++ r=shape(o);
++ if(r==PAPACC_UTC_DATA_OK&&h->has_last){
++  if(o->native_utc<h->last.native_utc||o->m0<h->last_monotonic||
++   o->rho_num!=h->last.rho_num||o->rho_den!=h->last.rho_den||
++   o->pal_error!=h->last.pal_error||o->deadline!=h->last.deadline)
++   r=PAPACC_UTC_DATA_DISCONTINUITY;
++  else{
++   r=papacc_utc_data_propagate(&h->last,&o->context,o->m1,&l,&u);
++   if(r==PAPACC_UTC_DATA_OK&&(o->upper<l||o->lower>u))r=PAPACC_UTC_DATA_DISCONTINUITY;
++  }
++ }
++ if(r!=PAPACC_UTC_DATA_OK){h->invalid=1;return r;}
++ h->last=*o;h->last_monotonic=o->m1;h->has_last=1;return PAPACC_UTC_DATA_OK;
++}
++PAPACC_UTC_DATA_RESULT papacc_utc_data_query(PAPACC_UTC_HISTORY *h,const PAPACC_UTC_CONTEXT *c,
++ PAPACC_U64 m,PAPACC_U64 *l,PAPACC_U64 *u)
++{
++ PAPACC_UTC_DATA_RESULT r;
++ if(!h)return PAPACC_UTC_DATA_INVALID;
++ if(h->stopped)return PAPACC_UTC_DATA_STOPPED;
++ if(h->invalid)return PAPACC_UTC_DATA_INVALID;
++ if(!h->has_last)return PAPACC_UTC_DATA_UNKNOWN;
++ if(m<h->last_monotonic){h->invalid=1;return PAPACC_UTC_DATA_DISCONTINUITY;}
++ r=papacc_utc_data_propagate(&h->last,c,m,l,u);
++ if(r!=PAPACC_UTC_DATA_OK)h->invalid=1;
++ else h->last_monotonic=m;
++ return r;
++}
++void papacc_utc_data_invalidate(PAPACC_UTC_HISTORY *h)
++{
++ if(h)h->invalid=1;
++}
++void papacc_utc_data_stop(PAPACC_UTC_HISTORY *h)
++{
++ if(h){h->stopped=1;h->invalid=1;}
++}
++PAPACC_UTC_DATA_RESULT papacc_utc_data_within(PAPACC_U64 l,PAPACC_U64 u,PAPACC_U64 nb,PAPACC_U64 na)
++{
++ PAPACC_U64 a,b;
++ if(l>u||nb>=na)return PAPACC_UTC_DATA_INVALID;
++ if(!mul(nb,PAPACC_UTC_NS_PER_SECOND,&a)||!mul(na,PAPACC_UTC_NS_PER_SECOND,&b))return PAPACC_UTC_DATA_LIMIT;
++ return a<=l&&u<b?PAPACC_UTC_DATA_OK:PAPACC_UTC_DATA_INVALID;
++}
++PAPACC_UTC_DATA_RESULT papacc_utc_data_filetime(PAPACC_U64 f,PAPACC_U64 *out)
++{
++ PAPACC_U64 epoch,v;
++ epoch=(PAPACC_U64)116444736UL*(PAPACC_U64)1000000000UL;
++ if(!out||f<epoch)return PAPACC_UTC_DATA_INVALID;
++ if(!mul(f-epoch,100,&v))return PAPACC_UTC_DATA_LIMIT;
++ *out=v;return PAPACC_UTC_DATA_OK;
++}
++PAPACC_RESULT papacc_issuer_qualified_utc_read(const struct PAPACC_ISSUER_BACKEND *backend,PAPACC_UTC_OBSERVATION *out)
++{
++ (void)backend;(void)out;
++ return PAPACC_RESULT_NOT_SUPPORTED;
++}
+--- a/tests/qualified_utc_test.c
++++ b/tests/qualified_utc_test.c
+@@ -0,0 +1,106 @@
++#include "qualified_utc.h"
++#include "issuer_core.h"
++#include <stdio.h>
++#include <string.h>
++#define MAXIMUM (~(PAPACC_U64)0)
++static unsigned checks,failures;
++static void check(int value,unsigned line)
++{
++ ++checks;if(!value){++failures;printf("FAIL line %u\n",line);}
++}
++#define CHECK(x) check((x),(unsigned)__LINE__)
++static PAPACC_UTC_OBSERVATION sample(void)
++{
++ PAPACC_UTC_OBSERVATION o;
++ memset(&o,0,sizeof(o));o.version=PAPACC_UTC_DATA_VERSION;o.present=PAPACC_UTC_DATA_PRESENT;
++ o.native_utc=1000;o.lower=990;o.upper=1010;o.m0=90;o.m1=100;o.deadline=10000;
++ o.rho_num=1;o.rho_den=10;o.pal_error=2;
++ return o;
++}
++static unsigned scalar_calls;
++static PAPACC_ISSUER_RESULT scalar(void *p,PAPACC_U64 *v)
++{
++ (void)p;++scalar_calls;*v=1000;return PAPACC_ISSUER_OK;
++}
++int main(void)
++{
++ PAPACC_UTC_OBSERVATION o,n,saved;PAPACC_UTC_CONTEXT c;
++ PAPACC_UTC_HISTORY h;PAPACC_ISSUER_BACKEND backend;
++ PAPACC_U64 l,u,v,epoch;unsigned den,num,d,e,bit;
++ o=sample();l=7;u=8;
++ CHECK(papacc_utc_data_propagate(&o,&o.context,100,&l,&u)==PAPACC_UTC_DATA_OK&&l==990&&u==1012);
++ CHECK(papacc_utc_data_propagate(&o,&o.context,101,&l,&u)==PAPACC_UTC_DATA_OK&&l==990&&u==1014);
++ CHECK(papacc_utc_data_propagate(&o,&o.context,111,&l,&u)==PAPACC_UTC_DATA_OK&&l==997&&u==1025);
++ /* Exhaustive small rational vectors: exact outward endpoints and errors,
++  * including zero rate/duration/error and both fractional directions. */
++ for(den=1;den<=9;++den)for(num=0;num<den;++num)for(d=0;d<32;++d)for(e=0;e<4;++e){
++  PAPACC_U64 a,b;
++  o=sample();o.rho_num=num;o.rho_den=den;o.pal_error=e;
++  a=(d*(den-num))/den;b=(d*(den+num)+den-1)/den;
++  CHECK(papacc_utc_data_propagate(&o,&o.context,o.m1+d,&l,&u)==PAPACC_UTC_DATA_OK);
++  CHECK(l==o.lower+(a<=e?0:a-e)&&u==o.upper+b+e);
++ }
++ o=sample();
++ for(bit=0;bit<13;++bit){n=o;n.present&=~(1U<<bit);l=7;u=8;
++  CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_UNKNOWN&&l==7&&u==8);}
++ n=o;n.read_result=PAPACC_RESULT_INTERNAL_ERROR;CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_UNKNOWN);
++ n=o;n.quality_result=PAPACC_RESULT_NOT_SUPPORTED;CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_UNKNOWN);
++ n=o;n.version=2;CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_INVALID);
++ n=o;n.rho_den=0;CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_INVALID);
++ n=o;n.rho_num=n.rho_den;CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_INVALID);
++ n=o;n.lower=n.upper+1;CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_INVALID);
++ n=o;n.m0=n.m1+1;CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_INVALID);
++ CHECK(papacc_utc_data_propagate(&o,&o.context,99,&l,&u)==PAPACC_UTC_DATA_DISCONTINUITY);
++ CHECK(papacc_utc_data_propagate(&o,&o.context,o.deadline,&l,&u)==PAPACC_UTC_DATA_EXPIRED);
++ c=o.context;c.revision++;CHECK(papacc_utc_data_propagate(&o,&c,100,&l,&u)==PAPACC_UTC_DATA_DISCONTINUITY);
++ c=o.context;c.source=&c;CHECK(papacc_utc_data_propagate(&o,&c,100,&l,&u)==PAPACC_UTC_DATA_DISCONTINUITY);
++ c=o.context;c.pin=&c;CHECK(papacc_utc_data_propagate(&o,&c,100,&l,&u)==PAPACC_UTC_DATA_DISCONTINUITY);
++ c=o.context;c.boundary++;CHECK(papacc_utc_data_propagate(&o,&c,100,&l,&u)==PAPACC_UTC_DATA_DISCONTINUITY);
++ c=o.context;c.process_lifetime++;CHECK(papacc_utc_data_propagate(&o,&c,100,&l,&u)==PAPACC_UTC_DATA_DISCONTINUITY);
++ n=o;n.rho_den=MAXIMUM;n.rho_num=1;CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_LIMIT);
++ n=o;n.rho_den=MAXIMUM;n.rho_num=0;CHECK(papacc_utc_data_propagate(&n,&n.context,102,&l,&u)==PAPACC_UTC_DATA_LIMIT);
++ n=o;n.pal_error=MAXIMUM;CHECK(papacc_utc_data_propagate(&n,&n.context,101,&l,&u)==PAPACC_UTC_DATA_LIMIT);
++ n=o;n.upper=MAXIMUM;CHECK(papacc_utc_data_propagate(&n,&n.context,100,&l,&u)==PAPACC_UTC_DATA_LIMIT);
++ n=o;n.lower=MAXIMUM-1;n.upper=MAXIMUM-1;n.pal_error=0;n.rho_num=0;n.rho_den=1;
++ CHECK(papacc_utc_data_propagate(&n,&n.context,102,&l,&u)==PAPACC_UTC_DATA_LIMIT);
++
++ n=o;n.m0=0;n.m1=0;n.deadline=MAXIMUM;n.rho_den=3;n.rho_num=2;
++ CHECK(papacc_utc_data_propagate(&n,&n.context,MAXIMUM/4,&l,&u)==PAPACC_UTC_DATA_LIMIT);
++ CHECK(papacc_utc_data_within(0,999999999,0,1)==PAPACC_UTC_DATA_OK);
++ CHECK(papacc_utc_data_within(0,1000000000,0,1)==PAPACC_UTC_DATA_INVALID);
++ CHECK(papacc_utc_data_within(999999999,1000000001,1,2)==PAPACC_UTC_DATA_INVALID);
++ CHECK(papacc_utc_data_within(0,1,0,MAXIMUM)==PAPACC_UTC_DATA_LIMIT);
++ epoch=(PAPACC_U64)116444736UL*(PAPACC_U64)1000000000UL;v=77;
++ CHECK(papacc_utc_data_filetime(epoch-1,&v)==PAPACC_UTC_DATA_INVALID&&v==77);
++ CHECK(papacc_utc_data_filetime(epoch,&v)==PAPACC_UTC_DATA_OK&&v==0);
++ CHECK(papacc_utc_data_filetime(epoch+1,&v)==PAPACC_UTC_DATA_OK&&v==100);
++ v=77;CHECK(papacc_utc_data_filetime(MAXIMUM,&v)==PAPACC_UTC_DATA_LIMIT&&v==77);
++ memset(&h,0,sizeof(h));CHECK(papacc_utc_data_query(&h,&o.context,100,&l,&u)==PAPACC_UTC_DATA_UNKNOWN);
++ CHECK(papacc_utc_data_observe(&h,&o)==PAPACC_UTC_DATA_OK);
++ CHECK(papacc_utc_data_query(&h,&o.context,110,&l,&u)==PAPACC_UTC_DATA_OK);
++ CHECK(papacc_utc_data_query(&h,&o.context,109,&l,&u)==PAPACC_UTC_DATA_DISCONTINUITY);
++ CHECK(!memcmp(&h.last,&o,sizeof(o))&&h.invalid);
++ CHECK(papacc_utc_data_observe(&h,&o)==PAPACC_UTC_DATA_INVALID);
++ memset(&h,0,sizeof(h));CHECK(papacc_utc_data_observe(&h,&o)==PAPACC_UTC_DATA_OK);
++ n=o;n.m0=110;n.m1=111;n.native_utc=1011;n.lower=997;n.upper=1025;
++ CHECK(papacc_utc_data_observe(&h,&n)==PAPACC_UTC_DATA_OK);
++ saved=h.last;n.native_utc--;n.m0=111;n.m1=112;
++ CHECK(papacc_utc_data_observe(&h,&n)==PAPACC_UTC_DATA_DISCONTINUITY&&!memcmp(&h.last,&saved,sizeof(saved)));
++ memset(&h,0,sizeof(h));CHECK(papacc_utc_data_observe(&h,&o)==PAPACC_UTC_DATA_OK);
++ n=o;n.m0=110;n.m1=111;n.lower=2000;n.upper=2010;
++ CHECK(papacc_utc_data_observe(&h,&n)==PAPACC_UTC_DATA_DISCONTINUITY);
++ memset(&h,0,sizeof(h));CHECK(papacc_utc_data_observe(&h,&o)==PAPACC_UTC_DATA_OK);
++ c=o.context;c.continuity++;
++ CHECK(papacc_utc_data_query(&h,&c,100,&l,&u)==PAPACC_UTC_DATA_DISCONTINUITY);
++ memset(&h,0,sizeof(h));CHECK(papacc_utc_data_observe(&h,&o)==PAPACC_UTC_DATA_OK);
++ saved=h.last;papacc_utc_data_stop(&h);
++ CHECK(papacc_utc_data_query(&h,&o.context,100,&l,&u)==PAPACC_UTC_DATA_STOPPED);
++ CHECK(papacc_utc_data_observe(&h,&o)==PAPACC_UTC_DATA_STOPPED&&!memcmp(&h.last,&saved,sizeof(saved)));
++ memset(&h,0,sizeof(h)); /* New process DATA, never restores authority. */
++ CHECK(papacc_utc_data_query(&h,&o.context,100,&l,&u)==PAPACC_UTC_DATA_UNKNOWN);
++ memset(&backend,0,sizeof(backend));backend.utc=scalar;saved=o;
++ CHECK(papacc_issuer_qualified_utc_read(&backend,&o)==PAPACC_RESULT_NOT_SUPPORTED&&scalar_calls==0&&!memcmp(&saved,&o,sizeof(o)));
++ CHECK(papacc_issuer_qualified_utc_read(NULL,&o)==PAPACC_RESULT_NOT_SUPPORTED&&!memcmp(&saved,&o,sizeof(o)));
++ printf("CHECKS=%u FAILURES=%u CONTEXT=%u OBSERVATION=%u HISTORY=%u\n",checks,failures,(unsigned)sizeof(c),(unsigned)sizeof(o),(unsigned)sizeof(h));
++ return failures?1:0;
++}
+--- a/src/issuer/issuer_core.h
++++ b/src/issuer/issuer_core.h
+@@ -87,4 +87,4 @@
+ PAPACC_ISSUER_RESULT papacc_issuer_recover(PAPACC_ISSUER_CORE *,const PAPACC_U8[16]);
+ void papacc_issuer_stop(PAPACC_ISSUER_CORE *);
+ PAPACC_ISSUER_RESULT papacc_issuer_finish(PAPACC_ISSUER_CORE *);
+-#endif
+\ No newline at end of file
++#endif
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -53,7 +53,7 @@
+ set_source_files_properties(src/issuer/issuer_core.c tests/issuer_core_test.c
+     tests/issuer_production_gate_test.c PROPERTIES OBJECT_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/src/issuer/issuer_core.h;${CMAKE_CURRENT_SOURCE_DIR}/include/papacc/types.h")
+-add_library(papacc_issuer STATIC src/issuer/issuer_core.c src/issuer/issuer_codec.c)
++add_library(papacc_issuer STATIC src/issuer/issuer_core.c src/issuer/issuer_codec.c src/issuer/qualified_utc.c)
+ target_include_directories(papacc_issuer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/issuer)
+ target_link_libraries(papacc_issuer PUBLIC papacc_core)
+ set_target_properties(papacc_issuer PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+@@ -70,6 +70,11 @@
+     target_link_libraries(papacc_issuer_production_gate_test PRIVATE papacc_issuer)
+     papacc_enable_warnings(papacc_issuer_production_gate_test)
+     add_test(NAME papacc.issuer.production_gate COMMAND papacc_issuer_production_gate_test)
++    add_executable(papacc_qualified_utc_test tests/qualified_utc_test.c)
++    target_link_libraries(papacc_qualified_utc_test PRIVATE papacc_issuer)
++    set_target_properties(papacc_qualified_utc_test PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++    papacc_enable_warnings(papacc_qualified_utc_test)
++    add_test(NAME papacc.issuer.qualified_utc_data COMMAND papacc_qualified_utc_test)
+     if(WIN32)
+     add_executable(papacc_issuer_checkpoint_test tests/issuer_checkpoint_test.c)
+     target_link_libraries(papacc_issuer_checkpoint_test PRIVATE papacc_issuer bcrypt)

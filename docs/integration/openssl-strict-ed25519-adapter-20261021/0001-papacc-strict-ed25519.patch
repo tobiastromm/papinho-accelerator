@@ -1,0 +1,47 @@
+--- a/crypto/ec/curve25519.c
++++ b/crypto/ec/curve25519.c
+@@ -5877,3 +5877,44 @@
+ 
+     OPENSSL_cleanse(e, sizeof(e));
+ }
++
++/* Downstream public DATA check; no source/trust/status authority.
++ * This entry reuses ONLY this translation unit's existing arithmetic.
++ * Return: 1 valid, 0 invalid, -1 internal invariant failure.
++ * -2 is reserved for an unavailable backend at the consumer boundary.
++ */
++int papacc_ossl358_ed25519_point_check(const unsigned char *key, size_t bytes)
++{
++    static const unsigned char order[32] = {
++        0xed,0xd3,0xf5,0x5c,0x1a,0x63,0x12,0x58,
++        0xd6,0x9c,0xf7,0xa2,0xde,0xf9,0xde,0x14,
++        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x10
++    };
++    static const unsigned char zero[32] = {0};
++    static const unsigned char identity[32] = {1};
++    ge_p3 point;
++    ge_p2 multiple;
++    unsigned char encoded[32];
++    unsigned int i;
++
++    if (key == NULL || bytes != 32)
++        return 0;
++    if (ge_frombytes_vartime(&point, key) != 0)
++        return 0;
++    ge_p3_tobytes(encoded, &point);
++    if (memcmp(encoded, key, 32) != 0)
++        return 0;
++    if (memcmp(encoded, identity, 32) == 0)
++        return 0;
++    /* Integer L, NOT x25519_sc_reduce(L), NOT cofactor-cleared input. */
++    ge_double_scalarmult_vartime(&multiple, order, &point, zero);
++    /* Projective zero denominator is an internal invariant failure. */
++    if (fe_isnonzero(multiple.Z) == 0)
++        return -1;
++    ge_tobytes(encoded, &multiple);
++    for (i = 0; i < 32; ++i) {
++        if (encoded[i] != identity[i])
++            return 0;
++    }
++    return 1;
++}

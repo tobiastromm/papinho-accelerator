@@ -1,0 +1,26 @@
+--- apps/server/server_service_win32.c
++++ apps/server/server_service_win32.c
+@@ -137,7 +137,7 @@
+   (void)ps_stop(&host.life);(void)ps_report(SERVICE_STOP_PENDING,ERROR_SUCCESS);return 0;
+  }
+  if(!ps_running(&host.life)||!ps_report(SERVICE_RUNNING,ERROR_SUCCESS))return 0;
+- if(InterlockedCompareExchange(&host.stop,0,0)){(void)ps_stop(&host.life);(void)ps_report(SERVICE_STOP_PENDING,ERROR_SUCCESS);return 0;}
++ if(InterlockedCompareExchange(&host.stop,0,0)||papacc_server_console_win32_stop_requested()){(void)ps_stop(&host.life);(void)ps_report(SERVICE_STOP_PENDING,ERROR_SUCCESS);return 0;}
+  return 1;
+ }
+ int papacc_server_service_runtime_stopping(void)
+@@ -166,7 +166,14 @@
+ }
+ static void WINAPI ps_main(DWORD argc,wchar_t **argv)
+ {
++#ifdef PAPACC_SCM_REGISTRATION_LAB
++ /* Table name alone is not identity for an own-process service. Fail closed
++  * for missing/mismatched LAB name or extra service-start arguments. This
++  * predicate never grants factual binding, token isolation or admission. */
++ if(argc!=1U||!argv||!argv[0]||_wcsicmp(argv[0],ps_name)){host.result=2;return;}
++#else
+  (void)argc;(void)argv;
++#endif
+  host.thread=GetCurrentThreadId();
+  if(!ps_begin(&host.life)){host.result=2;return;}
+  host.handle=RegisterServiceCtrlHandlerExW(ps_name,ps_handler,NULL);

@@ -1,0 +1,9 @@
+/* Closed bootstrap is not operational authority. Body still validates every pin. */
+static int ig_transport_decimal(const char *s,ULONGLONG limit,ULONGLONG *out){ULONGLONG n=0;unsigned d;if(!s||!*s||*s=='0')return 0;for(;*s;s++){if(*s<'0'||*s>'9')return 0;d=(unsigned)(*s-'0');if(n>(limit-d)/10)return 0;n=n*10+d;}*out=n;return n!=0;}
+int main(int argc,char **argv){WCHAR name[96];ULONGLONG pid=0,created=0;DWORD error;int result;
+ if(argc!=13||strcmp(argv[9],"--private-stdout")||!ig_n0_readonly_command(argc-4,argv)||strcmp(argv[2],IG_ATTEMPT)||!ig_transport_decimal(argv[11],MAXDWORD,&pid)||!ig_transport_decimal(argv[12],~(ULONGLONG)0,&created)||strcmp(argv[3],argv[11])||strcmp(argv[4],argv[12])||!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,argv[10],-1,name,96)){fprintf(stderr,"PRIVATE_STDOUT_BOOTSTRAP_DENY; NO_PREFLIGHT\n");return 2;}
+ error=PaccTransportClient(name,(DWORD)pid,created);
+ if(error){fprintf(stderr,"PRIVATE_STDOUT_AUTH_DENY error=%lu; NO_PREFLIGHT\n",(unsigned long)error);if(PaccTransportClientClose())ig_transport_write_failed();return 2;}
+ result=ig_transport_body(argc-4,argv);
+ if(PaccTransportClientClose())ig_transport_write_failed();return result;
+}

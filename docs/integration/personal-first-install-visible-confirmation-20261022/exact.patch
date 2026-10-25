@@ -1,0 +1,68 @@
+--- apps/server/server_launcher_personal_win32.inc
++++ apps/server/server_launcher_personal_win32.inc
+@@ -13,19 +13,36 @@
+  if(!personal_console_write(h,b))return 0;++p;}
+  return personal_console_write(h,"\"");
+ }
+-static int personal_console_confirm(HANDLE in,const char *expected)
++static int personal_console_confirm(HANDLE in,HANDLE out,const char *expected)
+ {
+- INPUT_RECORD event;DWORD count;char reply[128];size_t used=0;DWORD wait;
++ INPUT_RECORD event;DWORD count;char reply[128],text[2];size_t used=0;
++ DWORD wait;unsigned repeat;unsigned char ch;
++ /* ReadConsoleInput does not echo: explicitly display only this nonsecret
++  * ASCII declaration. Never change shared console modes or log input. */
++ if(!personal_console_write(out,"> "))return 0;
+  for(;;){
+  if(papacc_server_console_win32_stop_requested())return 0;
+  wait=WaitForSingleObject(in,50U);if(wait==WAIT_TIMEOUT)continue;if(wait!=WAIT_OBJECT_0)return 0;
+  if(!ReadConsoleInputA(in,&event,1U,&count)||count!=1U)return 0;
+  if(event.EventType!=KEY_EVENT||!event.Event.KeyEvent.bKeyDown)continue;
+- if(event.Event.KeyEvent.wVirtualKeyCode==VK_ESCAPE)return 0;
+- if(event.Event.KeyEvent.wVirtualKeyCode==VK_RETURN){reply[used]=0;return strcmp(reply,expected)==0;}
+- if(event.Event.KeyEvent.wVirtualKeyCode==VK_BACK){if(used)--used;continue;}
+- if(!event.Event.KeyEvent.uChar.AsciiChar)continue;
+- if(used>=sizeof(reply)-1U)return 0;reply[used++]=event.Event.KeyEvent.uChar.AsciiChar;
++ if(event.Event.KeyEvent.wVirtualKeyCode==VK_ESCAPE){(void)personal_console_write(out,"\r\nCONFIRMATION_CANCELLED\r\n");return 0;}
++ if(event.Event.KeyEvent.wVirtualKeyCode==VK_RETURN){
++  if(!personal_console_write(out,"\r\n"))return 0;
++  reply[used]=0;return strcmp(reply,expected)==0;
++ }
++ if(event.Event.KeyEvent.wVirtualKeyCode==VK_BACK){
++  for(repeat=0;repeat<event.Event.KeyEvent.wRepeatCount&&used;repeat++){
++   --used;if(!personal_console_write(out,"\b \b"))return 0;
++  }
++  continue;
++ }
++ ch=(unsigned char)event.Event.KeyEvent.uChar.AsciiChar;
++ if(ch<32U||ch>126U)continue;
++ text[0]=(char)ch;text[1]=0;
++ for(repeat=0;repeat<event.Event.KeyEvent.wRepeatCount;repeat++){
++  if(used>=sizeof(reply)-1U){(void)personal_console_write(out,"\r\nCONFIRMATION_TOO_LONG_DENY\r\n");return 0;}
++  reply[used++]=(char)ch;if(!personal_console_write(out,text))return 0;
++ }
+  }
+ }
+ int papacc_server_launcher_personal_first_install(const char *source,const char *parent,const char *leaf,FILE *err)
+@@ -69,8 +86,8 @@
+  if(!personal_console_write(output,"\n"))goto done;}
+  strcpy_s(expected,sizeof(expected),"OWNER_NEW_INSTALL ");len=strlen(expected);
+  for(i=0;i<32U;i++){expected[len+i*2U]=hex[id[i]>>4];expected[len+i*2U+1U]=hex[id[i]&15U];}expected[len+64U]=0;
+- if(!personal_console_write(output,"Policy: personal F0-F9 / 2026-10-22.\nDeclare legitimate ownership/administration and a NEW installation, not restore.\nPersistent bootstrap effects, local CA identity and nonexportable custody require their separate gates.\nCA_INITIALIZE is NOT requested here. No key/certificate/signature/CURRENT will be created.\nNative/material/CA/ED11 admission remains DENY. Esc cancels.\nType the following exact declaration for THIS displayed attempt only:\n")||!personal_console_write(output,expected)||!personal_console_write(output,"\n"))goto done;
+- if(!papacc_personal_data_present(&p->personal_data)||!personal_console_confirm(input,expected)||papacc_server_console_win32_stop_requested())goto done;
++ if(!personal_console_write(output,"Policy: personal F0-F9 / 2026-10-22.\nDeclare legitimate ownership/administration and a NEW installation, not restore.\nPersistent bootstrap effects, local CA identity and nonexportable custody require their separate gates.\nCA_INITIALIZE is NOT requested here. No key/certificate/signature/CURRENT will be created.\nNative/material/CA/ED11 admission remains DENY. Esc cancels.\nType the ENTIRE line below, then Enter. Input is visible; do not type passwords.\nDeclaration for THIS displayed attempt only:\n")||!personal_console_write(output,expected)||!personal_console_write(output,"\n"))goto done;
++ if(!papacc_personal_data_present(&p->personal_data)||!personal_console_confirm(input,output,expected)||papacc_server_console_win32_stop_requested())goto done;
+  if(papacc_configuration_personal_native_current(c)!=PAPACC_RESULT_OK||strcmp((char *)p->previous,leaf))goto done;
+  if(papacc_configuration_personal_source_current(c)!=PAPACC_RESULT_OK)goto done;
+  if(papacc_server_console_win32_stop_requested()||!papacc_personal_data_confirm(&p->personal_data,id,p->next,bytes))goto done;
+--- tools/qualification/personal-first-install-uac.ps1
++++ tools/qualification/personal-first-install-uac.ps1
+@@ -222,7 +222,7 @@
+   [Console]::WriteLine('CA/CURRENT/signature remain DENY. UNKNOWN is not rollback; never retry it automatically.')
+   $exitCode=2
+   if($result -eq 'READ_ONLY_WORKER_VERIFIED_FINAL_DENY' -and $absent){$exitCode=0}
+-  [Console]::WriteLine('Press a key to close this qualification window.');[void][Console]::ReadKey($true)
++  # Result window is held by Wait-ForManualClose in finally (F10 only).
+  }
+ } catch {
+  # Codes only: no raw stderr, plan, source text, token bytes or secret logs.

@@ -1,0 +1,70 @@
+{
+  "status": "PENDING_SPECIFIC_OWNER_APPROVAL_NOT_APPLIED",
+  "request_kind": "DOCUMENTARY_P3_DISPOSITION_ONLY_NOT_LAB_OPERATION",
+  "historical_operation": "N0START-20261024-02",
+  "historical_attempt": "75330d11cc7e4123ae62eadc9a59c2f5",
+  "normative_rule": {
+    "path": "docs/adr/DECISION-prestart-consumed-attempt-administrative-disposition-20261024.md",
+    "sha256": "8fcdea4ae9c639bef55a5a9ef97eeb93044a1ccf441b62a6347253602f596c6e"
+  },
+  "evidence_manifest": {
+    "path": "docs/integration/p35-authorized-manual-readonly-result-20261024/p3-evidence-manifest.json",
+    "sha256": "aec1c9a837ebc0e506339686965bc65b6eba2cfdca9a307e8887912a9828ec7a"
+  },
+  "P3_1": "ORIGIN_IDENTITY_INTEGRITY_RECONCILED_HISTORICAL_SCOPE",
+  "P3_2": "NO_START_CALL_BY_THIS_ATTEMPT_EVIDENCED",
+  "P3_3": "OWNED_REFERENCES_AND_CONTROLLED_BORROWS_CLOSED_EVIDENCED",
+  "P3_4": "NO_KNOWN_OWNER_PENDING_EVIDENCED",
+  "P3_5": "PERSISTENT_EFFECTS_RECONCILED_SEQUENTIAL_READONLY_QUERIES_AND_OWNER_MANUAL_RECEIPT",
+  "P3_6": "NOT_YET_APPROVED",
+  "requested_effect": "One exclusive documentary disposition record CONSUMED_BEFORE_START -> ADMINISTRATIVELY_CLOSED_WITH_RETAINED_EFFECTS after specific approval and final integrity review; no runtime state change",
+  "target_document": "docs/integration/prestart-administrative-disposition-acceptance-20261024/P3-EXACT-DISPOSITION-RECORDED.md",
+  "target_exists": false,
+  "must_preserve": {
+    "intent": "CONSUMED_NO_REPLAY",
+    "starts": 0,
+    "stops": 0,
+    "close": 0,
+    "quiescent": 0,
+    "first_error": 1816,
+    "effect": 2,
+    "diagnostic_created": 1,
+    "image_sink_ImagePath": "PRESERVED",
+    "local_close": "ONLY_EVIDENCED_OWNER_SCOPE",
+    "unknown_charges": "RETAINED",
+    "real_reservations": "NOT_RELEASED",
+    "host_credits": "NONE_GRANTED",
+    "refund": 0,
+    "ED11": "PARTIAL",
+    "current": "DENY",
+    "signature": "DENY",
+    "authoritative_recovery": "DENY"
+  },
+  "allowed_after_documentary_approval": "Record disposition only; allowance marker alone may cease preventing EVALUATION under P5, never grant admission/credit or successor",
+  "forbidden": [
+    "apply before specific owner approval",
+    "new successor/intent/image/sink/dossier",
+    "StartService/StopService/preflight/operational launcher",
+    "SCM/ACL/quota/pin/source changes",
+    "refund",
+    "overwrite/delete/rollback/retry",
+    "kill/forced mutex release",
+    "CA/certificates/bootstrap/CURRENT"
+  ],
+  "uncertainties": [
+    "historical exact failed token remains unknown",
+    "global quiescence remains unproven",
+    "kernel/cache/transitive lifetimes/sample gaps retained",
+    "received console evidence is owner-provided, not independent remote attestation",
+    "queries are sequential, not an atomic current host snapshot or fresh operational admission"
+  ],
+  "stop_conditions": [
+    "source/receipt/approval/hash/identity divergence",
+    "conflicting new factual evidence",
+    "target documentary name collision",
+    "partial/uncertain documentary write or close",
+    "approval lacks exact scope/hash"
+  ],
+  "administrative_transition_applied": false,
+  "successor_authority": "DENY"
+}

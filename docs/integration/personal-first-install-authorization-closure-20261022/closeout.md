@@ -1,0 +1,37 @@
+# Personal first-install normative closure
+
+[Decisão ACCEPTED](../../adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md).
+[Texto consolidado preservado](PERSONAL-F0-F9-CONSOLIDATED-PROPOSED.md).
+[Revisão de compatibilidade](conformance-review.md).
+
+O executor oficial aprovou a escrita exata de um único registro normativo via operations.json. A operação retornou APPLIED_EXACT_FILES 1. A verificação local confirma o corpo F0–F9 byte-exato e hashes da proposta, corpo e registro. P1, contratos accepted anteriores e propostas históricas não foram alterados. Referência de estado normativo adicionada à documentação viva, sem alegar implementação.
+
+```text
+CURRENT_TASK_COMPLETED=YES
+FIRST_INSTALL_PROFILE=PERSONAL_LOCAL
+INSTITUTIONAL_PROFILE=DEFERRED
+F0_F9_STATUS=ACCEPTED
+P1_COMPATIBILITY=EXPLICIT_PERSONAL_SPECIALIZATION_P1_BYTES_UNCHANGED
+LOCAL_AUTHORIZATION_ORIGIN=EXPLICIT_LOCAL_ACT_UNDER_PRIOR_ACCEPTED_POLICY_PLUS_NATIVE_ELIGIBILITY_DECLARATION_CONFIRMATION_AND_GATES
+OPERATOR_TARGET_CONFIGURATION_BINDING=NORMATIVE_NATIVE_FACTS_ATTRIBUTED_CONFIRMATION_PROTECTED_ASSOCIATION_ACCELERATOR_ADMISSIBILITY
+APPROVAL_IDENTIFIER=LOCAL_32_BYTE_CSPRNG_ATTEMPT_ID_NOT_CA_SERIAL_LICENSE_OR_EXTERNAL_APPROVAL
+REVOCATION_AND_SINGLE_USE=LOCAL_EVENT_INVALIDATION_ATOMIC_CONSUME_NO_REARM_UNKNOWN_RETAINS
+IMPLEMENTATION_AUTHORIZED=NO
+BOOTSTRAP_EXECUTION=NOT_RUN
+CURRENT_PUBLICATION=DENY
+SIGNATURE_AUTHORITY=DENY
+AUTHORITATIVE_RECOVERY=DENY
+ED11_TOTAL_STATUS=PARTIAL
+BUILDS=NOT_RUN_DOCUMENT_ONLY
+TESTS=NOT_RUN_DOCUMENT_ONLY
+NETWORK_TESTS=NOT_RUN
+PST_CHANGED=NO
+BROWSER_CHANGED=NO
+PACC_WIRE_CHANGED=NO
+PRODUCTION_PIN=0.6.4
+WIP_PRESERVED=YES_EXCEPT_AUTHORIZED_NEW_NORMATIVE_RECORD_AND_DOCUMENTATION
+FIRST_UNRESOLVED_DIVERGENCE=PERSONAL_CEREMONY_IMPLEMENTATION_NATIVE_LIFETIME_AND_COMPLETE_ED11_NOT_QUALIFIED
+NEXT=PERSONAL_FIRST_INSTALL_CEREMONY_IMPLEMENTATION
+```
+
+A conclusão é normativa. Nenhum operador/alvo/custódia recebeu autoridade positiva nesta tarefa. A implementação posterior continua dependente de autorização própria, patches exatos e provas nativas/ED11. A origem não é a CA/root candidatas, e a norma não promete provar propriedade jurídica ou impedir clones. CA_INITIALIZE, transação e publicação preservam suas autorizações e gates próprios.

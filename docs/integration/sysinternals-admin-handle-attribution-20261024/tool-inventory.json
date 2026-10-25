@@ -1,0 +1,85 @@
+{
+  "OS": {
+    "name": "Windows10Pro22H2",
+    "build": "19045.6456",
+    "architecture": "AMD64"
+  },
+  "initial_search": {
+    "roots": [
+      "PATH",
+      "C:/Tools",
+      "C:/Sysinternals",
+      "C:/Program Files",
+      "C:/Program Files (x86)",
+      "C:/Users/tobias/Downloads",
+      "C:/Users/tobias/Desktop",
+      "C:/Users/tobias/AppData/Local/Programs",
+      "C:/Projetos/_tmp"
+    ],
+    "result": "No Handle/ProcessExplorer/ProcessMonitor candidate located in readable searched scope; not proof of universal absence",
+    "unreadable_locations": "Not certified absent"
+  },
+  "Handle": {
+    "source_page": "https://learn.microsoft.com/en-us/sysinternals/downloads/handle",
+    "download": "https://download.sysinternals.com/files/Handle.zip",
+    "ZIP_sha256": "279aaf8eccb6f79147f4dcc6ba091fb895c4cb8b199a0dd186a4c76bc519d2cd",
+    "exe": "build\\sysinternals-admin-handle-attribution-20261024\\handle64.exe",
+    "version": "5.0",
+    "machine": "0x8664_AMD64",
+    "sha256": "24bafcc570cc9bbb6b6e6652a57a519e0464e3996891aaba6f55299cce20b04f",
+    "Authenticode": "Valid_Microsoft_Corporation",
+    "version_support_documentation": "Official page does not give sufficient minimum client version statement",
+    "Windows10_functional_test": "76_NATIVE_QUERIES_EXIT0_ISOLATED_COHORT_ON_19045_6456_NOT_UNIVERSAL_SUPPORT_GUARANTEE",
+    "driver": {
+      "embedded_strings": [
+        "PROCEXP152.SYS",
+        "NtLoadDriver",
+        "SeLoadDriverPrivilege",
+        "System\\CurrentControlSet\\Services\\%s"
+      ],
+      "owner_exception": "Explicit owner reply Autorizar driver Sysinternals",
+      "lifecycle_not_fully_traced": true,
+      "named_driver_service_and_path_before_after": "Not observed; service1060 and driverfileFalse",
+      "EULA": "-accepteula for authorized tests; tool HKCU state may persist",
+      "no_forced_handle_close_flags": true
+    }
+  },
+  "ProcessExplorer": {
+    "official_page": "https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer",
+    "current_documented_version": "17.2",
+    "documented_client_minimum": "Windows11",
+    "downloaded": false,
+    "tested": false,
+    "reason": "Handle sufficient for per-phase tables; avoid another driver/tool; no assertion that it cannot run on Windows10"
+  },
+  "ProcessMonitor": {
+    "official_page": "https://learn.microsoft.com/en-us/sysinternals/downloads/procmon",
+    "current_documented_version": "4.12",
+    "documented_client_minimum": "Windows11",
+    "downloaded": false,
+    "tested": false,
+    "reason": "Not needed for fixture handle-table question"
+  },
+  "existing_WPT": [
+    {
+      "name": "wpr.exe",
+      "version": "10.0.19041.6093",
+      "SHA256": "8c3d49a83ebd8138ffa15da93d25ba1fc44acdec3cb9d729b6f43b55a5ef7ca5",
+      "signature": "Valid_Microsoft_Windows"
+    },
+    {
+      "name": "wpa.exe",
+      "version": "10.0.19041.5856",
+      "SHA256": "3501072b84352c9b8ea5e0c5c361ce6d7a8bc60a495cd03f27776847d44093b7",
+      "signature": "Valid_Microsoft_Corporation"
+    },
+    {
+      "name": "wpaexporter.exe",
+      "version": "10.0.19041.5856",
+      "SHA256": "a2a5253cee7774673cc97d965f6c562e37e9ae77c97fbebfcfc3ade6ca861766",
+      "signature": "Valid_Microsoft_Corporation"
+    }
+  ],
+  "WPR_session": "NOT_STARTED",
+  "ETW_trace": "NOT_CAPTURED"
+}

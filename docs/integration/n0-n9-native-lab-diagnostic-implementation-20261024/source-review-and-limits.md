@@ -1,0 +1,19 @@
+# N0–N9 core source review and limits
+
+Authorized scoped implementation against [accepted N0–N9](../../adr/DECISION-first-native-lab-diagnostic-boundary-20261024.md), B+D revision2 and ED11 B0–B6 revision4. Main HEAD 913c90cf2328f7939d8f5b927640601903ac6e91 unchanged. Existing PS_ADMISSION remains sole owner; no new owner, registry, service, recorder, worker, Job or authority. Accepted records and original launchers unchanged.
+
+Private N0 descriptor pins attempt/host/boot/config/candidate/policy, original actor/control thread/token/confirmation and one auxiliary process/opened file. Core duplicates original refs, checks creation/liveness/session/current primary tokens/no impersonation, exact process/file path plus native opened-file identity and reparse/link exclusions, parent consistency and bounded console CLIENT membership. These checks are conjunctive; names/parents/paths alone never authorize. Console association and mapped-image provenance remain UNPROVEN; the N0 mask deliberately excludes factual-console-association and separately checked metrics. No legitimate-console claim.
+
+The private context callback MUST independently validate actual file hash/security/qualified Windows-origin evidence and exact plan/confirmation tuple. Hash-shaped strings are NOT evidence. Null context denies; no native source can be selected by launcher flags. Synthetic callback evidence is test-only. Existing production/general census behavior unchanged. Exact approved auxiliary gets one of four inventory roles; other unknown children/project competitors still deny. Service slot absent before Start; N0 service slot requires Session0, actor/aux remain in actor session.
+
+Existing observer supplies bounded process costs to canonical metrics receipt. Invalid or over-budget observation first invalidates the previous receipt. Consume/effect revalidate N0 inventory/current context and a final receipt no older than1s; read-only root lease still cannot consume. Existing host/headroom/freshness checks remain required; no credits or quota change.
+
+Reviewed failure paths: failed binding consumes the in-process bind opportunity; post-confirm token change invalidates binding. Original refs survive uncertain close/UNKNOWN; no force-release or retry. Only factual quiescent finish closes owned refs. Reopened current primary tokens prevent relying on obsolete held-token attributes. Real duplicated self handle fixes pseudo-handle INVALID_HANDLE_VALUE alias in inventory. Console loss never claims service Stop or quiescence.
+
+## Incomplete adapter and factual evidence
+
+This is core/observer integration, NOT an end-to-end launcher qualification. The qualifier main still exposes the old two-actor entry; there is no qualified single-actor native caller or protected provenance-context adapter yet. No successor script/pins are declared executable. Existing old launchers must not be used to claim N0 qualification. This software integration gap is separate from the owner-confirmed absence of a qualified opened conhost file provenance dossier. Both block native activation. Do not insert a callback returning success from path/hash/name or fake native evidence to finish the adapter.
+
+The next slice must implement that adapter and single already elevated PowerShell invocation using existing protected context/owner, after the provenance input schema/source is qualified. Context must remain checked before and after explicit confirmation and observation. No positive launcher before factual qualification; any native query/preflight requires its own exact authorization. No functional/source review claim constitutes official operational approval.
+
+Four builds and model/regression/cross-process fixtures do not establish native token/provenance, resource peak, boot freshness, service readiness, lifetime of historical UNKNOWN or ED11 operational PASS. No native qualifier, preflight, service or ETW executed.

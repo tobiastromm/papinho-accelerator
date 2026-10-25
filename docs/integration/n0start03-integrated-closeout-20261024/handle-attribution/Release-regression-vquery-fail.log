@@ -1,0 +1,15 @@
+ISOLATED_ACTUAL_OBSERVER_BEGIN; NO_SCM_NO_FILES_NO_INTENT_NO_MUTEX_NO_SERVICE; FAULTS_SYNTHETIC
+OBSERVER_POINT site=BEFORE_ACTUAL_MEASURE handles=40 capture_slot_nonnull=0 marker_slot_nonnull=0 thread_slot_nonnull=0 vqueries=0 tick=111875281 NO_ADMISSION
+OBSERVER_POINT site=PRE_CAPTURE handles=40 capture_slot_nonnull=0 marker_slot_nonnull=0 thread_slot_nonnull=0 vqueries=0 tick=111875281 NO_ADMISSION
+OBSERVER_POINT site=POST_CAPTURE handles=41 capture_slot_nonnull=1 marker_slot_nonnull=0 thread_slot_nonnull=0 vqueries=0 tick=111875281 NO_ADMISSION
+OBSERVER_POINT site=POST_MARKER_CREATE handles=41 capture_slot_nonnull=1 marker_slot_nonnull=1 thread_slot_nonnull=0 vqueries=0 tick=111875281 NO_ADMISSION
+OBSERVER_POINT site=POST_OPEN_THREAD handles=42 capture_slot_nonnull=1 marker_slot_nonnull=1 thread_slot_nonnull=0 vqueries=0 tick=111875281 NO_ADMISSION
+OBSERVER_POINT site=DURING_ACTUAL_STACK_VA_WALK handles=42 capture_slot_nonnull=1 marker_slot_nonnull=1 thread_slot_nonnull=1 vqueries=1 tick=111875281 NO_ADMISSION
+OBSERVER_POINT site=VQUERY_INJECTED_FAILURE handles=42 capture_slot_nonnull=1 marker_slot_nonnull=1 thread_slot_nonnull=1 vqueries=2 tick=111875281 NO_ADMISSION
+IG_DIAGNOSTIC stage=ISOLATED_OBSERVER_SELF api=VirtualQueryEx resource=stack_allocation_metadata code=5 native=5 pid=23436 role=1; FIRST_FAILURE_ONLY; NO_AUTHORITY
+OBSERVER_POINT site=AFTER_ACTUAL_MEASURE handles=42 capture_slot_nonnull=1 marker_slot_nonnull=1 thread_slot_nonnull=1 vqueries=2 tick=111875281 NO_ADMISSION
+ACTUAL_OBSERVER_RESULT code=13 pre_pss_metric=40 threads=0 stack_committed_va=0 vqueries=2 elapsed_ms=0 snapshot_owned=1 marker_slot_nonnull=1 thread_slot_nonnull=1 retained=0
+OBSERVER_POINT site=POST_THREAD_CLOSE handles=41 capture_slot_nonnull=1 marker_slot_nonnull=1 thread_slot_nonnull=1 vqueries=2 tick=111875281 NO_ADMISSION
+OBSERVER_POINT site=POST_MARKER_FREE handles=41 capture_slot_nonnull=1 marker_slot_nonnull=1 thread_slot_nonnull=0 vqueries=2 tick=111875281 NO_ADMISSION
+OBSERVER_POINT site=POST_SNAPSHOT_FREE handles=40 capture_slot_nonnull=1 marker_slot_nonnull=0 thread_slot_nonnull=0 vqueries=2 tick=111875281 NO_ADMISSION
+OBSERVER_FIXTURE_PASS mode=vquery-fail before=40 after=40 sampled_peak=42 samples=11 elapsed_ms=0 own_references_closed=1; FULL_OPERATIONAL_BUDGET=NOT_GRANTED; UNSAMPLED_PEAK=UNKNOWN

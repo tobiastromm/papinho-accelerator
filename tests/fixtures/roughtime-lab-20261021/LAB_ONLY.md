@@ -1,0 +1,5 @@
+# Roughtime LAB_ONLY public transcript
+
+Generated once under explicit owner and official executor approval in task PACC-PHASE6-ROUGHTIME-FULL-TRANSCRIPT-ED11-1. Exact operation manifest SHA25693130c8f4f60d04b274cd18833e081aa9de3f59ca601c78233837d54690e2943. Each of six raw RFC10049 requests is2048 bytes; each corresponding response is480 bytes and uses a two-level Merkle proof. Three long-term TEST keypairs and three delegated TEST keypairs were ephemeral EVP objects. Only public key bytes and nonce-chain randomness are archived. No private key/seed was exported or retained in a fixture. No CA,X509,CURRENT,real credentials,.papacc generation,network or system-clock change.
+
+The fixed timestamp2000000000 and radius3 are synthetic LAB data, not observed or qualified UTC. Three LAB identities do not prove independent source administration. The public transcript authorizes no signature, delegation, issuer status, UPDATE or admission. Consumer tests never regenerate it. SHA256 values are pinned in the isolated test CMake and manifest.json. Full operational ED11 remains PARTIAL.

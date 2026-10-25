@@ -22,6 +22,8 @@ static int pending_compare_file(PAPACC_CONFIG_PENDING *p,const unsigned char *ex
 }
 #ifdef PAPACC_OFFLINE_D3_WORKER
 #include "server_configuration_bootstrap_win32.inc"
+#include "server_configuration_personal_native_win32.inc"
+#include "server_configuration_personal_ca_win32.inc"
 #endif
 /* Only native persistence runs off-owner. No root pointer reaches worker. */
 static void pending_error(PAPACC_CONFIG_PENDING *p)
@@ -30,10 +32,15 @@ static DWORD WINAPI pending_worker(void *arg)
 {
  PAPACC_CONFIG_PENDING *p=arg;DWORD n;LARGE_INTEGER size;BY_HANDLE_FILE_INFORMATION f;
  int ok=0,conflict=0,rolled=0,verified=0,comparison;
+#ifdef PAPACC_OFFLINE_D3_WORKER
+ /* Preserve the already-held source/parent/token. No packet reset/reopen. */
+ if(p->packet_format==12U){personal_handoff_worker(p);return 0;}
+ if(p->packet_format==13U){personal_target_worker(p);return 0;}
+#endif
  p->result=PAPACC_COMMIT_FAILED;p->file=INVALID_HANDLE_VALUE;p->transaction=NULL;
 #ifdef PAPACC_OFFLINE_D3_WORKER
  if(p->packet_format==9U){bootstrap_worker(p);return 0;}
- if(p->packet_format==10U){bootstrap_commit_worker(p);return 0;}
+ if(p->packet_format==10U){bootstrap_commit_worker(&p->store_hash,p);return 0;}
 #endif
  if(p->packet_format!=6U
 #ifdef PAPACC_OFFLINE_D3_WORKER
@@ -52,7 +59,7 @@ static DWORD WINAPI pending_worker(void *arg)
 #ifdef PAPACC_OFFLINE_D3_WORKER
  else if(p->packet_format==8U){if(!pending_d3_packet_valid(p))return 0;}
 #if defined(PAPACC_ED11_WINDOWS_3MIB)
- else if(!pending_v3_packet_valid(p))return 0;
+ else if(!pending_packet11_valid(&p->store_hash,p))return 0;
 #endif
 #endif
  if(InterlockedCompareExchange(&p->stop,0,0))return 0;
@@ -104,7 +111,7 @@ static PAPACC_RESULT pending_begin06(PAPACC_CONFIGURATION_COMMIT *o)
 {
  PAPACC_CONFIG_PENDING *p;PAPACC_ISSUER_VIEW v;BY_HANDLE_FILE_INFORMATION f;
  if(!owner(o))return PAPACC_RESULT_INVALID_STATE;
- p=&o->pending_commit;
+ p=&o->pending_commit;if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
  if(p->active||p->thread||o->authority_lost||o->unresolved||o->stopped||o->recovery_selected||
     !o->published||!o->prepared||!o->issuer_stage_prepared||o->committed_pending||
     o->slots[o->pending].readers||o->slots[o->pending].retained||
@@ -117,8 +124,10 @@ static PAPACC_RESULT pending_begin06(PAPACC_CONFIGURATION_COMMIT *o)
     v.revision!=o->slots[o->pending].view.revision)return PAPACC_RESULT_INVALID_STATE;
 #ifdef PAPACC_ISSUER_STORAGE_COMPONENT_TEST
  {HANDLE a=p->test_entered,b=p->test_release;int fault=p->test_unknown;
+ if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
  memset(p,0,sizeof(*p));p->test_entered=a;p->test_release=b;p->test_unknown=fault;}
 #else
+ if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
  memset(p,0,sizeof(*p));
 #endif
  p->packet_format=6U;p->file=INVALID_HANDLE_VALUE;
@@ -129,6 +138,94 @@ static PAPACC_RESULT pending_begin06(PAPACC_CONFIGURATION_COMMIT *o)
  if(!p->thread){p->native_error=GetLastError();p->result=PAPACC_COMMIT_FAILED;p->active=0;return PAPACC_RESULT_INTERNAL_ERROR;}
  return PAPACC_RESULT_OK;
 }
+#ifdef PAPACC_OFFLINE_D3_WORKER
+PAPACC_RESULT papacc_configuration_personal_handoff_begin(PAPACC_CONFIGURATION_COMMIT *o,
+ const unsigned char id[32],PAPACC_SIZE reserved)
+{
+ PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;
+ if(!o||!id||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved||o->published||o->prepared||o->committed_pending||o->committed_bytes)return PAPACC_RESULT_INVALID_STATE;
+ p=&o->pending_commit;n=&p->personal_native;
+ if(p->personal_data.effectful)return PAPACC_RESULT_INVALID_STATE;
+ if(p->active||p->thread||p->transaction||p->bootstrap_container||p->bootstrap_created||p->close_error||
+    n->handoff_state||n->phase!=1U||p->personal_data.phase!=PAPACC_PERSONAL_DATA_CONFIRMED||p->personal_data.consumed)return PAPACC_RESULT_INVALID_STATE;
+ if(memcmp(id,p->personal_data.attempt,32U)){papacc_personal_data_invalidate(&p->personal_data);return PAPACC_RESULT_INVALID_ARGUMENT;}
+ /* Same frozen relative name shown before confirmation, not a path reopen. */
+ if(!n->plan_leaf[0]||!memchr(n->plan_leaf,0,sizeof(n->plan_leaf))||
+    memcmp(n->plan_leaf,p->previous,sizeof(n->plan_leaf)))return PAPACC_RESULT_INVALID_STATE;
+ if(!p->bootstrap_parent||!p->bootstrap_token||!p->file||p->file==INVALID_HANDLE_VALUE)return PAPACC_RESULT_INVALID_STATE;
+ /* Inclusive reservation: SAME serialized worker stack is already charged
+  * in canonical fixed census. Do not add a second64KiB stack. */
+ if(reserved>PAPACC_ED11_PROCESS_LIMIT||reserved<sizeof(*o)+PAPACC_PENDING_STACK_BYTES)return PAPACC_RESULT_LIMIT_EXCEEDED;
+ if(papacc_configuration_personal_native_current(o)!=PAPACC_RESULT_OK||
+    papacc_configuration_personal_source_current(o)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
+ if(!papacc_personal_data_consume(&p->personal_data,id,p->next,p->personal_data.bytes))return PAPACC_RESULT_INVALID_STATE;
+ /* One-shot consumption precedes this read-only submission too. Failure never
+  * rearms it. No pointer or handle is duplicated/transferred to another owner. */
+ memcpy(n->handoff_attempt,id,32U);InterlockedExchange(&n->handoff_state,PAPACC_PERSONAL_HANDOFF_SUBMITTED);
+ p->packet_format=12U;p->result=PAPACC_COMMIT_FAILED;p->thread_close_attempted=0;p->active=1;
+ p->thread=CreateThread(NULL,PAPACC_PENDING_STACK_BYTES,pending_worker,p,STACK_SIZE_PARAM_IS_A_RESERVATION,NULL);
+ if(!p->thread){p->native_error=GetLastError();p->active=0;InterlockedExchange(&n->handoff_state,PAPACC_PERSONAL_HANDOFF_DENIED);return PAPACC_RESULT_INTERNAL_ERROR;}
+ return PAPACC_RESULT_OK;
+}
+static PAPACC_RESULT personal_target_start(PAPACC_CONFIGURATION_COMMIT *o,
+ const unsigned char id[32],PAPACC_SIZE reserved,int lab)
+{
+ PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;
+ if(!owner(o)||!id||o->stopped||o->unresolved||o->published||o->prepared||o->committed_pending||o->committed_bytes)return PAPACC_RESULT_INVALID_STATE;
+ p=&o->pending_commit;n=&p->personal_native;
+ if(p->transaction||p->close_error||p->active||p->thread||p->bootstrap_created||p->bootstrap_container||!p->bootstrap_parent||
+    n->handoff_state||n->phase!=1U||p->personal_data.phase!=PAPACC_PERSONAL_DATA_CONFIRMED||p->personal_data.consumed||
+    memcmp(id,p->personal_data.attempt,32U)||memcmp(n->plan_leaf,p->previous,sizeof(n->plan_leaf)))return PAPACC_RESULT_INVALID_STATE;
+ if(reserved>PAPACC_ED11_PROCESS_LIMIT||reserved<sizeof(*o)+PAPACC_PENDING_STACK_BYTES)return PAPACC_RESULT_LIMIT_EXCEEDED;
+ if(!bootstrap_identity(p->bootstrap_parent,&p->bootstrap_parent_volume,&p->bootstrap_parent_high,&p->bootstrap_parent_low,0))return PAPACC_RESULT_INVALID_STATE;
+ if(!lab&&(papacc_configuration_personal_native_current(o)!=PAPACC_RESULT_OK||
+    papacc_configuration_personal_source_current(o)!=PAPACC_RESULT_OK))return PAPACC_RESULT_INVALID_STATE;
+ if(lab){if(!papacc_personal_data_consume(&p->personal_data,id,p->next,p->personal_data.bytes))return PAPACC_RESULT_INVALID_STATE;}
+ else if(!papacc_personal_effect_consume(&p->personal_data,id,p->previous+1024U,p->personal_data.bytes))return PAPACC_RESULT_INVALID_STATE;
+ memcpy(n->handoff_attempt,id,32U);p->bootstrap_admin=0U;
+ p->packet_format=13U;p->result=PAPACC_COMMIT_PENDING;p->active=1;
+ InterlockedExchange(&n->handoff_state,PAPACC_PERSONAL_HANDOFF_SUBMITTED);
+ p->thread=CreateThread(NULL,PAPACC_PENDING_STACK_BYTES,pending_worker,p,STACK_SIZE_PARAM_IS_A_RESERVATION,NULL);
+ if(!p->thread){p->active=0;p->native_error=GetLastError();InterlockedExchange(&n->handoff_state,PAPACC_PERSONAL_HANDOFF_DENIED);return PAPACC_RESULT_INTERNAL_ERROR;}
+ return PAPACC_RESULT_OK;
+}
+PAPACC_RESULT papacc_configuration_personal_target_begin(PAPACC_CONFIGURATION_COMMIT *o,
+ const unsigned char id[32],PAPACC_SIZE reserved)
+{
+ if(!o||!id||o->writer!=GetCurrentThreadId()||o->stopped||o->unresolved||
+    o->pending_commit.personal_data.consumed||o->pending_commit.active||o->pending_commit.thread)return PAPACC_RESULT_INVALID_STATE;
+ /* Read-only F10 is not an effect grant. The independent canonical material,
+  * authority and capacity producer must qualify before the shared start. */
+ if(!o->pending_commit.personal_data.effectful)return PAPACC_RESULT_NOT_SUPPORTED;
+ if(!personal_native_ceremony_ready(&o->pending_commit))return PAPACC_RESULT_NOT_SUPPORTED;
+ return personal_target_start(o,id,reserved,0);
+}
+#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+PAPACC_RESULT papacc_configuration_personal_target_component_begin(PAPACC_CONFIGURATION_COMMIT *o,
+ const unsigned char id[32],PAPACC_SIZE reserved)
+{
+ if(!o||o->pending_commit.checkpoint_only!=93)return PAPACC_RESULT_INVALID_STATE;
+ return personal_target_start(o,id,reserved,1);
+}
+#endif
+PAPACC_RESULT papacc_configuration_personal_handoff_poll(PAPACC_CONFIGURATION_COMMIT *o)
+{
+ PAPACC_CONFIG_PENDING *p;DWORD wait;
+ if(!o||o->writer!=GetCurrentThreadId())return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;
+ if((p->packet_format!=12U&&p->packet_format!=13U)||p->thread_close_attempted)return PAPACC_RESULT_INVALID_STATE;
+ if(p->personal_native.handoff_state==PAPACC_PERSONAL_HANDOFF_RETAINED){o->unresolved=1;return PAPACC_RESULT_INVALID_STATE;}
+ if(!p->active)return p->thread?PAPACC_RESULT_INVALID_STATE:PAPACC_RESULT_OK;
+ wait=WaitForSingleObject(p->thread,0);
+ if(wait==WAIT_TIMEOUT)return PAPACC_RESULT_OK;
+ if(wait!=WAIT_OBJECT_0){o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}
+ /* The signal proves quiescence, not closure. Never free on timeout. */
+ p->thread_close_attempted=1;
+ if(!CloseHandle(p->thread)){p->close_error=GetLastError();o->unresolved=1;InterlockedExchange(&p->personal_native.handoff_state,PAPACC_PERSONAL_HANDOFF_RETAINED);return PAPACC_RESULT_INTERNAL_ERROR;}
+ p->thread=NULL;p->active=0;
+ if(p->personal_native.phase==2U||p->result==PAPACC_CAS_UNKNOWN){o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}
+ return PAPACC_RESULT_OK;
+}
+#endif
 static PAPACC_RESULT pending_poll06(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER_CAS_RESULT *out)
 {
  PAPACC_CONFIG_PENDING *p;DWORD w;
@@ -138,6 +235,7 @@ static PAPACC_RESULT pending_poll06(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER
  w=WaitForSingleObject(p->thread,0);
  if(w==WAIT_TIMEOUT){*out=PAPACC_COMMIT_PENDING;return PAPACC_RESULT_OK;}
  if(w!=WAIT_OBJECT_0){o->authority_lost=1;*out=PAPACC_CAS_UNKNOWN;return PAPACC_RESULT_INTERNAL_ERROR;}
+ if(p->store_hash.retained){o->unresolved=1;o->authority_lost=1;}
  /* A signaled thread proves no remaining access to embedded buffers. Closing
   * the handle is separate from commit and has its own factual result. */
  p->thread_close_attempted=1;
@@ -200,10 +298,11 @@ PAPACC_RESULT papacc_configuration_checkpoint_begin07(PAPACC_CONFIGURATION_COMMI
  link.administrative_epoch=slot->context_epoch;link.policy_epoch=slot->operational_epoch;
  if(!slot->issuer_revision||slot->issuer_revision!=link.revision||!o->issuer_snapshot_valid[o->current]||
   memcmp(o->issuer_snapshots[o->current],o->committed+8192,8192)||
-  !papacc_configuration_issuer_hash06(o,p->previous,p->previous_bytes,link.previous_commit_digest)||
-  papacc_issuer_link_encode(encoded,sizeof(encoded),o->committed,16384,&link,papacc_configuration_issuer_hash06,o)!=PAPACC_ISSUER_OK)goto done;
+  !papacc_configuration_storage_hash(o,p->previous,p->previous_bytes,link.previous_commit_digest)||
+  papacc_issuer_link_encode(encoded,sizeof(encoded),o->committed,16384,&link,papacc_configuration_storage_hash,o)!=PAPACC_ISSUER_OK)goto done;
  /* Input proof is the confirmed native commit packet plus published slot.
   * Reuse exactly the same completed worker storage; no second writer. */
+ if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
  memset(p,0,sizeof(*p));p->packet_format=6U;p->checkpoint_only=1;p->file=INVALID_HANDLE_VALUE;
  memcpy(p->previous,o->committed,16384);memcpy(p->next,o->committed,16384);
  memcpy(p->next+16384,encoded,512);memcpy(p->path,o->path,sizeof(p->path));
@@ -224,7 +323,7 @@ PAPACC_RESULT papacc_configuration_checkpoint_data07(PAPACC_CONFIGURATION_COMMIT
  if(!owner(o)||!out||pending_overlap(o,sizeof(*o),out,sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
  EnterCriticalSection(&o->lock);
  if(o->committed_bytes==16896&&!o->unresolved&&!o->pending_commit.active&&
-  papacc_issuer_link_decode(o->committed+16384,512,o->committed,16384,out,papacc_configuration_issuer_hash06,o)==PAPACC_ISSUER_OK&&
+  papacc_issuer_link_decode(o->committed+16384,512,o->committed,16384,out,papacc_configuration_storage_hash,o)==PAPACC_ISSUER_OK&&
   (!o->published||(o->slots[o->current].view.revision==out->revision&&
    o->slots[o->current].context_epoch==out->administrative_epoch&&o->slots[o->current].operational_epoch==out->policy_epoch)))
   r=PAPACC_RESULT_NOT_SUPPORTED; /* data exists; recovery/authority unsupported */
@@ -254,20 +353,22 @@ PAPACC_RESULT papacc_configuration_d3_begin08(PAPACC_CONFIGURATION_COMMIT *o,
  if(papacc_configuration_pin_read(o,pin,&view,&A,&P)!=PAPACC_RESULT_OK||
     papacc_configuration_current(o,&view)!=PAPACC_TRUE||
     pc_root8_validate_no_issuer(o->committed,o->committed_bytes,
-     papacc_configuration_issuer_hash06,o,papacc_root8_body05_data,NULL)!=PC_ROOT8_OK)goto done;
+     papacc_configuration_storage_hash,o,papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK)goto done;
  q=d3_u32(fields+56);
  if(memcmp(fields+72,o->domain,32)||d3_u64(fields+104)!=view.revision||
     d3_u64(fields+q+64)!=A||d3_u64(fields+q+72)!=P||!A||!P||
-    pc_root8_base_link(image,n,o->committed,o->committed_bytes,papacc_configuration_issuer_hash06,o,
-     papacc_root8_body05_data,NULL)!=PC_ROOT8_OK)goto done;
+    pc_root8_base_link(image,n,o->committed,o->committed_bytes,papacc_configuration_storage_hash,o,
+     papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK)goto done;
  q=d3_u32(image+56);for(i=0;i<512U;i++)if(image[q+i])goto done;
  if(identity==NULL||identity==INVALID_HANDLE_VALUE||GetFileType(identity)!=FILE_TYPE_DISK||
     !GetFileInformationByHandle(identity,&f)||(f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)||
     o->stopped||o->unresolved||o->authority_lost||papacc_configuration_current(o,&view)!=PAPACC_TRUE)goto done;
 #ifdef PAPACC_ISSUER_STORAGE_COMPONENT_TEST
  {HANDLE a=p->test_entered,b=p->test_release;int fault=p->test_unknown;
+ if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
  memset(p,0,sizeof(*p));p->test_entered=a;p->test_release=b;p->test_unknown=fault;}
 #else
+ if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
  memset(p,0,sizeof(*p));
 #endif
  p->packet_format=8U;p->file=INVALID_HANDLE_VALUE;p->expected_volume=f.dwVolumeSerialNumber;
@@ -309,12 +410,12 @@ PAPACC_RESULT papacc_configuration_d3_committed08(PAPACC_CONFIGURATION_COMMIT *o
     memcmp(o->committed,p->previous,p->previous_bytes))goto done;
  for(i=0;i<PAPACC_CONFIG_SLOTS;i++)if(o->issuer_snapshot_valid[i]||o->slots[i].issuer_revision)goto done;
  n=p->next_bytes;if(cap<n)goto done;fields=p->next;
- if(pc_root8_validate_no_issuer(p->next,n,papacc_configuration_issuer_hash06,o,
-    papacc_root8_body05_data,NULL)!=PC_ROOT8_OK||memcmp(fields+72,o->domain,32)||
-    pc_root8_base_link(p->next,n,p->previous,p->previous_bytes,papacc_configuration_issuer_hash06,o,
-     papacc_root8_body05_data,NULL)!=PC_ROOT8_OK)goto done;
+ if(pc_root8_validate_no_issuer(p->next,n,papacc_configuration_storage_hash,o,
+    papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK||memcmp(fields+72,o->domain,32)||
+    pc_root8_base_link(p->next,n,p->previous,p->previous_bytes,papacc_configuration_storage_hash,o,
+     papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK)goto done;
  q=d3_u32(fields+56);for(i=0;i<512U;i++)if(fields[q+i])goto done;
- if(!papacc_configuration_issuer_hash06(o,p->next,q,digest)||o->stopped||o->unresolved)goto done;
+ if(!papacc_configuration_storage_hash(o,p->next,q,digest)||o->stopped||o->unresolved)goto done;
  /* No input from the caller is borrowed by this copy. Existing packet and
   * old slots remain untouched; no pin or credit is acquired/released. */
  memcpy(out,p->next,n);
@@ -346,7 +447,16 @@ PAPACC_RESULT papacc_configuration_bootstrap_custody_begin(PAPACC_CONFIGURATION_
  for(i=0;i<n;i++)if((unsigned char)parent[i]<32U||(unsigned char)parent[i]>126U||parent[i]=='/'||(i!=1U&&parent[i]==':'))return PAPACC_RESULT_INVALID_ARGUMENT;
  for(i=0;i<k;i++)if(!((leaf[i]>='a'&&leaf[i]<='z')||(leaf[i]>='A'&&leaf[i]<='Z')||
     (leaf[i]>='0'&&leaf[i]<='9')||leaf[i]=='-'||leaf[i]=='_'||leaf[i]=='.'))return PAPACC_RESULT_INVALID_ARGUMENT;
- p=&o->pending_commit;
+ p=&o->pending_commit;if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
+ /* F0-F9: enabled admin alone is no longer the complete ceremony. The
+  * pre-confirmation native parent/plan binding is not yet qualified. */
+ if(!personal_native_ceremony_ready(p)){
+#ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+  if(p->checkpoint_only!=91)
+#endif
+  return PAPACC_RESULT_NOT_SUPPORTED;
+ }
+
  /* No impersonated caller can delegate its operation to the process token. */
  if(!bootstrap_admin(p)){
   if(p->close_error){o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}
@@ -358,6 +468,7 @@ PAPACC_RESULT papacc_configuration_bootstrap_custody_begin(PAPACC_CONFIGURATION_
 #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
  {int diagnostic=p->checkpoint_only==91;HANDLE entered=p->test_entered,release=p->test_release;int uncertain=p->test_unknown;
 #endif
+ if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
  memset(p,0,sizeof(*p));
 #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
  if(diagnostic){p->checkpoint_only=91;p->test_entered=entered;p->test_release=release;p->test_unknown=uncertain;}}
@@ -383,7 +494,7 @@ PAPACC_BOOL papacc_configuration_bootstrap_custody_ready(PAPACC_CONFIGURATION_CO
 PAPACC_RESULT papacc_configuration_bootstrap_custody_close(PAPACC_CONFIGURATION_COMMIT *o)
 {
  PAPACC_CONFIG_PENDING *p;if(!owner(o)||!o->stopped)return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;
- if((p->packet_format!=9U&&p->packet_format!=10U)||p->active||p->thread||
+ if(p->personal_ca||(p->packet_format!=9U&&p->packet_format!=10U)||p->active||p->thread||
     p->bootstrap_token||(p->packet_format==10U&&(p->file!=INVALID_HANDLE_VALUE||p->transaction)))return PAPACC_RESULT_INVALID_STATE;
  p->bootstrap_ready=0;
  if(p->bootstrap_container){if(p->bootstrap_close_attempts&1U)return PAPACC_RESULT_INVALID_STATE;p->bootstrap_close_attempts|=1U;
@@ -427,12 +538,12 @@ PAPACC_RESULT papacc_configuration_bootstrap_commit_begin(PAPACC_CONFIGURATION_C
  k=strlen(leaf);if(!k||k>64U||!strcmp(leaf,".")||!strcmp(leaf,"..")||leaf[k-1U]=='.')return PAPACC_RESULT_INVALID_ARGUMENT;
  for(i=0;i<k;i++)if(!((leaf[i]>='a'&&leaf[i]<='z')||(leaf[i]>='A'&&leaf[i]<='Z')||
     (leaf[i]>='0'&&leaf[i]<='9')||leaf[i]=='_'||leaf[i]=='-'||leaf[i]=='.'))return PAPACC_RESULT_INVALID_ARGUMENT;
- if(pc_root8_validate_no_issuer(image,bytes,papacc_configuration_issuer_hash06,o,
-    papacc_root8_body05_data,NULL)!=PC_ROOT8_OK||d3_u32(fields+16)||d3_u64(fields+104)!=1U||
+ if(pc_root8_validate_no_issuer(image,bytes,papacc_configuration_storage_hash,o,
+    papacc_root8_body05_data,&o->store_hash)!=PC_ROOT8_OK||d3_u32(fields+16)||d3_u64(fields+104)!=1U||
     d3_u64(fields+112)||memcmp(fields+72,o->domain,32U))return PAPACC_RESULT_INVALID_ARGUMENT;
  for(i=0;i<512U;i++)if(fields[d3_u32(fields+56)+i])return PAPACC_RESULT_INVALID_ARGUMENT;
  memcpy(&proof,p->previous+BOOTSTRAP_AUTH_OFFSET,sizeof(proof));
- if(!store03_hash(image,(unsigned)bytes,proof.candidate))return PAPACC_RESULT_INTERNAL_ERROR;
+ if(!store03_hash(&o->store_hash,image,(unsigned)bytes,proof.candidate))return PAPACC_RESULT_INTERNAL_ERROR;
  proof.scope=2U;memcpy(p->previous+BOOTSTRAP_AUTH_OFFSET,&proof,sizeof(proof));
  memcpy(p->next,image,bytes);p->next_bytes=(DWORD)bytes;memcpy(p->path,leaf,k+1U);
  p->packet_format=10U;p->result=PAPACC_COMMIT_PENDING;p->active=1;p->thread_close_attempted=0;
@@ -451,8 +562,8 @@ PAPACC_RESULT papacc_v3_worker_fixture_start(PAPACC_CONFIGURATION_COMMIT *o,HAND
 {
  PAPACC_CONFIG_PENDING *p;BY_HANDLE_FILE_INFORMATION f;
  if(!owner(o)||o->published||o->prepared||o->committed_pending||o->stopped||o->unresolved||o->authority_lost)return PAPACC_RESULT_INVALID_STATE;
- p=&o->pending_commit;
- if(p->active||p->thread||!pending_v3_packet_valid(p)||identity==INVALID_HANDLE_VALUE||
+ p=&o->pending_commit;if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
+ if(p->active||p->thread||!pending_packet11_valid(&o->store_hash,p)||identity==INVALID_HANDLE_VALUE||
  !GetFileInformationByHandle(identity,&f)||(f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PAPACC_RESULT_INVALID_STATE;
  p->packet_format=11U;p->file=INVALID_HANDLE_VALUE;p->expected_volume=f.dwVolumeSerialNumber;
  p->expected_index_high=f.nFileIndexHigh;p->expected_index_low=f.nFileIndexLow;

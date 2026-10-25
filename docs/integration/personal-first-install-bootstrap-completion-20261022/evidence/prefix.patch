@@ -1,0 +1,13 @@
+--- tests\personal_target_component_win32_test.c
++++ tests\personal_target_component_win32_test.c
+@@ -51,7 +51,9 @@
+  PAPACC_RESULT result;PAPACC_PERSONAL_CUSTODY_DATA q;PAPACC_CA_KEY ca;
+  int preexisting,barrier,uncertain,closefail;
+  memset(&before,0,sizeof(before));CHECK(argc==3);mode=argv[2];
+- CHECK(strncmp(argv[1],"C:\\Projetos\\PapinhoAccelerator\\build\\personal-target-ca-qualification-20261022\\effects\\",87U)==0);
++ CHECK(strncmp(argv[1],"C:\\Projetos\\PapinhoAccelerator\\build\\personal-target-ca-qualification-20261022\\effects\\",87U)==0 ||
++  strncmp(argv[1],"C:\\Projetos\\PapinhoAccelerator\\build\\personal-bootstrap-completion-20261022\\effects\\",
++   sizeof("C:\\Projetos\\PapinhoAccelerator\\build\\personal-bootstrap-completion-20261022\\effects\\")-1U)==0);
+  CHECK(!strstr(argv[1],".."));
+  CHECK(sprintf_s(child,sizeof(child),"%s\\child",argv[1])>0);
+  preexisting=!strcmp(mode,"exists-dir")||!strcmp(mode,"exists-file");

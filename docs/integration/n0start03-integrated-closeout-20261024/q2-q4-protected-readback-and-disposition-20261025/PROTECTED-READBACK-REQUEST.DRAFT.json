@@ -1,0 +1,68 @@
+{
+  "status": "DRAFT_REQUIRES_SPECIFIC_OWNER_APPROVAL",
+  "operation_kind": "ONE_MANUAL_PROTECTED_READONLY_OBSERVATION_NOT_LAB_ADMISSION",
+  "historical_operation": "N0START-20261024-03",
+  "historical_attempt": "0b1de869e11493b7cb08fb329578f6ce",
+  "script": {
+    "path": "C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\q2-q4-protected-readback-and-disposition-20261025\\q2-protected-readback.ps1",
+    "sha256": "64070a6525472ce95defce3b941961f30f4d11d5ffb03ee3baebefb9dc2fa307"
+  },
+  "dependencies": [
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\q2-q4-protected-readback-and-disposition-20261025\\q2-protected-readback.cs",
+      "sha256": "6fe1d262291f0343be4d316fcafa9c70898c676263d3a37d4ab4074d9ea5d117"
+    },
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\tools\\qualification\\scm-file-acl-native.ps1",
+      "sha256": "f52242fe74932d1539e83a742430ea523eda746ce39d8815b1b977cf6bb6ac75"
+    },
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-protected-receipt-and-pins-20261024\\successor-input-readonly.cs",
+      "sha256": "1ec26dc9bd04a468543836b42c574a8b872515b5f596398a1901613edf8b9cc0"
+    }
+  ],
+  "host_sha256": "2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff",
+  "boot_event_record": 236441,
+  "boot_start_utc": "2026-10-23T18:36:34.5000000Z",
+  "operator_sid": "S-1-5-21-785699550-1440458426-1682014700-1108",
+  "runtime": "one already-elevated x64 Windows PowerShell5.1, primary elevated token, enabled Administrators, no thread impersonation",
+  "confirmation": "READ_ONLY_Q2 N0START-20261024-03 0b1de869e11493b7cb08fb329578f6ce",
+  "read_scope": [
+    "original installation ancestry and native parent417614100:1966080:79426",
+    "canonical consumed03 intent103bytes",
+    "historical03 image434688bytes/hash44d8597469bdd4f40b317f467029ee96b3ad69fdc270bcdbf5e126788f623e5c",
+    "historical sink2048bytes/native417614100:196608:2922916",
+    "papacc.conf116bytes/native417614100:393216:1120240",
+    "existing protected N0 ancestry and two03 dossier inputs via unchanged pinned qualified reader"
+  ],
+  "effects": [
+    "read original handles and native metadata",
+    "GetSecurityInfo mask7 and raw exact descriptor digest/base64, owner/group/ordered DACL inspection",
+    "bounded content reads/checksums/hash and revalidation through same handles",
+    "checked closure of newly acquired observer references; retain UNKNOWN if uncertain",
+    "console output only; no automatic administrative receipt file"
+  ],
+  "denied": [
+    "Q2 application",
+    "new identity or LAB attempt",
+    "Start/Stop/preflight",
+    "intent consumption or creation",
+    "protected file/image/sink/arm/dossier creation or modification",
+    "SCM/ACL/quota mutation",
+    "retry/delete/rollback/kill/forced mutex release",
+    "CURRENT/signature/authoritative recovery"
+  ],
+  "limits": [
+    "READ_ONLY access/FILE_OPEN, no creation disposition",
+    "shareREAD only; originals retained through revalidation",
+    "historical native image/intent creation IDs NOT_PRINTED_UNKNOWN, never inferred from hash",
+    "current RAW1 observations do not become historical approved pins",
+    "SACL/audit/mandatory label and opaque residue remain UNKNOWN",
+    "abrupt host loss or failed close means UNKNOWN; no automatic retry"
+  ],
+  "outputs": "owner supplies complete factual console result for reconciliation; no operational success or disposition inferred",
+  "Q2_application_authorized": false,
+  "Q4_identity_selected": false,
+  "ED11": "PARTIAL",
+  "admission": "DENY"
+}

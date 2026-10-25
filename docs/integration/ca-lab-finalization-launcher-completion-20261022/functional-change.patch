@@ -1,0 +1,436 @@
+--- a/tools/qualification/ca-ksp-next-lab/next-lab.c
++++ b/tools/qualification/ca-ksp-next-lab/next-lab.c
+@@ -16,7 +16,7 @@
+ static const char expected_sid[]="S-1-5-21-785699550-1440458426-1682014700-1108";
+ static BOOL WINAPI on_control(DWORD event)
+ {if(event!=CTRL_C_EVENT&&event!=CTRL_BREAK_EVENT)return FALSE;InterlockedExchange(&stop_requested,1);return TRUE;}
+-static int stopped(void){return InterlockedCompareExchange(&stop_requested,0,0)!=0;}
++int papacc_lab_stopped(void){return InterlockedCompareExchange(&stop_requested,0,0)!=0;}
+ static int actor(BYTE *admin,BYTE *service)
+ {
+  union {TOKEN_USER aligned;BYTE data[sizeof(TOKEN_USER)+SECURITY_MAX_SID_SIZE];} u;
+@@ -51,26 +51,28 @@
+  BYTE admin[SECURITY_MAX_SID_SIZE],service[SECURITY_MAX_SID_SIZE];SECURITY_STATUS status;int borrowed=0;
+  if(argc==2&&!strcmp(argv[1],"--describe")){
+   puts("PREPARED_ONLY PapinhoAccelerator.CA.2345e07adf714045a20d1c8b6fdf5aaf.a2bcd6d2ed3043d083e7e50342d6fab0 MACHINE RSA2048 NO_PRODUCT_AUTHORITY EXECUTION_REQUIRES_SEPARATE_APPROVAL");return 0;}
++ if(argc==2&&!strcmp(argv[1],"--check-context")){
++  DWORD mode=0;if(!GetConsoleWindow()||!GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE),&mode)||!actor(admin,service)){puts("LAB_CONTEXT_DENY_NO_KEY_CALL");return 2;}
++  puts("LAB_CONTEXT_ELIGIBLE_NO_KEY_CALL");return 0;}
+  if(argc!=2||strcmp(argv[1],"--execute-new-lab")){puts("DENY_NO_APPROVED_LAB_OPERATION");return 2;}
+- if(!SetConsoleCtrlHandler(on_control,TRUE)||!actor(admin,service)||stopped()){report(NTE_PERM,"ACTOR_OR_STOP_DENY");return 2;}
++ if(!GetConsoleWindow()||!SetConsoleCtrlHandler(on_control,TRUE)||!actor(admin,service)||papacc_lab_stopped()){report(NTE_PERM,"ACTOR_OR_STOP_DENY");return 2;}
+  /* Same original backend sequence, no overwrite or parameter experimentation. */
+  status=papacc_ca_key_create(&owner,authority,generation,admin,service);report(status,"CREATE_FINALIZE");
+  if(status!=ERROR_SUCCESS)goto retain;
+- if(stopped()){status=NTE_USER_CANCELLED;goto retain;}
++ if(papacc_lab_stopped()){status=NTE_USER_CANCELLED;goto retain;}
+  if(wcscmp(owner.name,expected_name)||!owner.created||owner.state!=PAPACC_CA_KEY_READY||owner.diagnostic_finalization!=2U){status=NTE_BAD_KEY_STATE;goto retain;}
+  status=papacc_ca_key_validate(&owner);if(status!=ERROR_SUCCESS)goto retain;
+- if(stopped()){status=NTE_USER_CANCELLED;goto retain;}
++ if(papacc_lab_stopped()){status=NTE_USER_CANCELLED;goto retain;}
+  status=papacc_ca_key_borrow(&owner,&lab_holder);if(status!=ERROR_SUCCESS)goto retain;borrowed=1;
+  if(papacc_ca_key_close(&owner)!=NTE_BAD_KEY_STATE||!owner.key||!owner.provider){status=NTE_BAD_KEY_STATE;goto retain;}
+  puts("LAB_EXPECTED_BORROW_CLOSE_DENIED");
+  status=papacc_ca_key_return(&owner,&lab_holder);if(status!=ERROR_SUCCESS)goto retain;borrowed=0;
+- if(stopped()){status=NTE_USER_CANCELLED;goto retain;}
+- /* LAB-only cleanup of the SAME newly created handle, after validation.
+-  * Never open/delete previous UNKNOWN name or an unconfirmed new object. */
+- status=NCryptDeleteKey(owner.key,NCRYPT_SILENT_FLAG);if(status!=ERROR_SUCCESS)goto retain;owner.key=0;
+- puts("LAB_NEW_KEY_DELETE_CONFIRMED");status=papacc_ca_key_close(&owner);report(status,"FINAL_CLOSE");
+- if(status!=ERROR_SUCCESS||!owner.close_confirmed||owner.key||owner.provider)return 3;
++ if(papacc_lab_stopped()){status=NTE_USER_CANCELLED;goto retain;}
++ /* No DeleteKey: successful finalization leaves a LAB-only persisted key. */
++ status=papacc_ca_key_close(&owner);report(status,"FINAL_CLOSE");
++ if(status!=ERROR_SUCCESS||!owner.close_confirmed||owner.key||owner.provider)goto retain;
+  if(!SetConsoleCtrlHandler(on_control,FALSE))return 3;
++ puts("LAB_PERSISTED_KEY=PRESENT_FINALIZED_LAB_ONLY; HANDLES_CLOSED; NO_DELETION");
+  puts("LAB_CUSTODY_PASS_NO_CERT_NO_SIGNATURE_NO_CURRENT_NO_AUTHORITY");return 0;
+ retain:
+  if(owner.key||owner.provider||owner.retained_token||owner.retained_local[0]||owner.retained_local[1]||owner.retained_local[2]){owner.state=PAPACC_CA_KEY_RETAINED;owner.error=status;}
+--- /dev/null
++++ b/tools/qualification/ca-ksp-next-lab/backend-lab.c
+@@ -0,0 +1,73 @@
++#define _WIN32_WINNT 0x0600
++/* LAB-only instrumentation of the unchanged canonical owner translation unit.
++ * No new resource owner or native algorithm. No key deletion API. */
++#include "server_ca_key_win32.h"
++#include <stdio.h>
++#include <string.h>
++#include <wchar.h>
++extern int papacc_lab_stopped(void);
++#ifdef PAPACC_LAB_NEGATIVE
++static SECURITY_STATUS injected;
++static unsigned calls;
++#define CREATE_CALL(p,k,a,n,l,f) (++calls,injected)
++#define SET_CALL(k,n,v,c,f) (++calls,injected)
++#define FINAL_CALL(k,f) (++calls,injected)
++#else
++#define CREATE_CALL(p,k,a,n,l,f) NCryptCreatePersistedKey(p,k,a,n,l,f)
++#define SET_CALL(k,n,v,c,f) NCryptSetProperty(k,n,v,c,f)
++#define FINAL_CALL(k,f) NCryptFinalizeKey(k,f)
++#endif
++static const wchar_t lab_name[]=L"PapinhoAccelerator.CA.2345e07adf714045a20d1c8b6fdf5aaf.a2bcd6d2ed3043d083e7e50342d6fab0";
++static SECURITY_STATUS lab_phase(const char *phase,SECURITY_STATUS s)
++{DWORD saved=GetLastError();printf("LAB_NATIVE phase=%s status=%08lx\n",phase,(unsigned long)s);fflush(stdout);SetLastError(saved);return s;}
++static SECURITY_STATUS lab_create(NCRYPT_PROV_HANDLE p,NCRYPT_KEY_HANDLE *k,LPCWSTR a,LPCWSTR n,DWORD l,DWORD f)
++{SECURITY_STATUS s;
++ if(!k||!a||!n||wcscmp(a,NCRYPT_RSA_ALGORITHM)||wcscmp(n,lab_name)||l||f!=NCRYPT_MACHINE_KEY_FLAG)return lab_phase("CREATE_GUARD",NTE_INVALID_PARAMETER);
++ if(papacc_lab_stopped())return lab_phase("CREATE_STOP",NTE_USER_CANCELLED);
++
++#ifdef PAPACC_LAB_NEGATIVE
++ (void)p;
++#endif
++ s=CREATE_CALL(p,k,a,n,l,f);return lab_phase("CREATE",s);}
++static SECURITY_STATUS lab_set(NCRYPT_KEY_HANDLE k,LPCWSTR n,PBYTE v,DWORD c,DWORD f)
++{const char *phase;SECURITY_STATUS s;
++ if(papacc_lab_stopped())return lab_phase("PROPERTY_STOP",NTE_USER_CANCELLED);
++ if(!wcscmp(n,NCRYPT_LENGTH_PROPERTY))phase="LENGTH";
++ else if(!wcscmp(n,NCRYPT_EXPORT_POLICY_PROPERTY))phase="EXPORT_POLICY";
++ else if(!wcscmp(n,NCRYPT_KEY_USAGE_PROPERTY))phase="USAGE";
++ else if(!wcscmp(n,NCRYPT_SECURITY_DESCR_PROPERTY))phase="DACL";
++ else return lab_phase("PROPERTY_GUARD",NTE_INVALID_PARAMETER);
++
++#ifdef PAPACC_LAB_NEGATIVE
++ (void)k;(void)v;(void)c;(void)f;
++#endif
++ s=SET_CALL(k,n,v,c,f);return lab_phase(phase,s);}
++static SECURITY_STATUS lab_finalize(NCRYPT_KEY_HANDLE k,DWORD f)
++{if(papacc_lab_stopped())return lab_phase("FINALIZE_STOP",NTE_USER_CANCELLED);
++ if(f!=NCRYPT_SILENT_FLAG)return lab_phase("FINALIZE_GUARD",NTE_BAD_FLAGS);
++
++#ifdef PAPACC_LAB_NEGATIVE
++ (void)k;
++#endif
++ return lab_phase("FINALIZE",FINAL_CALL(k,f));}
++#ifdef PAPACC_LAB_NEGATIVE
++/* Model tests invoke the real guards with native calls replaced at compile time.
++ * No owner creation routine or KSP API is called. */
++int papacc_lab_negative_tests(void)
++{NCRYPT_KEY_HANDLE key=0;DWORD v=2048;SECURITY_STATUS s;unsigned before;
++ injected=NTE_EXISTS;calls=0;
++ s=lab_create(0,&key,NCRYPT_RSA_ALGORITHM,lab_name,0,NCRYPT_MACHINE_KEY_FLAG);
++ if(s!=NTE_EXISTS||calls!=1||key)return 1;
++ before=calls;s=lab_create(0,&key,NCRYPT_RSA_ALGORITHM,L"DIVERGENT",0,NCRYPT_MACHINE_KEY_FLAG);if(s!=NTE_INVALID_PARAMETER||calls!=before)return 2;
++ s=lab_create(0,&key,NCRYPT_RSA_ALGORITHM,lab_name,0,NCRYPT_MACHINE_KEY_FLAG|NCRYPT_OVERWRITE_KEY_FLAG);if(s!=NTE_INVALID_PARAMETER||calls!=before)return 3;
++ injected=NTE_PERM;s=lab_create(0,&key,NCRYPT_RSA_ALGORITHM,lab_name,0,NCRYPT_MACHINE_KEY_FLAG);if(s!=NTE_PERM)return 4;
++ s=lab_finalize(0,0);if(s!=NTE_BAD_FLAGS)return 5;
++ injected=NTE_FAIL;s=lab_finalize(0,NCRYPT_SILENT_FLAG);if(s!=NTE_FAIL)return 6;
++ s=lab_set(0,NCRYPT_LENGTH_PROPERTY,(PBYTE)&v,sizeof(v),0);if(s!=NTE_FAIL)return 7;
++ return 0;}
++#else
++#define NCryptCreatePersistedKey lab_create
++#define NCryptSetProperty lab_set
++#define NCryptFinalizeKey lab_finalize
++#include "../../../apps/server/server_ca_key_win32.c"
++#endif
+--- /dev/null
++++ b/tests/ca_lab_nonoverwrite_negative_test.c
+@@ -0,0 +1,13 @@
++#define _WIN32_WINNT 0x0600
++#include <windows.h>
++#include <ncrypt.h>
++#include <stdio.h>
++static int stop_now;
++int papacc_lab_stopped(void){return stop_now;}
++#include "../tools/qualification/ca-ksp-next-lab/backend-lab.c"
++int main(void){NCRYPT_KEY_HANDLE k=0;DWORD v=2048;unsigned before;int rc=papacc_lab_negative_tests();if(rc)return rc;
++ stop_now=1;before=calls;
++ if(lab_create(0,&k,NCRYPT_RSA_ALGORITHM,lab_name,0,NCRYPT_MACHINE_KEY_FLAG)!=NTE_USER_CANCELLED||calls!=before)return 8;
++ if(lab_set(0,NCRYPT_LENGTH_PROPERTY,(PBYTE)&v,sizeof(v),0)!=NTE_USER_CANCELLED||calls!=before)return 9;
++ if(lab_finalize(0,NCRYPT_SILENT_FLAG)!=NTE_USER_CANCELLED||calls!=before)return 10;
++ puts("LAB_NEGATIVE_MODEL_PASS; NATIVE_KEY_OPERATIONS=NOT_RUN");return 0;}
+--- a/tools/qualification/ca-custody-elevated-lab-uac.ps1
++++ b/tools/qualification/ca-custody-elevated-lab-uac.ps1
+@@ -1,116 +1,176 @@
+-#requires -Version 5.1
+-[CmdletBinding()]
+-param([ValidateSet('Check','Launch','Elevated')][string]$Mode='Check',
+- [ValidatePattern('^$|^[0-9a-f]{64}$')][string]$ExpectedScriptSha256='')
+-Set-StrictMode -Version Latest
+-$ErrorActionPreference='Stop'
+-$Root='C:\Projetos\PapinhoAccelerator'
+-$ScriptPath=$Root+'\tools\qualification\ca-custody-elevated-lab-uac.ps1'
+-$Exe=$Root+'\build\ca-finalize-readonly-diagnosis-20261022\readonly_diagnostic.exe'
+-$ExeHash='8cf1e4a6057033594bc761e115b0e8d27344f1ac5f3814a337eb609d325c401b'
+-$ExpectedSid='S-1-5-21-785699550-1440458426-1682014700-1108'
+-$Authority='2345e07adf714045a20d1c8b6fdf5aaf'
+-$Generation='a2bcd6d2ed3043d083e7e50342d6fab0'
+-$KeyName='PapinhoAccelerator.CA.2345e07adf714045a20d1c8b6fdf5aaf.a2bcd6d2ed3043d083e7e50342d6fab0'
+-$ServiceSid='S-1-5-19' # Exact previous LAB exclusion only, not product service.
+-$PowerShellExe='C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+-$ReceiptRoot=$Root+'\docs\integration\ca-custody-elevated-lab-finalization-20261022\manual-results'
+-$AttemptPath=$ReceiptRoot+'\new-identity-observation.started.json'
+-$ResultPath=$ReceiptRoot+'\new-identity-observation.result.json'
+-$LabExe=$Root+'\build\ca-ksp-next-lab-20261022\Release\next-lab.exe'
+-$LabHash='2fc44cfe2abd7bd76716d903d1e1b528213744053690ed65d081a18e3172ba79'
+-# Deliberately no effectful invocation in this launcher. BAD_KEYSET is UNKNOWN.
+-function Write-NewReceipt([string]$Path,$Value) {
+- $f=[IO.File]::Open($Path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+- try {$w=[IO.StreamWriter]::new($f,[Text.UTF8Encoding]::new($false));try {$w.Write(($Value | ConvertTo-Json -Depth 8));$w.Flush()} finally {$w.Dispose()}} finally {$f.Dispose()}
+-}
+-function Assert-Plain([string]$Path) {
+- if(-not [IO.Path]::IsPathRooted($Path) -or [IO.Path]::GetFullPath($Path) -cne $Path){throw 'NONCANONICAL_PATH'}
+- $p=$Path
+- while($p){if(([IO.File]::GetAttributes($p) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'REPARSE_PATH'};$p=[IO.Path]::GetDirectoryName($p)}
+-}
+-function Stream-Hash([IO.Stream]$Stream) {
+- $Stream.Position=0;$sha=[Security.Cryptography.SHA256]::Create()
+- try {return ([BitConverter]::ToString($sha.ComputeHash($Stream))).Replace('-','').ToLowerInvariant()}
+- finally {$sha.Dispose();$Stream.Position=0}
+-}
+-function Open-Pinned([string]$Path,[string]$Hash) {
+- Assert-Plain $Path
+- $s=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+- try {if((Stream-Hash $s) -cne $Hash){throw 'PIN_MISMATCH'};return $s} catch {$s.Dispose();throw}
+-}
+-Add-Type -TypeDefinition @"
+-using System;
+-using System.Runtime.InteropServices;
+-public static class PaccCaLabGateNative {
+- [DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int n);
+- [DllImport("kernel32.dll",SetLastError=true)] public static extern bool GetConsoleMode(IntPtr h,out uint mode);
+- [DllImport("advapi32.dll",SetLastError=true)] public static extern bool GetTokenInformation(IntPtr h,int cls,out int value,int size,out int returned);
+-}
+-"@
+-function Observe-Operator {
+- $id=[Security.Principal.WindowsIdentity]::GetCurrent()
+- try {
+-  $thread=[Security.Principal.WindowsIdentity]::GetCurrent($true);$impersonating=$null -ne $thread
+-  if($impersonating){$thread.Dispose()}
+-  $e=0;$t=0;$n=0;$im=0;$om=0
+-  $eq=[PaccCaLabGateNative]::GetTokenInformation($id.Token,20,[ref]$e,4,[ref]$n)
+-  $tq=[PaccCaLabGateNative]::GetTokenInformation($id.Token,18,[ref]$t,4,[ref]$n)
+-  $admin=([Security.Principal.WindowsPrincipal]::new($id)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+-  $console=[PaccCaLabGateNative]::GetConsoleMode([PaccCaLabGateNative]::GetStdHandle(-10),[ref]$im) -and [PaccCaLabGateNative]::GetConsoleMode([PaccCaLabGateNative]::GetStdHandle(-11),[ref]$om)
+-  return [pscustomobject]@{sid=$id.User.Value;elevated=($eq -and $e -eq 1);elevation_type=$t;query_ok=($eq -and $tq);administrators_enabled=$admin;impersonating=$impersonating;console=$console}
+- } finally {$id.Dispose()}
+-}
+-$scriptStream=$null;$exeStream=$null;$labStream=$null;$pause=$false;$result=2
+-try {
+- if($PSCommandPath -cne $ScriptPath){throw 'SCRIPT_PATH_MISMATCH'}
+- Assert-Plain $ScriptPath
+- $scriptStream=[IO.File]::Open($ScriptPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+- $selfHash=Stream-Hash $scriptStream
+- if($Mode -eq 'Elevated' -and ($ExpectedScriptSha256 -eq '' -or $selfHash -cne $ExpectedScriptSha256)){throw 'SCRIPT_PIN_MISMATCH'}
+- $exeStream=Open-Pinned $Exe $ExeHash
+- $labStream=Open-Pinned $LabExe $LabHash
+- $operator=Observe-Operator
+- if($Mode -eq 'Check') {
+-  $operator | ConvertTo-Json
+-  Write-Output ('CHECK_ONLY; NEW_LAB_NAME='+$KeyName+'; LAB_BINARY_SHA256='+$LabHash+'; KEY_QUERY=NOT_RUN; GENERATION_GATE=STOP_UNTIL_ABSENCE_PROVEN; KEY_CREATION=NOT_RUN; CURRENT=DENY')
+-  $result=0
+- } elseif($Mode -eq 'Launch') {
+-  if(-not $operator.console){throw 'NO_INTERACTIVE_CONSOLE'}
+-  # MANUAL invocation only. Native UAC prompts directly; no credentials here.
+-  $arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$ScriptPath+'" -Mode Elevated -ExpectedScriptSha256 '+$selfHash
+-  try {$child=Start-Process -FilePath $PowerShellExe -Verb RunAs -ArgumentList $arguments -WorkingDirectory $Root -WindowStyle Normal -Wait -PassThru}
+-  catch {throw 'UAC_CANCELLED_OR_LAUNCH_FAILED_DENY'}
+-  Write-Output ('UAC_CA_LAB_GATE_EXIT='+$child.ExitCode);$result=$child.ExitCode
+- } else {
+-  $pause=$operator.console
+-  if(-not $operator.query_ok -or -not $operator.elevated -or $operator.elevation_type -eq 3 -or -not $operator.administrators_enabled -or $operator.impersonating -or -not $operator.console -or $operator.sid -cne $ExpectedSid){throw 'ELEVATED_OPERATOR_OR_CONSOLE_DENY'}
+-  Assert-Plain $ReceiptRoot
+-  if([IO.File]::Exists($AttemptPath) -or [IO.File]::Exists($ResultPath)){throw 'ATTEMPT_ALREADY_CONSUMED_NO_RETRY'}
+-  Write-NewReceipt $AttemptPath ([ordered]@{purpose='ONE_SHOT_READ_ONLY_NEW_LAB_COLLISION_GATE';operator=$operator;new_name=$KeyName;binary_sha256=$ExeHash;lab_binary_sha256=$LabHash;script_sha256=$selfHash;key_creation='NOT_RUN';previous_disposition='UNKNOWN'})
+-  Write-Output ('READ-ONLY new LAB collision gate; operator='+$operator.sid)
+-  Write-Output ('NEW_NAME='+$KeyName+'; SCOPE=MACHINE; GENERATION=BLOCKED_UNTIL_FACTUAL_ABSENCE')
+-  $lines=@(& $Exe '--observe-existing' $Authority $Generation $KeyName $ExpectedSid $ServiceSid 2>&1 | ForEach-Object {$_.ToString()})
+-  $code=$LASTEXITCODE
+-  $lines | ForEach-Object {Write-Output $_}
+-  $expectedPurpose='purpose=DIAGNOSTIC_OBSERVE_EXISTING; provider=Microsoft Software Key Storage Provider; scope=MACHINE; name='+$KeyName+'; operator='+$ExpectedSid+'; service='+$ServiceSid
+-  $expectedClose='state=3; created=0; finalized=0; close_attempted=1; close_confirmed=1; key_owned=0; provider_owned=0; persisted_key_state=UNKNOWN'
+-  $complete=$lines.Count -eq 4 -and $lines[0] -ceq $expectedPurpose -and $lines[3] -ceq $expectedClose -and ($code -eq 0 -or $code -eq 4)
+-  $disposition='UNKNOWN'
+-  if(@($lines | Where-Object {$_ -match '^status=0x00000000;' -or $_ -match '^first_snapshot_state=.*key_owned=1;'}).Count -gt 0){$disposition='PRESENT'}
+-  # BAD_KEYSET remains UNKNOWN even for this new name: never authorizes creation.
+-  Assert-Plain $ReceiptRoot
+-  $receipt=[ordered]@{purpose='READ_ONLY_NEW_LAB_COLLISION_GATE';operator=$operator;binary_sha256=$ExeHash;lab_binary_sha256=$LabHash;script_sha256=$selfHash;provider='Microsoft Software Key Storage Provider';scope='MACHINE';key_name=$KeyName;exit_code=$code;disposition=$disposition;output=$lines;query_completed_and_closed=$complete;key_creation='NOT_RUN';key_deletion='NOT_RUN';generation_gate='STOP';previous_disposition='UNKNOWN';current='DENY';ed11='PARTIAL'}
+-  Write-NewReceipt $ResultPath $receipt
+-  Write-Output ('RECEIPT='+$ResultPath+'; DISPOSITION='+$disposition+'; CA_LAB_CREATION=NOT_RUN; GENERATION_GATE=STOP')
+-  Write-Output 'STOP: existing object or UNKNOWN is not evidence authorizing creation. No generation or retry follows.'
+-  $result=2
+-
+- }
+-} catch {Write-Output ('DENY: '+$_.Exception.Message);$result=2}
+-finally {if($labStream){$labStream.Dispose()};if($exeStream){$exeStream.Dispose()};if($scriptStream){$scriptStream.Dispose()}}
+-if($pause){
+- Write-Output 'Resultado preservado. Pressione F10 para fechar. Nenhuma chave foi criada; o gate de geracao permanece STOP.'
+- try {while([Console]::ReadKey($true).Key -ne [ConsoleKey]::F10){}} catch {Write-Output 'RESULT_WINDOW_INPUT_UNAVAILABLE';$result=2}
+-}
+-exit $result
++#requires -Version 5.1
++[CmdletBinding()]
++param([ValidateSet('Check','Test','Launch','Elevated')][string]$Mode='Check',
++ [ValidatePattern('^$|^[0-9a-f]{64}$')][string]$ExpectedScriptSha256='')
++Set-StrictMode -Version Latest
++$ErrorActionPreference='Stop'
++$Root='C:\Projetos\PapinhoAccelerator'
++$ScriptPath=$Root+'\tools\qualification\ca-custody-elevated-lab-uac.ps1'
++$LabExe=$Root+'\build\ca-lab-finalization-launcher-20261022\Release\next-lab.exe'
++$LabHash='91613b6b94eea8052f81920a2fe518891c769e5ddcdcb2ef11bd903285947117'
++$ExpectedSid='S-1-5-21-785699550-1440458426-1682014700-1108'
++$KeyName='PapinhoAccelerator.CA.2345e07adf714045a20d1c8b6fdf5aaf.a2bcd6d2ed3043d083e7e50342d6fab0'
++$PowerShellExe='C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
++$ReceiptRoot=$Root+'\docs\integration\ca-custody-elevated-lab-finalization-20261022\manual-results'
++# Same fixed paths preserve already-consumed observations as STOP, never reset.
++$AttemptPath=$ReceiptRoot+'\new-identity-observation.started.json'
++$ResultPath=$ReceiptRoot+'\new-identity-observation.result.json'
++function Write-NewReceipt([string]$Path,$Value) {
++ $f=[IO.File]::Open($Path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
++ try {$w=[IO.StreamWriter]::new($f,[Text.UTF8Encoding]::new($false));try {$w.Write(($Value | ConvertTo-Json -Depth 8));$w.Flush()} finally {$w.Dispose()}} finally {$f.Dispose()}
++}
++function Assert-Plain([string]$Path) {
++ if(-not [IO.Path]::IsPathRooted($Path) -or [IO.Path]::GetFullPath($Path) -cne $Path){throw 'NONCANONICAL_PATH'}
++ $p=$Path
++ while($p){if(([IO.File]::GetAttributes($p) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'REPARSE_PATH'};$p=[IO.Path]::GetDirectoryName($p)}
++}
++function Stream-Hash([IO.Stream]$Stream) {
++ $Stream.Position=0;$sha=[Security.Cryptography.SHA256]::Create()
++ try {return ([BitConverter]::ToString($sha.ComputeHash($Stream))).Replace('-','').ToLowerInvariant()}
++ finally {$sha.Dispose();$Stream.Position=0}
++}
++function Open-Pinned([string]$Path,[string]$Hash) {
++ Assert-Plain $Path
++ $s=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
++ try {if((Stream-Hash $s) -cne $Hash){throw 'PIN_MISMATCH'};return $s} catch {$s.Dispose();throw}
++}
++Add-Type -TypeDefinition @"
++using System;
++using System.Runtime.InteropServices;
++public static class PaccCaLabGateNative {
++ [DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int n);
++ [DllImport("kernel32.dll",SetLastError=true)] public static extern bool GetConsoleMode(IntPtr h,out uint mode);
++ [DllImport("advapi32.dll",SetLastError=true)] public static extern bool GetTokenInformation(IntPtr h,int cls,out int value,int size,out int returned);
++}
++"@
++function Observe-Operator {
++ $id=[Security.Principal.WindowsIdentity]::GetCurrent()
++ try {
++  $thread=[Security.Principal.WindowsIdentity]::GetCurrent($true);$impersonating=$null -ne $thread
++  if($impersonating){$thread.Dispose()}
++  $e=0;$t=0;$n=0;$im=0;$om=0
++  $eq=[PaccCaLabGateNative]::GetTokenInformation($id.Token,20,[ref]$e,4,[ref]$n)
++  $tq=[PaccCaLabGateNative]::GetTokenInformation($id.Token,18,[ref]$t,4,[ref]$n)
++  $admin=([Security.Principal.WindowsPrincipal]::new($id)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
++  $console=[PaccCaLabGateNative]::GetConsoleMode([PaccCaLabGateNative]::GetStdHandle(-10),[ref]$im) -and [PaccCaLabGateNative]::GetConsoleMode([PaccCaLabGateNative]::GetStdHandle(-11),[ref]$om)
++  return [pscustomobject]@{sid=$id.User.Value;elevated=($eq -and $e -eq 1);elevation_type=$t;query_ok=($eq -and $tq);administrators_enabled=$admin;impersonating=$impersonating;console=$console}
++ } finally {$id.Dispose()}
++}
++
++function Test-Eligible($o) {
++ return ($o.query_ok -and $o.elevated -and $o.elevation_type -ne 3 -and $o.administrators_enabled -and -not $o.impersonating -and $o.console -and $o.sid -ceq $ExpectedSid)
++}
++function Test-Unconsumed([bool]$Started,[bool]$Finished) {return (-not $Started -and -not $Finished)}
++function Test-Confirmation([string]$Actual,[string]$Required) {return ($Actual -cne '' -and $Actual -ceq $Required)}
++function Read-ExactConfirmation {
++ $value='';Write-Host '> ' -NoNewline
++ while($true){
++  $k=[Console]::ReadKey($true)
++  if($k.Key -eq [ConsoleKey]::Escape){throw 'CANCELLED_BEFORE_CONSUMPTION'}
++  if($k.Key -eq [ConsoleKey]::Enter){[Console]::WriteLine();return $value}
++  if($k.Key -eq [ConsoleKey]::Backspace){if($value.Length){$value=$value.Substring(0,$value.Length-1);[Console]::Write("`b `b")};continue}
++  $n=[int]$k.KeyChar
++  if($n -ge 32 -and $n -le 126){if($value.Length -ge 200){throw 'CONFIRMATION_TOO_LONG'};$value+=$k.KeyChar;[Console]::Write($k.KeyChar)}
++ }
++}
++function Test-NativePass([string[]]$Lines,[int]$Code,[bool]$Overflow) {
++ if($Code -ne 0 -or $Overflow){return $false}
++ $expected=@('CREATE','LENGTH','EXPORT_POLICY','USAGE','DACL','FINALIZE')
++ $phases=@($Lines | Where-Object {$_ -cmatch '^LAB_NATIVE '})
++ if($phases.Count -ne $expected.Count){return $false}
++ for($i=0;$i -lt $expected.Count;$i++){if($phases[$i] -cne ('LAB_NATIVE phase='+$expected[$i]+' status=00000000')){return $false}}
++ return (@($Lines | Where-Object {$_ -cmatch '^LAB_RESULT phase=FINAL_CLOSE status=00000000 state=3 created=1 finalized=2 key_owned=0 provider_owned=0 close_confirmed=1 '}).Count -eq 1 -and
++  @($Lines | Where-Object {$_ -ceq 'LAB_PERSISTED_KEY=PRESENT_FINALIZED_LAB_ONLY; HANDLES_CLOSED; NO_DELETION'}).Count -eq 1 -and
++  @($Lines | Where-Object {$_ -ceq 'LAB_CUSTODY_PASS_NO_CERT_NO_SIGNATURE_NO_CURRENT_NO_AUTHORITY'}).Count -eq 1)
++}
++function Test-Gates {
++ $o=[pscustomobject]@{query_ok=$true;elevated=$true;elevation_type=2;administrators_enabled=$true;impersonating=$false;console=$true;sid=$ExpectedSid}
++ if(-not (Test-Eligible $o)){throw 'MODEL_BASELINE_FAILED'}
++ foreach($field in @('query_ok','elevated','administrators_enabled','console')){$o.$field=$false;if(Test-Eligible $o){throw ('MODEL_GATE_FAILED_'+$field)};$o.$field=$true}
++ $o.sid='DIVERGENT';if(Test-Eligible $o){throw 'MODEL_IDENTITY_FAILED'};$o.sid=$ExpectedSid
++ $o.impersonating=$true;if(Test-Eligible $o){throw 'MODEL_IMPERSONATION_FAILED'}
++ if((Test-Unconsumed $true $false) -or (Test-Unconsumed $false $true)){throw 'MODEL_REPLAY_FAILED'}
++ if((Test-Confirmation '' 'EXPECTED') -or (Test-Confirmation 'OTHER' 'EXPECTED')){throw 'MODEL_CONFIRMATION_FAILED'}
++ if(Test-NativePass @('LAB_NATIVE phase=CREATE status=8009000f') 3 $false){throw 'MODEL_COLLISION_FAILED'}
++ if(Test-NativePass @('LAB_NATIVE phase=FINALIZE status=80090010') 3 $false){throw 'MODEL_UNCERTAIN_FAILED'}
++ if(Test-NativePass @() 0 $false){throw 'MODEL_EMPTY_SUCCESS_FAILED'}
++ # Synthetic parser-only success baseline; never a key/authority fixture.
++ $ok=@('CREATE','LENGTH','EXPORT_POLICY','USAGE','DACL','FINALIZE') | ForEach-Object {'LAB_NATIVE phase='+$_+' status=00000000'}
++ $ok+=@('LAB_RESULT phase=FINAL_CLOSE status=00000000 state=3 created=1 finalized=2 key_owned=0 provider_owned=0 close_confirmed=1 first_function=4',
++ 'LAB_PERSISTED_KEY=PRESENT_FINALIZED_LAB_ONLY; HANDLES_CLOSED; NO_DELETION',
++ 'LAB_CUSTODY_PASS_NO_CERT_NO_SIGNATURE_NO_CURRENT_NO_AUTHORITY')
++ if(-not (Test-NativePass $ok 0 $false)){throw 'MODEL_PARSER_BASELINE_FAILED'}
++ if((Test-NativePass $ok 3 $false) -or (Test-NativePass $ok 0 $true)){throw 'MODEL_EXIT_OR_OVERFLOW_FAILED'}
++ foreach($bad in @('8009000f','80090010','80090036')){
++  $corrupt=@($ok);$corrupt[0]='LAB_NATIVE phase=CREATE status='+$bad
++  if(Test-NativePass $corrupt 0 $false){throw 'MODEL_NATIVE_ERROR_AS_SUCCESS_FAILED'}
++ }
++ $uncertain=@($ok);$uncertain[6]=$uncertain[6].Replace('close_confirmed=1','close_confirmed=0')
++ if(Test-NativePass $uncertain 0 $false){throw 'MODEL_CLEANUP_UNKNOWN_FAILED'}
++ if(Test-NativePass (@($ok)+@($ok[0])) 0 $false){throw 'MODEL_DUPLICATE_PHASE_FAILED'}
++ Write-Output 'LAUNCHER_NEGATIVE_MODEL_PASS; NATIVE_KEY_OPERATIONS=NOT_RUN; UAC=NOT_RUN'
++}
++if($Mode -eq 'Test'){Test-Gates;exit 0}
++$scriptStream=$null;$labStream=$null;$pause=$false;$result=2
++try {
++ if($PSCommandPath -cne $ScriptPath){throw 'SCRIPT_PATH_MISMATCH'}
++ Assert-Plain $ScriptPath
++ $scriptStream=[IO.File]::Open($ScriptPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
++ $selfHash=Stream-Hash $scriptStream
++ if($Mode -eq 'Elevated' -and ($ExpectedScriptSha256 -eq '' -or $selfHash -cne $ExpectedScriptSha256)){throw 'SCRIPT_PIN_MISMATCH'}
++ $labStream=Open-Pinned $LabExe $LabHash
++ $operator=Observe-Operator
++ if($Mode -eq 'Check') {
++  $operator | ConvertTo-Json
++  Write-Output ('CHECK_ONLY; NEW_LAB_NAME='+$KeyName+'; SHA256='+$LabHash+'; NONOVERWRITE=REQUIRED; NO_AUTOMATIC_DELETE; KEY_CREATION=NOT_RUN; CURRENT=DENY')
++  $result=0
++ } elseif($Mode -eq 'Launch') {
++  if(-not $operator.console){throw 'NO_INTERACTIVE_CONSOLE'}
++  $arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$ScriptPath+'" -Mode Elevated -ExpectedScriptSha256 '+$selfHash
++  try {$child=Start-Process -FilePath $PowerShellExe -Verb RunAs -ArgumentList $arguments -WorkingDirectory $Root -WindowStyle Normal -Wait -PassThru}
++  catch {throw 'UAC_CANCELLED_OR_LAUNCH_FAILED_DENY'}
++  Write-Output ('UAC_CA_LAB_EXIT='+$child.ExitCode);$result=$child.ExitCode
++ } else {
++  $pause=$operator.console
++  if(-not (Test-Eligible $operator)){throw 'ELEVATED_OPERATOR_OR_CONSOLE_DENY'}
++  Assert-Plain $ReceiptRoot
++  if(-not (Test-Unconsumed ([IO.File]::Exists($AttemptPath)) ([IO.File]::Exists($ResultPath)))){throw 'ATTEMPT_ALREADY_CONSUMED_NO_RETRY'}
++  $random=New-Object byte[] 32;$rng=[Security.Cryptography.RandomNumberGenerator]::Create()
++  try {$rng.GetBytes($random)} finally {$rng.Dispose()}
++  $attempt=([BitConverter]::ToString($random)).Replace('-','').ToLowerInvariant()
++  $required='LAB_CA_CREATE_FINALIZE '+$attempt
++  Write-Output ('LAB ONLY; effective operator='+$operator.sid)
++  Write-Output ('Microsoft Software Key Storage Provider; MACHINE; exact key='+$KeyName)
++  Write-Output ('BINARY_SHA256='+$LabHash+'; ATTEMPT='+$attempt)
++  Write-Output 'RSA2048; export policy0; signing-only; DACL operator/SYSTEM, LocalService LAB exclusion.'
++  Write-Output 'ONE exclusive no-overwrite creation, required properties, Finalize and public validation.'
++  Write-Output 'Success leaves a persisted LAB key and closes handles. NO automatic deletion.'
++  Write-Output 'Any collision/error/uncertainty STOP; no retry. Previous LAB remains UNKNOWN.'
++  Write-Output 'No certificate, signing, bootstrap, root, CURRENT or production authority. ED11 PARTIAL.'
++  Write-Output 'Type the ENTIRE exact line; visible input; Esc cancels before consumption:'
++  Write-Output $required
++  $answer=Read-ExactConfirmation
++  if(-not (Test-Confirmation $answer $required)){throw 'CONFIRMATION_MISMATCH_NO_SUBMISSION'}
++  $again=Observe-Operator
++  if(-not (Test-Eligible $again) -or $again.sid -cne $operator.sid){throw 'OPERATOR_CHANGED_NO_SUBMISSION'}
++  if((Stream-Hash $labStream) -cne $LabHash -or (Stream-Hash $scriptStream) -cne $selfHash){throw 'PIN_CHANGED_NO_SUBMISSION'}
++  Write-NewReceipt $AttemptPath ([ordered]@{purpose='ONE_SHOT_LAB_CREATE_FINALIZE_NO_DELETE';attempt=$attempt;operator=$again;new_name=$KeyName;binary_sha256=$LabHash;script_sha256=$selfHash;confirmation='EXACT_PLAN_CONFIRMED';consumed=$true;previous_disposition='UNKNOWN';disposition='UNKNOWN_UNTIL_RESULT';current='DENY';ed11='PARTIAL'})
++  $capture=[Collections.Generic.List[string]]::new();$script:overflow=$false
++  & $LabExe '--execute-new-lab' 2>&1 | ForEach-Object {
++   $line=$_.ToString();Write-Output $line
++   if($capture.Count -lt 128 -and $line.Length -le 1024){$capture.Add($line)}else{$script:overflow=$true}
++  }
++  $code=$LASTEXITCODE
++  $passed=Test-NativePass ($capture.ToArray()) $code $script:overflow
++  $disposition='UNKNOWN';if($passed){$disposition='PRESENT_FINALIZED_LAB_ONLY_HANDLES_CLOSED'}
++  Write-NewReceipt $ResultPath ([ordered]@{purpose='LAB_CREATE_FINALIZE_NO_DELETE_RESULT';attempt=$attempt;operator=$again;new_name=$KeyName;binary_sha256=$LabHash;script_sha256=$selfHash;native_exit=$code;phase_output=$capture.ToArray();capture_overflow=$script:overflow;qualified_lab_flow=$passed;disposition=$disposition;key_deletion='NOT_RUN';previous_disposition='UNKNOWN';current='DENY';ed11='PARTIAL'})
++  Write-Output ('RECEIPT='+$ResultPath+'; LAB_PASS='+$passed+'; DISPOSITION='+$disposition)
++  if($passed){$result=0}else{$result=3}
++ }
++} catch {Write-Output ('DENY: '+$_.Exception.Message);$result=2}
++finally {if($labStream){$labStream.Dispose()};if($scriptStream){$scriptStream.Dispose()}}
++if($pause){
++ Write-Output 'Resultado preservado. Pressione F10 para fechar. Nunca repetir automaticamente.'
++ try {while([Console]::ReadKey($true).Key -ne [ConsoleKey]::F10){}} catch {Write-Output 'RESULT_WINDOW_INPUT_UNAVAILABLE';$result=2}
++}
++exit $result

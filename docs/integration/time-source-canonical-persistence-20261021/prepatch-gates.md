@@ -1,0 +1,13 @@
+# V4 codec prepatch lifetime/capacity gate
+
+Task PACC-PHASE6-TIME-SOURCE-CANONICAL-PERSISTENCE-1. Scope approved for exact review: independent synchronous DATA codec only, historical validator reuse and opt-in offline tests. Native worker/backing/pin expansion is not part of these hunks.
+
+The new codec allocates no heap, static packet, backing, thread, handle, pin or I/O. Existing caller owns immutable input and disjoint output/synchronous hash/primitive DATA adapters throughout each call. No callback may retain input or return authority; private discriminator9 only validates bare-key DATA, never operator/status/CURRENT. Missing adapter fails incomplete/unsupported. Full source correctness/native key validation and factual authority remain gates, with synthetic callback models labeled tests only.
+
+Current three canonical backings reserve packet30592 each, CA8192 and metadata88/slot in selected Windows. V4 max31840 needs1248 additional per slot,3744 across three, before any changes to candidate/predecessor/committed/encode/decode/hash/worker staging/retention/stack. Native begin/worker and update cohort still have version/size/source guards. Neither those guards nor buffers are increased here. No second owner or borrowed caller buffer is installed to evade those limits.
+
+Hence runtime owned-storage delta of these codec hunks=0. Code/image attribution and synchronous call stack are not zero and remain separately reported. Existing historical routine pc_root8_pdg_data / pc_root8_pdg_records_data are factored once, not duplicate validators or version conversion. Their private contract still requires exact validated containing header. V3 callers retain the same validation sequence. No historic bytes/meaning are changed.
+
+Full-buffer serialized arithmetic3/4/6 copies95520/127360/191040 is not the live graph or reservation. Kernel/provider/transitive stack, actual external source objects and retained v3/v4/root/issuer coexistence remain UNKNOWN. No quota, default profile, individual credit or host margin changes. Dependent native persistence/backing/pin integration remains DENY until its full prepatch graph fits and protected factual sources/lifetime exist. Windows3145728 explicit only, legacy2097152 unchanged; ED11 total PARTIAL.
+
+New test arrays are test-only static storage, alongside existing reused fixture arrays/owner; not runtime reservation or a hidden native integration. Synthetic epochs, issuer anchors, source IDs/status and kind9 success are not native authority or public-key qualification. Native SHA/BODY primitives are reused. Tests will measure/report sizeof scope and compile direct frames; no full operational peak will be inferred.

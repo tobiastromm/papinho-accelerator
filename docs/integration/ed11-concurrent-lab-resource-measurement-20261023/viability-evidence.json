@@ -1,0 +1,106 @@
+{
+  "task": "PACC-PHASE6-ED11-CONCURRENT-LAB-RESOURCE-MEASUREMENT-1",
+  "branch": "main",
+  "head": "913c90cf2328f7939d8f5b927640601903ac6e91",
+  "prior_preimages_verified": 8395,
+  "source_hashes": {
+    "apps/server/server_service_win32.c": "e37c8b090e16abb2080e6fc3987ca9f01a80b1ab055c7e66144beff8352d12ff",
+    "apps/server/server_service_runtime_win32.inc": "1836e9fccdea273b6df72f618291ee985e59752092be678dea49bd9a26931180",
+    "tests/service_runtime_component_test.c": "ee4d005457c0e084db4004490fcd8eaa1d77f93e9bdec86b3126e44f27ad1c94",
+    "tests/service_runtime_file_fixture.inc": "e0473a91fbf56497fbea0787cd607e002d8cece47472496dfae411a68f692d3b",
+    "tests/service_runtime_file_model_test.c": "d6e4485c44d539d75e0e19682c59e2c4ae14de488534c3167853b67817a068b8",
+    "tools/qualification/scm-runtime-cycle-lab.inc": "ccefa24a14817e8aa33b8ce513a90319430cbfdae544a2e401ce7547c6c9c2d9",
+    "tools/qualification/scm-lab-first-cycle-uac.ps1": "d2773859973a4d2f924c47ac3d5717328fc14e964654f3e2698669845354666d",
+    "docs/protocol/pacc-c2-specification-revision-1.0.md": "eb3738ce8bb7a76678131bd8349fd3b0ede33d502509377744afe93256b5bb42",
+    "docs/adr/ADR-CANDIDATE-ed11-single-lab-diagnostic-native-boundary-20261023.md": "c276fe872c2b91c03cba67bd8d0c792932909dc1dc6aabca49515628cd63a66a"
+  },
+  "observations": [
+    {
+      "path": "apps/server/server_service_win32.c",
+      "line": 272,
+      "source": " host.handle=RegisterServiceCtrlHandlerExW(ps_name,ps_handler,NULL);"
+    },
+    {
+      "path": "apps/server/server_service_win32.c",
+      "line": 276,
+      "source": " native.error=psr_prepare();"
+    },
+    {
+      "path": "apps/server/server_service_win32.c",
+      "line": 314,
+      "source": " if(!StartServiceCtrlDispatcherW(table))return 2; /* no console fallback */"
+    },
+    {
+      "path": "apps/server/server_service_runtime_win32.inc",
+      "line": 137,
+      "source": "static DWORD psr_prepare(void)"
+    },
+    {
+      "path": "apps/server/server_service_runtime_win32.inc",
+      "line": 148,
+      "source": " native.service=PSRT_HANDLE(\"OpenServiceW\",(SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS),OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS));if(!native.service)return PSRT_RETURN(ps_last_error(),\"native_api_failure\");"
+    },
+    {
+      "path": "apps/server/server_service_runtime_win32.inc",
+      "line": 151,
+      "source": " status.dwProcessId!=GetCurrentProcessId()||status.dwCurrentState!=SERVICE_START_PENDING)return PSRT_RETURN(ERROR_INVALID_DATA,\"original_branch\");"
+    },
+    {
+      "path": "tests/service_runtime_component_test.c",
+      "line": 76,
+      "source": "#define OpenProcessToken m_process"
+    },
+    {
+      "path": "tests/service_runtime_component_test.c",
+      "line": 78,
+      "source": "#define GetTokenInformation m_token"
+    },
+    {
+      "path": "tests/service_runtime_component_test.c",
+      "line": 86,
+      "source": "#define AccessCheck m_access"
+    },
+    {
+      "path": "tests/service_runtime_component_test.c",
+      "line": 93,
+      "source": "#define WriteFile dm_write"
+    },
+    {
+      "path": "tests/service_runtime_component_test.c",
+      "line": 94,
+      "source": "#define FlushFileBuffers dm_flush"
+    },
+    {
+      "path": "tools/qualification/scm-runtime-cycle-lab.inc",
+      "line": 254,
+      "source": " if((e=cycle_readback(SERVICE_DISABLED,0))||(e=cycle_status(&status)))goto done;"
+    },
+    {
+      "path": "tools/qualification/scm-runtime-cycle-lab.inc",
+      "line": 258,
+      "source": " cycle_stage=\"REVALIDATE\";if((e=lab_operator_current())||(e=lab_bound(1))||(e=cycle_readback(SERVICE_DISABLED,0))||(e=cycle_status(&status)))goto done;"
+    },
+    {
+      "path": "tools/qualification/scm-runtime-cycle-lab.inc",
+      "line": 263,
+      "source": " cycle_stage=\"EXPLICIT_REBIND\";if((e=lab_operator_current())||(e=cycle_files())||(e=cycle_readback(SERVICE_DISABLED,0))||(e=cycle_status(&status)))goto done;"
+    },
+    {
+      "path": "tools/qualification/scm-runtime-cycle-lab.inc",
+      "line": 270,
+      "source": " cycle_stage=\"START_ONCE\";cycle_start_requested=1;if(!StartServiceW(native.service,0,NULL)){e=lab_error();goto done;}"
+    },
+    {
+      "path": "tools/qualification/scm-lab-first-cycle-uac.ps1",
+      "line": 11,
+      "source": "$Candidate=$Root+'\\build\\windows-service-protected-runtime-20261023\\Selected\\Release\\papacc_server_lab_host.exe'"
+    },
+    {
+      "path": "tools/qualification/scm-lab-first-cycle-uac.ps1",
+      "line": 12,
+      "source": "$CandidateHash='62087dbe13712c468dc92c5848de684cbc7cba6f921d15259f895fa8664d2716'"
+    }
+  ],
+  "execution": "NOT_RUN_VIABILITY_STOP_NOT_EMPTY_SUCCESS",
+  "start_executed": false
+}

@@ -1,0 +1,160 @@
+/* Isolated registration qualification. SAME adapter/PS_NATIVE; no runtime. */
+#include <windows.h>
+#include <sddl.h>
+#include <stdio.h>
+#include <string.h>
+#include <wchar.h>
+#define PAPACC_SCM_REGISTRATION_LAB 1
+#include "../../apps/server/server_service_win32.c"
+#define PAPACC_SCM_DESCRIPTOR_TEST 1
+#include "../../apps/server/server_launcher_scm_prepare_win32.inc"
+static const WCHAR lab_parent_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release";
+static const WCHAR lab_image_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc_server.exe";
+static const WCHAR lab_config_path[]=L"C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release\\papacc.conf";
+static HANDLE lab_parent,lab_config,lab_token;static PSID lab_sid;static PSECURITY_DESCRIPTOR lab_pending_sd;
+static HANDLE lab_aux_retained[2];static unsigned lab_aux_count;
+static int lab_close_aux(HANDLE h){if(CloseHandle(h))return 1;if(lab_aux_count<2)lab_aux_retained[lab_aux_count++]=h;return 0;}
+static int lab_append(WCHAR *out,size_t cap,const WCHAR *text){size_t n=wcslen(out),m=wcslen(text);if(n>=cap||m>=cap-n)return 0;memcpy(out+n,text,(m+1)*sizeof(WCHAR));return 1;}
+static TOKEN_STATISTICS lab_stats;static unsigned char lab_sd_hash[3][32];
+static DWORD lab_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+static DWORD lab_acl(HANDLE h,unsigned index,int compare){
+ PSECURITY_DESCRIPTOR p=NULL;SECURITY_DESCRIPTOR_CONTROL control;DWORD rev,n,e;unsigned char hash[32];int ok;
+ if(lab_pending_sd)return ERROR_INVALID_STATE;
+ e=GetSecurityInfo(h,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|GROUP_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&p);if(e)return e;
+ lab_pending_sd=p;n=GetSecurityDescriptorLength(p);ok=n>0&&n<=65536&&GetSecurityDescriptorControl(p,&control,&rev)&&(control&SE_DACL_PROTECTED)&&scm_descriptor(p,(BYTE *)lab_sid);
+ if(ok)ok=pacc_storage_hash_callback(NULL,(const unsigned char *)p,n,hash)&&(!compare||memcmp(hash,lab_sd_hash[index],32)==0);
+ if(!compare&&ok)memcpy(lab_sd_hash[index],hash,32);
+ if(LocalFree(p))return ERROR_INVALID_HANDLE;lab_pending_sd=NULL;return ok?ERROR_SUCCESS:ERROR_ACCESS_DENIED;
+}
+static DWORD lab_id(HANDLE h,DWORD hi,DWORD lo,int directory){
+ BY_HANDLE_FILE_INFORMATION i;if(!GetFileInformationByHandle(h,&i))return lab_error();
+ if(i.dwVolumeSerialNumber!=417614100UL||i.nFileIndexHigh!=hi||i.nFileIndexLow!=lo||
+ (i.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)||((i.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)!=0)!=directory)return ERROR_INVALID_DATA;
+ return ERROR_SUCCESS;
+}
+static DWORD lab_hash(HANDLE h,const char *expected){
+ PACC_STORAGE_SHA256 sha;BYTE block[1024],digest[32];DWORD n,e=ERROR_INVALID_DATA;unsigned k;char text[65];
+ if(SetFilePointer(h,0,NULL,FILE_BEGIN)==INVALID_SET_FILE_POINTER&&GetLastError()!=ERROR_SUCCESS)return lab_error();
+ memset(&sha,0,sizeof(sha));if(pacc_storage_sha_init(&sha)!=PACC_HASH_OK)return ERROR_INVALID_DATA;
+ for(;;){if(papacc_server_console_win32_stop_requested()){e=ERROR_OPERATION_ABORTED;goto done;}
+ if(!ReadFile(h,block,sizeof(block),&n,NULL)){e=lab_error();goto done;}if(!n)break;
+ if(pacc_storage_sha_update(&sha,block,n,NULL,NULL)!=PACC_HASH_OK)goto done;}
+ if(pacc_storage_sha_final(&sha,digest,32,NULL,NULL)!=PACC_HASH_OK)goto done;
+ for(k=0;k<32;k++){text[2*k]="0123456789abcdef"[digest[k]>>4];text[2*k+1]="0123456789abcdef"[digest[k]&15];}text[64]=0;e=strcmp(text,expected)?ERROR_INVALID_DATA:ERROR_SUCCESS;
+ done:SecureZeroMemory(&sha,sizeof(sha));SecureZeroMemory(block,sizeof(block));SecureZeroMemory(digest,sizeof(digest));return e;
+}
+static DWORD lab_bound_ex(int compare,int content){
+ DWORD e;if((e=lab_id(lab_parent,1966080,79426,1))||(e=lab_id(lab_config,393216,1120240,0))||
+ (e=lab_id(native.image,262144,1119989,0)))return e;
+ if((e=lab_acl(lab_parent,0,compare))||(e=lab_acl(lab_config,1,compare))||(e=lab_acl(native.image,2,compare)))return e;
+ if(!content)return 0;
+ if((e=lab_hash(lab_config,"a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44")))return e;
+ return lab_hash(native.image,"3737e83be95613a2616b9fb764fe95d72796912746e9440e37b3ed2a77e01abb");
+}
+static DWORD lab_bound(int compare){return lab_bound_ex(compare,1);}
+static DWORD lab_operator(void){
+ HANDLE th=NULL;BYTE user[256],admins[SECURITY_MAX_SID_SIZE];DWORD used=0,n=sizeof(admins);TOKEN_ELEVATION elev;TOKEN_ELEVATION_TYPE type;BOOL member=FALSE;
+ if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&th)){if(!lab_close_aux(th))return ERROR_INVALID_HANDLE;return ERROR_ACCESS_DENIED;}
+ if(GetLastError()!=ERROR_NO_TOKEN)return lab_error();
+ if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&lab_token))return lab_error();
+ if(!GetTokenInformation(lab_token,TokenUser,user,sizeof(user),&used)||!EqualSid(((TOKEN_USER *)user)->User.Sid,lab_sid)||
+ !GetTokenInformation(lab_token,TokenElevation,&elev,sizeof(elev),&used)||!elev.TokenIsElevated||
+ !GetTokenInformation(lab_token,TokenElevationType,&type,sizeof(type),&used)||type==TokenElevationTypeLimited||
+ !CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admins,&n)||!CheckTokenMembership(NULL,admins,&member)||!member||
+ !GetTokenInformation(lab_token,TokenStatistics,&lab_stats,sizeof(lab_stats),&used))return ERROR_ACCESS_DENIED;
+ return ERROR_SUCCESS;
+}
+static DWORD lab_operator_current(void){
+ HANDLE token=NULL,thread=NULL;TOKEN_STATISTICS s;DWORD n=0,e=0;
+ if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&thread)){if(!lab_close_aux(thread))return ERROR_INVALID_HANDLE;return ERROR_ACCESS_DENIED;}
+ if(GetLastError()!=ERROR_NO_TOKEN)return lab_error();
+ if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))return lab_error();
+ if(!GetTokenInformation(token,TokenStatistics,&s,sizeof(s),&n)||memcmp(&s.TokenId,&lab_stats.TokenId,sizeof(LUID))||
+ memcmp(&s.AuthenticationId,&lab_stats.AuthenticationId,sizeof(LUID))||memcmp(&s.ModifiedId,&lab_stats.ModifiedId,sizeof(LUID)))e=ERROR_ACCESS_DENIED;
+ if(!lab_close_aux(token))return ERROR_INVALID_HANDLE;return e;
+}
+#ifndef PAPACC_SCM_CYCLE_LAB
+static DWORD lab_confirm(const char *attempt){
+ HANDLE in,out;DWORD im=0,om=0,written=0,n=0,e=0;WCHAR plan[2048],reply[128],expected[96],wide_attempt[33];unsigned k;size_t len;
+ in=CreateFileW(L"CONIN$",GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(in==INVALID_HANDLE_VALUE)return lab_error();
+ out=CreateFileW(L"CONOUT$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
+ if(out==INVALID_HANDLE_VALUE){e=lab_error();if(!lab_close_aux(in))return ERROR_INVALID_HANDLE;return e;}
+ if(!GetConsoleMode(in,&im)||!GetConsoleMode(out,&om)||(im&(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT))!=(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT)){e=ERROR_ACCESS_DENIED;goto done;}
+ for(k=0;k<32;k++)wide_attempt[k]=(WCHAR)(unsigned char)attempt[k];wide_attempt[32]=0;
+ expected[0]=0;plan[0]=0;
+ if(!lab_append(expected,96,L"REGISTER_SCM_LAB ")||!lab_append(expected,96,wide_attempt)||
+ !lab_append(plan,2048,L"LAB ONLY\r\nSERVICE=")||!lab_append(plan,2048,ps_name)||
+ !lab_append(plan,2048,L"\r\nACCOUNT=")||!lab_append(plan,2048,ps_account)||
+ !lab_append(plan,2048,L"; PASSWORD=NULL\r\nSTARTUP=DISABLED; NO START/RUNTIME/LISTENER/CA/CURRENT\r\nIMAGE=")||!lab_append(plan,2048,lab_image_path)||
+ !lab_append(plan,2048,L"\r\nIMAGE_SHA256=3737e83be95613a2616b9fb764fe95d72796912746e9440e37b3ed2a77e01abb\r\nCONFIG=")||!lab_append(plan,2048,lab_config_path)||
+ !lab_append(plan,2048,L"\r\nCONFIG_SHA256=a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44\r\nOPERATOR=S-1-5-21-785699550-1440458426-1682014700-1108\r\nOne Create, configure SID UNRESTRICTED, readback and close. No deletion/retry. Partial result is NOT rollback.\r\nType the ENTIRE line, then Enter (visible input):\r\n")||
+ !lab_append(plan,2048,expected)||!lab_append(plan,2048,L"\r\n> ")){e=ERROR_INVALID_DATA;goto done;}
+ len=wcslen(plan);
+ if(len>=2048||!WriteConsoleW(out,plan,(DWORD)len,&written,NULL)||written!=(DWORD)len||!ReadConsoleW(in,reply,127,&n,NULL)){e=lab_error();goto done;}
+ while(n&&(reply[n-1]==L'\r'||reply[n-1]==L'\n'))n--;reply[n]=0;
+ if(wcscmp(reply,expected))e=ERROR_CANCELLED;
+ done:if(!lab_close_aux(in))e=ERROR_INVALID_HANDLE;if(!lab_close_aux(out))e=ERROR_INVALID_HANDLE;return e;
+}
+static DWORD lab_intent(const char *attempt){
+ HANDLE h;DWORD n=0,e=0;char text[256];size_t len;
+ static const char prefix[]="LAB=PapinhoAcceleratorLab20261023; ATTEMPT=",suffix[]="; EFFECT=NOT_YET_CONFIRMED; RETRY=DENY\r\n";
+ h=CreateFileW(L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\windows-virtual-service-native-lab-registration-20261023\\manual-native-intent.txt",GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
+ if(h==INVALID_HANDLE_VALUE)return lab_error();
+ len=sizeof(prefix)-1;memcpy(text,prefix,len);memcpy(text+len,attempt,32);len+=32;memcpy(text+len,suffix,sizeof(suffix)-1);len+=sizeof(suffix)-1;
+ if(!WriteFile(h,text,(DWORD)len,&n,NULL)||n!=(DWORD)len||!FlushFileBuffers(h))e=lab_error();if(!lab_close_aux(h))e=ERROR_INVALID_HANDLE;return e;
+}
+#endif
+#ifdef PAPACC_SCM_CYCLE_LAB
+#include "scm-runtime-cycle-lab.inc"
+#else
+int main(int argc,char **argv){
+ DWORD e=0,close_error=0,n=0,k;int positive=0;SC_HANDLE existing=NULL;SERVICE_STATUS_PROCESS s;LPWSTR sid_text=NULL;
+ const char *stage="ARGUMENTS";char attempt[33];
+ if(argc==2&&!strcmp(argv[1],"--check"))positive=0;
+ else if(argc==3&&!strcmp(argv[1],"--register-lab")&&strlen(argv[2])==32){positive=1;for(k=0;k<32;k++)if(!((argv[2][k]>='0'&&argv[2][k]<='9')||(argv[2][k]>='a'&&argv[2][k]<='f')))return 2;memcpy(attempt,argv[2],33);}
+ else {puts("LAB_REGISTRATION=ARGUMENT_DENY; SCM_EFFECT=NONE");return 2;}
+ native.thread=GetCurrentThreadId();
+ stage="SID_EXPECTATION";if(!ConvertStringSidToSidW(L"S-1-5-21-785699550-1440458426-1682014700-1108",&lab_sid)){e=lab_error();goto done;}
+ stage="STOP_CONTEXT";if(papacc_server_console_win32_install(&native.console)!=PAPACC_RESULT_OK){e=ERROR_INVALID_STATE;goto done;}
+ if(positive){stage="OPERATOR";e=lab_operator();if(e)goto done;}
+ stage="BOUND_FILES";
+ lab_parent=CreateFileW(lab_parent_path,READ_CONTROL|FILE_READ_ATTRIBUTES,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+ if(lab_parent==INVALID_HANDLE_VALUE){lab_parent=NULL;e=lab_error();goto done;}
+ lab_config=CreateFileW(lab_config_path,GENERIC_READ|READ_CONTROL|FILE_READ_ATTRIBUTES,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+ if(lab_config==INVALID_HANDLE_VALUE){lab_config=NULL;e=lab_error();goto done;}
+ native.image=CreateFileW(lab_image_path,GENERIC_READ|READ_CONTROL|FILE_READ_ATTRIBUTES,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+ if(native.image==INVALID_HANDLE_VALUE){native.image=NULL;e=lab_error();goto done;}
+ if((e=lab_bound(0)))goto done;
+ if(!GetFileInformationByHandle(native.image,&native.image_id)){e=lab_error();goto done;}native.image_ready=1;
+ native.command[0]=0;if(!lab_append(native.command,1050,L"\"")||!lab_append(native.command,1050,lab_image_path)||!lab_append(native.command,1050,L"\" service host")){e=ERROR_INVALID_DATA;goto done;}
+ stage="SCM_ABSENCE";native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!native.manager){e=lab_error();goto done;}
+ existing=OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG);
+ if(existing){e=ERROR_SERVICE_EXISTS;if(!CloseServiceHandle(existing)){native.service=existing;native.retained=1U;e=lab_error();}goto done;}
+ e=lab_error();if(e!=ERROR_SERVICE_DOES_NOT_EXIST)goto done;e=0;
+ if(!positive){puts("LAB_REGISTRATION=PREPARED_READ_ONLY; EXISTENCE=ABSENT_OBSERVED; FILES=BOUND; OPERATOR_AUTHORIZATION=NOT_CLAIMED; CREATE=NOT_RUN");goto done;}
+ stage="EXACT_CONFIRMATION";if((e=lab_confirm(attempt)))goto done;
+ stage="REVALIDATE";if((e=lab_operator_current())||(e=lab_bound(1))||papacc_server_console_win32_stop_requested()){if(!e)e=ERROR_OPERATION_ABORTED;goto done;}
+ stage="ONE_SHOT_INTENT";if((e=lab_intent(attempt)))goto done;
+ if(!CloseServiceHandle(native.manager)){native.retained=1U;e=lab_error();goto done;}native.manager=NULL;
+ stage="CREATE_CONFIG_READBACK";native.manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT|SC_MANAGER_CREATE_SERVICE);if(!native.manager){e=lab_error();goto done;}
+ if((e=lab_bound(1))||(e=lab_operator_current()))goto done;
+ e=ps_install_virtual();if(e)goto done;
+ stage="STOPPED_READBACK";if(native.query.aligned.dwErrorControl!=SERVICE_ERROR_NORMAL){e=ERROR_INVALID_DATA;goto done;}memset(&s,0,sizeof(s));
+ if(!QueryServiceStatusEx(native.service,SC_STATUS_PROCESS_INFO,(LPBYTE)&s,sizeof(s),&n)){e=lab_error();goto done;}
+ if(n!=sizeof(s)||s.dwCurrentState!=SERVICE_STOPPED||s.dwProcessId){e=ERROR_INVALID_STATE;goto done;}
+ if(!ConvertSidToStringSidW(native.service_sid,&sid_text)){e=lab_error();goto done;}
+ printf("LAB_REGISTRATION=CREATED_CONFIGURED_READBACK_PASS; NAME=%ls; ACCOUNT=%ls; SID=%ls; SID_BYTES=%lu; STARTUP=DISABLED; STATE=STOPPED; PID=0; SERVICE_TOKEN=NOT_QUALIFIED; START=NOT_CALLED\n",ps_name,ps_account,sid_text,(unsigned long)native.sid_size);
+ if(LocalFree(sid_text)){e=ERROR_INVALID_HANDLE;goto done;}sid_text=NULL;
+ stage="FILES_REVALIDATED";e=lab_bound(1);
+ done:
+ if(!native.retained)close_error=ps_close();else close_error=ERROR_INVALID_HANDLE;
+ if(lab_config&&!CloseHandle(lab_config))close_error=ERROR_INVALID_HANDLE;
+ if(lab_parent&&!CloseHandle(lab_parent))close_error=ERROR_INVALID_HANDLE;
+ if(lab_token&&!CloseHandle(lab_token))close_error=ERROR_INVALID_HANDLE;
+ if(lab_sid&&LocalFree(lab_sid))close_error=ERROR_INVALID_HANDLE;
+ if(lab_pending_sd||sid_text||lab_aux_count)close_error=ERROR_INVALID_HANDLE;
+ printf("LAB_FINAL; STAGE=%s; ERROR=%lu; CLOSE=%lu; RETAINED=%u; AUX_RETAINED=%u; EFFECT_REQUESTED=%u; DISPOSITION=%u; READBACK=%u; NO_START_NO_DELETE_NO_RETRY; CA_CURRENT_AUTHORITY=DENY\n",stage,(unsigned long)e,(unsigned long)close_error,native.retained,lab_aux_count,native.install_effect,native.install_disposition,native.readback);
+ return e||close_error?2:0;
+}
+
+#endif

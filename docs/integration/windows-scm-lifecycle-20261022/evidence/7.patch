@@ -1,0 +1,39 @@
+--- apps/server/main.c.api3.inc
++++ apps/server/main.c.api3.inc
+@@ -3,6 +3,9 @@
+ 
+ #include "papacc/version.h"
+ #include "server_cli.h"
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++#include "server_service_win32.h"
++#endif
+ #if defined(PAPACC_ENABLE_CONFIG_ADMIN_CLI)
+ #include "server_config_cli.h"
+ #endif
+@@ -175,7 +178,11 @@
+     return result == PAPACC_RESULT_OK ? 0 : 1;
+ }
+ 
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++static int papacc_server_entry(int argc, char **argv)
++#else
+ int main(int argc, char **argv)
++#endif
+ {
+ #if defined(PAPACC_ENABLE_CONFIG_ADMIN_CLI)
+     int config_result = papacc_server_config_cli(
+@@ -234,3 +241,14 @@
+ 
+     return 0;
+ }
++
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++int main(int argc,char **argv)
++{
++ int s=papacc_server_service_cli(argc,(const char *const *)argv,stdout,stderr);
++ if(s>=0)return s;
++ s=papacc_server_service_dispatch(argc,argv,papacc_server_entry);
++ if(s>=0)return s;
++ return papacc_server_entry(argc,argv);
++}
++#endif

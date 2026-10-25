@@ -1,0 +1,19 @@
+# Plano executado somente em fixture isolado
+
+Escopo: objetos sintéticos sob build/native-c-positive-lifetime-20261024/runs, criados exclusivamente em diretórios novos por execução. Nenhum caminho LAB, mutex canônico, SCM, dossiê protegido ou entry do produto é chamado. Arquivos .dat persistem para inspeção; nenhum cleanup destrutivo. O executável inclui diretamente os dois includes funcionais A1, sem modificá-los. O contexto mínimo do fixture fornece somente o thread de controle, retenção e sinalizador Stop; não simula autoridade positiva do owner canônico.
+
+O ledger replica a forma de lifetimes da auditoria A–J: nove refs comuns; onze de contexto; cinco originais transitórios mais sete no binding; par A1 transitório; 27 estáveis; intent .dat, copy .dat writer/reopen, sink .dat; processo filho que somente espera evento; token/access/Toolhelp retidos até J. Não prova equivalência semântica com proteção, conta virtual, políticas, censo ou admissão reais. Roots são cinco referências sintéticas ao MESMO diretório, e os papéis administrativos usam o próprio processo como substituto: nenhum desses fatos constitui evidência N0–N9 do LAB.
+
+Objetos do fixture adicionais: evento Stop, evento temporário de prontidão e thread retornada por CreateProcess. São classificados separadamente dos objetos correspondentes ao ledger do produto. Processo filho e observador Python têm tabelas distintas, nunca somadas à do coletor. Criança é criada sem console adicional e encerra por evento; timeout é falha, nunca quiescência. O worker tem prazo próprio de 15s e precisa terminar factualmente para cleanup limpo. Nenhum kill, serviço, rede, intent operacional ou rollback.
+
+A prontidão é sinalizada pelo worker após entrar no seu entry; o pai fecha o evento temporário e o handle inicial de thread antes do primeiro monitoramento.
+
+Medições: GetProcessHandleCount, referências próprias com slot/geração, QPC/tick, última utilização, close checado; identidade de arquivo/volume/File ID, processo/criação, thread/processo/criação e TokenStatistics. Tipo é validado por GetFileType e APIs específicas, ou pela API criadora documentada (mutex/evento/Toolhelp), sem enumeração NtQueryObject não qualificada. HPSS e marker são opacos e fechados por suas APIs, não contados automaticamente como um HANDLE cada.
+
+O observador externo abre somente um handle de consulta para o processo do fixture, mede em cada SAMPLE enquanto o fixture espera ACK por stdin já existente, e fecha sua referência após o término factual. Essa referência pertence à tabela Python. Leituras GetProcessHandleCount internas repetidas não adquirem referências explícitas; diferenças residuais do Windows e picos entre amostras permanecem UNKNOWN. Logs por stdout e memória do ledger têm custo; não são recorder operacional nem instrumentação do Accelerator.
+
+PSS: flags THREADS|THREAD_CONTEXT, CONTEXT_CONTROL; snapshots de self e filho; marker e OpenThread com validação de PID/criação/liveness. Medir antes/capture/marker/thread/markerfree/snapshotfree separadamente, comparando execuções PSS on/off. Não ler stack bytes ou divulgar registros/contexto; não substituir PSS do produto.
+
+Casos: clean on/off com três réplicas/configuração; falha real de aquisição; close incerto injetado SEM chamar CloseHandle (handle real permanece owned); saturação; Stop antes do primeiro efeito sintético; sample expirada simulada com timestamp antigo; processo já encerrado; processo vivo com obrigação até saída factual. A falha de close conserva referências e encerra o subprocesso como contenção de teste: isso NÃO confirma close nativo, quiescência global ou ausência de leak. Não executar esse caso em objeto operacional.
+
+Build: MSVC19.51 x64, /W4 /WX, Selected/Legacy Debug/Release, mesmos Windows SDK e perfis de compilação existentes. Sem dependências novas. Quotas, pins e binários históricos são preservados. Nenhuma otimização é aplicada por este experimento.

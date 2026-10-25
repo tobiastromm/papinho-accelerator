@@ -1,0 +1,227 @@
+{
+  "profile": "Legacy",
+  "config": "Release",
+  "ctest_exit": 0,
+  "cases": [
+    {
+      "exe": "papacc_server.exe",
+      "args": [
+        "--help"
+      ],
+      "expected": 0,
+      "exit": 0,
+      "pass_case": true,
+      "stdout": "PapinhoAccelerator Server\r\nUsage:\r\n  papacc_server.exe --help\r\n  papacc_server.exe config validate|diff|apply --source <file>\r\n  papacc_server.exe config show-effective\r\n  Configuration: offline validation only; CURRENT/apply unavailable\r\n  papacc_server.exe service install|start|stop|status|remove\r\n  papacc_server.exe service startup automatic|manual\r\n  papacc_server.exe service install --prepare-lab --installation <directory> --configuration <relative-file>\r\n  Service hosting is optional; install uses a virtual account, no password.\r\n  Service mutations remain denied until installation and admission are qualified.\r\n  papacc_server.exe --list-interfaces\r\n  papacc_server.exe --port <port> --all-interfaces [--listener-profile legacy-endpoint] [--log-level <level>]\r\n  papacc_server.exe --port <port> --interface-id <id> [--interface-id <id> ...] [--listener-profile legacy-endpoint] [--log-level <level>]\r\n  papacc_server.exe --port <port> <bind-option> --listener-profile secure-principal --security-configuration-ref <reference> [--allow-network-egress --egress-policy-ref <reference> --egress-profile-ref <reference> --outbound-tls-profile-ref <reference>] [--log-level <level>]\r\nSecure Principal lab source environment:\r\n  PAPACC_SECURITY_CONFIGURATION_REF\r\n  PAPACC_SERVER_CERTIFICATE_DER_B64\r\n  PAPACC_SERVER_PRIVATE_KEY_PKCS8_DER_B64\r\n  PAPACC_CLIENT_CA_DER_B64\r\n  PAPACC_ALLOWED_CLIENT_CERT_SHA256\r\nLog levels: off, error, warn, info (default), debug, trace\r\n  off disables all PAPACC_LOGGER output\r\nExample: papacc_server.exe --port 39999 --all-interfaces --log-level info\r\n",
+      "stderr": ""
+    },
+    {
+      "exe": "papacc_server.exe",
+      "args": [
+        "service",
+        "host"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "exe": "papacc_server.exe",
+      "args": [
+        "service",
+        "host",
+        "extra"
+      ],
+      "expected": 1,
+      "exit": 1,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "exe": "papacc_server.exe",
+      "args": [
+        "service",
+        "install"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server.exe",
+      "args": [
+        "service",
+        "start"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server.exe",
+      "args": [
+        "service",
+        "stop"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server.exe",
+      "args": [
+        "service",
+        "startup",
+        "manual"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server.exe",
+      "args": [
+        "service",
+        "remove"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server.exe",
+      "args": [
+        "--port",
+        "39999",
+        "--all-interfaces"
+      ],
+      "expected": 1,
+      "exit": 1,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "Server startup failed: INVALID_STATE\r\n"
+    },
+    {
+      "exe": "papacc_server_lab_host.exe",
+      "args": [
+        "--help"
+      ],
+      "expected": 0,
+      "exit": 0,
+      "pass_case": true,
+      "stdout": "PapinhoAccelerator Server\r\nUsage:\r\n  papacc_server.exe --help\r\n  papacc_server.exe config validate|diff|apply --source <file>\r\n  papacc_server.exe config show-effective\r\n  Configuration: offline validation only; CURRENT/apply unavailable\r\n  papacc_server.exe service install|start|stop|status|remove\r\n  papacc_server.exe service startup automatic|manual\r\n  papacc_server.exe service install --prepare-lab --installation <directory> --configuration <relative-file>\r\n  Service hosting is optional; install uses a virtual account, no password.\r\n  Service mutations remain denied until installation and admission are qualified.\r\n  papacc_server.exe --list-interfaces\r\n  papacc_server.exe --port <port> --all-interfaces [--listener-profile legacy-endpoint] [--log-level <level>]\r\n  papacc_server.exe --port <port> --interface-id <id> [--interface-id <id> ...] [--listener-profile legacy-endpoint] [--log-level <level>]\r\n  papacc_server.exe --port <port> <bind-option> --listener-profile secure-principal --security-configuration-ref <reference> [--allow-network-egress --egress-policy-ref <reference> --egress-profile-ref <reference> --outbound-tls-profile-ref <reference>] [--log-level <level>]\r\nSecure Principal lab source environment:\r\n  PAPACC_SECURITY_CONFIGURATION_REF\r\n  PAPACC_SERVER_CERTIFICATE_DER_B64\r\n  PAPACC_SERVER_PRIVATE_KEY_PKCS8_DER_B64\r\n  PAPACC_CLIENT_CA_DER_B64\r\n  PAPACC_ALLOWED_CLIENT_CERT_SHA256\r\nLog levels: off, error, warn, info (default), debug, trace\r\n  off disables all PAPACC_LOGGER output\r\nExample: papacc_server.exe --port 39999 --all-interfaces --log-level info\r\n",
+      "stderr": ""
+    },
+    {
+      "exe": "papacc_server_lab_host.exe",
+      "args": [
+        "service",
+        "host"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "exe": "papacc_server_lab_host.exe",
+      "args": [
+        "service",
+        "host",
+        "extra"
+      ],
+      "expected": 1,
+      "exit": 1,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "exe": "papacc_server_lab_host.exe",
+      "args": [
+        "service",
+        "install"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server_lab_host.exe",
+      "args": [
+        "service",
+        "start"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server_lab_host.exe",
+      "args": [
+        "service",
+        "stop"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server_lab_host.exe",
+      "args": [
+        "service",
+        "startup",
+        "manual"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server_lab_host.exe",
+      "args": [
+        "service",
+        "remove"
+      ],
+      "expected": 2,
+      "exit": 2,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\r\nSERVICE=ERROR; WIN32=5; CLOSE=0; RETAINED=0; NO_AUTOMATIC_RETRY\r\n"
+    },
+    {
+      "exe": "papacc_server_lab_host.exe",
+      "args": [
+        "--port",
+        "39999",
+        "--all-interfaces"
+      ],
+      "expected": 1,
+      "exit": 1,
+      "pass_case": true,
+      "stdout": "",
+      "stderr": "Server startup failed: INVALID_STATE\r\n"
+    }
+  ]
+}

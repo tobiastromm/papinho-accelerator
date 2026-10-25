@@ -1,0 +1,248 @@
+# PAPINHOACCELERATOR — Native C Handle Ownership and API Efficiency Audit
+
+TASK=PACC-PHASE6-NATIVE-C-HANDLE-OWNERSHIP-EFFICIENCY-1
+
+MODE=GOVERNED_READ_ONLY_SOURCE_AUDIT_AND_ENGINEERING_REVIEW
+
+CANONICAL_PROJECT=C:\Projetos\PapinhoAccelerator
+
+OWNER_DIRECTION=FOCUS_ON_OUR_NATIVE_C_IMPLEMENTATION_NOT_ON_OPTIMIZING_WINDOWS_OR_POWERSHELL
+
+## 1. Objetivo
+
+Auditar o código C nativo do PapinhoAccelerator envolvido na admissão N0–N9, no ciclo positivo e no serviço Windows.
+
+Determinar se nosso código:
+
+- adquire handles desnecessários;
+- mantém handles por mais tempo que o necessário;
+- duplica referências sem necessidade;
+- deixa de fechar recursos em algum caminho;
+- utiliza APIs excessivamente custosas;
+- poderia usar alternativas nativas mais eficientes sem perder garantias.
+
+Não modificar código nesta tarefa.
+
+## 2. Escopo
+
+Analisar os caminhos reais de:
+
+- owner canônico;
+- admissão N0–N9;
+- verificação RAW1;
+- exclusividade;
+- censo de processos;
+- PSS;
+- métricas ED11;
+- consumo de intent;
+- cópia da imagem;
+- criação do sink;
+- rebind SCM;
+- Start/Stop;
+- cleanup e retenção.
+
+Seguir o call graph real, incluindo arquivos .c, .h e .inc relevantes.
+
+Não limitar a busca a CreateFile/CloseHandle.
+
+## 3. Ownership
+
+Para cada recurso:
+
+- API de aquisição;
+- função e arquivo;
+- owner;
+- handle original ou duplicado;
+- empréstimos;
+- lifetime;
+- API de fechamento;
+- caminhos de erro;
+- Stop;
+- retenção UNKNOWN.
+
+Identificar vazamentos demonstráveis e riscos de double-close ou use-after-close.
+
+Não presumir vazamento apenas por aumento da contagem.
+
+## 4. APIs
+
+Avaliar especialmente:
+
+- NtCreateFile/CreateFile;
+- OpenProcess;
+- OpenThread;
+- DuplicateHandle;
+- CreateEvent;
+- CreateMutex;
+- OpenSCManager/OpenService;
+- PssCaptureSnapshot/PssFreeSnapshot;
+- GetProcessHandleCount;
+- APIs de identidade e segurança;
+- APIs de leitura e cópia de arquivos.
+
+Para cada alternativa proposta, verificar:
+
+- compatibilidade Windows 10;
+- compatibilidade Selected/Legacy e compiladores;
+- custo esperado;
+- garantias preservadas;
+- impacto no Stop e na retenção.
+
+Não substituir API apenas por parecer mais moderna.
+
+## 5. Eficiência
+
+Investigar:
+
+- reaberturas redundantes;
+- snapshots duplicados;
+- consultas repetidas;
+- handles mantidos após sua última utilização;
+- buffers e estruturas temporárias;
+- operações que poderiam ser sequenciais;
+- chamadas que introduzem recursos transitórios desnecessários.
+
+Separar otimização comprovada de hipótese.
+
+## 6. Contabilização
+
+Construir ledger por fase:
+
+A. Admissão inicial.
+
+B. Verificação protegida.
+
+C. Métricas iniciais.
+
+D. Consumo de intent.
+
+E. Cópia da imagem.
+
+F. Criação do sink.
+
+G. Rebind SCM.
+
+H. Métricas finais.
+
+I. Start/Stop.
+
+J. Cleanup.
+
+Para cada fase, apresentar:
+
+- handles próprios vivos;
+- novos;
+- fechados;
+- emprestados;
+- duplicados;
+- mínimo simultâneo conhecido;
+- custos internos Windows UNKNOWN.
+
+Não apresentar número exato de handles internos de APIs sem medição.
+
+## 7. Limites ED11
+
+Preservar:
+
+- 128 handles por processo nativo;
+- 1.024 administrativos compartilhados;
+- quatro papéis;
+- freshness 60s/1s;
+- headroom;
+- créditos NONE_GRANTED;
+- exclusividade;
+- Stop;
+- retenção.
+
+Não aumentar quotas.
+
+Não fechar referências de segurança antecipadamente.
+
+## 8. Alternativas
+
+Classificar descobertas:
+
+A. Defeito comprovado de ownership/cleanup.
+
+B. Redundância comprovada.
+
+C. Otimização segura possível.
+
+D. Alternativa de API que exige experimento isolado.
+
+E. Custo obrigatório.
+
+F. UNKNOWN externo ao nosso código.
+
+Priorizar A e B antes de qualquer otimização especulativa.
+
+## 9. Validação
+
+Auditoria estática primeiro.
+
+Se houver dúvida sobre custo de API, preparar experimento isolado mínimo em C, sem LAB ou SCM operacional.
+
+Não executar experimento sem autorização específica.
+
+Não repetir tentativa consumida.
+
+## 10. Entrega
+
+Produzir:
+
+- call graph;
+- ledger de handles;
+- matriz de ownership;
+- caminhos de erro e cleanup;
+- APIs alternativas justificadas;
+- defeitos comprovados;
+- oportunidades de redução;
+- menor patch recomendado;
+- estimativa de economia somente quando demonstrável.
+
+Não implementar patch automaticamente.
+
+## 11. Governança
+
+Não modificar código funcional.
+
+Não executar preflight, StartService ou StopService.
+
+Não criar intent, imagem ou sink.
+
+Não alterar SCM ou ACLs.
+
+Não aumentar quotas.
+
+Não criar clones ou worktrees.
+
+Não fazer commit, push, tag ou release.
+
+Preservar HEAD, WIP e histórico.
+
+Não executar bootstrap, CA, certificados ou CURRENT.
+
+## 12. Resultado
+
+CURRENT_TASK_COMPLETED=YES|NO
+
+NATIVE_C_OWNERSHIP_AUDIT=...
+DEMONSTRATED_LEAKS=...
+REDUNDANT_HANDLES=...
+SAFE_LIFETIME_REDUCTIONS=...
+API_ALTERNATIVES=...
+KNOWN_NATIVE_HANDLE_PEAK=...
+WINDOWS_INTERNAL_COSTS=UNKNOWN_UNLESS_MEASURED
+
+START_EXECUTED=NO
+SCM_MUTATIONS=NONE
+ACL_MUTATIONS=NONE
+
+ED11_TOTAL_STATUS=PARTIAL
+CURRENT_PUBLICATION=DENY
+SIGNATURE_AUTHORITY=DENY
+AUTHORITATIVE_RECOVERY=DENY
+
+WIP_PRESERVED=...
+FIRST_UNRESOLVED_DIVERGENCE=...
+NEXT=NATIVE_C_FOCUSED_CORRECTION_OR_POSITIVE_CYCLE_REVIEW

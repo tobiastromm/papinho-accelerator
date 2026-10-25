@@ -1,0 +1,69 @@
+{
+  "fixed_Selected": 1948880,
+  "fixed_Legacy": 1790872,
+  "fixed_delta": 0,
+  "Windows_limit": 3145728,
+  "Legacy_limit": 2097152,
+  "Windows_requires_explicit_selection": true,
+  "individual_quotas_changed": false,
+  "x64": {
+    "context_embedded_in_observation": 144,
+    "observation": 232,
+    "history_includes_last_observation": 256,
+    "history_plus_incoming_observation": 488,
+    "separate_interval_outputs_if_distinct": 16
+  },
+  "VC6_x86": {
+    "context": 128,
+    "observation": 216,
+    "history": 240,
+    "history_plus_incoming_observation": 456
+  },
+  "ownership": "no runtime instantiation; future single administrative owner; caller storage counted, no heap allocation or global mutable state",
+  "prior_full_conservative_scenario": 3747825,
+  "prior_scenario_excess_3MiB": 602097,
+  "new_costs_in_prior_scenario": "NOT_INCLUDED_OR_RESERVED; adding distinct history+sample is488 x64, before interval outputs and transitive frames. No claim of operational peak. Context144 already included in each observation; history256 includes last232. Do not double count embedded structs or stack covered by another factual reservation.",
+  "direct_frames": {
+    "Debug": {
+      "papacc_utc_data_propagate": [
+        136
+      ],
+      "papacc_utc_data_observe": [
+        88
+      ],
+      "papacc_utc_data_query": [
+        72
+      ],
+      "papacc_utc_data_invalidate": [],
+      "papacc_utc_data_stop": [],
+      "papacc_utc_data_within": [
+        72
+      ],
+      "papacc_utc_data_filetime": [
+        56
+      ],
+      "papacc_issuer_qualified_utc_read": []
+    },
+    "Release": {
+      "papacc_utc_data_propagate": [
+        32
+      ],
+      "papacc_utc_data_observe": [
+        48
+      ],
+      "papacc_utc_data_query": [
+        48
+      ],
+      "papacc_utc_data_invalidate": [],
+      "papacc_utc_data_stop": [],
+      "papacc_utc_data_within": [],
+      "papacc_utc_data_filetime": [],
+      "papacc_issuer_qualified_utc_read": []
+    }
+  },
+  "direct_frames_exclude": "pushes, call return, caller storage, nested scalar helpers/memcmp, CRT and compiler-specific uint64 support",
+  "transitive_stack": "UNKNOWN_NOT_ZERO",
+  "provider_kernel": "UNKNOWN",
+  "full_activation": "DENY",
+  "ED11_TOTAL_STATUS": "PARTIAL"
+}

@@ -1,0 +1,95 @@
+bootstrap_create_child:
+  0000000000000000: 40 53              push        rbx
+  0000000000000002: 55                 push        rbp
+  0000000000000003: 56                 push        rsi
+  0000000000000004: 57                 push        rdi
+  0000000000000005: 48 81 EC 98 01 00  sub         rsp,198h
+                    00
+  000000000000000C: 48 8B 05 00 00 00  mov         rax,qword ptr [__security_cookie]
+                    00
+  0000000000000013: 48 33 C4           xor         rax,rsp
+  0000000000000016: 48 89 84 24 80 01  mov         qword ptr [rsp+180h],rax
+                    00 00
+  000000000000001E: 48 83 B9 D8 1D 01  cmp         qword ptr [rcx+11DD8h],0
+                    00 00
+  0000000000000026: 48 8B D9           mov         rbx,rcx
+  0000000000000029: 74 56              je          0000000000000081
+  000000000000002B: 48 83 B9 E0 1D 01  cmp         qword ptr [rcx+11DE0h],0
+                    00 00
+
+personal_target_worker:
+  0000000000000000: 40 53              push        rbx
+  0000000000000002: 48 83 EC 30        sub         rsp,30h
+  0000000000000006: 33 D2              xor         edx,edx
+  0000000000000008: 48 8B D9           mov         rbx,rcx
+  000000000000000B: 8B 89 C4 1D 01 00  mov         ecx,dword ptr [rcx+11DC4h]
+  0000000000000011: 33 C0              xor         eax,eax
+  0000000000000013: F0 0F B1 13        lock cmpxchg dword ptr [rbx],edx
+  0000000000000017: 83 F8 01           cmp         eax,1
+  000000000000001A: 0F 85 72 01 00 00  jne         0000000000000192
+  0000000000000020: 48 89 7C 24 40     mov         qword ptr [rsp+40h],rdi
+  0000000000000025: C7 83 34 1E 01 00  mov         dword ptr [rbx+11E34h],5
+                    05 00 00 00
+  000000000000002F: 83 F9 5D           cmp         ecx,5Dh
+  0000000000000032: 0F 85 44 01 00 00  jne         000000000000017C
+  0000000000000038: 33 C9              xor         ecx,ecx
+  000000000000003A: 33 C0              xor         eax,eax
+  000000000000003C: F0 0F B1 8B 30 1E  lock cmpxchg dword ptr [rbx+11E30h],ecx
+
+personal_target_start:
+  0000000000000000: 40 53              push        rbx
+  0000000000000002: 55                 push        rbp
+  0000000000000003: 56                 push        rsi
+  0000000000000004: 57                 push        rdi
+  0000000000000005: 41 56              push        r14
+  0000000000000007: 41 57              push        r15
+  0000000000000009: 48 83 EC 38        sub         rsp,38h
+  000000000000000D: 45 8B F9           mov         r15d,r9d
+  0000000000000010: 4D 8B F0           mov         r14,r8
+  0000000000000013: 48 8B F2           mov         rsi,rdx
+  0000000000000016: 48 8B F9           mov         rdi,rcx
+  0000000000000019: 48 85 C9           test        rcx,rcx
+  000000000000001C: 0F 84 90 02 00 00  je          00000000000002B2
+  0000000000000022: 83 B9 88 8F 00 00  cmp         dword ptr [rcx+8F88h],0
+                    00
+  0000000000000029: 0F 84 83 02 00 00  je          00000000000002B2
+  000000000000002F: 8B 99 70 8F 00 00  mov         ebx,dword ptr [rcx+8F70h]
+
+pending_worker:
+  0000000000000000: 40 53              push        rbx
+  0000000000000002: 55                 push        rbp
+  0000000000000003: 56                 push        rsi
+  0000000000000004: 57                 push        rdi
+  0000000000000005: 48 81 EC B8 00 00  sub         rsp,0B8h
+                    00
+  000000000000000C: 48 8B 05 00 00 00  mov         rax,qword ptr [__security_cookie]
+                    00
+  0000000000000013: 48 33 C4           xor         rax,rsp
+  0000000000000016: 48 89 84 24 A0 00  mov         qword ptr [rsp+0A0h],rax
+                    00 00
+  000000000000001E: 8B 81 C8 1D 01 00  mov         eax,dword ptr [rcx+11DC8h]
+  0000000000000024: 48 8B D9           mov         rbx,rcx
+  0000000000000027: 83 F8 0C           cmp         eax,0Ch
+  000000000000002A: 0F 85 BD 00 00 00  jne         00000000000000ED
+  0000000000000030: 33 ED              xor         ebp,ebp
+  0000000000000032: 33 C0              xor         eax,eax
+
+papacc_configuration_personal_native_close:
+  0000000000000000: 48 89 5C 24 20     mov         qword ptr [rsp+20h],rbx
+  0000000000000005: 57                 push        rdi
+  0000000000000006: 48 83 EC 50        sub         rsp,50h
+  000000000000000A: 48 8B D9           mov         rbx,rcx
+  000000000000000D: 48 85 C9           test        rcx,rcx
+  0000000000000010: 0F 84 15 02 00 00  je          000000000000022B
+  0000000000000016: 8B B9 70 8F 00 00  mov         edi,dword ptr [rcx+8F70h]
+  000000000000001C: FF 15 00 00 00 00  call        qword ptr [__imp_GetCurrentThreadId]
+  0000000000000022: 3B F8              cmp         edi,eax
+  0000000000000024: 0F 85 01 02 00 00  jne         000000000000022B
+  000000000000002A: 83 BB E0 AD 01 00  cmp         dword ptr [rbx+1ADE0h],0
+                    00
+  0000000000000031: 0F 85 F4 01 00 00  jne         000000000000022B
+  0000000000000037: 48 83 BB C0 AD 01  cmp         qword ptr [rbx+1ADC0h],0
+                    00 00
+  000000000000003F: 0F 85 E6 01 00 00  jne         000000000000022B
+  0000000000000045: 8B 83 34 91 00 00  mov         eax,dword ptr [rbx+9134h]
+

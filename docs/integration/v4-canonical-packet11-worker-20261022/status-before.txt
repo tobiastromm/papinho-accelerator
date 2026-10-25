@@ -1,0 +1,126 @@
+ M CMakeLists.txt
+ M apps/server/server_config_root8_data_win32.c
+ M apps/server/server_config_root8_data_win32.h
+ M apps/server/server_config_root8_signer_win32.c
+ M apps/server/server_config_source_binding_win32.c
+ M apps/server/server_configuration_body04_win32.h
+ M apps/server/server_configuration_body04_win32.inc
+ M apps/server/server_configuration_body05_win32.h
+ M apps/server/server_configuration_body05_win32.inc
+ M apps/server/server_configuration_bootstrap_commit_win32.inc
+ M apps/server/server_configuration_commit_win32.c
+ M apps/server/server_configuration_commit_win32.h
+ M apps/server/server_configuration_d3_worker_win32.inc
+ M apps/server/server_configuration_issuer06_win32.inc
+ M apps/server/server_configuration_pending_win32.h
+ M apps/server/server_configuration_pending_win32.inc
+ M apps/server/server_configuration_restart04_win32.inc
+ M apps/server/server_configuration_restart_win32.inc
+ M apps/server/server_configuration_root_transaction_win32.inc
+ M apps/server/server_configuration_store02_win32.inc
+ M apps/server/server_configuration_store03_win32.inc
+ M apps/server/server_configuration_store04_win32.inc
+ M apps/server/server_configuration_store05_win32.inc
+ M apps/server/server_configuration_v3_backings_win32.inc
+ M apps/server/server_configuration_v3_update_cohort_win32.inc
+ M apps/server/server_launcher_owner_win32.h
+ M docs/capabilities/client-pairing.md
+ M docs/portability.md
+ M src/config/config_root8_internal.h
+ M src/config/config_root8_v3.c
+ M src/issuer/issuer_core.h
+ M tests/bootstrap_d3_commit_win32_test.c
+ M tests/config_root8_test.c
+ M tests/config_root8_v2_test.c
+ M tests/config_root8_v3_test.c
+ M tests/issuer_root_store_win32_test.c
+ M tests/kind8_dispatch_win32_test.c
+ M tests/site_tls_catalog_offline_test.c
+ M tests/v3_backing_win32_test.c
+ M tests/v3_transaction_worker_win32_test.c
+ M tests/v3_update_cohort_win32_test.c
+?? apps/server/server_configuration_prepared_storage_win32.inc
+?? apps/server/server_configuration_v3_update_act_win32.inc
+?? apps/server/server_store_data_hash_win32.inc
+?? apps/server/server_store_hash_win32.h
+?? apps/server/server_store_hash_win32.inc
+?? docs/adr/ADR-CANDIDATE-authenticated-time-source.md
+?? docs/adr/ADR-CANDIDATE-canonical-storage-sha256-backend.md
+?? docs/adr/ADR-CANDIDATE-independent-time-source-ed25519-backend.md
+?? docs/adr/DECISION-canonical-prepared-storage-data-20261022.md
+?? docs/adr/DECISION-independent-time-source-ed25519-backend-20261021.md
+?? docs/adr/DECISION-qualified-utc-q0-q7-corrected-20261021.md
+?? docs/adr/DECISION-roughtime-at-pt-corrected-rfc10049-20261021.md
+?? docs/adr/DECISION-time-source-strict-ed25519-predicate-20261021.md
+?? docs/adr/DECISION-time-source-ts0-ts8-20261021.md
+?? docs/adr/DECISION-v3-update-approval-u0-u7-u6-correction-20261021.md
+?? docs/capabilities/qualified-time.md
+?? docs/integration/authenticated-time-at0-at9-review-20261021/
+?? docs/integration/authenticated-time-source-review-20261021/
+?? docs/integration/bcrypt-failed-cleanup-lifetime-20261021/
+?? docs/integration/bcrypt-ownership-ed11-requalification-20261021/
+?? docs/integration/canonical-storage-hash-closure-lab-20261022/
+?? docs/integration/canonical-storage-sha256-decision-20261022/
+?? docs/integration/ed25519-strict-predicate-acceptance-20261021/
+?? docs/integration/independent-ed25519-backend-acceptance-20261021/
+?? docs/integration/independent-ed25519-backend-audit-20261021/
+?? docs/integration/independent-ed25519-subset-extraction-20261021/
+?? docs/integration/openssl-strict-ed25519-adapter-20261021/
+?? docs/integration/pinned-ed25519-backend-qualification-20261021/
+?? docs/integration/qualified-issuer-utc-status-binding-20261021/
+?? docs/integration/qualified-utc-q2-q3-correction-acceptance2-20261021/
+?? docs/integration/qualified-utc-source-implementation-20261021/
+?? docs/integration/qualified-utc-status-q0-q7-acceptance-20261021/
+?? docs/integration/rfc10049-direct-evidence-pt0-closure-20261021/
+?? docs/integration/rfc10049-official-errata-verification-20261021/
+?? docs/integration/roughtime-at-pt-acceptance-ed11-20261021/
+?? docs/integration/roughtime-at-pt-normative-acceptance-20261021/
+?? docs/integration/roughtime-canonical-source-binding-20261021/
+?? docs/integration/roughtime-exact-profile-completion-20261021/
+?? docs/integration/roughtime-full-transcript-ed11-20261021/
+?? docs/integration/roughtime-native-transport-20261021/
+?? docs/integration/roughtime-portable-adapter-20261021/
+?? docs/integration/store03-deterministic-sha256-audit-20261021/
+?? docs/integration/strict-ed25519-point-validation-20261021/
+?? docs/integration/time-source-canonical-persistence-20261021/
+?? docs/integration/time-source-ts0-ts8-acceptance-20261021/
+?? docs/integration/update-approval-u6-correction-acceptance2-20261021/
+?? docs/integration/v3-update-approval-producer-implementation-20261021/
+?? docs/integration/v3-update-approval-u0-u7-acceptance-20261021/
+?? docs/integration/v3-v4-canonical-prepared-storage-20261022/
+?? docs/integration/v4-backings-pins-ed11-20261021/
+?? docs/integration/v4-canonical-worker-persistence-20261021/
+?? docs/integration/v4-deep-root-cause-audit-20261022/
+?? docs/integration/v4-time-source-ed25519-integration-20261021/
+?? docs/integration/v4-worker-ed11-capacity-closure-20261021/
+?? docs/integration/windows-qualified-utc-source-20261021/
+?? src/config/config_root8_time_source_key.c
+?? src/config/config_root8_time_source_key.h
+?? src/config/config_root8_v4.c
+?? src/config/config_root8_v4.h
+?? src/issuer/qualified_utc.c
+?? src/issuer/qualified_utc.h
+?? src/issuer/roughtime.c
+?? src/issuer/roughtime.h
+?? src/issuer/roughtime_openssl.c
+?? src/issuer/roughtime_openssl.h
+?? src/issuer/strict_ed25519.c
+?? src/issuer/strict_ed25519.h
+?? tests/config_root8_time_source_key_test.c
+?? tests/config_root8_v4_test.c
+?? tests/fixtures/roughtime-lab-20261021/
+?? tests/prepared_storage_win32_test.c
+?? tests/qualified_utc_test.c
+?? tests/root8_backing_fixtures.inc
+?? tests/roughtime/
+?? tests/roughtime_capacity_test.c
+?? tests/roughtime_lab_checks.inc
+?? tests/roughtime_lab_generate.c
+?? tests/roughtime_public_vector.inc
+?? tests/roughtime_test.c
+?? tests/store_hash_lifetime_win32_test.c
+?? tests/store_hash_owner_win32_test.c
+?? tests/strict_ed25519_test.c
+?? tests/v4_backing_win32_test.c
+?? third_party/
+?? tools/qualification/

@@ -1,0 +1,31 @@
+--- tools/qualification/personal-first-install-uac.ps1
++++ tools/qualification/personal-first-install-uac.ps1
+@@ -123,10 +123,12 @@
+  # Whitelist exact status only; never persist raw console/diagnostic text.
+  if($Code -ne 2){return 'UNEXPECTED_EXIT_DENY'}
+  $pattern='(?m)^FIRST_INSTALL=(EXACT_CONFIRMATION_DATA_ONLY|DENY_OR_CANCELLED); RESOURCES=(CLOSED|RETAINED_UNKNOWN); CA_CUSTODY=ABSENT; ED11=PARTIAL; BOOTSTRAP=DENY; CURRENT_PUBLICATION=DENY\r?$'
+- $m=[regex]::Matches($Diagnostic,$pattern)
++ $lines=@($Diagnostic -split "\r?\n" | Where-Object {$_ -cne ''})
++ if($lines.Count -ne 2 -or $lines[0] -cnotmatch '^CUSTODY_METADATA_ONLY: target=[0-3] ca=0 effect_denied=1$'){return 'UNVERIFIED_DIAGNOSTIC_DENY'}
++ $m=[regex]::Matches($lines[1],$pattern)
+  if($m.Count -ne 1){return 'UNVERIFIED_DIAGNOSTIC_DENY'}
+  if($m[0].Groups[2].Value -eq 'RETAINED_UNKNOWN'){return 'RETAINED_UNKNOWN_NO_RETRY'}
+- if($m[0].Groups[1].Value -eq 'EXACT_CONFIRMATION_DATA_ONLY'){return 'READ_ONLY_WORKER_VERIFIED_FINAL_DENY'}
++ if($m[0].Groups[1].Value -eq 'EXACT_CONFIRMATION_DATA_ONLY' -and $lines[0] -ceq 'CUSTODY_METADATA_ONLY: target=0 ca=0 effect_denied=1'){return 'READ_ONLY_WORKER_VERIFIED_FINAL_DENY'}
+  return 'DENIED_OR_CANCELLED'
+ }
+ function Is-UacCancellation($Exception) {
+@@ -163,10 +165,11 @@
+   Assert-PlainPath $PowerShellExe
+   $id=[Guid]::NewGuid().ToString('N') # receipt correlation only; NOT ceremony nonce
+   # All tokens below are fixed paths or strictly validated SID/hash/hex IDs.
+-  $argv=@('-NoProfile','-File',$ScriptPath,'-Mode','Elevated','-OriginSid',$op.sid,'-Attempt',$id,'-ExpectedScriptSha256',$selfHash)
++  $argv=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$ScriptPath,'-Mode','Elevated','-OriginSid',$op.sid,'-Attempt',$id,'-ExpectedScriptSha256',$selfHash)
+   foreach($v in $argv){if($v -cmatch '[\s"`;$&|<>]'){throw 'UNSAFE_LAUNCH_ARGUMENT'}}
+   try {
+-   # OWNER MANUAL ONLY. No credentials/password variables. UAC owns its prompt.
++   # OWNER MANUAL ONLY. Owner authorized per-process ExecutionPolicy Bypass.
++   # No persistent policy changes; no credentials/password variables. UAC owns its prompt.
+    $process=Start-Process -FilePath $PowerShellExe -ArgumentList $argv -Verb RunAs -WindowStyle Normal -WorkingDirectory $Parent -PassThru -Wait
+    try {$process.Refresh();$exitCode=$process.ExitCode;[Console]::WriteLine('ELEVATED_QUALIFICATION_EXIT='+$exitCode)} finally {$process.Dispose()}
+   } catch {

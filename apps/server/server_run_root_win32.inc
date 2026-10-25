@@ -1,3 +1,6 @@
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+#include "server_service_win32.h"
+#endif
 #include "server_run_win32.h"
 #include "server_launcher_owner_win32.h"
 #include "server_application_lifetime_win32.h"
@@ -77,6 +80,10 @@ PAPACC_RESULT papacc_server_run_win32(
     PAPACC_RESULT secure_shutdown_result = PAPACC_RESULT_OK;
 #endif
     PAPACC_SIZE index;
+    int qualification=0;
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+    qualification=papacc_server_service_qualification_active();
+#endif
 
     if (server_network == NULL || server_config == NULL || output == NULL || error_output == NULL ||
         logger == NULL) {
@@ -121,6 +128,19 @@ PAPACC_RESULT papacc_server_run_win32(
             (PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT)
                 PAPACC_TCP_CONNECTION_TRANSPORT_WIN32_CONTEXT_INITIALIZER;
     }
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+    if(qualification){
+        if(server_network->is_active||server_network->tcp_platform.initialized||server_network->listener_set.count||server_config->allow_network_egress){result=PAPACC_RESULT_INVALID_STATE;goto cleanup;}
+        result=papacc_connection_manager_init(&owner->acceptor.connection_manager,owner->connection_storage,capacity);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+        result=papacc_server_io_loop_win32_init_closed(&owner->io_loop,server_network,NULL,owner->session_storage,capacity,
+            owner->channel_storage,capacity,owner->association_storage,capacity,owner->processor_storage,capacity,
+            (PAPACC_U64)PAPACC_SERVER_ESTABLISHMENT_TIMEOUT_NS,&owner->acceptor.connection_manager);
+        if(result!=PAPACC_RESULT_OK)goto cleanup;
+        papacc_server_io_loop_win32_set_logger(&owner->io_loop,logger);
+        goto composed;
+    }
+#endif
     result = papacc_server_acceptor_win32_init(
         &owner->acceptor, server_network, owner->connection_storage, capacity,
         owner->context_storage, capacity);
@@ -248,6 +268,12 @@ PAPACC_RESULT papacc_server_run_win32(
         if(result!=PAPACC_RESULT_OK)goto cleanup;
 #endif
     }
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+composed:
+#endif
+    if(qualification){
+        fputs("LAB_RUNTIME=CLOSED_MANAGERS_INITIALIZED; SOCKETS=NONE; CLIENT_ADMISSION=DISABLED; AUTHORITY=NONE\n",output);
+    }else{
     result = papacc_server_print_listeners(output, server_network);
     if (result != PAPACC_RESULT_OK) {
         goto cleanup;
@@ -262,7 +288,17 @@ PAPACC_RESULT papacc_server_run_win32(
         PAPACC_LOG_OPERATION_STARTUP, PAPACC_TRUE, PAPACC_RESULT_OK, NULL,
         "Listener started; accepting Phase 2 connections");
     (void)fflush(output);
+    }
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+    /* All canonical runtime preparation completed above. No host status grants
+     * listener/configuration authority; the normal admission gates ran first. */
+    if(qualification?!papacc_server_service_qualification_managers_ready(&owner->io_loop):!papacc_server_service_runtime_ready()){result=PAPACC_RESULT_INVALID_STATE;goto cleanup;}
+#endif
     while (papacc_server_console_win32_stop_requested() == PAPACC_FALSE) {
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+        if(qualification)result=papacc_server_io_loop_win32_poll_closed(&owner->io_loop,PAPACC_SERVER_IO_LOOP_POLL_TIMEOUT_MS);
+        else
+#endif
 #ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
         if (server_config->listener_profile ==
                 PAPACC_SERVER_LISTENER_PROFILE_SECURE_PRINCIPAL)
@@ -280,6 +316,9 @@ PAPACC_RESULT papacc_server_run_win32(
     }
 
 cleanup:
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+    if(!papacc_server_service_runtime_stopping()&&result==PAPACC_RESULT_OK)result=PAPACC_RESULT_INVALID_STATE;
+#endif
     papacc_log_event(logger, PAPACC_LOG_INFO, PAPACC_LOG_EVENT_SERVER_STOPPING,
         PAPACC_LOG_CATEGORY_RUNTIME, PAPACC_LOG_COMPONENT_SERVER,
         PAPACC_LOG_OPERATION_SHUTDOWN, PAPACC_TRUE, result, NULL,

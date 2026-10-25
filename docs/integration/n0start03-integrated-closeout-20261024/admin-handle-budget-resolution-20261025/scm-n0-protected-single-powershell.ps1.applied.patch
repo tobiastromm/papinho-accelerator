@@ -1,0 +1,41 @@
+--- scm-n0-protected-single-powershell.ps1.preimage
++++ scm-n0-protected-single-powershell.ps1
+@@ -22,10 +22,10 @@
+ $T10DecisionHash='1f293812e9fca107c7fa8ba20abe20fd8ffbca3cdf6e95e58465a95dadbe4dd5'
+ if($Profile-ceq'N0START03Positive'){
+  $Qualifier=$Root+'\build\ed11-positive-private-20261025\Selected\Release\papacc_scm_instrumented_lab.exe'
+- $QualifierHash='724fd4c7a2554e362115c2fbb85744b8bcff27ca14882382201d024bffe8030d'
++ $QualifierHash='80060c591258f89fe9ca28bcc67a08520edd6a434debfd1c0ce7e926d3c12aef'
+  $TransportNative=$Root+'\build\ed11-positive-private-20261025\Selected\Release\papacc_n0_private_stdout.dll'
+  $TransportNativeHash='c351ecb559834d74ebe36dd735b6174b4ca6226526ae928b7a2cc5f44c4d792c'
+- $ApprovalPath=$Root+'\docs\integration\n0start03-integrated-closeout-20261024\pre-metric-timeout-resolution-20261025\EXACT-POSITIVE-TIMEOUT-CORRECTION-APPROVED.json'
++ $ApprovalPath=$Root+'\docs\integration\n0start03-integrated-closeout-20261024\admin-handle-budget-resolution-20261025\EXACT-POSITIVE-ADMIN-BUDGET-APPROVED.json'
+ }
+ # Reviewed existing inputs. These pins grant no execution or Start authority.
+ $DossierHash=''
+@@ -131,10 +131,10 @@
+  try {$session=$self.SessionId;$birth=[uint64]$self.StartTime.ToUniversalTime().ToFileTimeUtc();if(-not [String]::Equals($self.MainModule.FileName,'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe',[StringComparison]::OrdinalIgnoreCase)){throw 'ACTOR_IMAGE_DENY'}}finally{$self.Dispose()}
+  if(($AuxiliaryPid-eq0)-ne($AuxiliaryCreation-eq0)){throw 'INCOMPLETE_AUXILIARY_TUPLE_DENY'}
+  if($AuxiliaryPid-eq0){$candidate=Select-AuxiliaryCandidate $birth $session;$AuxiliaryPid=$candidate.Id;$AuxiliaryCreation=$candidate.Creation}
+- Write-Host ('OPERATION='+$Operation+'; MODE='+$Mode+'; N0-N9; ATTEMPT='+$Attempt+'; auxiliary PID='+$AuxiliaryPid+' creation='+$AuxiliaryCreation)
+- if($Mode-eq'Cycle'){Write-Host 'ONE LAB: consume intent; exclusive image and sink; explicit rebind; ONE Start; at most ONE safe Stop; partial effects retained. No ACL remediation/delete/rollback/retry. Separate owner approval REQUIRED.'}else{Write-Host 'Read-only: no Start/Stop/rebind/ACL/intent. Missing facts DENY. No retry.'}
++ if($Mode-eq'Cycle'){[Console]::Out.WriteLine('OPERATION='+$Operation+'; MODE='+$Mode+'; N0-N9; ATTEMPT='+$Attempt+'; auxiliary PID='+$AuxiliaryPid+' creation='+$AuxiliaryCreation)}else{Write-Host ('OPERATION='+$Operation+'; MODE='+$Mode+'; N0-N9; ATTEMPT='+$Attempt+'; auxiliary PID='+$AuxiliaryPid+' creation='+$AuxiliaryCreation)}
++ if($Mode-eq'Cycle'){[Console]::Out.WriteLine('ONE LAB: consume intent; exclusive image and sink; explicit rebind; ONE Start; at most ONE safe Stop; partial effects retained. No ACL remediation/delete/rollback/retry. Separate owner approval REQUIRED.')}else{Write-Host 'Read-only: no Start/Stop/rebind/ACL/intent. Missing facts DENY. No retry.'}
+  $confirmation=if($Mode-eq'Cycle'){'START_N0_SINGLE_LAB '+$Operation+' '+$Attempt+' '+$AuxiliaryPid+' '+$AuxiliaryCreation}else{'PREPARE_N0_READ_ONLY '+$Attempt+' '+$AuxiliaryPid+' '+$AuxiliaryCreation}
+- Write-Host ('Type exactly: '+$confirmation)
++ if($Mode-eq'Cycle'){[Console]::Out.WriteLine('Type exactly: '+$confirmation)}else{Write-Host ('Type exactly: '+$confirmation)}
+  if((Read-Host) -cne $confirmation){throw 'CONFIRMATION_DIVERGENCE'}
+  [Threading.Thread]::BeginThreadAffinity();$affinity=$true
+  try {
+@@ -151,9 +151,9 @@
+   $process.Authenticate();$reader=$process
+   $chars=0
+   while($null -ne ($line=$reader.ReadLine())) {
+-   if($reader.Truncated -and -not $outputTruncated){$outputTruncated=$true;Write-Host 'N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY'}
++   if($reader.Truncated -and -not $outputTruncated){$outputTruncated=$true;if($Mode-eq'Cycle'){[Console]::Out.WriteLine('N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY')}else{Write-Host 'N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY'}}
+    $chars+=$line.Length
+-   if($line.Length -gt 4096 -or $chars -gt 131072){if(-not $outputTruncated){$outputTruncated=$true;Write-Host 'N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY'}}
++   if($line.Length -gt 4096 -or $chars -gt 131072){if(-not $outputTruncated){$outputTruncated=$true;if($Mode-eq'Cycle'){[Console]::Out.WriteLine('N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY')}else{Write-Host 'N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY'}}}
+    if(-not $outputTruncated -or $line-cmatch'^(IG_FINAL |IG_RETAINED |IG_DIAGNOSTIC |IG_DIAGNOSTIC_RECEIPT|IG_FIRST_RECORD)'){[Console]::Out.WriteLine($line)}
+    if($Mode-ne'Cycle' -and $line -cmatch '^IG_FINAL stage=\S+ first=\d+ close=0 starts=0 stops=0 quiescent=0 intent_consumed=0 effect=0 diagnostic_created=0;'){$final=$true}
+    if($Mode-eq'Cycle' -and $line-cmatch'^IG_FINAL stage=\S+ first=\d+ close=0 starts=([01]) stops=([01]) quiescent=([01]) intent_consumed=([01]) effect=([012]) diagnostic_created=([01]);'){if([int]$Matches[2]-le[int]$Matches[1] -and (($Matches[1]-eq'0'-and$Matches[3]-eq'0')-or($Matches[1]-eq'1'-and$Matches[3]-eq'1')) -and (($Matches[4]-eq'0'-and$Matches[1]-eq'0'-and$Matches[5]-eq'0'-and$Matches[6]-eq'0')-or($Matches[4]-eq'1'-and($Matches[1]-eq'0'-or($Matches[5]-eq'2'-and$Matches[6]-eq'1'))))){$final=$true}} 

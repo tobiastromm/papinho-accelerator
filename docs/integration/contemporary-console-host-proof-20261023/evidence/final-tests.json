@@ -1,0 +1,198 @@
+[
+  {
+    "test": "papacc_service_console_proof_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Debug",
+    "output": "CONSOLE_PROOF_MODEL=PASS cases=10; WINDOW_CANDIDATE_ONLY; AUTHENTICATED_ASSOCIATION_UNKNOWN; NO_ADMISSION_NO_SCM"
+  },
+  {
+    "test": "papacc_service_busy_diagnostic_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Debug",
+    "output": "IG_DIAGNOSTIC stage=PREFLIGHT_METRICS api=GetPerformanceInfo resource=host_commit_pool_cache code=170 native=170 pid=0 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_DIAGNOSTIC stage=PREFLIGHT_CENSUS api=process_census_predicate resource=process_snapshot code=170 native=170 pid=12345 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_CENSUS_REJECT pid=12345 parent=54321 child=0 project_prefix=1; NO_ADMISSION\nIG_CENSUS_NAME_UTF16=007000610070006100630063005f0063006f006e0066006c006900630074005f0066006900780074007500720065002e006500780065; TRUNCATED=0; SNAPSHOT_NAME_ONLY_NO_CREATION_PROOF\nIG_DIAGNOSTIC stage=PREFLIGHT_METRICS api=native_fixture resource=host code=170 native=170 pid=0 role=0; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_CONSOLE_CAPTURE attempt=75330d11cc7e4123ae62eadc9a59c2f5 pid=12345 parent=54321 tick=21816390 bytes=8816; DIAGNOSTIC_ONLY_CENSUS_DENY\nIG_ACTOR role=0 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=1 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=2 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_CONSOLE_RELATION window_owner_candidate=0 identity_stable=0 image_stable=0 session_equal=0 members_before=0 members_after=0; AUTHENTICATED_ASSOCIATION=UNKNOWN; CENSUS_RETURN=170; METRIC_ERROR=5; TICK=21816390\nIG_CONSOLE_OWNED_REFERENCES=CLOSED; HOST_PROCESS_TERMINATION=NOT_CLAIMED\nIG_CONSOLE_CAPTURE=ALREADY_ATTEMPTED_NO_RETRY\nIG_CONSOLE_CAPTURE attempt=75330d11cc7e4123ae62eadc9a59c2f5 pid=12345 parent=54321 tick=21816390 bytes=8816; DIAGNOSTIC_ONLY_CENSUS_DENY\nIG_ACTOR role=0 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=1 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=2 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_CONSOLE_RELATION window_owner_candidate=0 identity_stable=0 image_stable=0 session_equal=0 members_before=0 members_after=0; AUTHENTICATED_ASSOCIATION=UNKNOWN; CENSUS_RETURN=170; METRIC_ERROR=995; TICK=21816390\nIG_CONSOLE_OWNED_REFERENCES=CLOSED; HOST_PROCESS_TERMINATION=NOT_CLAIMED\nCONSOLE_CAPTURE_STORAGE bytes=8816; NEW_REFS_PROCESS_FILE_TRUST_PLUS_SHARED_SNAPSHOT; NO_ADMISSION\nBUSY_DIAGNOSTIC_MODEL=PASS cases=10 diagnostic_bytes=56; API_BUSY_CENSUS_FIRST_ERROR_LAST_ERROR_STOP_RETENTION_CLOSE_NO_RETRY; NO_PREFLIGHT_NO_SCM_NO_START"
+  },
+  {
+    "test": "papacc_scm_instrumented_policy_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Debug",
+    "output": "INSTRUMENTED_POLICY_MODEL=PASS cases=34; IDENTITY_HASH_BOOT_CONFIG_SERVICE_RESOURCES_FRESHNESS_CONSUMED_STOP_RETENTION_UNKNOWN; NO_FILE_NO_SCM_NO_START"
+  },
+  {
+    "test": "papacc_service_runtime_model_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Debug",
+    "output": "CONFIG_TOKEN_MODEL=PASS; DIVERGENCE_REPLACEMENT_ACL_STOP_RETENTION_NOT_AUTHORITY; PS_RUNTIME=12080 PS_NATIVE=24992"
+  },
+  {
+    "test": "papacc_service_runtime_closed_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Debug",
+    "output": "NATIVE_CLOSED_MANAGERS=PASS; ZERO_SOCKET_WSA_LISTENER_CA_CURRENT; SHARED_INIT_MAINTENANCE_TEARDOWN; NOT_SERVICE_TOKEN_QUALIFICATION"
+  },
+  {
+    "test": "papacc_service_runtime_file_model_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Debug",
+    "output": "CONFIG_TOKEN_MODEL=PASS; DIVERGENCE_REPLACEMENT_ACL_STOP_RETENTION_NOT_AUTHORITY; PS_RUNTIME=12080 PS_NATIVE=24992\nCANONICAL_FILE_RUNTIME_MODEL=PASS bind_identity_owner_dacl_attempt_stop_partial_close_retention_quiescence_native_status_no_console; DIAGNOSTIC=4400 RUNTIME=12080 NATIVE=24992 TOTAL_STORAGE=25208"
+  },
+  {
+    "test": "papacc_service_lifecycle_data_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Debug",
+    "output": "DATA lifecycle, replay, Stop-before-running and retained-quiescence negatives PASS"
+  },
+  {
+    "test": "papacc_service_console_proof_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Release",
+    "output": "CONSOLE_PROOF_MODEL=PASS cases=10; WINDOW_CANDIDATE_ONLY; AUTHENTICATED_ASSOCIATION_UNKNOWN; NO_ADMISSION_NO_SCM"
+  },
+  {
+    "test": "papacc_service_busy_diagnostic_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Release",
+    "output": "IG_DIAGNOSTIC stage=PREFLIGHT_METRICS api=GetPerformanceInfo resource=host_commit_pool_cache code=170 native=170 pid=0 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_DIAGNOSTIC stage=PREFLIGHT_CENSUS api=process_census_predicate resource=process_snapshot code=170 native=170 pid=12345 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_CENSUS_REJECT pid=12345 parent=54321 child=0 project_prefix=1; NO_ADMISSION\nIG_CENSUS_NAME_UTF16=007000610070006100630063005f0063006f006e0066006c006900630074005f0066006900780074007500720065002e006500780065; TRUNCATED=0; SNAPSHOT_NAME_ONLY_NO_CREATION_PROOF\nIG_DIAGNOSTIC stage=PREFLIGHT_METRICS api=native_fixture resource=host code=170 native=170 pid=0 role=0; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_CONSOLE_CAPTURE attempt=75330d11cc7e4123ae62eadc9a59c2f5 pid=12345 parent=54321 tick=21831093 bytes=8816; DIAGNOSTIC_ONLY_CENSUS_DENY\nIG_ACTOR role=0 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=1 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=2 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_CONSOLE_RELATION window_owner_candidate=0 identity_stable=0 image_stable=0 session_equal=0 members_before=0 members_after=0; AUTHENTICATED_ASSOCIATION=UNKNOWN; CENSUS_RETURN=170; METRIC_ERROR=5; TICK=21831093\nIG_CONSOLE_OWNED_REFERENCES=CLOSED; HOST_PROCESS_TERMINATION=NOT_CLAIMED\nIG_CONSOLE_CAPTURE=ALREADY_ATTEMPTED_NO_RETRY\nIG_CONSOLE_CAPTURE attempt=75330d11cc7e4123ae62eadc9a59c2f5 pid=12345 parent=54321 tick=21831093 bytes=8816; DIAGNOSTIC_ONLY_CENSUS_DENY\nIG_ACTOR role=0 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=1 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=2 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_CONSOLE_RELATION window_owner_candidate=0 identity_stable=0 image_stable=0 session_equal=0 members_before=0 members_after=0; AUTHENTICATED_ASSOCIATION=UNKNOWN; CENSUS_RETURN=170; METRIC_ERROR=995; TICK=21831093\nIG_CONSOLE_OWNED_REFERENCES=CLOSED; HOST_PROCESS_TERMINATION=NOT_CLAIMED\nCONSOLE_CAPTURE_STORAGE bytes=8816; NEW_REFS_PROCESS_FILE_TRUST_PLUS_SHARED_SNAPSHOT; NO_ADMISSION\nBUSY_DIAGNOSTIC_MODEL=PASS cases=10 diagnostic_bytes=56; API_BUSY_CENSUS_FIRST_ERROR_LAST_ERROR_STOP_RETENTION_CLOSE_NO_RETRY; NO_PREFLIGHT_NO_SCM_NO_START"
+  },
+  {
+    "test": "papacc_scm_instrumented_policy_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Release",
+    "output": "INSTRUMENTED_POLICY_MODEL=PASS cases=34; IDENTITY_HASH_BOOT_CONFIG_SERVICE_RESOURCES_FRESHNESS_CONSUMED_STOP_RETENTION_UNKNOWN; NO_FILE_NO_SCM_NO_START"
+  },
+  {
+    "test": "papacc_service_runtime_model_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Release",
+    "output": "CONFIG_TOKEN_MODEL=PASS; DIVERGENCE_REPLACEMENT_ACL_STOP_RETENTION_NOT_AUTHORITY; PS_RUNTIME=12080 PS_NATIVE=24992"
+  },
+  {
+    "test": "papacc_service_runtime_closed_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Release",
+    "output": "NATIVE_CLOSED_MANAGERS=PASS; ZERO_SOCKET_WSA_LISTENER_CA_CURRENT; SHARED_INIT_MAINTENANCE_TEARDOWN; NOT_SERVICE_TOKEN_QUALIFICATION"
+  },
+  {
+    "test": "papacc_service_runtime_file_model_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Release",
+    "output": "CONFIG_TOKEN_MODEL=PASS; DIVERGENCE_REPLACEMENT_ACL_STOP_RETENTION_NOT_AUTHORITY; PS_RUNTIME=12080 PS_NATIVE=24992\nCANONICAL_FILE_RUNTIME_MODEL=PASS bind_identity_owner_dacl_attempt_stop_partial_close_retention_quiescence_native_status_no_console; DIAGNOSTIC=4400 RUNTIME=12080 NATIVE=24992 TOTAL_STORAGE=25208"
+  },
+  {
+    "test": "papacc_service_lifecycle_data_test",
+    "profile": "Selected",
+    "exit": 0,
+    "config": "Release",
+    "output": "DATA lifecycle, replay, Stop-before-running and retained-quiescence negatives PASS"
+  },
+  {
+    "test": "papacc_service_console_proof_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Debug",
+    "output": "CONSOLE_PROOF_MODEL=PASS cases=10; WINDOW_CANDIDATE_ONLY; AUTHENTICATED_ASSOCIATION_UNKNOWN; NO_ADMISSION_NO_SCM"
+  },
+  {
+    "test": "papacc_service_busy_diagnostic_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Debug",
+    "output": "IG_DIAGNOSTIC stage=PREFLIGHT_METRICS api=GetPerformanceInfo resource=host_commit_pool_cache code=170 native=170 pid=0 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_DIAGNOSTIC stage=PREFLIGHT_CENSUS api=process_census_predicate resource=process_snapshot code=170 native=170 pid=12345 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_CENSUS_REJECT pid=12345 parent=54321 child=0 project_prefix=1; NO_ADMISSION\nIG_CENSUS_NAME_UTF16=007000610070006100630063005f0063006f006e0066006c006900630074005f0066006900780074007500720065002e006500780065; TRUNCATED=0; SNAPSHOT_NAME_ONLY_NO_CREATION_PROOF\nIG_DIAGNOSTIC stage=PREFLIGHT_METRICS api=native_fixture resource=host code=170 native=170 pid=0 role=0; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_CONSOLE_CAPTURE attempt=75330d11cc7e4123ae62eadc9a59c2f5 pid=12345 parent=54321 tick=21841921 bytes=8816; DIAGNOSTIC_ONLY_CENSUS_DENY\nIG_ACTOR role=0 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=1 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=2 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_CONSOLE_RELATION window_owner_candidate=0 identity_stable=0 image_stable=0 session_equal=0 members_before=0 members_after=0; AUTHENTICATED_ASSOCIATION=UNKNOWN; CENSUS_RETURN=170; METRIC_ERROR=5; TICK=21841921\nIG_CONSOLE_OWNED_REFERENCES=CLOSED; HOST_PROCESS_TERMINATION=NOT_CLAIMED\nIG_CONSOLE_CAPTURE=ALREADY_ATTEMPTED_NO_RETRY\nIG_CONSOLE_CAPTURE attempt=75330d11cc7e4123ae62eadc9a59c2f5 pid=12345 parent=54321 tick=21841921 bytes=8816; DIAGNOSTIC_ONLY_CENSUS_DENY\nIG_ACTOR role=0 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=1 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=2 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_CONSOLE_RELATION window_owner_candidate=0 identity_stable=0 image_stable=0 session_equal=0 members_before=0 members_after=0; AUTHENTICATED_ASSOCIATION=UNKNOWN; CENSUS_RETURN=170; METRIC_ERROR=995; TICK=21841921\nIG_CONSOLE_OWNED_REFERENCES=CLOSED; HOST_PROCESS_TERMINATION=NOT_CLAIMED\nCONSOLE_CAPTURE_STORAGE bytes=8816; NEW_REFS_PROCESS_FILE_TRUST_PLUS_SHARED_SNAPSHOT; NO_ADMISSION\nBUSY_DIAGNOSTIC_MODEL=PASS cases=10 diagnostic_bytes=56; API_BUSY_CENSUS_FIRST_ERROR_LAST_ERROR_STOP_RETENTION_CLOSE_NO_RETRY; NO_PREFLIGHT_NO_SCM_NO_START"
+  },
+  {
+    "test": "papacc_scm_instrumented_policy_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Debug",
+    "output": "INSTRUMENTED_POLICY_MODEL=PASS cases=34; IDENTITY_HASH_BOOT_CONFIG_SERVICE_RESOURCES_FRESHNESS_CONSUMED_STOP_RETENTION_UNKNOWN; NO_FILE_NO_SCM_NO_START"
+  },
+  {
+    "test": "papacc_service_runtime_model_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Debug",
+    "output": "CONFIG_TOKEN_MODEL=PASS; DIVERGENCE_REPLACEMENT_ACL_STOP_RETENTION_NOT_AUTHORITY; PS_RUNTIME=12080 PS_NATIVE=24992"
+  },
+  {
+    "test": "papacc_service_runtime_closed_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Debug",
+    "output": "NATIVE_CLOSED_MANAGERS=PASS; ZERO_SOCKET_WSA_LISTENER_CA_CURRENT; SHARED_INIT_MAINTENANCE_TEARDOWN; NOT_SERVICE_TOKEN_QUALIFICATION"
+  },
+  {
+    "test": "papacc_service_runtime_file_model_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Debug",
+    "output": "CONFIG_TOKEN_MODEL=PASS; DIVERGENCE_REPLACEMENT_ACL_STOP_RETENTION_NOT_AUTHORITY; PS_RUNTIME=12080 PS_NATIVE=24992\nCANONICAL_FILE_RUNTIME_MODEL=PASS bind_identity_owner_dacl_attempt_stop_partial_close_retention_quiescence_native_status_no_console; DIAGNOSTIC=4400 RUNTIME=12080 NATIVE=24992 TOTAL_STORAGE=25208"
+  },
+  {
+    "test": "papacc_service_lifecycle_data_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Debug",
+    "output": "DATA lifecycle, replay, Stop-before-running and retained-quiescence negatives PASS"
+  },
+  {
+    "test": "papacc_service_console_proof_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Release",
+    "output": "CONSOLE_PROOF_MODEL=PASS cases=10; WINDOW_CANDIDATE_ONLY; AUTHENTICATED_ASSOCIATION_UNKNOWN; NO_ADMISSION_NO_SCM"
+  },
+  {
+    "test": "papacc_service_busy_diagnostic_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Release",
+    "output": "IG_DIAGNOSTIC stage=PREFLIGHT_METRICS api=GetPerformanceInfo resource=host_commit_pool_cache code=170 native=170 pid=0 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_DIAGNOSTIC stage=PREFLIGHT_CENSUS api=process_census_predicate resource=process_snapshot code=170 native=170 pid=12345 role=4; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_CENSUS_REJECT pid=12345 parent=54321 child=0 project_prefix=1; NO_ADMISSION\nIG_CENSUS_NAME_UTF16=007000610070006100630063005f0063006f006e0066006c006900630074005f0066006900780074007500720065002e006500780065; TRUNCATED=0; SNAPSHOT_NAME_ONLY_NO_CREATION_PROOF\nIG_DIAGNOSTIC stage=PREFLIGHT_METRICS api=native_fixture resource=host code=170 native=170 pid=0 role=0; FIRST_FAILURE_ONLY; NO_AUTHORITY\nIG_CONSOLE_CAPTURE attempt=75330d11cc7e4123ae62eadc9a59c2f5 pid=12345 parent=54321 tick=21853671 bytes=8816; DIAGNOSTIC_ONLY_CENSUS_DENY\nIG_ACTOR role=0 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=1 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=2 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_CONSOLE_RELATION window_owner_candidate=0 identity_stable=0 image_stable=0 session_equal=0 members_before=0 members_after=0; AUTHENTICATED_ASSOCIATION=UNKNOWN; CENSUS_RETURN=170; METRIC_ERROR=5; TICK=21853671\nIG_CONSOLE_OWNED_REFERENCES=CLOSED; HOST_PROCESS_TERMINATION=NOT_CLAIMED\nIG_CONSOLE_CAPTURE=ALREADY_ATTEMPTED_NO_RETRY\nIG_CONSOLE_CAPTURE attempt=75330d11cc7e4123ae62eadc9a59c2f5 pid=12345 parent=54321 tick=21853671 bytes=8816; DIAGNOSTIC_ONLY_CENSUS_DENY\nIG_ACTOR role=0 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=1 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_ACTOR role=2 pid=0 creation=0:0; VALIDATED_ACTOR_NOT_PARENT_TRUST\nIG_CONSOLE_RELATION window_owner_candidate=0 identity_stable=0 image_stable=0 session_equal=0 members_before=0 members_after=0; AUTHENTICATED_ASSOCIATION=UNKNOWN; CENSUS_RETURN=170; METRIC_ERROR=995; TICK=21853671\nIG_CONSOLE_OWNED_REFERENCES=CLOSED; HOST_PROCESS_TERMINATION=NOT_CLAIMED\nCONSOLE_CAPTURE_STORAGE bytes=8816; NEW_REFS_PROCESS_FILE_TRUST_PLUS_SHARED_SNAPSHOT; NO_ADMISSION\nBUSY_DIAGNOSTIC_MODEL=PASS cases=10 diagnostic_bytes=56; API_BUSY_CENSUS_FIRST_ERROR_LAST_ERROR_STOP_RETENTION_CLOSE_NO_RETRY; NO_PREFLIGHT_NO_SCM_NO_START"
+  },
+  {
+    "test": "papacc_scm_instrumented_policy_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Release",
+    "output": "INSTRUMENTED_POLICY_MODEL=PASS cases=34; IDENTITY_HASH_BOOT_CONFIG_SERVICE_RESOURCES_FRESHNESS_CONSUMED_STOP_RETENTION_UNKNOWN; NO_FILE_NO_SCM_NO_START"
+  },
+  {
+    "test": "papacc_service_runtime_model_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Release",
+    "output": "CONFIG_TOKEN_MODEL=PASS; DIVERGENCE_REPLACEMENT_ACL_STOP_RETENTION_NOT_AUTHORITY; PS_RUNTIME=12080 PS_NATIVE=24992"
+  },
+  {
+    "test": "papacc_service_runtime_closed_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Release",
+    "output": "NATIVE_CLOSED_MANAGERS=PASS; ZERO_SOCKET_WSA_LISTENER_CA_CURRENT; SHARED_INIT_MAINTENANCE_TEARDOWN; NOT_SERVICE_TOKEN_QUALIFICATION"
+  },
+  {
+    "test": "papacc_service_runtime_file_model_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Release",
+    "output": "CONFIG_TOKEN_MODEL=PASS; DIVERGENCE_REPLACEMENT_ACL_STOP_RETENTION_NOT_AUTHORITY; PS_RUNTIME=12080 PS_NATIVE=24992\nCANONICAL_FILE_RUNTIME_MODEL=PASS bind_identity_owner_dacl_attempt_stop_partial_close_retention_quiescence_native_status_no_console; DIAGNOSTIC=4400 RUNTIME=12080 NATIVE=24992 TOTAL_STORAGE=25208"
+  },
+  {
+    "test": "papacc_service_lifecycle_data_test",
+    "profile": "Legacy",
+    "exit": 0,
+    "config": "Release",
+    "output": "DATA lifecycle, replay, Stop-before-running and retained-quiescence negatives PASS"
+  }
+]

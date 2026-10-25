@@ -1,0 +1,164 @@
+--- a/apps/server/server_configuration_d3_worker_win32.inc
++++ b/apps/server/server_configuration_d3_worker_win32.inc
+@@ -18,32 +18,38 @@
+ 
+ #if defined(PAPACC_ED11_WINDOWS_3MIB)
+ /* Frozen packet persistence guard, NOT component/authority validation. Only a
+- * future reviewed canonical producer may authorize production entry. Existing
++ * separately qualified canonical producer may authorize production entry. Existing
+  * begin08 stays v1-only; no new public begin or CURRENT producer is installed.
+  * The test entry below is compile-isolated, synthetic and cannot grant trust. */
+-static int pending_v3_image_guard(PAPACC_STORE_HASH *hash_ctx,const unsigned char *b,DWORD n)
++static int pending_packet11_image_guard(PAPACC_STORE_HASH *hash_ctx,const unsigned char *b,DWORD n)
+ {
+- unsigned N,B,K,D,q,off,s,u,v;unsigned char hash[32];
+- if(n<PC_ROOT8_V3_MIN||n>PC_ROOT8_V3_MAX||memcmp(b,"PACROOT8",8)||
+-    b[8]!=3U||b[9]||b[10]!=0U||b[11]!=2U||d3_u32(b+12)!=n||d3_u32(b+16)!=3U)return 0;
++ unsigned N,B,K,D,H,F,version,q,off,s,u,v;unsigned char hash[32];
++ if(n<PC_ROOT8_V3_MIN||n>PC_ROOT8_V4_MAX)return 0;
++ version=b[8];
++ if((version!=3U&&version!=4U)||n<(version==3U?PC_ROOT8_V3_MIN:PC_ROOT8_V4_MIN)||
++ n>(version==3U?PC_ROOT8_V3_MAX:PC_ROOT8_V4_MAX)||memcmp(b,"PACROOT8",8)||b[9]||b[10]!=0U||b[11]!=2U||d3_u32(b+12)!=n||d3_u32(b+16)!=3U)return 0;
+  N=(unsigned)b[20]|((unsigned)b[21]<<8);K=(unsigned)b[252]|((unsigned)b[253]<<8);
+  D=(unsigned)b[268]|((unsigned)b[269]<<8);
+  if(!N||N>4U||!K||K>N||D>K||d3_u32(b+44)<672U)return 0;
+  B=(d3_u32(b+44)-160U)/512U;
+  if(!B||B>4U||d3_u32(b+44)!=160U+512U*B)return 0;
+- off=512U+1536U*N;s=96U+768U*K;u=off+s;v=96U+384U*D;q=u+v+160U+512U*B+16384U;
++ H=version==4U?((unsigned)b[284]|((unsigned)b[285]<<8)):0U;
++ if(H>3U)return 0;F=version==4U?96U+384U*H:0U;
++ off=512U+1536U*N;s=96U+768U*K;u=off+s;v=96U+384U*D;q=u+v+F+160U+512U*B+16384U;
+  if(q+544U!=n||d3_u32(b+32)!=512U||d3_u32(b+36)!=1536U*N||
+  d3_u32(b+244)!=off||d3_u32(b+248)!=s||d3_u32(b+260)!=u||d3_u32(b+264)!=v||
+- d3_u32(b+40)!=u+v||d3_u32(b+48)!=u+v+160U+512U*B||d3_u32(b+52)!=16384U||
++ d3_u32(b+40)!=u+v+F||d3_u32(b+48)!=u+v+F+160U+512U*B||d3_u32(b+52)!=16384U||
+  d3_u32(b+56)!=q||d3_u32(b+60)!=512U||d3_u32(b+64)!=q+512U||d3_u32(b+68)!=32U)return 0;
++ if(version==4U&&(b[274]!=1U||b[275]||d3_u32(b+276)!=u+v||d3_u32(b+280)!=F||
++ b[286]!=128U||b[287]!=1U||b[288]!=1U||b[289]))return 0;
+  return store03_hash(hash_ctx,b,n-32U,hash)&&!memcmp(hash,b+n-32U,32);
+ }
+-static int pending_v3_packet_valid(PAPACC_STORE_HASH *hash_ctx,const PAPACC_CONFIG_PENDING *p)
++static int pending_packet11_valid(PAPACC_STORE_HASH *hash_ctx,const PAPACC_CONFIG_PENDING *p)
+ {
+  const unsigned char *a=p->previous,*b=p->next,*cp;unsigned aq,bq,as,bs,ap,bp,K,D;unsigned char hash[32];
+- if(!pending_v3_image_guard(hash_ctx,a,p->previous_bytes)||!pending_v3_image_guard(hash_ctx,b,p->next_bytes))return 0;
++ if(!pending_packet11_image_guard(hash_ctx,a,p->previous_bytes)||!pending_packet11_image_guard(hash_ctx,b,p->next_bytes))return 0;
+  aq=d3_u32(a+56);bq=d3_u32(b+56);cp=a+aq;
+- if(memcmp(cp,"PACR8CP3",8)||cp[8]!=3U||cp[9]||cp[10]!=0U||cp[11]!=2U||
++ if(memcmp(cp,a[8]==3U?"PACR8CP3":"PACR8CP4",8)||cp[8]!=a[8]||cp[9]||cp[10]!=0U||cp[11]!=2U||
+  !store03_hash(hash_ctx,cp,480U,hash)||memcmp(hash,cp+480U,32)||
+  !store03_hash(hash_ctx,a,aq,hash)||memcmp(hash,cp+88U,32)||
+  memcmp(cp+16,a+72,32)||d3_u64(cp+48)!=d3_u64(a+104)||d3_u64(cp+56)!=d3_u64(a+112)||
+@@ -52,7 +58,7 @@
+  d3_u64(a+104)==(PAPACC_U64)-1||d3_u64(b+104)!=d3_u64(a+104)+1U||
+  d3_u64(b+112)!=d3_u64(a+104)||d3_u64(b+136)!=d3_u64(a+104)||
+  d3_u64(b+144)!=d3_u64(cp+64)||d3_u64(b+152)!=d3_u64(cp+72)||
+- d3_u64(b+160)!=d3_u64(cp+80)||b[240]!=3U||b[241]||
++ d3_u64(b+160)!=d3_u64(cp+80)||b[240]!=a[8]||b[241]||a[8]>b[8]||
+  memcmp(b+176,cp+88,32)||memcmp(b+208,a+p->previous_bytes-32U,32))return 0;
+  /* Bounded first native slice: preserve the ENTIRE carrier and unchanged
+   * SNT/PDG rows. It cannot authorize a change of approval/history or issuer. */
+@@ -61,6 +67,11 @@
+  if(K!=((unsigned)b[252]|((unsigned)b[253]<<8))||D!=((unsigned)b[268]|((unsigned)b[269]<<8))||
+  memcmp(a+as+64U,b+bs+64U,768U*K)||memcmp(a+ap+64U,b+bp+64U,384U*D)||
+  d3_u64(a+120)!=d3_u64(b+120)||memcmp(a+d3_u32(a+48),b+d3_u32(b+48),16384U))return 0;
++ /* This frozen slice preserves existing temporal rows too. No new source
++  * disposition is inferred from encoded bytes or a valid Ed25519 key. */
++ K=a[8]==4U?((unsigned)a[284]|((unsigned)a[285]<<8)):0U;
++ D=b[8]==4U?((unsigned)b[284]|((unsigned)b[285]<<8)):0U;
++ if(K!=D||(K&&memcmp(a+d3_u32(a+276)+64U,b+d3_u32(b+276)+64U,384U*K)))return 0;
+  return 1;
+ }
+ #endif
+--- a/apps/server/server_configuration_pending_win32.inc
++++ b/apps/server/server_configuration_pending_win32.inc
+@@ -52,7 +52,7 @@
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+  else if(p->packet_format==8U){if(!pending_d3_packet_valid(p))return 0;}
+ #if defined(PAPACC_ED11_WINDOWS_3MIB)
+- else if(!pending_v3_packet_valid(&p->store_hash,p))return 0;
++ else if(!pending_packet11_valid(&p->store_hash,p))return 0;
+ #endif
+ #endif
+  if(InterlockedCompareExchange(&p->stop,0,0))return 0;
+@@ -459,7 +459,7 @@
+  PAPACC_CONFIG_PENDING *p;BY_HANDLE_FILE_INFORMATION f;
+  if(!owner(o)||o->published||o->prepared||o->committed_pending||o->stopped||o->unresolved||o->authority_lost)return PAPACC_RESULT_INVALID_STATE;
+  p=&o->pending_commit;if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
+- if(p->active||p->thread||!pending_v3_packet_valid(&o->store_hash,p)||identity==INVALID_HANDLE_VALUE||
++ if(p->active||p->thread||!pending_packet11_valid(&o->store_hash,p)||identity==INVALID_HANDLE_VALUE||
+  !GetFileInformationByHandle(identity,&f)||(f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PAPACC_RESULT_INVALID_STATE;
+  p->packet_format=11U;p->file=INVALID_HANDLE_VALUE;p->expected_volume=f.dwVolumeSerialNumber;
+  p->expected_index_high=f.nFileIndexHigh;p->expected_index_low=f.nFileIndexLow;
+--- a/tests/v4_transaction_worker_win32_test.c
++++ b/tests/v4_transaction_worker_win32_test.c
+@@ -0,0 +1,51 @@
++/* Synthetic full v3 administrative context, REAL same-worker native TxF CAS.
++ * No root CURRENT/authority, no keys/certificates generated or signature. */
++#define _WIN32_WINNT 0x0600
++#include "config_root8_v4_test.c"
++#include <stdlib.h>
++extern PAPACC_RESULT papacc_v3_worker_fixture_start(PAPACC_CONFIGURATION_COMMIT *,HANDLE);
++extern PAPACC_RESULT papacc_v3_worker_fixture_poll(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++static PAPACC_U8 observed_v3[PC_ROOT8_V4_MAX];
++int main(int argc,char **argv)
++{
++ PAPACC_CONFIG_PENDING *p=&owner.pending_commit;HANDLE file,identity;DWORD count,start;
++ PAPACC_ISSUER_CAS_RESULT outcome=PAPACC_COMMIT_IDLE;PAPACC_SIZE bn;const PAPACC_U8 *old_image;unsigned q,base_version;int stop,unknown,conflict;
++ CHECK(argc==4);base_version=(unsigned)atoi(argv[3]);CHECK(base_version==3U||base_version==4U);stop=!strcmp(argv[1],"stop");unknown=!strcmp(argv[1],"unknown");conflict=!strcmp(argv[1],"conflict");
++ CHECK(papacc_configuration_commit_init03(&owner,argv[2])==0);
++ CHECK(setup3(4,4,4));CHECK(cp3());
++ if(base_version==4U){CHECK(upgrade4(3));CHECK(cp4());bn=z4;memcpy(base4,e4,bn);old_image=base4;CHECK(next4(bn));}
++ else{bn=z3;memcpy(base3,e3,bn);old_image=base3;CHECK(next3(3,bn));CHECK(upgrade4(0));}
++ CHECK(pc_root8_v4_base_link(e4,z4,old_image,bn,hash,&owner,component4,NULL)==PC_ROOT8_OK);
++ CHECK(sizeof(p->next)==PAPACC_CONFIG_TRANSACTION_BYTES&&sizeof(owner.committed)==PAPACC_CONFIG_TRANSACTION_BYTES);
++ memcpy(owner.committed,old_image,bn);owner.committed_bytes=(DWORD)bn;
++ memcpy(p->previous,old_image,bn);p->previous_bytes=(DWORD)bn;memcpy(p->next,e4,z4);p->next_bytes=(DWORD)z4;
++ file=CreateFileA(argv[2],GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(file!=INVALID_HANDLE_VALUE);
++ CHECK(WriteFile(file,old_image,(DWORD)bn,&count,NULL)&&count==bn&&FlushFileBuffers(file));CHECK(CloseHandle(file));
++ identity=CreateFileA(argv[2],0,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(identity!=INVALID_HANDLE_VALUE);
++ q=r32(p->previous+56);p->previous[q+64]^=1;CHECK(papacc_v3_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->previous[q+64]^=1;
++ p->next[112]^=1;CHECK(papacc_v3_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[112]^=1;
++ p->next[z4-1]^=1;CHECK(papacc_v3_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[z4-1]^=1;
++ /* Resealed outer digest cannot authorize unknown versions or lost history. */
++ p->next[8]=5U;CHECK(hash(&owner,p->next,z4-32U,p->next+z4-32U));CHECK(papacc_v3_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[8]=4U;
++ CHECK(hash(&owner,p->next,z4-32U,p->next+z4-32U));
++ q=r32(p->next+48);p->next[q+8192U+112U]^=1;CHECK(hash(&owner,p->next,z4-32U,p->next+z4-32U));CHECK(papacc_v3_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[q+8192U+112U]^=1;
++ CHECK(hash(&owner,p->next,z4-32U,p->next+z4-32U));
++ if(base_version==4U){q=r32(p->next+276)+64U+88U;p->next[q]^=1;CHECK(hash(&owner,p->next,z4-32U,p->next+z4-32U));CHECK(papacc_v3_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[q]^=1;CHECK(hash(&owner,p->next,z4-32U,p->next+z4-32U));}
++ owner.published=1;CHECK(papacc_v3_worker_fixture_start(&owner,identity)!=0);owner.published=0;
++ if(conflict){file=CreateFileA(argv[2],GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,0,NULL);CHECK(file!=INVALID_HANDLE_VALUE);CHECK(SetFilePointer(file,(LONG)(bn-1U),NULL,FILE_BEGIN)!=INVALID_SET_FILE_POINTER);CHECK(WriteFile(file,"X",1,&count,NULL)&&count==1&&FlushFileBuffers(file));CHECK(CloseHandle(file));}
++ if(stop){p->test_entered=CreateEventA(NULL,TRUE,FALSE,NULL);p->test_release=CreateEventA(NULL,TRUE,FALSE,NULL);CHECK(p->test_entered&&p->test_release);}
++ p->test_unknown=unknown;
++ CHECK(papacc_v3_worker_fixture_start(&owner,identity)==0);CHECK(CloseHandle(identity));
++ if(stop){CHECK(WaitForSingleObject(p->test_entered,10000)==WAIT_OBJECT_0);start=GetTickCount();CHECK(papacc_configuration_stop(&owner)==0);CHECK(GetTickCount()-start<1000);CHECK(papacc_configuration_finish(&owner)!=0);CHECK(SetEvent(p->test_release));}
++ start=GetTickCount();do{CHECK(papacc_v3_worker_fixture_poll(&owner,&outcome)==0);if(outcome==PAPACC_COMMIT_PENDING)Sleep(1);}while(outcome==PAPACC_COMMIT_PENDING&&GetTickCount()-start<10000);
++ CHECK(outcome==(stop?PAPACC_COMMIT_FAILED:unknown?PAPACC_CAS_UNKNOWN:conflict?PAPACC_CAS_CONFLICT:PAPACC_CAS_SUCCESS));
++ CHECK(!memcmp(owner.committed,old_image,bn)&&!memcmp(p->previous,old_image,bn));
++ CHECK(!memcmp(p->next,e4,z4)&&!owner.published);
++ CHECK(!memcmp(p->previous+r32(old_image+48),p->next+r32(e4+48),16384));
++ CHECK(papacc_configuration_publish(&owner)!=0);
++ if(!unknown){file=CreateFileA(argv[2],GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);CHECK(file!=INVALID_HANDLE_VALUE);CHECK(ReadFile(file,observed_v3,sizeof(observed_v3),&count,NULL));CHECK(CloseHandle(file));
++ if(!stop&&!conflict){CHECK(count==z4&&!memcmp(observed_v3,e4,z4));}else if(stop){CHECK(count==bn&&!memcmp(observed_v3,old_image,bn));}}
++ if(stop){CHECK(CloseHandle(p->test_entered));CHECK(CloseHandle(p->test_release));}
++ CHECK(papacc_configuration_stop(&owner)==0);if(!stop)CHECK(papacc_configuration_finish(&owner)!=0);
++ printf("PASS V4_NATIVE_SAME_WORKER mode=%s outcome=%d bytes=%Iu old_bytes=%Iu owner=%Iu pending=%Iu SYNTHETIC_ADMIN_NO_CURRENT_NO_TRUST_RETAINED\n",argv[1],outcome,z4,bn,sizeof(owner),sizeof(*p));return 0;
++}
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3166,3 +3166,15 @@
+   add_test(NAME papacc.prepared_storage.${mode} COMMAND papacc_prepared_storage_${mode}_test "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/ca.der.b64")
+  endforeach()
+ endif()
++
++# Isolated v4 packet11 qualification; same canonical native worker, no authority.
++if(PAPACC_ENABLE_OFFLINE_D3_WORKER AND PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE)
++ add_executable(papacc_v4_transaction_worker_test tests/v4_transaction_worker_win32_test.c
++  apps/server/server_configuration_commit_win32.c apps/server/server_config_root8_data_win32.c)
++ target_compile_definitions(papacc_v4_transaction_worker_test PRIVATE PAPACC_V3_BACKING_FIXTURE=1
++  PAPACC_V4_BACKING_FIXTURE=1 PAPACC_OFFLINE_D3_WORKER=1 PAPACC_ISSUER_STORAGE_COMPONENT_TEST=1)
++ target_include_directories(papacc_v4_transaction_worker_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} src/config src/issuer apps/server)
++ target_link_libraries(papacc_v4_transaction_worker_test PRIVATE papacc_config_root8 papacc_server_config
++  papacc_issuer papacc_root8_signer_data papacc_storage_sha256 bcrypt ktmw32 crypt32 advapi32)
++ target_compile_options(papacc_v4_transaction_worker_test PRIVATE /W4 /WX)
++endif()

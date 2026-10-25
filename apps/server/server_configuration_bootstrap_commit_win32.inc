@@ -41,7 +41,7 @@ static int bootstrap_auth_capture(PAPACC_CONFIG_PENDING *p)
 }
 typedef HANDLE (NTAPI *BOOTSTRAP_GET_TRANSACTION)(void);
 typedef BOOLEAN (NTAPI *BOOTSTRAP_SET_TRANSACTION)(HANDLE);
-static void bootstrap_commit_worker(PAPACC_CONFIG_PENDING *p)
+static void bootstrap_commit_worker(PAPACC_STORE_HASH *hash_ctx,PAPACC_CONFIG_PENDING *p)
 {
  BOOTSTRAP_AUTH_PROOF proof;BYTE hash[32];HMODULE module;FARPROC address;
  BOOTSTRAP_NT_CREATE create;BOOTSTRAP_GET_TRANSACTION gettx;BOOTSTRAP_SET_TRANSACTION settx;
@@ -58,7 +58,7 @@ static void bootstrap_commit_worker(PAPACC_CONFIG_PENDING *p)
     !bootstrap_identity(p->bootstrap_container,&p->bootstrap_volume,&p->bootstrap_high,&p->bootstrap_low,0)){
   p->result=PAPACC_CAS_CONFLICT;return;
  }
- if(!store03_hash(p->next,p->next_bytes,hash)||memcmp(hash,proof.candidate,32U)){
+ if(!store03_hash(hash_ctx,p->next,p->next_bytes,hash)||memcmp(hash,proof.candidate,32U)){
   p->result=PAPACC_CAS_CONFLICT;return;
  }
  module=GetModuleHandleA("ntdll.dll");if(!module)return;

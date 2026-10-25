@@ -25,14 +25,14 @@ static int body04_model(const PAPACC_CONFIG_BODY04_VIEW *v)
  }
  return 1;
 }
-PAPACC_RESULT papacc_configuration_body04_encode(const PAPACC_CONFIG_BODY04_VIEW *v,PAPACC_U8 *b,PAPACC_SIZE capacity)
+PAPACC_RESULT papacc_configuration_body04_encode(PAPACC_STORE_HASH *hash_ctx,const PAPACC_CONFIG_BODY04_VIEW *v,PAPACC_U8 *b,PAPACC_SIZE capacity)
 {
  const PAPACC_ADMIN_POLICY *p;unsigned i,pos;PAPACC_U8 hash[32];
  if(!v||!b||capacity!=PAPACC_CONFIG_BODY04_BYTES||body04_overlap(v,sizeof(*v),b,capacity))return PAPACC_RESULT_INVALID_ARGUMENT;
  /* All semantic rejection occurs before touching the caller's destination. */
  if(!body04_model(v))return PAPACC_RESULT_INVALID_STATE;
  p=&v->base.config.policy;memset(b,0,PAPACC_CONFIG_BODY04_BYTES);
- encode(&v->base,b);if(!digest(b,0))return PAPACC_RESULT_INTERNAL_ERROR;
+ encode(&v->base,b);if(!storage_digest(hash_ctx,b,0))return PAPACC_RESULT_INTERNAL_ERROR;
  memcpy(b+512U,"ADMP0401",8U);b[520U]=1U;b[521U]=(PAPACC_U8)p->profile;
  b[522U]=(PAPACC_U8)p->admission;p03_put16(b+524U,p->listener_port);
  b[526U]=(PAPACC_U8)p->enabled_count;b[527U]=(PAPACC_U8)p->rule_count;
@@ -43,10 +43,10 @@ PAPACC_RESULT papacc_configuration_body04_encode(const PAPACC_CONFIG_BODY04_VIEW
   b[pos+8U]=id->type;b[pos+9U]=id->length;
   if(id->length)memcpy(b+pos+10U,id->value,id->length);
  }
- if(!store03_hash(b,992U,hash))return PAPACC_RESULT_INTERNAL_ERROR;
+ if(!store03_hash(hash_ctx,b,992U,hash))return PAPACC_RESULT_INTERNAL_ERROR;
  memcpy(b+992U,hash,32U);return PAPACC_RESULT_OK;
 }
-PAPACC_RESULT papacc_configuration_body04_decode(const PAPACC_U8 *input,PAPACC_SIZE length,PAPACC_CONFIG_BODY04_VIEW *out)
+PAPACC_RESULT papacc_configuration_body04_decode(PAPACC_STORE_HASH *hash_ctx,const PAPACC_U8 *input,PAPACC_SIZE length,PAPACC_CONFIG_BODY04_VIEW *out)
 {
  PAPACC_CONFIG_BODY04_VIEW v;PAPACC_U8 b[PAPACC_CONFIG_BODY04_BYTES];
  unsigned i,j,pos=70U;PAPACC_SIZE *lengths[4];PAPACC_U8 *refs[4];PAPACC_BOOL *valids[4];PAPACC_ADMIN_POLICY *p;
@@ -55,7 +55,7 @@ PAPACC_RESULT papacc_configuration_body04_decode(const PAPACC_U8 *input,PAPACC_S
  memset(out,0,sizeof(*out));
  if(!input||length!=PAPACC_CONFIG_BODY04_BYTES)return PAPACC_RESULT_INVALID_ARGUMENT;
  memcpy(b,input,sizeof(b));memset(&v,0,sizeof(v));
- if(memcmp(b+512U,"ADMP0401",8U)||!p03_body_valid(b)||store03_zero(b+8U,32U)||
+ if(memcmp(b+512U,"ADMP0401",8U)||!p03_body_valid(hash_ctx,b)||store03_zero(b+8U,32U)||
     b[520U]!=1U||b[523U]||b[526U]>PAPACC_ADMIN_POLICY_KEYS||b[527U]>PAPACC_ADMIN_POLICY_RULES||
     !store03_zero(b+578U,6U)||!store03_zero(b+744U,248U))return PAPACC_RESULT_INVALID_STATE;
  memcpy(v.base.domain,b+8U,32U);v.base.revision=get64(b+40U);v.base.predecessor=get64(b+48U);

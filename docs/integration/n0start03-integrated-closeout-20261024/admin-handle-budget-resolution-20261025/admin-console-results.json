@@ -1,0 +1,42 @@
+[
+  {
+    "native_child_started": false,
+    "case": "Cycle",
+    "information_records": 0,
+    "output": "OPERATION=ISOLATED_FIXTURE; MODE=Cycle; N0-N9; ATTEMPT=0b1de869e11493b7cb08fb329578f6ce; auxiliary PID=1 creation=1\r\nONE LAB: consume intent; exclusive image and sink; explicit rebind; ONE Start; at most ONE safe Stop; partial effects retained. No ACL remediation/delete/rollback/retry. Separate owner approval REQUIRED.\r\nType exactly: START_N0_SINGLE_LAB ISOLATED_FIXTURE 0b1de869e11493b7cb08fb329578f6ce 1 1\r\n",
+    "operational": false,
+    "result": "PASS"
+  },
+  {
+    "native_child_started": false,
+    "case": "ReadOnly",
+    "information_records": 3,
+    "output": "",
+    "operational": false,
+    "result": "PASS"
+  },
+  {
+    "expected_denial": true,
+    "native_child_started": false,
+    "case": "Mismatch",
+    "error": "System.Management.Automation.RuntimeException: CONFIRMATION_DIVERGENCE",
+    "operational": false,
+    "result": "PASS"
+  },
+  {
+    "expected_denial": true,
+    "native_child_started": false,
+    "case": "WriteError",
+    "error": "System.Management.Automation.MethodInvocationException: Exce\u00e7\u00e3o ao chamar \"WriteLine\" com \"1\" argumento(s): \"SYNTHETIC_STDOUT_WRITE_ERROR\" ---> System.IO.IOException: SYNTHETIC_STDOUT_WRITE_ERROR\r\n   em PaccThrowWriter.WriteLine(String value)\r\n   em System.IO.TextWriter.SyncTextWriter.WriteLine(String value)\r\n   em CallSite.Target(Closure , CallSite , TextWriter , Object )\r\n   --- Fim do rastreamento de pilha de exce\u00e7\u00f5es internas ---\r\n   em System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)\r\n   em System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)\r\n   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)\r\n   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)",
+    "operational": false,
+    "result": "PASS"
+  },
+  {
+    "expected_denial": true,
+    "native_child_started": false,
+    "case": "Redirected",
+    "error": "System.Management.Automation.RuntimeException: INTERACTIVE_CONSOLE_REQUIRED",
+    "operational": false,
+    "result": "PASS"
+  }
+]

@@ -1,0 +1,11 @@
+# B4.B.4 — alternativa D focal PROPOSED, não aplicada
+
+Não constitui decisão accepted nem autoriza ampliar topologia. Só considerar se herança de console existente não puder ser qualificada e redução de intermediários for rejeitada explicitamente. Não se afirma que tais alternativas são impossíveis.
+
+Texto candidato para revisão do mesmo B0–B6:
+
+> Permanecem os quatro papéis de aplicação e todos os guards individuais e agregados existentes. Exclusivamente nesta tentativa, admite-se no máximo UM console host adicional, somente quando sua associação nativa ao console autorizado, identidade de processo/criação, token, imagem nativa protegida e exclusividade da associação forem comprovadas e revalidadas. Sua presença deve ser explícita no mesmo censo e nas métricas, nunca filtrada pelo nome. Uma segunda instância adicional ou associação incerta causa STOP. Para o auxiliar, propõem-se os mesmos guards de processo nativo (64MiB de memória observável,128 handles,16 threads,8MiB de stack observável), incluídos, sem duplicação, nos totais já escolhidos de640MiB/2304 handles/160 threads/80MiB stack. O agregado não é aumentado nem convertido em crédito. Recursos do console host e lifetime permanecem contabilizados; nenhuma reserva é devolvida por ausência de janela. O máximo de processos totais passaria explicitamente de4 para5, incluindo esse único auxiliar. Demais invalidações, freshness, Stop, retenção, consumo único e NONE_GRANTED permanecem.
+
+O limite de um auxiliar é uma escolha candidata restritiva derivada da única ocorrência observada; NÃO é prova de multiplicidade máxima real ou garantia de funcionamento. Os guards reutilizados também são escolhas de risco, não máximos medidos. Topologia que exija dois hosts adicionais continuaria DENY. Esta proposta precisa de decisão explícita do owner, integração normativa oficial e qualificação antes de qualquer implementação dependente. Nenhuma aprovação foi inferida do pedido de auditoria.
+
+Antes de eventual aprovação, é necessário resolver a evidência de associação/identidade e demonstrar que o accounting agregado inclui o auxiliar. Não basta aceitar o número5 para solucionar os demais gates. Não há crédito novo, aumento de quota interna, autorização operacional ou exceção genérica para conhost.exe.

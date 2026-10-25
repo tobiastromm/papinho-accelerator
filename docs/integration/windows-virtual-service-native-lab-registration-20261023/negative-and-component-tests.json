@@ -1,0 +1,176 @@
+[
+  {
+    "configuration": "Debug",
+    "test": "papacc_scm_registration_lab_model",
+    "exit": 0,
+    "output": "Virtual service MODEL contract, no password, readback mismatch, partial effects, Stop and no retry PASS; owner=12816 host=96 total=12916\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_service_lifecycle_data_test",
+    "exit": 0,
+    "output": "DATA lifecycle, replay, Stop-before-running and retained-quiescence negatives PASS\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_service_scm_native_test",
+    "exit": 0,
+    "output": "Native fixed binding gate denies all mutations before SCM acquisition PASS\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_service_scm_query_model_test",
+    "exit": 0,
+    "output": "Modeled SCM observations/access-denied/partial close/retention/no retry/ServiceMain/control bridge PASS\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_service_scm_virtual_model_test",
+    "exit": 0,
+    "output": "Virtual service MODEL contract, no password, readback mismatch, partial effects, Stop and no retry PASS; owner=12816 host=96 total=12916\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_service_scm_acl_model_test",
+    "exit": 0,
+    "output": "Native descriptor MODEL: protected owner/writers, world read, unsafe write/owner/null/absent DACL PASS\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_server_console_win32_test",
+    "exit": 0,
+    "output": ""
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_personal_effect_plan_test",
+    "exit": 0,
+    "output": "PASS EFFECT_PLAN_DATA_ONLY EXPLICIT_CA_SCOPE READ_ONLY_NOT_REUSABLE STOP_REPLAY_DENY NO_NATIVE_EFFECT\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_personal_native_test",
+    "exit": 0,
+    "output": "NATIVE_READ_ONLY_PREFLIGHT_DENIED_NO_ELIGIBLE_CONTEXT_OR_PARENT; POSITIVE_NOT_QUALIFIED\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_phase6_memory_census_test",
+    "exit": 0,
+    "output": "ROOT=340640\nFIXED_GRAPH=1542248\nCOMMIT=263584\nPENDING=73320\nCOMMIT_SLOTS=3456\nPIN_TICKETS=1024\nWORKER_PREVIOUS=31840\nWORKER_NEXT=31840\nWORKER_COMPARE=512\nCOMMITTED=31840\nISSUER_STAGE=8192\nISSUER_SNAPSHOTS=24576\nV3_BACKINGS=120360\nV3_BACKING_SLOT=40120\nPREPARATION=9952\nSOURCE=416\nPARTICIPANTS=6408\nPOLICY_PREPARATION=1120\nINTERFACE_COPY=5928\nLISTENER_COMPOSITION=1208\nROOT_CURRENT_PIN=1184\nC2=274040\nC2_PARTICIPANT=528944\nC3_BRIDGE=132448\nSITE_MANAGER=40\nSITE_CONNECTIONS=240\nSTAGES=131712\nSTAGE_LEASES=576\nSTAGE_BORROWS=640\nAST=59880\nMODEL_BINDING=1072\nINITIAL_RESOLUTION=1088\nDIAGNOSTIC=24\nCONFIG_VIEW=1104\nFILE_IDENTITY=52\nISSUER_CORE=216\nISSUER_BACKEND=88\nISSUER_RECORD=288\nCNG_OWNER=480\nCSR_DESCRIPTOR=24\nBASE_ARRAYS=319488\nSECURE_ARRAYS=25088\nSCHEDULER_ARRAYS=4432\nBIND=144\nKNOWN=1965128\nPROCESS_LIMIT=3145728\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "papacc_issuer_production_gate_test",
+    "exit": 0,
+    "output": "PASS production_gate_checks=4; test_adapters_rejected_before_root_access; absent_live_root=UNSUPPORTED\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "NATIVE ['--check']",
+    "exit": 0,
+    "expected": 0,
+    "output": "LAB_REGISTRATION=PREPARED_READ_ONLY; EXISTENCE=ABSENT_OBSERVED; FILES=BOUND; OPERATOR_AUTHORIZATION=NOT_CLAIMED; CREATE=NOT_RUN\nLAB_FINAL; STAGE=SCM_ABSENCE; ERROR=0; CLOSE=0; RETAINED=0; AUX_RETAINED=0; EFFECT_REQUESTED=0; DISPOSITION=0; READBACK=0; NO_START_NO_DELETE_NO_RETRY; CA_CURRENT_AUTHORITY=DENY\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "NATIVE ['--register-lab', 'not-a-valid-attempt']",
+    "exit": 2,
+    "expected": 2,
+    "output": "LAB_REGISTRATION=ARGUMENT_DENY; SCM_EFFECT=NONE\n"
+  },
+  {
+    "configuration": "Debug",
+    "test": "NATIVE ['--unknown']",
+    "exit": 2,
+    "expected": 2,
+    "output": "LAB_REGISTRATION=ARGUMENT_DENY; SCM_EFFECT=NONE\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_scm_registration_lab_model",
+    "exit": 0,
+    "output": "Virtual service MODEL contract, no password, readback mismatch, partial effects, Stop and no retry PASS; owner=12816 host=96 total=12916\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_service_lifecycle_data_test",
+    "exit": 0,
+    "output": "DATA lifecycle, replay, Stop-before-running and retained-quiescence negatives PASS\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_service_scm_native_test",
+    "exit": 0,
+    "output": "Native fixed binding gate denies all mutations before SCM acquisition PASS\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_service_scm_query_model_test",
+    "exit": 0,
+    "output": "Modeled SCM observations/access-denied/partial close/retention/no retry/ServiceMain/control bridge PASS\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_service_scm_virtual_model_test",
+    "exit": 0,
+    "output": "Virtual service MODEL contract, no password, readback mismatch, partial effects, Stop and no retry PASS; owner=12816 host=96 total=12916\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_service_scm_acl_model_test",
+    "exit": 0,
+    "output": "Native descriptor MODEL: protected owner/writers, world read, unsafe write/owner/null/absent DACL PASS\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_server_console_win32_test",
+    "exit": 0,
+    "output": ""
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_personal_effect_plan_test",
+    "exit": 0,
+    "output": "PASS EFFECT_PLAN_DATA_ONLY EXPLICIT_CA_SCOPE READ_ONLY_NOT_REUSABLE STOP_REPLAY_DENY NO_NATIVE_EFFECT\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_personal_native_test",
+    "exit": 0,
+    "output": "NATIVE_READ_ONLY_PREFLIGHT_DENIED_NO_ELIGIBLE_CONTEXT_OR_PARENT; POSITIVE_NOT_QUALIFIED\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_phase6_memory_census_test",
+    "exit": 0,
+    "output": "ROOT=340640\nFIXED_GRAPH=1542248\nCOMMIT=263584\nPENDING=73320\nCOMMIT_SLOTS=3456\nPIN_TICKETS=1024\nWORKER_PREVIOUS=31840\nWORKER_NEXT=31840\nWORKER_COMPARE=512\nCOMMITTED=31840\nISSUER_STAGE=8192\nISSUER_SNAPSHOTS=24576\nV3_BACKINGS=120360\nV3_BACKING_SLOT=40120\nPREPARATION=9952\nSOURCE=416\nPARTICIPANTS=6408\nPOLICY_PREPARATION=1120\nINTERFACE_COPY=5928\nLISTENER_COMPOSITION=1208\nROOT_CURRENT_PIN=1184\nC2=274040\nC2_PARTICIPANT=528944\nC3_BRIDGE=132448\nSITE_MANAGER=40\nSITE_CONNECTIONS=240\nSTAGES=131712\nSTAGE_LEASES=576\nSTAGE_BORROWS=640\nAST=59880\nMODEL_BINDING=1072\nINITIAL_RESOLUTION=1088\nDIAGNOSTIC=24\nCONFIG_VIEW=1104\nFILE_IDENTITY=52\nISSUER_CORE=216\nISSUER_BACKEND=88\nISSUER_RECORD=288\nCNG_OWNER=480\nCSR_DESCRIPTOR=24\nBASE_ARRAYS=319488\nSECURE_ARRAYS=25088\nSCHEDULER_ARRAYS=4432\nBIND=144\nKNOWN=1965128\nPROCESS_LIMIT=3145728\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "papacc_issuer_production_gate_test",
+    "exit": 0,
+    "output": "PASS production_gate_checks=4; test_adapters_rejected_before_root_access; absent_live_root=UNSUPPORTED\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "NATIVE ['--check']",
+    "exit": 0,
+    "expected": 0,
+    "output": "LAB_REGISTRATION=PREPARED_READ_ONLY; EXISTENCE=ABSENT_OBSERVED; FILES=BOUND; OPERATOR_AUTHORIZATION=NOT_CLAIMED; CREATE=NOT_RUN\nLAB_FINAL; STAGE=SCM_ABSENCE; ERROR=0; CLOSE=0; RETAINED=0; AUX_RETAINED=0; EFFECT_REQUESTED=0; DISPOSITION=0; READBACK=0; NO_START_NO_DELETE_NO_RETRY; CA_CURRENT_AUTHORITY=DENY\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "NATIVE ['--register-lab', 'not-a-valid-attempt']",
+    "exit": 2,
+    "expected": 2,
+    "output": "LAB_REGISTRATION=ARGUMENT_DENY; SCM_EFFECT=NONE\n"
+  },
+  {
+    "configuration": "Release",
+    "test": "NATIVE ['--unknown']",
+    "exit": 2,
+    "expected": 2,
+    "output": "LAB_REGISTRATION=ARGUMENT_DENY; SCM_EFFECT=NONE\n"
+  }
+]

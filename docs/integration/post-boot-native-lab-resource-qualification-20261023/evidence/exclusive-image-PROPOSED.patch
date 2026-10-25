@@ -1,0 +1,17 @@
+--- a/apps/server/server_service_runtime_win32.inc
++++ b/apps/server/server_service_runtime_win32.inc
+@@ -137,12 +137,12 @@
+  ZeroMemory(&status,sizeof(status));if(!PSRT_BOOL("QueryServiceStatusEx",(SERVICE_QUERY_STATUS),QueryServiceStatusEx(native.service,SC_STATUS_PROCESS_INFO,(BYTE *)&status,sizeof(status),&got))||got!=sizeof(status)||
+  status.dwProcessId!=GetCurrentProcessId()||status.dwCurrentState!=SERVICE_START_PENDING)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  e=psr_token();if(e)return PSRT_RETURN(e,"propagate_original");
+- a=wcslen(psr_parent);if(wcsncmp(native.image_path,psr_parent,a)||native.image_path[a]!=L'\\'||wcscmp(native.image_path+a+1,L"papacc_server_lab_host.exe"))return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
++ a=wcslen(psr_parent);if(wcsncmp(native.image_path,psr_parent,a)||native.image_path[a]!=L'\\'||wcscmp(native.image_path+a+1,L"papacc_server_lab_host_ntstatus.exe"))return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
+  if(!PSRT_COUNT("QueryDosDeviceW",QueryDosDeviceW(L"C:",device,256))||wcsncmp(device,L"\\Device\\",8))return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");
+  a=wcslen(device);b=wcslen(psr_parent+2);if(a+b>=512)return PSRT_RETURN(ERROR_INVALID_NAME,"original_branch");memcpy(path,device,a*sizeof(WCHAR));memcpy(path+a,psr_parent+2,(b+1)*sizeof(WCHAR));
+  if((e=psr_open(NULL,path,&native.runtime.parent,1))||
+  (e=psr_open(native.runtime.parent,L"papacc.conf",&native.runtime.configuration,0))||
+- (e=psr_open(native.runtime.parent,L"papacc_server_lab_host.exe",&native.runtime.relative_image,0)))return PSRT_RETURN(e,"propagate_original");
++ (e=psr_open(native.runtime.parent,L"papacc_server_lab_host_ntstatus.exe",&native.runtime.relative_image,0)))return PSRT_RETURN(e,"propagate_original");
+  if((e=psr_current()))return PSRT_RETURN(e,"propagate_current");
+  if(pc_parse(native.runtime.bytes,116U,&document,&diagnostic)!=PC_OK||pc_validate(&document,&target,&diagnostic)!=PC_OK)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+  native.runtime.ready=1U;PSRT_PREPARED();return ERROR_SUCCESS;

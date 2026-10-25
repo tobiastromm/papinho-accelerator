@@ -1,0 +1,81 @@
+﻿[
+    {
+        "truncated":  false,
+        "pass":  true,
+        "name":  "short",
+        "final":  false,
+        "chars":  11
+    },
+    {
+        "truncated":  false,
+        "pass":  true,
+        "name":  "empty_unicode_order",
+        "final":  false,
+        "chars":  14
+    },
+    {
+        "truncated":  true,
+        "pass":  true,
+        "name":  "long_truncation_drain",
+        "final":  true,
+        "chars":  150114
+    },
+    {
+        "truncated":  true,
+        "pass":  true,
+        "name":  "single_overlong_line",
+        "final":  true,
+        "chars":  4211
+    },
+    {
+        "truncated":  false,
+        "pass":  true,
+        "name":  "final_quiescent",
+        "final":  true,
+        "chars":  114
+    },
+    {
+        "truncated":  false,
+        "pass":  true,
+        "name":  "unknown_quiescence",
+        "final":  false,
+        "chars":  114
+    },
+    {
+        "truncated":  false,
+        "pass":  true,
+        "name":  "retained_record",
+        "final":  false,
+        "chars":  28
+    },
+    {
+        "truncated":  false,
+        "pass":  true,
+        "name":  "stop_before_start",
+        "final":  true,
+        "chars":  115
+    },
+    {
+        "truncated":  false,
+        "pass":  true,
+        "name":  "readonly_receipt",
+        "final":  true,
+        "chars":  114
+    },
+    {
+        "error":  "System.Management.Automation.MethodInvocationException: Exceção ao chamar \"WriteLine\" com \"1\" argumento(s): \"FIXTURE_STDOUT_BROKEN\" ---\u003e System.IO.IOException: FIXTURE_STDOUT_BROKEN\r\n   em ForwardingFailWriter.WriteLine(String s)\r\n   em System.IO.TextWriter.SyncTextWriter.WriteLine(String value)\r\n   em CallSite.Target(Closure , CallSite , TextWriter , Object )\r\n   --- Fim do rastreamento de pilha de exceções internas ---\r\n   em System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)\r\n   em System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)\r\n   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)\r\n   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)",
+        "pass":  true,
+        "name":  "IOException",
+        "receipt_accepted":  false
+    },
+    {
+        "error":  "System.Management.Automation.MethodInvocationException: Exceção ao chamar \"WriteLine\" com \"1\" argumento(s): \"Não é possível gravar em um TextWriter fechado.\" ---\u003e System.ObjectDisposedException: Não é possível gravar em um TextWriter fechado.\r\n   em System.IO.__Error.WriterClosed()\r\n   em System.IO.StringWriter.Write(Char[] buffer, Int32 index, Int32 count)\r\n   em System.IO.TextWriter.SyncTextWriter.WriteLine(String value)\r\n   em CallSite.Target(Closure , CallSite , TextWriter , Object )\r\n   --- Fim do rastreamento de pilha de exceções internas ---\r\n   em System.Management.Automation.ExceptionHandlingOps.CheckActionPreference(FunctionContext funcContext, Exception exception)\r\n   em System.Management.Automation.Interpreter.ActionCallInstruction`2.Run(InterpretedFrame frame)\r\n   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)\r\n   em System.Management.Automation.Interpreter.EnterTryCatchFinallyInstruction.Run(InterpretedFrame frame)",
+        "pass":  true,
+        "name":  "DisposedWriter",
+        "receipt_accepted":  false
+    },
+    {
+        "pass":  true,
+        "name":  "actual_retention_predicate_five_states_and_no_close_branch"
+    }
+]

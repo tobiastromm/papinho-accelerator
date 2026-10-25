@@ -1,0 +1,245 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3315,9 +3315,16 @@
+   option(PAPACC_ENABLE_N0_POSITIVE_LAB "Compile the separately approved N0 positive LAB entry (does not authorize execution)" OFF)
+   option(PAPACC_ENABLE_N0START03_READONLY_PINS "Explicit reviewed successor03 read-only pins; never authorizes execution" OFF)
+   option(PAPACC_ENABLE_N0_PRIVATE_STDOUT "T0-T9 opt-in local noninherited stdout; no operational authority" OFF)
++  option(PAPACC_ENABLE_N0START03_PRIVATE_POSITIVE "T10-T14 exact03 positive composition; separate operation approval still required" OFF)
++  if(PAPACC_ENABLE_N0START03_PRIVATE_POSITIVE)
++    if(NOT PAPACC_ENABLE_N0_PRIVATE_STDOUT OR NOT PAPACC_ENABLE_N0_POSITIVE_LAB OR PAPACC_ENABLE_N0START03_READONLY_PINS OR PAPACC_ENABLE_READONLY_OBSERVER_HANDLE_TRACE OR PAPACC_ENABLE_READONLY_HANDLE_TABLE_TRACE)
++      message(FATAL_ERROR "Private positive03 requires private transport + positive entry, no read-only profile/traces")
++    endif()
++    target_compile_definitions(papacc_scm_instrumented_lab PRIVATE PAPACC_N0START03_PRIVATE_POSITIVE=1)
++  endif()
+   if(PAPACC_ENABLE_N0_PRIVATE_STDOUT)
+-    if(NOT PAPACC_ENABLE_N0START03_READONLY_PINS OR PAPACC_ENABLE_N0_POSITIVE_LAB)
+-      message(FATAL_ERROR "Private transport requires read-only successor pins and forbids positive entry")
++    if(NOT PAPACC_ENABLE_N0START03_PRIVATE_POSITIVE AND (NOT PAPACC_ENABLE_N0START03_READONLY_PINS OR PAPACC_ENABLE_N0_POSITIVE_LAB))
++      message(FATAL_ERROR "Private transport requires explicit read-only or exact private positive03 composition")
+     endif()
+     target_sources(papacc_scm_instrumented_lab PRIVATE tools/qualification/scm-n0-private-stdout-native.c)
+     target_compile_definitions(papacc_scm_instrumented_lab PRIVATE PAPACC_N0_PRIVATE_STDOUT=1)
+@@ -3355,6 +3362,17 @@
+   target_link_libraries(papacc_scm_instrumented_lab PRIVATE papacc_server_service psapi iphlpapi wevtapi user32 bcrypt)
+   target_compile_options(papacc_scm_instrumented_lab PRIVATE /W4 /WX)
+   set_target_properties(papacc_scm_instrumented_lab PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++  foreach(transport_profile default readonly positive)
++    add_executable(papacc_private_profile_${transport_profile}_test tests/noninherited_positive_profile_test.c)
++    target_compile_options(papacc_private_profile_${transport_profile}_test PRIVATE /W4 /WX)
++    target_link_libraries(papacc_private_profile_${transport_profile}_test PRIVATE advapi32)
++    if(transport_profile STREQUAL "readonly")
++      target_compile_definitions(papacc_private_profile_${transport_profile}_test PRIVATE PAPACC_N0START03_READONLY_PINS=1)
++    elseif(transport_profile STREQUAL "positive")
++      target_compile_definitions(papacc_private_profile_${transport_profile}_test PRIVATE PAPACC_N0START03_PRIVATE_POSITIVE=1 PAPACC_N0_PRIVATE_STDOUT=1 PAPACC_N0_POSITIVE_PINNED_LAB=1)
++    endif()
++    add_test(NAME papacc.service.private_profile_${transport_profile} COMMAND papacc_private_profile_${transport_profile}_test)
++  endforeach()
+   foreach(pin_profile default optin)
+     add_executable(papacc_n0start03_pins_${pin_profile}_test tests/service_n0start03_pin_profile_test.c)
+     target_compile_options(papacc_n0start03_pins_${pin_profile}_test PRIVATE /W4 /WX)
+--- a/tests/noninherited_transport_integration_test.c
++++ b/tests/noninherited_transport_integration_test.c
+@@ -33,15 +33,19 @@
+  if(!wcscmp(argv[2],L"delayed"))Sleep(750);
+  printf("FIXTURE_CHILD_PRE=%lu\n",(unsigned long)handles());
+  e=PaccTransportClient(argv[argc-3],wcstoul(argv[argc-2],NULL,10),_wcstoui64(argv[argc-1],NULL,10));if(e){fprintf(stderr,"CLIENT_DENY %lu\n",(unsigned long)e);return 11;}
+- if(!wcscmp(argv[2],L"console")){input=CreateFileW(L"CONIN$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);error=CreateFileW(L"CONOUT$",GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(input==INVALID_HANDLE_VALUE||error==INVALID_HANDLE_VALUE||!GetConsoleMode(input,&mode))return 12;if(!WriteConsoleW(error,L"TRANSPORT_STDERR\r\n",18,&n,NULL))return 13;if(!ReadConsoleW(input,text,63,&n,NULL)||n>=64)return 14;text[n]=0;if(wcscmp(text,L"CONFIRM_TRANSPORT\r\n"))return 15;do{if(!ReadConsoleInputW(input,&key,1,&n))return 16;}while(key.EventType!=KEY_EVENT||!key.Event.KeyEvent.bKeyDown||key.Event.KeyEvent.wVirtualKeyCode!=VK_ESCAPE);if(!CloseHandle(input)||!CloseHandle(error))return 17;}
++ if(!wcscmp(argv[2],L"console")||!wcscmp(argv[2],L"positive-console")){input=CreateFileW(L"CONIN$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);error=CreateFileW(L"CONOUT$",GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(input==INVALID_HANDLE_VALUE||error==INVALID_HANDLE_VALUE||!GetConsoleMode(input,&mode))return 12;if(!WriteConsoleW(error,L"TRANSPORT_STDERR\r\n",18,&n,NULL))return 13;if(!ReadConsoleW(input,text,63,&n,NULL)||n>=64)return 14;text[n]=0;if(wcscmp(text,L"CONFIRM_TRANSPORT\r\n"))return 15;do{if(!ReadConsoleInputW(input,&key,1,&n))return 16;}while(key.EventType!=KEY_EVENT||!key.Event.KeyEvent.bKeyDown||key.Event.KeyEvent.wVirtualKeyCode!=VK_ESCAPE);if(!CloseHandle(input)||!CloseHandle(error))return 17;}
+  if(argc==15){int matches=sentinel_matches(wcstoul(argv[argc-2],NULL,10),argv+3);ig_transport_printf("SENTINEL_MATCHES=%d\n",matches);if(matches!=0)return 63;}
+  if(!wcscmp(argv[2],L"write-fail")){int wrote;unsigned long original=0;Sleep(300);wrote=PaccTransportPrintf("BROKEN_STDOUT\n");_get_doserrno(&original);fprintf(stderr,"WRITE_FAULT_OBSERVED dos=%lu first=%lu frozen=%lu\n",original,(unsigned long)t.first,(unsigned long)t.frozen);if(wrote>=0||!t.frozen||!t.stream||t.first!=(original?(DWORD)original:ERROR_WRITE_FAULT)||PaccTransportOpen()!=ERROR_INVALID_STATE)return 65;fprintf(stderr,"WRITE_FAULT_UNKNOWN_RETAINED no_new_acquisition NO_RETRY; isolated_exit_only\n");ExitProcess(0);}
+  ig_transport_printf("FIXTURE_CHILD_CONNECTED=%lu\n",(unsigned long)handles());
+  ig_transport_printf("FIXTURE_STDOUT\n\nUTF16_HEX=03a9\n");
+  if(!wcscmp(argv[2],L"large")){for(i=0;i<160000;i++)if(ig_transport_printf("x")<0)return 18;ig_transport_printf("\n");}
+- if(wcscmp(argv[2],L"missing-final"))ig_transport_printf("IG_FINAL stage=FIXTURE first=0 close=0 starts=0 stops=0 quiescent=0 intent_consumed=0 effect=0 diagnostic_created=0; SYNTHETIC_NOT_OPERATIONAL\n");
++ if(!wcscmp(argv[2],L"positive")||!wcscmp(argv[2],L"positive-console"))ig_transport_printf("IG_FINAL stage=FIXTURE first=0 close=0 starts=1 stops=1 quiescent=1 intent_consumed=1 effect=2 diagnostic_created=1; SYNTHETIC_NOT_OPERATIONAL\n");
++ else if(!wcscmp(argv[2],L"positive-partial"))ig_transport_printf("IG_FINAL stage=FIXTURE first=1816 close=0 starts=0 stops=0 quiescent=0 intent_consumed=1 effect=2 diagnostic_created=1; SYNTHETIC_NOT_OPERATIONAL\n");
++ else if(!wcscmp(argv[2],L"positive-unknown"))ig_transport_printf("IG_FINAL stage=FIXTURE first=5 close=0 starts=1 stops=0 quiescent=0 intent_consumed=1 effect=2 diagnostic_created=1; SYNTHETIC_NOT_OPERATIONAL\n");
++ else if(!wcscmp(argv[2],L"positive-inconsistent"))ig_transport_printf("IG_FINAL stage=FIXTURE first=0 close=0 starts=0 stops=1 quiescent=1 intent_consumed=0 effect=0 diagnostic_created=0; SYNTHETIC_NOT_OPERATIONAL\n");
++ else if(wcscmp(argv[2],L"missing-final"))ig_transport_printf("IG_FINAL stage=FIXTURE first=0 close=0 starts=0 stops=0 quiescent=0 intent_consumed=0 effect=0 diagnostic_created=0; SYNTHETIC_NOT_OPERATIONAL\n");
+  ig_transport_puts("FIXTURE_PUTS");if(ig_transport_flush(stdout))return 68;
+- e=PaccTransportClientClose();return e?19:0;
++ e=PaccTransportClientClose();return e?19:(!wcscmp(argv[2],L"positive-partial")?2:0);
+ }
+ static int audit(HANDLE process){HPSS snapshot=NULL;HPSSWALK walk=NULL;PSS_HANDLE_ENTRY row;DWORD e,matches=0;HANDLE h=NULL;typedef BOOL(WINAPI *COMPARE)(HANDLE,HANDLE);COMPARE compare;FARPROC ptr=GetProcAddress(GetModuleHandleW(L"kernelbase.dll"),"CompareObjectHandles");if(!ptr)return 20;memcpy(&compare,&ptr,sizeof(compare));
+  e=PssCaptureSnapshot(process,(PSS_CAPTURE_FLAGS)(PSS_CAPTURE_HANDLES|PSS_CAPTURE_HANDLE_BASIC_INFORMATION|PSS_CAPTURE_HANDLE_NAME_INFORMATION|PSS_CAPTURE_HANDLE_TYPE_SPECIFIC_INFORMATION),0,&snapshot);if(e)return 21;if(PssWalkMarkerCreate(NULL,&walk))return 22;
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -1,5 +1,8 @@
+ /* Successor of the SAME fixed SCM cycle; all positive effects MANUAL ONLY. */
+ #include <stdlib.h>
++#ifdef PAPACC_N0_PRIVATE_STDOUT
++#include "scm-n0-private-stdout-profile.h"
++#endif
+ #define PAPACC_PSR_FILE_CAPSULE_LAB 1
+ #include "psr-file-capture-lab.inc"
+ #include "scm-instrumented-observer.inc"
+@@ -109,7 +112,9 @@
+  if(!expected||strlen(expected)!=64)return ERROR_ACCESS_DENIED;
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+  ig_approval_file=CreateFileW(
+-#ifdef PAPACC_N0_PRIVATE_STDOUT
++#ifdef PAPACC_N0START03_PRIVATE_POSITIVE
++ L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\t10-t14-positive-integration\\EXACT-POSITIVE-OPERATION-APPROVED.json",
++#elif defined(PAPACC_N0_PRIVATE_STDOUT)
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\t0-t9-acceptance-and-integration\\EXACT-TRANSPORT-READONLY-APPROVED.json",
+ #elif defined(PAPACC_READONLY_HANDLE_TABLE_TRACE)
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\handle-attribution\\EXACT-HANDLE-READONLY-APPROVED.json",
+@@ -120,8 +125,17 @@
+ #endif
+  GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+  if(ig_approval_file==INVALID_HANDLE_VALUE){ig_approval_file=NULL;return lab_error();}
+- if(!GetFileInformationByHandle(ig_approval_file,&id)||id.nFileSizeHigh||!id.nFileSizeLow||id.nFileSizeLow>16384||id.nNumberOfLinks!=1||(id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)))return ERROR_INVALID_DATA;
+- e=lab_hash(ig_approval_file,expected);return e;
++ if(!GetFileInformationByHandle(ig_approval_file,&id))return lab_error();
++ if(id.nFileSizeHigh||!id.nFileSizeLow||id.nFileSizeLow>16384||id.nNumberOfLinks!=1||(id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY)))return ERROR_INVALID_DATA;
++ e=lab_hash(ig_approval_file,expected);
++#ifdef PAPACC_N0START03_PRIVATE_POSITIVE
++ if(!e){static const char required[]=IG_PRIVATE_POSITIVE_APPROVAL_PREFIX;char prefix[sizeof(required)-1];DWORD bytes=0;
++  if(SetFilePointer(ig_approval_file,0,NULL,FILE_BEGIN)==INVALID_SET_FILE_POINTER&&GetLastError()!=ERROR_SUCCESS)return lab_error();
++  if(!ReadFile(ig_approval_file,prefix,sizeof(prefix),&bytes,NULL))return lab_error();
++  if(bytes!=sizeof(prefix)||!ig_transport_positive_record(prefix,bytes))return ERROR_ACCESS_DENIED;
++ }
++#endif
++ return e;
+ }
+ static DWORD ig_actor(unsigned role,DWORD pid,ULONGLONG creation)
+ {
+--- a/tools/qualification/scm-n0-context-pins.h
++++ b/tools/qualification/scm-n0-context-pins.h
+@@ -4,8 +4,11 @@
+ #if defined(PAPACC_N0START03_READONLY_PINS) && defined(PAPACC_N0_POSITIVE_PINNED_LAB)
+ #error Successor03_pins_forbid_positive_route
+ #endif
++#if defined(PAPACC_N0START03_PRIVATE_POSITIVE) && (!defined(PAPACC_N0_PRIVATE_STDOUT) || !defined(PAPACC_N0_POSITIVE_PINNED_LAB))
++#error Private_positive03_requires_explicit_transport_and_positive_entry
++#endif
+ #define IG_N0_N7_ED11_SHA "c17aa105580aa7680e8d97042abc9daa32640dcf1e69dcdce49c59b8462109ac"
+-#ifdef PAPACC_N0START03_READONLY_PINS
++#if defined(PAPACC_N0START03_READONLY_PINS) || defined(PAPACC_N0START03_PRIVATE_POSITIVE)
+ #define IG_N0_DOSSIER_SHA "5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050"
+ #define IG_N0_EVIDENCE_SHA "15b643829189855149826779e9b6a54c1650ed9df6360de63e90cd35bf4887d7"
+ #define IG_N0_DOSSIER_VOLUME 417614100UL
+--- a/tools/qualification/scm-n0-context.inc
++++ b/tools/qualification/scm-n0-context.inc
+@@ -21,7 +21,7 @@
+  "%s;%s;%s;%s;%s;%s;%llu;%lu;%llu;%lu;%llu;%lu;%lu;%lu:%lu:%lu:%lu:%lu:%lu;%llu;"
+  "config=%lu:%lu:%lu:%lu:%lu;image=%lu:%lu:%lu:%lu:%lu;aux=%lu:%llu:%lu:%lu;file=%lu:%lu:%lu:%lu:%lu:%lu;%s;%s;%s;"
+  "APPROVAL=%s;INPUT_IDS=%lu:%lu:%lu:%lu,%lu:%lu:%lu:%lu;INPUT_PROFILE=N2-SD-RAW1-OWNER-GROUP-DACL;L1=2d91d64eace4613f64b2d17188642e85eb5ac41af5f6a5afa1f8e746eaeff27e;H=23d509674be807f01d2c6301cd990f2212a05d6d4d707e56f9f924c6afbd7218;P3=892d51b6a0033b3211c6483adb56d03d728c5f8285dfc8520cf73574c3ee5fad;SERVICE=PapinhoAcceleratorLab20261023;SID=S-1-5-80-3567404667-26456103-3018599297-139793421-3962028451;OPERATOR=S-1-5-21-785699550-1440458426-1682014700-1108;ASSOCIATION=UNPROVEN;CREDITS=NONE_GRANTED;N7_ED11=%s",
+- ig_n0_positive?"N0START-20261024-03;CREATE_IMAGE;CREATE_SINK;REBIND;START1;STOP_MAX1":"N0_READ_ONLY",d->attempt,d->config_hash,d->image_hash,d->policy,d->host,d->boot,(unsigned long)d->owner_pid,d->owner_creation,
++ ig_n0_positive?"N0START-20261024-03;CREATE_IMAGE;CREATE_SINK;REBIND;START1;STOP_MAX1;T10_T14=1f293812e9fca107c7fa8ba20abe20fd8ffbca3cdf6e95e58465a95dadbe4dd5":"N0_READ_ONLY",d->attempt,d->config_hash,d->image_hash,d->policy,d->host,d->boot,(unsigned long)d->owner_pid,d->owner_creation,
+  (unsigned long)d->actor.pid,d->actor.creation,(unsigned long)d->actor.session,(unsigned long)d->control_tid,
+  (unsigned long)d->statistics.TokenId.LowPart,(unsigned long)d->statistics.TokenId.HighPart,
+  (unsigned long)d->statistics.AuthenticationId.LowPart,(unsigned long)d->statistics.AuthenticationId.HighPart,
+--- a/tools/qualification/scm-n0-private-stdout-entry.inc
++++ b/tools/qualification/scm-n0-private-stdout-entry.inc
+@@ -1,7 +1,7 @@
+ /* Closed bootstrap is not operational authority. Body still validates every pin. */
+-static int ig_transport_decimal(const char *s,ULONGLONG limit,ULONGLONG *out){ULONGLONG n=0;unsigned d;if(!s||!*s||*s=='0')return 0;for(;*s;s++){if(*s<'0'||*s>'9')return 0;d=(unsigned)(*s-'0');if(n>(limit-d)/10)return 0;n=n*10+d;}*out=n;return n!=0;}
++#include "scm-n0-private-stdout-profile.h"
+ int main(int argc,char **argv){WCHAR name[96];ULONGLONG pid=0,created=0;DWORD error;int result;
+- if(argc!=13||strcmp(argv[9],"--private-stdout")||!ig_n0_readonly_command(argc-4,argv)||strcmp(argv[2],IG_ATTEMPT)||!ig_transport_decimal(argv[11],MAXDWORD,&pid)||!ig_transport_decimal(argv[12],~(ULONGLONG)0,&created)||strcmp(argv[3],argv[11])||strcmp(argv[4],argv[12])||!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,argv[10],-1,name,96)){fprintf(stderr,"PRIVATE_STDOUT_BOOTSTRAP_DENY; NO_PREFLIGHT\n");return 2;}
++ if(!ig_transport_bootstrap(argc,argv)||!ig_transport_decimal(argv[11],MAXDWORD,&pid)||!ig_transport_decimal(argv[12],~(ULONGLONG)0,&created)||!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,argv[10],-1,name,96)){fprintf(stderr,"PRIVATE_STDOUT_BOOTSTRAP_DENY; NO_PREFLIGHT\n");return 2;}
+  error=PaccTransportClient(name,(DWORD)pid,created);
+  if(error){fprintf(stderr,"PRIVATE_STDOUT_AUTH_DENY error=%lu; NO_PREFLIGHT\n",(unsigned long)error);if(PaccTransportClientClose())ig_transport_write_failed();return 2;}
+  result=ig_transport_body(argc-4,argv);
+--- a/tools/qualification/scm-n0-protected-single-powershell.ps1
++++ b/tools/qualification/scm-n0-protected-single-powershell.ps1
+@@ -2,7 +2,7 @@
+ [CmdletBinding()]
+ param(
+  [ValidateSet('Review','Prepare','Cycle')][string]$Mode='Prepare',
+- [ValidateSet('EMPTY_DENY','N0START03ReadOnly')][string]$Profile='EMPTY_DENY',
++ [ValidateSet('EMPTY_DENY','N0START03ReadOnly','N0START03Positive')][string]$Profile='EMPTY_DENY',
+  [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedScriptSha256,
+  [ValidatePattern('^[0-9a-f]{64}$')][string]$ExactApprovalSha256,
+  [uint32]$AuxiliaryPid=0,
+@@ -18,11 +18,20 @@
+ $TransportBinding=$Root+'\build\ed11-private-stdout-20261025\Selected\Release\Pacc.N0PrivateStdout.Binding.dll'
+ $TransportNativeHash='0d3f611010254082673a170e81118728b303d92f3ac74e7b86a21a2aee906abf'
+ $TransportBindingHash='513107355c46b8282ac17eb9763a1278bd201c0d4f9f9a925950676fba14d9f4'
++$ApprovalPath=$Root+'\docs\integration\n0start03-integrated-closeout-20261024\t0-t9-acceptance-and-integration\EXACT-TRANSPORT-READONLY-APPROVED.json'
++$T10DecisionHash='1f293812e9fca107c7fa8ba20abe20fd8ffbca3cdf6e95e58465a95dadbe4dd5'
++if($Profile-ceq'N0START03Positive'){
++ $Qualifier=$Root+'\build\ed11-positive-private-20261025\Selected\Release\papacc_scm_instrumented_lab.exe'
++ $QualifierHash='1d998e74728ee3cfcf925a9082bc9f1e594bfe51f9c4f218c8d41fde076d89c2'
++ $TransportNative=$Root+'\build\ed11-positive-private-20261025\Selected\Release\papacc_n0_private_stdout.dll'
++ $TransportNativeHash='c351ecb559834d74ebe36dd735b6174b4ca6226526ae928b7a2cc5f44c4d792c'
++ $ApprovalPath=$Root+'\docs\integration\n0start03-integrated-closeout-20261024\t10-t14-positive-integration\EXACT-POSITIVE-OPERATION-APPROVED.json'
++}
+ # Reviewed existing inputs. These pins grant no execution or Start authority.
+ $DossierHash=''
+-if($Profile-eq'N0START03ReadOnly'){$DossierHash='5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050'}
++if($Profile-ceq'N0START03ReadOnly' -or $Profile-ceq'N0START03Positive'){$DossierHash='5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050'}
+ $EvidenceHash=''
+-if($Profile-eq'N0START03ReadOnly'){$EvidenceHash='15b643829189855149826779e9b6a54c1650ed9df6360de63e90cd35bf4887d7'}
++if($Profile-ceq'N0START03ReadOnly' -or $Profile-ceq'N0START03Positive'){$EvidenceHash='15b643829189855149826779e9b6a54c1650ed9df6360de63e90cd35bf4887d7'}
+ $Attempt='0b1de869e11493b7cb08fb329578f6ce'
+ $Operation='N0START-20261024-03'
+ $Operator='S-1-5-21-785699550-1440458426-1682014700-1108'
+@@ -66,13 +75,28 @@
+  if($found.Count-ne1){throw ('AUXILIARY_CANDIDATE_COUNT_DENY count='+$found.Count)}
+  return $found[0]
+ }
++# Semantic type gate on the SAME pinned approval stream; no reopen or new authority.
++function Assert-PositiveApproval($stream) {
++ if($stream.Length-le0-or$stream.Length-gt16384){throw 'POSITIVE_APPROVAL_SIZE_DENY'}
++ $bytes=[byte[]]::new([int]$stream.Length);$stream.Position=0
++ try {if($stream.Read($bytes,0,$bytes.Length)-ne$bytes.Length){throw 'POSITIVE_APPROVAL_READ_DENY'};$text=[Text.UTF8Encoding]::new($false,$true).GetString($bytes)}finally{$stream.Position=0}
++ $record=$text|ConvertFrom-Json
++ foreach($name in @('status','operation','attempt','mode','request_sha256','T10_T14_sha256')){if($record.$name-isnot[string]){throw 'POSITIVE_APPROVAL_SCALAR_DENY'}}
++ if($record.manual_only-isnot[bool]-or$record.automatic_execution-isnot[bool]){throw 'POSITIVE_APPROVAL_SCALAR_DENY'}
++ foreach($name in @('launcher','qualifier','native_resource','framework_binding')){if($record.artifacts.$name.path-isnot[string]-or$record.artifacts.$name.sha256-isnot[string]){throw 'POSITIVE_APPROVAL_SCALAR_DENY'}}
++ if($record.status-cne'EXACT_MANUAL_POSITIVE_OWNER_APPROVED'-or$record.operation-cne$Operation-or$record.attempt-cne$Attempt-or$record.mode-cne'Cycle'-or$record.manual_only-ne$true-or$record.automatic_execution-ne$false){throw 'POSITIVE_APPROVAL_TYPE_DENY'}
++ if($record.request_sha256-cnotmatch'^[0-9a-f]{64}$'-or$record.T10_T14_sha256-cne$T10DecisionHash){throw 'POSITIVE_APPROVAL_POLICY_DENY'}
++ if($record.artifacts.launcher.sha256-cne$ExpectedScriptSha256-or$record.artifacts.qualifier.sha256-cne$QualifierHash-or$record.artifacts.native_resource.sha256-cne$TransportNativeHash-or$record.artifacts.framework_binding.sha256-cne$TransportBindingHash){throw 'POSITIVE_APPROVAL_ARTIFACT_DENY'}
++ if($record.artifacts.launcher.path-cne$ExpectedPath-or$record.artifacts.qualifier.path-cne$Qualifier-or$record.artifacts.native_resource.path-cne$TransportNative-or$record.artifacts.framework_binding.path-cne$TransportBinding){throw 'POSITIVE_APPROVAL_PATH_DENY'}
++}
+ try {
+  if($PSCommandPath -cne $ExpectedPath -or [IntPtr]::Size -ne 8 -or $PSVersionTable.PSEdition -cne 'Desktop' -or $PSVersionTable.PSVersion.Major-ne5 -or $PSVersionTable.PSVersion.Minor-ne1){throw 'SCRIPT_OR_RUNTIME_DIVERGENCE'}
+  Pin $ExpectedPath $ExpectedScriptSha256
+- if($Mode-eq'Cycle'){throw 'POSITIVE_ROUTE_DENY_PIN_SLICE_READONLY_ONLY'}
+- if($Profile-ne'N0START03ReadOnly'){throw 'DEFAULT_PROFILE_EMPTY_DENY'}
++ if($Profile-cne'N0START03ReadOnly'-and$Profile-cne'N0START03Positive'){throw 'DEFAULT_PROFILE_EMPTY_DENY'}
++ if(($Profile-ceq'N0START03Positive'-and$Mode-cne'Cycle'-and$Mode-cne'Review')-or($Profile-ceq'N0START03ReadOnly'-and$Mode-ceq'Cycle')){throw 'PROFILE_MODE_MISMATCH_DENY'}
+  if($Mode-eq'Prepare' -and $ExactApprovalSha256-cnotmatch'^[0-9a-f]{64}$'){throw 'SEPARATE_EXACT_READONLY_APPROVAL_REQUIRED'}
+  if($Mode-eq'Review'){
++  if($Profile-ceq'N0START03Positive'){Pin ($Root+'\docs\adr\DECISION-n0start03-positive-private-transport-composition-20261025.md') $T10DecisionHash}
+   Pin $Qualifier $QualifierHash
+   Pin $TransportNative $TransportNativeHash
+   Pin $TransportBinding $TransportBindingHash
+@@ -86,7 +110,8 @@
+  if([Console]::IsInputRedirected -or [Console]::IsOutputRedirected){throw 'INTERACTIVE_CONSOLE_REQUIRED'}
+  if($DossierHash -cnotmatch '^[0-9a-f]{64}$' -or $EvidenceHash -cnotmatch '^[0-9a-f]{64}$'){throw 'WINDOWS_PROVENANCE_UNKNOWN_DENY'}
+  Pin 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' '9785001b0dcf755eddb8af294a373c0b87b2498660f724e76c4d53f9c217c7a3'
+- Pin ($Root+'\docs\integration\n0start03-integrated-closeout-20261024\t0-t9-acceptance-and-integration\EXACT-TRANSPORT-READONLY-APPROVED.json') $ExactApprovalSha256
++ Pin $ApprovalPath $ExactApprovalSha256
++ if($Profile-ceq'N0START03Positive'){Assert-PositiveApproval $pins[$pins.Count-1];Pin ($Root+'\docs\adr\DECISION-n0start03-positive-private-transport-composition-20261025.md') $T10DecisionHash}
+  Pin ($Root+'\docs\adr\DECISION-n0start03-n7-and-ed11-evaluation-plan-20261024.md') 'c17aa105580aa7680e8d97042abc9daa32640dcf1e69dcdce49c59b8462109ac'
+  Lock-QualifierPath
+  Pin $Qualifier $QualifierHash
+@@ -117,7 +142,8 @@
+   # thread/process identity, lifetime, no impersonation. Never ManagedThreadId.
+   $tid=[uint32][AppDomain]::GetCurrentThreadId()
+   # Native original-process resource; bInheritHandles=FALSE, no helper process.
+-  $arguments='--prepare-n0 '+$Attempt+' '+$PID+' '+$birth+' '+$tid+' '+$AuxiliaryPid+' '+$AuxiliaryCreation+' '+$ExactApprovalSha256
++  $nativeMode=if($Mode-ceq'Cycle'){'--cycle-n0'}else{'--prepare-n0'}
++  $arguments=$nativeMode+' '+$Attempt+' '+$PID+' '+$birth+' '+$tid+' '+$AuxiliaryPid+' '+$AuxiliaryCreation+' '+$ExactApprovalSha256
+   $process=[Pacc.N0PrivateStdout.Supervisor]::new($TransportNative)
+   $launchAttempted=$true
+   $process.Open()
+@@ -130,13 +156,13 @@
+    if($line.Length -gt 4096 -or $chars -gt 131072){if(-not $outputTruncated){$outputTruncated=$true;Write-Host 'N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY'}}
+    if(-not $outputTruncated -or $line-cmatch'^(IG_FINAL |IG_RETAINED |IG_DIAGNOSTIC |IG_DIAGNOSTIC_RECEIPT|IG_FIRST_RECORD)'){[Console]::Out.WriteLine($line)}
+    if($Mode-ne'Cycle' -and $line -cmatch '^IG_FINAL stage=\S+ first=\d+ close=0 starts=0 stops=0 quiescent=0 intent_consumed=0 effect=0 diagnostic_created=0;'){$final=$true}
+-   if($Mode-eq'Cycle' -and $line-cmatch'^IG_FINAL stage=\S+ first=\d+ close=0 starts=([01]) stops=([01]) quiescent=([01]) intent_consumed=([01]) effect=([012]) diagnostic_created=([01]);'){if($Matches[1]-eq'0' -or $Matches[3]-eq'1'){$final=$true}} 
++   if($Mode-eq'Cycle' -and $line-cmatch'^IG_FINAL stage=\S+ first=\d+ close=0 starts=([01]) stops=([01]) quiescent=([01]) intent_consumed=([01]) effect=([012]) diagnostic_created=([01]);'){if([int]$Matches[2]-le[int]$Matches[1] -and (($Matches[1]-eq'0'-and$Matches[3]-eq'0')-or($Matches[1]-eq'1'-and$Matches[3]-eq'1')) -and (($Matches[4]-eq'0'-and$Matches[1]-eq'0'-and$Matches[5]-eq'0'-and$Matches[6]-eq'0')-or($Matches[4]-eq'1'-and($Matches[1]-eq'0'-or($Matches[5]-eq'2'-and$Matches[6]-eq'1'))))){$final=$true}} 
+   }
+   $exitCode=[int]$process.WaitOriginal();if($outputTruncated){$exitCode=2};$returned=$true
+   if(-not $final){throw 'FACTUAL_FINAL_RECEIPT_MISSING_RETAIN'}
+  } finally {# Affinity remains held through checked native close below.
+  }
+-} catch {$exitCode=2;Write-Host ('N0_READ_ONLY_ERROR='+$_.Exception.Message)} finally {
++} catch {$exitCode=2;Write-Host ('N0_LAUNCHER_ERROR='+$_.Exception.Message)} finally {
+  if($launchAttempted -and -not $started -and $null-ne$process){
+   try {if($process.CloseUnstartedIfKnown()){$launchAttempted=$false;Write-Host ('TRANSPORT_NO_CHILD_LOCAL_CLOSE=CONFIRMED; '+$process.Receipt())}}catch{$closeFailed=$true}
+  }

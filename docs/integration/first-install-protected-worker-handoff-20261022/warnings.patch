@@ -1,0 +1,17 @@
+--- tests/personal_plan_data_win32_test.c
++++ tests/personal_plan_data_win32_test.c
+@@ -74,11 +74,11 @@
+  owner_state.pending_commit.personal_native.phase=1U;
+  CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK); /* no factual parent */
+  CHECK(!p->consumed&&!owner_state.pending_commit.active&&!owner_state.pending_commit.thread);
+- strcpy(owner_state.pending_commit.personal_native.plan_leaf,"candidate");
+- strcpy((char *)owner_state.pending_commit.previous,"different");
++ memcpy(owner_state.pending_commit.personal_native.plan_leaf,"candidate",sizeof("candidate"));
++ memcpy(owner_state.pending_commit.previous,"different",sizeof("different"));
+  CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK);
+  CHECK(!p->consumed&&!owner_state.pending_commit.thread);
+- strcpy((char *)owner_state.pending_commit.previous,"candidate");
++ memcpy(owner_state.pending_commit.previous,"candidate",sizeof("candidate"));
+  CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK); /* matching MODEL leaf cannot invent parent */
+  owner_state.stopped=1;
+  CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK);

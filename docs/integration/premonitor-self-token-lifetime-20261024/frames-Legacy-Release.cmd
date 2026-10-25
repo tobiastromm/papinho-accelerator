@@ -1,0 +1,6 @@
+@echo off
+set VSLANG=1033
+call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+if errorlevel 1 exit /b %errorlevel%
+C:\PROGRA~2\MICROS~2\18\BUILDT~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe  /nologo -DPAPACC_C8_PRIVATE_STORAGE_PROFILE=1 -DPAPACC_ENABLE_CANONICAL_API3_CANDIDATE=1 -DPAPACC_ENABLE_CANONICAL_C8_ROOT=1 -DPAPACC_N0START03_READONLY_PINS=1 -DPAPACC_N0_N9_NATIVE_OWNER=1 -DPAPACC_N0_READONLY_PINNED_LAB=1 -DPAPACC_SCM_CYCLE_LAB=1 -DPAPACC_SCM_INSTRUMENTED_LAB=1 -DPAPACC_SINGLE_LAB_ADMISSION=1 -DWIN32_LEAN_AND_MEAN=1 -D_WIN32_WINNT=0x0603 -IC:\Projetos\PapinhoAccelerator\apps\server -IC:\Projetos\PapinhoAccelerator\include -IC:\Projetos\PapinhoAccelerator\tools\qualification\storage-hash-capsule\vendor\bearssl-0.6\inc -IC:\Projetos\PapinhoAccelerator\src\config /WX /DPAPACC_PSR_TRACE_LAB=1 /DPAPACC_PSR_FILE_RUNTIME_LAB=1 /O2 /Ob2 /DNDEBUG -MD /W4 /WX /Fobuild/premonitor-self-token-lifetime-20261024/Legacy/Release/frame-probe/qualifier.obj /Fdbuild/premonitor-self-token-lifetime-20261024/Legacy/Release/frame-probe/qualifier.pdb /FS -c C:\Projetos\PapinhoAccelerator\tools\qualification\scm-registration-lab.c /FAs /Fabuild/premonitor-self-token-lifetime-20261024/Legacy/Release/frame-probe/qualifier.asm
+exit /b %errorlevel%

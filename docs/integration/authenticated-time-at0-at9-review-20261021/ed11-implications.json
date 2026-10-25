@@ -1,0 +1,31 @@
+{
+  "runtime_delta_this_review": 0,
+  "fixed_Selected_prior": 1948880,
+  "fixed_Legacy_prior": 1790872,
+  "Windows_limit_explicit_only": 3145728,
+  "default_Legacy_other_limit": 2097152,
+  "quota_changes": 0,
+  "prior_full_conservative_scenario": 3747825,
+  "prior_excess_3MiB": 602097,
+  "prior_scenario_is_measured_peak_or_reservation": false,
+  "existing_x64_observation": 232,
+  "existing_x64_history_includes_last": 256,
+  "existing_x64_context_already_embedded": 144,
+  "existing_history_plus_incoming_observation": 488,
+  "interval_outputs_if_separate": 16,
+  "candidate_costs": {
+    "R1": "UNMEASURED:required protocol crypto,complete campaign proofs/transcripts,parser,source keys/status,transport and retention;not single-packet storage",
+    "R2": "UNMEASURED:CMS/ASN.1,certificate/status path,signature/hash,request/response,transport and retention",
+    "R3": "UNMEASURED:TLS/key establishment,authenticated NTP state,cookies/keys,AEAD,datagrams/stream buffers,certificate/status and retention",
+    "R4_R5": "UNMEASURED:attestation verification,claims/reference data,credentials,status and transport;does not remove Q2",
+    "R6": "Not proposed for implementation;monitor/pool/discipline costs and state not qualified",
+    "R7": "UNKNOWN:device/driver/provider/kernel,health/calibration,buffer and retention"
+  },
+  "peak_model": "base + only genuinely new source binding/quality + all live request/response/proof + parser/crypto/transport/status + retained graph + incremental stack/native resources;deduct shared bytes only with lifetime proof",
+  "concurrency": "existing serialized administrative owner;number of simultaneously live messages/retained generations must be proved,not assumed1",
+  "new_numeric_reservation": null,
+  "stack_provider_kernel": "UNKNOWN_NOT_ZERO",
+  "portability": "C89/VC6/backend equivalence NOT_QUALIFIED by documentation",
+  "activation": "DENY",
+  "ED11_TOTAL_STATUS": "PARTIAL"
+}

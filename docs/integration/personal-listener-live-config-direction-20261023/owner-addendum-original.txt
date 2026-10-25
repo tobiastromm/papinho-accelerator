@@ -1,0 +1,153 @@
+**OWNER ADDENDUM — PHASE 6 LISTENER INTERFACE SELECTION AND LIVE CONFIGURATION**
+
+Registrar as seguintes decisões para o MVP pessoal do PapinhoAccelerator, sem interromper a tarefa atual de qualificação do runtime LAB.
+
+### 1. Preservar a arquitetura existente
+
+O PapinhoAccelerator já possui um modelo de listeners associado a identificadores de interfaces de rede.
+
+Esse modelo permanece canônico.
+
+Antes de propor alterações, inspecionar:
+
+- formato e persistência dos IDs existentes;
+- enumeração de interfaces;
+- binding de listeners;
+- regras de múltiplos listeners;
+- comportamento diante de alteração de endereço ou indisponibilidade;
+- contratos accepted relacionados.
+
+Não substituir os IDs existentes por nomes de adaptadores, endereços IP, índices transitórios ou outro mecanismo de identificação.
+
+Não criar um segundo sistema de listeners.
+
+### 2. `defaultLan` como seletor automático
+
+Adicionar `defaultLan` como valor lógico de seleção automática, resolvido para um ID canônico existente.
+
+`defaultLan` não é uma interface, um ID persistente nem um novo tipo de listener.
+
+Regras:
+
+- Exatamente uma interface LAN elegível: selecionar seu ID canônico.
+- Nenhuma interface elegível: não ativar o listener e informar o motivo.
+- Mais de uma interface elegível: não escolher arbitrariamente; informar ambiguidade e apresentar os IDs disponíveis.
+- Interface selecionada indisponível: preservar o binding e não migrar silenciosamente para outra.
+- Mudança de IP na mesma interface: reavaliar endereços sem substituir sua identidade.
+- Mudança de topologia: revalidar elegibilidade e binding antes de novos efeitos.
+
+A elegibilidade deve respeitar as políticas de rede existentes. Não presumir que uma única placa ativa seja necessariamente uma LAN segura.
+
+Não expor listener à internet por inferência.
+
+### 3. Seleção explícita pelo usuário
+
+Permitir que o administrador consulte as interfaces disponíveis por CLI.
+
+Propor comando equivalente a:
+
+`papacc network interfaces`
+
+A saída deverá mostrar:
+
+- nome amigável;
+- ID canônico;
+- tipo de interface;
+- endereços;
+- estado;
+- elegibilidade;
+- motivo de eventual rejeição.
+
+A configuração explícita deverá utilizar o ID canônico já existente.
+
+Exemplo conceitual:
+
+`interface=<canonical-interface-id>`
+
+Não fixar essa sintaxe sem conferir o parser e os contratos existentes.
+
+### 4. Múltiplos listeners
+
+Preservar o suporte existente a múltiplos listeners.
+
+Cada listener deve continuar com sua própria identidade e seu binding de interface.
+
+Permitir listeners em interfaces diferentes, conforme contratos e recursos qualificados.
+
+Não transformar `defaultLan` em seleção automática de todas as interfaces.
+
+Não duplicar listeners quando a resolução automática coincidir com uma interface já vinculada; aplicar a política existente de conflitos.
+
+### 5. Configuração `.conf`
+
+Permitir configurar listeners pelo arquivo `.conf`, reutilizando o formato atual.
+
+Adotar `defaultLan` como valor padrão candidato somente quando nenhuma seleção explícita existir e a revisão dos contratos permitir.
+
+Não sobrescrever configurações históricas.
+
+Não migrar automaticamente IDs explícitos para `defaultLan`.
+
+Não alterar portas, protocolos ou regras de segurança já aceitas.
+
+### 6. Aplicação dinâmica
+
+Incluir no MVP comandos equivalentes a:
+
+- `config show`
+- `config validate`
+- `config apply`
+- `config status`
+
+Reutilizar a CLI e o owner canônico existentes.
+
+`config apply` deverá permitir aplicar alterações suportadas sem reiniciar o serviço.
+
+Fluxo desejado:
+
+1. Capturar configuração candidata.
+2. Validar sintaxe e semântica.
+3. Resolver `defaultLan` ou IDs explícitos.
+4. Validar interfaces, políticas e autoridade.
+5. Preparar recursos novos.
+6. Verificar Stop e capacidade.
+7. Efetivar alteração de configuração de forma governada.
+8. Atualizar o estado efetivo.
+9. Drenar ou encerrar recursos anteriores conforme contrato.
+10. Preservar retenção e UNKNOWN diante de efeitos incertos.
+
+Não declarar rollback após efeito parcial incerto.
+
+Não modificar CA, CURRENT ou identidade administrativa por simples reload.
+
+### 7. Separar listener e acesso à internet
+
+Preservar duas políticas independentes:
+
+A. Interfaces e endereços nos quais o Accelerator aceita conexões.
+
+B. Permissões de acesso à internet concedidas aos clientes.
+
+Habilitar acesso à internet para clientes não deve abrir automaticamente listeners em interfaces externas.
+
+### 8. CLI e futura GUI
+
+A futura GUI deverá utilizar os mesmos mecanismos de configuração, enumeração e aplicação.
+
+Não criar outro owner de configuração.
+
+### 9. Escopo e governança
+
+Não interromper a tarefa atual do runtime LAB sem listener.
+
+Não implementar listeners produtivos nem executar rede nesta tarefa.
+
+Não modificar contratos accepted silenciosamente.
+
+Preservar PST, Browser, PACC wire, quotas, ED11, WIP e produção 0.6.4.
+
+Registrar essas decisões na consolidação do MVP, identificar os pontos de integração existentes e preparar um único próximo slice quando apropriado.
+
+Não abrir outra arquitetura de rede ou sistema de identificação de interfaces.
+
+Ao concluir a tarefa atual, informar como essas capacidades se encaixam no roadmap da Phase 6.

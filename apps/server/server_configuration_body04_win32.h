@@ -18,6 +18,8 @@ typedef PAPACC_ADMIN_PRINCIPAL16 PAPACC_BODY04_PRINCIPAL;
 typedef struct PAPACC_CONFIG_BODY04_VIEW {
  PAPACC_CONFIG_VIEW base;
 } PAPACC_CONFIG_BODY04_VIEW;
-PAPACC_RESULT papacc_configuration_body04_encode(const PAPACC_CONFIG_BODY04_VIEW *,PAPACC_U8 *,PAPACC_SIZE);
-PAPACC_RESULT papacc_configuration_body04_decode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_CONFIG_BODY04_VIEW *);
+/* hash context stays caller-owned through failure/retention; never stack-local
+ * if a failed native cleanup may outlive the call. No implicit retry/timeout. */
+PAPACC_RESULT papacc_configuration_body04_encode(PAPACC_STORE_HASH *,const PAPACC_CONFIG_BODY04_VIEW *,PAPACC_U8 *,PAPACC_SIZE);
+PAPACC_RESULT papacc_configuration_body04_decode(PAPACC_STORE_HASH *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_CONFIG_BODY04_VIEW *);
 #endif

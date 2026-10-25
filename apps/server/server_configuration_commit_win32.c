@@ -6,38 +6,34 @@
 #include <bcrypt.h>
 #include <string.h>
 #include <limits.h>
+#include <wchar.h>
+#include "server_store_hash_win32.inc"
 
 static int owner(PAPACC_CONFIGURATION_COMMIT *o)
 {return o!=NULL && o->initialized && o->writer==GetCurrentThreadId();}
 static int pending_blocks(PAPACC_CONFIGURATION_COMMIT *o)
 {
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
- return o->pending_commit.active||o->authority_lost||o->pending_commit.bootstrap_parent||o->pending_commit.bootstrap_container||o->pending_commit.bootstrap_token;
+ return o->pending_commit.personal_ca||(o->pending_commit.personal_native.phase&&o->pending_commit.personal_native.phase!=3U)||(o->pending_commit.personal_data.phase&&o->pending_commit.personal_data.phase!=PAPACC_PERSONAL_DATA_FINISHED)||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&o->pending_commit.store_hash)||o->pending_commit.active||o->authority_lost||o->pending_commit.bootstrap_parent||o->pending_commit.bootstrap_container||o->pending_commit.bootstrap_token;
 #else
- (void)o;return 0;
+ return papacc_store_hash_blocked(&o->store_hash);
 #endif
 }
+#include "server_store_data_hash_win32.inc"
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+#include "server_configuration_personal_data_win32.inc"
+#endif
+
 static void put64(unsigned char *p,PAPACC_U64 v)
 {unsigned i;for(i=0U;i<8U;++i){p[7U-i]=(unsigned char)(v&255U);v>>=8;}}
 static PAPACC_U64 get64(const unsigned char *p)
 {unsigned i;PAPACC_U64 v=0U;for(i=0U;i<8U;++i)v=(v<<8)|p[i];return v;}
-static int digest(unsigned char *record,int verify)
+static int digest(PAPACC_STORE_HASH *hash_ctx,unsigned char *record,int verify)
 {
-    BCRYPT_ALG_HANDLE alg=NULL;
-    BCRYPT_HASH_HANDLE hash=NULL;
-    unsigned char value[32];
-    NTSTATUS status;
-    int ok=0;
-    status=BCryptOpenAlgorithmProvider(&alg,BCRYPT_SHA256_ALGORITHM,NULL,0U);
-    if(status<0)return 0;
-    status=BCryptCreateHash(alg,&hash,NULL,0U,NULL,0U,0U);
-    if(status>=0)status=BCryptHashData(hash,record,480U,0U);
-    if(status>=0)status=BCryptFinishHash(hash,value,32U,0U);
-    if(status>=0){ok=!verify || memcmp(value,record+480U,32U)==0;
-        if(!verify)memcpy(record+480U,value,32U);}
-    if(hash!=NULL && BCryptDestroyHash(hash)<0)ok=0;
-    if(BCryptCloseAlgorithmProvider(alg,0U)<0)ok=0;
-    return ok;
+ unsigned char value[32];
+ if(!papacc_store_hash(hash_ctx,record,480U,value))return 0;
+ if(verify)return memcmp(value,record+480U,32U)==0;
+ memcpy(record+480U,value,32U);return 1;
 }
 /* Parent chain and final leaf are checked without following a reparse point.
  * Supported diagnostic fault model excludes concurrent privileged path mutation. */
@@ -81,14 +77,14 @@ static void encode(const PAPACC_CONFIG_VIEW *v,unsigned char *b)
     for(i=0U;i<c->bind_selection.interface_persistent_id_count;++i)
         put64(b+330U+8U*i,v->ids[i].value);
 }
-static int record_valid(unsigned char *b)
+static int record_valid(PAPACC_STORE_HASH *hash_ctx,unsigned char *b)
 {
     PAPACC_U64 rev=get64(b+40U),pred=get64(b+48U);
     unsigned i;
     if(memcmp(b,"PACCFC01",8U)!=0||rev==0U||pred==((PAPACC_U64)-1)||
         rev!=pred+1U||get64(b+56U)==0U||b[69]>PAPACC_CONFIG_IDS)return 0;
     for(i=0U;i<4U;++i)if(b[70U+i*65U]>64U)return 0;
-    return digest(b,1);
+    return digest(hash_ctx,b,1);
 }
 #include "server_configuration_store02_win32.inc"
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
@@ -109,7 +105,7 @@ static int record_valid(unsigned char *b)
 PAPACC_RESULT papacc_configuration_commit_init(PAPACC_CONFIGURATION_COMMIT *o,const char *path)
 {
     DWORD a;
-    if(o==NULL||o->initialized||o->writer!=0U||!path_ok(path))return PAPACC_RESULT_INVALID_ARGUMENT;
+    if(o==NULL||o->initialized||o->writer!=0U||papacc_store_hash_blocked(&o->store_hash)||!path_ok(path))return PAPACC_RESULT_INVALID_ARGUMENT;
     a=GetFileAttributesA(path);
     if(a!=INVALID_FILE_ATTRIBUTES||GetLastError()!=ERROR_FILE_NOT_FOUND)
         return PAPACC_RESULT_INVALID_STATE;
@@ -176,7 +172,7 @@ PAPACC_RESULT papacc_configuration_commit(PAPACC_CONFIGURATION_COMMIT *o)
     else if(o->store02==6){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_NOT_SUPPORTED;}
 #endif
     if(!o->store02){encode(&o->slots[o->pending].view,next);
-        if(!digest(next,0)){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_INTERNAL_ERROR;}}
+        if(!digest(&o->store_hash,next,0)){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_INTERNAL_ERROR;}}
     tx=CreateTransaction(NULL,NULL,0U,0U,0U,0U,NULL);
     if(tx==INVALID_HANDLE_VALUE){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_NOT_SUPPORTED;}
     file=CreateFileTransactedA(o->path,GENERIC_READ|GENERIC_WRITE,0U,NULL,
@@ -289,10 +285,18 @@ PAPACC_RESULT papacc_configuration_stop(PAPACC_CONFIGURATION_COMMIT *o)
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
  (void)InterlockedExchange(&o->pending_commit.stop,1);
 #endif
+ InterlockedExchange(&o->store_hash.stopped,1);
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+ InterlockedExchange(&o->pending_commit.store_hash.stopped,1);
+#endif
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ papacc_personal_data_invalidate(&o->pending_commit.personal_data);
+#endif
  EnterCriticalSection(&o->lock);o->stopped=1;LeaveCriticalSection(&o->lock);return PAPACC_RESULT_OK;}
 PAPACC_RESULT papacc_configuration_finish(PAPACC_CONFIGURATION_COMMIT *o)
 {
     unsigned i;if(!owner(o))return PAPACC_RESULT_INVALID_STATE;
+    if(papacc_store_hash_blocked(&o->store_hash))return PAPACC_RESULT_INVALID_STATE;
     if(PAPACC_V3_UPDATE_BUSY(o))return PAPACC_RESULT_INVALID_STATE;
     EnterCriticalSection(&o->lock);
     if(!o->stopped||o->prepared||o->committed_pending||o->unresolved||pending_blocks(o)){LeaveCriticalSection(&o->lock);return PAPACC_RESULT_INVALID_STATE;}
@@ -316,7 +320,7 @@ PAPACC_RESULT papacc_configuration_commit_init02(PAPACC_CONFIGURATION_COMMIT *o,
 PAPACC_RESULT papacc_configuration_recovery_init02(PAPACC_CONFIGURATION_COMMIT *o,const char *path)
 {
     DWORD a;
-    if(o==NULL||o->initialized||o->writer!=0U||!path_ok(path))return PAPACC_RESULT_INVALID_ARGUMENT;
+    if(o==NULL||o->initialized||o->writer!=0U||papacc_store_hash_blocked(&o->store_hash)||!path_ok(path))return PAPACC_RESULT_INVALID_ARGUMENT;
     a=GetFileAttributesA(path);if(a==INVALID_FILE_ATTRIBUTES)return PAPACC_RESULT_INVALID_STATE;
     if(!InitializeCriticalSectionAndSpinCount(&o->lock,0U))return PAPACC_RESULT_OUT_OF_MEMORY;
     memcpy(o->path,path,strlen(path)+1U);o->writer=GetCurrentThreadId();
@@ -336,14 +340,14 @@ PAPACC_RESULT papacc_configuration_recovery_inspect(PAPACC_CONFIGURATION_COMMIT 
     ok=GetFileInformationByHandle(f,&info)&&GetFileSizeEx(f,&size)&&size.QuadPart==bytes&&ReadFile(f,b,bytes,&n,NULL)&&n==bytes;
     if(!CloseHandle(f)){o->retained_file=f;o->unresolved=1;return PAPACC_RESULT_INTERNAL_ERROR;}
     if(!ok)return PAPACC_RESULT_INVALID_STATE;
-    if(!o->store02)return record_valid(b)?PAPACC_RESULT_NOT_SUPPORTED:PAPACC_RESULT_INVALID_STATE;
+    if(!o->store02)return record_valid(&o->store_hash,b)?PAPACC_RESULT_NOT_SUPPORTED:PAPACC_RESULT_INVALID_STATE;
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
-    if(o->store02==5){if(!store05_select(b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
-    else if(o->store02==4){if(!store04_select(b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
-    else if(o->store02==3){if(!store03_select(b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
+    if(o->store02==5){if(!store05_select(&o->store_hash,b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
+    else if(o->store02==4){if(!store04_select(&o->store_hash,b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
+    else if(o->store02==3){if(!store03_select(&o->store_hash,b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;}
     else
 #endif
-    if(!store02_select(b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;
+    if(!store02_select(&o->store_hash,b,&info,&selected))return PAPACC_RESULT_INVALID_STATE;
     EnterCriticalSection(&o->lock);
     if(o->published||o->prepared||o->committed_pending||o->stopped||o->recovery_selected||o->next_serial!=0U){
         LeaveCriticalSection(&o->lock);return PAPACC_RESULT_NOT_SUPPORTED;}

@@ -1,0 +1,47 @@
+{
+  "status": "ISOLATED_PREPARATION_PASS_NOT_ADMISSION",
+  "C_parser": {
+    "configurations": 4,
+    "cases_per_configuration": 51,
+    "outcomes": 204,
+    "warnings": 0,
+    "source": "parser-build-test-results.json"
+  },
+  "CSharp_model": {
+    "configurations": [
+      "Debug",
+      "Release"
+    ],
+    "cases_per_configuration": 73,
+    "outcomes": 146,
+    "warnings_as_errors": true,
+    "source": "placement-model-final-results.json"
+  },
+  "PowerShell_workflow": {
+    "scenarios": 12,
+    "new_authority_close_uncertainty_scenarios": 2,
+    "source": "placement-workflow-r2-results.log",
+    "scope": "Synthetic owner and ordinary fixture receipts; not protected placement"
+  },
+  "approval_semantics": {
+    "cases": 19,
+    "source": "approval-guard-tests-final.log",
+    "scope": "Extracted guard with synthetic in-memory records; no approved record file"
+  },
+  "native_readonly": {
+    "static_file_reader_runs": 1,
+    "actual_candidate_windows_pin_checks": 2,
+    "scope": "Existing Windows file only, original read-only handle and checked native close, no protected root/operator/service token qualification"
+  },
+  "reused_unchanged_product_evidence": {
+    "product_build_configurations": 4,
+    "binding_outcomes": 84,
+    "regressions": 76,
+    "PowerShell_gates": 33,
+    "closed_entry_probes": 4,
+    "reason": "No product/launcher/pin/transport source or binary changed; focused new candidates tested separately"
+  },
+  "actual_service_token": "NOT_OBSERVED",
+  "actual_protected_creation": "NOT_EXECUTED",
+  "network_tests": "NOT_RUN"
+}

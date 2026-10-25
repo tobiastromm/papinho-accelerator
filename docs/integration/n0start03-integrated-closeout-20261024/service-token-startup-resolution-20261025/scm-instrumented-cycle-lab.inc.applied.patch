@@ -1,0 +1,12 @@
+--- tools/qualification/scm-instrumented-cycle-lab.inc.preimage
++++ tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -181,7 +181,8 @@
+ #ifdef PAPACC_N0_N9_NATIVE_OWNER
+  if(!e&&native.admission.bd.bound&&native.admission.bd.binding.n0){unsigned expected=0;
+  for(j=0;j<PS_BD_ROLES;j++)if(native.admission.bd.inventory.present[j])expected|=1U<<j;
+- if(n0_seen!=expected){e=ERROR_INVALID_DATA;ig_diag_note(cycle_stage,"n0_original_roles_missing","process_snapshot",e,e,0,4);}}
++ if(n0_seen!=expected){e=ERROR_INVALID_DATA;ig_diag_note(cycle_stage,"n0_original_roles_missing","process_snapshot",e,e,0,4);
++ printf("IG_CENSUS_ROLE_MASK expected=%u seen=%u missing=%u; ORIGINAL_INVENTORY; SNAPSHOT_ONLY_NOT_EXIT_PROOF\n",expected,n0_seen,expected&~n0_seen);}}
+ #else
+  (void)n0_seen;
+ #endif

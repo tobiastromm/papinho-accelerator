@@ -1,0 +1,63 @@
+{
+  "status": "EXACT_MANUAL_POSITIVE_OWNER_APPROVED",
+  "operation": "N0START-20261024-03",
+  "attempt": "0b1de869e11493b7cb08fb329578f6ce",
+  "mode": "Cycle",
+  "manual_only": true,
+  "automatic_execution": false,
+  "request_sha256": "64f20a0fcbe94782b3178c9da27ce0c76a989e478802d7e2262d3cef04d0e18b",
+  "T10_T14_sha256": "1f293812e9fca107c7fa8ba20abe20fd8ffbca3cdf6e95e58465a95dadbe4dd5",
+  "artifacts": {
+    "launcher": {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\tools\\qualification\\scm-n0-protected-single-powershell.ps1",
+      "sha256": "10fd6add1c4cd8cdb28845462a219c403b62271b4d5f894ee355279e293b150c",
+      "bytes": 16792
+    },
+    "qualifier": {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\build\\ed11-positive-private-20261025\\Selected\\Release\\papacc_scm_instrumented_lab.exe",
+      "sha256": "724fd4c7a2554e362115c2fbb85744b8bcff27ca14882382201d024bffe8030d",
+      "bytes": 121344
+    },
+    "native_resource": {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\build\\ed11-positive-private-20261025\\Selected\\Release\\papacc_n0_private_stdout.dll",
+      "sha256": "c351ecb559834d74ebe36dd735b6174b4ca6226526ae928b7a2cc5f44c4d792c",
+      "bytes": 23552
+    },
+    "framework_binding": {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\build\\ed11-private-stdout-20261025\\Selected\\Release\\Pacc.N0PrivateStdout.Binding.dll",
+      "sha256": "513107355c46b8282ac17eb9763a1278bd201c0d4f9f9a925950676fba14d9f4",
+      "bytes": 7680
+    }
+  },
+  "owner_approval": {
+    "quote": "aprovo",
+    "context": "Explicit owner reply to the specific corrected positive manual operation request SHA256 64f20a0fcbe94782b3178c9da27ce0c76a989e478802d7e2262d3cef04d0e18b. Separate from historical used approval; no automatic execution by Codex.",
+    "authorized_effects": [
+      "consume canonical intent once after all factual gates",
+      "exclusive image and sink/arm creation",
+      "one explicit LAB ImagePath rebind",
+      "one StartService call",
+      "at most one legally accepted safe Stop request",
+      "NTSTATUS/resource/receipt collection",
+      "preserve partial effects and UNKNOWN"
+    ],
+    "conditions": "All pins and factual canonical gates of this exact request, including60s/1s,128/1024,four roles,headroom,RAW1,N7,P3,H0-H9,T0-T14,NONE_GRANTED; fresh admission not observed and no budget granted by this record.",
+    "not_authorized": [
+      "automatic execution",
+      "retry",
+      "overwrite",
+      "delete",
+      "rollback",
+      "kill",
+      "forced mutex release",
+      "ACL remediation",
+      "quota changes",
+      "CURRENT",
+      "signature",
+      "authoritative recovery",
+      "network/listener",
+      "CA/certificates/bootstrap"
+    ]
+  },
+  "effects_and_limits": "Only exact request 64f20a0fcbe94782b3178c9da27ce0c76a989e478802d7e2262d3cef04d0e18b; one manual execution conditional on all fresh gates. Historical approval used and preserved; no reuse. No authority inferred from the prior intent_consumed=0 receipt."
+}

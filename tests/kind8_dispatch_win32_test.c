@@ -55,7 +55,7 @@ static int dispatch_cases(const char *ca_path)
  CHECK(papacc_root8_issuer_carrier_data(&context,8,carrier_data,16384,row_data+3U*384U,borrow.packet)==EXPECT_DISPATCH);
  CHECK(papacc_root8_issuer_carrier_data(&context,8,carrier_data,16384,row_data+1,borrow.packet)!=PC_ROOT8_OK);
  CHECK(papacc_root8_issuer_carrier_data(&context,8,e3+r32(e3+48),16384,e3+r32(e3+260)+64,e3)!=PC_ROOT8_OK);
- CHECK(papacc_root8_issuer_carrier_data(&context,9,carrier_data,16384,row_data,borrow.packet)==PC_ROOT8_UNSUPPORTED);
+ CHECK(papacc_root8_issuer_carrier_data(&context,9,carrier_data,16384,row_data,borrow.packet)==PC_ROOT8_INVALID);
  context.v3_version=0;CHECK(papacc_root8_issuer_carrier_data(&context,8,carrier_data,16384,row_data,borrow.packet)!=PC_ROOT8_OK);context.v3_version=1;
  context.v3_pin.ticket++;CHECK(papacc_root8_issuer_carrier_data(&context,8,carrier_data,16384,row_data,borrow.packet)!=PC_ROOT8_OK);context.v3_pin=pin;
  owner.v3_backings[1].serial=0;CHECK(papacc_root8_issuer_carrier_data(&context,8,carrier_data,16384,row_data,borrow.packet)!=PC_ROOT8_OK);owner.v3_backings[1].serial=pin.serial;

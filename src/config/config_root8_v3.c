@@ -32,7 +32,7 @@ static PC_ROOT8_RESULT header(const PAPACC_U8 *p,PAPACC_SIZE n)
 }
 static const PAPACC_U8 *association(const PAPACC_U8 *p,unsigned ordinal)
 {unsigned j;const PAPACC_U8 *s=p+u32(p+244)+64U;for(j=0;j<u16(p+252);j++,s+=768U)if(u16(s+16)==ordinal)return s;return NULL;}
-static PC_ROOT8_RESULT pdg(const PAPACC_U8 *p,int integrity,PC_LST1_HASH hash,void *hc)
+PC_ROOT8_RESULT pc_root8_pdg_data(const PAPACC_U8 *p,int integrity,PC_LST1_HASH hash,void *hc)
 {
  const PAPACC_U8 *s=p+u32(p+260),*a,*q,*sn;unsigned j,ordinal,len;PAPACC_SIZE V=u32(p+264);
  if(memcmp(s,"PACPDG01",8)||u16(s+8)!=1U||u16(s+10)!=64U||u32(s+12)!=V||u16(s+16)!=u16(p+268)||
@@ -58,7 +58,7 @@ static PC_ROOT8_RESULT checkpoint(const PAPACC_U8 *p,int integrity,PC_LST1_HASH 
  memcmp(c+120,p+176,64)||!zero(c+184,296))return PC_ROOT8_INVALID;
  s=digest(p,u32(p+56),c+88,hash,hc);if(s)return s;return integrity?digest(c,480,c+480,hash,hc):PC_ROOT8_OK;
 }
-static PC_ROOT8_RESULT records(const PAPACC_U8 *p,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
+PC_ROOT8_RESULT pc_root8_pdg_records_data(const PAPACC_U8 *p,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
 {
  const PAPACC_U8 *carrier=p+u32(p+48),*a;PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RECORD r;PAPACC_ISSUER_RESULT ir;
  PC_ROOT8_RESULT s;unsigned j;if(!u16(p+268))return PC_ROOT8_OK;
@@ -82,8 +82,8 @@ static PC_ROOT8_RESULT records(const PAPACC_U8 *p,PC_LST1_HASH hash,void *hc,PC_
 static PC_ROOT8_RESULT shape(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
 {
  PC_ROOT8_RESULT s;s=header(p,n);if(s)return s;s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;
- s=pdg(p,1,hash,hc);if(s)return s;s=checkpoint(p,1,hash,hc);if(s)return s;
- s=pc_root8_components_data(p,hash,hc,component,cc);if(s)return s;return records(p,hash,hc,component,cc);
+ s=pc_root8_pdg_data(p,1,hash,hc);if(s)return s;s=checkpoint(p,1,hash,hc);if(s)return s;
+ s=pc_root8_components_data(p,hash,hc,component,cc);if(s)return s;return pc_root8_pdg_records_data(p,hash,hc,component,cc);
 }
 static int outputs(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used)
 {return range(p,n)&&range(out,cap)&&range(used,sizeof(*used))&&!cross(p,n,out,cap)&&!cross(p,n,used,sizeof(*used))&&!cross(out,cap,used,sizeof(*used));}
@@ -104,8 +104,8 @@ static PC_ROOT8_RESULT fragment(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,
  PC_ROOT8_RESULT s;PAPACC_SIZE off,len;PAPACC_U8 d[32];if(!outputs(p,n,out,cap,used))return PC_ROOT8_INVALID;*used=0;
  s=header(p,n);if(s)return s;
  if(kind==1U){off=u32(p+244);len=u32(p+248);s=pc_root8_snt_data(p,0,hash,hc);}
- else if(kind==2U){s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;off=u32(p+260);len=u32(p+264);s=pdg(p,0,hash,hc);}
- else{s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;s=pdg(p,1,hash,hc);if(s)return s;off=u32(p+56);len=512;s=checkpoint(p,0,hash,hc);}
+ else if(kind==2U){s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;off=u32(p+260);len=u32(p+264);s=pc_root8_pdg_data(p,0,hash,hc);}
+ else{s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;s=pc_root8_pdg_data(p,1,hash,hc);if(s)return s;off=u32(p+56);len=512;s=checkpoint(p,0,hash,hc);}
  if(s)return s;if(cap<len)return PC_ROOT8_INVALID;if(kind==3U&&zero(p+off,512)){memset(out,0,512);*used=512;return PC_ROOT8_OK;}
  if(!hash||!hash(hc,p+off,len-32U,d))return PC_ROOT8_HASH_FAILED;memcpy(out,p+off,len-32U);memcpy(out+len-32U,d,32);*used=len;return PC_ROOT8_OK;
 }

@@ -1,3 +1,8 @@
+#include "server_store_hash_win32.h"
+#ifndef PAPACC_FIXTURE_STORE_HASH_DEFINED
+#define PAPACC_FIXTURE_STORE_HASH_DEFINED
+static PAPACC_STORE_HASH fixture_store_hash;
+#endif
 #include "../src/core/ed11_process_profile.h"
 #define main bootstrap_fixture_main
 #include "config_root8_test.c"
@@ -14,9 +19,9 @@ int main(int argc,char **argv)
  CHECK(setup(1,0));
  /* Preserve actual component root domain, synthetic BODY model only. */
  memcpy(model.fields+72,owner.domain,32);memcpy(view.domain,owner.domain,32);
- CHECK(papacc_configuration_body05_encode(&view,model.fields+1024U,1024U)==PAPACC_RESULT_OK);
+ CHECK(papacc_configuration_body05_encode(&fixture_store_hash,&view,model.fields+1024U,1024U)==PAPACC_RESULT_OK);
  CHECK(papacc_configuration_issuer_hash06(&owner,model.fields+1024U,1024U,model.fields+824U));
- CHECK(pc_root8_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,NULL)==PC_ROOT8_OK);
+ CHECK(pc_root8_encode(&model,bytes,sizeof(bytes),&used,papacc_configuration_issuer_hash06,&owner,papacc_root8_body05_data,&fixture_store_hash)==PC_ROOT8_OK);
  memcpy(saved,bytes,used);
  owner.pending_commit.checkpoint_only=91;
  CHECK(papacc_configuration_bootstrap_custody_begin(&owner,argv[2],argv[3],2078000U)==PAPACC_RESULT_OK);

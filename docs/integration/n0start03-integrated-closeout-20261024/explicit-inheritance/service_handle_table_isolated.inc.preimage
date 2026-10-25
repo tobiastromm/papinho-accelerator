@@ -1,0 +1,50 @@
+/* Isolated test mode only. No operational dispatch, SCM, owner or protected file. */
+static DWORD table_dump(const char *phase)
+{
+ HPSS snap=NULL;HPSSWALK walk=NULL;PSS_HANDLE_ENTRY entry;
+ DWORD before=0,captured=0,marker=0,after=0,e=0,z,count=0,flags;
+ FILETIME birth,exit,kernel,user;unsigned j;BOOL live;
+ if(!GetProcessTimes(GetCurrentProcess(),&birth,&exit,&kernel,&user)||!GetProcessHandleCount(GetCurrentProcess(),&before))return GetLastError();
+ printf("TABLE_BEGIN phase=%s pid=%lu creation=%lu:%lu pre=%lu STDIN=%llu STDOUT=%llu STDERR=%llu\n",phase,(unsigned long)GetCurrentProcessId(),(unsigned long)birth.dwHighDateTime,(unsigned long)birth.dwLowDateTime,(unsigned long)before,(ULONGLONG)(ULONG_PTR)GetStdHandle(STD_INPUT_HANDLE),(ULONGLONG)(ULONG_PTR)GetStdHandle(STD_OUTPUT_HANDLE),(ULONGLONG)(ULONG_PTR)GetStdHandle(STD_ERROR_HANDLE));
+ e=PssCaptureSnapshot(GetCurrentProcess(),(PSS_CAPTURE_FLAGS)(PSS_CAPTURE_HANDLES|PSS_CAPTURE_HANDLE_BASIC_INFORMATION|PSS_CAPTURE_HANDLE_NAME_INFORMATION|PSS_CAPTURE_HANDLE_TYPE_SPECIFIC_INFORMATION),0,&snap);
+ if(e)goto done;
+ if(!GetProcessHandleCount(GetCurrentProcess(),&captured)){e=GetLastError();goto done;}
+ e=PssWalkMarkerCreate(NULL,&walk);if(e)goto done;
+ if(!GetProcessHandleCount(GetCurrentProcess(),&marker)){e=GetLastError();goto done;}
+ for(;;){
+  ZeroMemory(&entry,sizeof(entry));e=PssWalkSnapshot(snap,PSS_WALK_HANDLES,walk,&entry,sizeof(entry));
+  if(e==ERROR_NO_MORE_ITEMS){e=0;break;}if(e)break;
+  if(++count>4096){e=ERROR_INSUFFICIENT_BUFFER;break;}
+  flags=0;live=GetHandleInformation(entry.Handle,&flags);
+  printf("TABLE_ROW phase=%s handle=%llu type=%u known=%u attributes=%lu granted=%lu live_flags_known=%u live_flags=%lu type_utf16=",phase,(ULONGLONG)(ULONG_PTR)entry.Handle,(unsigned)entry.ObjectType,(unsigned)entry.Flags,(unsigned long)entry.Attributes,(unsigned long)entry.GrantedAccess,(unsigned)live,(unsigned long)flags);
+  for(j=0;entry.TypeName&&j<entry.TypeNameLength/sizeof(WCHAR)&&j<128;j++)printf("%04x",(unsigned)(unsigned short)entry.TypeName[j]);
+  printf(" name_utf16=");for(j=0;entry.ObjectName&&j<entry.ObjectNameLength/sizeof(WCHAR)&&j<128;j++)printf("%04x",(unsigned)(unsigned short)entry.ObjectName[j]);
+  printf(" truncated=%u; NUMERIC_VALUE_NOT_OBJECT_IDENTITY\n",(unsigned)(entry.ObjectNameLength>256));
+ }
+ done:
+ if(walk){z=PssWalkMarkerFree(walk);if(z){printf("TABLE_RETAINED first=%lu close=%lu NO_RETRY\n",(unsigned long)e,(unsigned long)z);return z;}walk=NULL;}
+ if(snap){z=PssFreeSnapshot(GetCurrentProcess(),snap);if(z){printf("TABLE_RETAINED first=%lu close=%lu NO_RETRY\n",(unsigned long)e,(unsigned long)z);return z;}snap=NULL;}
+ if(!GetProcessHandleCount(GetCurrentProcess(),&after))return e?e:GetLastError();
+ printf("TABLE_FINAL phase=%s first=%lu pre=%lu after_capture=%lu after_marker=%lu after_free=%lu entries=%lu; OBSERVER_INTERNAL_COST_UNKNOWN; NOT_ADMISSION\n",phase,(unsigned long)e,(unsigned long)before,(unsigned long)captured,(unsigned long)marker,(unsigned long)after,(unsigned long)count);
+ return e?e:(before==after?0:ERROR_INVALID_STATE);
+}
+static int isolated_table_main(void)
+{
+ char env[2048],*cursor,*end;DWORD n,e,flags;ULONGLONG value;HANDLE event=NULL;
+ n=GetEnvironmentVariableA("PACC_FIXTURE_INHERITED_EVENTS",env,sizeof(env));
+ if(n>=sizeof(env))return 80;
+ e=table_dump("CRT_ENTRY");if(e)return 81;
+ if(n){cursor=env;while(*cursor){
+  value=_strtoui64(cursor,&end,10);if(end==cursor||(!(*end==','||!*end))||!value)return 82;
+  if(!GetHandleInformation((HANDLE)(ULONG_PTR)value,&flags)||!(flags&HANDLE_FLAG_INHERIT))return 83;
+  if(!SetEvent((HANDLE)(ULONG_PTR)value))return 84;
+  printf("SYNTHETIC_INHERITED_EVENT_SIGNALED handle=%llu; PARENT_RETAINS_ORIGINAL; IDENTITY_REQUIRES_PARENT_WAIT\n",value);
+  if(!*end)break;cursor=end+1;
+ }}
+ event=CreateEventW(NULL,TRUE,FALSE,NULL);if(!event)return 85;
+ printf("CONTROLLED_OWN_EVENT handle=%llu; PHASE=AFTER_CRT_ENTRY; OWNER=FIXTURE\n",(ULONGLONG)(ULONG_PTR)event);
+ e=table_dump("OWNED_EVENT");
+ if(!CloseHandle(event)){printf("CONTROLLED_EVENT_CLOSE=UNKNOWN; ORIGINAL_RETAINED_NO_RETRY\n");return 86;}event=NULL;
+ if(e)return 87;
+ puts("TABLE_FIXTURE_PASS; LOCAL_SNAPSHOTS_AND_EVENT_CLOSED; NO_SCM_NO_LAB_NO_AUTHORITY; LOADER_COST_NOT_SEPARATELY_MEASURED");return 0;
+}

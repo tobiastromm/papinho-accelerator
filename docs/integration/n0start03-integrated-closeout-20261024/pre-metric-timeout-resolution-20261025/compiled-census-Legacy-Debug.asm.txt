@@ -1,0 +1,99 @@
+ig_project_census:
+  00000000000136F0: push        rdi
+  00000000000136F2: sub         rsp,80h
+  00000000000136F9: lea         rdi,[rsp+30h]
+  00000000000136FE: mov         ecx,14h
+  0000000000013703: mov         eax,0CCCCCCCCh
+  0000000000013708: rep stos    dword ptr [rdi]
+  000000000001370A: mov         dword ptr [rsp+68h],0
+  0000000000013712: cmp         qword ptr [ig_n0_census_content],0
+  000000000001371A: je          0000000000013726
+  000000000001371C: mov         eax,139Fh
+  0000000000013721: jmp         0000000000013873
+  0000000000013726: cmp         dword ptr [ig_n0_positive],0
+  000000000001372D: je          000000000001386E
+  0000000000013733: cmp         dword ptr [native+664h],0
+  000000000001373A: je          000000000001386E
+  0000000000013740: cmp         dword ptr [native+300h],0
+  0000000000013747: je          000000000001386E
+  000000000001374D: cmp         dword ptr [native+0C8Ch],0
+  0000000000013754: jne         000000000001386E
+  000000000001375A: call        lab_aux_gate
+  000000000001375F: mov         dword ptr [rsp+64h],eax
+  0000000000013763: cmp         dword ptr [rsp+64h],0
+  0000000000013768: je          0000000000013773
+  000000000001376A: mov         eax,dword ptr [rsp+64h]
+  000000000001376E: jmp         0000000000013873
+  0000000000013773: call        qword ptr [__imp_GetTickCount64]
+  0000000000013779: mov         qword ptr [rsp+70h],rax
+  000000000001377E: mov         rcx,qword ptr [native+658h]
+  0000000000013785: call        papacc_server_service_admission_bd_revalidate
+  000000000001378A: mov         dword ptr [rsp+64h],eax
+  000000000001378E: cmp         dword ptr [rsp+64h],0
+  0000000000013793: je          000000000001379E
+  0000000000013795: mov         eax,dword ptr [rsp+64h]
+  0000000000013799: jmp         0000000000013873
+  000000000001379E: lea         rax,[native+58h]
+  00000000000137A5: mov         qword ptr [rsp+38h],rax
+  00000000000137AA: mov         rax,qword ptr [native+0C78h]
+  00000000000137B1: mov         qword ptr [rsp+40h],rax
+  00000000000137B6: mov         rax,qword ptr [native+0C80h]
+  00000000000137BD: mov         qword ptr [rsp+48h],rax
+  00000000000137C2: mov         rax,qword ptr [native+2F8h]
+  00000000000137C9: mov         qword ptr [rsp+50h],rax
+  00000000000137CE: call        qword ptr [__imp_GetCurrentThreadId]
+  00000000000137D4: mov         dword ptr [rsp+58h],eax
+  00000000000137D8: mov         dword ptr [rsp+5Ch],0
+  00000000000137E0: lea         rax,[rsp+38h]
+  00000000000137E5: mov         qword ptr [ig_n0_census_content],rax
+  00000000000137EC: call        ig_project_census_body
+  00000000000137F1: mov         dword ptr [rsp+64h],eax
+  00000000000137F5: mov         qword ptr [ig_n0_census_content],0
+  0000000000013800: cmp         dword ptr [rsp+64h],0
+  0000000000013805: jne         000000000001381F
+  0000000000013807: mov         dword ptr [rsp+68h],1
+  000000000001380F: mov         rcx,qword ptr [native+658h]
+  0000000000013816: call        papacc_server_service_admission_bd_revalidate
+  000000000001381B: mov         dword ptr [rsp+64h],eax
+  000000000001381F: call        qword ptr [__imp_GetTickCount64]
+  0000000000013825: sub         rax,qword ptr [rsp+40h]
+  000000000001382A: mov         qword ptr [rsp+78h],rax
+  000000000001382F: call        qword ptr [__imp_GetTickCount64]
+  0000000000013835: sub         rax,qword ptr [rsp+70h]
+  000000000001383A: mov         ecx,dword ptr [rsp+68h]
+  000000000001383E: inc         ecx
+  0000000000013840: mov         edx,dword ptr [rsp+64h]
+  0000000000013844: mov         dword ptr [rsp+28h],edx
+  0000000000013848: mov         rdx,qword ptr [rsp+78h]
+  000000000001384D: mov         qword ptr [rsp+20h],rdx
+  0000000000013852: mov         r9,rax
+  0000000000013855: mov         r8d,ecx
+  0000000000013858: mov         edx,dword ptr [rsp+5Ch]
+  000000000001385C: lea         rcx,[$SG79674]
+  0000000000013863: call        ig_transport_printf
+  0000000000013868: mov         eax,dword ptr [rsp+64h]
+  000000000001386C: jmp         0000000000013873
+  000000000001386E: call        ig_project_census_body
+  0000000000013873: mov         rdi,rax
+  0000000000013876: mov         rcx,rsp
+  0000000000013879: lea         rdx,[ig_project_census$rtcFrameData]
+  0000000000013880: call        _RTC_CheckStackVars
+  0000000000013885: mov         rax,rdi
+  0000000000013888: add         rsp,80h
+  000000000001388F: pop         rdi
+  0000000000013890: ret
+  0000000000013891: int         3
+  0000000000013892: int         3
+  0000000000013893: int         3
+  0000000000013894: int         3
+  0000000000013895: int         3
+  0000000000013896: int         3
+  0000000000013897: int         3
+  0000000000013898: int         3
+  0000000000013899: int         3
+  000000000001389A: int         3
+  000000000001389B: int         3
+  000000000001389C: int         3
+  000000000001389D: int         3
+  000000000001389E: int         3
+  000000000001389F: int         3

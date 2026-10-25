@@ -1,0 +1,12 @@
+using System;using System.Runtime.InteropServices;using System.Text;
+public static class PaccAdminProbe {
+ [DllImport("C:\\Projetos\\PapinhoAccelerator\\build\\ed11-positive-private-20261025\\Selected\\Release\\AdminHandleProbe.dll",CharSet=CharSet.Unicode)]static extern uint AdminCapture(StringBuilder text,uint size);
+ [DllImport("kernel32.dll",SetLastError=true)]static extern IntPtr OpenProcess(uint access,bool inherit,uint pid);
+ [DllImport("kernel32.dll",SetLastError=true)]static extern bool GetProcessHandleCount(IntPtr process,out uint count);
+ [DllImport("kernel32.dll",SetLastError=true)]static extern bool CloseHandle(IntPtr process);
+ [DllImport("kernel32.dll")]static extern uint SetErrorMode(uint mode);
+ public static void ConfigureFixtureErrors(){SetErrorMode(0x8003);}
+ static IntPtr retained;
+ public static string Capture(){StringBuilder s=new StringBuilder(65536);uint e=AdminCapture(s,65536);if(e!=0)throw new System.ComponentModel.Win32Exception((int)e);return s.ToString();}
+ public static uint Count(uint pid){if(retained!=IntPtr.Zero)throw new Exception("UNKNOWN_NO_RETRY");IntPtr h=OpenProcess(0x1000,false,pid);if(h==IntPtr.Zero)throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());uint n;try{if(!GetProcessHandleCount(h,out n))throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());return n;}finally{if(!CloseHandle(h)){retained=h;throw new Exception("COUNT_REFERENCE_RETAINED_UNKNOWN");}}}
+}

@@ -6,7 +6,7 @@ static int restart03_read(PAPACC_CONFIGURATION_COMMIT *o,HANDLE f)
  if(!GetFileInformationByHandle(f,&info)||!GetFileSizeEx(f,&size)||size.QuadPart!=sizeof(b)||
     SetFilePointer(f,0,NULL,FILE_BEGIN)==INVALID_SET_FILE_POINTER||
     !ReadFile(f,b,sizeof(b),&n,NULL)||n!=sizeof(b)||memcmp(b,o->committed,sizeof(b))||
-    !store03_select(b,&info,&v))return 0;
+    !store03_select(&o->store_hash,b,&info,&v))return 0;
  return v.revision==o->slots[o->current].view.revision&&
   v.predecessor==o->slots[o->current].view.predecessor&&memcmp(v.domain,o->domain,32U)==0;
 }
@@ -18,7 +18,7 @@ PAPACC_RESULT papacc_configuration_recovery_guard03(PAPACC_CONFIGURATION_COMMIT 
     o->retained_file!=INVALID_HANDLE_VALUE||!path_ok(o->path))return PAPACC_RESULT_INVALID_STATE;
  if(!w->revision||w->revision!=o->slots[o->current].view.revision||
     w->predecessor!=o->slots[o->current].view.predecessor||memcmp(w->domain,o->domain,32U)||
-    !store03_hash(o->committed,PAPACC_CONFIG_STORE_BYTES,hash)||memcmp(hash,w->image_sha256,32U))
+    !store03_hash(&o->store_hash,o->committed,PAPACC_CONFIG_STORE_BYTES,hash)||memcmp(hash,w->image_sha256,32U))
   return PAPACC_RESULT_INVALID_STATE;
  f=CreateFileA(o->path,GENERIC_READ,0U,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
  if(f==INVALID_HANDLE_VALUE)return PAPACC_RESULT_INVALID_STATE;

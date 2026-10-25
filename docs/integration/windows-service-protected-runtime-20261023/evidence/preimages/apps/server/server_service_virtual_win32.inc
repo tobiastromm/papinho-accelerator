@@ -1,0 +1,92 @@
+/* Private extension of the SAME SCM owner; no positive authority producer.
+ * Immutable executable observation is necessary, not sufficient installation proof. */
+static const wchar_t ps_account[]=PAPACC_SCM_ACCOUNT_LITERAL;
+static int ps_image_same(const BY_HANDLE_FILE_INFORMATION *a,const BY_HANDLE_FILE_INFORMATION *b)
+{
+ return a->dwVolumeSerialNumber==b->dwVolumeSerialNumber&&a->nFileIndexHigh==b->nFileIndexHigh&&
+ a->nFileIndexLow==b->nFileIndexLow&&a->nFileSizeHigh==b->nFileSizeHigh&&a->nFileSizeLow==b->nFileSizeLow&&
+ a->ftLastWriteTime.dwHighDateTime==b->ftLastWriteTime.dwHighDateTime&&a->ftLastWriteTime.dwLowDateTime==b->ftLastWriteTime.dwLowDateTime;
+}
+static DWORD ps_image_open(void)
+{
+ DWORD n,read,e=ERROR_INVALID_DATA;BY_HANDLE_FILE_INFORMATION after;PACC_STORAGE_SHA256 hash;
+ unsigned char block[1024],digest[32];size_t i;HANDLE f;
+ if(native.image||native.image_ready)return ERROR_INVALID_STATE;
+ n=GetModuleFileNameW(NULL,native.image_path,1024);
+ if(!n)return ps_last_error();if(n>=1024)return ERROR_INSUFFICIENT_BUFFER;
+ if(!((native.image_path[0]>=L'A'&&native.image_path[0]<=L'Z')||(native.image_path[0]>=L'a'&&native.image_path[0]<=L'z'))||
+ native.image_path[1]!=L':'||native.image_path[2]!=L'\\')return ERROR_INVALID_NAME;
+ for(i=0;i<n;i++)if(native.image_path[i]==L'"'||native.image_path[i]<L' ')return ERROR_INVALID_NAME;
+ f=CreateFileW(native.image_path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
+ if(f==INVALID_HANDLE_VALUE)return ps_last_error();native.image=f;
+ if(!GetFileInformationByHandle(f,&native.image_id))return ps_last_error();
+ if(native.image_id.dwFileAttributes&(FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DIRECTORY))return ERROR_ACCESS_DENIED;
+ memset(&hash,0,sizeof(hash));if(pacc_storage_sha_init(&hash)!=PACC_HASH_OK)return ERROR_INVALID_DATA;
+ for(;;){
+  if(papacc_server_console_win32_stop_requested()) {e=ERROR_OPERATION_ABORTED;goto done;}
+  if(!ReadFile(f,block,sizeof(block),&read,NULL)){e=ps_last_error();goto done;}
+  if(!read)break;
+  if(pacc_storage_sha_update(&hash,block,read,NULL,NULL)!=PACC_HASH_OK)goto done;
+ }
+ if(pacc_storage_sha_final(&hash,digest,sizeof(digest),NULL,NULL)!=PACC_HASH_OK)goto done;
+ if(!GetFileInformationByHandle(f,&after)){e=ps_last_error();goto done;}
+ if(!ps_image_same(&native.image_id,&after)||papacc_server_console_win32_stop_requested())goto done;
+ native.command[0]=L'"';memcpy(native.command+1,native.image_path,(n+1U)*sizeof(wchar_t));
+ /* Fixed suffix only; no argv interpolation. 1024 path bound leaves room. */
+ memcpy(native.command+1+n,L"\" service host",sizeof(L"\" service host"));
+ memcpy(native.image_sha256,digest,32);native.image_ready=1U;e=ERROR_SUCCESS;
+ done:memset(&hash,0,sizeof(hash));memset(block,0,sizeof(block));memset(digest,0,sizeof(digest));return e;
+}
+/* Never dereference returned string pointers before validating buffer range,
+ * alignment and terminator inside the actually returned byte count. */
+static int ps_config_string(const wchar_t *s,DWORD used,const wchar_t *expected,int insensitive)
+{
+ ULONG_PTR begin=(ULONG_PTR)native.query.bytes,end,p=(ULONG_PTR)s;size_t count,i;
+ if(used>sizeof(native.query.bytes)||used<sizeof(QUERY_SERVICE_CONFIGW))return 0;
+ end=begin+used;
+ if(!s||p<begin+sizeof(QUERY_SERVICE_CONFIGW)||p>=end||(p-begin)%sizeof(wchar_t))return 0;
+ count=(size_t)((end-p)/sizeof(wchar_t));for(i=0;i<count;i++)if(!s[i])break;
+ if(i==count||i!=wcslen(expected))return 0;
+ return insensitive?_wcsicmp(s,expected)==0:wcscmp(s,expected)==0;
+}
+static DWORD ps_virtual_readback(void)
+{
+ QUERY_SERVICE_CONFIGW *q=&native.query.aligned;SERVICE_SID_INFO info;DWORD used=0,n=0,sidn,domainn;
+ SID_NAME_USE use;BYTE authority[6]={0,0,0,0,0,5};PSID sid=native.service_sid;
+ memset(&native.query,0,sizeof(native.query));
+ if(!QueryServiceConfigW(native.service,q,sizeof(native.query.bytes),&used))return ps_last_error();
+ if(used>sizeof(native.query.bytes)||used<sizeof(*q)||q->dwServiceType!=SERVICE_WIN32_OWN_PROCESS||
+ q->dwStartType!=PAPACC_SCM_START_MODE||!ps_config_string(q->lpServiceStartName,used,ps_account,1)||
+ !ps_config_string(q->lpBinaryPathName,used,native.command,0)||
+ (q->lpDependencies&&!ps_config_string(q->lpDependencies,used,L"",0)))return ERROR_INVALID_DATA;
+ memset(&info,0,sizeof(info));
+ if(!QueryServiceConfig2W(native.service,SERVICE_CONFIG_SERVICE_SID_INFO,(LPBYTE)&info,sizeof(info),&n))return ps_last_error();
+ if(n!=sizeof(info)||info.dwServiceSidType!=SERVICE_SID_TYPE_UNRESTRICTED)return ERROR_INVALID_DATA;
+ sidn=sizeof(native.service_sid);domainn=sizeof(native.sid_domain)/sizeof(wchar_t);
+ if(!LookupAccountNameW(NULL,ps_account,sid,&sidn,native.sid_domain,&domainn,&use))return ps_last_error();
+ if(sidn>sizeof(native.service_sid)||sidn<8U||!IsValidSid(sid)||GetLengthSid(sid)>sidn||
+ *GetSidSubAuthorityCount(sid)!=6||memcmp(GetSidIdentifierAuthority(sid),authority,6)||*GetSidSubAuthority(sid,0)!=80)return ERROR_INVALID_SID;
+ native.sid_size=GetLengthSid(sid);native.sid_use=use;native.readback=1U;return ERROR_SUCCESS;
+}
+static DWORD ps_install_virtual(void)
+{
+ SERVICE_SID_INFO info;DWORD e;BY_HANDLE_FILE_INFORMATION current;
+ /* Caller must first prove configuration/target/authorization via existing
+  * gate. This private primitive is independently tested with modeled APIs. */
+ if(!native.manager||native.service||!native.image||!native.image_ready||native.install_effect)return ERROR_INVALID_STATE;
+ if(papacc_server_console_win32_stop_requested())return ERROR_OPERATION_ABORTED;
+ if(!GetFileInformationByHandle(native.image,&current))return ps_last_error();
+ if(!ps_image_same(&native.image_id,&current))return ERROR_INVALID_DATA;
+ native.install_effect=1U; /* REQUESTED: an uncertain Create is never retried. */
+ native.service=CreateServiceW(native.manager,ps_name,ps_name,SERVICE_QUERY_CONFIG|SERVICE_CHANGE_CONFIG|SERVICE_QUERY_STATUS,
+ SERVICE_WIN32_OWN_PROCESS,PAPACC_SCM_START_MODE,SERVICE_ERROR_NORMAL,native.command,NULL,NULL,NULL,ps_account,NULL);
+ if(!native.service){e=ps_last_error();native.install_disposition=e==ERROR_SERVICE_EXISTS||e==ERROR_DUPLICATE_SERVICE_NAME||e==ERROR_SERVICE_MARKED_FOR_DELETE?1U:2U;return e;}
+ native.install_disposition=3U; /* Created, not configured/finalized runtime. */
+ if(papacc_server_console_win32_stop_requested())return ERROR_OPERATION_ABORTED;
+ info.dwServiceSidType=SERVICE_SID_TYPE_UNRESTRICTED;
+ if(!ChangeServiceConfig2W(native.service,SERVICE_CONFIG_SERVICE_SID_INFO,&info))return ps_last_error();
+ e=ps_virtual_readback();if(e)return e;
+ if(papacc_server_console_win32_stop_requested())return ERROR_OPERATION_ABORTED;
+ native.install_disposition=4U; /* Configuration confirmed, NOT token/ACL/readiness. */
+ return ERROR_SUCCESS;
+}

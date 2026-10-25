@@ -1,0 +1,32 @@
+--- apps/server/server_configuration_pending_win32.inc
++++ apps/server/server_configuration_pending_win32.inc
+@@ -149,7 +149,10 @@
+  /* Same frozen relative name shown before confirmation, not a path reopen. */
+  if(!n->plan_leaf[0]||!memchr(n->plan_leaf,0,sizeof(n->plan_leaf))||
+     memcmp(n->plan_leaf,p->previous,sizeof(n->plan_leaf)))return PAPACC_RESULT_INVALID_STATE;
+- if(reserved>PAPACC_ED11_PROCESS_LIMIT||PAPACC_PENDING_STACK_BYTES>PAPACC_ED11_PROCESS_LIMIT-reserved)return PAPACC_RESULT_LIMIT_EXCEEDED;
++ if(!p->bootstrap_parent||!p->bootstrap_token||!p->file||p->file==INVALID_HANDLE_VALUE)return PAPACC_RESULT_INVALID_STATE;
++ /* Inclusive reservation: SAME serialized worker stack is already charged
++  * in canonical fixed census. Do not add a second64KiB stack. */
++ if(reserved>PAPACC_ED11_PROCESS_LIMIT||reserved<sizeof(*o)+PAPACC_PENDING_STACK_BYTES)return PAPACC_RESULT_LIMIT_EXCEEDED;
+  if(papacc_configuration_personal_native_current(o)!=PAPACC_RESULT_OK||
+     papacc_configuration_personal_source_current(o)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
+  if(!papacc_personal_data_consume(&p->personal_data,id,p->next,p->personal_data.bytes))return PAPACC_RESULT_INVALID_STATE;
+--- tests/personal_plan_data_win32_test.c
++++ tests/personal_plan_data_win32_test.c
+@@ -74,6 +74,15 @@
+  owner_state.pending_commit.personal_native.phase=1U;
+  CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK); /* no factual parent */
+  CHECK(!p->consumed&&!owner_state.pending_commit.active&&!owner_state.pending_commit.thread);
++ strcpy(owner_state.pending_commit.personal_native.plan_leaf,"candidate");
++ strcpy((char *)owner_state.pending_commit.previous,"different");
++ CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK);
++ CHECK(!p->consumed&&!owner_state.pending_commit.thread);
++ strcpy((char *)owner_state.pending_commit.previous,"candidate");
++ CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK); /* matching MODEL leaf cannot invent parent */
++ owner_state.stopped=1;
++ CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK);
++ CHECK(!p->consumed&&!owner_state.pending_commit.thread);owner_state.stopped=0;
+  owner_state.pending_commit.personal_native.handoff_state=PAPACC_PERSONAL_HANDOFF_VERIFIED; /* MODEL one-shot replay */
+  CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK);
+  owner_state.pending_commit.personal_native.handoff_state=PAPACC_PERSONAL_HANDOFF_RETAINED;

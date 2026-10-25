@@ -1,0 +1,20 @@
+[
+  {
+    "mode": "Check",
+    "exit": 2,
+    "stdout": "ARTIFACT_PINS=PASS; SERVICE=PapinhoAcceleratorLab20261023; ACCOUNT=NT SERVICE\\PapinhoAcceleratorLab20261023\r\nCANDIDATE=C:\\Projetos\\PapinhoAccelerator\\build\\windows-service-protected-runtime-20261023\\Selected\\Release\\papacc_server_lab_host.exe; SHA256=62087dbe13712c468dc92c5848de684cbc7cba6f921d15259f895fa8664d2716\r\nSCM_CURRENT_STATE=NOT_QUERIED; EXPECTED_REGISTERED_IMAGE_IS_DIFFERENT; SCM_MUTATIONS=NONE\r\nSTART_STOP_LAUNCHER=UNARMED; PROTECTED_RUNTIME_PRODUCER=IMPLEMENTED_OFFLINE; NATIVE_TOKEN_ACL=FIRST_START_PENDING; RUNTIME_START=DENY\r\n",
+    "stderr": ""
+  },
+  {
+    "mode": "Plan",
+    "exit": 2,
+    "stdout": "ARTIFACT_PINS=PASS; SERVICE=PapinhoAcceleratorLab20261023; ACCOUNT=NT SERVICE\\PapinhoAcceleratorLab20261023\r\nCANDIDATE=C:\\Projetos\\PapinhoAccelerator\\build\\windows-service-protected-runtime-20261023\\Selected\\Release\\papacc_server_lab_host.exe; SHA256=62087dbe13712c468dc92c5848de684cbc7cba6f921d15259f895fa8664d2716\r\nSCM_CURRENT_STATE=NOT_QUERIED; EXPECTED_REGISTERED_IMAGE_IS_DIFFERENT; SCM_MUTATIONS=NONE\r\nFUTURE_ONLY: exact protected image/config rebinding approval; actual first-Start token/ACL/CA-denial evidence and ED11 gate; manual UAC/full plan confirmation; START -> factual STATUS -> STOP -> factual quiescence.\r\nSTART_STOP_LAUNCHER=UNARMED; PROTECTED_RUNTIME_PRODUCER=IMPLEMENTED_OFFLINE; NATIVE_TOKEN_ACL=FIRST_START_PENDING; RUNTIME_START=DENY\r\n",
+    "stderr": ""
+  },
+  {
+    "mode": "Start",
+    "exit": 1,
+    "stdout": "",
+    "stderr": "C:\\Projetos\\PapinhoAccelerator\\tools\\qualification\\scm-lab-runtime-preflight.ps1 : N\u00e3o \u00e9 poss\u00edvel validar o argumento \r\nno par\u00e2metro 'Mode'. O argumento \"Start\" n\u00e3o pertence ao conjunto \"Check;Plan\" especificado pelo atributo ValidateSet. \r\nForne\u00e7a um argumento que esteja no conjunto e tente o comando novamente.\r\n    + CategoryInfo          : InvalidData: (:) [scm-lab-runtime-preflight.ps1], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : ParameterArgumentValidationError,scm-lab-runtime-preflight.ps1\r\n \r\n"
+  }
+]

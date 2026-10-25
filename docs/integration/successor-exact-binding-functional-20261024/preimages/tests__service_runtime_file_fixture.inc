@@ -1,0 +1,40 @@
+/* All OS file/descriptor effects below are modelled, never native. */
+static unsigned dm,dm_pos,dm_size,dm_writes,dm_closes,dm_creates;static BYTE dm_disk[2048];static volatile LONG *dm_stop;
+static PSECURITY_DESCRIPTOR dm_parent_sd,dm_file_sd,dm_bad_sd;
+static BOOL WINAPI dm_info(HANDLE h,LPBY_HANDLE_FILE_INFORMATION id)
+{
+ ZeroMemory(id,sizeof(*id));id->dwVolumeSerialNumber=417614100UL;id->nNumberOfLinks=1;
+ if(h==(HANDLE)(ULONG_PTR)2001){id->dwFileAttributes=FILE_ATTRIBUTE_DIRECTORY;id->nFileIndexHigh=1966080;id->nFileIndexLow=dm==3?999:79426;}
+ else {id->nFileIndexHigh=99;id->nFileIndexLow=dm==4?13:12;id->nFileSizeLow=dm_size;}
+ return TRUE;
+}
+static HANDLE WINAPI dm_create(LPCWSTR path,DWORD access,DWORD share,LPSECURITY_ATTRIBUTES sa,DWORD creation,DWORD flags,HANDLE template_file)
+{
+ int parent=wcsstr(path,L".diag")==NULL;(void)access;(void)sa;(void)template_file;dm_creates++;
+ if(creation!=OPEN_EXISTING||!(flags&FILE_FLAG_OPEN_REPARSE_POINT)||(!parent&&share)){SetLastError(ERROR_INVALID_PARAMETER);return INVALID_HANDLE_VALUE;}
+ if((parent&&dm==1)||(!parent&&dm==2)){SetLastError(parent?ERROR_ACCESS_DENIED:ERROR_FILE_NOT_FOUND);return INVALID_HANDLE_VALUE;}
+ if(!parent)dm_pos=0;return (HANDLE)(ULONG_PTR)(parent?2001:2002);
+}
+static DWORD WINAPI dm_name(HANDLE h,LPWSTR out,DWORD size,DWORD flags)
+{
+ const WCHAR *parent=L"\\\\?\\C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release";
+ const WCHAR *leaf=L"\\papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag";size_t n=wcslen(parent),m=h==(HANDLE)(ULONG_PTR)2001?0:wcslen(leaf);(void)flags;
+ if(size<=n+m)return size+1;memcpy(out,parent,n*sizeof(WCHAR));memcpy(out+n,leaf,m*sizeof(WCHAR));out[n+m]=0;if(dm==15&&m)out[n+1]=L'X';return (DWORD)(n+m);
+}
+static BOOL WINAPI dm_security(HANDLE h,SECURITY_INFORMATION flags,PSECURITY_DESCRIPTOR out,DWORD size,LPDWORD used)
+{
+ PSECURITY_DESCRIPTOR sd=h==(HANDLE)(ULONG_PTR)2001?dm_parent_sd:((dm==5||dm==16)?dm_bad_sd:dm_file_sd);DWORD n=GetSecurityDescriptorLength(sd);(void)flags;*used=n;
+ if(n>size){SetLastError(ERROR_INSUFFICIENT_BUFFER);return FALSE;}memcpy(out,sd,n);return TRUE;
+}
+static BOOL WINAPI dm_read(HANDLE h,LPVOID out,DWORD size,LPDWORD read,LPOVERLAPPED ov)
+{(void)h;(void)ov;if(size>dm_size-dm_pos)return FALSE;memcpy(out,dm_disk+dm_pos,size);dm_pos+=size;*read=size;if(dm==11&&dm_stop)*dm_stop=1;return TRUE;}
+static BOOL WINAPI dm_size_fn(HANDLE h,PLARGE_INTEGER size){(void)h;size->QuadPart=dm==13?12:dm_size;return TRUE;}
+static DWORD WINAPI dm_type(HANDLE h){(void)h;return FILE_TYPE_DISK;}
+static BOOL WINAPI dm_write(HANDLE h,LPCVOID data,DWORD n,LPDWORD written,LPOVERLAPPED ov)
+{
+ (void)h;(void)ov;dm_writes++;if(dm==7){SetLastError(ERROR_DISK_FULL);return FALSE;}if(dm==6)n--;if(dm_pos+n>2048){SetLastError(ERROR_DISK_FULL);return FALSE;}
+ memcpy(dm_disk+dm_pos,data,n);dm_pos+=n;dm_size=dm_pos;*written=n;if(dm==19&&dm_stop)*dm_stop=1;return TRUE;
+}
+static BOOL WINAPI dm_flush(HANDLE h){(void)h;if(dm==8){SetLastError(ERROR_WRITE_FAULT);return FALSE;}return TRUE;}
+static BOOL dm_close(HANDLE h)
+{dm_closes++;if((dm==9&&h==(HANDLE)(ULONG_PTR)2002)||(dm==10&&h==(HANDLE)(ULONG_PTR)2001)){SetLastError(ERROR_INVALID_HANDLE);return FALSE;}return TRUE;}

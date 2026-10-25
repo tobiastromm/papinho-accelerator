@@ -1,0 +1,129 @@
+#requires -Version 5.1
+[CmdletBinding()]
+param(
+ [ValidateSet('Review','Prepare')][string]$Mode='Prepare',
+ [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedScriptSha256,
+ [uint32]$AuxiliaryPid=0,
+ [uint64]$AuxiliaryCreation=0
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$Root='C:\Projetos\PapinhoAccelerator'
+$ExpectedPath=$Root+'\tools\qualification\scm-n0-protected-single-powershell.ps1'
+$Qualifier='C:\Projetos\PapinhoAccelerator\build\n0-n9-operational-pins-and-preflight-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
+$QualifierHash='f3c38ced18c6e25b85f1e129a6c1501daf752eef15748294c48eed7f8b479a08'
+# Reviewed existing inputs. These pins grant no execution or Start authority.
+$DossierHash='5a2b7203afdece0adca77be278d6b86c18cc2cf457cab87474ee7dce0311c294'
+$EvidenceHash='babab3ea393b605802933054ab011e6fcb66b21bffcc80923448715e911f27e0'
+$Attempt='75330d11cc7e4123ae62eadc9a59c2f5'
+$Operation='N0PF-20261024-01'
+$Operator='S-1-5-21-785699550-1440458426-1682014700-1108'
+$script:N0RetainedProcess=$null
+$script:N0RetainedPins=$null
+$pins=[Collections.Generic.List[IDisposable]]::new()
+$locks=[Collections.Generic.List[IntPtr]]::new()
+$script:N0RetainedLocks=$null
+$process=$null;$reader=$null;$started=$false;$launchAttempted=$false;$returned=$false;$final=$false;$closeFailed=$false;$exitCode=2
+function Hash-Stream($f) {
+ $sha=[Security.Cryptography.SHA256]::Create()
+ try {$f.Position=0;$v=([BitConverter]::ToString($sha.ComputeHash($f))).Replace('-','').ToLowerInvariant();$f.Position=0;return $v}finally{$sha.Dispose()}
+}
+function Pin([string]$path,[string]$hash) {
+ if($hash -cnotmatch '^[0-9a-f]{64}$'){throw 'MISSING_QUALIFIED_PIN'}
+ if([IO.Path]::GetFullPath($path) -cne $path){throw 'NONCANONICAL_PIN_PATH'}
+ $walk=$path
+ while($walk){if(([IO.File]::GetAttributes($walk) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'REPARSE_PIN_PATH'};$walk=[IO.Path]::GetDirectoryName($walk)}
+ $file=[IO.File]::Open($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+ $pins.Add($file)
+ if((Hash-Stream $file) -cne $hash){throw 'HASH_DIVERGENCE'}
+}
+# Reuse the original native read-only locking helper; no new authority.
+function Lock-QualifierPath {
+ if('PaccFileAcl' -as [type]){throw 'FRESH_OPERATOR_PROCESS_REQUIRED'}
+ $path=$Root+'\tools\qualification\scm-file-acl-native.ps1'
+ $file=[IO.File]::Open($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);$pins.Add($file)
+ if((Hash-Stream $file)-cne'f52242fe74932d1539e83a742430ea523eda746ce39d8815b1b977cf6bb6ac75'){throw 'LOCK_HELPER_PIN_DENY'}
+ $buffer=[IO.MemoryStream]::new();try{$file.CopyTo($buffer);$bytes=$buffer.ToArray()}finally{$buffer.Dispose()}
+ & ([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($bytes).TrimStart([char]0xFEFF)))
+ $chain=[Collections.Generic.Stack[string]]::new();$walk=[IO.Path]::GetDirectoryName($Qualifier)
+ while($walk){$chain.Push($walk);$parent=[IO.Directory]::GetParent($walk);if($null-eq$parent){$walk=$null}else{$walk=$parent.FullName}}
+ while($chain.Count){$walk=$chain.Pop();$h=[PaccFileAcl]::Open($walk,$false,$true);$locks.Add($h);if(([IO.File]::GetAttributes($walk)-band[IO.FileAttributes]::ReparsePoint)-ne0){throw 'QUALIFIER_ANCESTOR_REPARSE_DENY'}}
+}
+function Select-AuxiliaryCandidate([uint64]$ActorCreation,[int]$Session) {
+ # Name/session/creation nominate candidates only. Native N2 remains mandatory.
+ $found=@();$items=[Diagnostics.Process]::GetProcessesByName('conhost')
+ try {
+  foreach($item in $items){if($item.SessionId-eq$Session){$created=[uint64]$item.StartTime.ToUniversalTime().ToFileTimeUtc();if($created-gt$ActorCreation){$found+=@{Id=[uint32]$item.Id;Creation=$created}}}}
+ }finally{foreach($item in $items){$item.Dispose()}}
+ if($found.Count-ne1){throw ('AUXILIARY_CANDIDATE_COUNT_DENY count='+$found.Count)}
+ return $found[0]
+}
+try {
+ if($PSCommandPath -cne $ExpectedPath -or [IntPtr]::Size -ne 8 -or $PSVersionTable.PSEdition -cne 'Desktop' -or $PSVersionTable.PSVersion.Major-ne5 -or $PSVersionTable.PSVersion.Minor-ne1){throw 'SCRIPT_OR_RUNTIME_DIVERGENCE'}
+ Pin $ExpectedPath $ExpectedScriptSha256
+ if($Mode-eq'Review'){
+  Pin $Qualifier $QualifierHash
+  $global:LASTEXITCODE=0;Write-Host 'N0_LAUNCHER_REVIEW=PASS; STATIC_PINS_ONLY_NO_NATIVE_ENTRY_NO_PREFLIGHT';return
+ }
+ $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+ try {if($identity.User.Value -cne $Operator -or -not ([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'OPERATOR_OR_ELEVATION_DENY'}}finally{$identity.Dispose()}
+ $imp=[Security.Principal.WindowsIdentity]::GetCurrent($true)
+ if($null -ne $imp){$imp.Dispose();throw 'IMPERSONATION_DENY'}
+ if([Console]::IsInputRedirected -or [Console]::IsOutputRedirected){throw 'INTERACTIVE_CONSOLE_REQUIRED'}
+ if($DossierHash -cnotmatch '^[0-9a-f]{64}$' -or $EvidenceHash -cnotmatch '^[0-9a-f]{64}$'){throw 'WINDOWS_PROVENANCE_UNKNOWN_DENY'}
+ Pin 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' '9785001b0dcf755eddb8af294a373c0b87b2498660f724e76c4d53f9c217c7a3'
+ Lock-QualifierPath
+ Pin $Qualifier $QualifierHash
+ Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-75330d11cc7e4123ae62eadc9a59c2f5.approved' $DossierHash
+ Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-75330d11cc7e4123ae62eadc9a59c2f5.evidence' $EvidenceHash
+ Pin ($Root+'\docs\adr\DECISION-first-native-lab-diagnostic-boundary-20261024.md') 'bec9d0c275d5ee8bd68de4d42fe173a08f124a9900c119e7a08d23757d9d7941'
+ Pin ($Root+'\docs\adr\DECISION-canonical-lab-console-topology-bd-20261023.md') 'eb93002cf3f6d863a060fb97b7380389aa66b6fbe68e66c1af4fb17b988d3290'
+ Pin ($Root+'\docs\adr\DECISION-ed11-single-lab-diagnostic-native-boundary-20261023.md') 'e7031bd29c9bd174359ffcc3c9a021a6ad25a0256a5cf03b40c0866d3a5776b7'
+ Pin ($Root+'\docs\adr\DECISION-n0-n9-security-descriptor-digest-profile-20261024.md') '8b042e2bbf6500aa90aa3407fcd3423f45d96cf6b16568ffa95b98f3d081c972'
+ $self=[Diagnostics.Process]::GetCurrentProcess()
+ try {$session=$self.SessionId;$birth=[uint64]$self.StartTime.ToUniversalTime().ToFileTimeUtc();if(-not [String]::Equals($self.MainModule.FileName,'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe',[StringComparison]::OrdinalIgnoreCase)){throw 'ACTOR_IMAGE_DENY'}}finally{$self.Dispose()}
+ if(($AuxiliaryPid-eq0)-ne($AuxiliaryCreation-eq0)){throw 'INCOMPLETE_AUXILIARY_TUPLE_DENY'}
+ if($AuxiliaryPid-eq0){$candidate=Select-AuxiliaryCandidate $birth $session;$AuxiliaryPid=$candidate.Id;$AuxiliaryCreation=$candidate.Creation}
+ Write-Host ('OPERATION='+$Operation+'; READ-ONLY N0-N9; ATTEMPT='+$Attempt+'; auxiliary PID='+$AuxiliaryPid+' creation='+$AuxiliaryCreation)
+ Write-Host 'Existing owner/mutex/census/metrics only. No Start/Stop/rebind/ACL/intent or operational diagnostic file. Missing facts DENY. No retry.'
+ $confirmation='PREPARE_N0_READ_ONLY '+$Attempt+' '+$AuxiliaryPid+' '+$AuxiliaryCreation
+ Write-Host ('Type exactly: '+$confirmation)
+ if((Read-Host) -cne $confirmation){throw 'CONFIRMATION_DIVERGENCE'}
+ [Threading.Thread]::BeginThreadAffinity()
+ try {
+  # Framework OS thread ID is a candidate only; native owner rechecks original
+  # thread/process identity, lifetime, no impersonation. Never ManagedThreadId.
+  $tid=[uint32][AppDomain]::GetCurrentThreadId()
+  $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$Qualifier
+  $start.Arguments='--prepare-n0 '+$Attempt+' '+$PID+' '+$birth+' '+$tid+' '+$AuxiliaryPid+' '+$AuxiliaryCreation
+  $start.UseShellExecute=$false;$start.CreateNoWindow=$false
+  $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$false;$start.RedirectStandardInput=$false
+  $process=[Diagnostics.Process]::new();$process.StartInfo=$start
+  $launchAttempted=$true
+  if(-not $process.Start()){throw 'NATIVE_CREATE_FAILED'};$started=$true;$reader=$process.StandardOutput
+  $chars=0
+  while($null -ne ($line=$reader.ReadLine())) {
+   $chars+=$line.Length
+   if($line.Length -gt 4096 -or $chars -gt 131072){throw 'OUTPUT_BOUND_UNKNOWN_RETAIN'}
+   Write-Host $line
+   if($line -cmatch '^IG_FINAL stage=\S+ first=\d+ close=0 starts=0 stops=0 quiescent=0 intent_consumed=0 effect=0 diagnostic_created=0;'){$final=$true}
+  }
+  $process.WaitForExit();$exitCode=$process.ExitCode;$returned=$true
+  if(-not $final){throw 'FACTUAL_FINAL_RECEIPT_MISSING_RETAIN'}
+ } finally {[Threading.Thread]::EndThreadAffinity()}
+} catch {$exitCode=2;Write-Host ('N0_READ_ONLY_ERROR='+$_.Exception.Message)} finally {
+ if(($launchAttempted -and -not $started) -or ($started -and (-not $returned -or -not $final))) {
+  $script:N0RetainedProcess=$process;$script:N0RetainedPins=$pins;$script:N0RetainedLocks=$locks
+  Write-Host 'RESOURCE_RETENTION=UNKNOWN; NO_CLOSE_NO_RETRY_NO_KILL; DO_NOT_CLOSE_OPERATOR'
+  while($true){Start-Sleep -Seconds 1}
+ } else {
+  try {if($reader){$reader.Dispose()};if($process){$process.Dispose()};foreach($pin in $pins){$pin.Dispose()};for($i=$locks.Count-1;$i-ge0;$i--){if(-not [PaccFileAcl]::CloseHandle($locks[$i])){throw 'QUALIFIER_PATH_CLOSE_UNKNOWN'};$locks[$i]=[IntPtr]::Zero}}catch{$exitCode=2;$closeFailed=$true;$script:N0RetainedPins=$pins;$script:N0RetainedLocks=$locks;Write-Host 'CLOSE_UNKNOWN_NO_RETRY';while($true){Start-Sleep -Seconds 1}}
+  if(-not $closeFailed -and $started -and $returned -and $final) {
+   Write-Host 'Qualifier returned with factual final close receipt. F10 returns to this existing operator console; no retry.'
+   do {$key=[Console]::ReadKey($true)}while($key.Key -ne [ConsoleKey]::F10)
+  }
+ }
+}
+$global:LASTEXITCODE=$exitCode
+Write-Host ('N0_READ_ONLY_EXIT='+$exitCode+'; START_EXECUTED=NO; ED11=PARTIAL; AUTHORITY=DENY')
+# Invocation is & script in THIS already elevated PowerShell, never a new powershell.exe.

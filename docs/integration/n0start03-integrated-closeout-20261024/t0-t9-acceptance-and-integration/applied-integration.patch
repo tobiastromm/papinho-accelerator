@@ -1,0 +1,211 @@
+--- task-preimage/CMakeLists.txt
++++ CMakeLists.txt
+@@ -3314,6 +3314,18 @@
+   add_executable(papacc_scm_instrumented_lab tools/qualification/scm-registration-lab.c)
+   option(PAPACC_ENABLE_N0_POSITIVE_LAB "Compile the separately approved N0 positive LAB entry (does not authorize execution)" OFF)
+   option(PAPACC_ENABLE_N0START03_READONLY_PINS "Explicit reviewed successor03 read-only pins; never authorizes execution" OFF)
++  option(PAPACC_ENABLE_N0_PRIVATE_STDOUT "T0-T9 opt-in local noninherited stdout; no operational authority" OFF)
++  if(PAPACC_ENABLE_N0_PRIVATE_STDOUT)
++    if(NOT PAPACC_ENABLE_N0START03_READONLY_PINS OR PAPACC_ENABLE_N0_POSITIVE_LAB)
++      message(FATAL_ERROR "Private transport requires read-only successor pins and forbids positive entry")
++    endif()
++    target_sources(papacc_scm_instrumented_lab PRIVATE tools/qualification/scm-n0-private-stdout-native.c)
++    target_compile_definitions(papacc_scm_instrumented_lab PRIVATE PAPACC_N0_PRIVATE_STDOUT=1)
++    add_library(papacc_n0_private_stdout SHARED tools/qualification/scm-n0-private-stdout-native.c)
++    target_compile_definitions(papacc_n0_private_stdout PRIVATE PACC_TRANSPORT_DLL=1 _WIN32_WINNT=0x0603)
++    target_compile_options(papacc_n0_private_stdout PRIVATE /W4 /WX)
++    target_link_libraries(papacc_n0_private_stdout PRIVATE advapi32 bcrypt)
++  endif()
+   option(PAPACC_ENABLE_READONLY_OBSERVER_HANDLE_TRACE "Opt-in collector handle samples within the existing successor read-only observer" OFF)
+   if(PAPACC_ENABLE_READONLY_OBSERVER_HANDLE_TRACE)
+     if(NOT PAPACC_ENABLE_N0START03_READONLY_PINS OR PAPACC_ENABLE_N0_POSITIVE_LAB)
+@@ -3575,3 +3587,19 @@
+  set_target_properties(papacc_service_observer_stack_va_isolated_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+  set_property(SOURCE tests/service_observer_stack_va_isolated_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-registration-lab.c;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-instrumented-cycle-lab.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-instrumented-observer.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-aux-reservation-core.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-aux-reservation-bridge.inc")
+ endif()
++
++if(WIN32 AND MSVC AND BUILD_TESTING)
++ set_property(SOURCE tools/qualification/scm-registration-lab.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-private-stdout-adapter.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-private-stdout-entry.inc;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-private-stdout-native.h")
++endif()
++
++if(WIN32 AND MSVC AND BUILD_TESTING)
++ add_executable(papacc_noninherited_transport_integration_test tests/noninherited_transport_integration_test.c)
++ target_compile_options(papacc_noninherited_transport_integration_test PRIVATE /W4 /WX)
++ target_compile_definitions(papacc_noninherited_transport_integration_test PRIVATE _WIN32_WINNT=0x0603)
++ target_link_libraries(papacc_noninherited_transport_integration_test PRIVATE advapi32 bcrypt)
++ set_property(SOURCE tests/noninherited_transport_integration_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-private-stdout-native.c;${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-private-stdout-native.h")
++endif()
++
++if(WIN32 AND MSVC AND BUILD_TESTING)
++ set_property(SOURCE tests/noninherited_transport_integration_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/qualification/scm-n0-private-stdout-adapter.inc")
++endif()
+--- task-preimage/tools/qualification/scm-registration-lab.c
++++ tools/qualification/scm-registration-lab.c
+@@ -4,6 +4,9 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <wchar.h>
++#ifdef PAPACC_N0_PRIVATE_STDOUT
++#include "scm-n0-private-stdout-native.h"
++#endif
+ #define PAPACC_SCM_REGISTRATION_LAB 1
+ static DWORD lab_aux_gate(void);
+ #define PAPACC_AUX_RESERVATION_GUARD() lab_aux_gate()
+--- task-preimage/tools/qualification/scm-instrumented-cycle-lab.inc
++++ tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -1,4 +1,7 @@
+ /* Successor of the SAME fixed SCM cycle; all positive effects MANUAL ONLY. */
++#ifdef PAPACC_N0_PRIVATE_STDOUT
++#include "scm-n0-private-stdout-adapter.inc"
++#endif
+ #include <stdlib.h>
+ #define PAPACC_PSR_FILE_CAPSULE_LAB 1
+ #include "psr-file-capture-lab.inc"
+@@ -110,7 +113,9 @@
+  if(!expected||strlen(expected)!=64)return ERROR_ACCESS_DENIED;
+  for(i=0;i<64;i++)if(!((expected[i]>='0'&&expected[i]<='9')||(expected[i]>='a'&&expected[i]<='f')))return ERROR_ACCESS_DENIED;
+  ig_approval_file=CreateFileW(
+-#ifdef PAPACC_READONLY_HANDLE_TABLE_TRACE
++#ifdef PAPACC_N0_PRIVATE_STDOUT
++ L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\t0-t9-acceptance-and-integration\\EXACT-TRANSPORT-READONLY-APPROVED.json",
++#elif defined(PAPACC_READONLY_HANDLE_TABLE_TRACE)
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-integrated-closeout-20261024\\handle-attribution\\EXACT-HANDLE-READONLY-APPROVED.json",
+ #elif defined(PAPACC_N0START03_READONLY_PINS)
+  L"C:\\Projetos\\PapinhoAccelerator\\docs\\integration\\n0start03-fresh-native-readonly-preparation-20261024\\EXACT-FRESH-READONLY-APPROVED.json",
+@@ -290,6 +295,9 @@
+  return 0;
+ }
+ #include "scm-readonly-handle-table.inc"
++#ifdef PAPACC_N0_PRIVATE_STDOUT
++#define main ig_transport_body
++#endif
+ int main(int argc,char **argv)
+ {
+  DWORD e=0,close_error=0,k,n;ULONGLONG p1=0,p2=0,t1=0,t2=0,began;SERVICE_STATUS_PROCESS status;SERVICE_STATUS stopped;FILETIME et,kt,ut;int positive=0,diagnostic_attempted=0,n0=0;ULONGLONG control=0;SYSTEM_INFO sys;
+@@ -489,3 +497,11 @@
+  (void)cycle_confirm;(void)cycle_intent;(void)cycle_wait;(void)ig_final;(void)psrf_capture;(void)k;(void)n;
+  return e?2:0;
+ }
++
++#ifdef PAPACC_N0_PRIVATE_STDOUT
++#undef main
++#undef printf
++#undef puts
++#undef fflush
++#include "scm-n0-private-stdout-entry.inc"
++#endif
+--- task-preimage/tools/qualification/scm-n0-protected-single-powershell.ps1
++++ tools/qualification/scm-n0-protected-single-powershell.ps1
+@@ -12,8 +12,12 @@
+ $ErrorActionPreference='Stop'
+ $Root='C:\Projetos\PapinhoAccelerator'
+ $ExpectedPath=$Root+'\tools\qualification\scm-n0-protected-single-powershell.ps1'
+-$Qualifier='C:\Projetos\PapinhoAccelerator\build\ed11-handle-attribution-20261024\Selected\Release\papacc_scm_instrumented_lab.exe'
+-$QualifierHash='2bf1746ae9de3f5d559b4fc989d9da3c3f9dacfe47539f8b0b067e2fe496ae15'
++$Qualifier='C:\Projetos\PapinhoAccelerator\build\ed11-private-stdout-20261025\Selected\Release\papacc_scm_instrumented_lab.exe'
++$QualifierHash='6f58cd11624360413d63480933a9ce01385525989381f5fd0b5af675061d5b5f'
++$TransportNative=$Root+'\build\ed11-private-stdout-20261025\Selected\Release\papacc_n0_private_stdout.dll'
++$TransportBinding=$Root+'\build\ed11-private-stdout-20261025\Selected\Release\Pacc.N0PrivateStdout.Binding.dll'
++$TransportNativeHash='0d3f611010254082673a170e81118728b303d92f3ac74e7b86a21a2aee906abf'
++$TransportBindingHash='513107355c46b8282ac17eb9763a1278bd201c0d4f9f9a925950676fba14d9f4'
+ # Reviewed existing inputs. These pins grant no execution or Start authority.
+ $DossierHash=''
+ if($Profile-eq'N0START03ReadOnly'){$DossierHash='5087db7a1e02e3334e827360a464c25b3edc1b0059d0a01d506cf17da6ec4050'}
+@@ -27,7 +31,7 @@
+ $pins=[Collections.Generic.List[IDisposable]]::new()
+ $locks=[Collections.Generic.List[IntPtr]]::new()
+ $script:N0RetainedLocks=$null
+-$process=$null;$reader=$null;$started=$false;$launchAttempted=$false;$returned=$false;$final=$false;$closeFailed=$false;$exitCode=2;$outputTruncated=$false
++$process=$null;$reader=$null;$started=$false;$launchAttempted=$false;$returned=$false;$final=$false;$closeFailed=$false;$exitCode=2;$outputTruncated=$false;$affinity=$false
+ function Hash-Stream($f) {
+  $sha=[Security.Cryptography.SHA256]::Create()
+  try {$f.Position=0;$v=([BitConverter]::ToString($sha.ComputeHash($f))).Replace('-','').ToLowerInvariant();$f.Position=0;return $v}finally{$sha.Dispose()}
+@@ -70,6 +74,8 @@
+  if($Mode-eq'Prepare' -and $ExactApprovalSha256-cnotmatch'^[0-9a-f]{64}$'){throw 'SEPARATE_EXACT_READONLY_APPROVAL_REQUIRED'}
+  if($Mode-eq'Review'){
+   Pin $Qualifier $QualifierHash
++  Pin $TransportNative $TransportNativeHash
++  Pin $TransportBinding $TransportBindingHash
+   $global:LASTEXITCODE=0;Write-Host 'N0_LAUNCHER_REVIEW=PASS; STATIC_PINS_ONLY_NO_NATIVE_ENTRY_NO_PREFLIGHT';return
+  }
+  if($Mode-eq'Cycle' -and $ExactApprovalSha256-cnotmatch'^[0-9a-f]{64}$'){throw 'SEPARATE_EXACT_OPERATION_APPROVAL_PIN_REQUIRED'}
+@@ -80,10 +86,16 @@
+  if([Console]::IsInputRedirected -or [Console]::IsOutputRedirected){throw 'INTERACTIVE_CONSOLE_REQUIRED'}
+  if($DossierHash -cnotmatch '^[0-9a-f]{64}$' -or $EvidenceHash -cnotmatch '^[0-9a-f]{64}$'){throw 'WINDOWS_PROVENANCE_UNKNOWN_DENY'}
+  Pin 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' '9785001b0dcf755eddb8af294a373c0b87b2498660f724e76c4d53f9c217c7a3'
+- Pin ($Root+'\docs\integration\n0start03-integrated-closeout-20261024\handle-attribution\EXACT-HANDLE-READONLY-APPROVED.json') $ExactApprovalSha256
++ Pin ($Root+'\docs\integration\n0start03-integrated-closeout-20261024\t0-t9-acceptance-and-integration\EXACT-TRANSPORT-READONLY-APPROVED.json') $ExactApprovalSha256
+  Pin ($Root+'\docs\adr\DECISION-n0start03-n7-and-ed11-evaluation-plan-20261024.md') 'c17aa105580aa7680e8d97042abc9daa32640dcf1e69dcdce49c59b8462109ac'
+  Lock-QualifierPath
+  Pin $Qualifier $QualifierHash
++ Pin ($Root+'\docs\adr\DECISION-n0start03-noninherited-local-transport-20261025.md') 'c9ac85be53fc0df9c356b6a0856c520dcf25d212593e2ec78ee05ef949f7c330'
++ Pin $TransportNative $TransportNativeHash
++ Pin $TransportBinding $TransportBindingHash
++ if('Pacc.N0PrivateStdout.Supervisor' -as [type]){throw 'FRESH_OPERATOR_PROCESS_REQUIRED'}
++ $bindingAssembly=[Reflection.Assembly]::LoadFrom($TransportBinding)
++ if(-not[String]::Equals($bindingAssembly.Location,$TransportBinding,[StringComparison]::OrdinalIgnoreCase)){throw 'BINDING_ASSEMBLY_LOCATION_DENY'}
+  Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.approved' $DossierHash
+  Pin 'C:\ProgramData\PapinhoAccelerator\Protected\N0\papacc-n2-0b1de869e11493b7cb08fb329578f6ce.evidence' $EvidenceHash
+  Pin ($Root+'\docs\adr\DECISION-first-native-lab-diagnostic-boundary-20261024.md') 'bec9d0c275d5ee8bd68de4d42fe173a08f124a9900c119e7a08d23757d9d7941'
+@@ -99,44 +111,49 @@
+  $confirmation=if($Mode-eq'Cycle'){'START_N0_SINGLE_LAB '+$Operation+' '+$Attempt+' '+$AuxiliaryPid+' '+$AuxiliaryCreation}else{'PREPARE_N0_READ_ONLY '+$Attempt+' '+$AuxiliaryPid+' '+$AuxiliaryCreation}
+  Write-Host ('Type exactly: '+$confirmation)
+  if((Read-Host) -cne $confirmation){throw 'CONFIRMATION_DIVERGENCE'}
+- [Threading.Thread]::BeginThreadAffinity()
++ [Threading.Thread]::BeginThreadAffinity();$affinity=$true
+  try {
+   # Framework OS thread ID is a candidate only; native owner rechecks original
+   # thread/process identity, lifetime, no impersonation. Never ManagedThreadId.
+   $tid=[uint32][AppDomain]::GetCurrentThreadId()
+-  $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$Qualifier
+-  $entry=if($Mode-eq'Cycle'){'--cycle-n0'}else{'--prepare-n0'}
+-  $start.Arguments=$entry+' '+$Attempt+' '+$PID+' '+$birth+' '+$tid+' '+$AuxiliaryPid+' '+$AuxiliaryCreation
+-  $start.Arguments+=' '+$ExactApprovalSha256
+-  $start.UseShellExecute=$false;$start.CreateNoWindow=$false
+-  $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$false;$start.RedirectStandardInput=$false
+-  $process=[Diagnostics.Process]::new();$process.StartInfo=$start
++  # Native original-process resource; bInheritHandles=FALSE, no helper process.
++  $arguments='--prepare-n0 '+$Attempt+' '+$PID+' '+$birth+' '+$tid+' '+$AuxiliaryPid+' '+$AuxiliaryCreation+' '+$ExactApprovalSha256
++  $process=[Pacc.N0PrivateStdout.Supervisor]::new($TransportNative)
+   $launchAttempted=$true
+-  if(-not $process.Start()){throw 'NATIVE_CREATE_FAILED'};$started=$true;$reader=$process.StandardOutput
++  $process.Open()
++  $process.Start($Qualifier,$arguments);$started=$true
++  $process.Authenticate();$reader=$process
+   $chars=0
+   while($null -ne ($line=$reader.ReadLine())) {
++   if($reader.Truncated -and -not $outputTruncated){$outputTruncated=$true;Write-Host 'N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY'}
+    $chars+=$line.Length
+    if($line.Length -gt 4096 -or $chars -gt 131072){if(-not $outputTruncated){$outputTruncated=$true;Write-Host 'N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY'}}
+    if(-not $outputTruncated -or $line-cmatch'^(IG_FINAL |IG_RETAINED |IG_DIAGNOSTIC |IG_DIAGNOSTIC_RECEIPT|IG_FIRST_RECORD)'){[Console]::Out.WriteLine($line)}
+    if($Mode-ne'Cycle' -and $line -cmatch '^IG_FINAL stage=\S+ first=\d+ close=0 starts=0 stops=0 quiescent=0 intent_consumed=0 effect=0 diagnostic_created=0;'){$final=$true}
+    if($Mode-eq'Cycle' -and $line-cmatch'^IG_FINAL stage=\S+ first=\d+ close=0 starts=([01]) stops=([01]) quiescent=([01]) intent_consumed=([01]) effect=([012]) diagnostic_created=([01]);'){if($Matches[1]-eq'0' -or $Matches[3]-eq'1'){$final=$true}} 
+   }
+-  $process.WaitForExit();$exitCode=$process.ExitCode;if($outputTruncated){$exitCode=2};$returned=$true
++  $exitCode=[int]$process.WaitOriginal();if($outputTruncated){$exitCode=2};$returned=$true
+   if(-not $final){throw 'FACTUAL_FINAL_RECEIPT_MISSING_RETAIN'}
+- } finally {[Threading.Thread]::EndThreadAffinity()}
++ } finally {# Affinity remains held through checked native close below.
++ }
+ } catch {$exitCode=2;Write-Host ('N0_READ_ONLY_ERROR='+$_.Exception.Message)} finally {
++ if($launchAttempted -and -not $started -and $null-ne$process){
++  try {if($process.CloseUnstartedIfKnown()){$launchAttempted=$false;Write-Host ('TRANSPORT_NO_CHILD_LOCAL_CLOSE=CONFIRMED; '+$process.Receipt())}}catch{$closeFailed=$true}
++ }
++
+  if(($launchAttempted -and -not $started) -or ($started -and (-not $returned -or -not $final))) {
+   $script:N0RetainedProcess=$process;$script:N0RetainedPins=$pins;$script:N0RetainedLocks=$locks
+   Write-Host 'RESOURCE_RETENTION=UNKNOWN; NO_CLOSE_NO_RETRY_NO_KILL; DO_NOT_CLOSE_OPERATOR'
+   while($true){Start-Sleep -Seconds 1}
+  } else {
+-  try {if($reader){$reader.Dispose()};if($process){$process.Dispose()};foreach($pin in $pins){$pin.Dispose()};for($i=$locks.Count-1;$i-ge0;$i--){if(-not [PaccFileAcl]::CloseHandle($locks[$i])){throw 'QUALIFIER_PATH_CLOSE_UNKNOWN'};$locks[$i]=[IntPtr]::Zero}}catch{$exitCode=2;$closeFailed=$true;$script:N0RetainedPins=$pins;$script:N0RetainedLocks=$locks;Write-Host 'CLOSE_UNKNOWN_NO_RETRY';while($true){Start-Sleep -Seconds 1}}
++  try {if($process){$process.CloseChecked();Write-Host ('TRANSPORT_LOCAL_CLOSE=CONFIRMED; '+$process.Receipt())};foreach($pin in $pins){$pin.Dispose()};for($i=$locks.Count-1;$i-ge0;$i--){if(-not [PaccFileAcl]::CloseHandle($locks[$i])){throw 'QUALIFIER_PATH_CLOSE_UNKNOWN'};$locks[$i]=[IntPtr]::Zero}}catch{$exitCode=2;$closeFailed=$true;$script:N0RetainedPins=$pins;$script:N0RetainedLocks=$locks;Write-Host 'CLOSE_UNKNOWN_NO_RETRY';while($true){Start-Sleep -Seconds 1}}
+   if(-not $closeFailed -and $started -and $returned -and $final) {
+    Write-Host 'Qualifier returned with factual final close receipt. F10 returns to this existing operator console; no retry.'
+    do {$key=[Console]::ReadKey($true)}while($key.Key -ne [ConsoleKey]::F10)
+   }
+  }
+ }
++if($affinity){[Threading.Thread]::EndThreadAffinity();$affinity=$false}
+ $global:LASTEXITCODE=$exitCode
+ if($Mode-eq'Cycle'){Write-Host ('N0_CYCLE_EXIT='+$exitCode+'; START_RESULT=SEE_NATIVE_RECEIPT; ED11=PARTIAL; PRODUCT_AUTHORITY=DENY')}else{Write-Host ('N0_READ_ONLY_EXIT='+$exitCode+'; START_EXECUTED=NO; ED11=PARTIAL; AUTHORITY=DENY')}
+ # Invocation is & script in THIS already elevated PowerShell, never a new powershell.exe.

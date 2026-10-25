@@ -1,0 +1,5 @@
+# Recorded owner authorization — preparation only
+
+OWNER APPROVAL — N0–N9 PROTECTED INPUTS, PREPARATION ONLY approves preparing explicit protection for two new inputs5358/326 bytes with descriptor SHA2560fcfd0572daee1f64b98daf960276db86f55043460ba700e927bfb46b31b4814. Conditions: shared parent and its ACL untouched; exclusive creation/no overwrite; protected at creation; verified owner/DACL/native ID/hashes/no untrusted writes; preserve partial/UNKNOWN; no retry or historical-file changes. Manual procedure/source review/negative tests/offline qualification authorized. Actual creation and ACL changes explicitly NOT authorized. PINS remain EMPTY/DENY; no preflight/Start/SCM; ED11 PARTIAL; production authorities DENY.
+
+This file records the scoped work authorization and its limits, not a new admission authority or normative production decision. Accepted RAW1/N0–N9/B+D/ED11 records remain byte-identical. Manual handoff is a candidate exact operation awaiting its own explicit approval and confirmation.

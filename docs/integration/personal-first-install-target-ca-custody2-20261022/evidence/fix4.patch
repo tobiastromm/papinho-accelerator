@@ -1,0 +1,13 @@
+--- tests\personal_plan_data_win32_test.c
++++ tests\personal_plan_data_win32_test.c
+@@ -91,7 +91,9 @@
+  CHECK(papacc_configuration_personal_native_close(&owner_state)!=PAPACC_RESULT_OK);
+  CHECK(papacc_configuration_personal_data_retire(&owner_state)!=PAPACC_RESULT_OK);
+  CHECK(owner_state.pending_commit.active&&owner_state.pending_commit.personal_native.handoff_state==PAPACC_PERSONAL_HANDOFF_RETAINED);
+- /* Fixture-only disposal of metadata: no OS resource ever existed. */
++ CHECK(owner_state.unresolved); /* retained owner is now explicitly sticky */
++ /* Fixture-only disposal of metadata: no OS resource ever existed. */
++ owner_state.unresolved=0; /* MODEL fixture only: never a product rearm. */
+  owner_state.pending_commit.active=0;owner_state.pending_commit.packet_format=0;
+  owner_state.pending_commit.personal_native.handoff_state=0;owner_state.pending_commit.personal_native.phase=0U;
+  memset(p,0,sizeof(*p)); /* MODEL reset only, never a product retry. */

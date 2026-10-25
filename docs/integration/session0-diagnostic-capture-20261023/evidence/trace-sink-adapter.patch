@@ -1,0 +1,55 @@
+--- a/apps/server/server_service_psr_trace_win32.inc
++++ b/apps/server/server_service_psr_trace_win32.inc
+@@ -3,6 +3,11 @@
+ #error PSR tracing is restricted to the fixed private LAB profile
+ #endif
+ #include <stdio.h>
++/* Private consumer sink: 0=context, 1=first failure, 2=prepare success.
++ * Default channel and authorization remain unchanged. */
++#ifndef PSRT_OUTPUT
++#define PSRT_OUTPUT(text,kind) OutputDebugStringA(text)
++#endif
+ typedef struct PSRT_BORROW {void *data;DWORD length,capacity;} PSRT_BORROW;
+ typedef struct PSRT_RECORD {
+  PSRT_BORROW token[3];const char *object,*api,*predicate;DWORD requested,raw,returned,line,value_a,value_b;LONG ntstatus;unsigned native_valid,success,emitted,began,prepared;
+@@ -10,8 +15,8 @@
+ static PSRT_RECORD psrt_record;
+ #define PSRT_STORAGE_BYTES sizeof(psrt_record)
+ static void psrt_context(const char *tag){DWORD saved=GetLastError();char line[192];psrt_record.object=tag;psrt_record.predicate=NULL;
+- if(!psrt_record.began){psrt_record.began=1;(void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_BEGIN pid=%lu tid=%lu private_lab=1\n",(unsigned long)GetCurrentProcessId(),(unsigned long)GetCurrentThreadId());OutputDebugStringA(line);}SetLastError(saved);}
+-static void psrt_prepared(void){DWORD saved=GetLastError();char line[192];if(!psrt_record.prepared){psrt_record.prepared=1;(void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_PREPARE_SUCCESS pid=%lu NOT_OPERATIONAL_ADMISSION\n",(unsigned long)GetCurrentProcessId());OutputDebugStringA(line);}SetLastError(saved);}
++ if(!psrt_record.began){psrt_record.began=1;(void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_BEGIN pid=%lu tid=%lu private_lab=1\n",(unsigned long)GetCurrentProcessId(),(unsigned long)GetCurrentThreadId());PSRT_OUTPUT(line,0U);}SetLastError(saved);}
++static void psrt_prepared(void){DWORD saved=GetLastError();char line[192];if(!psrt_record.prepared){psrt_record.prepared=1;(void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_PREPARE_SUCCESS pid=%lu NOT_OPERATIONAL_ADMISSION\n",(unsigned long)GetCurrentProcessId());PSRT_OUTPUT(line,2U);}SetLastError(saved);}
+ static BOOL psrt_bool(const char *name,unsigned line,DWORD requested,BOOL value)
+ {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+ static HANDLE psrt_handle(const char *name,unsigned line,DWORD requested,HANDLE value)
+@@ -42,16 +47,16 @@
+ {
+  char line[384],sid[192];PSRT_BORROW *b;DWORD i,count;
+  b=&psrt_record.token[0];if(b->data&&b->length>=sizeof(TOKEN_USER)){
+- (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_TOKEN_USER pid=%lu sid_hex=%s\n",(unsigned long)GetCurrentProcessId(),psrt_sid_hex(b,((TOKEN_USER *)b->data)->User.Sid,sid));OutputDebugStringA(line);}
++ (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_TOKEN_USER pid=%lu sid_hex=%s\n",(unsigned long)GetCurrentProcessId(),psrt_sid_hex(b,((TOKEN_USER *)b->data)->User.Sid,sid));PSRT_OUTPUT(line,0U);}
+  b=&psrt_record.token[1];if(b->data&&b->length>=(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)){
+  TOKEN_GROUPS *g=(TOKEN_GROUPS *)b->data;count=g->GroupCount;
+  if(count<=(b->length-FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES))for(i=0;i<count;i++){
+- (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_TOKEN_GROUP pid=%lu index=%lu sid_hex=%s attributes=%08lx\n",(unsigned long)GetCurrentProcessId(),(unsigned long)i,psrt_sid_hex(b,g->Groups[i].Sid,sid),(unsigned long)g->Groups[i].Attributes);OutputDebugStringA(line);}}
++ (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_TOKEN_GROUP pid=%lu index=%lu sid_hex=%s attributes=%08lx\n",(unsigned long)GetCurrentProcessId(),(unsigned long)i,psrt_sid_hex(b,g->Groups[i].Sid,sid),(unsigned long)g->Groups[i].Attributes);PSRT_OUTPUT(line,0U);}}
+  b=&psrt_record.token[2];if(b->data&&b->length>=(DWORD)FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges)){
+  TOKEN_PRIVILEGES *v=(TOKEN_PRIVILEGES *)b->data;count=v->PrivilegeCount;
+  if(count<=(b->length-FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges))/sizeof(LUID_AND_ATTRIBUTES))for(i=0;i<count;i++){
+- (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_TOKEN_PRIVILEGE pid=%lu index=%lu luid=%ld:%lu attributes=%08lx\n",(unsigned long)GetCurrentProcessId(),(unsigned long)i,(long)v->Privileges[i].Luid.HighPart,(unsigned long)v->Privileges[i].Luid.LowPart,(unsigned long)v->Privileges[i].Attributes);OutputDebugStringA(line);}}
+- (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_DIAG_END pid=%lu token_user_bytes=%lu token_group_bytes=%lu token_privilege_bytes=%lu absent_buffers=NOT_REACHED_NOT_SYNTHETIC\n",(unsigned long)GetCurrentProcessId(),(unsigned long)psrt_record.token[0].length,(unsigned long)psrt_record.token[1].length,(unsigned long)psrt_record.token[2].length);OutputDebugStringA(line);
++ (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_TOKEN_PRIVILEGE pid=%lu index=%lu luid=%ld:%lu attributes=%08lx\n",(unsigned long)GetCurrentProcessId(),(unsigned long)i,(long)v->Privileges[i].Luid.HighPart,(unsigned long)v->Privileges[i].Luid.LowPart,(unsigned long)v->Privileges[i].Attributes);PSRT_OUTPUT(line,0U);}}
++ (void)_snprintf_s(line,sizeof(line),_TRUNCATE,"PACC_PSR_DIAG_END pid=%lu token_user_bytes=%lu token_group_bytes=%lu token_privilege_bytes=%lu absent_buffers=NOT_REACHED_NOT_SYNTHETIC\n",(unsigned long)GetCurrentProcessId(),(unsigned long)psrt_record.token[0].length,(unsigned long)psrt_record.token[1].length,(unsigned long)psrt_record.token[2].length);PSRT_OUTPUT(line,0U);
+ }
+ static DWORD psrt_return(DWORD value,unsigned line,const char *branch)
+ {
+@@ -60,7 +65,7 @@
+  psrt_record.emitted=1;psrt_record.returned=value;
+  n=_snprintf_s(text,sizeof(text),_TRUNCATE,"PACC_PSR_FIRST_FAILURE pid=%lu tid=%lu object=%s api=%s api_line=%lu request=%08lx api_success=%u raw_win32=%lu nt_valid=%u ntstatus=%08lx predicate=%s branch=%s return_line=%u returned_win32=%lu observed_a=%lu observed_b=%lu token_handle=NOT_EXPORTED\n",
+  (unsigned long)GetCurrentProcessId(),(unsigned long)GetCurrentThreadId(),psrt_record.object?psrt_record.object:"UNSET",psrt_record.api?psrt_record.api:"NONE",(unsigned long)psrt_record.line,(unsigned long)psrt_record.requested,psrt_record.success,(unsigned long)psrt_record.raw,psrt_record.native_valid,(unsigned long)(DWORD)psrt_record.ntstatus,psrt_record.predicate?psrt_record.predicate:"NONE",branch,line,(unsigned long)value,(unsigned long)psrt_record.value_a,(unsigned long)psrt_record.value_b);
+- if(n>0)OutputDebugStringA(text);
++ if(n>0)PSRT_OUTPUT(text,1U);
+  psrt_token_emit();
+  }
+  SetLastError(saved);return value;

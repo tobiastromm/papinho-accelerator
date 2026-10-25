@@ -22,6 +22,9 @@ typedef struct PAPACC_ROOT8_CARRIER_DATA {
   * CA decode arena is distinct from signer arena/cert scratch. None escapes.
   * reserved is a caller lower-bound precondition, NOT factual credit. */
  unsigned v3_version;
+ /* v1: published v3; v2: published v3/v4 or same-owner active candidate.
+  * Candidate fields must match the current synchronous DATA invocation. */
+ PAPACC_U64 candidate_invocation,candidate_serial;
  PAPACC_CONFIG_PIN v3_pin;
  PAPACC_ISSUER_WINDOWS_WORKSPACE *v3_ca_workspace,*v3_signer_workspace;
  PAPACC_U8 *v3_certificate;PAPACC_SIZE v3_certificate_capacity,v3_reserved;

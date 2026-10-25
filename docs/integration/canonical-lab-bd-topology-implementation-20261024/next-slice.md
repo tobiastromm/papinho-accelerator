@@ -1,0 +1,9 @@
+# Next slice — CANONICAL_LAB_BD_CONSOLE_FACTUAL_PROOF
+
+Core binding/roles/shared-budget logic is qualified offline; native console proof is deliberately unavailable. Do NOT enable/repin a positive launcher or run preflight from this result.
+
+First missing fact: an independently qualified contemporary relationship between the approved elevated actor's console and the held original infrastructure process, plus native image/provenance/session/lifetime and required metrics revalidation. Existing name/parent/session/client-list/window/current-file evidence does not prove the full tuple. Review existing Windows/WPT tooling/evidence first; do not create another recorder/parser/service or invent an authenticated API. No native source enum is accepted merely by filling known-mask bits.
+
+Future work, only after its scoped authorization: qualify an actual evidence source and its limits against R2/R3; connect it inside the SAME canonical owner using original process/file identities and synchronous lifetime; exercise missing/stale/reused/unrelated/contradictory evidence as DENY. Reconcile any added handles/buffers/stack before activation. The canonical context-check adapter for the new single-actor caller must reuse existing protected configuration/binary/policy/plan checks; a test callback is not a native source.
+
+Then qualify direct-in-session elevated launcher integration, exact confirmation/binding, four-role census and shared metrics. Only after source and launcher pass can a new exact read-only preflight dossier/pins/manual command be submitted for separate approval. No old administrative claim/receipt is reused. Native Start/Stop/rebind requires later separate authorization. No handle remeasurement or ETW recapture authorized by this handoff. If no sufficient factual mechanism exists, remain CONSOLE_ADMISSION=DENY and identify the exact unsupported fact.

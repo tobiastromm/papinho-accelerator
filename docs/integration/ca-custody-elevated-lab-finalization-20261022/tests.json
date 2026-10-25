@@ -1,0 +1,29 @@
+[
+  {
+    "arguments": [
+      "-Mode",
+      "Check"
+    ],
+    "exit": 0,
+    "stdout": "{\n    \"sid\":  \"S-1-5-21-896877160-3262526087-2538948522-1003\",\n    \"elevated\":  false,\n    \"elevation_type\":  1,\n    \"query_ok\":  true,\n    \"administrators_enabled\":  false,\n    \"impersonating\":  false,\n    \"console\":  false\n}\nCHECK_ONLY; NEW_LAB_NAME=PapinhoAccelerator.CA.2345e07adf714045a20d1c8b6fdf5aaf.a2bcd6d2ed3043d083e7e50342d6fab0; LAB_BINARY_SHA256=2fc44cfe2abd7bd76716d903d1e1b528213744053690ed65d081a18e3172ba79; KEY_QUERY=NOT_RUN; GENERATION_GATE=STOP_UNTIL_ABSENCE_PROVEN; KEY_CREATION=NOT_RUN; CURRENT=DENY\n",
+    "stderr": ""
+  },
+  {
+    "arguments": [
+      "-Mode",
+      "Elevated"
+    ],
+    "exit": 2,
+    "stdout": "DENY: SCRIPT_PIN_MISMATCH\n",
+    "stderr": ""
+  },
+  {
+    "arguments": [
+      "-Mode",
+      "Invalid"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "C:\\Projetos\\PapinhoAccelerator\\tools\\qualification\\ca-custody-elevated-lab-uac.ps1 : N\u00c3\u00a3o \u00c3\u00a9 poss\u00c3\u00advel validar o \nargumento no par\u00c3\u00a2metro 'Mode'. O argumento \"Invalid\" n\u00c3\u00a3o pertence ao conjunto \"Check;Launch;Elevated\" especificado \npelo atributo ValidateSet. Forne\u00c3\u00a7a um argumento que esteja no conjunto e tente o comando novamente.\n    + CategoryInfo          : InvalidData: (:) [ca-custody-elevated-lab-uac.ps1], ParentContainsErrorRecordException\n    + FullyQualifiedErrorId : ParameterArgumentValidationError,ca-custody-elevated-lab-uac.ps1\n \n"
+  }
+]

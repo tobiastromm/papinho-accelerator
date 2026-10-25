@@ -1,0 +1,39 @@
+--- a/crypto/ec/curve25519.c
++++ b/crypto/ec/curve25519.c
+@@ -2198,7 +2198,7 @@
+     uint32_t y = x; /* 0: yes; 1..255: no */
+     y -= 1; /* 4294967295: yes; 0..254: no */
+     y >>= 31; /* 1: yes; 0: no */
+-    return y;
++    return (uint8_t)y;
+ }
+ 
+ static void cmov(ge_precomp *t, const ge_precomp *u, uint8_t b)
+@@ -4329,7 +4329,7 @@
+     uint32_t x = b;
+ 
+     x >>= 31; /* 1: yes; 0: no */
+-    return x;
++    return (uint8_t)x;
+ }
+ 
+ static void table_select(ge_precomp *t, int pos, signed char b)
+@@ -5704,7 +5704,7 @@
+     return (ge_frombytes_vartime(&A, pub) == 0);
+ }
+ 
+-static const char allzeroes[15];
++static const char allzeroes[15] = {0};
+ 
+ int ossl_ed25519_verify(const uint8_t *tbs, size_t tbs_len,
+     const uint8_t signature[64], const uint8_t public_key[32],
+--- a/include/internal/refcount.h
++++ b/include/internal/refcount.h
+@@ -284,6 +284,7 @@
+ 
+ static ossl_unused ossl_inline void CRYPTO_FREE_REF(CRYPTO_REF_COUNT *refcnt)
+ {
++    (void)refcnt;
+ }
+ #endif /* CRYPTO_NEW_FREE_DEFINED */
+ #undef CRYPTO_NEW_FREE_DEFINED

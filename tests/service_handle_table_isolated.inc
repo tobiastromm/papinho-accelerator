@@ -1,0 +1,112 @@
+/* Isolated test mode only. No operational dispatch, SCM, owner or protected file. */
+static DWORD table_dump(const char *phase)
+{
+ HPSS snap=NULL;HPSSWALK walk=NULL;PSS_HANDLE_ENTRY entry;
+ DWORD before=0,captured=0,marker=0,after=0,e=0,z,count=0,flags;
+ FILETIME birth,exit,kernel,user;unsigned j;BOOL live;
+ if(!GetProcessTimes(GetCurrentProcess(),&birth,&exit,&kernel,&user)||!GetProcessHandleCount(GetCurrentProcess(),&before))return GetLastError();
+ printf("TABLE_BEGIN phase=%s pid=%lu creation=%lu:%lu pre=%lu STDIN=%llu STDOUT=%llu STDERR=%llu\n",phase,(unsigned long)GetCurrentProcessId(),(unsigned long)birth.dwHighDateTime,(unsigned long)birth.dwLowDateTime,(unsigned long)before,(ULONGLONG)(ULONG_PTR)GetStdHandle(STD_INPUT_HANDLE),(ULONGLONG)(ULONG_PTR)GetStdHandle(STD_OUTPUT_HANDLE),(ULONGLONG)(ULONG_PTR)GetStdHandle(STD_ERROR_HANDLE));
+ e=PssCaptureSnapshot(GetCurrentProcess(),(PSS_CAPTURE_FLAGS)(PSS_CAPTURE_HANDLES|PSS_CAPTURE_HANDLE_BASIC_INFORMATION|PSS_CAPTURE_HANDLE_NAME_INFORMATION|PSS_CAPTURE_HANDLE_TYPE_SPECIFIC_INFORMATION),0,&snap);
+ if(e)goto done;
+ if(!GetProcessHandleCount(GetCurrentProcess(),&captured)){e=GetLastError();goto done;}
+ e=PssWalkMarkerCreate(NULL,&walk);if(e)goto done;
+ if(!GetProcessHandleCount(GetCurrentProcess(),&marker)){e=GetLastError();goto done;}
+ for(;;){
+  ZeroMemory(&entry,sizeof(entry));e=PssWalkSnapshot(snap,PSS_WALK_HANDLES,walk,&entry,sizeof(entry));
+  if(e==ERROR_NO_MORE_ITEMS){e=0;break;}if(e)break;
+  if(++count>4096){e=ERROR_INSUFFICIENT_BUFFER;break;}
+  flags=0;live=GetHandleInformation(entry.Handle,&flags);
+  printf("TABLE_ROW phase=%s handle=%llu type=%u known=%u attributes=%lu granted=%lu live_flags_known=%u live_flags=%lu type_utf16=",phase,(ULONGLONG)(ULONG_PTR)entry.Handle,(unsigned)entry.ObjectType,(unsigned)entry.Flags,(unsigned long)entry.Attributes,(unsigned long)entry.GrantedAccess,(unsigned)live,(unsigned long)flags);
+  for(j=0;entry.TypeName&&j<entry.TypeNameLength/sizeof(WCHAR)&&j<128;j++)printf("%04x",(unsigned)(unsigned short)entry.TypeName[j]);
+  printf(" name_utf16=");for(j=0;entry.ObjectName&&j<entry.ObjectNameLength/sizeof(WCHAR)&&j<128;j++)printf("%04x",(unsigned)(unsigned short)entry.ObjectName[j]);
+  printf(" truncated=%u; NUMERIC_VALUE_NOT_OBJECT_IDENTITY\n",(unsigned)(entry.ObjectNameLength>256));
+ }
+ done:
+ if(walk){z=PssWalkMarkerFree(walk);if(z){printf("TABLE_RETAINED first=%lu close=%lu NO_RETRY\n",(unsigned long)e,(unsigned long)z);return z;}walk=NULL;}
+ if(snap){z=PssFreeSnapshot(GetCurrentProcess(),snap);if(z){printf("TABLE_RETAINED first=%lu close=%lu NO_RETRY\n",(unsigned long)e,(unsigned long)z);return z;}snap=NULL;}
+ if(!GetProcessHandleCount(GetCurrentProcess(),&after))return e?e:GetLastError();
+ printf("TABLE_FINAL phase=%s first=%lu pre=%lu after_capture=%lu after_marker=%lu after_free=%lu entries=%lu; OBSERVER_INTERNAL_COST_UNKNOWN; NOT_ADMISSION\n",phase,(unsigned long)e,(unsigned long)before,(unsigned long)captured,(unsigned long)marker,(unsigned long)after,(unsigned long)count);
+ return e?e:(before==after?0:ERROR_INVALID_STATE);
+}
+/* Identity comparison only for parent-retained synthetic events. Never LAB. */
+static DWORD isolated_compare_parent_events(void)
+{
+ typedef BOOL (WINAPI *COMPARE)(HANDLE,HANDLE);COMPARE compare;FARPROC address;HMODULE module;
+ char env[2048],*cursor,*end;ULONGLONG fields[11],actual;unsigned i,j,matches=0,examined=0;
+ HANDLE parent=NULL,reference=NULL;HPSS snap=NULL;HPSSWALK walk=NULL;PSS_HANDLE_ENTRY entry;
+ FILETIME c,e,k,u;DWORD n,z,code=0,flags,last;
+ n=GetEnvironmentVariableA("PACC_FIXTURE_PARENT_EVENTS",env,sizeof(env));if(!n)return 0;if(n>=sizeof(env))return ERROR_INVALID_PARAMETER;
+ cursor=env;for(i=0;i<11;i++){fields[i]=_strtoui64(cursor,&end,10);if(end==cursor||(*end&&*end!=' '))return ERROR_INVALID_PARAMETER;cursor=*end?end+1:end;}if(*cursor||fields[0]>MAXDWORD||fields[2]>8)return ERROR_INVALID_PARAMETER;
+ module=GetModuleHandleW(L"kernelbase.dll");if(!module)return ERROR_NOT_SUPPORTED;address=GetProcAddress(module,"CompareObjectHandles");if(!address)return ERROR_NOT_SUPPORTED;memcpy(&compare,&address,sizeof(compare));
+ parent=OpenProcess(PROCESS_DUP_HANDLE|PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,(DWORD)fields[0]);if(!parent)return GetLastError();
+ if(!GetProcessTimes(parent,&c,&e,&k,&u)||WaitForSingleObject(parent,0)!=WAIT_TIMEOUT){code=ERROR_INVALID_DATA;goto done;}actual=((ULONGLONG)c.dwHighDateTime<<32)|c.dwLowDateTime;if(actual!=fields[1]){code=ERROR_INVALID_DATA;goto done;}
+ code=PssCaptureSnapshot(GetCurrentProcess(),(PSS_CAPTURE_FLAGS)(PSS_CAPTURE_HANDLES|PSS_CAPTURE_HANDLE_BASIC_INFORMATION|PSS_CAPTURE_HANDLE_NAME_INFORMATION|PSS_CAPTURE_HANDLE_TYPE_SPECIFIC_INFORMATION),0,&snap);if(code)goto done;
+ for(i=0;i<8;i++){
+  if(!DuplicateHandle(parent,(HANDLE)(ULONG_PTR)fields[3+i],GetCurrentProcess(),&reference,0,FALSE,DUPLICATE_SAME_ACCESS)){code=GetLastError();goto done;}
+  code=PssWalkMarkerCreate(NULL,&walk);if(code)goto done;
+  j=0;for(;;){
+   ZeroMemory(&entry,sizeof(entry));code=PssWalkSnapshot(snap,PSS_WALK_HANDLES,walk,&entry,sizeof(entry));if(code==ERROR_NO_MORE_ITEMS){code=0;break;}if(code)goto done;
+   if(entry.Handle==reference){code=ERROR_INVALID_STATE;goto done;} /* reused value => UNKNOWN, never false exclusion */
+   if(!GetHandleInformation(entry.Handle,&flags)){code=ERROR_INVALID_HANDLE;goto done;}
+   SetLastError(0);if(compare(entry.Handle,reference))++j;else{last=GetLastError();if(last&&last!=ERROR_NOT_SAME_OBJECT){code=last;goto done;}}
+   ++examined;
+  }
+  printf("EVENT_OBJECT_COMPARISON index=%u matches=%u; API=CompareObjectHandles; IMPORTED_REFERENCE_EXCLUDED_FROM_SNAPSHOT\n",i,j);matches+=j;
+  code=PssWalkMarkerFree(walk);if(code){puts("COMPARISON_UNKNOWN_NO_RETRY; PROCESS_EXIT_CONTAINMENT");return code;}walk=NULL;
+  if(!CloseHandle(reference)){puts("COMPARISON_CLOSE_UNKNOWN_NO_RETRY; PROCESS_EXIT_CONTAINMENT");return ERROR_INVALID_HANDLE;}reference=NULL;
+ }
+ if(matches!=(unsigned)fields[2])code=ERROR_INVALID_DATA;
+ done:
+ if(walk){z=PssWalkMarkerFree(walk);if(z)return z;walk=NULL;}
+ if(reference){if(!CloseHandle(reference))return ERROR_INVALID_HANDLE;reference=NULL;}
+ if(snap){z=PssFreeSnapshot(GetCurrentProcess(),snap);if(z)return z;snap=NULL;}
+ if(parent){if(!CloseHandle(parent))return ERROR_INVALID_HANDLE;parent=NULL;}
+ printf("EVENT_OBJECT_COMPARISON_FINAL first=%lu matches=%u expected=%llu examined=%u; FIXTURE_ONLY; NOT_9_REAL_HANDLES\n",(unsigned long)code,matches,fields[2],examined);
+ return code;
+}
+static int isolated_stdio_child(int delay)
+{
+ char reply[64];setvbuf(stdout,NULL,_IONBF,0);puts("FIXTURE_STDIO_READY");
+ if(delay){Sleep(300);puts("FIXTURE_DELAY_DONE");return 0;}
+ if(!fgets(reply,sizeof(reply),stdin)||strcmp(reply,"CONFIRM_FIXTURE\n"))return 101;
+ puts("FIXTURE_CONFIRM_ACCEPTED_SYNTHETIC");puts("");puts("UTF16_HEX=03a9");fputs("FIXTURE_STDERR_FUNCTIONAL\n",stderr);fflush(stderr);
+ if(!fgets(reply,sizeof(reply),stdin)||strcmp(reply,"STOP_FIXTURE\n"))return 102;
+ puts("FIXTURE_INPUT_STOP_RECEIVED; NOT_SERVICE_STOP");return 0;
+}
+static int isolated_table_main(void)
+{
+ char env[2048],*cursor,*end;DWORD n,e,flags;ULONGLONG value;HANDLE event=NULL;
+ n=GetEnvironmentVariableA("PACC_FIXTURE_INHERITED_EVENTS",env,sizeof(env));
+ if(n>=sizeof(env))return 80;
+ e=table_dump("CRT_ENTRY");if(e)return 81;
+ if(isolated_compare_parent_events())return 88;
+ if(n){cursor=env;while(*cursor){
+  value=_strtoui64(cursor,&end,10);if(end==cursor||(!(*end==','||!*end))||!value)return 82;
+  if(!GetHandleInformation((HANDLE)(ULONG_PTR)value,&flags)||!(flags&HANDLE_FLAG_INHERIT))return 83;
+  if(!SetEvent((HANDLE)(ULONG_PTR)value))return 84;
+  printf("SYNTHETIC_INHERITED_EVENT_SIGNALED handle=%llu; PARENT_RETAINS_ORIGINAL; IDENTITY_REQUIRES_PARENT_WAIT\n",value);
+  if(!*end)break;cursor=end+1;
+ }}
+ event=CreateEventW(NULL,TRUE,FALSE,NULL);if(!event)return 85;
+ printf("CONTROLLED_OWN_EVENT handle=%llu; PHASE=AFTER_CRT_ENTRY; OWNER=FIXTURE\n",(ULONGLONG)(ULONG_PTR)event);
+ e=table_dump("OWNED_EVENT");
+ if(!CloseHandle(event)){printf("CONTROLLED_EVENT_CLOSE=UNKNOWN; ORIGINAL_RETAINED_NO_RETRY\n");return 86;}event=NULL;
+ if(e)return 87;
+ puts("TABLE_FIXTURE_PASS; LOCAL_SNAPSHOTS_AND_EVENT_CLOSED; NO_SCM_NO_LAB_NO_AUTHORITY; LOADER_COST_NOT_SEPARATELY_MEASURED");return 0;
+}
+
+/* Real console API contract in an isolated hidden console with synthetic keys. */
+static int isolated_console_child(void)
+{
+ WCHAR text[64];DWORD mode,n;INPUT_RECORD key;HWND window=GetConsoleWindow();
+ setvbuf(stdout,NULL,_IONBF,0);
+ if(!window||!GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE),&mode)||!GetConsoleMode(GetStdHandle(STD_ERROR_HANDLE),&mode))return 111;
+ if(!WriteConsoleW(GetStdHandle(STD_ERROR_HANDLE),L"SYNTHETIC_STDERR_CONSOLE\r\n",(DWORD)(sizeof(L"SYNTHETIC_STDERR_CONSOLE\r\n")/sizeof(WCHAR)-1),&n,NULL))return 112;
+ printf("CHILD_CONSOLE_WINDOW value=%llu\n",(ULONGLONG)(ULONG_PTR)window);puts("CONSOLE_CONFIRM_READY");
+ if(!ReadConsoleW(GetStdHandle(STD_INPUT_HANDLE),text,63,&n,NULL)||n>=64)return 113;text[n]=0;
+ if(wcscmp(text,L"CONFIRM_CONSOLE\r\n"))return 114;
+ puts("CONSOLE_CONFIRM_ACCEPTED");
+ do{if(!ReadConsoleInputW(GetStdHandle(STD_INPUT_HANDLE),&key,1,&n))return 115;}while(key.EventType!=KEY_EVENT||!key.Event.KeyEvent.bKeyDown||key.Event.KeyEvent.wVirtualKeyCode!=VK_ESCAPE);
+ puts("CONSOLE_ESCAPE_STOP_REQUESTED; NO_SERVICE_CONTROL");
+ return GetConsoleWindow()==window?0:116;
+}

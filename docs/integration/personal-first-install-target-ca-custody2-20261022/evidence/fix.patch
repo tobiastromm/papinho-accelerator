@@ -1,0 +1,40 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -2870,7 +2870,7 @@
+  target_include_directories(papacc_bootstrap_namespace_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} src/config apps/server)
+  target_compile_definitions(papacc_bootstrap_namespace_test PRIVATE PAPACC_OFFLINE_D3_WORKER=1
+   PAPACC_ISSUER_STORAGE_COMPONENT_TEST=1 PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST=1)
+- target_link_libraries(papacc_bootstrap_namespace_test PRIVATE papacc_config_root8 papacc_server_config papacc_issuer bcrypt ktmw32 advapi32)
++ target_link_libraries(papacc_bootstrap_namespace_test PRIVATE papacc_config_root8 papacc_server_config papacc_issuer papacc_storage_sha256 bcrypt ktmw32 advapi32)
+  target_compile_options(papacc_bootstrap_namespace_test PRIVATE /W4 /WX)
+  set_property(SOURCE apps/server/server_configuration_commit_win32.c APPEND PROPERTY OBJECT_DEPENDS
+   "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_bootstrap_win32.inc")
+@@ -2882,7 +2882,7 @@
+  target_include_directories(papacc_bootstrap_d3_commit_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} src/config apps/server)
+  target_compile_definitions(papacc_bootstrap_d3_commit_test PRIVATE PAPACC_OFFLINE_D3_WORKER=1
+   PAPACC_ISSUER_STORAGE_COMPONENT_TEST=1 PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST=1)
+- target_link_libraries(papacc_bootstrap_d3_commit_test PRIVATE papacc_config_root8 papacc_server_config papacc_issuer bcrypt ktmw32 advapi32)
++ target_link_libraries(papacc_bootstrap_d3_commit_test PRIVATE papacc_config_root8 papacc_server_config papacc_issuer papacc_storage_sha256 bcrypt ktmw32 advapi32)
+  target_compile_options(papacc_bootstrap_d3_commit_test PRIVATE /W4 /WX)
+  set_property(SOURCE apps/server/server_configuration_commit_win32.c APPEND PROPERTY OBJECT_DEPENDS
+   "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_bootstrap_commit_win32.inc")
+@@ -3244,7 +3244,7 @@
+   apps/server/personal_plan_data.c apps/server/server_configuration_personal_custody_data_win32.c)
+  target_include_directories(papacc_personal_target_component_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} apps/server src/config src/issuer)
+  target_compile_definitions(papacc_personal_target_component_test PRIVATE PAPACC_OFFLINE_D3_WORKER=1 PAPACC_ISSUER_STORAGE_COMPONENT_TEST=1 PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST=1)
+- target_link_libraries(papacc_personal_target_component_test PRIVATE papacc_config_root8 papacc_server_config papacc_issuer bcrypt ktmw32 advapi32)
++ target_link_libraries(papacc_personal_target_component_test PRIVATE papacc_config_root8 papacc_server_config papacc_issuer papacc_storage_sha256 bcrypt ktmw32 advapi32)
+  if(PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE)
+   target_link_libraries(papacc_personal_target_component_test PRIVATE papacc_root8_signer_data crypt32)
+  endif()
+--- tests/personal_target_component_win32_test.c
++++ tests/personal_target_component_win32_test.c
+@@ -11,7 +11,7 @@
+  BY_HANDLE_FILE_INFORMATION before,after;HANDLE held,probe=INVALID_HANDLE_VALUE;
+  PAPACC_RESULT result;PAPACC_PERSONAL_CUSTODY_DATA q;PAPACC_CA_KEY ca;
+  int preexisting,barrier,uncertain,closefail;
+- CHECK(argc==3);mode=argv[2];
++ memset(&before,0,sizeof(before));CHECK(argc==3);mode=argv[2];
+  CHECK(strncmp(argv[1],"C:\\Projetos\\PapinhoAccelerator\\build\\personal-target-ca-qualification-20261022\\effects\\",87U)==0);
+  CHECK(!strstr(argv[1],".."));
+  CHECK(sprintf_s(child,sizeof(child),"%s\\child",argv[1])>0);

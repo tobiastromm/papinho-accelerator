@@ -1,0 +1,26 @@
+--- tests/personal_plan_data_win32_test.c
++++ tests/personal_plan_data_win32_test.c
+@@ -68,6 +68,23 @@
+  CHECK(papacc_configuration_personal_handoff_begin(&owner_state,other,0)!=PAPACC_RESULT_OK);
+  CHECK(p->phase==PAPACC_PERSONAL_DATA_INVALID&&!p->consumed&&!owner_state.pending_commit.thread);
+  owner_state.pending_commit.personal_native.phase=0U;
++ memset(p,0,sizeof(*p));
++ CHECK(papacc_configuration_personal_data_capture(&owner_state,nonce,plan,sizeof(plan))==0);
++ CHECK(papacc_personal_data_present(p)&&papacc_personal_data_confirm(p,nonce,plan,sizeof(plan)));
++ owner_state.pending_commit.personal_native.phase=1U;
++ CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK); /* no factual parent */
++ CHECK(!p->consumed&&!owner_state.pending_commit.active&&!owner_state.pending_commit.thread);
++ owner_state.pending_commit.personal_native.handoff_state=PAPACC_PERSONAL_HANDOFF_VERIFIED; /* MODEL one-shot replay */
++ CHECK(papacc_configuration_personal_handoff_begin(&owner_state,nonce,0)!=PAPACC_RESULT_OK);
++ owner_state.pending_commit.personal_native.handoff_state=PAPACC_PERSONAL_HANDOFF_RETAINED;
++ owner_state.pending_commit.packet_format=12U;owner_state.pending_commit.active=1;
++ CHECK(papacc_configuration_personal_handoff_poll(&owner_state)!=PAPACC_RESULT_OK);
++ CHECK(papacc_configuration_personal_native_close(&owner_state)!=PAPACC_RESULT_OK);
++ CHECK(papacc_configuration_personal_data_retire(&owner_state)!=PAPACC_RESULT_OK);
++ CHECK(owner_state.pending_commit.active&&owner_state.pending_commit.personal_native.handoff_state==PAPACC_PERSONAL_HANDOFF_RETAINED);
++ /* Fixture-only disposal of metadata: no OS resource ever existed. */
++ owner_state.pending_commit.active=0;owner_state.pending_commit.packet_format=0;
++ owner_state.pending_commit.personal_native.handoff_state=0;owner_state.pending_commit.personal_native.phase=0U;
+  memset(p,0,sizeof(*p)); /* MODEL reset only, never a product retry. */
+  CHECK(papacc_configuration_personal_data_capture(&owner_state,nonce,plan,sizeof(plan))==0);
+  CHECK(papacc_personal_data_present(p));

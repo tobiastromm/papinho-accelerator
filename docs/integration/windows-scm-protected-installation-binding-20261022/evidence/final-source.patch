@@ -1,0 +1,814 @@
+--- apps/server/server_service_data.h
++++ apps/server/server_service_data.h
+@@ -3,7 +3,7 @@
+ /* Private C89 DATA. No OS identity/authorization or resource release. */
+ enum { PS_INSTALL=1,PS_START,PS_STOP,PS_STATUS,PS_AUTOMATIC,PS_MANUAL,PS_REMOVE };
+ enum { PS_EMPTY=0,PS_START_PENDING,PS_RUNNING,PS_STOP_PENDING,PS_RETAINED,PS_STOPPED };
+-typedef struct PS_REQUEST { unsigned action; char account[128]; } PS_REQUEST;
++typedef struct PS_REQUEST { unsigned action,prepare_lab; char account[128],installation[260],configuration[65]; } PS_REQUEST;
+ typedef struct PS_LIFETIME { unsigned phase,stop,terminal; } PS_LIFETIME;
+ /* -1 not this CLI, 0 malformed, 1 complete. No borrowed argv retained. */
+ int ps_parse(int,const char *const *,PS_REQUEST *);
+@@ -14,4 +14,16 @@
+ int ps_finish(PS_LIFETIME *,int quiescent,int retained);
+ /* Observed state is DATA, not authority. Install only absent; remove stopped. */
+ int ps_action_allowed(unsigned action,int exists,unsigned observed);
++/* Exact immutable read-only LAB receipt, never SCM effect authorization.
++ * Callers zero-initialize facts; native producers own all references. */
++typedef struct PS_BINDING_FACTS {
++ unsigned long installation[3],configuration[3],executable[3],token[6];
++ unsigned char attempt[32],operator_id[32],config_hash[32],image_hash[32];
++ unsigned char parent_acl[32],config_acl[32],image_acl[32];
++ unsigned configuration_bytes;
++} PS_BINDING_FACTS;
++typedef struct PS_LAB_BINDING { unsigned phase;PS_BINDING_FACTS facts; } PS_LAB_BINDING;
++int ps_lab_binding_capture(PS_LAB_BINDING *,const PS_BINDING_FACTS *);
++int ps_lab_binding_complete(PS_LAB_BINDING *,const PS_BINDING_FACTS *,int stopped);
++void ps_lab_binding_invalidate(PS_LAB_BINDING *);
+ #endif
+--- apps/server/server_service_data.c
++++ apps/server/server_service_data.c
+@@ -2,14 +2,21 @@
+ #include <string.h>
+ int ps_parse(int argc,const char *const *argv,PS_REQUEST *out)
+ {
+- int i;const char *c;
++ int i;const char *c;size_t n;
+  if(!out)return 0;memset(out,0,sizeof(*out));
+  if(argc<2||!argv||!argv[1]||strcmp(argv[1],"service"))return -1;
+  for(i=0;i<argc;i++)if(!argv[i])return 0;
+  if(argc<3)return 0;c=argv[2];
+  if(!strcmp(c,"host"))return -1;
+  if(!strcmp(c,"install")){
+-  if(argc!=3)return 0;
++  if(argc!=3){
++   if(argc!=8||strcmp(argv[3],"--prepare-lab")||strcmp(argv[4],"--installation")||strcmp(argv[6],"--configuration"))return 0;
++   n=strlen(argv[5]);if(!n||n>=sizeof(out->installation))return 0;memcpy(out->installation,argv[5],n+1);
++   n=strlen(argv[7]);if(!n||n>=sizeof(out->configuration)||!strcmp(argv[7],".")||!strcmp(argv[7],".."))return 0;
++   for(i=0;i<(int)n;i++)if(!((argv[7][i]>='a'&&argv[7][i]<='z')||(argv[7][i]>='A'&&argv[7][i]<='Z')||
++    (argv[7][i]>='0'&&argv[7][i]<='9')||argv[7][i]=='_'||argv[7][i]=='-'||argv[7][i]=='.'))return 0;
++   memcpy(out->configuration,argv[7],n+1);out->prepare_lab=1;
++  }
+   memcpy(out->account,"NT SERVICE\\PapinhoAccelerator",sizeof("NT SERVICE\\PapinhoAccelerator"));out->action=PS_INSTALL;return 1;
+  }
+  if(!strcmp(c,"startup")){
+@@ -51,3 +58,21 @@
+  if(a==PS_REMOVE)return state==PS_STOPPED;
+  return (a==PS_AUTOMATIC||a==PS_MANUAL)&&(state==PS_STOPPED||state==PS_RUNNING);
+ }
++
++static int ps_nonzero(const unsigned char *p,unsigned n)
++{unsigned i;unsigned char v=0;for(i=0;i<n;i++)v=(unsigned char)(v|p[i]);return v!=0;}
++int ps_lab_binding_capture(PS_LAB_BINDING *b,const PS_BINDING_FACTS *f)
++{
++ if(!b||!f||b->phase||!f->configuration_bytes||f->configuration_bytes>8192U||
++ !(f->installation[1]|f->installation[2])||!(f->configuration[1]|f->configuration[2])||!(f->executable[1]|f->executable[2])||
++ !ps_nonzero(f->attempt,32)||!ps_nonzero(f->operator_id,32)||!ps_nonzero(f->config_hash,32)||!ps_nonzero(f->image_hash,32)||
++ !ps_nonzero(f->parent_acl,32)||!ps_nonzero(f->config_acl,32)||!ps_nonzero(f->image_acl,32))return 0;
++ b->facts=*f;b->phase=1U;return 1;
++}
++int ps_lab_binding_complete(PS_LAB_BINDING *b,const PS_BINDING_FACTS *f,int stopped)
++{
++ if(!b||!f||b->phase!=1U)return 0;
++ if(stopped||memcmp(&b->facts,f,sizeof(*f))){b->phase=3U;return 0;}
++ b->phase=2U;return 1; /* read-only preparation consumed, not effect authority */
++}
++void ps_lab_binding_invalidate(PS_LAB_BINDING *b){if(b)b->phase=3U;}
+--- apps/server/server_service_win32.h
++++ apps/server/server_service_win32.h
+@@ -1,8 +1,25 @@
+ #ifndef PAPACC_SERVER_SERVICE_WIN32_H
+ #define PAPACC_SERVER_SERVICE_WIN32_H
+ #include <stdio.h>
++#ifndef WIN32_LEAN_AND_MEAN
++#define WIN32_LEAN_AND_MEAN
++#endif
++#include <windows.h>
+ /* Native private bridge only. No tokens or curve/provider types in DATA core. */
+-int papacc_server_service_cli(int,const char *const *,FILE *,FILE *);
++/* Borrow valid only during synchronous callback, held by SAME SCM owner. */
++typedef struct PAPACC_SERVICE_IMAGE_VIEW {
++ HANDLE handle;BY_HANDLE_FILE_INFORMATION identity;const wchar_t *path;
++ const unsigned char *sha256;DWORD owner_thread;
++} PAPACC_SERVICE_IMAGE_VIEW;
++typedef int (*PAPACC_SERVICE_PREPARE)(const char *,const char *,const PAPACC_SERVICE_IMAGE_VIEW *,FILE *,FILE *);
++int papacc_server_service_cli(int,const char *const *,FILE *,FILE *,PAPACC_SERVICE_PREPARE);
++/* Called only by the shared runtime at factual initialization/teardown points.
++ * These receipts never authorize a listener or lift operational admission. */
++int papacc_server_service_host_active(void);
++int papacc_server_service_runtime_ready(void);
++int papacc_server_service_runtime_stopping(void);
++void papacc_server_service_runtime_closed(void);
++void papacc_server_service_runtime_retained(void);
+ /* Exact internal entry: service host, no fallback to a console launch. */
+ int papacc_server_service_dispatch(int,char **,int (*)(int,char **));
+ size_t papacc_server_service_storage_bytes(void);
+--- apps/server/server_service_win32.c
++++ apps/server/server_service_win32.c
+@@ -9,6 +9,7 @@
+ /* One private CLI invocation, never overlaps runtime via canonical main. */
+ typedef struct PS_NATIVE {
+  SC_HANDLE manager,service;DWORD thread,error;unsigned retained;
++ PAPACC_SERVER_CONSOLE_WIN32 console;
+  HANDLE image;BY_HANDLE_FILE_INFORMATION image_id;unsigned image_ready;
+  wchar_t image_path[1024],command[1050];unsigned char image_sha256[32];
+  unsigned install_effect,install_disposition,readback;DWORD sid_size;SID_NAME_USE sid_use;
+@@ -20,7 +21,7 @@
+ static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+ typedef struct PS_HOST {
+  SERVICE_STATUS_HANDLE handle;SERVICE_STATUS status;PS_LIFETIME life;
+- volatile LONG stop;int argc;char **argv;int (*run)(int,char **);int result;
++ volatile LONG stop;DWORD thread;unsigned run_active,terminal_receipt;int argc;char **argv;int (*run)(int,char **);int result;
+ } PS_HOST;
+ static PS_HOST host;
+ size_t papacc_server_service_storage_bytes(void){return sizeof(native)+sizeof(host);}
+@@ -35,6 +36,7 @@
+  if(native.service){if(!CloseServiceHandle(native.service)){e=ps_last_error();native.retained=1U;return e;}native.service=NULL;}
+  if(native.manager){if(!CloseServiceHandle(native.manager)){e=ps_last_error();native.retained=1U;return e;}native.manager=NULL;}
+  if(native.image){if(!CloseHandle(native.image)){e=ps_last_error();native.retained=1U;return e;}native.image=NULL;native.image_ready=0U;}
++ if(native.console.is_installed&&papacc_server_console_win32_uninstall(&native.console)!=PAPACC_RESULT_OK){native.retained=1U;return ERROR_GEN_FAILURE;}
+  return ERROR_SUCCESS;
+ }
+ /* Mutations are implemented behind factual binding; none are authorized by
+@@ -56,16 +58,26 @@
+  }
+  return ERROR_INVALID_PARAMETER;
+ }
+-int papacc_server_service_cli(int argc,const char *const *argv,FILE *out,FILE *err)
+-{
+- PS_REQUEST q;SERVICE_STATUS_PROCESS s;DWORD e=0,close_error,bytes=0,rights;int parsed;
++int papacc_server_service_cli(int argc,const char *const *argv,FILE *out,FILE *err,PAPACC_SERVICE_PREPARE prepare)
++{
++ PS_REQUEST q;PAPACC_SERVICE_IMAGE_VIEW view;SERVICE_STATUS_PROCESS s;DWORD e=0,close_error,bytes=0,rights;int parsed;
+  parsed=ps_parse(argc,argv,&q);if(parsed<0)return -1;
+  if(!out||!err)return 1;
+  if(!parsed){fputs("SERVICE=INVALID_COMMAND; expected install | start | stop | status | startup automatic|manual | remove\n",err);return 1;}
+  if(InterlockedCompareExchange(&cli_active,1,0)!=0){fputs("SERVICE=BUSY_OR_RETAINED; REUSE=DENY\n",err);return 2;}
+  if(native.retained||native.manager||native.service||native.image||native.install_effect){fputs("SERVICE=RETAINED; REUSE=DENY\n",err);return 2;}
+  native.thread=GetCurrentThreadId();native.error=0;
+- if(q.action==PS_INSTALL){e=ps_image_open();if(e)goto done;}
++ if(q.action==PS_INSTALL){
++  if(papacc_server_console_win32_stop_requested()){e=ERROR_OPERATION_ABORTED;goto done;}
++  if(papacc_server_console_win32_install(&native.console)!=PAPACC_RESULT_OK){e=ERROR_INVALID_STATE;goto done;}
++  e=ps_image_open();if(e)goto done;
++ }
++ if(q.prepare_lab){
++  if(!prepare){e=ERROR_NOT_SUPPORTED;goto done;}
++  view.handle=native.image;view.identity=native.image_id;view.path=native.image_path;view.sha256=native.image_sha256;view.owner_thread=native.thread;
++  e=prepare(q.installation,q.configuration,&view,out,err)?ERROR_ACCESS_DENIED:ERROR_SUCCESS;
++  goto done;
++ }
+  if(q.action!=PS_STATUS&&!ps_binding_ready()){
+   fputs("SERVICE=DENY; INSTALLATION_CONFIG_ACL_TOKEN_BINDING=NOT_QUALIFIED; MUTATION=NOT_RUN; CA_AUTHORITY=DENY\n",err);e=ERROR_ACCESS_DENIED;goto done;
+  }
+@@ -108,10 +120,43 @@
+ {
+  memset(&host.status,0,sizeof(host.status));host.status.dwServiceType=SERVICE_WIN32_OWN_PROCESS;
+  host.status.dwCurrentState=state;host.status.dwWin32ExitCode=error;
++ if(error==ERROR_SERVICE_SPECIFIC_ERROR)host.status.dwServiceSpecificExitCode=(DWORD)host.result;
++ if(state==SERVICE_RUNNING)host.status.dwControlsAccepted=SERVICE_ACCEPT_STOP|SERVICE_ACCEPT_SHUTDOWN;
+  /* Startup is denied before runtime. No positive readiness/Stop controls
+   * advertised without the missing native owner/config/admission binding. */
+  return SetServiceStatus(host.handle,&host.status)!=0;
+ }
++int papacc_server_service_host_active(void)
++{return host.handle&&host.run_active&&host.thread==GetCurrentThreadId();}
++int papacc_server_service_runtime_ready(void)
++{
++ if(!host.handle)return 1; /* direct console runtime, no SCM requirement */
++ if(!host.run_active||host.thread!=GetCurrentThreadId()||host.terminal_receipt||host.life.phase!=PS_START_PENDING)return 0;
++ if(InterlockedCompareExchange(&host.stop,0,0)||papacc_server_console_win32_stop_requested()){
++  (void)ps_stop(&host.life);(void)ps_report(SERVICE_STOP_PENDING,ERROR_SUCCESS);return 0;
++ }
++ if(!ps_running(&host.life)||!ps_report(SERVICE_RUNNING,ERROR_SUCCESS))return 0;
++ if(InterlockedCompareExchange(&host.stop,0,0)){(void)ps_stop(&host.life);(void)ps_report(SERVICE_STOP_PENDING,ERROR_SUCCESS);return 0;}
++ return 1;
++}
++int papacc_server_service_runtime_stopping(void)
++{
++ if(!host.handle)return 1;
++ if(!host.run_active||host.thread!=GetCurrentThreadId()||host.terminal_receipt)return 0;
++ if(host.life.phase==PS_STOP_PENDING)return 1;
++ if(!ps_stop(&host.life))return 0;
++ return ps_report(SERVICE_STOP_PENDING,ERROR_SUCCESS);
++}
++void papacc_server_service_runtime_closed(void)
++{
++ if(!host.handle||!host.run_active||host.thread!=GetCurrentThreadId()||host.terminal_receipt)return;
++ if(ps_finish(&host.life,1,0))host.terminal_receipt=1U;
++}
++void papacc_server_service_runtime_retained(void)
++{
++ if(!host.handle||!host.run_active||host.thread!=GetCurrentThreadId()||host.terminal_receipt)return;
++ (void)ps_finish(&host.life,0,1);host.terminal_receipt=2U;
++}
+ static void ps_park_retained(void)
+ {
+  /* Query-only retained process containment, NOT native retry or a timeout
+@@ -121,6 +166,7 @@
+ static void WINAPI ps_main(DWORD argc,wchar_t **argv)
+ {
+  (void)argc;(void)argv;
++ host.thread=GetCurrentThreadId();
+  if(!ps_begin(&host.life)){host.result=2;return;}
+  host.handle=RegisterServiceCtrlHandlerExW(ps_name,ps_handler,NULL);
+  if(!host.handle){host.result=2;return;}
+@@ -135,7 +181,11 @@
+  /* A future factual producer must supply readiness AND final quiescence.
+   * Sharing this callback is not permission to run today. Never duplicate the
+   * server runtime or convert its integer exit code to resource destruction. */
+- host.result=host.run(host.argc,host.argv);
++ host.run_active=1U;host.result=host.run(host.argc,host.argv);host.run_active=0U;
++ if(host.terminal_receipt==1U&&host.life.phase==PS_STOPPED){
++  if(!ps_report(SERVICE_STOPPED,host.result?ERROR_SERVICE_SPECIFIC_ERROR:ERROR_SUCCESS))ps_park_retained();
++  return;
++ }
+  ps_park_retained();
+ }
+ int papacc_server_service_dispatch(int argc,char **argv,int (*run)(int,char **))
+--- apps/server/personal_native_win32.h
++++ apps/server/personal_native_win32.h
+@@ -14,6 +14,7 @@
+  TOKEN_STATISTICS token;BYTE sid[SECURITY_MAX_SID_SIZE];DWORD sid_bytes,session;
+  BY_HANDLE_FILE_INFORMATION parent,source;
+  HANDLE unexpected_thread,check_token;
++ HANDLE scm_image; /* read-only image under the held SCM LAB parent */
+  PSECURITY_DESCRIPTOR descriptor,check_descriptor;
+  LPSTR sid_text;
+  DWORD descriptor_bytes,error,close_attempts;
+--- apps/server/server_configuration_commit_win32.h
++++ apps/server/server_configuration_commit_win32.h
+@@ -219,6 +219,9 @@
+ PAPACC_RESULT papacc_configuration_personal_native_current(PAPACC_CONFIGURATION_COMMIT *);
+ PAPACC_RESULT papacc_configuration_personal_source_current(PAPACC_CONFIGURATION_COMMIT *);
+ PAPACC_RESULT papacc_configuration_personal_native_close(PAPACC_CONFIGURATION_COMMIT *);
++/* Read-only SCM preparation uses SAME parent/token/source owner, no NEW_INSTALL grant. */
++PAPACC_RESULT papacc_configuration_scm_lab_files_open(PAPACC_CONFIGURATION_COMMIT *,const wchar_t *,const char *);
++PAPACC_RESULT papacc_configuration_scm_lab_files_current(PAPACC_CONFIGURATION_COMMIT *,const BY_HANDLE_FILE_INFORMATION *);
+ /* Independent immutable-plan DATA. No operator, CSPRNG, target or authority
+  * is inferred. Owned by this root; no returned buffer borrow. */
+ PAPACC_RESULT papacc_configuration_personal_data_capture(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],const unsigned char *,PAPACC_SIZE);
+--- apps/server/server_configuration_personal_native_win32.inc
++++ apps/server/server_configuration_personal_native_win32.inc
+@@ -1,3 +1,4 @@
++#include <wchar.h>
+ #include <aclapi.h>
+ #include <sddl.h>
+ static int personal_group(WELL_KNOWN_SID_TYPE kind,int expected)
+@@ -91,6 +92,10 @@
+  if(n->phase==3U)return PAPACC_RESULT_OK;
+  /* The child must close before its protecting parent, after worker signal.
+   * This bit is disjoint from old handles and LocalFree attempt bits. */
++ if(n->scm_image){
++  if(n->close_attempts&512U)goto retained;n->close_attempts|=512U;
++  if(!CloseHandle(n->scm_image))goto retained;n->scm_image=NULL;
++ }
+  if(p->bootstrap_container){
+   if(n->close_attempts&256U)goto retained;n->close_attempts|=256U;
+ #ifdef PAPACC_BOOTSTRAP_NATIVE_COMPONENT_TEST
+@@ -181,3 +186,49 @@
+ denied:
+  InterlockedExchange(&n->handoff_state,p->result==PAPACC_CAS_UNKNOWN?PAPACC_PERSONAL_HANDOFF_RETAINED:PAPACC_PERSONAL_HANDOFF_DENIED);
+ }
++
++/* SCM LAB files are opened relative to the SAME protected parent. No creation,
++ * NEW_INSTALL confirmation, CA reference or administrative grant is inferred. */
++static int scm_leaf(const WCHAR *s)
++{
++ unsigned i;if(!s||!s[0])return 0;
++ for(i=0;s[i];i++)if(i>=64U||!((s[i]>=L'a'&&s[i]<=L'z')||(s[i]>=L'A'&&s[i]<=L'Z')||(s[i]>=L'0'&&s[i]<=L'9')||s[i]==L'.'||s[i]==L'_'||s[i]==L'-'))return 0;
++ return wcscmp(s,L".")&&wcscmp(s,L"..");
++}
++static PAPACC_RESULT scm_open_relative(PAPACC_CONFIG_PENDING *p,const WCHAR *leaf,HANDLE *handle)
++{
++ HMODULE mod;FARPROC proc;BOOTSTRAP_NT_CREATE create;UNICODE_STRING name;OBJECT_ATTRIBUTES a;IO_STATUS_BLOCK io;
++ if(!scm_leaf(leaf)||(*handle&&*handle!=INVALID_HANDLE_VALUE))return PAPACC_RESULT_INVALID_ARGUMENT;
++ mod=GetModuleHandleA("ntdll.dll");if(!mod)return PAPACC_RESULT_NOT_SUPPORTED;proc=GetProcAddress(mod,"NtCreateFile");if(!proc)return PAPACC_RESULT_NOT_SUPPORTED;memcpy(&create,&proc,sizeof(create));
++ memset(&a,0,sizeof(a));memset(&io,0,sizeof(io));name.Buffer=(WCHAR *)leaf;name.Length=(USHORT)(wcslen(leaf)*sizeof(WCHAR));name.MaximumLength=name.Length;
++ a.Length=sizeof(a);a.RootDirectory=p->bootstrap_parent;a.ObjectName=&name;a.Attributes=OBJ_CASE_INSENSITIVE|OBJ_DONT_REPARSE;
++ if(create(handle,GENERIC_READ|READ_CONTROL|SYNCHRONIZE,&a,&io,NULL,FILE_ATTRIBUTE_NORMAL,FILE_SHARE_READ,1U,0x00200060U,NULL,0U)<0)return PAPACC_RESULT_INVALID_STATE;
++ return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_configuration_scm_lab_files_open(PAPACC_CONFIGURATION_COMMIT *o,const WCHAR *image,const char *configuration)
++{
++ PAPACC_CONFIG_PENDING *p;WCHAR leaf[65];unsigned i;DWORD count;
++ if(!o||!configuration||papacc_configuration_personal_native_current(o)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
++ p=&o->pending_commit;if(p->file!=INVALID_HANDLE_VALUE||p->personal_native.scm_image)return PAPACC_RESULT_INVALID_STATE;
++ for(i=0;configuration[i];i++){if(i>=64U||(unsigned char)configuration[i]>126U)return PAPACC_RESULT_INVALID_ARGUMENT;leaf[i]=(WCHAR)(unsigned char)configuration[i];}leaf[i]=0;
++ if(scm_open_relative(p,image,&p->personal_native.scm_image)!=PAPACC_RESULT_OK||scm_open_relative(p,leaf,&p->file)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
++ if(!GetFileInformationByHandle(p->file,&p->personal_native.source)||(p->personal_native.source.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT))||
++ p->personal_native.source.nFileSizeHigh||!p->personal_native.source.nFileSizeLow||p->personal_native.source.nFileSizeLow>8192U)return PAPACC_RESULT_INVALID_STATE;
++ if(!ReadFile(p->file,p->next,8193U,&count,NULL)||count!=p->personal_native.source.nFileSizeLow)return PAPACC_RESULT_INVALID_STATE;
++ return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_configuration_scm_lab_files_current(PAPACC_CONFIGURATION_COMMIT *o,const BY_HANDLE_FILE_INFORMATION *image)
++{
++ PAPACC_CONFIG_PENDING *p;BY_HANDLE_FILE_INFORMATION f;LARGE_INTEGER zero;
++ if(!o||!image||papacc_configuration_personal_native_current(o)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
++ p=&o->pending_commit;if(!p->personal_native.scm_image||p->file==INVALID_HANDLE_VALUE)return PAPACC_RESULT_INVALID_STATE;
++ if(!GetFileInformationByHandle(p->personal_native.scm_image,&f)||f.dwVolumeSerialNumber!=image->dwVolumeSerialNumber||
++ f.nFileIndexHigh!=image->nFileIndexHigh||f.nFileIndexLow!=image->nFileIndexLow||f.nFileSizeHigh!=image->nFileSizeHigh||f.nFileSizeLow!=image->nFileSizeLow||
++ memcmp(&f.ftLastWriteTime,&image->ftLastWriteTime,sizeof(FILETIME))||(f.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return PAPACC_RESULT_INVALID_STATE;
++ if(!GetFileInformationByHandle(p->file,&f)||f.dwVolumeSerialNumber!=p->personal_native.source.dwVolumeSerialNumber||f.nFileIndexHigh!=p->personal_native.source.nFileIndexHigh||
++ f.nFileIndexLow!=p->personal_native.source.nFileIndexLow||f.nFileSizeHigh||f.nFileSizeLow!=p->personal_native.source.nFileSizeLow||
++ (f.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return PAPACC_RESULT_INVALID_STATE;
++ zero.QuadPart=0;
++ if(!SetFilePointerEx(p->file,zero,NULL,FILE_BEGIN)||pending_compare_file(p,p->next,f.nFileSizeLow)!=1)return PAPACC_RESULT_INVALID_STATE;
++ return PAPACC_RESULT_OK;
++}
+--- apps/server/server_launcher_scm_prepare_win32.inc
++++ apps/server/server_launcher_scm_prepare_win32.inc
+@@ -0,0 +1,86 @@
++#include <wchar.h>
++/* Read-only SCM LAB binding, within the EXISTING launcher root. */
++#include <aclapi.h>
++#include "server_service_win32.h"
++#include "server_service_data.h"
++#include "../../tools/qualification/storage-hash-capsule/storage_sha256.h"
++static int scm_descriptor(const void *data,const BYTE *operator_sid)
++{
++ PACL acl;PSID owner;BOOL present,def;BYTE system[SECURITY_MAX_SID_SIZE],admins[SECURITY_MAX_SID_SIZE];DWORD sn=sizeof(system),an=sizeof(admins),i;
++ const DWORD write=GENERIC_ALL|GENERIC_WRITE|DELETE|WRITE_DAC|WRITE_OWNER|FILE_WRITE_DATA|FILE_APPEND_DATA|FILE_WRITE_EA|FILE_WRITE_ATTRIBUTES|FILE_DELETE_CHILD;
++ if(!data||!IsValidSecurityDescriptor((PSECURITY_DESCRIPTOR)data)||!GetSecurityDescriptorOwner((PSECURITY_DESCRIPTOR)data,&owner,&def)||!owner||!IsValidSid(owner)||
++ !CreateWellKnownSid(WinLocalSystemSid,NULL,system,&sn)||!CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admins,&an)||
++ (!EqualSid(owner,(PSID)operator_sid)&&!EqualSid(owner,system)&&!EqualSid(owner,admins))||
++ !GetSecurityDescriptorDacl((PSECURITY_DESCRIPTOR)data,&present,&acl,&def)||!present||!acl||!IsValidAcl(acl))return 0;
++ for(i=0;i<acl->AceCount;i++){
++  ACCESS_ALLOWED_ACE *ace;PACE_HEADER header;PSID sid;
++  if(!GetAce(acl,i,(void **)&header)||header->AceSize<FIELD_OFFSET(ACCESS_ALLOWED_ACE,SidStart)+8U)return 0;
++  if(header->AceFlags&INHERIT_ONLY_ACE)continue;
++  if(header->AceType!=ACCESS_ALLOWED_ACE_TYPE&&header->AceType!=ACCESS_DENIED_ACE_TYPE)return 0;
++  ace=(ACCESS_ALLOWED_ACE *)header;sid=(PSID)&ace->SidStart;
++  if(!IsValidSid(sid)||GetLengthSid(sid)>(DWORD)(header->AceSize-FIELD_OFFSET(ACCESS_ALLOWED_ACE,SidStart)))return 0;
++  if(header->AceType==ACCESS_ALLOWED_ACE_TYPE&&(ace->Mask&write)&&!EqualSid(sid,(PSID)operator_sid)&&!EqualSid(sid,system)&&!EqualSid(sid,admins))return 0;
++ }
++ return 1;
++}
++#ifndef PAPACC_SCM_DESCRIPTOR_TEST
++static int scm_acl_hash(PAPACC_PERSONAL_NATIVE_CONTEXT *n,HANDLE file,unsigned char out[32])
++{
++ int ok;DWORD bytes;
++ if(n->check_descriptor)return 0;
++ if(GetSecurityInfo(file,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->check_descriptor)!=ERROR_SUCCESS)return 0;
++ ok=scm_descriptor(n->check_descriptor,n->sid);bytes=GetSecurityDescriptorLength(n->check_descriptor);
++ if(ok)ok=pacc_storage_hash_callback(NULL,(const unsigned char *)n->check_descriptor,bytes,out);
++ if(LocalFree(n->check_descriptor)){n->phase=2U;return 0;}n->check_descriptor=NULL;return ok;
++}
++static void scm_id(unsigned long id[3],const BY_HANDLE_FILE_INFORMATION *f)
++{id[0]=f->dwVolumeSerialNumber;id[1]=f->nFileIndexHigh;id[2]=f->nFileIndexLow;}
++int papacc_server_launcher_scm_prepare(const char *installation,const char *configuration,const PAPACC_SERVICE_IMAGE_VIEW *image,FILE *out,FILE *err)
++{
++ PAPACC_CONFIGURATION_COMMIT *c;PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;
++ PC_DOCUMENT document;PC_DIAGNOSTIC diagnostic;PC_TARGET target={1U,0};
++ PS_LAB_BINDING binding;PS_BINDING_FACTS facts;const WCHAR *leaf;int prepared=0,clean=1;unsigned i;
++ const char *stage="ENTRY";
++ if(!installation||!configuration||!image||!image->handle||!image->path||!image->sha256||!out||!err||image->owner_thread!=GetCurrentThreadId())return 2;
++ if(InterlockedCompareExchange(&state,PAPACC_LAUNCHER_ACTIVE,0)!=0)return 2;
++ if(next_invocation==(PAPACC_U64)-1){InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return 2;}
++ memset(&root,0,sizeof(root));root.invocation=++next_invocation;root.owner_thread=GetCurrentThreadId();c=&root.configuration_commit;p=&c->pending_commit;n=&p->personal_native;
++ c->writer=root.owner_thread;p->file=INVALID_HANDLE_VALUE;memset(&binding,0,sizeof(binding));memset(&facts,0,sizeof(facts));
++ root.reserved_bytes=PAPACC_C8_KNOWN_MANAGED_BYTES+sizeof(document)+sizeof(diagnostic)+sizeof(binding)+sizeof(facts)+papacc_server_service_storage_bytes()+sizeof(LONG)+4096U;
++ stage="CAPACITY";if(root.reserved_bytes>PAPACC_LAUNCHER_MANAGED_LIMIT)goto done;
++ stage="NATIVE_OPERATOR_PARENT";if(papacc_configuration_personal_native_open(c,installation)!=PAPACC_RESULT_OK){stage=p->bootstrap_token?"PARENT_OR_REVALIDATION":"OPERATOR_ELIGIBILITY_OR_CAPTURE";goto done;}
++ stage="PARENT_ACL";if(!scm_descriptor(n->descriptor,n->sid))goto done;
++ leaf=wcsrchr(image->path,(WCHAR)92);if(!leaf||!leaf[1])goto done;leaf++;
++ stage="RELATIVE_FILES";if(papacc_configuration_scm_lab_files_open(c,leaf,configuration)!=PAPACC_RESULT_OK)goto done;
++ stage="FILE_IDENTITY_BYTES";if(papacc_configuration_scm_lab_files_current(c,&image->identity)!=PAPACC_RESULT_OK)goto done;
++ stage="CONFIGURATION_DATA";if(pc_parse(p->next,n->source.nFileSizeLow,&document,&diagnostic)!=PC_OK||pc_validate(&document,&target,&diagnostic)!=PC_OK)goto done;
++ stage="ACL_IDENTITY";if(!scm_acl_hash(n,p->file,facts.config_acl)||!scm_acl_hash(n,n->scm_image,facts.image_acl)||
++ !pacc_storage_hash_callback(NULL,(const unsigned char *)n->descriptor,n->descriptor_bytes,facts.parent_acl))goto done;
++ scm_id(facts.installation,&n->parent);scm_id(facts.configuration,&n->source);scm_id(facts.executable,&image->identity);
++ facts.configuration_bytes=n->source.nFileSizeLow;memcpy(facts.image_hash,image->sha256,32);
++ if(!pacc_storage_hash_callback(NULL,p->next,facts.configuration_bytes,facts.config_hash)||!pacc_storage_hash_callback(NULL,n->sid,n->sid_bytes,facts.operator_id))goto done;
++ facts.token[0]=n->token.TokenId.LowPart;facts.token[1]=(unsigned long)n->token.TokenId.HighPart;
++ facts.token[2]=n->token.AuthenticationId.LowPart;facts.token[3]=(unsigned long)n->token.AuthenticationId.HighPart;
++ facts.token[4]=n->token.ModifiedId.LowPart;facts.token[5]=(unsigned long)n->token.ModifiedId.HighPart;
++ stage="ATTEMPT";if(BCryptGenRandom(NULL,facts.attempt,32U,BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0||!ps_lab_binding_capture(&binding,&facts))goto done;
++ stage="REVALIDATION";if(papacc_configuration_scm_lab_files_current(c,&image->identity)!=PAPACC_RESULT_OK||
++ !scm_acl_hash(n,p->file,facts.config_acl)||!scm_acl_hash(n,n->scm_image,facts.image_acl)||
++ !ps_lab_binding_complete(&binding,&facts,papacc_server_console_win32_stop_requested()))goto done;
++ prepared=1;
++ fprintf(out,"SCM_LAB_PREPARE=BOUND_READ_ONLY; OPERATOR=%s; INSTALLATION=%lu:%lu:%lu; CONFIGURATION=%lu:%lu:%lu; BYTES=%u; ATTEMPT=",
++ n->sid_text,facts.installation[0],facts.installation[1],facts.installation[2],facts.configuration[0],facts.configuration[1],facts.configuration[2],facts.configuration_bytes);
++ for(i=0;i<32;i++)fprintf(out,"%02x",facts.attempt[i]);
++ fprintf(out,"; SERVICE=PapinhoAccelerator; ACCOUNT=NT SERVICE%cPapinhoAccelerator; IMAGE=%lu:%lu:%lu; IMAGE_SHA256=",92,facts.executable[0],facts.executable[1],facts.executable[2]);
++ for(i=0;i<32;i++)fprintf(out,"%02x",facts.image_hash[i]);
++ fputs("; CONFIGURATION_SHA256=",out);for(i=0;i<32;i++)fprintf(out,"%02x",facts.config_hash[i]);
++ fputs("; AUTHORIZATION=NOT_ACQUIRED; CREATE_SERVICE=DENY; SCOPE=LAB_ONLY\n",out);
++ done:
++ ps_lab_binding_invalidate(&binding);
++ if(papacc_configuration_personal_native_close(c)!=PAPACC_RESULT_OK)clean=0;
++ if(clean){SecureZeroMemory(p->next,sizeof(p->next));SecureZeroMemory(p->observed,sizeof(p->observed));InterlockedExchange(&state,PAPACC_LAUNCHER_FINISHED);}
++ else InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);
++ fprintf(err,"SCM_LAB_BINDING=%s; STAGE=%s; RESOURCES=%s; NO_SCM_EFFECT; CA_CURRENT_AUTHORITY=DENY\n",prepared?"PREPARED_NOT_AUTHORIZED":"DENY",stage,clean?"CLOSED":"RETAINED_UNKNOWN");
++ return prepared&&clean?0:2;
++}
++
++#endif
+--- apps/server/server_launcher_owner_win32.c
++++ apps/server/server_launcher_owner_win32.c
+@@ -1005,4 +1005,7 @@
+ 
+ #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ #include "server_launcher_personal_win32.inc"
+-#endif
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++#include "server_launcher_scm_prepare_win32.inc"
++#endif
++#endif
+--- apps/server/server_launcher_owner_win32.h
++++ apps/server/server_launcher_owner_win32.h
+@@ -461,4 +461,8 @@
+ #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ int papacc_server_launcher_personal_first_install(const char *,const char *,const char *,FILE *);
+ #endif
+-#endif
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++#include "server_service_win32.h"
++int papacc_server_launcher_scm_prepare(const char *,const char *,const PAPACC_SERVICE_IMAGE_VIEW *,FILE *,FILE *);
++#endif
++#endif
+--- apps/server/main.c.api3.inc
++++ apps/server/main.c.api3.inc
+@@ -5,6 +5,7 @@
+ #include "server_cli.h"
+ #ifdef PAPACC_ENABLE_SERVICE_CLI
+ #include "server_service_win32.h"
++#include "server_launcher_owner_win32.h"
+ #endif
+ #if defined(PAPACC_ENABLE_CONFIG_ADMIN_CLI)
+ #include "server_config_cli.h"
+@@ -69,6 +70,7 @@
+ #ifdef PAPACC_ENABLE_SERVICE_CLI
+     puts("  papacc_server.exe service install|start|stop|status|remove");
+     puts("  papacc_server.exe service startup automatic|manual");
++    puts("  papacc_server.exe service install --prepare-lab --installation <directory> --configuration <relative-file>");
+     puts("  Service hosting is optional; install uses a virtual account, no password.");
+     puts("  Service mutations remain denied until installation and admission are qualified.");
+ #endif
+@@ -109,79 +111,49 @@
+     }
+ }
+ 
+-/* Takes ownership of CLI storage; Server Network retains no config views. */
+-static int papacc_server_run(
+-    const PAPACC_SERVER_CONFIG *config,
+-    PAPACC_NETWORK_INTERFACE_PERSISTENT_ID *cli_id_storage,
+-    PAPACC_LOG_LEVEL log_level)
+-{
+-    static PAPACC_SERVER_CONSOLE_WIN32 console =
+-        PAPACC_SERVER_CONSOLE_WIN32_INITIALIZER;
+-    static PAPACC_SERVER_NETWORK network = PAPACC_SERVER_NETWORK_INITIALIZER;
+-    PAPACC_RESULT result;
+-    PAPACC_RESULT uninstall_result;
+-    static PAPACC_LOGGER logger;
+-    static PAPACC_SERVER_CONFIG owned_config;
+-
+-    owned_config=*config;config=&owned_config;
+-    if (papacc_logger_init(&logger, papacc_server_console_log_sink, stderr,
+-                           log_level) != PAPACC_RESULT_OK) {
+-        free(cli_id_storage);
+-        return 1;
+-    }
+-
+-    result = papacc_server_console_win32_install(&console);
+-    if (result != PAPACC_RESULT_OK) {
+-        fprintf(stderr, "Console control failed: %s\n",
+-                papacc_server_result_name(result));
+-        free(cli_id_storage);
+-        return 1;
+-    }
+-    /* Candidate consolidation has no approved operational admission gate.
+-     * No listener/native acquisition before factual root and ED11 approval. */
+-    result = papacc_application_require_operational_admission();
+-    if(result==PAPACC_RESULT_OK)
+-        result = papacc_server_network_start(&network, config);
+-    if (result != PAPACC_RESULT_OK) {
+-        free(cli_id_storage);
+-        fprintf(stderr, "Server startup failed: %s\n",
+-                papacc_server_result_name(result));
+-        papacc_server_network_shutdown(&network);
+-        (void)papacc_server_console_win32_uninstall(&console);
+-        return 1;
+-    }
+-
+-    result=papacc_application_parent_register(&network,config,&logger);
+-    if(result!=PAPACC_RESULT_OK){
+-        papacc_server_network_shutdown(&network);
+-        (void)papacc_server_console_win32_uninstall(&console);
+-        free(cli_id_storage);return 1;
+-    }
+-    result = papacc_server_run_win32(&network, config, stdout, stderr, &logger);
+-    if(papacc_application_lifetime_state()==PAPACC_APPLICATION_RETAINED)
+-        return 1; /* Static parents and owned CLI ID view stay intact. */
+-    if(papacc_application_logger_seal()!=PAPACC_RESULT_OK){
+-        (void)papacc_application_parent_retain();return 1;
+-    }
+-
+-    puts("Stopping PapinhoAccelerator Server...");
+-#if defined(PAPACC_ENABLE_CANONICAL_API3_CANDIDATE)
+-    if(papacc_server_network_try_shutdown(&network)!=PAPACC_RESULT_OK){
+-        (void)papacc_application_parent_retain();return 1;
+-    }
++/* Same runtime in both hosts. Receipts are emitted after factual points,
++ * never inferred from the final integer exit or elapsed time. */
++static void papacc_runtime_receipt(int clean)
++{
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++ if(clean)papacc_server_service_runtime_closed();else papacc_server_service_runtime_retained();
+ #else
+-    papacc_server_network_shutdown(&network);
+-#endif
+-    uninstall_result = papacc_server_console_win32_uninstall(&console);
+-    if (uninstall_result != PAPACC_RESULT_OK) {
+-        fprintf(stderr, "Console cleanup failed: %s\n",
+-                papacc_server_result_name(uninstall_result));
+-        return 1;
+-    }
+-    free(cli_id_storage);owned_config.bind_selection.interface_persistent_ids=NULL;
+-    owned_config.bind_selection.interface_persistent_id_count=0U;
+-    puts("Server stopped.");
+-    return result == PAPACC_RESULT_OK ? 0 : 1;
++ (void)clean;
++#endif
++}
++static int papacc_server_run(const PAPACC_SERVER_CONFIG *config,PAPACC_NETWORK_INTERFACE_PERSISTENT_ID *cli_id_storage,PAPACC_LOG_LEVEL log_level)
++{
++ static PAPACC_SERVER_CONSOLE_WIN32 console=PAPACC_SERVER_CONSOLE_WIN32_INITIALIZER;
++ static PAPACC_SERVER_NETWORK network=PAPACC_SERVER_NETWORK_INITIALIZER;
++ static PAPACC_LOGGER logger;static PAPACC_SERVER_CONFIG owned_config;PAPACC_RESULT result;
++ owned_config=*config;config=&owned_config;
++ if(papacc_logger_init(&logger,papacc_server_console_log_sink,stderr,log_level)!=PAPACC_RESULT_OK){free(cli_id_storage);papacc_runtime_receipt(1);return 1;}
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++ if(papacc_server_service_host_active())result=PAPACC_RESULT_OK;
++ else
++#endif
++ result=papacc_server_console_win32_install(&console);
++ if(result!=PAPACC_RESULT_OK){free(cli_id_storage);papacc_runtime_receipt(1);return 1;}
++ /* Admission remains closed. A ready host never grants listener authority. */
++ result=papacc_application_require_operational_admission();
++ if(result==PAPACC_RESULT_OK)result=papacc_server_network_start(&network,config);
++ if(result!=PAPACC_RESULT_OK){
++  fprintf(stderr,"Server startup failed: %s\n",papacc_server_result_name(result));
++  if(papacc_server_network_try_shutdown(&network)!=PAPACC_RESULT_OK||papacc_server_console_win32_uninstall(&console)!=PAPACC_RESULT_OK){papacc_runtime_receipt(0);return 1;}
++  free(cli_id_storage);papacc_runtime_receipt(1);return 1;
++ }
++ result=papacc_application_parent_register(&network,config,&logger);
++ if(result!=PAPACC_RESULT_OK){
++  if(papacc_server_network_try_shutdown(&network)!=PAPACC_RESULT_OK||papacc_server_console_win32_uninstall(&console)!=PAPACC_RESULT_OK){papacc_runtime_receipt(0);return 1;}
++  free(cli_id_storage);papacc_runtime_receipt(1);return 1;
++ }
++ result=papacc_server_run_win32(&network,config,stdout,stderr,&logger);
++ if(papacc_application_lifetime_state()==PAPACC_APPLICATION_RETAINED){papacc_runtime_receipt(0);return 1;}
++ if(papacc_application_logger_seal()!=PAPACC_RESULT_OK){(void)papacc_application_parent_retain();papacc_runtime_receipt(0);return 1;}
++ if(papacc_server_network_try_shutdown(&network)!=PAPACC_RESULT_OK){(void)papacc_application_parent_retain();papacc_runtime_receipt(0);return 1;}
++ if(papacc_server_console_win32_uninstall(&console)!=PAPACC_RESULT_OK){(void)papacc_application_parent_retain();papacc_runtime_receipt(0);return 1;}
++ free(cli_id_storage);owned_config.bind_selection.interface_persistent_ids=NULL;owned_config.bind_selection.interface_persistent_id_count=0U;
++ papacc_runtime_receipt(1);return result==PAPACC_RESULT_OK?0:1;
+ }
+ 
+ #ifdef PAPACC_ENABLE_SERVICE_CLI
+@@ -251,7 +223,12 @@
+ #ifdef PAPACC_ENABLE_SERVICE_CLI
+ int main(int argc,char **argv)
+ {
+- int s=papacc_server_service_cli(argc,(const char *const *)argv,stdout,stderr);
++ int s;
++#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ENABLE_PST_OUTBOUND_TLS)
++ s=papacc_server_service_cli(argc,(const char *const *)argv,stdout,stderr,papacc_server_launcher_scm_prepare);
++#else
++ s=papacc_server_service_cli(argc,(const char *const *)argv,stdout,stderr,NULL);
++#endif
+  if(s>=0)return s;
+  s=papacc_server_service_dispatch(argc,argv,papacc_server_entry);
+  if(s>=0)return s;
+--- tests/service_scm_native_test.c
++++ tests/service_scm_native_test.c
+@@ -7,12 +7,12 @@
+  const char *v[5]={"p","service","install","--account",".\\UnqualifiedModelAccount"};
+  const char *actions[]={"start","stop","remove"};unsigned i;FILE *o=tmpfile(),*e=tmpfile();
+  if(!o||!e)return 1;
+- T(papacc_server_service_cli(5,v,o,e)==1);
+- T(papacc_server_service_cli(3,v,o,e)==2);
+- for(i=0;i<3;i++){v[2]=actions[i];T(papacc_server_service_cli(3,v,o,e)==2);}
+- v[2]="startup";v[3]="automatic";T(papacc_server_service_cli(4,v,o,e)==2);
+- v[3]="manual";T(papacc_server_service_cli(4,v,o,e)==2);
+- v[2]="unknown";T(papacc_server_service_cli(3,v,o,e)==1);
++ T(papacc_server_service_cli(5,v,o,e,NULL)==1);
++ T(papacc_server_service_cli(3,v,o,e,NULL)==2);
++ for(i=0;i<3;i++){v[2]=actions[i];T(papacc_server_service_cli(3,v,o,e,NULL)==2);}
++ v[2]="startup";v[3]="automatic";T(papacc_server_service_cli(4,v,o,e,NULL)==2);
++ v[3]="manual";T(papacc_server_service_cli(4,v,o,e,NULL)==2);
++ v[2]="unknown";T(papacc_server_service_cli(3,v,o,e,NULL)==1);
+  T(papacc_server_service_storage_bytes()>0U);
+  T(fclose(o)==0);T(fclose(e)==0);
+  puts("Native fixed binding gate denies all mutations before SCM acquisition PASS");return 0;
+--- tests/service_scm_query_model_test.c
++++ tests/service_scm_query_model_test.c
+@@ -21,7 +21,7 @@
+  return (SERVICE_STATUS_HANDLE)(ULONG_PTR)3;}
+ static BOOL WINAPI model_report(SERVICE_STATUS_HANDLE handle,LPSERVICE_STATUS status)
+ {
+- (void)handle;if(status_calls>=8||status->dwControlsAccepted){SetLastError(ERROR_INVALID_DATA);return FALSE;}
++ (void)handle;if(status_calls>=8||(status->dwCurrentState==SERVICE_RUNNING?status->dwControlsAccepted!=(SERVICE_ACCEPT_STOP|SERVICE_ACCEPT_SHUTDOWN):status->dwControlsAccepted!=0)){SetLastError(ERROR_INVALID_DATA);return FALSE;}
+  observed_states[status_calls++]=status->dwCurrentState;
+  if(host_mode==2||(host_mode==3&&status->dwCurrentState==SERVICE_STOPPED)){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}
+  return TRUE;
+@@ -41,16 +41,16 @@
+ {
+  const char *v[]={"p","service","status"};FILE *o=tmpfile(),*e=tmpfile();unsigned n;
+  if(!o||!e)return 1;
+- T(papacc_server_service_cli(3,v,o,e)==0);T(opens==1&&closes==2);
+- mode=1;T(papacc_server_service_cli(3,v,o,e)==0);T(closes==3);
+- mode=2;T(papacc_server_service_cli(3,v,o,e)==2);T(closes==4);
+- mode=3;T(papacc_server_service_cli(3,v,o,e)==2);T(closes==6);
+- mode=4;T(papacc_server_service_cli(3,v,o,e)==2);T(native.retained&&native.service&&native.manager);
+- n=closes;T(papacc_server_service_cli(3,v,o,e)==2);T(closes==n);
++ T(papacc_server_service_cli(3,v,o,e,NULL)==0);T(opens==1&&closes==2);
++ mode=1;T(papacc_server_service_cli(3,v,o,e,NULL)==0);T(closes==3);
++ mode=2;T(papacc_server_service_cli(3,v,o,e,NULL)==2);T(closes==4);
++ mode=3;T(papacc_server_service_cli(3,v,o,e,NULL)==2);T(closes==6);
++ mode=4;T(papacc_server_service_cli(3,v,o,e,NULL)==2);T(native.retained&&native.service&&native.manager);
++ n=closes;T(papacc_server_service_cli(3,v,o,e,NULL)==2);T(closes==n);
+  /* New isolated MODEL owner after previous simulated process containment. */
+  ZeroMemory(&native,sizeof(native));InterlockedExchange(&cli_active,0);mode=5;
+- T(papacc_server_service_cli(3,v,o,e)==2);T(!native.service&&native.manager&&native.retained);
+- n=closes;T(papacc_server_service_cli(3,v,o,e)==2);T(closes==n);
++ T(papacc_server_service_cli(3,v,o,e,NULL)==2);T(!native.service&&native.manager&&native.retained);
++ n=closes;T(papacc_server_service_cli(3,v,o,e,NULL)==2);T(closes==n);
+  /* Independent simulated ServiceMain instances; all handles/reporting are
+   * model-only and model Sleep records retention rather than actually waiting. */
+  ZeroMemory(&host,sizeof(host));host.run=model_runtime;host_mode=0;ps_main(0,NULL);
+@@ -63,11 +63,31 @@
+  T(status_calls==1&&host.life.phase==PS_RETAINED&&park_calls==1&&runtime_calls==0);
+  ZeroMemory(&host,sizeof(host));status_calls=0;host_mode=3;ps_main(0,NULL);
+  T(status_calls==2&&host.life.phase==PS_RETAINED&&park_calls==2&&runtime_calls==0);
++ /* Ready receipt MODEL before any real Stop has been requested. */
++ ZeroMemory(&host,sizeof(host));host.handle=(SERVICE_STATUS_HANDLE)(ULONG_PTR)3;host.thread=GetCurrentThreadId();host.run_active=1;host_mode=0;status_calls=0;T(ps_begin(&host.life));
++ T(papacc_server_service_host_active());T(papacc_server_service_runtime_ready());T(host.life.phase==PS_RUNNING&&status_calls==1&&observed_states[0]==SERVICE_RUNNING);
++ T(!papacc_server_service_runtime_ready());T(papacc_server_service_runtime_stopping());T(host.life.phase==PS_STOP_PENDING&&status_calls==2);papacc_server_service_runtime_closed();T(host.life.phase==PS_STOPPED&&host.terminal_receipt==1&&status_calls==2);
++ ZeroMemory(&host,sizeof(host));host.handle=(SERVICE_STATUS_HANDLE)(ULONG_PTR)3;host.thread=GetCurrentThreadId()+1;host.run_active=1;T(ps_begin(&host.life));
++ T(!papacc_server_service_host_active()&&!papacc_server_service_runtime_ready());papacc_server_service_runtime_closed();T(!host.terminal_receipt);
+  n=closes;T(ps_handler(SERVICE_CONTROL_INTERROGATE,0,NULL,NULL)==NO_ERROR);
+  T(ps_handler(999,0,NULL,NULL)==ERROR_CALL_NOT_IMPLEMENTED);
+  T(ps_handler(SERVICE_CONTROL_STOP,0,NULL,NULL)==NO_ERROR);
+  T(InterlockedCompareExchange(&host.stop,0,0)==1&&papacc_server_console_win32_stop_requested()==PAPACC_TRUE);
+  T(ps_handler(SERVICE_CONTROL_SHUTDOWN,0,NULL,NULL)==NO_ERROR);T(closes==n&&runtime_calls==0);
++ /* Runtime producer receipt MODEL: missing/wrong thread, Stop before ready,
++  * ready state, retained teardown and no fabricated STOPPED. */
++ ZeroMemory(&host,sizeof(host));T(papacc_server_service_runtime_ready());
++ host.handle=(SERVICE_STATUS_HANDLE)(ULONG_PTR)3;host.thread=GetCurrentThreadId();T(ps_begin(&host.life));
++ T(!papacc_server_service_runtime_ready());host.run_active=1;host_mode=0;status_calls=0;
++ /* Existing Stop bridge from previous handler tests is monotonic; test only
++  * Stop-before-ready here, without clearing a factual live Stop. */
++ T(!papacc_server_service_runtime_ready());T(host.life.phase==PS_STOP_PENDING);
++ T(status_calls==1&&observed_states[0]==SERVICE_STOP_PENDING);
++ papacc_server_service_runtime_closed();T(host.terminal_receipt==1&&host.life.phase==PS_STOPPED);
++ papacc_server_service_runtime_retained();T(host.terminal_receipt==1); /* terminal cannot be overwritten */
++ ZeroMemory(&host,sizeof(host));host.handle=(SERVICE_STATUS_HANDLE)(ULONG_PTR)3;host.thread=GetCurrentThreadId();host.run_active=1;T(ps_begin(&host.life));
++ papacc_server_service_runtime_retained();T(host.terminal_receipt==2&&host.life.phase==PS_RETAINED);
++ papacc_server_service_runtime_closed();T(host.terminal_receipt==2&&host.life.phase==PS_RETAINED);
+  T(fclose(o)==0);T(fclose(e)==0);
+  puts("Modeled SCM observations/access-denied/partial close/retention/no retry/ServiceMain/control bridge PASS");return 0;
+ }
+--- tests/service_scm_virtual_model_test.c
++++ tests/service_scm_virtual_model_test.c
+@@ -113,12 +113,12 @@
+  T(native.readback&&native.install_disposition==4&&native.service&&native.image);
+  T(ps_install_virtual()==ERROR_INVALID_STATE&&creates==1);T(ps_close()==0&&closes==3&&!native.service&&!native.manager&&!native.image);
+  T(native.install_effect&&native.install_disposition==4);InterlockedExchange(&cli_active,0);
+- T(papacc_server_service_cli(3,v,o,err)==2&&creates==1); /* consumed, no retry even after factual closes */
++ T(papacc_server_service_cli(3,v,o,err,NULL)==2&&creates==1); /* consumed, no retry even after factual closes */
+  for(m=1;m<=18;m++){
+   reset_model(m);e=ps_install_virtual();
+   if(m==17){T(e==0&&native.readback&&native.install_disposition==4);T(ps_close()==0);continue;}
+   if(m==16){T(e==0);T(ps_close()!=0&&native.retained&&native.service&&native.manager&&native.image);n=closes;
+-   InterlockedExchange(&cli_active,0);T(papacc_server_service_cli(3,v,o,err)==2&&closes==n);continue;}
++   InterlockedExchange(&cli_active,0);T(papacc_server_service_cli(3,v,o,err,NULL)==2&&closes==n);continue;}
+   T(e!=0&&!violations);
+   if(m==13||m==14){T(creates==0&&!native.install_effect);}
+   else {T(creates==1&&native.install_effect);n=creates;T(ps_install_virtual()==ERROR_INVALID_STATE&&creates==n);}
+@@ -133,7 +133,7 @@
+   e=ps_image_open();T(!violations);
+   if(m==19||m==26){T(e==0&&native.image_ready&&memcmp(native.image_sha256,abc,32)==0);T(!wcscmp(native.command,L"\"C:\\Lab Space\\papacc_server.exe\" service host"));}
+   else T(e!=0&&!native.image_ready&&!native.install_effect);
+-  if(m==26){T(ps_close()!=0&&native.image&&native.retained);n=closes;InterlockedExchange(&cli_active,0);T(papacc_server_service_cli(3,v,o,err)==2&&closes==n);}
++  if(m==26){T(ps_close()!=0&&native.image&&native.retained);n=closes;InterlockedExchange(&cli_active,0);T(papacc_server_service_cli(3,v,o,err,NULL)==2&&closes==n);}
+   else T(ps_close()==0&&!native.image);
+  }
+  T(fclose(o)==0&&fclose(err)==0);
+--- tests/service_lifecycle_data_test.c
++++ tests/service_lifecycle_data_test.c
+@@ -33,5 +33,21 @@
+  T(!ps_finish(&s,0,1));T(s.phase==PS_RETAINED);T(!ps_finish(&s,1,0));T(!ps_stop(&s));
+  memset(&s,0,sizeof(s));T(ps_begin(&s));T(ps_finish(&s,1,0)); /* startup failure, no resources */
+  T(!ps_begin(NULL));T(!ps_running(NULL));T(!ps_stop(NULL));T(!ps_finish(NULL,1,0));
++ {
++ PS_BINDING_FACTS f,g;PS_LAB_BINDING b;const char *a[]={"p","service","install","--prepare-lab","--installation","C:/Lab","--configuration","papacc.conf"};
++ T(ps_parse(8,a,&q)&&q.prepare_lab&&!strcmp(q.configuration,"papacc.conf"));
++ a[7]="../escape.conf";T(!ps_parse(8,a,&q));
++ memset(&f,0,sizeof(f));memset(&b,0,sizeof(b));T(!ps_lab_binding_capture(&b,&f));
++ f.configuration_bytes=128;f.installation[2]=1;f.configuration[2]=2;f.executable[2]=3;
++ memset(f.attempt,1,32);memset(f.operator_id,2,32);memset(f.config_hash,3,32);memset(f.image_hash,4,32);
++ memset(f.parent_acl,5,32);memset(f.config_acl,6,32);memset(f.image_acl,7,32);
++ T(ps_lab_binding_capture(&b,&f));T(!ps_lab_binding_capture(&b,&f));g=f;g.config_hash[0]++;
++ T(!ps_lab_binding_complete(&b,&g,0)&&b.phase==3);T(!ps_lab_binding_complete(&b,&f,0));
++ memset(&b,0,sizeof(b));T(ps_lab_binding_capture(&b,&f));g=f;g.operator_id[0]++;T(!ps_lab_binding_complete(&b,&g,0));
++ memset(&b,0,sizeof(b));T(ps_lab_binding_capture(&b,&f));g=f;g.image_hash[0]++;T(!ps_lab_binding_complete(&b,&g,0));
++ memset(&b,0,sizeof(b));T(ps_lab_binding_capture(&b,&f));g=f;g.installation[2]++;T(!ps_lab_binding_complete(&b,&g,0));
++ memset(&b,0,sizeof(b));T(ps_lab_binding_capture(&b,&f));T(!ps_lab_binding_complete(&b,&f,1));
++ memset(&b,0,sizeof(b));T(ps_lab_binding_capture(&b,&f));T(ps_lab_binding_complete(&b,&f,0));T(b.phase==2);T(!ps_lab_binding_complete(&b,&f,0));ps_lab_binding_invalidate(&b);T(b.phase==3);
++ }
+  puts("DATA lifecycle, replay, Stop-before-running and retained-quiescence negatives PASS");return 0;
+ }
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -3288,11 +3288,13 @@
+  set_target_properties(papacc_server_service PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+  target_compile_options(papacc_server_service PRIVATE /W4 /WX)
+  target_compile_definitions(papacc_server PRIVATE PAPACC_ENABLE_SERVICE_CLI=1)
++ target_compile_definitions(papacc_server_run_win32 PRIVATE PAPACC_ENABLE_SERVICE_CLI=1)
++ target_link_libraries(papacc_server_run_win32 PRIVATE papacc_server_service)
+  target_link_libraries(papacc_server PRIVATE papacc_server_service)
+  set_property(SOURCE apps/server/main.c APPEND PROPERTY OBJECT_DEPENDS
+   "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/main.c.api3.inc;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_win32.h")
+  if(BUILD_TESTING)
+-  foreach(kind lifecycle_data scm_native scm_query_model scm_virtual_model)
++  foreach(kind lifecycle_data scm_native scm_query_model scm_virtual_model scm_acl_model)
+    add_executable(papacc_service_${kind}_test tests/service_${kind}_test.c)
+    target_link_libraries(papacc_service_${kind}_test PRIVATE papacc_server_service)
+    target_compile_options(papacc_service_${kind}_test PRIVATE /W4 /WX)
+--- apps/server/server_run_root_win32.inc
++++ apps/server/server_run_root_win32.inc
+@@ -1,3 +1,6 @@
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++#include "server_service_win32.h"
++#endif
+ #include "server_run_win32.h"
+ #include "server_launcher_owner_win32.h"
+ #include "server_application_lifetime_win32.h"
+@@ -262,6 +265,11 @@
+         PAPACC_LOG_OPERATION_STARTUP, PAPACC_TRUE, PAPACC_RESULT_OK, NULL,
+         "Listener started; accepting Phase 2 connections");
+     (void)fflush(output);
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++    /* All canonical runtime preparation completed above. No host status grants
++     * listener/configuration authority; the normal admission gates ran first. */
++    if(!papacc_server_service_runtime_ready()){result=PAPACC_RESULT_INVALID_STATE;goto cleanup;}
++#endif
+     while (papacc_server_console_win32_stop_requested() == PAPACC_FALSE) {
+ #ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
+         if (server_config->listener_profile ==
+@@ -280,6 +288,9 @@
+     }
+ 
+ cleanup:
++#ifdef PAPACC_ENABLE_SERVICE_CLI
++    if(!papacc_server_service_runtime_stopping()&&result==PAPACC_RESULT_OK)result=PAPACC_RESULT_INVALID_STATE;
++#endif
+     papacc_log_event(logger, PAPACC_LOG_INFO, PAPACC_LOG_EVENT_SERVER_STOPPING,
+         PAPACC_LOG_CATEGORY_RUNTIME, PAPACC_LOG_COMPONENT_SERVER,
+         PAPACC_LOG_OPERATION_SHUTDOWN, PAPACC_TRUE, result, NULL,
+--- tests/service_scm_acl_model_test.c
++++ tests/service_scm_acl_model_test.c
+@@ -0,0 +1,24 @@
++/* In-memory native descriptor MODEL, not an operator or real file ACL. */
++#include <windows.h>
++#include <aclapi.h>
++#include <stdio.h>
++#define PAPACC_SCM_DESCRIPTOR_TEST 1
++#include "../apps/server/server_launcher_scm_prepare_win32.inc"
++#define T(x) do{if(!(x)){printf("FAIL line=%d'+chr(92)+'n",__LINE__);return 1;}}while(0)
++int main(void)
++{
++ BYTE admin[SECURITY_MAX_SID_SIZE],system[SECURITY_MAX_SID_SIZE],world[SECURITY_MAX_SID_SIZE],storage[1024];
++ DWORD an=sizeof(admin),sn=sizeof(system),wn=sizeof(world);SECURITY_DESCRIPTOR sd;PACL acl=(PACL)storage;
++ T(CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an));T(CreateWellKnownSid(WinLocalSystemSid,NULL,system,&sn));T(CreateWellKnownSid(WinWorldSid,NULL,world,&wn));
++ T(InitializeSecurityDescriptor(&sd,SECURITY_DESCRIPTOR_REVISION));T(SetSecurityDescriptorOwner(&sd,admin,FALSE));
++ T(SetSecurityDescriptorDacl(&sd,TRUE,NULL,FALSE));T(!scm_descriptor(&sd,admin));
++ T(InitializeAcl(acl,sizeof(storage),ACL_REVISION));T(AddAccessAllowedAce(acl,ACL_REVISION,GENERIC_ALL,admin));T(AddAccessAllowedAce(acl,ACL_REVISION,GENERIC_ALL,system));
++ T(SetSecurityDescriptorDacl(&sd,TRUE,acl,FALSE));T(scm_descriptor(&sd,admin));
++ T(AddAccessAllowedAce(acl,ACL_REVISION,GENERIC_READ,world));T(scm_descriptor(&sd,admin));
++ T(AddAccessAllowedAce(acl,ACL_REVISION,FILE_WRITE_DATA,world));T(!scm_descriptor(&sd,admin));
++ T(InitializeAcl(acl,sizeof(storage),ACL_REVISION));T(AddAccessAllowedAce(acl,ACL_REVISION,WRITE_DAC,world));T(!scm_descriptor(&sd,admin));
++ T(InitializeAcl(acl,sizeof(storage),ACL_REVISION));T(AddAccessAllowedAce(acl,ACL_REVISION,GENERIC_ALL,admin));T(scm_descriptor(&sd,admin));
++ T(SetSecurityDescriptorOwner(&sd,world,FALSE));T(!scm_descriptor(&sd,admin));
++ T(SetSecurityDescriptorOwner(&sd,admin,FALSE));T(SetSecurityDescriptorDacl(&sd,FALSE,NULL,FALSE));T(!scm_descriptor(&sd,admin));
++ puts("Native descriptor MODEL: protected owner/writers, world read, unsafe write/owner/null/absent DACL PASS");return 0;
++}
+--- tools/qualification/scm-protected-binding-readonly.ps1
++++ tools/qualification/scm-protected-binding-readonly.ps1
+@@ -0,0 +1,13 @@
++# Read-only LAB qualification only. Run manually in an eligible console.
++$ErrorActionPreference = 'Stop'
++if ($args.Count -ne 0) { throw 'No arguments are accepted.' }
++$qualificationExe = 'C:\Projetos\PapinhoAccelerator\build\scm-protected-installation-binding-20261022\Selected\Release\papacc_server.exe'
++$qualificationConfiguration = 'C:\Projetos\PapinhoAccelerator\build\scm-protected-installation-binding-20261022\Selected\Release\papacc.conf'
++if ((Get-FileHash -LiteralPath $qualificationExe -Algorithm SHA256).Hash -ne '3737e83be95613a2616b9fb764fe95d72796912746e9440e37b3ed2a77e01abb') { throw 'Executable hash mismatch; STOP.' }
++if ((Get-FileHash -LiteralPath $qualificationConfiguration -Algorithm SHA256).Hash -ne 'a44b0e43dc418d91ee1841a7de4fb03f611a4f2a74870a16a177f9be8dc89a44') { throw 'Configuration hash mismatch; STOP.' }
++Write-Host 'READ-ONLY SCM LAB binding: no service, account, ACL, CA or CURRENT will be created.'
++& $qualificationExe service install --prepare-lab --installation 'C:\Projetos\PapinhoAccelerator\build\scm-protected-installation-binding-20261022\Selected\Release' --configuration papacc.conf
++$qualificationExit = $LASTEXITCODE
++Write-Host ('SCM_READONLY_BINDING_EXIT=' + $qualificationExit)
++Write-Host 'No elevation or retry is performed. A zero exit qualifies preparation only; CreateService remains DENY.'
++exit $qualificationExit

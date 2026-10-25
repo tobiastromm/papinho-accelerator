@@ -1,0 +1,51 @@
+--- apps/server/personal_custody_data_win32.h
++++ apps/server/personal_custody_data_win32.h
+@@ -6,7 +6,7 @@
+  * Caller serializes on the canonical writer and keeps any CA owner protected
+  * for this call. No reference escapes, borrow, native call or effect occurs. */
+ #define PAPACC_PERSONAL_CUSTODY_ABSENT 0U
+-#define PAPACC_PERSONAL_CUSTODY_DATA 1U
++#define PAPACC_PERSONAL_CUSTODY_METADATA 1U
+ #define PAPACC_PERSONAL_CUSTODY_RETAINED 2U
+ #define PAPACC_PERSONAL_CUSTODY_UNAVAILABLE 3U
+ typedef struct PAPACC_PERSONAL_CUSTODY_DATA {
+--- apps/server/server_configuration_personal_custody_data_win32.c
++++ apps/server/server_configuration_personal_custody_data_win32.c
+@@ -12,7 +12,7 @@
+  p=&o->pending_commit;q.ceremony_phase=p->personal_data.phase;
+  q.target=PAPACC_PERSONAL_CUSTODY_ABSENT;
+  if(p->bootstrap_created||p->bootstrap_container||p->bootstrap_ready)
+-  q.target=PAPACC_PERSONAL_CUSTODY_DATA;
++  q.target=PAPACC_PERSONAL_CUSTODY_METADATA;
+  if(p->active||p->thread||p->close_error||o->unresolved||
+     p->result==PAPACC_CAS_UNKNOWN||p->personal_native.phase==2U)
+   q.target=PAPACC_PERSONAL_CUSTODY_RETAINED;
+@@ -26,7 +26,7 @@
+     (ca->close_attempted&&!ca->close_confirmed)||ca->borrower)
+    q.ca=PAPACC_PERSONAL_CUSTODY_RETAINED;
+   else if(ca->state!=PAPACC_CA_KEY_EMPTY||ca->provider||ca->key||ca->created)
+-   q.ca=PAPACC_PERSONAL_CUSTODY_DATA;
++   q.ca=PAPACC_PERSONAL_CUSTODY_METADATA;
+  }
+  return q; /* No combination of metadata permits an effect. */
+ }
+--- tests/personal_plan_data_win32_test.c
++++ tests/personal_plan_data_win32_test.c
+@@ -17,7 +17,7 @@
+  CHECK(q.target==PAPACC_PERSONAL_CUSTODY_ABSENT&&q.ca==PAPACC_PERSONAL_CUSTODY_ABSENT&&q.effect_denied);
+  owner_state.pending_commit.bootstrap_created=1U;
+  q=papacc_configuration_personal_custody_data(&owner_state,&ca);
+- CHECK(q.target==PAPACC_PERSONAL_CUSTODY_DATA&&q.effect_denied);
++ CHECK(q.target==PAPACC_PERSONAL_CUSTODY_METADATA&&q.effect_denied);
+  CHECK(!memcmp(&ca,&ca_before,sizeof(ca))); /* no mutation/acquisition */
+  owner_state.pending_commit.result=PAPACC_CAS_UNKNOWN;owner_state.stopped=1;
+  q=papacc_configuration_personal_custody_data(&owner_state,&ca);
+@@ -28,7 +28,7 @@
+  CHECK(q.ca==PAPACC_PERSONAL_CUSTODY_RETAINED&&q.effect_denied&&!memcmp(&ca,&ca_before,sizeof(ca)));
+  ca.state=PAPACC_CA_KEY_READY; /* metadata only, no actual key */
+  q=papacc_configuration_personal_custody_data(&owner_state,&ca);
+- CHECK(q.ca==PAPACC_PERSONAL_CUSTODY_DATA&&q.effect_denied);
++ CHECK(q.ca==PAPACC_PERSONAL_CUSTODY_METADATA&&q.effect_denied);
+  ca.borrower=&owner_state;
+  q=papacc_configuration_personal_custody_data(&owner_state,&ca);
+  CHECK(q.ca==PAPACC_PERSONAL_CUSTODY_RETAINED&&q.effect_denied);

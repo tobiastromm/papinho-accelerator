@@ -1,0 +1,33 @@
+from pathlib import Path
+import json,hashlib,difflib
+r=Path.cwd();p=r/'docs/integration/n0start03-integrated-closeout-20261024/q7-source-image-pin-correction-20261025';old=p.parent/'q4-final-pins-and-q7-readiness-20261025';h=lambda f:hashlib.sha256(f.read_bytes()).hexdigest();req=json.loads((old/'Q7-OPERATION-REQUEST.DRAFT.json').read_text(encoding='utf-8'));binding=json.loads((old/'Q4-FINAL-BINDING.ANNEX.PROPOSED.json').read_text(encoding='utf-8'));qual=r/'build/q7-source-pin-correction-20261025/Selected/Release/papacc_scm_instrumented_lab.exe';launcher=r/'tools/qualification/scm-n0-protected-single-powershell.ps1';artifacts=req['artifacts']
+for key,f in [('qualifier',qual),('launcher',launcher)]:artifacts[key]=dict(path=str(f),sha256=h(f),bytes=f.stat().st_size)
+decision=r/'docs/adr/DECISION-q4-final-binding-and-one-manual-q7-20261025.md'
+req['dependencies']['prior_final_Q4_decision']=dict(path=str(decision),sha256=h(decision),bytes=decision.stat().st_size)
+binding['dependencies']['prior_final_Q4_decision']=req['dependencies']['prior_final_Q4_decision']
+binding.update(status='CORRECTED_FINAL_BINDING_CANDIDATE_NOT_ACCEPTED_NO_RETRY_AUTHORITY',artifacts=artifacts,correction=dict(cause='qualifier embedded pre-freeze image SHA despite post-freeze header',fix='explicit CMake dependency plus read-only compiled PE constants attestation',previous_accepted_binding_sha256='0a841f4ec3d261ccdf24e71d849602c88cb9d477ec03ea0c89d1391bb9361ca9',previous_manual_approval_sha256='c07384b26a57a438c10a382948ab2be5ffe8ab80fab56138881e605c8c6f4c46',previous_approval_disposition='USED_ONCE_NONREPLAYABLE',first_error=13,intent_consumed=False,starts=0,stops=0,effect=0,global_quiescence='UNPROVEN'),activation='NOT_ACTIVATED; no further invocation authorized; explicit owner post-failure scope decision required')
+bind=p/'Q4-CORRECTED-BINDING.CANDIDATE.json';bind.write_text(json.dumps(binding,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+req.update(status='DRAFT_POST_FAILURE_SCOPE_DECISION_REQUIRED_NOT_APPROVAL',scope='Specific owner decision on one further manual invocation after proven pre-effect build-pin failure; not a retry authorized by any prior approval',artifacts=artifacts,final_binding=dict(path=str(bind),sha256=h(bind),bytes=bind.stat().st_size),prior_execution=dict(operation='N0TOKEN-20261025-01',attempt='10584f02e11f92c92b43cddf0d9d316f',approval='c07384b26a57a438c10a382948ab2be5ffe8ab80fab56138881e605c8c6f4c46',disposition='USED_ONCE',receipt=dict(path=str(p/'OWNER-MANUAL-Q7-RESULT-AS-REPORTED.txt'),sha256=h(p/'OWNER-MANUAL-Q7-RESULT-AS-REPORTED.txt')),stage='SOURCE_IMAGE',first=13,intent_consumed=False,starts=0,stops=0,effect=0,diagnostic_created=False),required_owner_decision='Expressly decide whether a single corrective manual invocation under the still-unconsumed identity is permitted after this recorded pre-effect failure, accept changed artifact binding, and authorize exact new request; no implied exception to no-retry. If not permitted, DENY and choose identity/scope normatively before implementation.',approval_record_path=str(p/'EXACT-Q7-CORRECTION-APPROVED.json'),approval_record_state='ABSENT_NO_AUTHORITY',operational_eligibility='DENY_PENDING_OWNER_POST_FAILURE_SCOPE_DECISION_AND_FRESH_GATES')
+request=p/'Q7-CORRECTED-OPERATION-REQUEST.DRAFT.json';request.write_text(json.dumps(req,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+# No approval template promoted; no positive executable command.
+manual=f'''# Corrected Q7 — decision preparation only
+
+Request SHA256 `{h(request)}`; corrected final binding `{h(bind)}`.
+
+Prior exact approval c07384b26a57a438c10a382948ab2be5ffe8ab80fab56138881e605c8c6f4c46 was USED for the reported invocation. Do not run the previous command again. Failure SOURCE_IMAGE/13 occurred before consume/effects/Start; this does not itself authorize another invocation or zero historical obligations. The original Q7 task forbids repeating after failure/UNKNOWN; the accepted decision authorizes one manual run and forbids an automatic second attempt. This candidate therefore explicitly requests a post-failure owner scope decision, not an automatic reapproval.
+
+If separately permitted, accept the corrected exact binding and a new one-run manual approval, preserving the failed execution and unused intent scope. The new native/launcher approval path is EXACT-Q7-CORRECTION-APPROVED.json and is absent. Never overwrite the historical approval. No hash for a future approval exists; no executable positive command is issued now. If the owner requires a different identity/annex instead, do not silently change identifiers or create objects.
+
+Known launcher SHA256 `{h(launcher)}`; qualifier Selected Release `{h(qual)}`; source image remains `{artifacts['service_image']['sha256']}`. Frozen transport DLL/framework bindings, original protected input IDs/RAW1 and N7 remain pinned. Before any future allowed effects, actual native IDs/content/descriptors/host/boot/token, exclusive owner, four roles,128/1024, freshness60s/1s, headroom and obligations must pass freshly. No budget is granted by this candidate.
+
+Any later separately authorized invocation uses one already elevated Windows PowerShell5.1 x64, the existing canonical launcher and runtime confirmations with current PID/creation/challenge, never historical tuples. No separate Prepare. Same ceiling of one new consume, exclusive image/sink/embedded arm, explicit rebind, one Start and at most one safe accepted Stop; no retry until RUNNING, overwrite/delete/rollback/kill/forced mutex release. Preserve original output and partial/UNKNOWN references. F10 only after factual close receipt. The old command/request/approval are history.
+
+Q4 NOT_ACTIVATED; budget NOT_GRANTED; token not observed; ED11/Phase6 PARTIAL; productive authorities DENY.
+'''
+(p/'NEXT-OWNER-DECISION-AND-MANUAL-CANDIDATE.md').write_text(manual,encoding='utf-8')
+patch=[]
+for path in ['CMakeLists.txt','tools/qualification/scm-n0-protected-single-powershell.ps1','tools/qualification/scm-instrumented-cycle-lab.inc']:
+ f=r/path;pre=p/'preimages'/f.name;patch.extend(difflib.unified_diff(pre.read_text().splitlines(True),f.read_text().splitlines(True),fromfile='before/'+path,tofile='after/'+path))
+(p/'APPLIED-SOURCE.patch').write_text(''.join(patch))
+(p/'CORRECTED-ARTIFACTS.json').write_text(json.dumps(dict(artifacts=artifacts,request_sha256=h(request),binding_sha256=h(bind),approval='ABSENT',scope='OFFLINE_ONLY_NO_OPERATION_AUTHORITY'),indent=2)+'\n')
+print(json.dumps(dict(corrected_request_sha256=h(request),corrected_binding_sha256=h(bind),launcher_sha256=h(launcher),qualifier_sha256=h(qual)),indent=2))

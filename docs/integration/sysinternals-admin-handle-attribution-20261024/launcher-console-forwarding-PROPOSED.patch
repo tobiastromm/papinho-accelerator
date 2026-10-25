@@ -1,0 +1,11 @@
+--- tools/qualification/scm-n0-protected-single-powershell.ps1
++++ tools/qualification/scm-n0-protected-single-powershell.ps1 (PROPOSED ONLY)
+@@ -110,7 +110,7 @@
+   while($null -ne ($line=$reader.ReadLine())) {
+    $chars+=$line.Length
+    if($line.Length -gt 4096 -or $chars -gt 131072){if(-not $outputTruncated){$outputTruncated=$true;Write-Host 'N0_OUTPUT_TRUNCATED; DRAIN_CONTINUES_UNTIL_FACTUAL_RETURN; NO_RETRY'}}
+-   if(-not $outputTruncated -or $line-cmatch'^(IG_FINAL |IG_RETAINED |IG_DIAGNOSTIC |IG_DIAGNOSTIC_RECEIPT|IG_FIRST_RECORD)'){Write-Host $line}
++   if(-not $outputTruncated -or $line-cmatch'^(IG_FINAL |IG_RETAINED |IG_DIAGNOSTIC |IG_DIAGNOSTIC_RECEIPT|IG_FIRST_RECORD)'){[Console]::Out.WriteLine($line)}
+    if($Mode-ne'Cycle' -and $line -cmatch '^IG_FINAL stage=\S+ first=\d+ close=0 starts=0 stops=0 quiescent=0 intent_consumed=0 effect=0 diagnostic_created=0;'){$final=$true}
+    if($Mode-eq'Cycle' -and $line-cmatch'^IG_FINAL stage=\S+ first=\d+ close=0 starts=([01]) stops=([01]) quiescent=([01]) intent_consumed=([01]) effect=([012]) diagnostic_created=([01]);'){if($Matches[1]-eq'0' -or $Matches[3]-eq'1'){$final=$true}} 
+   }

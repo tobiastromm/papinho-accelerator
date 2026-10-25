@@ -1,0 +1,16 @@
+--- a/tools/qualification/scm-instrumented-cycle-lab.inc
++++ b/tools/qualification/scm-instrumented-cycle-lab.inc
+@@ -347,6 +347,13 @@
+  if(positive){puts("IG_CANONICAL_OWNER_EXCLUSIVITY=UNQUALIFIED; STOP_BEFORE_INTENT_AND_EFFECTS");e=ERROR_NOT_SUPPORTED;goto done;}
+ #endif
+  if((e=lab_operator())||(!n0&&((e=ig_actor(0,(DWORD)p1,t1))||(e=ig_actor(1,(DWORD)p2,t2))))||(e=ig_boot()))goto done;
++ /* CANDIDATE ONLY: qualifier self-token has no borrower after lab_operator. */
++ if(positive&&n0){
++  cycle_stage="OPERATOR_REFERENCE_FINISH";
++  if(!lab_token){e=ERROR_INVALID_STATE;goto done;}
++  if(!CloseHandle(lab_token)){e=lab_error();a1_retain(&lab_aux_owner,e);(void)lab_aux_sync(e);goto done;}
++  lab_token=NULL;
++ }
+  ig_observer.count=n0?0:3;ig_observer.process[2]=n0?NULL:GetCurrentProcess();ig_observer.pid[2]=n0?0:GetCurrentProcessId();
+  if(!GetProcessTimes(GetCurrentProcess(),&ig_observer.creation[2],&et,&kt,&ut)){e=lab_error();goto done;}
+  printf("IG_QUALIFIER_INSTANCE pid=%lu creation=%lu:%lu; ATTEMPT=" IG_ATTEMPT "; POLICY=ACCEPTED; AUTHORITY=NONE\n",(unsigned long)GetCurrentProcessId(),(unsigned long)ig_observer.creation[2].dwHighDateTime,(unsigned long)ig_observer.creation[2].dwLowDateTime);

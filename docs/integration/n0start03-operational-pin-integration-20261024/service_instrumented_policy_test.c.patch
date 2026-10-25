@@ -1,0 +1,11 @@
+--- tests/service_instrumented_policy_test.c preimage
++++ tests/service_instrumented_policy_test.c
+@@ -13,6 +13,8 @@
+ int main(void)
+ {
+  IG_SAMPLE s;IG_GATE g;unsigned bit,cases=0;
++ ZeroMemory(&s,sizeof(s));ZeroMemory(&g,sizeof(g));assert(ig_preflight(&g,&s,0)!=0&&!g.preflight_valid&&!g.consumed);cases++;
++ ZeroMemory(&g,sizeof(g));assert(ig_consume(&g)!=0&&!g.consumed);cases++; /* no factual budget/admission => no consumption */
+  for(bit=1;bit<=256;bit<<=1){s=good();s.identity^=bit;assert(ig_metric(&s,1)!=0);cases++;} /* host boot service hash config dependencies operator native lock */
+  s=good();assert(ig_metric(&s,1)==0);s.physical--;assert(ig_metric(&s,1)!=0);s=good();s.commit--;assert(ig_metric(&s,1)!=0);cases+=3;
+  s=good();s.count=5;assert(ig_metric(&s,1)!=0);s=good();s.process[2].handles=129;assert(ig_metric(&s,1)!=0);s=good();s.process[0].threads=65;assert(ig_metric(&s,1)!=0);s=good();s.process[2].stack=8*IG_MIB+1;assert(ig_metric(&s,1)!=0);cases+=4;

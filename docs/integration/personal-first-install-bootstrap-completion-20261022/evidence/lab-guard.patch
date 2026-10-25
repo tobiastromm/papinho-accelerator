@@ -1,0 +1,27 @@
+--- tests\personal_target_component_win32_test.c
++++ tests\personal_target_component_win32_test.c
+@@ -15,19 +15,21 @@
+  memset(ca,0,sizeof(*ca));memset(private_blob,0,sizeof(private_blob));
+  if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))return 0;
+  if(!GetTokenInformation(token,TokenUser,token_user,sizeof(token_user),&bytes)){
+-  if(!CloseHandle(token))puts("LAB_TOKEN_CLOSE_UNKNOWN_RETAINED");return 0;}
+- if(!CloseHandle(token)){puts("LAB_TOKEN_CLOSE_UNKNOWN_RETAINED");return 0;}
++  if(!CloseHandle(token)){ca->retained_token=token;ca->thread=GetCurrentThreadId();ca->state=PAPACC_CA_KEY_RETAINED;ca->error=NTE_FAIL;puts("LAB_TOKEN_CLOSE_UNKNOWN_RETAINED");}return 0;}
++ if(!CloseHandle(token)){ca->retained_token=token;ca->thread=GetCurrentThreadId();ca->state=PAPACC_CA_KEY_RETAINED;ca->error=NTE_FAIL;puts("LAB_TOKEN_CLOSE_UNKNOWN_RETAINED");return 0;}
+  if(!CreateWellKnownSid(WinLocalServiceSid,NULL,service,&service_bytes)||!IsValidSid(user->User.Sid))return 0;
+  /* LocalService is the explicitly selected LAB exclusion identity only,
+   * never guessed as the product's service identity. No export or certificate. */
+  status=papacc_ca_key_create(ca,authority,generation,user->User.Sid,service);
+  printf("LAB_CA status=%08lx created=%d finalization=%lu state=%u key_owned=%u provider_owned=%u\n",
+   (unsigned long)status,ca->created,ca->diagnostic_finalization,(unsigned)ca->state,ca->key!=0,ca->provider!=0);
++ printf("LAB_CA_FIRST function=%lu stage=%lu api=%lu original=%08lx\n",ca->first_failure.function,ca->first_failure.stage,ca->first_failure.native_api,(unsigned long)ca->first_failure.original_code);
+  if(status!=ERROR_SUCCESS)return 0; /* no reopen, rename, replacement or retry */
+  if(papacc_ca_key_validate(ca)!=ERROR_SUCCESS)return 0;
+  export_status=NCryptExportKey(ca->key,0,BCRYPT_RSAPRIVATE_BLOB,NULL,private_blob,sizeof(private_blob),&written,0);
+  SecureZeroMemory(private_blob,sizeof(private_blob));
+- if(export_status==ERROR_SUCCESS){puts("STOP_LAB_PRIVATE_EXPORT_UNEXPECTED");return 0;}
++ printf("LAB_PRIVATE_EXPORT_STATUS=%08lx\n",(unsigned long)export_status);
++ if(export_status!=NTE_PERM){puts("STOP_LAB_PRIVATE_EXPORT_DENIAL_NOT_QUALIFIED");return 0;}
+  if(papacc_ca_key_borrow(ca,holder)!=ERROR_SUCCESS||ca->borrower!=holder)return 0;
+  if(papacc_ca_key_close(ca)==ERROR_SUCCESS||!ca->key||!ca->provider)return 0;
+  if(papacc_ca_key_return(ca,holder)!=ERROR_SUCCESS)return 0;

@@ -1,0 +1,5 @@
+# Manual operation not authorized
+
+New candidate request SHA256 `4c97a80a99543737a2b21596c32931c78b5229b9987cc9e1b786c668e35721b2` binds the correction, exact predecessor command and artifacts. Approval51ff... was USED for SCM_READBACK/13 with consume0/effects0/starts0. No automatic retry follows. A specific owner decision must accept the new exact binding and decide on a single further manual invocation; none is registered. EXACT-Q7-SCM-CORRECTION-APPROVED.json is absent. Do not run either previous command. No positive executable command is issued.
+
+After valid approval, register its exact decision/one-run manual record without rewriting history, hash it and prepare the literal command using current launcher SHA `9e087b2d55d2a6b3df72d025861bbc7674a6638701b035a7a9001c84f23e9dd6` and the new approval digest. Then the owner alone may execute once, subject to the complete fresh native gates and original runtime confirmations. No separate Prepare, automatic execution, quotas/credits, cleanup/rollback/retry or productive authorities. Retain partial/UNKNOWN results and return full original output. ED11/Phase6 PARTIAL; budget not granted; token not observed.

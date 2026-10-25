@@ -1,0 +1,287 @@
+{
+  "origin": "Python hashlib offline",
+  "patterns": "kind0 byte(i*17+3) mod256; kind1 abc; kind2 a; optional exact8-byte historical marker",
+  "scope": "raw bytes/domain-length tests, NOT valid root/CA fixtures",
+  "cases": [
+    {
+      "name": "empty",
+      "length": 0,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "abc",
+      "length": 3,
+      "kind": 1,
+      "prefix": null,
+      "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    },
+    {
+      "name": "padding55",
+      "length": 55,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "c40dbcd18dfdb34a5c52a791f09286986b5e9d61f867278c03adda227684e897"
+    },
+    {
+      "name": "padding56",
+      "length": 56,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "ca6c4804e2170c368f94d2da606adf4552eb0b1d35bc2ad1dc12887627a028eb"
+    },
+    {
+      "name": "padding63",
+      "length": 63,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "7f963102afccacb03458e0e3ee8f51a234359aed99cb7ebfd33d5e47a095fcba"
+    },
+    {
+      "name": "padding64",
+      "length": 64,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "30a1b375b49e0f1d5e00b6868bbfd471cbe5387806456cc11fd153c689bfe747"
+    },
+    {
+      "name": "padding65",
+      "length": 65,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "ce4c5c9097270aaca5630ec6ca4b48c145a1bb24462589a0ec3f69cd5c9b2a5c"
+    },
+    {
+      "name": "record480",
+      "length": 480,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "33c2391c3eef7c4056a5cdd437c3ecc99ee6ada7939c914303005bcbf7fe6bdb"
+    },
+    {
+      "name": "body992",
+      "length": 992,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "651c846cc93ed90df4053bbbe334f7b09307969272ca173e1e5cd20648be8f75"
+    },
+    {
+      "name": "body1152",
+      "length": 1152,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "8765fae3f87a8583d06c973c8c172ddbfe69fbd835e71726786d0055a66d292a"
+    },
+    {
+      "name": "pdg1632",
+      "length": 1632,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "fe99886527b6de17cb4a499982a0dfbeb4b90edda95629299fe5d64555da2a28"
+    },
+    {
+      "name": "footer8160",
+      "length": 8160,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "c6163235935878aad54a2f6f73ca81daa1380a905a7f9a6404645cab52aeb034"
+    },
+    {
+      "name": "store8192",
+      "length": 8192,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "0a44a320571de174033d2e1153da8fa45b6a5ddd7fc091ccf5c90e06db556c02"
+    },
+    {
+      "name": "issuer16384",
+      "length": 16384,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "3e2940176a2e2ff15403217462625c80949c1589415ecd70bef434a2662374d6"
+    },
+    {
+      "name": "v3fields30560",
+      "length": 30560,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "2ea34a4fb00bc4de416b35c4b16e10140be318e1834bada507faa36d9cf246ce"
+    },
+    {
+      "name": "v3image30592",
+      "length": 30592,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "276841da0277221942334359b867b3717834f31c7ec4617b0ab9cac508c803b8"
+    },
+    {
+      "name": "v4fields31808",
+      "length": 31808,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "f2c0842aa24199d3416b01e753d51d213526c0b38feeb42a45671c776f9d9c45"
+    },
+    {
+      "name": "v4image31840",
+      "length": 31840,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "98c1d23e090f66213bce9b0c3ccdc91b24596bacc72531618b3908e4603da826"
+    },
+    {
+      "name": "million_a",
+      "length": 1000000,
+      "kind": 2,
+      "prefix": null,
+      "sha256": "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0"
+    },
+    {
+      "name": "large_8MiB",
+      "length": 8388608,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "2609b14d7d97d26d7e631563648c8e55ea4bf818f1dae7aff46655cc736cd93a"
+    },
+    {
+      "name": "span32",
+      "length": 32,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "ba6cd1a2ce6f9e35b43c2b1df39404331d3c3bbececef613d02fcfacec8a0dee"
+    },
+    {
+      "name": "span128",
+      "length": 128,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "5a878aab98a988c5479b48c00d8e2bef988c946dc648583ffe7ac598d76bacd5"
+    },
+    {
+      "name": "span160",
+      "length": 160,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "0e0639adeade5ffd93eecec5c21e8e803fd05b34b4822568de77fc0229e946cb"
+    },
+    {
+      "name": "span512",
+      "length": 512,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "06bfb795792399bc1d51735b9fcc4c903d27975bfbad6a0aa7f879d1402d6fab"
+    },
+    {
+      "name": "span640",
+      "length": 640,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "a8fe0692366929af44e92b85a2cb11ab461817842e01d11bae0e23135e962451"
+    },
+    {
+      "name": "span1024",
+      "length": 1024,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "f1305624e9a6d905a63dc5ec25bee729df52db7ce7ff2c25716dd91303e8a699"
+    },
+    {
+      "name": "span1536",
+      "length": 1536,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "70dad2f8d1143c7fb425b370654af6df4c5529d798217c3306bd21b5622d19c5"
+    },
+    {
+      "name": "span20608",
+      "length": 20608,
+      "kind": 0,
+      "prefix": null,
+      "sha256": "3900732501599e5742745567f4d07d2eba9bfb56b86cf22a7707e512ac218556"
+    },
+    {
+      "name": "PACCFC01_480",
+      "length": 480,
+      "kind": 0,
+      "prefix": "PACCFC01",
+      "sha256": "407af81ab9b14e4ae62b17b51d3557da455bfa9340a28cce8e767ad43944aee9"
+    },
+    {
+      "name": "PACL0202_8160",
+      "length": 8160,
+      "kind": 0,
+      "prefix": "PACL0202",
+      "sha256": "fd8dd7bbd28e2cd2e2c8efaee0d0c4c677adb77a28971fc773a2b56e8cd37732"
+    },
+    {
+      "name": "PACL0501_8192",
+      "length": 8192,
+      "kind": 0,
+      "prefix": "PACL0501",
+      "sha256": "3a8214c56fe9042fa2e6a53d70bf7c397a9af6fb9a3c32a510b94d00e8c19f0f"
+    },
+    {
+      "name": "PACIS601_8160",
+      "length": 8160,
+      "kind": 0,
+      "prefix": "PACIS601",
+      "sha256": "c48316f0938345bffe7e5a5054955b70365c3d967cde4a34eddc90455299a00a"
+    },
+    {
+      "name": "PACICP01_480",
+      "length": 480,
+      "kind": 0,
+      "prefix": "PACICP01",
+      "sha256": "79ca8fbf298f6a532ca82a22a49d90fce5dffa0cf934eadb77a2a7ce84185dd1"
+    },
+    {
+      "name": "PACROOT8_30560",
+      "length": 30560,
+      "kind": 0,
+      "prefix": "PACROOT8",
+      "sha256": "9fa05b8893e4f20c661f22d32d224fdf049749f9a32353aa416d064d6dabe0c8"
+    },
+    {
+      "name": "PACROOT8_31808",
+      "length": 31808,
+      "kind": 0,
+      "prefix": "PACROOT8",
+      "sha256": "37f298b4ba755219d5f692b0fa1f74e4cbc8b6b6b0c8addf884ff064f4cc1092"
+    },
+    {
+      "name": "PACR8CP3_480",
+      "length": 480,
+      "kind": 0,
+      "prefix": "PACR8CP3",
+      "sha256": "f23dc4f0d057264a42626ab3fc75585c2a429b461e1c14941ed2207a331bd473"
+    },
+    {
+      "name": "PACR8CP4_480",
+      "length": 480,
+      "kind": 0,
+      "prefix": "PACR8CP4",
+      "sha256": "06b3b8c90c90ebf4d1e6f12c0938e344d19e19efe64b1f66d966052918d9e9b1"
+    },
+    {
+      "name": "PACPDG01_1600",
+      "length": 1600,
+      "kind": 0,
+      "prefix": "PACPDG01",
+      "sha256": "656fff2ae7a711b1168876c13bb11f966f686090da631e1770b6b3a0aebdd2d6"
+    },
+    {
+      "name": "PACTSC01_1216",
+      "length": 1216,
+      "kind": 0,
+      "prefix": "PACTSC01",
+      "sha256": "f903ac28eddb37960a33db2bd072fdbc9c8b857448b645f570a8f290f8e84bfa"
+    },
+    {
+      "name": "PACTSR01_384",
+      "length": 384,
+      "kind": 0,
+      "prefix": "PACTSR01",
+      "sha256": "bc1926dd0f35ee277a089285620580a05779134f759766dc976e7c82f06da527"
+    }
+  ]
+}

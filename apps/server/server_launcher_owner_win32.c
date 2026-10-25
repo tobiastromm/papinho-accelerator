@@ -1,6 +1,9 @@
 #include "server_launcher_owner_win32.h"
 #include "server_application_lifetime_win32.h"
 #include "server_console_win32.h"
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+#include "server_service_win32.h"
+#endif
 #include "server_c2_participant_win32.h"
 #include <stdlib.h>
 #include <string.h>
@@ -57,6 +60,9 @@ PAPACC_RESULT papacc_server_launcher_owner_acquire(
     /* Reserve all known managed launcher storage before ownership transfer or
      * allocation. PST/provider/kernel allocations remain external ED11 gates. */
     reservation=sizeof(root)+
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+        papacc_server_service_storage_bytes()+sizeof(LONG)+
+#endif
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
         PAPACC_PENDING_STACK_BYTES+PAPACC_CHECKPOINT_STACK_BYTES+
 #endif
@@ -106,8 +112,17 @@ PAPACC_RESULT papacc_server_launcher_owner_acquire(
         InterlockedCompareExchange(&state,PAPACC_LAUNCHER_ACTIVE,
             PAPACC_LAUNCHER_FINISHED)!=PAPACC_LAUNCHER_FINISHED))
         return PAPACC_RESULT_INVALID_STATE;
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+    if(papacc_server_service_admission_enter(NULL,NULL)!=ERROR_SUCCESS){
+        InterlockedExchange(&state,PAPACC_LAUNCHER_FINISHED);
+        return PAPACC_RESULT_INVALID_STATE;
+    }
+#endif
     /* Normal finish guarantees no remaining users. Retained never reaches here. */
     if(next_invocation==(PAPACC_U64)-1){
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+        papacc_server_service_admission_retain();
+#endif
         InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);
         return PAPACC_RESULT_LIMIT_EXCEEDED;
     }
@@ -118,6 +133,11 @@ PAPACC_RESULT papacc_server_launcher_owner_acquire(
     if(bytes!=0U){
         root.bind_ids=malloc(bytes);
         if(root.bind_ids==NULL){
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+            if(papacc_server_service_admission_finish(1)!=ERROR_SUCCESS){
+                InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return PAPACC_RESULT_INVALID_STATE;
+            }
+#endif
             InterlockedExchange(&state,PAPACC_LAUNCHER_FINISHED);
             return PAPACC_RESULT_OUT_OF_MEMORY;
         }
@@ -127,6 +147,11 @@ PAPACC_RESULT papacc_server_launcher_owner_acquire(
         root.listener_copy=malloc(listener_count*sizeof(*root.listener_copy));
         if(root.listener_copy==NULL){
             free(root.bind_ids);root.bind_ids=NULL;
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+            if(papacc_server_service_admission_finish(1)!=ERROR_SUCCESS){
+                InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return PAPACC_RESULT_INVALID_STATE;
+            }
+#endif
             InterlockedExchange(&state,PAPACC_LAUNCHER_FINISHED);
             return PAPACC_RESULT_OUT_OF_MEMORY;
         }
@@ -215,6 +240,9 @@ PAPACC_RESULT papacc_server_launcher_owner_finish(
         }
 #endif
         o->return_network=(PAPACC_SERVER_NETWORK)PAPACC_SERVER_NETWORK_INITIALIZER;
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+        papacc_server_service_admission_retain();
+#endif
         InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);
         return PAPACC_RESULT_INVALID_STATE;
     }
@@ -227,6 +255,11 @@ PAPACC_RESULT papacc_server_launcher_owner_finish(
     free(o->listener_copy);o->listener_copy=NULL;
     free(o->bind_ids);o->bind_ids=NULL;
     o->config.bind_selection.interface_persistent_ids=NULL;
+#ifdef PAPACC_SINGLE_LAB_ADMISSION
+    if(papacc_server_service_admission_finish(1)!=ERROR_SUCCESS){
+        InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return PAPACC_RESULT_INVALID_STATE;
+    }
+#endif
     InterlockedExchange(&state,PAPACC_LAUNCHER_FINISHED);
     return PAPACC_RESULT_OK;
 }
@@ -1002,3 +1035,10 @@ PAPACC_RESULT papacc_server_launcher_c2_site_template(const PAPACC_C2_SESSION *s
 
 #include "server_c2_dispatch_binding_win32.inc"
 
+
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+#include "server_launcher_personal_win32.inc"
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+#include "server_launcher_scm_prepare_win32.inc"
+#endif
+#endif
