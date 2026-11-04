@@ -1,0 +1,21 @@
+# READ POSTOFFER — step10 transport_continue, retenção não resolvida
+
+2026-11-03. Saída integral anexada preservada byte-exatamente em OWNER-MACHINE-READ-POSTOFFER-SESSION-OUTPUT.txt; [resultado](MACHINE-READ-POSTOFFER-SESSION-RESULT.json). Nenhuma operação adicional do agente. Documentos request417614100:2883584:915975/16899bytes e decisão417614100:2424832:916046/3770bytes criados exclusivamente, verified_mask3/consumo/close conhecidos, hashes corretos e DACLdigest64c678a7…c1bdce. Preservar ambos e toda autoridade usada, sem recriar/repetir.
+
+Tentativa7cf71cb4a6caf77fe500b457ca016710980ebb4e75f786a9b04de1619b149c9c apresentou propósitoREAD1/imagem872960-ID3080192:866236/hash486d7971…fb61932 e recebeu Q/E/S/P independentes. LIMITED_RISK_ELIGIBLE, Startsubmission1. Falha agora progressstep10/mapped5/result_known0/result0/runtimephase1/runtimefirst0/transportphase1/transportfirst0/operation0/pending0, stage212/error5/prestartclose0/serviceclose5023/retained1. RESULT0 com result_known0 não é sucesso PAPACC_RESULT. Confirmações não provam todos os consumos; P só é consumido após admissões efetivas, contadores individuais não exportados. Nenhum probe/bilateral/receiptclose/RUNNING/término é demonstrado nessa saída.
+
+## Fronteira conhecida e lacuna exata
+
+O step10 é retorno DWORD de papacc_configuration_personal_scq_transport_continue, mais adiante que o step5 anterior. Offer_data já não foi o retorno negado exportado. Fase1 de transporte é estado interno posterior à conexão, não prova suficiente de bilateral ou refs admitidas. Erro5 é compatível com retornos explícitos ACCESS_DENIED e falhas propagadas dentro dessa função, não prova isolada de ACL/Win32 GetLastError ou de nova causa histórica.
+
+transport_continue ainda contém branches independentes: registered/current/resource/original proof; bootstrap scqb_write se QUERY ainda não enviada; continuação READ scqkm_continue_session/READY/P/positivo/result/receiptclose. O relatório não exporta ramo/legs/readflags interno. Não afirmar que o erro está em KSP/SD/primeirobootstrap nem remover guard para obterPASS. Próxima qualificação deve exercitar o wrapper REAL em estados equivalentes à transição oferecida/conectada/entrega/QUERY e seus branches, não só lower-level chain com wrappers mockados. Se ainda indeterminado, mínima captura de primeiro retorno original/branch, sem nova consulta ou exposição de handles/segredos; nenhuma instalação apenas para testar hipótese não delimitada.
+
+## Disposição atual pendente
+
+Controlador original5364/criação134382052521544528, token48429409/auth620529/modified48428675/grupos17/high0 e Useroperador, extraídos automaticamente do PRIMEIRO bloco ADMINISTRATOR da saída e congelados em READ-POSTOFFER-PARTICIPANTS-ORIGINAL-BINDINGS.json. Runtime PID UNKNOWN; não reutilizar18532 da sessão anterior encerrada. Nenhum Start/Stop/UPDATE/kill/novo teste enquanto retenção atual impedir.
+
+[Consulta read-only concreta](ONE-READ-POSTOFFER-PARTICIPANTS-READONLY-REQUEST.CANDIDATE.md), SHA25665bd0cf18f84a701921fdf7343d98d5478ea1af5a99d8784aec5dbb5ca97d223, sob autorização persistente de continuidade/debug, não G5. [Comando](READ-POSTOFFER-PARTICIPANTS-AUTHORIZED-MANUAL.md) preparado, não invocado. Mesmos direitos de consulta/referências/lifetime/métodos do observadorV2, somente classe/tuple original/frase/pins alterados; compilação5.1 CodeDom warning4-as-error/nove testes puros de token/AST PASS. Valores de sessão anterior explicitamente ausentes; runtime só pelo SCMfresh, sem fallback/adoption ou relaxamento. Modelo de fluxo inalterado reutilizado, sem nova coleta ou campanha repetida.
+
+Após saída atual, reconciliar participantes/consumo/observerclose e preservar UNKNOWN. Somente então pode ser preparado NOVO pedido G5 específico de eventual término excepcional desses objetos; autorização anterior consumida não é reutilizável e debug/UPDATE não implicam kill. Estado diferente pode negar consulta legitimamente; não repetir ou mudar alvo para passar. [Próximo prompt](NEXT-READ-POSTOFFER-TRANSPORT-FIRST-CAUSE.md).
+
+Chaves/fixture/partial antiga/originais/EXEs/históricos/consumos/pins/HEAD/WIP/PST0.6.4 intactos; applicationclose/retenção/reservas/quiescência OS UNKNOWN e produçãoDENY. Nenhum diagnóstico produtivo, limpeza/refund/rollback/restore/ACL-SCMedit/CA-CURRENT/rede/TPM-NV-Q4.

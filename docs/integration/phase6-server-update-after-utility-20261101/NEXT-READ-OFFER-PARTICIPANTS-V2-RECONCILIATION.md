@@ -1,0 +1,7 @@
+# Próximo trabalho — reconciliar consulta corrigida e oferta READ
+
+Ler READ-OFFER-PARTICIPANTS-V2-CORRECTION-REPORT.md, novo pedido8c806d5f24c289767c4c42179c780073bdc0c0c4e27ac154261fec84b60ccf63/qualificação e saída integral. Não executar automaticamente ou repetir consulta antiga/atual. Pins originais controlador15896/criação134382037035307596/token40848941/auth620529/modified40848611/grupos17/high0, não token histórico errado. SCM runtime candidato atual somente por queryfresh;18532 é snapshot anterior, não alvo assumido.
+
+Reconciliar primeira falha/consumo/completude/SCM/processos/token/identidade/continuidade/liveness/observerclose e preservar UNKNOWN. Se sucesso suficiente, preparar pedido G5 focal para eventual término excepcional dos DOIS objetos fixos, com IDs/criações/tokens/imagem/SCM frescos e limites exatos; solicitar decisão específica antes de qualquer TerminateProcess. Não deduzir G5 de UPDATE/debug/teste. Se consulta inconclusiva, não fabricar snapshots nem repetir para obterPASS.
+
+Continuar correção/qualificação OFFLINE do wrapper REAL offer_data para READ diagnóstico selected-object sob K3, preservando proteção/identidade/autoridades/P/bilateral/quotas/Stop/receipt-close/retention e READordinary/NEWINSTALL/TO. Ver NEXT-READ-OFFER-BOUNDARY-AND-PARTICIPANTS.md. Não instalar novo EXE/rodar nova sessão sobre participantes retidos. Sem limpeza/refund/ACL-SCMedit/CA-CURRENT/rede/TPM-NV-Q4 ou produção. Históricos/originais/EXEs/chaves/consumos/UNKNOWN/PST0.6.4 preservados.

@@ -1,0 +1,133 @@
+--- apps/server/personal_scq_start_assurance_win32.h (preimage)
++++ apps/server/personal_scq_start_assurance_win32.h
+@@ -5,6 +5,8 @@
+ #include "personal_scq_handle_policy_win32.h"
+ /* Accepted P1-only administrative risk floor; never inferred from DATA. */
+ #define PAPACC_SCQ_P1_COMMIT_FLOOR 3221225472ULL
++/* Owner-authorized risk tolerance; separate from managed memory quota. */
++#define PAPACC_SCQ_P1_WORKING_GROWTH 3145728ULL
+ /* Private live G3 plan DATA, not a grant, persisted schema or imported envelope. */
+ typedef struct PAPACC_SCQ_START_LIMITS {
+  ULONGLONG private_growth,working_growth,physical_floor,commit_floor;
+--- apps/server/personal_scq_start_assurance_win32.inc (preimage)
++++ apps/server/personal_scq_start_assurance_win32.inc
+@@ -15,9 +15,9 @@
+  v->freshness_ms==s.freshness_ms&&v->duration_ms==s.duration_ms;
+ }
+ static void scqg_selected_p1(PAPACC_SCQ_START_LIMITS *v)
+-{scqg_selected(v);v->max_handles=PAPACC_SCQ_P1_CAP;v->commit_floor=PAPACC_SCQ_P1_COMMIT_FLOOR;}
++{scqg_selected(v);v->max_handles=PAPACC_SCQ_P1_CAP;v->commit_floor=PAPACC_SCQ_P1_COMMIT_FLOOR;v->working_growth=PAPACC_SCQ_P1_WORKING_GROWTH;}
+ static int scqg_selected_exact_mode(const PAPACC_SCQ_START_LIMITS *v,DWORD window,int p1)
+-{PAPACC_SCQ_START_LIMITS copy;if(!v)return 0;copy=*v;if(p1){if(copy.max_handles!=PAPACC_SCQ_P1_CAP||copy.commit_floor!=PAPACC_SCQ_P1_COMMIT_FLOOR)return 0;copy.max_handles=128U;copy.commit_floor=9823326208ULL;}return scqg_selected_exact_legacy(&copy,window);}
++{PAPACC_SCQ_START_LIMITS copy;if(!v)return 0;copy=*v;if(p1){if(copy.max_handles!=PAPACC_SCQ_P1_CAP||copy.commit_floor!=PAPACC_SCQ_P1_COMMIT_FLOOR||copy.working_growth!=PAPACC_SCQ_P1_WORKING_GROWTH)return 0;copy.max_handles=128U;copy.commit_floor=9823326208ULL;copy.working_growth=1994944U;}return scqg_selected_exact_legacy(&copy,window);}
+ static int scqg_selected_exact(const PAPACC_SCQ_START_LIMITS *v,DWORD window)
+ {return scqg_selected_exact_mode(v,window,0);}
+ /* G1 never makes opaque costs zero. This actor establishes only limited
+@@ -64,7 +64,7 @@
+ }
+ static DWORD scqg_sample(PAPACC_SCQ_START_ASSURANCE *g,const PAPACC_SCM_RESOURCE_SAMPLE *s,ULONGLONG now,int creating)
+ {
+- if(g->p1_handles&&(!g->initial_known||g->initial_handles>PAPACC_SCQ_P1_ENTRY||g->limits.max_handles!=PAPACC_SCQ_P1_CAP||g->limits.commit_floor!=PAPACC_SCQ_P1_COMMIT_FLOOR))return ERROR_INVALID_DATA;
++ if(g->p1_handles&&(!g->initial_known||g->initial_handles>PAPACC_SCQ_P1_ENTRY||g->limits.max_handles!=PAPACC_SCQ_P1_CAP||g->limits.commit_floor!=PAPACC_SCQ_P1_COMMIT_FLOOR||g->limits.working_growth!=PAPACC_SCQ_P1_WORKING_GROWTH))return ERROR_INVALID_DATA;
+  if(!s||!s->frequency||s->begin>s->end||now<s->end||
+   !scqg_within(now-s->begin,s->frequency,g->limits.freshness_ms))return ERROR_INVALID_DATA;
+  if(s->handles>g->limits.max_handles||s->handles>PAPACC_SCQ_HANDLE_CAP(g->p1_handles)||(creating&&s->handles>=PAPACC_SCQ_HANDLE_GUARD(g->p1_handles)))return ERROR_NOT_ENOUGH_QUOTA;
+--- apps/server/personal_scq_start_plan_data_win32.inc (preimage)
++++ apps/server/personal_scq_start_plan_data_win32.inc
+@@ -12,7 +12,7 @@
+  if(!v||!out||!authorization_ms||!v->private_growth||!v->working_growth||
+   !v->physical_floor||!v->commit_floor||!v->max_handles||v->max_handles>PAPACC_SCQ_HANDLE_CAP(p1)||
+   !v->freshness_ms||!v->duration_ms)return ERROR_INVALID_DATA;
+- if(p1&&(v->max_handles!=PAPACC_SCQ_P1_CAP||v->commit_floor!=PAPACC_SCQ_P1_COMMIT_FLOOR))return ERROR_INVALID_DATA;
++ if(p1&&(v->max_handles!=PAPACC_SCQ_P1_CAP||v->commit_floor!=PAPACC_SCQ_P1_COMMIT_FLOOR||v->working_growth!=PAPACC_SCQ_P1_WORKING_GROWTH))return ERROR_INVALID_DATA;
+  memcpy(out,"G3P1",4);
+  for(i=0;i<32U;i++){b=0;for(j=0;j<2U;j++){char ch=norm[2U*i+j];b=(BYTE)((b<<4)|(ch<='9'?ch-'0':ch-'a'+10));}out[4U+i]=b;}
+  values[0]=v->private_growth;values[1]=v->working_growth;values[2]=v->physical_floor;values[3]=v->commit_floor;
+--- tests/scq_start_assurance_test.c (preimage)
++++ tests/scq_start_assurance_test.c
+@@ -54,7 +54,7 @@
+  volatile LONG stop=0;int owner=0;unsigned i;ULONGLONG old_floor=8589934592ULL;DWORD e;
+  scqg_selected_p1(&p1);scqg_selected(&legacy);
+  C(p1.commit_floor==3221225472ULL&&legacy.commit_floor==9823326208ULL);
+- C(p1.physical_floor==legacy.physical_floor&&p1.private_growth==legacy.private_growth&&p1.working_growth==legacy.working_growth&&
++ C(p1.physical_floor==legacy.physical_floor&&p1.private_growth==legacy.private_growth&&p1.working_growth==PAPACC_SCQ_P1_WORKING_GROWTH&&legacy.working_growth==1994944U&&
+   p1.freshness_ms==legacy.freshness_ms&&p1.duration_ms==legacy.duration_ms);
+  for(i=0;i<3U;i++){
+   sample.handles=128U;sample.commit_available=3221225471ULL+i;memset(&q,0,sizeof(q));
+@@ -90,11 +90,43 @@
+  q.phase=4U;C(scqg_query_admit(&q,&owner,&sample,1010U,101U,0,&stop)!=0);
+  printf("PASS P1_COMMIT_FLOOR BOUNDARIES_3GIB LEGACY_FLOOR_UNCHANGED EXACT_POLICY_NO_FALLBACK NULL_QUERY_OVERFLOW_STOP_UNKNOWN_NO_AUTHORITY\n");return 0;
+ }
++static int working_growth_cases(void)
++{
++ PAPACC_SCQ_START_LIMITS p1,legacy,bad;PAPACC_SCQ_START_ASSURANCE q;
++ PAPACC_SCM_RESOURCE_SAMPLE sample={1000000U,1000U,1010U,2000000U,3000000U,8000000000ULL,11000000000ULL,100U,1U},next;
++ volatile LONG stop=0;int owner=0;unsigned i;BYTE current[84],previous[84];DWORD e;
++ scqg_selected_p1(&p1);scqg_selected(&legacy);
++ C(p1.working_growth==3145728ULL&&legacy.working_growth==1994944U&&p1.private_growth==1994944U);
++ C(scqg_selected_exact_mode(&p1,240000U,1)&&!scqg_selected_exact_mode(&p1,240000U,0));
++ bad=p1;bad.working_growth=1994944U;C(!scqg_selected_exact_mode(&bad,240000U,1));C(scqg_plan_data_mode(&bad,240000U,previous,1)!=0);
++ C(!scqg_plan_data_mode(&p1,240000U,current,1));memcpy(previous,current,sizeof(current));
++ for(i=0;i<8;i++)previous[44U+i]=(BYTE)(1994944ULL>>(i*8U));C(memcmp(current,previous,sizeof(current))!=0);
++ for(i=0;i<3;i++){
++  memset(&q,0,sizeof(q));C(!scqg_query_ready_mode(&q,&owner,&sample,1010U,100U,60100U,&stop,1));
++  next=sample;next.begin=1011U;next.end=1012U;next.working_set=sample.working_set+3145727ULL+i;
++  e=scqg_query_admit(&q,&owner,&next,1012U,101U,0,&stop);C((e==0)==(i<2));
++ }
++ memset(&q,0,sizeof(q));C(!scqg_query_ready_mode(&q,&owner,&sample,1010U,100U,60100U,&stop,1));
++ next=sample;next.begin=1011U;next.end=1012U;next.working_set+=2129920U;
++ C(!scqg_query_admit(&q,&owner,&next,1012U,101U,0,&stop));
++ memset(&q,0,sizeof(q));C(!scqg_query_ready_mode(&q,&owner,&sample,1010U,100U,60100U,&stop,0));
++ C(scqg_query_admit(&q,&owner,&next,1012U,101U,0,&stop)==ERROR_NOT_ENOUGH_MEMORY);
++ memset(&q,0,sizeof(q));C(!scqg_query_ready_mode(&q,&owner,&sample,1010U,100U,60100U,&stop,1));
++ next.private_bytes+=1994945U;C(scqg_query_admit(&q,&owner,&next,1012U,101U,0,&stop)==ERROR_NOT_ENOUGH_MEMORY);
++ for(i=0;i<3;i++){
++  memset(&q,0,sizeof(q));C(!scqg_query_ready_mode(&q,&owner,&sample,1010U,100U,60100U,&stop,1));
++  next=sample;next.begin=1011U;next.end=1012U;
++  if(i==0)next.working_set=~0ULL;if(i==1)next.frequency=0;if(i==2)stop=1;
++  C(scqg_query_admit(&q,&owner,&next,1012U,101U,0,&stop)!=0);stop=0;
++ }
++ printf("PASS P1_WORKING_GROWTH 3MIB_BOUNDARIES HISTORICAL_SAMPLE_ONLY_MODEL LEGACY_PRIVATE_UNCHANGED OLD_POLICY_DENIED OVERFLOW_UNKNOWN_STOP_NO_REAL_QUERY\n");return 0;
++}
+ int main(void)
+ {
+  unsigned i,before=checks;DWORD e;PAPACC_PERSONAL_SCQ_ORIGINAL v;
+  C(!failure_projection_cases());
+  C(!commit_floor_cases());
++ C(!working_growth_cases());
+  {PAPACC_SCQ_START_LIMITS a={0x100000001ULL,2U,3U,4U,128U,6U,7U},b;
+   BYTE original[PAPACC_SCQ_G3_PREIMAGE_BYTES],changed[PAPACC_SCQ_G3_PREIMAGE_BYTES];DWORD lifetime;
+   C(!scqg_plan_data(&a,8U,original));C(!memcmp(original,"G3P1",4)&&original[4]==0xd6&&original[35]==0x1b);
+--- tests/scq_p1_entry_test.c (preimage)
++++ tests/scq_p1_entry_test.c
+@@ -7,6 +7,7 @@
+ #include <string.h>
+ static PAPACC_SERVER_LAUNCHER_OWNER_WIN32 fixture;
+ static volatile LONG state;
++static ULONGLONG working_seen;
+ static unsigned acquired,called,started,p1_finished,checks,interval_called;static DWORD selected;
+ static PAPACC_RESULT model_acquire(PAPACC_SERVER_NETWORK *n,const PAPACC_SERVER_CONFIG *c,const PAPACC_LOGGER *l,PAPACC_SERVER_LAUNCHER_OWNER_WIN32 **out)
+ {(void)n;(void)c;(void)l;acquired++;*out=&fixture;fixture.owner_thread=GetCurrentThreadId();return PAPACC_RESULT_OK;}
+@@ -14,7 +15,7 @@
+ {(void)o;(void)n;(void)known;p1_finished++;return PAPACC_RESULT_OK;}
+ static PAPACC_U32 model_state(void){return PAPACC_LAUNCHER_ACTIVE;}
+ static DWORD model_cold(PAPACC_CONFIGURATION_COMMIT *o,const PAPACC_SCQ_COLD_START_INPUT *in)
+-{(void)o;called++;selected=in->existing_console_data;if(in->existing)return ERROR_INVALID_DATA;return ERROR_ACCESS_DENIED;}
++{(void)o;called++;working_seen=in->limits.working_growth;selected=in->existing_console_data;if(in->existing)return ERROR_INVALID_DATA;return ERROR_ACCESS_DENIED;}
+ static int model_stop(void){return 0;}
+ static PAPACC_RESULT model_close(PAPACC_CONFIGURATION_COMMIT *o){(void)o;return PAPACC_RESULT_OK;}
+ static PAPACC_RESULT model_uninstall(PAPACC_SERVER_CONSOLE_WIN32 *c){(void)c;return PAPACC_RESULT_OK;}
+@@ -48,11 +49,12 @@
+  for(i=0;i<11U;i++){
+   memset(&fixture,0,sizeof(fixture));acquired=called=started=p1_finished=0;selected=99;
+   args[1]=(i==1U||i==7U)?"--owner-manual-first-scq-start":i==2U?"--owner-manual-first-scq-start-read":i==3U?"--owner-manual-first-scq-start-new-install":"--owner-manual-first-scq-start-to-existing";
++  args[8]=i==1U?"1994944":"3145728";
+   args[10]=i==1U?"9823326208":"3221225472";
+   args[11]=i==6U?"129":(i==1U||i==8U)?"128":i==9U?"18446744073709551616":i==10U?"4294967295":"192";
+   result=papacc_server_launcher_scq_original_cli(i==4U?16:i==5U?14:15,args,stdout,stderr);
+   CHECK(result!=0&&!started&&!fixture.configuration_commit.pending_commit.personal_native.scq_admin.value.controller_consumed);
+-  if(i<2U){CHECK(acquired==1U&&called==1U&&p1_finished==1U&&selected==(i?0U:1U));}
++  if(i<2U){CHECK(working_seen==(i?1994944ULL:3145728ULL));CHECK(acquired==1U&&called==1U&&p1_finished==1U&&selected==(i?0U:1U));}
+   else CHECK(!acquired&&!called&&!p1_finished);
+  }
+  for(i=0;i<3U;i++){

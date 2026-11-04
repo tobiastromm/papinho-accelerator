@@ -1,0 +1,108 @@
+papacc_server_launcher_target_evidence_view PROC
+
+; 98   : {
+
+$LN10:
+	mov	QWORD PTR [rsp+16], rdx
+	mov	QWORD PTR [rsp+8], rcx
+	push	rdi
+	sub	rsp, 208				; 000000d0H
+	lea	rdi, QWORD PTR [rsp+32]
+	mov	ecx, 44					; 0000002cH
+	mov	eax, -858993460				; ccccccccH
+	rep stosd
+	mov	rcx, QWORD PTR [rsp+224]
+	mov	rax, QWORD PTR __security_cookie
+	xor	rax, rsp
+	mov	QWORD PTR __$ArrayPad$[rsp], rax
+
+; 99   :  PAPACC_C8_TARGET_BINDING b;PAPACC_RESULT result;ULONG_PTR a=(ULONG_PTR)o,z=(ULONG_PTR)out;
+
+	mov	rax, QWORD PTR o$[rsp]
+	mov	QWORD PTR a$[rsp], rax
+	mov	rax, QWORD PTR out$[rsp]
+	mov	QWORD PTR z$[rsp], rax
+
+; 100  :  if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;
+
+	cmp	QWORD PTR out$[rsp], 0
+	jne	SHORT $LN2@papacc_ser
+	mov	eax, 1
+	jmp	$LN1@papacc_ser
+$LN2@papacc_ser:
+
+; 101  :  if((z>=a&&z-a<sizeof(*o))||(z<a&&a-z<sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
+
+	mov	rax, QWORD PTR a$[rsp]
+	cmp	QWORD PTR z$[rsp], rax
+	jb	SHORT $LN5@papacc_ser
+	mov	rax, QWORD PTR a$[rsp]
+	mov	rcx, QWORD PTR z$[rsp]
+	sub	rcx, rax
+	mov	rax, rcx
+	cmp	rax, 340640				; 000532a0H
+	jb	SHORT $LN4@papacc_ser
+$LN5@papacc_ser:
+	mov	rax, QWORD PTR a$[rsp]
+	cmp	QWORD PTR z$[rsp], rax
+	jae	SHORT $LN3@papacc_ser
+	mov	rax, QWORD PTR z$[rsp]
+	mov	rcx, QWORD PTR a$[rsp]
+	sub	rcx, rax
+	mov	rax, rcx
+	cmp	rax, 1624				; 00000658H
+	jae	SHORT $LN3@papacc_ser
+$LN4@papacc_ser:
+	mov	eax, 1
+	jmp	SHORT $LN1@papacc_ser
+$LN3@papacc_ser:
+
+; 102  :  result=papacc_server_launcher_target_observation_binding(o,&b);if(result!=PAPACC_RESULT_OK)return result;
+
+	lea	rdx, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR o$[rsp]
+	call	papacc_server_launcher_target_observation_binding
+	mov	DWORD PTR result$[rsp], eax
+	cmp	DWORD PTR result$[rsp], 0
+	je	SHORT $LN6@papacc_ser
+	mov	eax, DWORD PTR result$[rsp]
+	jmp	SHORT $LN1@papacc_ser
+$LN6@papacc_ser:
+
+; 103  :  if(o->network.is_active||o->secure_io.dispatch_active)return PAPACC_RESULT_INVALID_STATE;
+
+	mov	rax, QWORD PTR o$[rsp]
+	cmp	DWORD PTR [rax+64], 0
+	jne	SHORT $LN8@papacc_ser
+	mov	rax, QWORD PTR o$[rsp]
+	cmp	DWORD PTR [rax+340580], 0
+	je	SHORT $LN7@papacc_ser
+$LN8@papacc_ser:
+	mov	eax, 4
+	jmp	SHORT $LN1@papacc_ser
+$LN7@papacc_ser:
+
+; 104  :  return papacc_c8_target_view(&o->target_producer,&b,out);
+
+	mov	rax, QWORD PTR o$[rsp]
+	add	rax, 291008				; 000470c0H
+	mov	r8, QWORD PTR out$[rsp]
+	lea	rdx, QWORD PTR b$[rsp]
+	mov	rcx, rax
+	call	papacc_c8_target_view
+$LN1@papacc_ser:
+
+; 105  : }
+
+	mov	rdi, rax
+	mov	rcx, rsp
+	lea	rdx, OFFSET FLAT:papacc_server_launcher_target_evidence_view$rtcFrameData
+	call	_RTC_CheckStackVars
+	mov	rax, rdi
+	mov	rcx, QWORD PTR __$ArrayPad$[rsp]
+	xor	rcx, rsp
+	call	__security_check_cookie
+	add	rsp, 208				; 000000d0H
+	pop	rdi
+	ret	0
+papacc_server_launcher_target_evidence_view ENDP

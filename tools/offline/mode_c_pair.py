@@ -11,6 +11,9 @@ import sys
 BASE = Path(__file__).resolve().parents[2]
 LEGACY = BASE / 'build/phase6-c2-c3-20261012/c7-e10-e5-e11-20261014/finite-implementation-20261014'
 MAX = 262144
+# Offline immutable artifact bytes only; receipts/facts keep MAX.
+# Current real candidate images total 1,731,072 bytes; old 1MiB rejected them.
+ARTIFACT_BYTES = 8 * MAX
 U64 = (1 << 64) - 1
 
 
@@ -90,7 +93,7 @@ def consume_mode_c(browser_raw, accelerator_raw, artifacts):
     try:
         require(type(artifacts) is dict and len(artifacts) <= 16, 'ARTIFACT_BOUND')
         require(all(type(v) is bytes for v in artifacts.values()), 'ARTIFACT_TYPE')
-        require(sum(len(v) for v in artifacts.values()) <= 4 * MAX, 'ARTIFACT_BYTES')
+        require(sum(len(v) for v in artifacts.values()) <= ARTIFACT_BYTES, 'ARTIFACT_BYTES')
         if browser_raw is None or accelerator_raw is None:
             return result
         receipts = [unpack(browser_raw), unpack(accelerator_raw)]
@@ -402,6 +405,96 @@ def correlate_external_resources(raw, expected_sha256, receipt):
     except (Invalid, ValueError, TypeError, KeyError, UnicodeError) as error:
         return dict(out, status='INVALID', reason=str(error))
 
+def assess_one_operation_coverage(browser_raw, accelerator_raw, artifacts, coverage_raw, coverage_sha256):
+    """Offline coverage inventory only, layered on existing receipt validation.
+
+    Private analysis annotations are NOT a producer, wire, attestation, policy
+    installer or alternate admission. Even complete reported phases stay DENY.
+    Provider/kernel ceilings and freshness cannot be minted from samples.
+    """
+    out = dict(status='INCOMPLETE', admission='DENY', ED11_PASS=False,
+               native_qualified=False, freshness_policy='NOT_ESTABLISHED',
+               provider_kernel_capacity='UNKNOWN', credit_granted=False,
+               mapped_provider_provenance='NOT_AUTHENTICATED', peaks={})
+    pair = consume_mode_c(browser_raw, accelerator_raw, artifacts)
+    out['pair_status'] = pair['status']
+    if pair['status'] == 'INVALID':
+        return dict(out, status='INVALID', reason='PAIR_INVALID')
+    if pair['status'] != 'CORRELATED' or coverage_raw is None:
+        return dict(out, reason='PAIR_OR_COVERAGE_INCOMPLETE')
+    try:
+        require(type(coverage_raw) is bytes and len(coverage_raw) <= MAX, 'COVERAGE_BOUND')
+        digest(coverage_sha256)
+        require(hashlib.sha256(coverage_raw).hexdigest() == coverage_sha256, 'COVERAGE_HASH')
+        doc = json.loads(coverage_raw, object_pairs_hook=unique)
+        keys(doc, 'format version rows')
+        require(doc['format'] == 'ONE_OPERATION_OFFLINE_COVERAGE' and type(doc['version']) is int and doc['version'] == 1, 'COVERAGE_VERSION')
+        require(type(doc['rows']) is list and len(doc['rows']) <= 16, 'COVERAGE_ROWS')
+        receipts = dict(BROWSER=unpack(browser_raw), ACCELERATOR=unpack(accelerator_raw))
+        phases = ['BASELINE','INITIALIZED','HANDSHAKE','ACTIVE','STOP','FINAL']
+        found = {role: {} for role in receipts}; last = {}; roots = {}; peaks = {}
+        missing = ['TARGET_POLICY','ACTIVE_KERNEL_ENVELOPE','MAPPED_PROVIDER_AUTHENTICATION']
+        for row in doc['rows']:
+            keys(row, 'role process creation image sdk join origin sequence root phase clock begin end provider initialized prefixes metrics socket_options lifetime')
+            role = row['role']; require(role in receipts, 'COVERAGE_ROLE'); receipt = receipts[role]
+            integer(row['process'], True); integer(row['creation'], True)
+            digest(row['image']); digest(row['sdk'])
+            keys(row['join'], ' '.join(JOIN))
+            for name in JOIN: integer(row['join'][name], True)
+            require(all(row[k] == receipt[k] for k in ('process','creation','image','sdk','join','origin')), 'COVERAGE_IDENTITY')
+            require(row['phase'] in phases and row['phase'] not in found[role], 'COVERAGE_REPLAY')
+            integer(row['sequence'], True); integer(row['root'], True)
+            integer(row['begin']); integer(row['end'])
+            expected_clock = 'WIN32_GETTICKCOUNT_U32' if role == 'BROWSER' else 'PAL_MONOTONIC_NS_TO_MS'
+            require(row['clock'] == expected_clock, 'COVERAGE_CLOCK_DOMAIN')
+            if role == 'BROWSER': require(row['end'] <= 0xffffffff, 'COVERAGE_CLOCK_RANGE')
+            require(row['end'] >= row['begin'], 'COVERAGE_CLOCK_REGRESSION')
+            order = phases.index(row['phase'])
+            if role in last:
+                seq, previous_end, previous_order = last[role]
+                require(row['sequence'] > seq and row['begin'] >= previous_end and order > previous_order, 'COVERAGE_LOCAL_ORDER')
+                require(row['root'] == roots[role], 'COVERAGE_ROOT_CHANGED')
+            roots[role] = row['root']; last[role] = row['sequence'], row['end'], order
+            require(row['provider'] == ('retrozilla-nss' if role == 'BROWSER' else 'openssl'), 'COVERAGE_BACKEND')
+            require(row['initialized'] is None or type(row['initialized']) is bool, 'COVERAGE_INITIALIZED_TYPE')
+            if row['phase'] in ('INITIALIZED','HANDSHAKE','ACTIVE') and row['initialized'] is not True:
+                missing.append(role + ':PROVIDER_INITIALIZATION_UNPROVEN')
+            if row['phase'] == 'ACTIVE' and row['prefixes'] is not None:
+                ref = next(ref for ref in receipt['refs'] if ref['kind'] == 'PREFIXES')
+                source = json.loads(artifacts[ref['artifact']], object_pairs_hook=unique)
+                fact = next(f for f in source['facts'] if f['sequence'] == ref['sequence'])
+                require(row['prefixes'] == fact['values'], 'COVERAGE_PREFIX_DIVERGENCE')
+            if row['prefixes'] is not None:
+                require(type(row['prefixes']) is list and len(row['prefixes']) == 4, 'COVERAGE_PREFIXES')
+                for n in row['prefixes']: integer(n)
+            elif row['phase'] == 'ACTIVE': missing.append(role + ':CONNECTION_COUNTERS_ABSENT')
+            keys(row['metrics'], 'private_bytes commit_bytes handles paged_pool_bytes nonpaged_pool_bytes')
+            for name, value in row['metrics'].items():
+                if value is None:
+                    missing.append(role + ':' + name)
+                else:
+                    integer(value)
+                    peaks.setdefault(role, {})[name] = max(peaks.get(role, {}).get(name, 0), value)
+            keys(row['socket_options'], 'send_bytes receive_bytes')
+            for value in row['socket_options'].values():
+                if value is not None: integer(value)
+            if any(v is None for v in row['socket_options'].values()): missing.append(role + ':SOCKET_OPTIONS_ABSENT')
+            require(row['lifetime'] in ('LIVE','RETAINED','CLOSED_REPORTED'), 'COVERAGE_LIFETIME')
+            if row['lifetime'] != 'LIVE' and row['phase'] != 'FINAL':
+                require(row['lifetime'] == 'RETAINED' and row['phase'] == 'STOP', 'COVERAGE_LIFETIME_ORDER')
+            if row['lifetime'] == 'RETAINED': missing.append(role + ':RETAINED_UNKNOWN')
+            found[role][row['phase']] = row
+        for role, reached in found.items():
+            for phase in phases:
+                if phase not in reached: missing.append(role + ':' + phase + '_ABSENT')
+        return dict(out, reason=','.join(sorted(set(missing))), peaks=peaks,
+                    reported_phases={role:list(reached) for role,reached in found.items()},
+                    evidence_origin=pair.get('evidence_origin'),
+                    accounting='SEPARATE_PROCESS_SAMPLED_PEAKS_NO_OVERLAPPING_SUM')
+    except (Invalid, ValueError, KeyError, TypeError, OverflowError, RecursionError, UnicodeError, StopIteration) as error:
+        return dict(out, status='INVALID', reason=str(error)[:120])
+
+
 def main():
     # Explicit artifact paths only; no network, directory search or live APIs.
     if len(sys.argv) < 3:
@@ -411,9 +504,13 @@ def main():
             data = f.read(limit + 1)
         require(len(data) <= limit, 'INPUT_BOUND')
         return data
-    artifacts = {}
+    require(len(sys.argv[3:]) <= 16, 'ARTIFACT_BOUND')
+    artifacts = {}; retained_bytes = 0
     for path in sys.argv[3:]:
-        data = read(path, MAX); artifacts[hashlib.sha256(data).hexdigest()] = data
+        data = read(path, ARTIFACT_BYTES - retained_bytes)
+        key = hashlib.sha256(data).hexdigest()
+        if key not in artifacts:
+            retained_bytes += len(data); artifacts[key] = data
     out = consume_mode_c(read(sys.argv[1], MAX), read(sys.argv[2], MAX), artifacts)
     print(json.dumps(out, sort_keys=True))
     return 0 if out['status'] == 'CORRELATED' else 2 if out['status'] == 'INCOMPLETE' else 1

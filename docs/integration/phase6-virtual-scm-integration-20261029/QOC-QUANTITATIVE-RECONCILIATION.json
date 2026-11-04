@@ -1,0 +1,142 @@
+{
+  "status": "COMPILED_ALGEBRAIC_AND_SELF_COUNTER_OBSERVATIONS_AVAILABLE_SCQ_OPERATIONAL_POLICY_UNKNOWN",
+  "native_measurements_this_task": {
+    "final_collector_processes": 4,
+    "final_self_samples": 32,
+    "historical_initial_self_samples": 32,
+    "actual_SCM_queries": 0,
+    "actual_SCQ_sessions": 0,
+    "historical_pre_final_self_samples": 32
+  },
+  "sources": [
+    "QOC-NATIVE-SELF-OBSERVATIONS.json",
+    "QOC-Selected-Release-self-observation.jsonl",
+    "QOC-ORIGINAL-BINDINGS.csv",
+    "TSP-QUANTITATIVE-PLAN.json"
+  ],
+  "known": {
+    "own_handle_guard": 124,
+    "own_handle_limit": 128,
+    "administrative_handle_limit": 1024,
+    "record_bytes": 1048,
+    "SQR1_bytes": 1052,
+    "SQC1_bytes": 1076,
+    "distinct_payload_bytes": 3176,
+    "Selected_managed_bytes": 1979784,
+    "Selected_managed_limit_bytes": 3145728,
+    "Legacy_managed_bytes": 1811216,
+    "Legacy_managed_limit_bytes": 2097152,
+    "SCM_separate_static_bytes": 12924,
+    "Selected_static_sum_bytes": 1992708,
+    "Legacy_static_sum_bytes": 1824140,
+    "dispatch_bytes": 352,
+    "dispatch_growth_bytes": 8,
+    "wire_payload_with_original_close_return_bytes": 4252,
+    "cumulative_read_and_write_payload_bytes": 8504,
+    "transport_bytes": 728,
+    "driver_bytes": 1888,
+    "buffer_bytes": 1076,
+    "close_confirmed_field_bytes": 4,
+    "persistent_layout_growth_bytes": 0
+  },
+  "limitations": [
+    "Static compiler census is not physical or commit headroom or a universal peak.",
+    "Payload sum excludes framing, repeated I/O, kernel and transient allocations; do not double-charge identical owned storage.",
+    "No KSP does not remove public RNG/hash CNG costs.",
+    "Future implementation requires refreshed compiler census."
+  ],
+  "unjustified": {
+    "authorization_validity_ms": null,
+    "global_duration_ms": null,
+    "observation_max_age_ms": null,
+    "collection_validity_ms": null,
+    "physical_headroom_bytes": null,
+    "commit_headroom_bytes": null,
+    "provider_kernel_active_cost_bytes": null,
+    "close_deadline_ms": null
+  },
+  "measurement_plan": {
+    "validity": "Bind original plan/decision, actor, attempt and invalidation conditions; monotonic start/end and freshness gates. No copied sample renews validity.",
+    "duration": "Measure before first authorized effect through protocol/readiness and governed terminal close. Separate Stop and retained-state duration; local timeouts are not a global bound.",
+    "freshness": "Record collection start/end, observation age and identity invalidation at effects, receive, close and readiness; preserve clock-domain provenance.",
+    "resources": "Per-phase pre/post baselines and retained maxima; separate managed census, physical, commit, stacks, kernel, pipe, SCM/token queries and public hash/RNG. Attribute shared ownership once, deduplicate participants by original process identity and PID/creation. UNKNOWN stays charged/denied.",
+    "close": "SQR1 DATA is not close. Correlate SQC1 original producer and delivered reference IDs against original destination-table evidence; independent actor receipts, outstanding I/O and retained references; no timeout-as-quiescence or retry."
+  },
+  "not_reusable_as_policy": [
+    "Browser D4/D5 values or incomplete annex",
+    "LAB timeouts/headroom",
+    "finite model peaks as universal ceilings",
+    "QOC self-process observations as SCQ actor cost or native safety ceiling",
+    "A current system available-counter snapshot as reserved capacity",
+    "Sample maximum or query latency as authorization TTL or global duration"
+  ],
+  "derived_artifacts": "TSP-WORKING-ARTIFACTS.json; NOT FROZEN; do not request owner selection during technical changes",
+  "additional_source_local_storage": {
+    "function": "scqr_continue_transport",
+    "type": "PAPACC_SCQ_PLAN_DATA",
+    "bytes": 1048,
+    "nested_snapshot": "scqs_current already has another local plan1048; do not count as persistent buffer or claim full stack bound",
+    "full_transitive_stack_peak": "UNKNOWN"
+  },
+  "justification": "Only invariant byte sizes and fixed accepted handle caps are established. Models justify rejection/order, not empirical native latency or costs. No positive numeric operational policy has been derived.",
+  "progress_bounds": {
+    "proof": "scqt_io_result rejects zero or excess progress; each successful completion advances at least one payload byte; one submission/poll per continuation call",
+    "wire_messages": [
+      "A_to_R offer1048",
+      "R_to_A receipt1052",
+      "R_to_A SQC1_close1076",
+      "A_to_R same_SQC1_after_original_acceptance1076"
+    ],
+    "successful_payload_completions_max_per_actor": 4252,
+    "max_one_IO_per_step": true,
+    "pending_polls_bound": null,
+    "time_bound_from_iteration_count": false,
+    "harness_iteration_cap_is_policy": false,
+    "limitations": "4252 is only the algebraic max number of positive byte-completion steps per actor in this fixed protocol. Pending polls/waits, independent acquisition, queries, scheduling and close/retention are not bounded by this count."
+  },
+  "operational_formulas": {
+    "admission_window": "valid_until > valid_from; valid_from <= current_tick < valid_until at checked transitions; same live invocation and original protected plan",
+    "global_duration": "expiry denies further effects and requests Stop; pending native calls/IO and retained lifetime are not guaranteed to end at expiry",
+    "freshness": "measured collection_end - collection_start and now - collection_end must satisfy independently justified bounds and current original identity/invalidation checks; copy does not renew",
+    "physical_and_commit": "observed available capacity >= justified active/transient/retained/shared reservation + justified margin, separately for physical and commit; unknown material terms deny",
+    "handles": "guard124 and own128; administration1024 for applicable original participants, deduplicated by original process/PID-creation, including shared and retained resources; no fictitious credits"
+  },
+  "first_missing_factual_evidence": "SCQ-specific justified native collection/latency/resource envelope and current original admission inputs; model constants, finite samples and compiler census cannot supply these bounds.",
+  "measured_self_only": {
+    "handles_observed": {
+      "min": 59,
+      "max": 59
+    },
+    "private_commit_bytes_observed": {
+      "min": 860160,
+      "max": 1429504
+    },
+    "working_set_bytes_observed": {
+      "min": 4136960,
+      "max": 4743168
+    },
+    "query_group_ms_observed": {
+      "min": 2.7926,
+      "max": 4.6586
+    },
+    "collection_ms_observed_max": 4.6593,
+    "global_physical_available_bytes_min": 6667358208,
+    "global_commit_available_bytes_min": 9419870208,
+    "qpc_frequency": 10000000,
+    "scope": "REAL_WINDOWS_COLLECTOR_SELF_ONLY_NOT_SCQ_OR_RUNTIME",
+    "safety_ceiling": false,
+    "freshness_grant": false,
+    "attribution_of_growth": "UNKNOWN_no_invented_provider_or_kernel_charge"
+  },
+  "remaining_native_probe": {
+    "candidate": "docs/integration/phase6-virtual-scm-integration-20261029/QOC-M1-RESOURCE-OBSERVATION.CANDIDATE.md",
+    "sha256": "edfbe8428089699dffbaafb4e0292a20d8eb46732bf1fe1d82d1e113f72647a3",
+    "status": "CANDIDATE_NOT_APPROVED_NOT_EXECUTED",
+    "purpose": "PUBLIC_NATIVE_METADATA_RESOURCE_OBSERVATION_NOT_SCQ_ADMISSION",
+    "collector_path": "build/phase6-functional-20261028/Selected/Release/papacc_phase6_memory_census_test.exe",
+    "collector_sha256": "0bdb2b9e0a906ac8255955afc4ee59d4fc4b82c24b504e5783cccb2ba5f7e987",
+    "historical_unselected_draft": "QOC-M1-SCM-AVAILABILITY.CANDIDATE.md",
+    "SCM_native_executed": false,
+    "SCQ_operational_request": "NOT_READY"
+  }
+}

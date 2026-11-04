@@ -1,0 +1,30 @@
+PS C:\Projetos\PapinhoAccelerator\docs\integration\phase6-root-chain-procedure-20261031> & {
+>>     $pairFolder = 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-server-update-after-utility-20261101'
+>>     $pairPins = @{
+>>         'ONE-ORIGINAL-PAIR-MATERIALIZATION-REQUEST.CANDIDATE.md' = 'ad44e1b0e754819c8795ea65acbb3a70e6cae9de826470a06217e9a79e01e399'
+>>         'FIRST-START-SESSION-REQUEST.DRAFT.md' = '312999dd9ba4f701991560e65b4a25e3a13c7914bc75603a6efb47a11536798d'
+>>         'OWNER-FIRST-START-APPROVAL.txt' = '7f6451d59fc0b7015e0ac612ee471782950880fcfc2013137dc9643276af641a'
+>>         'first-start-originals.cs' = '18719507fafe6ea6fb81f73dc688410ce7531dfb6074c331de123e0441878f5f'
+>>         'prepare-first-start-originals.PREPARATION-ONLY.MANUAL.ps1' = '9e4c8cecc4d1e5bf58808100a6085ce717270936a9314856051af7530e126516'
+>>     }
+>>     foreach ($pairName in $pairPins.Keys) {
+>>         $pairPath = Join-Path $pairFolder $pairName
+>>         if ((Get-FileHash -LiteralPath $pairPath -Algorithm SHA256 -ErrorAction Stop).Hash -ne $pairPins[$pairName]) {
+>>             throw ('PAIR_PIN_DENY: ' + $pairName)
+>>         }
+>>     }
+>>     $pairProcedure = Join-Path $pairFolder 'prepare-first-start-originals.PREPARATION-ONLY.MANUAL.ps1'
+>>     & 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoLogo -NoProfile -ExecutionPolicy Bypass -File $pairProcedure -ExpectedScriptSha256 '9e4c8cecc4d1e5bf58808100a6085ce717270936a9314856051af7530e126516' -ExpectedRequestSha256 '312999dd9ba4f701991560e65b4a25e3a13c7914bc75603a6efb47a11536798d' -ExpectedDecisionSha256 '7f6451d59fc0b7015e0ac612ee471782950880fcfc2013137dc9643276af641a'
+>> }
+TWO_ORIGINAL_DOCUMENTS_ONLY; NO_START_NO_ENDPOINT_NO_SCM; HASHES_NOT_AUTHORITY; NO_RETRY_NO_DELETE
+Request SHA256: 312999dd9ba4f701991560e65b4a25e3a13c7914bc75603a6efb47a11536798d
+Decision SHA256: 7f6451d59fc0b7015e0ac612ee471782950880fcfc2013137dc9643276af641a
+PREPARATION_ONLY: confirm only this documentary materialization. The copied decision does NOT authorize endpoint, SCQ or Start and must never be used as their operational approval.
+OWNER_FIRST_START_DOCUMENTS 312999dd9ba4f701991560e65b4a25e3a13c7914bc75603a6efb47a11536798d 7f6451d59fc0b7015e0ac612ee471782950880fcfc2013137dc9643276af641a
+OWNER_FIRST_START_DOCUMENTS 312999dd9ba4f701991560e65b4a25e3a13c7914bc75603a6efb47a11536798d 7f6451d59fc0b7015e0ac612ee471782950880fcfc2013137dc9643276af641a
+EXCLUSIVE_CREATE_CONFIRMED index=0; PERSISTENT_UNTIL_RECONCILED
+CREATED index=0 identity=417614100:1310720:120518
+EXCLUSIVE_CREATE_CONFIRMED index=1; PERSISTENT_UNTIL_RECONCILED
+CREATED index=1 identity=417614100:1310720:120520
+FIRST_START_DOCUMENTS prepared=True first=NONE consumed=True created_mask=3 verified_mask=3 close_known=True; NO_START_NO_ENDPOINT_NO_SCM_NO_RETRY; OS_QUIESCENCE=UNKNOWN; DECISION_SCOPE=DOCUMENT_PREPARATION_ONLY; ENDPOINT_SCQ_START=DENY; AUTHORITY_NOT_IMPLIED
+PS C:\Projetos\PapinhoAccelerator\docs\integration\phase6-root-chain-procedure-20261031>

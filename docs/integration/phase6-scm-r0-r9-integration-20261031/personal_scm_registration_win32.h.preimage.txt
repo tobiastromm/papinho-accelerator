@@ -1,0 +1,61 @@
+#ifndef PAPACC_PERSONAL_SCM_REGISTRATION_WIN32_H
+#define PAPACC_PERSONAL_SCM_REGISTRATION_WIN32_H
+#include <windows.h>
+#include <winternl.h>
+#include <stdio.h>
+/* Source-phase observations, never ceilings, reservations or approval. */
+enum { PAPACC_SCM_RESOURCE_ENTRY=1U,PAPACC_SCM_RESOURCE_ORIGINALS,
+ PAPACC_SCM_RESOURCE_CONFIRMED,PAPACC_SCM_RESOURCE_PRE_CREATE,
+ PAPACC_SCM_RESOURCE_BEFORE_CLOSE,PAPACC_SCM_RESOURCE_CLOSED };
+enum { PAPACC_SCM_RESOURCE_MISSING_PRE_ENTRY=1U,
+ PAPACC_SCM_RESOURCE_MISSING_TRANSITIVE=2U,PAPACC_SCM_RESOURCE_MISSING_HOST_POLICY=4U,
+ PAPACC_SCM_RESOURCE_MISSING_RETENTION_ENVELOPE=8U,PAPACC_SCM_RESOURCE_MISSING_ADMIN_COHORT=16U,
+ PAPACC_SCM_RESOURCE_MISSING_SCM_ACTIVE=32U,PAPACC_SCM_RESOURCE_MISSING_OBSERVATION=64U,
+ PAPACC_SCM_RESOURCE_MISSING_ALL=127U };
+/* Diagnostic timing only. No evidence of the future SCM effect is required
+ * before its own submission; this split never supplies admission authority. */
+#define PAPACC_SCM_RESOURCE_EFFECT_EVIDENCE PAPACC_SCM_RESOURCE_MISSING_SCM_ACTIVE
+#define PAPACC_SCM_RESOURCE_PRECONDITIONS (PAPACC_SCM_RESOURCE_MISSING_ALL & ~PAPACC_SCM_RESOURCE_EFFECT_EVIDENCE)
+typedef struct PAPACC_SCM_RESOURCE_SAMPLE {
+ ULONGLONG frequency,begin,end,private_bytes,working_set,physical_available,commit_available;
+ DWORD handles,phase;
+} PAPACC_SCM_RESOURCE_SAMPLE;
+typedef struct PAPACC_SCM_RESOURCE_OBSERVATION {
+ PAPACC_SCM_RESOURCE_SAMPLE first,last;
+ ULONGLONG peak_private,peak_working,min_physical,min_commit;
+ DWORD samples,attempts,peak_handles,first_error,error_stage;
+ FILE *sink; /* same synchronous invocation, nonsecret evidence only */
+} PAPACC_SCM_RESOURCE_OBSERVATION;
+typedef struct PAPACC_SCM_RESOURCE_REPORT {
+ DWORD samples,first_error,missing;
+ ULONGLONG peak_private,minimum_physical,minimum_commit,frequency,begin,end;
+ DWORD peak_handles;
+ DWORD pre_missing,effect_missing;
+} PAPACC_SCM_RESOURCE_REPORT;
+/* Private same-invocation borrows, never serialized or accepted from IPC. */
+typedef struct PAPACC_SERVICE_IMAGE_VIEW {
+ HANDLE handle;BY_HANDLE_FILE_INFORMATION identity;const wchar_t *path;
+ const unsigned char *sha256;DWORD owner_thread;
+} PAPACC_SERVICE_IMAGE_VIEW;
+typedef struct PAPACC_SERVICE_REGISTRATION_VIEW {
+ PAPACC_SERVICE_IMAGE_VIEW image;const void *recipient;
+ const WCHAR *command,*service,*account;DWORD start_type,sid_type;
+} PAPACC_SERVICE_REGISTRATION_VIEW;
+/* Substate of the EXISTING canonical packet. No independently owned handles,
+ * approval loader, reusable grant, new owner or persisted representation. */
+typedef struct PAPACC_SCM_DEPENDENCY_REFERENCE {
+ HANDLE handle;BY_HANDLE_FILE_INFORMATION identity;BYTE digest[32],acl[32];
+} PAPACC_SCM_DEPENDENCY_REFERENCE;
+typedef struct PAPACC_SCM_REGISTRATION_ACT {
+ struct PAPACC_SCM_REGISTRATION_ACT *self;
+ const PAPACC_SERVICE_REGISTRATION_VIEW *original;
+ PAPACC_SERVICE_REGISTRATION_VIEW captured;
+ ULONGLONG invocation;DWORD thread,phase,first;unsigned consumed;
+ BYTE attempt[32],digest[32],image_acl[32];
+ WCHAR path[MAX_PATH],command[MAX_PATH+32];
+ PAPACC_SCM_RESOURCE_OBSERVATION resources;
+ PAPACC_SCM_DEPENDENCY_REFERENCE dependencies[2];
+ IO_STATUS_BLOCK original_io; /* durable backing on unexpected pending open */
+ unsigned package_captured,dependency_close_attempts;
+} PAPACC_SCM_REGISTRATION_ACT;
+#endif

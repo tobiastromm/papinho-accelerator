@@ -1,6 +1,7 @@
 /* Opt-in offline adapter, same worker and root. No initialization/publication. */
 #include "../../src/config/config_root8.h"
 #include "server_config_root8_data_win32.h"
+#include "../../src/config/config_root8_time_source_key.h"
 static PAPACC_U64 d3_u64(const PAPACC_U8 *p)
 {PAPACC_U64 x=0;unsigned i;for(i=0;i<8U;i++)x|=(PAPACC_U64)p[i]<<(8U*i);return x;}
 static unsigned d3_u32(const PAPACC_U8 *p)
@@ -73,5 +74,22 @@ static int pending_packet11_valid(PAPACC_STORE_HASH *hash_ctx,const PAPACC_CONFI
  D=b[8]==4U?((unsigned)b[284]|((unsigned)b[285]<<8)):0U;
  if(K!=D||(K&&memcmp(a+d3_u32(a+276)+64U,b+d3_u32(b+276)+64U,384U*K)))return 0;
  return 1;
+}
+/* Packet14 is frozen documentary DATA only. No public positive producer.
+ * Full component/trust qualification precedes freezing, as for packet11. */
+static int q4_worker_hash(void *ctx,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 out[32])
+{return n<=PC_ROOT8_V5_MAX&&store03_hash((PAPACC_STORE_HASH *)ctx,p,(unsigned)n,out);}
+static PC_ROOT8_RESULT q4_frozen_component(void *ctx,unsigned kind,const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
+{
+ if(kind==5U)return papacc_root8_body05_data(ctx,kind,p,n,row,header);
+ if(kind==9U)return header[8]==5U?pc_root8_v5_key_data(ctx,kind,p,n,row,header):pc_root8_time_source_key_data(ctx,kind,p,n,row,header);
+ /* Structural frozen guard only; NOT authentication/manifest resolution. */
+ return kind>=5U&&kind<=10U?PC_ROOT8_OK:PC_ROOT8_INCOMPLETE;
+}
+static int pending_packet14_valid(PAPACC_STORE_HASH *ctx,const PAPACC_CONFIG_PENDING *p)
+{
+ if(p->previous_bytes>sizeof(p->previous)||p->next_bytes>sizeof(p->next))return 0;
+ if(pc_root8_v5_base_link(p->next,p->next_bytes,p->previous,p->previous_bytes,q4_worker_hash,ctx,q4_frozen_component,ctx)!=PC_ROOT8_OK)return 0;
+ return store03_zero(p->next+d3_u32(p->next+56),512U);
 }
 #endif

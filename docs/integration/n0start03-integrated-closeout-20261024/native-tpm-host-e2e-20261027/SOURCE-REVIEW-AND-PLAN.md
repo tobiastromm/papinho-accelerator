@@ -1,0 +1,9 @@
+# Native TPM host technical scope
+
+Owner instruction execute always applies to file tasks; scope is the entire PACC-ED11-TPM-NATIVE-HOST-CLOSURE.md. No operational authorization inferred. Active main/f341985924d29870d8ff627ed37c8a0874ad6469; WIP retained. W/L/L1 accepted and cross-boot/R7/RAW1/ModelE remain controlling; no decision amended. Existing public EK and metadata pins stay exact; two managed approvals spent.
+
+Factual source audit: previous host is CLR; actual own count249, zero TPM calls. Noninherited CLR232; native primitive fixture62..74 is not full composition proof. Protocol: capability8 handles max; RSA2048 EK/public Name exact; StartAuthSession319 bytes SHA256/AES128CFB with OAEP SECRET NUL; fresh salt/start/proof nonces; session KDFa ATH; GetRandom89 bytes HMAC attrs40 continue-clear; response85..117 bytes; authenticated empty/short output allowed, no plaintext/RNG quality assertion. Final ReadPublic before proof receipt. Preserve first failure, uncertain session/TBS retains dependencies; no guessed FlushContext/retry.
+
+Implement opt-in standalone C host in tools/qualification/tpm-native-proof, core byte codec/CNG primitives, Windows guards and strict bounded JSON/file pins. Same protocol and owner scope, no product owner/service/IPC. Default DENY; native route requires fresh exact manual approval and confirmation. Offline tests inject transport/guards/close faults, never call actual TBS. Cross-language deterministic vectors and ephemeral software-key mock prove equivalence; no TPM private material or operational secrets. Measure complete simulated phases/overlap incl providers/public RSA/observer, report sampling unknowns. Build MSVC Windows x64 Debug/Release /W4 /WX; modern TBS target, no NT4 claim.
+
+Existing product/launcher/history pins unchanged. After tests update live matrix, hashes and candidate-only request. No auto TPM/NV/Q4/service/SCM/ACL/current/signature/recovery.

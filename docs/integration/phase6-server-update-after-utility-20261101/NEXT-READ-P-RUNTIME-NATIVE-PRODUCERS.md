@@ -1,0 +1,9 @@
+# Continuação — producers READ/MACHINE no mesmo owner
+
+Ler READ-P-RUNTIME-INTEGRATION-REPORT.md, READ-P-RECEIPT-CLOSE-OFFLINE-QUALIFICATION.json (corrente), READ-P-RUNTIME-OFFLINE-QUALIFICATION.json (histórico), READ-MACHINE-K0-K9-INTEGRATION-REPORT.md e a decisão K0–K9 accepted. Não repetir campanhas sem mudança. Não reutilizar pins do snapshot anterior.
+
+Concluir a preparação administrativa original da fixture TEST_ONLY: mesmo owner/primitivas, originais atribuídos, confirmação exata e consumo antes dos efeitos, criação exclusiva CSPRNG, Stop e fechamento/retention UNKNOWN. Vincular controle administrativo positivo e SHA256 público da mesma referência original. Qualificar recursos/assurance da preparação separadamente de K7; nenhum permit por caminho, digest, enum ou booleano. Não fabricar nome ou identidade futura.
+
+Concluir caller READ frio e producer QUERY de cinco referências com originais READ de quatro ACEs, seleção administrativa instalada e autenticação bilateral. Reutilizar scqkr_* já qualificados; não copiar ponteiro de autoridade do controller para runtime nem ligar getter parcial. P/result já foram ligados aos helpers de receipt e SQC3/close com APIs simuladas e fronteira QUERY modelada. Reutilizar essa sequência; falta ligá-la ao producer frio READ e ao lifecycle SCM finito, sem presumir a entrega QUERY ou a autenticação factual. Não transformar resultado DATA em prova de controle administrativo, close ou readiness. Preservar TO/ordinary READ/NEW_INSTALL e envelopes anteriores.
+
+Qualificar somente mudanças/regressões afetadas e atualizar live docs. Sem nova ADR por simples binding coberto. Primeiro pedido operacional apenas após producer e assurance completos, com artefatos finais/hashes/efeitos/gates e aprovação específica. Nenhuma operação automática: não executar fixture/KSP/coleta/UPDATE/EQSP/StartStop/SCM-ACL/CA-CURRENT/rede/TPM-NV-Q4/cleanup/refund. Preservar HEAD/WIP/pins/históricos/UNKNOWN/PST0.6.4.

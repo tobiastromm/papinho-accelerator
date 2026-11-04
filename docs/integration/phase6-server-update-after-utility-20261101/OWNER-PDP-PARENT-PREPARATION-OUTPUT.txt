@@ -1,0 +1,37 @@
+PS C:\WINDOWS\system32> & 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoLogo -NoProfile -ExecutionPolicy Bypass -File 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-server-update-after-utility-20261101\run-pdp-parent-preparation.MANUAL.CANDIDATE.ps1' -ExpectedScriptSha256 '864dc8562ee1f32ea7a622c2f3b6f1ede9dcf86646f868142ce3905ce0fd2c18' -ExpectedOperationalRequestSha256 'e8004335ddadc2badda207e2083b382874c559ccfdfaa60bcb2b2fee8d63c6b0' -ExpectedDecisionSha256 '2e9071afcbea55c423b5c676a574725a7b838bebb6e4b5c5e3d2a1300324c254'
+ONE_MANUAL_CONFIGURATION_COPY_THEN_PDP_PARENT; SEPARATE_CONFIRMATIONS_CONSUMPTIONS; NO_RETRY_NO_UPDATE_NO_START_NO_CA; ON_DISK_PINS_NOT_MAPPED_IMAGE_ATTESTATION
+ONE_NEW_PROTECTED_CONFIGURATION_DATA_ORIGINAL; NO_PARENT_NO_KEY_NO_START_NO_SCM; NO_RETRY_NO_DELETE; HASHES_NOT_AUTHORITY
+Target: C:\Program Files\Papinho\Accelerator\FIRST-INSTANCE-PREPARATION.CONFIG.ORIGINAL.conf; exactly 43 UTF8 bytes, no BOM. Owner/operator + SYSTEM + Administrators, protected DACL. One FILE_CREATE/write/flush/readback; existing target DENY.
+This confirmation covers only the configuration copy. PDP has its own original native plan, nonce, confirmation and consumption. Cancel on any mismatch.
+OWNER_PDP_CONFIG_ORIGINAL e8004335ddadc2badda207e2083b382874c559ccfdfaa60bcb2b2fee8d63c6b0 16c4847a27d32689ad7eb2c0bd29f6f0f698df74092e9df107cc8203e07e0ae7
+OWNER_PDP_CONFIG_ORIGINAL e8004335ddadc2badda207e2083b382874c559ccfdfaa60bcb2b2fee8d63c6b0 16c4847a27d32689ad7eb2c0bd29f6f0f698df74092e9df107cc8203e07e0ae7
+EXCLUSIVE_CREATE_CONFIRMED index=0; PERSISTENT_UNTIL_RECONCILED
+CREATED index=0 identity=417614100:2490368:315690
+CONFIG_ORIGINAL prepared=True first=NONE consumed=True created_mask=1 verified_mask=1 close_known=True; DATA_ONLY_NOT_PDP_AUTHORITY; NO_RETRY_NO_DELETE; HISTORICAL_RETENTION_AND_OS_QUIESCENCE_UNKNOWN
+MANUAL_CONFIG_ORIGINAL_EXIT=0; EXIT_ALONE_NOT_AUTHORITY; NO_RETRY
+PDP native plan follows. Compare source ID with the CONFIG_ORIGINAL creation output, operator, retained ProgramData ID, exact Papinho leaf, purpose and risks. Cancel on mismatch. No response supplied automatically.
+Only ONE parent Papinho, no Accelerator/key/CA/SCM. Entry128/guard188/cap192, private1994944/working3145728, physical7239172096/commit3221225472, freshness100ms/window240000/global60000 may DENY; no capacity inferred.
+
+NEW_INSTALL - PERSONAL_LOCAL
+Operator SID: S-1-5-21-785699550-1440458426-1682014700-1108
+Binary destination: "C:\x5cProgram Files\x5cPapinho\x5cAccelerator"
+Protected parent: "C:\x5cProgramData"
+New relative container: "Papinho"
+Parent native identity: 417614100:131072:227641
+Source native identity: 417614100:2490368:315690
+Exact configuration (escaped tokens):
+"format_version" "1"
+"client_admission" "DISABLED"
+PDP PARENT PREPARATION ONLY: create ONE protected Papinho directory under original ProgramData. No Accelerator or key. Shared ProgramData ACE tolerance is NOT complete ancestor assurance. Exact escaped plan bytes:
+\x4e\x45\x57\x5f\x49\x4e\x53\x54\x41\x4c\x4c\x5f\x50\x41\x52\x45\x4e\x54\x5f\x50\x52\x45\x50\x41\x52\x45\x0a\x43\x52\x45\x41\x54\x45\x5f\x45\x58\x43\x4c\x55\x53\x49\x56\x45\x5f\x50\x41\x50\x49\x4e\x48\x4f\x0a\x43\x41\x3d\x44\x45\x4e\x59\x0a\x41\x43\x43\x45\x4c\x45\x52\x41\x54\x4f\x52\x3d\x44\x45\x4e\x59\x0a\x43\x55\x52\x52\x45\x4e\x54\x3d\x44\x45\x4e\x59\x0a\x30\x31\x30\x35\x30\x30\x30\x30\x30\x30\x30\x30\x30\x30\x30\x35\x31\x35\x30\x30\x30\x30\x30\x30\x64\x65\x64\x32\x64\x34\x32\x65\x62\x61\x61\x36\x64\x62\x35\x35\x65\x63\x38\x31\x34\x31\x36\x34\x35\x34\x30\x34\x30\x30\x30\x30\x0a\x31\x34\x34\x39\x65\x34\x31\x38\x30\x30\x30\x30\x30\x32\x30\x30\x33\x39\x37\x39\x30\x33\x30\x30\x0a\x35\x30\x36\x31\x37\x30\x36\x39\x36\x65\x36\x38\x36\x66\x0a\x43\x4f\x4e\x46\x49\x47\x55\x52\x41\x54\x49\x4f\x4e\x0a\x66\x6f\x72\x6d\x61\x74\x5f\x76\x65\x72\x73\x69\x6f\x6e\x20\x31\x0a\x63\x6c\x69\x65\x6e\x74\x5f\x61\x64\x6d\x69\x73\x73\x69\x6f\x6e\x20\x44\x49\x53\x41\x42\x4c\x45\x44\x0a
+PDP0-PDP7: one exclusive directory only, NO KSP/CA/Accelerator/ACL remediation. Opaque costs UNKNOWN; partial persistent directory may remain, no retry/delete/rollback. entry128/guard188/cap192, private1994944/working3145728, physical7239172096/commit3221225472, freshness100ms/window240000/global60000 without renewal.
+Policy PDP0-PDP7 / 2026-11-03. Declare legitimate ownership/administration; confirm ONLY the displayed NEW parent Papinho and residual risks. Not a restore or CA/FCA approval. Esc cancels. Type the ENTIRE line.
+OWNER_NEW_INSTALL_PARENT_PREPARE c73726cfddf3bcae0a074b9d252ecdf3c060413fa3c4a4e48d5d609af4a0e118
+> OWNER_NEW_INSTALL_PARENT_PREPARE c73726cfddf3bcae0a074b9d252ecdf3c060413fa3c4a4e48d5d609af4a0e118
+PRESENTER_RECEIPT purpose=NEW_INSTALL_PARENT_PREPARE phase=2 attempt=c73726cfddf3bcae0a074b9d252ecdf3c060413fa3c4a4e48d5d609af4a0e118; DECLARATION=ATTRIBUTED; OPERATIONAL_AUTHORITY=DENY
+CUSTODY_METADATA_ONLY: target=1 ca=0 effect_denied=1
+PDP_SCOPE parent_only=1 key_calls_allowed=0 accelerator_calls_allowed=0; NO_CA_AUTHORITY
+FCA_LAST_CAPTURE parent_stage=0 parent_kind=0 parent_error=0x00000000 chain_first=0 chain_open=0x00000000 sd_calls=2 sd_status=0x00000000 child_open=0x00000000 io_snapshot_emitted=1 child_information=2 budget_first=0 sample_stage=0; LAST_CAPTURES_NOT_FIRST_CAUSE_PROOF; INITIALIZED_FIELDS_NOT_PROOF; NO_NEW_QUERY_NO_AUTHORITY
+FCA_PREPARATION prepared=1 container_created=1 container_identity=417614100:1310720:452619 key_created=0 key_name= first=0 key_error=0x00000000 close_known=1; CREATED_FLAGS_NOT_ABSENCE_PROOF; NO_RETRY_NO_DELETE_NO_SIGN_NO_CURRENT_NO_START; READINESS=DENY; HISTORICAL_RETENTION_OS_QUIESCENCE_UNKNOWN
+MANUAL_PDP_PARENT_EXIT=0; NO_RETRY_NO_CA_NO_START; EXIT_NOT_READINESS; HISTORICAL_RETENTION_AND_OS_QUIESCENCE_UNKNOWN
+PS C:\WINDOWS\system32>

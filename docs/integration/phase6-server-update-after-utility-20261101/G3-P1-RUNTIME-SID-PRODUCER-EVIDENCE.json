@@ -1,0 +1,72 @@
+{
+  "status": "RUNTIME_SID_PRODUCER_FIXED_OFFLINE_QUALIFIED",
+  "code_defect": "buffer capacity cbSid assigned as semantic runtime SID length without a success-size guarantee",
+  "reproduction": "valid32-byte service SID with cbSid remaining68: old producer reason3, corrected producer sid_bytes32 and unchanged unbound PASS",
+  "historical_values": "UNKNOWN_NOT_EMITTED",
+  "historical_specific_defect_causality": "NOT_RETROACTIVELY_PROVED",
+  "new_sid_cases": 17,
+  "builds": [
+    {
+      "profile": "Selected",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 14,
+      "build_log_sha256": "a66b5265b1be5a2a448096be9d78543f71d7de134ecdc44e49de7f99c9313ecb",
+      "tests_log_sha256": "94691299a562217dd92c07ae59212199e56f94c0853704b8527e37ff650d66c1"
+    },
+    {
+      "profile": "Selected",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 14,
+      "build_log_sha256": "a66b5265b1be5a2a448096be9d78543f71d7de134ecdc44e49de7f99c9313ecb",
+      "tests_log_sha256": "6e4adc21302f7a6325d4ad1ef807d162f0a17dcfaf35132040a76d1c55e5d21a"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 14,
+      "build_log_sha256": "a66b5265b1be5a2a448096be9d78543f71d7de134ecdc44e49de7f99c9313ecb",
+      "tests_log_sha256": "d2f1626f2c5487964a1a629b8708caa9a79f7be7034dd41fe96f1982f3cd9c4c"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 14,
+      "build_log_sha256": "a66b5265b1be5a2a448096be9d78543f71d7de134ecdc44e49de7f99c9313ecb",
+      "tests_log_sha256": "5b20434a4141dd8a8a5903b55e1084948926abb38c30d705353972fe70f4bfcc"
+    }
+  ],
+  "test_configuration_pairs": 56,
+  "lookup_calls": "same single original lookup, no retry",
+  "native_sid_bytes_modified_or_cleared": false,
+  "generic_scqp_unbound_changed": false,
+  "new_handle_slots": 0,
+  "source_hashes": {
+    "apps/server/personal_scq_cold_acquisition_win32.inc": "2944bf41ee41566ff59b1960c34ef26da0def4f98f11ad05c1514c9bb8bc658a",
+    "apps/server/personal_scq_profile_win32.inc": "c27584e2ce144e9ebc2932cfe61e962c106cef04f428a5dba409918c7eea3893",
+    "tests/scq_cold_open_test.c": "620b9563749476a357eac17165cdeb8f67793be25ea4ad5ecefe2c096bc21285"
+  },
+  "candidate_bytes": 784896,
+  "candidate_sha256": "201b0f01d0d6b33f73d653bd492567ff663f14e183170ced4d18a6a6f0ddb752",
+  "installed_image_expected_id": "417614100:4325376:164699",
+  "installed_image_expected_sha256": "0b00a21a148b4b015d2fc40d8f412441a8af78a77fcfa7bed93a67a60048fde3",
+  "update_request_sha256": "2c25b581fd2a506d369bb536d58d3da76028e2dd8489891e299823ab2a576836",
+  "update_procedure_sha256": "adb80e3f24fa5ebf4b55914c43fc505c46ce223e4d07f5f0e44a8e1a51a773ff",
+  "six_update_helpers_unchanged": true,
+  "operations_executed": false,
+  "historical_retention": "UNKNOWN",
+  "os_quiescence": "UNKNOWN",
+  "productive_readiness": "DENY",
+  "primary_sources": [
+    "https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-lookupaccountnamew",
+    "https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-isvalidsid",
+    "https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-getlengthsid"
+  ]
+}

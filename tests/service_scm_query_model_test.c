@@ -35,6 +35,30 @@ static int model_runtime(int argc,char **argv){(void)argc;(void)argv;runtime_cal
 #define OpenServiceW model_open
 #define QueryServiceStatusEx model_query
 #define CloseServiceHandle model_close
+#include "server_service_win32.h"
+/* Compile-time negative boundary, never an installable product callback. */
+static DWORD model_no_start_carrier(PS_SCQ_CARRIER *out){(void)out;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_take(const PAPACC_SERVICE_IMAGE_VIEW *view){(void)view;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_progress(HANDLE process){(void)process;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_wait(HANDLE process){(void)process;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_terminal(HANDLE process){(void)process;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_finish(HANDLE process){(void)process;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_namespace(void){return ERROR_ACCESS_DENIED;}
+static DWORD model_no_first_controller(void){return ERROR_ACCESS_DENIED;}
+static DWORD model_prestart_close(void){return 0;}
+static DWORD model_no_start_resource(void){return ERROR_ACCESS_DENIED;}
+#define papacc_server_launcher_scq_start_resource_current model_no_start_resource
+static DWORD model_no_namespace_prepare(void){return ERROR_ACCESS_DENIED;}
+#define papacc_server_launcher_scq_start_namespace_prepare model_no_namespace_prepare
+#define papacc_server_launcher_scq_first_controller model_no_first_controller
+#define papacc_server_launcher_scq_prestart_close model_prestart_close
+#define papacc_server_launcher_scq_start_carrier model_no_start_carrier
+#define papacc_server_launcher_scq_start_take model_no_start_take
+#define papacc_server_launcher_scq_start_progress model_no_start_progress
+#define papacc_server_launcher_scq_start_wait model_no_start_wait
+#define papacc_server_launcher_scq_start_wait_terminal model_no_start_terminal
+#define papacc_server_launcher_scq_start_finish model_no_start_finish
+#define papacc_server_launcher_scq_start_namespace_current model_no_start_namespace
 #include "../apps/server/server_service_win32.c"
 #define T(x) do{if(!(x)){printf("FAIL line=%d\n",__LINE__);return 1;}}while(0)
 int main(void)

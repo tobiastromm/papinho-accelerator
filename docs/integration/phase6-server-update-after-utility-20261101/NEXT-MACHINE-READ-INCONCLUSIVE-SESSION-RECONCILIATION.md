@@ -1,0 +1,5 @@
+# Próximo trabalho — reconciliar sessão única I0-I6
+
+Ler pedido/decisão real/saída manual integral. Conferir primeira falha/cópiasexclusivas/IDs/hashes/proteção/readback/close/consumos documentais e E/Q/S/P independentes, seleçãoimagem880128-ID417614100:524288:605924/recursos e SCMgates originais. Não repetir sessão/materialização nem reutilizar G5.
+
+Separar runtimeidentidade/bilateral/empréstimo/controlepositivoMESMAfixture/probe rawstatus-handles-contadores-close/resultadoDATA/receipt-close/retorno/custódia/nativeclose/SCM/término. CLI3 e SESSION_CLOSED_INCONCLUSIVE mantêmISOLATIONDENY e nãoRUNNING; exigir runtime1168/SCM1066-specific1168/ownersclosed, não inferir pelo exit. CLI0 ainda exige provas de READqualificado, CLI2/outro ou provas incompletasmantêmfalhaUNKNOWN. Não reclassificar históricos ou liberarprodução. Registrar USED/result separado do pending. Se retido, somente proposta de ação governada apropriada, semcoleta/kill automático ou G5antigo. Preservar objetos/keys/EXEs/HEAD-WIP/pins/consumos/PST0.6.4/UNKNOWN.

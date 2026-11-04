@@ -1,0 +1,317 @@
+/* U1-U7 binary UPDATE, distinct from exclusive staging/configuration UPDATE.
+ * Preparation alone denies. The sole effect route requires the independently
+ * attributed native act, original references and fresh limited U4 admission. */
+static PAPACC_STAGED_UPDATE_STATE *staged_update_state(void)
+{return &root.configuration_commit.pending_commit.personal_native.staged_update;}
+static DWORD staged_update_fail(DWORD e)
+{PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();if(!e)e=ERROR_INVALID_DATA;if(!u->first){u->first=e;u->first_location=u->location;}return u->first;}
+static int staged_update_owned(void)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();
+ return staging_owned()&&u->self==u&&u->thread==GetCurrentThreadId()&&u->invocation==root.invocation&&u->phase==1U;
+}
+static int staged_update_stop(void)
+{return papacc_server_console_win32_stop_requested()||root.configuration_commit.pending_commit.stop;}
+/* Accepted U2: slot8 is DATA only AFTER independent executor admission.
+ * Parse the entire owner/DACL; a generic valid SD is never sufficient. */
+static int staged_update_data_descriptor(PSECURITY_DESCRIPTOR sd)
+{
+ PSID owner;PACL acl;BOOL present,def;DWORD i;
+ if(!sd||!IsValidSecurityDescriptor(sd)||!GetSecurityDescriptorOwner(sd,&owner,&def)||
+ !owner||!IsValidSid(owner)||!GetSecurityDescriptorDacl(sd,&present,&acl,&def)||
+ !present||!acl||!IsValidAcl(acl)||!acl->AceCount)return 0;
+ for(i=0;i<acl->AceCount;i++){
+  PACE_HEADER h;ACCESS_ALLOWED_ACE *a;PSID sid;
+  if(!GetAce(acl,i,(void **)&h)||(h->AceFlags&~(OBJECT_INHERIT_ACE|CONTAINER_INHERIT_ACE|NO_PROPAGATE_INHERIT_ACE|INHERIT_ONLY_ACE|INHERITED_ACE))||
+   (h->AceType!=ACCESS_ALLOWED_ACE_TYPE&&h->AceType!=ACCESS_DENIED_ACE_TYPE)||
+   h->AceSize<FIELD_OFFSET(ACCESS_ALLOWED_ACE,SidStart)+8U)return 0;
+  a=(ACCESS_ALLOWED_ACE *)h;sid=&a->SidStart;
+  if(!IsValidSid(sid)||GetLengthSid(sid)>(DWORD)(h->AceSize-FIELD_OFFSET(ACCESS_ALLOWED_ACE,SidStart)))return 0;
+ }
+ return 1;
+}
+static DWORD staged_update_executor_current(void);
+static DWORD utility_prep_controller_current(void);
+static DWORD utility_prep_current(void);
+static DWORD utility_prep_barrier(ULONGLONG);
+static int utility_prep_chain_slot(unsigned index)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();unsigned i;
+ if(!u->preparation_mode||u->prep_chain_count>6U)return 0;
+ for(i=0;i<u->prep_chain_count;i++)if(u->prep_slots[i]==index)return 1;
+ return 0;
+}
+/* Fixed caller buffer, no realloc/retry for opaque SCM configuration sizes.
+ * All returned strings must terminate INSIDE the original query result. */
+static int staged_update_string(const WCHAR *text,const WCHAR *expected,DWORD bytes)
+{
+ const BYTE *begin=staged_update_state()->query;ULONG_PTR at=(ULONG_PTR)text,base=(ULONG_PTR)begin;size_t i,cap;
+ if(!text||bytes>sizeof(staged_update_state()->query)||at<base||at-base>=bytes||(at-base)%sizeof(WCHAR))return 0;
+ cap=(bytes-(size_t)(at-base))/sizeof(WCHAR);
+ for(i=0;i<cap;i++)if(!text[i])return wcslen(expected)==i&&!memcmp(text,expected,i*sizeof(WCHAR));
+ return 0;
+}
+static DWORD staged_update_service(void)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+ QUERY_SERVICE_CONFIGW *q=(QUERY_SERVICE_CONFIGW *)u->query;SERVICE_STATUS_PROCESS status;
+ SERVICE_SID_INFO sid;DWORD bytes=0,needed=0;WCHAR command[MAX_PATH+32U];
+ u->location=200U;
+ if(!staged_update_owned()||!u->service||staged_update_stop())return staged_update_fail(ERROR_CANCELLED);
+ if(swprintf_s(command,MAX_PATH+32U,L"\"%s\\papacc_server.exe\" service host scq-closed",n->install_paths.binary)<0)return staged_update_fail(ERROR_INVALID_NAME);
+ ZeroMemory(u->query,sizeof(u->query));
+ if(!QueryServiceConfigW(u->service,q,sizeof(u->query),&needed))return staged_update_fail(GetLastError());
+ /* On success pcbBytesNeeded is not used as a returned initialized byte count.
+  * Zeroing and bounded pointer checks constrain every interpreted string. */
+ bytes=sizeof(u->query);
+ if(q->dwServiceType!=SERVICE_WIN32_OWN_PROCESS||q->dwStartType!=SERVICE_DEMAND_START||q->dwErrorControl!=SERVICE_ERROR_NORMAL||
+ !staged_update_string(q->lpBinaryPathName,command,bytes)||!staged_update_string(q->lpServiceStartName,L"NT SERVICE\\PapinhoAccelerator",bytes)||
+ !staged_update_string(q->lpLoadOrderGroup,L"",bytes)||!q->lpDependencies||
+ !staged_update_string(q->lpDependencies,L"",bytes))return staged_update_fail(ERROR_ACCESS_DENIED);
+ ZeroMemory(&sid,sizeof(sid));needed=0;
+ if(!QueryServiceConfig2W(u->service,SERVICE_CONFIG_SERVICE_SID_INFO,(BYTE *)&sid,sizeof(sid),&needed)||
+ sid.dwServiceSidType!=SERVICE_SID_TYPE_UNRESTRICTED)return staged_update_fail(ERROR_ACCESS_DENIED);
+ ZeroMemory(&status,sizeof(status));bytes=0;
+ if(!QueryServiceStatusEx(u->service,SC_STATUS_PROCESS_INFO,(BYTE *)&status,sizeof(status),&bytes))return staged_update_fail(GetLastError());
+ if(bytes!=sizeof(status)||status.dwServiceType!=SERVICE_WIN32_OWN_PROCESS||status.dwCurrentState!=SERVICE_STOPPED||status.dwProcessId)
+ return staged_update_fail(ERROR_SERVICE_CANNOT_ACCEPT_CTRL);
+ return staged_update_stop()?staged_update_fail(ERROR_CANCELLED):0;
+}
+static DWORD staged_update_object(unsigned index,int first)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();PAPACC_STAGING_OBJECT *o=&s->objects[index];BY_HANDLE_FILE_INFORMATION f;
+ SECURITY_DESCRIPTOR_CONTROL control;DWORD rev,bytes;BYTE digest[32];int valid=0;
+ staged_update_state()->location=100U+index;
+ if(!staged_update_owned()||staged_update_stop())return staged_update_fail(ERROR_CANCELLED);
+ if(index==8U&&staged_update_state()->execute_mode&&
+  (staged_update_state()->preparation_mode?utility_prep_controller_current():staged_update_executor_current()))return staged_update_state()->first;
+ if(!GetFileInformationByHandle(o->handle,&f))return staged_update_fail(GetLastError());
+ if((f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)||!!(f.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)!=!!o->directory||
+ f.dwVolumeSerialNumber!=root.configuration_commit.pending_commit.personal_native.parent.dwVolumeSerialNumber)
+ return staged_update_fail(ERROR_ACCESS_DENIED);
+ if(!first&&(o->directory?(f.nFileIndexHigh!=o->identity.nFileIndexHigh||f.nFileIndexLow!=o->identity.nFileIndexLow||f.dwFileAttributes!=o->identity.dwFileAttributes):!scm_register_id(&f,&o->identity)))
+ return staged_update_fail(ERROR_REVISION_MISMATCH);
+ if(s->scratch)return staged_update_fail(ERROR_INVALID_STATE);
+ if(GetSecurityInfo(o->handle,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&s->scratch)!=ERROR_SUCCESS||!s->scratch)
+ return staged_update_fail(ERROR_INVALID_SECURITY_DESCR);
+ bytes=GetSecurityDescriptorLength(s->scratch);
+ if(bytes&&bytes<=65536U&&GetSecurityDescriptorControl(s->scratch,&control,&rev)&&
+ /* No generic-SD bypass: DATA requires the independent original executor.
+  * Preparation-only retains the historical strict source policy. */
+ (staged_update_state()->preparation_mode&&(index==7U||index==9U||index==10U||utility_prep_chain_slot(index))?
+  staged_update_data_descriptor(s->scratch):(o->directory||(index==8U&&staged_update_state()->execute_mode?
+  staged_update_data_descriptor(s->scratch):
+  ((index==8U||(control&SE_DACL_PROTECTED))&&scm_descriptor(s->scratch,root.configuration_commit.pending_commit.personal_native.sid)))))&&
+ (!o->directory||utility_prep_chain_slot(index)||staging_descriptor(s->scratch,1))&&
+ (index!=0U||staging_anchor_descriptor(s->scratch))&&
+ pacc_storage_hash_callback(NULL,(BYTE *)s->scratch,bytes,digest)&&(first||!memcmp(o->acl,digest,32)))valid=1;
+ if(LocalFree(s->scratch)){s->phase=8U;return staged_update_fail(ERROR_INVALID_HANDLE);}s->scratch=NULL;
+ if(!valid)return staged_update_fail(ERROR_ACCESS_DENIED);
+ if(first){o->identity=f;memcpy(o->acl,digest,32);}return 0;
+}
+/* FILE_OPEN only, READ_CONTROL/read attributes/data, share READ. Stable packet
+ * name and IOSB survive unexpected pending results. No WRITE/DELETE/ACL rights.
+ * Bounded controlled references are not a guessed total-process handle quota. */
+static DWORD staged_update_open(unsigned index,HANDLE parent,const WCHAR *name,int directory)
+{
+ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();STAGING_NT_CREATE fn;FARPROC proc;HMODULE module;NTSTATUS status;size_t len;ACCESS_MASK rights;ULONG share=FILE_SHARE_READ;
+ if(!staged_update_owned()||index>=16U||s->objects[index].handle||!name||staged_update_stop())return staged_update_fail(ERROR_INVALID_STATE);
+ len=wcslen(name);if(!len||len>=MAX_PATH)return staged_update_fail(ERROR_INVALID_NAME);
+ module=GetModuleHandleW(L"ntdll.dll");proc=module?GetProcAddress(module,"NtCreateFile"):NULL;if(!proc)return staged_update_fail(ERROR_NOT_SUPPORTED);
+ memcpy(&fn,&proc,sizeof(fn));memcpy(s->source,name,(len+1U)*sizeof(WCHAR));
+ ZeroMemory(&n->scq_cold_attributes,sizeof(n->scq_cold_attributes));ZeroMemory(&s->resources.volume_io,sizeof(s->resources.volume_io));
+ n->scq_cold_unicode.Buffer=s->source;n->scq_cold_unicode.Length=(USHORT)(len*sizeof(WCHAR));n->scq_cold_unicode.MaximumLength=n->scq_cold_unicode.Length;
+ n->scq_cold_attributes.Length=sizeof(n->scq_cold_attributes);n->scq_cold_attributes.RootDirectory=parent;
+ n->scq_cold_attributes.ObjectName=&n->scq_cold_unicode;n->scq_cold_attributes.Attributes=OBJ_CASE_INSENSITIVE|0x1000U;
+ s->objects[index].directory=directory?1U:0U;
+ rights=READ_CONTROL|SYNCHRONIZE|FILE_READ_ATTRIBUTES|(directory?FILE_TRAVERSE:FILE_READ_DATA);
+ if(staged_update_state()->execute_mode){
+  if(index==13U&&!staged_update_state()->preparation_mode)rights|=DELETE;
+  if(directory==2)rights|=FILE_ADD_FILE;
+  /* Readback requests only read rights; primary share READ still denies all
+   * other writers/deleters, including via these readback borrows. */
+  if((index==11U&&!staged_update_state()->preparation_mode)||index==15U){
+   share|=FILE_SHARE_WRITE;if(!staged_update_state()->preparation_mode)share|=FILE_SHARE_DELETE;
+  }
+ }
+ status=fn(&s->objects[index].handle,rights,
+ &n->scq_cold_attributes,&s->resources.volume_io,NULL,directory?FILE_ATTRIBUTE_DIRECTORY:FILE_ATTRIBUTE_NORMAL,share,1U,
+ directory?0x00200021U:0x00200060U,NULL,0);
+ if(status>0||s->resources.volume_io.Status==(NTSTATUS)0x103L||(status!=0&&s->objects[index].handle)){
+ s->phase=8U;return staged_update_fail(ERROR_IO_PENDING);}
+ if(status||s->resources.volume_io.Status||s->resources.volume_io.Information!=1U||!s->objects[index].handle)return staged_update_fail(status?(DWORD)status:ERROR_INVALID_DATA);
+ return staged_update_object(index,1);
+}
+/* Same owner, original ancestor handles, strict image/DLLs and live process.
+ * No grant setter and no selection by candidate-owner/hash. Slot7 is an
+ * existing bounded slot, reserved only if it is not needed by ancestors. */
+static DWORD staged_update_executor_current(void)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_QUALIFICATION_STAGING *s=staging_act();
+ FILETIME created,exited,kernel,user;WCHAR process_name[MAX_PATH],file_name[MAX_PATH];
+ DWORD a=MAX_PATH,b;BYTE digest[32];unsigned i;
+ if(!staged_update_owned()||u->preparation_mode||!u->execute_mode||!u->executor_pid||!s->objects[7].handle||
+  s->ancestor_count>7U||u->executor_pid!=GetCurrentProcessId()||staged_update_stop())return staged_update_fail(ERROR_ACCESS_DENIED);
+ if(papacc_configuration_personal_native_current(&root.configuration_commit)!=PAPACC_RESULT_OK||
+ !GetProcessTimes(GetCurrentProcess(),&created,&exited,&kernel,&user)||
+ memcmp(&created,&u->executor_creation,sizeof(created)))return staged_update_fail(ERROR_REVISION_MISMATCH);
+ if(staged_update_object(7U,0)||!scm_register_hash(s->objects[7].handle,digest)||memcmp(digest,u->executor_hash,32))return staged_update_fail(ERROR_CRC);
+ if(!QueryFullProcessImageNameW(GetCurrentProcess(),PROCESS_NAME_NATIVE,process_name,&a)||!a||a>=MAX_PATH)return staged_update_fail(ERROR_ACCESS_DENIED);
+ b=GetFinalPathNameByHandleW(s->objects[7].handle,file_name,MAX_PATH,FILE_NAME_NORMALIZED|VOLUME_NAME_NT);
+ if(!b||b>=MAX_PATH||a!=b||CompareStringOrdinal(process_name,(int)a,file_name,(int)b,FALSE)!=CSTR_EQUAL)return staged_update_fail(ERROR_ACCESS_DENIED);
+ for(i=0;i<2U;i++){
+  HMODULE module=GetModuleHandleW(staging_leaf[i+1U]);
+  a=module?GetModuleFileNameW(module,process_name,MAX_PATH):0;
+  b=GetFinalPathNameByHandleW(s->objects[9U+i].handle,file_name,MAX_PATH,FILE_NAME_NORMALIZED|VOLUME_NAME_DOS);
+  if(!a||a>=MAX_PATH||!b||b>=MAX_PATH)return staged_update_fail(ERROR_ACCESS_DENIED);
+  /* DOS final paths have the explicit \\?\ prefix; module paths do not. */
+  if(b!=a+4U||wcsncmp(file_name,L"\\\\?\\",4U)||CompareStringOrdinal(process_name,(int)a,file_name+4,(int)a,TRUE)!=CSTR_EQUAL)return staged_update_fail(ERROR_ACCESS_DENIED);
+ }
+ for(i=0;i<16U;i++)if(i!=7U&&s->objects[i].handle&&
+  s->objects[i].identity.dwVolumeSerialNumber==u->executor_id[0]&&s->objects[i].identity.nFileIndexHigh==u->executor_id[1]&&
+  s->objects[i].identity.nFileIndexLow==u->executor_id[2])return staged_update_fail(ERROR_ACCESS_DENIED);
+ return 0;
+}
+static DWORD staged_update_executor_capture(void)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();FILETIME exited,kernel,user;DWORD count;size_t prefix=wcslen(n->install_paths.binary);
+ u->location=920U;
+ count=GetModuleFileNameW(NULL,u->executor_path,MAX_PATH);
+ if(!count||count>=MAX_PATH||count<=prefix+1U||s->ancestor_count>7U||
+  _wcsnicmp(u->executor_path,n->install_paths.binary,prefix)||u->executor_path[prefix]!=L'\\'||
+  wcschr(u->executor_path+prefix+1U,L'\\'))return staged_update_fail(ERROR_ACCESS_DENIED);
+ if(staged_update_open(7U,s->objects[s->ancestor_count-1U].handle,u->executor_path+prefix+1U,0))return u->first;
+ {const BY_HANDLE_FILE_INFORMATION *f=&s->objects[7].identity;
+ if(f->dwVolumeSerialNumber!=u->executor_id[0]||f->nFileIndexHigh!=u->executor_id[1]||f->nFileIndexLow!=u->executor_id[2])return staged_update_fail(ERROR_REVISION_MISMATCH);}
+ u->executor_pid=GetCurrentProcessId();
+ if(!u->executor_pid||!GetProcessTimes(GetCurrentProcess(),&u->executor_creation,&exited,&kernel,&user))return staged_update_fail(ERROR_ACCESS_DENIED);
+ return staged_update_executor_current();
+}
+static DWORD staged_update_files(void)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_QUALIFICATION_STAGING *s=staging_act();unsigned i,j;BYTE digest[32];
+ const unsigned files_to_check[4]={8U,9U,10U,13U};
+ if(!staged_update_owned()||papacc_configuration_personal_layout_binary_current(&root.configuration_commit)!=PAPACC_RESULT_OK||
+ papacc_configuration_personal_native_current(&root.configuration_commit)!=PAPACC_RESULT_OK)return staged_update_fail(ERROR_ACCESS_DENIED);
+ if(staged_update_service())return u->first;
+ if(u->execute_mode&&staged_update_executor_current())return u->first;
+ for(i=0;i<s->ancestor_count;i++)if(staged_update_object(i,0))return u->first;
+ for(i=0;i<4U;i++){
+  unsigned k=files_to_check[i];const BYTE *pin=k==8U?u->new_hash:k==13U?u->old_hash:u->dll_hash[k-9U];
+  if(k==13U&&(s->objects[k].identity.dwVolumeSerialNumber!=u->expected_old_id[0]||
+   s->objects[k].identity.nFileIndexHigh!=u->expected_old_id[1]||s->objects[k].identity.nFileIndexLow!=u->expected_old_id[2]))return staged_update_fail(ERROR_REVISION_MISMATCH);
+  if(staged_update_object(k,0)||!scm_register_hash(s->objects[k].handle,digest)||memcmp(digest,pin,32))return staged_update_fail(ERROR_CRC);
+  if(!s->objects[k].identity.nFileSizeLow&&!s->objects[k].identity.nFileSizeHigh)return staged_update_fail(ERROR_INVALID_DATA);
+  for(j=0;j<i;j++)if(s->objects[k].identity.nFileIndexHigh==s->objects[files_to_check[j]].identity.nFileIndexHigh&&
+   s->objects[k].identity.nFileIndexLow==s->objects[files_to_check[j]].identity.nFileIndexLow)return staged_update_fail(ERROR_ACCESS_DENIED);
+ }
+ if(staged_update_stop()||papacc_configuration_personal_native_current(&root.configuration_commit)!=PAPACC_RESULT_OK)return staged_update_fail(ERROR_ACCESS_DENIED);
+ return 0; /* snapshot, never a lease preventing another administrator's Start */
+}
+static DWORD staged_update_close(void)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_QUALIFICATION_STAGING *s=staging_act();SC_HANDLE *handles[2]={&u->service,&u->manager};unsigned i;
+ if(!staged_update_owned()||s->phase==8U||u->phase==8U)return ERROR_INVALID_STATE;
+ u->location=900U;
+ if(u->effects&&u->first)goto retained;
+ for(i=0;i<2U;i++)if(*handles[i]){
+  if(u->close_attempts&(1U<<i))goto retained;u->close_attempts|=1U<<i;
+  if(!CloseServiceHandle(*handles[i]))goto retained;*handles[i]=NULL;
+ }
+ u->phase=4U; /* native close permitted only after SCM references closed */
+ if(staging_close()){u->phase=8U;return staged_update_fail(ERROR_INVALID_HANDLE);}
+ if(root.configuration_commit.pending_commit.personal_native.console.is_installed&&
+ papacc_server_console_win32_uninstall(&root.configuration_commit.pending_commit.personal_native.console)!=PAPACC_RESULT_OK)goto retained;
+ return u->first;
+retained:u->phase=8U;s->phase=8U;root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return staged_update_fail(ERROR_INVALID_HANDLE);
+}
+/* Application-private composition. The separate manual CLI below constructs
+ * the attributed act; the existing read-only wrapper cannot perform effects.
+ * Expected identities/hashes are comparison DATA, not authority sources. */
+static int staged_update_entry(const WCHAR *,const DWORD [3],const DWORD [3],const BYTE [32],const BYTE [32],const BYTE [2][32],const DWORD [3],const BYTE [32],FILE *,int);
+#include "server_launcher_staged_update_effects_win32.inc"
+size_t papacc_server_launcher_binary_update_known_bytes(void)
+{
+ return PAPACC_C8_KNOWN_MANAGED_BYTES+papacc_server_service_storage_bytes()+sizeof(LONG)+
+ 3U*MAX_PATH*sizeof(WCHAR)+3U*sizeof(WCHAR)+(MAX_PATH+32U)*sizeof(WCHAR)+sizeof(SERVICE_STATUS_PROCESS)+
+ sizeof(SERVICE_SID_INFO)+sizeof(BY_HANDLE_FILE_INFORMATION)+sizeof(PACC_STORAGE_SHA256)+1024U+128U+32U*sizeof(void *)+32U*sizeof(DWORD)+
+ 128U+6U*sizeof(DWORD)+MAX_PATH*sizeof(WCHAR)+UPDATE_KNOWN_AUTOMATIC_BYTES+
+ 2U*MAX_PATH*sizeof(WCHAR)+7U*sizeof(FILETIME)+32U+16U*sizeof(void *)+16U*sizeof(DWORD);
+}
+static int staged_update_entry(const WCHAR *source,const DWORD parent_id[3],const DWORD old_id[3],const BYTE old_pin[32],const BYTE new_pin[32],const BYTE dll_pins[2][32],const DWORD executor_id[3],const BYTE executor_pin[32],FILE *out,int execute)
+{
+ PAPACC_CONFIGURATION_COMMIT *c=&root.configuration_commit;PAPACC_PERSONAL_NATIVE_CONTEXT *n=&c->pending_commit.personal_native;
+ PAPACC_QUALIFICATION_STAGING *s=&n->staging;PAPACC_STAGED_UPDATE_STATE *u=&n->staged_update;
+ WCHAR part[MAX_PATH],native_source[MAX_PATH],device[MAX_PATH],drive[3];size_t i,start,len;int clean=0;
+ if(!source||!old_id||!old_pin||!new_pin||!dll_pins||!out||wcslen(source)<4U||wcslen(source)>=MAX_PATH||source[1]!=L':'||source[2]!=L'\\'||wcsstr(source,L".."))return 2;
+ if(execute&&(!parent_id||!executor_id||!executor_pin))return 2;
+ if(InterlockedCompareExchange(&state,PAPACC_LAUNCHER_ACTIVE,0)!=0)return 2;
+ if(next_invocation==(PAPACC_U64)-1){InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return 2;}
+ ZeroMemory(&root,sizeof(root));root.owner_thread=GetCurrentThreadId();root.invocation=++next_invocation;c->writer=root.owner_thread;
+ s->self=s;s->thread=root.owner_thread;s->invocation=root.invocation;s->phase=1U;
+ u->self=u;u->thread=root.owner_thread;u->invocation=root.invocation;u->phase=1U;
+ u->execute_mode=execute?1U:0U;wcscpy_s(u->source_path,MAX_PATH,source);u->resources.sink=out;
+ u->missing=PAPACC_UPDATE_MISSING_ACT|PAPACC_UPDATE_MISSING_NATIVE|PAPACC_UPDATE_MISSING_MARGIN|PAPACC_UPDATE_MISSING_REPLACEMENT;
+ memcpy(u->old_hash,old_pin,32);memcpy(u->new_hash,new_pin,32);memcpy(u->dll_hash,dll_pins,64);
+ memcpy(u->expected_old_id,old_id,sizeof(u->expected_old_id));
+ if(parent_id)memcpy(u->expected_parent_id,parent_id,sizeof(u->expected_parent_id));
+ if(execute){memcpy(u->executor_id,executor_id,sizeof(u->executor_id));memcpy(u->executor_hash,executor_pin,32);}
+ /* Same console bridge as F1-F6: callback only signals Stop, never performs
+  * IO/cleanup. Retained cohorts keep the bridge; known closure unregisters. */
+ if(execute&&(papacc_server_console_win32_stop_requested()||papacc_server_console_win32_install(&n->console)!=PAPACC_RESULT_OK)){
+  u->location=912U;staged_update_fail(ERROR_CANCELLED);goto done;
+ }
+ /* Conservative named managed charge; opaque stack/RPC/FS costs NOT bounded. */
+ root.reserved_bytes=papacc_server_launcher_binary_update_known_bytes();
+ if(root.reserved_bytes>PAPACC_LAUNCHER_MANAGED_LIMIT){staged_update_fail(ERROR_NOT_ENOUGH_QUOTA);goto done;}
+ if(papacc_configuration_personal_layout_binary(c)!=PAPACC_RESULT_OK){staged_update_fail(ERROR_ACCESS_DENIED);goto done;}
+ u->location=910U;
+ drive[0]=n->install_paths.binary[0];drive[1]=':';drive[2]=0;
+ {char volume[4]={(char)drive[0],':','\\',0};if(papacc_configuration_personal_native_open(c,volume)!=PAPACC_RESULT_OK){staged_update_fail(ERROR_ACCESS_DENIED);goto done;}}
+ if(!ConvertStringSidToSidW(L"S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464",&s->trusted_installer)){staged_update_fail(ERROR_INVALID_SID);goto done;}
+ len=wcslen(n->install_paths.binary);start=3U;
+ for(i=start;i<=len;i++)if(n->install_paths.binary[i]==L'\\'||!n->install_paths.binary[i]){
+  unsigned k=s->ancestor_count;if(i==start||k==8U){staged_update_fail(ERROR_INVALID_NAME);goto done;}
+  memcpy(part,n->install_paths.binary+start,(i-start)*sizeof(WCHAR));part[i-start]=0;
+  if(staged_update_open(k,k?s->objects[k-1U].handle:c->pending_commit.bootstrap_parent,part,execute&&i==len?2:1))goto done;
+  s->ancestor_count++;start=i+1U;
+ }
+ if(!s->ancestor_count){staged_update_fail(ERROR_INVALID_NAME);goto done;}
+ if(execute){BY_HANDLE_FILE_INFORMATION *f=&s->objects[s->ancestor_count-1U].identity;
+  if(f->dwVolumeSerialNumber!=u->expected_parent_id[0]||f->nFileIndexHigh!=u->expected_parent_id[1]||f->nFileIndexLow!=u->expected_parent_id[2]){staged_update_fail(ERROR_REVISION_MISMATCH);goto done;}}
+ for(i=0;i<3U;i++)if(staged_update_open(i?8U+(unsigned)i:13U,s->objects[s->ancestor_count-1U].handle,staging_leaf[i],0))goto done;
+ if(execute&&staged_update_executor_capture())goto done;
+ drive[0]=source[0];
+ if(!QueryDosDeviceW(drive,device,MAX_PATH)||wcsncmp(device,L"\\Device\\",8U)||
+ swprintf_s(native_source,MAX_PATH,L"%s%s",device,source+2)<0){staged_update_fail(ERROR_INVALID_NAME);goto done;}
+ if(staged_update_open(8U,NULL,native_source,0))goto done;
+ u->manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!u->manager){staged_update_fail(GetLastError());goto done;}
+ u->service=OpenServiceW(u->manager,L"PapinhoAccelerator",SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS);if(!u->service){staged_update_fail(GetLastError());goto done;}
+ if(staged_update_files())goto done;
+ u->old_bytes=((ULONGLONG)s->objects[13].identity.nFileSizeHigh<<32)|s->objects[13].identity.nFileSizeLow;
+ u->new_bytes=((ULONGLONG)s->objects[8].identity.nFileSizeHigh<<32)|s->objects[8].identity.nFileSizeLow;
+ if(staged_update_stop()){staged_update_fail(ERROR_CANCELLED);goto done;}u->prepared=1U;
+ if(execute){
+  if(!u->new_bytes||u->new_bytes>MAXDWORD-4U){staged_update_fail(ERROR_ARITHMETIC_OVERFLOW);goto done;}
+  if(staged_update_present(out))goto done;
+  {DWORD e=staged_update_apply();if(e){staged_update_fail(e);goto done;}}
+ }
+done:
+ if(s->phase!=8U&&u->phase!=8U){(void)staged_update_close();clean=u->phase==4U&&s->phase==6U;}
+ if(!clean){root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);}
+ else InterlockedExchange(&state,PAPACC_LAUNCHER_FINISHED);
+ fprintf(out,"STAGED_UPDATE_RESULT prepared=%u first=%lu missing=%lu consumed=%u submitted=%u created=%u renames=%u close_known=%u K=%llu R=%llu; %s; OPAQUE_COSTS_UNKNOWN; OS_QUIESCENCE=UNKNOWN; NO_RETRY_NO_ROLLBACK_NO_START\n",
+ u->prepared,(unsigned long)u->first,(unsigned long)u->missing,u->consumed,u->effects,u->created,u->rename_done,(unsigned)clean,
+ (ULONGLONG)root.reserved_bytes,u->rounded,execute&&u->rename_done==3U&&clean&&!u->first?"LIMITED_UPDATE_VERIFIED_CLOSED":"AUTHORITY=DENY");
+ fprintf(out,"STAGED_UPDATE_FIRST_CAUSE location=%lu native_predicate=%lu native_kind=%lu native_error=%lu; METADATA_NOT_AUTHORITY\n",(unsigned long)u->first_location,(unsigned long)n->diagnostic_first,(unsigned long)n->diagnostic_kind,(unsigned long)n->diagnostic_error);
+ if(s->objects[14].identity.nFileIndexHigh||s->objects[14].identity.nFileIndexLow)
+  fprintf(out,"STAGED_UPDATE_NEW_OBJECT volume=%lu high=%lu low=%lu bytes=%llu canonical_verified_closed=%u; CAPTURE_NOT_START_AUTHORITY\n",
+   (unsigned long)s->objects[14].identity.dwVolumeSerialNumber,(unsigned long)s->objects[14].identity.nFileIndexHigh,
+   (unsigned long)s->objects[14].identity.nFileIndexLow,u->new_bytes,(unsigned)(execute&&u->rename_done==3U&&clean&&!u->first));
+ return u->prepared&&clean&&!u->first&&(!execute||u->rename_done==3U)?0:2;
+}
+int papacc_server_launcher_staged_update_prepare(const WCHAR *source,const DWORD old_id[3],const BYTE a[32],const BYTE b[32],const BYTE d[2][32],FILE *out)
+{return staged_update_entry(source,NULL,old_id,a,b,d,NULL,NULL,out,0);}
+#include "server_launcher_utility_preparation_win32.inc"

@@ -1,0 +1,69 @@
+papacc_server_launcher_target_passive_snapshot PROC	; COMDAT
+
+; 110  : {
+
+$LN15:
+	mov	QWORD PTR [rsp+24], rbx
+	push	rdi
+	sub	rsp, 160				; 000000a0H
+	mov	rax, QWORD PTR __security_cookie
+	xor	rax, rsp
+	mov	QWORD PTR __$ArrayPad$[rsp], rax
+	mov	rdi, rdx
+	mov	rbx, rcx
+
+; 111  :  PAPACC_C8_TARGET_BINDING b;PAPACC_RESULT result;ULONG_PTR a=(ULONG_PTR)o,z=(ULONG_PTR)out;
+; 112  :  if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;
+
+	test	rdx, rdx
+	je	SHORT $LN4@papacc_ser
+
+; 113  :  if((z>=a&&z-a<sizeof(*o))||(z<a&&a-z<sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
+
+	cmp	rdx, rcx
+	jb	SHORT $LN8@papacc_ser
+	mov	rax, rdx
+	sub	rax, rcx
+	cmp	rax, 340640				; 000532a0H
+	jmp	SHORT $LN13@papacc_ser
+$LN8@papacc_ser:
+	mov	rax, rbx
+	sub	rax, rdi
+	cmp	rax, 4648				; 00001228H
+$LN13@papacc_ser:
+
+; 114  :  result=papacc_server_launcher_target_observation_binding(o,&b);
+
+	jb	SHORT $LN4@papacc_ser
+	lea	rdx, QWORD PTR b$[rsp]
+	call	papacc_server_launcher_target_observation_binding
+
+; 115  :  if(result!=PAPACC_RESULT_OK)return result;
+
+	test	eax, eax
+	jne	SHORT $LN1@papacc_ser
+
+; 116  :  return papacc_c8_target_passive_copy(&o->target_producer,&b,out);
+
+	lea	rcx, QWORD PTR [rbx+291008]
+	mov	r8, rdi
+	lea	rdx, QWORD PTR b$[rsp]
+	call	papacc_c8_target_passive_copy
+	jmp	SHORT $LN1@papacc_ser
+$LN4@papacc_ser:
+
+; 113  :  if((z>=a&&z-a<sizeof(*o))||(z<a&&a-z<sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
+
+	mov	eax, 1
+$LN1@papacc_ser:
+
+; 117  : }
+
+	mov	rcx, QWORD PTR __$ArrayPad$[rsp]
+	xor	rcx, rsp
+	call	__security_check_cookie
+	mov	rbx, QWORD PTR [rsp+192]
+	add	rsp, 160				; 000000a0H
+	pop	rdi
+	ret	0
+papacc_server_launcher_target_passive_snapshot ENDP

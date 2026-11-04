@@ -1,0 +1,4 @@
+# Próximo prompt executável — reconciliar FCA aquisição
+Ler integralmente a saída da única tentativa manual aprovada por e3c11dbcdc45ed4f4919946ae0cbe04306080f78acd48882b4550f6c991a8ca5. Não repetir.
+Se houver FCA_ORIGINAL_ACQUISITION_REJECT: mapear o ramo ao código original e distinguir retorno PAPACC_RESULT de erro nativo; não inventar status de subpredicados compostos. Reutilizar evidências e modelos offline; sem coleta automática.
+Se alcançar confirmação: conferir autoria/consumo, criação exclusiva Accelerator/ID/SD/readback, chave realmente criada/finalizada/nome/identidade pública, primeira falha, close e retenção. Flagszero/exit não provam ausência/readiness; preservar UNKNOWN onde não demonstrado. Corrigir offline somente defeito comprovado dentro dos accepted, sem repetir autorizações ou criar infraestrutura paralela. Preservar todos os limites/históricos/PST0.6.4.

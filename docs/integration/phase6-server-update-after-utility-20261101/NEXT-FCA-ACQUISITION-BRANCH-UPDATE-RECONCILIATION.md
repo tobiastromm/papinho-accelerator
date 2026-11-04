@@ -1,0 +1,4 @@
+# Próximo prompt executável — reconciliação UPDATE aquisição FCA
+Ler integralmente a saída da execução manual única aprovada pelo pedido5fb51f54b9832364c19cd79ea4f1189c24a54a43258aecb2720b9982bc575355. Não repetir.
+Conferir primeira falha, confirmação/consumo, criação exclusiva, dois renames, anterior preservado, novo EXE912384bytes/SHA256f4d91013a34da09053dcb800dcd909f82ba544384f1430d9c22584d1d24ea82b e identidade real futura, proteção/readback, SCM parado, close/retenção. Não inventar ID, ausência ou sucesso pelo exit. Preservar UNKNOWN quando incompleto.
+Somente depois preparar ato independente mínimo para obter o ramo original FCA, sem repetir tentativas/aprovações usadas, recriar configuração/Papinho ou operações automáticas. Preservar todos os contratos/guards/históricos/PST0.6.4.

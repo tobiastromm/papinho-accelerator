@@ -1,0 +1,5 @@
+# Próximo passo — disposição antes da sessão4ACEs
+
+Ler P1-READ-INTEGRATION-REPORT.md e P1-READ-OFFLINE-QUALIFICATION.json. L0–L6 accepted e integração offline concluída; nenhum UPDATE necessário (EXE809984 inalterado). Não criar originais ou executar driver.
+Aguardar decisão própria para ONE-SQF1-DETAIL21-RETAINED-PARTICIPANTS-DISPOSITION.REQUEST.CANDIDATE.md SHA256d38d1819fede54130a98022cb2931cf080ea935670e2e6795b21797a6f788b6f. Registrar decisão real e comando manual somente após aprovação. Não reutilizar query consumida ou aprovação L0–L6 como término.
+Após saída de disposição suficiente, reconciliar sem inferir SCQclose, preparar ONE-P1-READ-THREE-ACTS-REQUEST.CANDIDATE.md com todos os efeitos/hashes/fontes/novos originais4ACEs/risco de leitura persistente e gates frescos. Congelar pins, qualificar novos bindings apenas e apresentar para decisão operacional específica. Depois comando manual real com confirmação DATA e E/Q/S independentes. Não executar automaticamente/retry/cleanup/UPDATE/ACL-SCMedit ou produção. Preservar UNKNOWN/PST0.6.4.

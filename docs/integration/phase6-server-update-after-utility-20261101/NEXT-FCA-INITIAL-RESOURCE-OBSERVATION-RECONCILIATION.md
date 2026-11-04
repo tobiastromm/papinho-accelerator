@@ -1,0 +1,3 @@
+# Próximo prompt executável — reconciliar observação prospectiva FCA
+Ler saída integral da única observação aprovada pelo pedidoa8661aea0ce677f53ff8e39ca04a3206df909ec9c07ca0858f7272540c56220d. Conferir confirmação/consumo/primeira falha/query stage/amostra, bytes de física/commit/QPC e handles do OBSERVADOR. Não repetir.
+below_mask1=handlesobservador>128,2=física<7239172096,4=commit<3221225472. Comparar somente como estado prospectivo. Não inferir causa histórica, handles/controladorFCA, suficiência futura ou autoridade para nova FCA/Start. Preservar UNKNOWN, retenção histórica/quiescência OS, limites e PST0.6.4. Nenhuma operação real adicional automática.

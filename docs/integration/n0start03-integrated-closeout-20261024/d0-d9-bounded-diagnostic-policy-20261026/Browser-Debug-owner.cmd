@@ -1,0 +1,3 @@
+@echo off
+call C:\MSVC600-master\VC98\Bin\VCVARS32.BAT
+cl /nologo /TC /W3 /WX /MD /Od /Z7 /I"C:\Projetos\PapinhoBrowser\src" /I"C:\Projetos\PapinhoBrowser\third_party\pst-sdk-0.6.5-normal-4dbd2783\include" /Fo"C:\Projetos\PapinhoAccelerator\docs\integration\n0start03-integrated-closeout-20261024\d0-d9-bounded-diagnostic-policy-20261026\Browser-Debug-owner.obj" /Fd"C:\Projetos\PapinhoAccelerator\docs\integration\n0start03-integrated-closeout-20261024\d0-d9-bounded-diagnostic-policy-20261026\Browser-Debug-owner.pdb" /FAs /Fa"C:\Projetos\PapinhoAccelerator\docs\integration\n0start03-integrated-closeout-20261024\d0-d9-bounded-diagnostic-policy-20261026\Browser-Debug-owner.asm" /c "C:\Projetos\PapinhoBrowser\src\papinho_pst_owner.c"

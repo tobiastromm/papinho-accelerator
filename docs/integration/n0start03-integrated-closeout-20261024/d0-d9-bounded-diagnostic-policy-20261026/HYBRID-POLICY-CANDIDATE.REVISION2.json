@@ -1,0 +1,265 @@
+{
+  "format": "MODE_C_BOUNDED_DIAGNOSTIC_ANNEX",
+  "revision": 2,
+  "status": "PROPOSED_NOT_ACCEPTED",
+  "technical_direction": "B_SELECTED_ONE_OPERATION",
+  "normative_authority": null,
+  "parameters": [
+    {
+      "name": "diagnostic_logical_operations",
+      "value": 1,
+      "unit": "operation",
+      "classification": "TECHNICAL_DIRECTION_ONLY",
+      "scope": "future exact diagnostic; not accepted policy",
+      "source": "owner current task, alternative B"
+    },
+    {
+      "name": "browser_managed_cap",
+      "value": 2097152,
+      "unit": "bytes",
+      "classification": "EXISTING_CONTROLLED_LIMIT",
+      "scope": "Browser managed ledger; no target-total guarantee",
+      "source": "Browser/src/papinho_c2_budget.inc"
+    },
+    {
+      "name": "browser_existing_reservation",
+      "value": 1858020,
+      "unit": "bytes",
+      "classification": "COMPILED_CONTROLLED_EXPRESSION",
+      "scope": "one normal child estimate; shared/variable overlap still requires attribution",
+      "source": "composite-target-quantitative-closure-20261026/COMPILED-CONTROLLED-LAYOUTS.json"
+    },
+    {
+      "name": "accelerator_selected_known_managed",
+      "value": 1965128,
+      "unit": "bytes",
+      "classification": "COMPILED_FIXED_SCOPE",
+      "scope": "known macro only, includes embedded C2/C3 storage",
+      "source": "tests normal owner logs"
+    },
+    {
+      "name": "accelerator_selected_managed_cap",
+      "value": 3145728,
+      "unit": "bytes",
+      "classification": "EXISTING_CONTROLLED_LIMIT",
+      "scope": "Selected Windows profile only",
+      "source": "normal Selected build logs"
+    },
+    {
+      "name": "accelerator_default_known_managed",
+      "value": 1799632,
+      "unit": "bytes",
+      "classification": "COMPILED_FIXED_SCOPE",
+      "scope": "known macro, default profile",
+      "source": "tests normal owner logs"
+    },
+    {
+      "name": "accelerator_default_managed_cap",
+      "value": 2097152,
+      "unit": "bytes",
+      "classification": "EXISTING_CONTROLLED_LIMIT",
+      "scope": "default profile only",
+      "source": "normal Legacy build logs"
+    },
+    {
+      "name": "c2_payload_per_flow",
+      "value": 65536,
+      "unit": "bytes",
+      "classification": "SOURCE_FIXED_BUFFER",
+      "scope": "four embedded flows per operation, never add twice",
+      "source": "src/protocol/c2_operation_win32.h"
+    },
+    {
+      "name": "c3_payload_per_queue",
+      "value": 65536,
+      "unit": "bytes",
+      "classification": "SOURCE_FIXED_BUFFER",
+      "scope": "two embedded queues per bridge, not provider allocation",
+      "source": "src/network_egress/c3_bridge_win32.h"
+    },
+    {
+      "name": "browser_http_buffer",
+      "value": 524288,
+      "unit": "bytes",
+      "classification": "SOURCE_FIXED_BUFFER",
+      "scope": "context HTTP only; additional terminated outputs separate",
+      "source": "Browser/src/papinho_c2_s6.inc C2_HTTP_CAP"
+    },
+    {
+      "name": "browser_record_buffer",
+      "value": 65536,
+      "unit": "bytes",
+      "classification": "SOURCE_FIXED_BUFFER",
+      "scope": "context record_ab, already inside context",
+      "source": "Browser/src/papinho_c2_s6.inc C2_FLOW_CAP"
+    },
+    {
+      "name": "c8_passive_snapshot",
+      "value": 4648,
+      "unit": "bytes",
+      "classification": "COMPILED_CALLER_SCRATCH",
+      "scope": "new optional caller-owned copy; NOT persistent owner growth or total stack",
+      "source": "normal native typed test logs"
+    },
+    {
+      "name": "provider_snapshot",
+      "value": 60,
+      "unit": "bytes",
+      "classification": "COMPILED_VALUE_LAYOUT",
+      "scope": "one public metadata value, no opaque provider footprint",
+      "source": "ACTUAL-GETTER-TESTS.json"
+    },
+    {
+      "name": "browser_owner_layout",
+      "value": 148,
+      "unit": "bytes",
+      "classification": "COMPILED_EXISTING_LAYOUT",
+      "scope": "no owner fields added",
+      "source": "ACTUAL-GETTER-TESTS.json"
+    },
+    {
+      "name": "c8_capture_cadence",
+      "value": 100,
+      "unit": "ms",
+      "classification": "MECHANISM_NOT_TARGET_POLICY",
+      "scope": "existing raw own-process producer cadence, not Mode C freshness",
+      "source": "apps/server/server_c8_target_evidence_win32.c"
+    },
+    {
+      "name": "c8_collection_completion_limit",
+      "value": 100,
+      "unit": "ms",
+      "classification": "MECHANISM_NOT_TARGET_POLICY",
+      "scope": "existing reducer rejects longer completed query; no API cancellation guarantee",
+      "source": "apps/server/server_c8_target_evidence_win32.c reduce"
+    },
+    {
+      "name": "c8_recorded_expiry",
+      "value": 1000,
+      "unit": "ms",
+      "classification": "MECHANISM_NOT_TARGET_POLICY",
+      "scope": "raw diagnostic interval explicitly NOT inherited as target maximum age",
+      "source": "apps/server/server_c8_target_evidence_win32.c reduce"
+    },
+    {
+      "name": "c3_private_setup_timeout",
+      "value": 5000,
+      "unit": "ms",
+      "classification": "EXISTING_LOCAL_TIMEOUT",
+      "scope": "private_pair only; not total diagnostic duration",
+      "source": "src/network_egress/c3_bridge_win32.c private_pair"
+    },
+    {
+      "name": "browser_handshake_timeout",
+      "value": 10000,
+      "unit": "ms",
+      "classification": "EXISTING_LOCAL_TIMEOUT",
+      "scope": "one HTTP phase, not whole lifecycle",
+      "source": "Browser/src/papinho_c2_s6.inc HTTP loop"
+    },
+    {
+      "name": "browser_progress_idle_timeout",
+      "value": 30000,
+      "unit": "ms",
+      "classification": "EXISTING_LOCAL_TIMEOUT",
+      "scope": "resets with factual progress; not total wall time",
+      "source": "Browser/src/papinho_c2_s6.inc HTTP loop"
+    },
+    {
+      "name": "browser_site_pump_deadline_argument",
+      "value": 60000,
+      "unit": "ms",
+      "classification": "EXISTING_LOCAL_TIMEOUT",
+      "scope": "Site pump argument; cannot prove overall operation deadline",
+      "source": "Browser/src/papinho_c2_s6.inc papinho_site_create"
+    },
+    {
+      "name": "browser_drain_timeout",
+      "value": 5000,
+      "unit": "ms",
+      "classification": "EXISTING_LOCAL_TIMEOUT",
+      "scope": "drain/local disposition only; no guaranteed kernel/API completion",
+      "source": "Browser/src/papinho_c2_s6.inc"
+    },
+    {
+      "name": "target_maximum_age",
+      "value": null,
+      "unit": "ms",
+      "classification": "PENDING_EVIDENCE_AND_DECISION",
+      "scope": "No accepted evidence-backed target threshold; raw1000ms not applicable",
+      "source": "No value invented"
+    },
+    {
+      "name": "target_collection_validity",
+      "value": null,
+      "unit": "ms",
+      "classification": "PENDING_EVIDENCE_AND_DECISION",
+      "scope": "Source query limit100ms does not approve target interval",
+      "source": "No value invented"
+    },
+    {
+      "name": "diagnostic_overall_duration",
+      "value": null,
+      "unit": "ms",
+      "classification": "PENDING_EVIDENCE_AND_DECISION",
+      "scope": "Local deadlines reset/differ; no complete path wall-clock proof",
+      "source": "No value invented"
+    },
+    {
+      "name": "physical_headroom",
+      "value": null,
+      "unit": "bytes",
+      "classification": "PENDING_EVIDENCE_AND_DECISION",
+      "scope": "Managed byte ledger is not physical commit/host reserve; no active empirical envelope",
+      "source": "No value invented"
+    },
+    {
+      "name": "commit_headroom",
+      "value": null,
+      "unit": "bytes",
+      "classification": "PENDING_EVIDENCE_AND_DECISION",
+      "scope": "Opaque active provider/kernel and shared charges lack quantitative coverage",
+      "source": "No value invented"
+    },
+    {
+      "name": "active_provider_cost",
+      "value": null,
+      "unit": "bytes",
+      "classification": "PENDING_EVIDENCE_AND_DECISION",
+      "scope": "No native active connection under this authority",
+      "source": "No value invented"
+    },
+    {
+      "name": "kernel_socket_cost",
+      "value": null,
+      "unit": "bytes",
+      "classification": "PENDING_EVIDENCE_AND_DECISION",
+      "scope": "Pool quotas/socket options cannot bound complete/shared kernel allocation",
+      "source": "No value invented"
+    },
+    {
+      "name": "retained_native_cost",
+      "value": null,
+      "unit": "bytes",
+      "classification": "PENDING_EVIDENCE_AND_DECISION",
+      "scope": "Release uncertainty has no refund; historical obligations unavailable",
+      "source": "No value invented"
+    }
+  ],
+  "hard_vs_empirical": "Controlled values and source timeouts are ingredients only; active empirical coverage still absent",
+  "freshness": {
+    "observation": "original local process/creation/sequence and phase window",
+    "invalidation": [
+      "root/current/epoch/profile/backend/module/process/lifetime changed",
+      "replay, wrap/regression or missing required facts",
+      "freeze/Stop prevents new acquisition; historical copy remains historical"
+    ],
+    "numerical_target_policy": "ABSENT_DENY"
+  },
+  "guarantee_requiring_explicit_exception": "Universal pre-run proof of all opaque active provider/kernel/transitive resource costs; NOT identity/ownership/controlled-reservation/factual-close requirements",
+  "residual_acceptance": "NOT_GRANTED",
+  "scope_review_ready": true,
+  "complete_target_policy": false,
+  "operational_request_ready": false,
+  "admission": "DENY"
+}

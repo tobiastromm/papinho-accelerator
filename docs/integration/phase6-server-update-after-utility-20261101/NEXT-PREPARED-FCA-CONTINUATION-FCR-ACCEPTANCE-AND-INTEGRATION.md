@@ -1,0 +1,5 @@
+# Próximo prompt executável — decisão focal de continuidade FCA
+Como proprietário, aprovo exclusivamente a alternativa B, cláusulas FCR0–FCR7 de PREPARED-FCA-INSTANCE-ORIGINAL-CONTINUATION-FCR0-FCR7.CANDIDATE.md SHA2560d584b934e171c0741b1874f54ebc8612d62ad9e163559d7003b1d2ca60ebd7d.
+Autoriza registro normativo e integração/qualificação OFFLINE da finalidade read-only de readquisição/validação do par FCA preparado, no owner existente, sem criação/substituição/chave/diretório/sign/borrow produtivo/CURRENT/Start. Conferir bytes e compatibilidade accepted; em divergência STOP.
+Preservar F5/F6/F7/P4/K5/MVP/quotas, originais/proveniência/identidade/proteção/continuidade e declaração/confirmacão/consumo/lifetime. Não promover digest recém-capturado a prova histórica inexistente. Não remover guards first_preparation nem forçar flags de criação.
+Implementar caller positivo apenas após registro normativo, modelos de falha/negativos e censo, regressões afetadas sem campanhas inalteradas. Preparar pedido operacional se completo; nenhuma operação real automaticamente. Preservar UNKNOWN/consumos/históricos/PST0.6.4.

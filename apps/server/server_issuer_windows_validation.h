@@ -16,6 +16,9 @@ typedef struct PAPACC_ISSUER_WINDOWS_WORKSPACE {
  * Attributes are unsupported in this first bounded preparation slice.
  * Caller owns immutable record/CSR and must keep both disjoint from workspace. */
 PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request(void *,const PAPACC_ISSUER_RECORD *,const PAPACC_U8 *,PAPACC_SIZE);
+/* Public CSR digest/SPKI/PoP check independent of issuance phase. Does not
+ * authorize issuance or reinterpret a published row as SIGN_REQUESTED. */
+PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request_data(void *,const PAPACC_ISSUER_RECORD *,const PAPACC_U8 *,PAPACC_SIZE);
 /* Classification only; preserves key owner and original error receipt. Never
  * creates, opens, signs, frees or retries. BAD_KEYSET is not global absence. */
 PAPACC_ISSUER_RESULT papacc_issuer_windows_key_result(const PAPACC_CA_KEY *,SECURITY_STATUS);

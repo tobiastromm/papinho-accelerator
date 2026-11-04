@@ -1,0 +1,24 @@
+# Owner manual public EK result - reconciliation
+
+## Scoped result
+PUBLIC_EK_QUERY=PASS_AT_OBSERVATION: owner reports first NONE, exit0, typed TPM present/ready/enabled and a64hex public EK fingerprint. Original collector SHA2563dde7158b02141cc2028a447914cdc2e33f371168088df3e8a6a92c2ec6465a6 matches current unchanged bytes. Reported Windows cmdlet assembly disk SHA256 independently rehashed and matches. This is source/disk consistency, not an attestation of mapped code, physical TPM or the console transcript. The archived JSON is a semantic transcription of the owner's message, not an original-byte console capture or signed native artifact.
+
+Original raw firmware padding is retained (21trailing NULs in transcription), display-only prefix500.14.0.0 is separate. No trimming becomes an identity pin. Current collection interval3,179,794ticks at10,000,000Hz equals317.9794ms in the reported local Stopwatch domain. This is collection duration, not present age or an approved D4/D5 freshness bound. No fresh resource headroom or counter state was measured by this receipt.
+
+## Boot diagnostic now factual within this observation
+Historical boot236441/start2026-10-23T18:36:34.5000000Z differs from reported237900/start2026-10-26T21:35:16.5000000Z. The event Computer hash matches the historical host-name hash, and operator SID matches the historical operator. Consequently the old guard WOULD deny the current observation on BOTH boot comparisons. This does not retrospectively identify which operand failed in the earlier HOST_BOOT_DENY run, whose actual fields were not printed.
+
+Environment.MachineName and event Computer have different hashes and different input sources. This does not establish a different physical machine, a rename, or the reason for the difference. No names are reconstructed or normalized to force equality. Current PID/creation is a new observed lifetime only. No historical host/boot pin, R scope or consumed approval is rebound or reused.
+
+## EK identity and certificate boundary
+A public EK fingerprint is now recorded as an unactivated CANDIDATE, not authenticated hardware identity. The one reported DER fingerprint originates in AdditionalCertificates with trust NOT_VALIDATED_OFFLINE_NO_NETWORK. No ManufacturerCertificates entry was emitted. Additional origin alone establishes no manufacturer trust, matching EK public key or chain. DER/SPKI material was not provided, so this review cannot decode/verify that certificate from its hash. Live possession and original device generation remain NOT_ESTABLISHED/NOT_EXECUTED exactly as reported; no independent anti-rollback or hardware attestation inferred.
+
+## Closure and effects
+WindowsIdentity.Dispose and Process.Dispose returned for references controlled by the collector. Cmdlet-internal native context close remains UNOBSERVED_NOT_ASSERTED. The receipt has no Retained=False field; none is invented. No global quiescence/credit release is inferred. Private material not requested, ownerAuth not queried, NV mutation NONE and Q4 NOT_EXECUTED as reported. Agent performed no additional TPM/EK query, no provision/readback, and no rerun request. Only repository/system-assembly files were read for consistency.
+
+## Advancement and remaining gate
+W/L ACCEPTED unchanged. The derived AFTER-EK provisioning candidate now carries the actual reported context/fingerprint as observation metadata with explicit NOT_ACTIVATED scope; previous candidate preserved unchanged. Authenticated generation, actual hierarchy/index custody, complete persistent root documentary participant/current native binding and live TPM session remain incomplete. No complete native provisioner or executable request is fabricated. Index0x01804143 remains unreserved; old absence observations are not fresh proof. One definition/max2increments/no retry/no delete limits remain candidate-only and require a separate exact operational approval once prerequisites hold.
+
+No rebuild or unchanged test campaign repeated: no functional change. Consistency checks cover collector hash, module hash, first/exit, clock arithmetic, certificate count/origin and historical/current binding comparison. No extra trust test, network chain lookup, TPM private operation or simulated proof is substituted. MINIMUM-REMAINING-GATES.json identifies the discriminating missing properties; repeating the same public metadata query is not the next experiment.
+
+E21 remains PENDING because no protected Q4 original-object readback/R7/disposition occurred. E17/E18 service proof and E19/E20 target composition/policy remain independent; E22 derived pending. ED11/Phase6 PARTIAL; productive authorities DENY. HEAD/WIP/historical reports, original guards/pins, UNKNOWN and reservations preserved. Next substantive gate is authenticated device/credential plus durable binding readiness before one complete exact hardware experiment request; this receipt is no permission for TPM writes or Q4.

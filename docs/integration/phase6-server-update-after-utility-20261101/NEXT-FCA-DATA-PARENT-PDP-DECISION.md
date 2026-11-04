@@ -1,0 +1,9 @@
+# Próximo prompt — decisão focal do parent FCA
+
+Continuar de FCA-DATA-PARENT-READONLY-RECONCILIATION-REPORT.md. Coleta consumida, sem retry; não repetir comandos. Bloqueios: abertura relativa Papinho0xc0000034 sem handle e ProgramData policy REJECT ACE4 BUILTIN Users0x116. Fechamento do observador conhecido; revalidação não alcançada, continuidade futura/quiescência/retention UNKNOWN.
+
+A proposta focal FCA-DATA-PARENT-PDP0-PDP7.CANDIDATE.md SHA256e68969bed2a8d84ab366378cedc991bc1f105964cfcfff4c7e099d56cd8acd14 está PROPOSED. Sem decisão explícitaB não aceitar nem implementar exceção/criação; manter DENY. Não realizar nova coleta genérica ou pedir autorização para repetir a consumida.
+
+Se B for aprovada: conferir hash byte-exato e ler integralmente proposta/contratos; registrar decisão normativa designada sem editar accepted anteriores. Primeiro baseline/preimagens e censo do menor binding nos owners/worker/mecanismos existentes; depois integrar e qualificar offline PDP0–PDP7. Sem novo owner/serviço/canal/CLI universal. Preservar isolamento dos perfis, quotas anteriores fora do escopo aprovado, OBJ_DONT_REPARSE, originais, compartilhamento, consumo, proteção final no FILE_CREATE, readback/close/retenção. Não presumir que allowlist/ACL isolada prova segurança de lifetime; incompatibilidade mantém STOP. Não ampliar implicitamente FCA4 para parent extra: ato PDP separado sem CA/Accelerator, FCA posterior independente.
+
+Só quando tecnicamente qualificado determinar delta do EXE e preparar UPDATE U1–U7/U2 se necessário, com pedido próprio; depois ato real PDP e source/FCA com gates frescos e autorizações específicas. Nenhuma operação real nesta integração. Não repetir campanhas inalteradas, UPDATE, coleta, endpoint/SCQ/StartStop, SCM/ACL, CA/CURRENT, rede, TPM/NV/Q4, limpeza/refund/kill/produção. Preservar HEAD/WIP/históricos/pins/EXEs/PST0.6.4 e UNKNOWN.

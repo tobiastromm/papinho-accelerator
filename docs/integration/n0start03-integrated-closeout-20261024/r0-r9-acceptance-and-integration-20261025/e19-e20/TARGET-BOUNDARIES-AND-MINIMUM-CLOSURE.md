@@ -1,0 +1,34 @@
+# E19/E20: actual consumer boundaries and minimum target closure
+
+2026-10-25. Non-operational qualification under the current R0–R9 integration task. No Browser source was edited, no LAB/native Prepare/Start/Stop/network/SCM/ACL/protected Q4 readback was executed. No replacement harness for previous positive LAB measurements was created.
+
+## New demonstrated boundaries
+
+The actual Accelerator `papacc_c8_target_admission` terminates in RESOURCE_UNKNOWN even after successful native/raw target validation and configured/current/invocation/owner/revision/epoch checks. Its source explicitly states that no provider/kernel recipe or empirical approval is installed. Better service handle counts cannot remove this independent boundary.
+
+The current Browser `papinho_c2_budget.inc` declares a zero-initialized static `c2_target`. Full `src/` textual reference search finds the declaration and reads only; no writer/source is present. `c2_capacity` requires provider_known, kernel_known, host_approved, nonzero/fresh metric lifetime and sufficient independent credit. Thus this candidate cannot positively reserve C2 from its present source. This is a deliberate fail-closed missing evidence integration, not a demonstrated bug authorizing setting the booleans to true.
+
+A focused new fixture extracts BOTH unchanged real C function bodies, preserving source hashes/extracted text. Only scalar fixture types, clock and Accelerator raw validator are simulated. Debug and Release MSVC x64 /MD[d] /W4 /WX passed with zero warnings: 40 checks each. Cases include all32 Browser required-property combinations, staticzero denial, exact freshness boundary, clock regression/wrap-like subtraction, propagation of raw failure, fully valid raw+binding still UNKNOWN, Stop and missing CURRENT. These are actual extracted boundary logic tests, not execution of Browser VC6/x86 or a full linked product. No factual future resource ceiling is measured or granted.
+
+## Actual composition and independent obligations
+
+See TARGET-TOPOLOGY-AND-OBLIGATIONS.csv and hashed SOURCE-AND-TARGET-INVENTORY.json. C2 has two operation slots and four Session registry entries, with four64KiB flow buffers per operation. Accelerator C3 has two additional64KiB queues per bridge, temporary setup listener/connector and owned peer/PST references. The C2 owner stores bridge pointers and borrows the same durable runtime, credentials/trust, scheduler and managers; this does not imply one process per C2/C3 object. Shared roots must be charged once, distinct live/retained operations separately. Setup references, socket/native/provider allocations and observation overhead coexist according to factual lifetimes, not specification sums.
+
+Browser has its own process/root, persistent CONTROL owner with bridge thread and serialized DATA path. UI/render/DNS/other workers have not been enumerated here; no exact total thread count is invented. Two managed slots include retained credits and do not prove two admitted live operations. Browser managed cap2MiB and Accelerator explicit selected Windows3MiB profile are different from LAB128/1024 handle limits. Neither cap grants host physical capacity, provider/kernel accounting or runtime admission.
+
+The Accelerator C3 path checks public provider_id openssl. Browser normal package consumer-link.ini selects win32-x86-vc6-retrozilla-nss-md, API3 normal SDK, with NSS/NSPR DLL dependencies. No consumer may infer identical allocator/kernel envelope from the other backend or architecture. Read-only revalidation of the historical Browser95-entry manifest found91 SDK-contained entries unchanged and92 total entries unchanged; the three differences are evolved consumer docs/pst-targets.md, build-config/pst-targets.mak and Makefile.nt4.mak. This is not SDK corruption, nor current linked executable/mapped-module attestation. Current Browser source HEAD96f6cd2f9ec4f834999828fa13bb7d170db66a98 is recorded separately from historical handoff HEAD. A final pair requires its actual new build/package provenance.
+
+Existing ED11 isolated probe contains only two RECORD queues and fixture participants, not four product flows/CONTROL/DATA/Browser root. Existing process-private/WS/pool samples overlap and cannot be summed with compiled storage. Socket buffer hints and pool quota are not complete TCP/provider/kernel ceilings. Retained outcomes continue to retain dependencies; process exit does not establish semantic refund.
+
+## Concrete normative boundary
+
+Accepted DECISION-mode-c-evidence-validity-semantics-20261018 clauses1–4 require the factual committed root/CURRENT/Site TLS policy and a separately approved target metric/maximum age/headroom. Those quantitative Mode C parameters remain PENDING_EVIDENCE_AND_SEPARATE_NORMATIVE_DECISION. It explicitly forbids inheriting the C8 1000ms rule. LAB60s/1s and5/9GiB are not automatically product Mode C policy. Existing raw target producer's diagnostic1s expiry and100ms cadence are observations, not that missing authority. Accepted incremental envelopes and profile decisions remain unchanged.
+
+## Minimum technical implementation proposal — not applied
+
+1. Reuse existing Accelerator target producer and Browser owner/resource receipt fields, with a single immutable evidence-backed target profile per actual administrative/configuration policy identity. No new product owner, daemon, service or registry.
+2. Before any positive reservation, bind exact executable/package/backend/architecture, process PID/creation, root/policy/epoch, metric source/expiry and multiplicity (live plus retained). Browser needs a real owner-bound producer/import path; Accelerator needs an evidence-backed recipe validator. Do not add Boolean force-pass setters or laboratory counters as authority.
+3. Owner must choose supported hard provider/kernel accounting OR a separately scoped empirical residual-risk policy if unsupported. Specify categories relaxed versus mandatory controlled lifetime bounds, per-backend/target headroom/freshness, Stop/UNKNOWN and invalidation rules. R/H/Q residual acceptance for consumed LAB attempts does not supply this decision.
+4. Then integrate and qualify recipe/data-origin/lifetime/anti-replay negatives offline in the actual consumers; compare the actual pair builds/modules. Prepare one separately authorized correlated target run collecting baseline/active/final/retained series and actual Browser site socket/C2 roles/C3/provider lifecycle. It must not be shoehorned into the Q7 four-role identity or replay its intent.
+
+E19 and E20 remain pending target policy/source/real composition. They are not merely waiting for another service token experiment. R0–R9 integration can resolve E17 prospectively without resolving these boundaries. Q4 readback/disposition remains independently unapproved here. E22 remains derived; ED11/Phase6 PARTIAL and productive authorities DENY.

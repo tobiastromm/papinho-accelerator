@@ -1,0 +1,22 @@
+{
+  "script_sha256": "e64cd0d6b4660fcb4594aceeb4cde12aa7808263d93e914ab40cc4d335394279",
+  "helper_sha256": "5623d7fbd248772c4b2d8c9fbb6bd492dbd78c96deafb45299421e41834b7ef4",
+  "API": [
+    "TrustedPlatformModule Get-Tpm",
+    "TrustedPlatformModule Get-TpmEndorsementKeyInfo -HashAlgorithm Sha256"
+  ],
+  "changes": [
+    "observed operator SID continuity guard",
+    "on-disk cmdlet assembly hash guard",
+    "certificate algorithm OID/parameters/public bits",
+    "optional raw ASN OID without guessing encoding"
+  ],
+  "public_only": true,
+  "raw_key_format": "AsnEncodedData; SPKI/PKCS1 equivalence not assumed",
+  "certificate": "exact previous DER fingerprint only, no implicit trust",
+  "AST": "PASS",
+  "native_execution": "NOT_EXECUTED",
+  "close": "managed disposals reported; internal cmdlet context UNOBSERVED",
+  "outputs": "local JSON public bytes; no private key, ownerAuth or auth credential",
+  "authority": "DENY"
+}

@@ -1,0 +1,15 @@
+{
+  "scope": "Actual unchanged extracted functions; scalar fixture types/raw validator/clock simulated; not complete Browser runtime",
+  "sources": [
+    {
+      "path": "C:\\Projetos\\PapinhoAccelerator\\apps\\server\\server_c8_target_evidence_win32.c",
+      "sha256": "132d75d7c3f9c00a2df93aa2d66ce8a4f786e7395a638c862205c6654c1ea1ec"
+    },
+    {
+      "path": "C:\\Projetos\\PapinhoBrowser\\src\\papinho_c2_budget.inc",
+      "sha256": "67288cfbf5e579ffcd16d831f1291f713e3b5a7662481967b4fe0b46ee127a2b"
+    }
+  ],
+  "browser_function": "static int c2_capacity(void) {\n return c2_target.provider_known && c2_target.kernel_known && c2_target.host_approved &&\n  c2_target.fresh_ms && (DWORD)(GetTickCount()-c2_target.measured_at)<c2_target.fresh_ms &&\n  c2_target.available_credit>=(size_t)c2_managed_bytes;\n}",
+  "accelerator_function": "PAPACC_C8_RESOURCE_REASON papacc_c8_target_admission(const PAPACC_C8_TARGET_PRODUCER *s,const PAPACC_C8_TARGET_BINDING *b,const PAPACC_U8 *target,PAPACC_U64 now)\n{\n PAPACC_C8_RESOURCE_REASON result=papacc_c8_target_validate_raw(s,b,target,now);\n if(result!=PAPACC_C8_RESOURCE_OK)return result;\n if(!b->configured||!b->current||!b->invocation||!b->owner||!b->revision||!b->epoch||b->stopping)return PAPACC_C8_RESOURCE_STATE_ERROR;\n /* No evidence-backed provider/kernel recipe or empirical approval is installed.\n  * Raw process totals and pool observations cannot authorize native effects. */\n return PAPACC_C8_RESOURCE_UNKNOWN;\n}"
+}

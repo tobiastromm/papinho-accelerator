@@ -1,0 +1,152 @@
+#include "../src/core/ed11_process_profile.h"
+/* Default size-only census; optional --self-observation reads this collector
+ * and global public resource counters only. No root/SCM/endpoint/key effects. */
+#include "server_c8_private_storage_layout_win32.h"
+#include "config_source.h"
+#include "config_binding.h"
+#include "config_root8.h"
+#include "server_config_source_binding_win32.h"
+#include "server_issuer_windows_validation.h"
+#include "server_launcher_owner_win32.h"
+#include <stdio.h>
+#include <string.h>
+#include <psapi.h>
+
+#define SIZE(n,t) printf(n "=%llu\n",(unsigned long long)sizeof(t))
+#define MEMBER(n,t,f) printf(n "=%llu\n",(unsigned long long)sizeof(((t *)0)->f))
+/* Observation only: samples borrow the self pseudohandle or an already-held
+ * limited query reference. Neither observations nor handles are SCQ authority. */
+/* Read-only service observation is an optional manually approved operation,
+ * never executed by default/CTest. No control/start/config/create rights. */
+static SC_HANDLE metadata_manager,metadata_service;static HANDLE metadata_process;
+static FILETIME metadata_creation;static DWORD metadata_pid;
+static int resource_current(HANDLE process)
+{
+ SERVICE_STATUS_PROCESS status;FILETIME created,exited,kernel,user;DWORD n;
+ if(process==GetCurrentProcess())return 1;
+ n=0;
+ if(process!=metadata_process||!metadata_service||!QueryServiceStatusEx(metadata_service,SC_STATUS_PROCESS_INFO,(BYTE *)&status,sizeof(status),&n))return 0;
+ if(n!=sizeof(status)||status.dwServiceType!=SERVICE_WIN32_OWN_PROCESS||status.dwProcessId!=metadata_pid||
+  (status.dwCurrentState!=SERVICE_RUNNING&&status.dwCurrentState!=SERVICE_START_PENDING)||
+  GetProcessId(process)!=metadata_pid||WaitForSingleObject(process,0)!=WAIT_TIMEOUT||
+  !GetProcessTimes(process,&created,&exited,&kernel,&user)||memcmp(&created,&metadata_creation,sizeof(created))){SetLastError(ERROR_INVALID_DATA);return 0;}
+ return 1;
+}
+static int resource_observation(HANDLE process,const char *scope)
+{
+ LARGE_INTEGER frequency,a,b,c,e,collection_begin,collection_end;FILETIME created,exited,kernel,user;
+ PROCESS_MEMORY_COUNTERS_EX memory,collector_memory;PERFORMANCE_INFORMATION system;
+ DWORD handles,collector_handles,error=0;unsigned sample;ULONGLONG creation,tick_begin,tick_end,available_commit;
+ if(!QueryPerformanceFrequency(&frequency)||frequency.QuadPart<=0||
+  !GetProcessTimes(process,&created,&exited,&kernel,&user)){
+  error=GetLastError();if(!error)error=ERROR_GEN_FAILURE;
+  printf("{\"scope\":\"%s\",\"first\":\"CLOCK_OR_PROCESS_QUERY\",\"error\":%lu,\"authority\":\"DENY\"}\n",scope,error);SetLastError(error);return 2;
+ }
+ creation=((ULONGLONG)created.dwHighDateTime<<32)|created.dwLowDateTime;
+ printf("{\"scope\":\"%s\",\"pid\":%lu,\"creation_filetime\":%llu,\"qpc_frequency\":%llu,\"planned_samples\":8,\"authority\":\"DENY\",\"controlled_handles_created\":%u,\"SCM\":\"%s\",\"endpoint\":\"NOT_CREATED\",\"KSP\":\"NOT_EXECUTED\"}\n",scope,GetProcessId(process),(unsigned long long)creation,(unsigned long long)frequency.QuadPart,(unsigned)(process==GetCurrentProcess()?0U:3U),process==GetCurrentProcess()?"NOT_QUERIED":"STATUS_ONLY");
+ for(sample=0;sample<8U;sample++){
+  memset(&memory,0,sizeof(memory));memory.cb=sizeof(memory);memset(&system,0,sizeof(system));system.cb=sizeof(system);
+  tick_begin=GetTickCount64();
+  if(!QueryPerformanceCounter(&collection_begin))goto failed;
+  if(!resource_current(process))goto failed;
+  if(!QueryPerformanceCounter(&a))goto failed;
+  if(!GetProcessHandleCount(process,&handles))goto failed;
+  if(!QueryPerformanceCounter(&b))goto failed;
+  if(!GetProcessMemoryInfo(process,(PROCESS_MEMORY_COUNTERS *)&memory,sizeof(memory)))goto failed;
+  if(!QueryPerformanceCounter(&c))goto failed;
+  if(!GetPerformanceInfo(&system,sizeof(system)))goto failed;
+  if(process==GetCurrentProcess()){collector_memory=memory;collector_handles=handles;}
+  else{memset(&collector_memory,0,sizeof(collector_memory));collector_memory.cb=sizeof(collector_memory);
+   if(!GetProcessHandleCount(GetCurrentProcess(),&collector_handles)||!GetProcessMemoryInfo(GetCurrentProcess(),(PROCESS_MEMORY_COUNTERS *)&collector_memory,sizeof(collector_memory)))goto failed;}
+  if(!QueryPerformanceCounter(&e))goto failed;
+  if(!resource_current(process))goto failed;
+  if(!QueryPerformanceCounter(&collection_end))goto failed;
+  tick_end=GetTickCount64();
+  if(collection_begin.QuadPart>a.QuadPart||e.QuadPart>collection_end.QuadPart||a.QuadPart>b.QuadPart||b.QuadPart>c.QuadPart||c.QuadPart>e.QuadPart||tick_end<tick_begin||
+   !system.PageSize||system.CommitTotal>system.CommitLimit||system.PhysicalAvailable>system.PhysicalTotal||
+   (ULONGLONG)system.CommitLimit>~(ULONGLONG)0/(ULONGLONG)system.PageSize||(ULONGLONG)system.PhysicalTotal>~(ULONGLONG)0/(ULONGLONG)system.PageSize){SetLastError(ERROR_INVALID_DATA);goto failed;}
+  available_commit=((ULONGLONG)system.CommitLimit-(ULONGLONG)system.CommitTotal)*(ULONGLONG)system.PageSize;
+  printf("{\"sample\":%u,\"first\":\"NONE\",\"tick_begin_ms\":%llu,\"tick_end_ms\":%llu,\"qpc_collection_begin\":%llu,\"qpc_collection_end\":%llu,\"qpc_begin\":%llu,\"qpc_end\":%llu,\"handle_query_ticks\":%llu,\"memory_query_ticks\":%llu,\"system_query_ticks\":%llu,\"process_handles\":%lu,\"collector_handles\":%lu,\"collector_private_commit_bytes\":%llu,\"collector_working_set_bytes\":%llu,\"private_commit_bytes\":%llu,\"working_set_bytes\":%llu,\"peak_working_set_bytes\":%llu,\"system_physical_available_bytes\":%llu,\"system_commit_available_bytes\":%llu}\n",
+   sample,(unsigned long long)tick_begin,(unsigned long long)tick_end,(unsigned long long)collection_begin.QuadPart,(unsigned long long)collection_end.QuadPart,(unsigned long long)a.QuadPart,(unsigned long long)e.QuadPart,
+   (unsigned long long)(b.QuadPart-a.QuadPart),(unsigned long long)(c.QuadPart-b.QuadPart),(unsigned long long)(e.QuadPart-c.QuadPart),handles,collector_handles,(unsigned long long)collector_memory.PrivateUsage,(unsigned long long)collector_memory.WorkingSetSize,
+   (unsigned long long)memory.PrivateUsage,(unsigned long long)memory.WorkingSetSize,(unsigned long long)memory.PeakWorkingSetSize,
+   (unsigned long long)system.PhysicalAvailable*(unsigned long long)system.PageSize,(unsigned long long)available_commit);
+ }
+ printf("{\"first\":\"NONE\",\"samples\":8,\"scope\":\"OBSERVATIONS_NOT_CEILINGS\",\"owned_reference_close\":\"%s\",\"SCQ_authority\":\"DENY\"}\n",process==GetCurrentProcess()?"NOT_APPLICABLE_PSEUDOHANDLES_ONLY":"DEFERRED_TO_METADATA_CUSTODY");return 0;
+failed:
+ error=GetLastError();if(!error)error=ERROR_GEN_FAILURE;
+ printf("{\"sample\":%u,\"first\":\"RESOURCE_QUERY_OR_CONTINUITY_FAILURE\",\"error\":%lu,\"remaining_samples\":\"NOT_EXECUTED\",\"authority\":\"DENY\"}\n",sample,error);SetLastError(error);return 2;
+}
+static int service_observation(void)
+{
+ SERVICE_STATUS_PROCESS status;DWORD n=0,error=0,stage=0,first_stage=0,close_stage=0;int result=2;FILETIME exited,kernel,user;LARGE_INTEGER prep_begin,prep_end,prep_frequency;
+ if(metadata_manager||metadata_service||metadata_process)return 2; /* no retry/rearm */
+ if(!QueryPerformanceFrequency(&prep_frequency)||prep_frequency.QuadPart<=0||!QueryPerformanceCounter(&prep_begin))goto done;
+ stage=1;metadata_manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!metadata_manager)goto done;
+ stage=2;metadata_service=OpenServiceW(metadata_manager,L"PapinhoAccelerator",SERVICE_QUERY_STATUS);if(!metadata_service)goto done;
+ stage=3;if(!QueryServiceStatusEx(metadata_service,SC_STATUS_PROCESS_INFO,(BYTE *)&status,sizeof(status),&n))goto done;
+ if(n!=sizeof(status)||status.dwServiceType!=SERVICE_WIN32_OWN_PROCESS){SetLastError(ERROR_INVALID_DATA);goto done;}
+ if(!status.dwProcessId||(status.dwCurrentState!=SERVICE_RUNNING&&status.dwCurrentState!=SERVICE_START_PENDING)){SetLastError(ERROR_SERVICE_NOT_ACTIVE);goto done;}
+ metadata_pid=status.dwProcessId;
+ stage=4;metadata_process=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,metadata_pid);if(!metadata_process)goto done;
+ stage=5;if(GetProcessId(metadata_process)!=metadata_pid||WaitForSingleObject(metadata_process,0)!=WAIT_TIMEOUT||
+  !GetProcessTimes(metadata_process,&metadata_creation,&exited,&kernel,&user)){SetLastError(ERROR_INVALID_DATA);goto done;}
+ stage=6;if(!QueryPerformanceCounter(&prep_end))goto done;
+ if(prep_end.QuadPart<prep_begin.QuadPart){SetLastError(ERROR_INVALID_DATA);goto done;}
+ printf("{\"preparation_qpc_ticks\":%llu,\"qpc_frequency\":%llu,\"scope\":\"READ_ONLY_REFERENCE_ACQUISITION_NOT_SCQ\"}\n",(unsigned long long)(prep_end.QuadPart-prep_begin.QuadPart),(unsigned long long)prep_frequency.QuadPart);
+#ifdef QOC_METADATA_MODEL
+ result=resource_observation(metadata_process,"MODEL_SCM_PROCESS_NOT_NATIVE_EVIDENCE");
+#else
+ result=resource_observation(metadata_process,"SCM_PROCESS_METADATA_NOT_SCQ_AUTHENTICATION");
+#endif
+done:
+ if(result){first_stage=stage;error=GetLastError();if(!error)error=ERROR_GEN_FAILURE;}
+ /* Never retry a failed close or discard custody. Process-lifetime retained
+  * refs are reported as UNKNOWN; this is not service/global quiescence. */
+ if(metadata_process){close_stage=7;if(!CloseHandle(metadata_process))goto retained;metadata_process=NULL;}
+ if(metadata_service){close_stage=8;if(!CloseServiceHandle(metadata_service))goto retained;metadata_service=NULL;}
+ if(metadata_manager){close_stage=9;if(!CloseServiceHandle(metadata_manager))goto retained;metadata_manager=NULL;}
+ printf("{\"metadata_result\":%d,\"first_stage\":%lu,\"error\":%lu,\"controlled_refs_retained\":0,\"close\":\"RETURNED\",\"authority\":\"DENY\",\"no_retry\":true}\n",result,first_stage,error);return result;
+retained:
+ printf("{\"metadata_result\":2,\"first_stage\":%lu,\"error\":%lu,\"close_error\":%lu,\"close_stage\":%lu,\"controlled_refs_retained\":%u,\"close\":\"UNKNOWN\",\"authority\":\"DENY\",\"no_retry\":true}\n",first_stage,error,GetLastError(),close_stage,(unsigned)((metadata_process!=NULL)+(metadata_service!=NULL)+(metadata_manager!=NULL)));return 2;
+}
+int main(int argc,char **argv)
+{
+ if(argc==2&&!strcmp(argv[1],"--self-observation"))return resource_observation(GetCurrentProcess(),"COLLECTOR_SELF_NOT_SCQ");
+ if(argc==2&&!strcmp(argv[1],"--service-resource-observation"))return service_observation();
+ if(argc!=1)return 2;
+ SIZE("ROOT",PAPACC_SERVER_LAUNCHER_OWNER_WIN32);SIZE("FIXED_GRAPH",PAPACC_C8_PRIVATE_STORAGE_LAYOUT);
+ SIZE("COMMIT",PAPACC_CONFIGURATION_COMMIT);SIZE("PENDING",PAPACC_CONFIG_PENDING);
+ SIZE("QUALIFICATION_STAGING",PAPACC_QUALIFICATION_STAGING);
+ MEMBER("COMMIT_SLOTS",PAPACC_CONFIGURATION_COMMIT,slots);MEMBER("PIN_TICKETS",PAPACC_CONFIGURATION_COMMIT,tickets);
+ MEMBER("WORKER_PREVIOUS",PAPACC_CONFIG_PENDING,previous);MEMBER("WORKER_NEXT",PAPACC_CONFIG_PENDING,next);MEMBER("WORKER_COMPARE",PAPACC_CONFIG_PENDING,observed);
+ MEMBER("COMMITTED",PAPACC_CONFIGURATION_COMMIT,committed);MEMBER("ISSUER_STAGE",PAPACC_CONFIGURATION_COMMIT,issuer_staged);
+ MEMBER("ISSUER_SNAPSHOTS",PAPACC_CONFIGURATION_COMMIT,issuer_snapshots);
+#if defined(PAPACC_ED11_WINDOWS_3MIB)
+ MEMBER("V3_BACKINGS",PAPACC_CONFIGURATION_COMMIT,v3_backings);
+ SIZE("V3_BACKING_SLOT",PAPACC_CONFIG_V3_BACKING);
+#endif
+ SIZE("PREPARATION",PAPACC_ROOT_CONFIGURATION_PREPARATION);SIZE("SOURCE",PAPACC_SECURITY_SOURCE_TRANSACTION);
+ SIZE("PARTICIPANTS",PAPACC_ROOT_TRANSACTION_PARTICIPANTS);SIZE("POLICY_PREPARATION",PAPACC_ROOT_POLICY_PREPARATION);
+ SIZE("INTERFACE_COPY",PAPACC_INTERFACE_SNAPSHOT_COPY);SIZE("LISTENER_COMPOSITION",PAPACC_ROOT_LISTENER_COMPOSITION);
+ SIZE("ROOT_CURRENT_PIN",PAPACC_ROOT_CURRENT_PIN);SIZE("C2",PAPACC_SERVER_C2_OWNER_WIN32);SIZE("C2_PARTICIPANT",PAPACC_SERVER_C2_PARTICIPANT);SIZE("C3_BRIDGE",PAPACC_C3_BRIDGE);
+ MEMBER("SITE_MANAGER",PAPACC_C8_PRIVATE_STORAGE_LAYOUT,site_manager);MEMBER("SITE_CONNECTIONS",PAPACC_C8_PRIVATE_STORAGE_LAYOUT,site_connections);
+ MEMBER("STAGES",PAPACC_C8_PRIVATE_STORAGE_LAYOUT,stages);MEMBER("STAGE_LEASES",PAPACC_C8_PRIVATE_STORAGE_LAYOUT,stage_leases);MEMBER("STAGE_BORROWS",PAPACC_C8_PRIVATE_STORAGE_LAYOUT,stage_borrows);
+ SIZE("AST",PC_DOCUMENT);SIZE("MODEL_BINDING",PC_MODEL_BINDING);SIZE("INITIAL_RESOLUTION",PAPACC_BOOTSTRAP_RESOLUTION);SIZE("DIAGNOSTIC",PC_DIAGNOSTIC);
+ SIZE("CONFIG_VIEW",PAPACC_CONFIG_VIEW);SIZE("FILE_IDENTITY",BY_HANDLE_FILE_INFORMATION);
+ SIZE("ISSUER_CORE",PAPACC_ISSUER_CORE);SIZE("ISSUER_BACKEND",PAPACC_ISSUER_BACKEND);SIZE("ISSUER_RECORD",PAPACC_ISSUER_RECORD);
+ SIZE("CNG_OWNER",PAPACC_CA_KEY);SIZE("CSR_DESCRIPTOR",PAPACC_ISSUER_WINDOWS_WORKSPACE);
+ printf("BASE_ARRAYS=%llu\nSECURE_ARRAYS=%llu\nSCHEDULER_ARRAYS=%llu\nBIND=%llu\nKNOWN=%llu\n",
+ (unsigned long long)PAPACC_C8_BASE_ARRAY_BYTES,(unsigned long long)PAPACC_C8_SECURE_ARRAY_BYTES,
+ (unsigned long long)PAPACC_C8_SCHED_ARRAY_BYTES,(unsigned long long)PAPACC_C8_BIND_LISTENER_BYTES,(unsigned long long)PAPACC_C8_KNOWN_MANAGED_BYTES);
+ printf("PROCESS_LIMIT=%llu\n",(unsigned long long)PAPACC_ED11_PROCESS_LIMIT);
+ if(sizeof(((PAPACC_CONFIGURATION_COMMIT *)0)->committed)!=PAPACC_CONFIG_TRANSACTION_BYTES||
+    sizeof(((PAPACC_CONFIG_PENDING *)0)->previous)!=PAPACC_CONFIG_TRANSACTION_BYTES||
+    sizeof(((PAPACC_CONFIG_PENDING *)0)->next)!=PAPACC_CONFIG_TRANSACTION_BYTES||
+    sizeof(((PAPACC_CONFIG_PENDING *)0)->observed)!=512U)return 2;
+#ifdef PAPACC_CENSUS_UPDATE_K
+ printf("BINARY_UPDATE_K=%llu; SIZE_ONLY_NOT_HOST_CAPACITY\n",(unsigned long long)papacc_server_launcher_binary_update_known_bytes());
+ if(papacc_server_launcher_binary_update_known_bytes()>PAPACC_ED11_PROCESS_LIMIT)return 1;
+#endif
+ return PAPACC_C8_KNOWN_MANAGED_BYTES>PAPACC_ED11_PROCESS_LIMIT?1:0;
+}

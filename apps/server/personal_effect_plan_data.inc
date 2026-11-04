@@ -1,5 +1,6 @@
 /* Bounded private plan bytes only. No allocator, native API or authority. */
 static const char effect_prefix[]="NEW_INSTALL\nCREATE_EXCLUSIVE_TARGET\nCA_INITIALIZE\nINITIAL_ROOT_PREPARE\nCOMMIT=DENY\nCURRENT=DENY\n";
+static const char parent_prefix[]="NEW_INSTALL_PARENT_PREPARE\nCREATE_EXCLUSIVE_PAPINHO\nCA=DENY\nACCELERATOR=DENY\nCURRENT=DENY\n";
 static int effect_nonzero(const unsigned char *p,size_t n)
 {size_t i;unsigned v=0;if(!p)return 0;for(i=0;i<n;i++)v|=p[i];return v!=0;}
 static int effect_alias(const void *left,size_t a,const void *right,size_t b)
@@ -31,9 +32,12 @@ size_t papacc_personal_effect_build(const PAPACC_PERSONAL_EFFECT_SPEC *v,unsigne
 }
 int papacc_personal_effect_source(const unsigned char *p,size_t n,const unsigned char **source,size_t *bytes)
 {
- size_t i,k,offset=sizeof(effect_prefix)-1U,min,max;unsigned any;
- if(!p||!source||!bytes||n>PAPACC_PERSONAL_PLAN_MAX||n<=offset||memcmp(p,effect_prefix,offset))return 0;
- for(i=0;i<6U;i++){
+ size_t i,k,offset=sizeof(effect_prefix)-1U,min,max,count=6U;unsigned any;
+ if(!p||!source||!bytes||n>PAPACC_PERSONAL_PLAN_MAX)return 0;
+ if(papacc_personal_prepared_source(p,n,source,bytes))return 1;
+ if(n>sizeof(parent_prefix)-1U&&!memcmp(p,parent_prefix,sizeof(parent_prefix)-1U)){offset=sizeof(parent_prefix)-1U;count=3U;}
+ else if(n<=offset||memcmp(p,effect_prefix,offset))return 0;
+ for(i=0;i<count;i++){
   k=0;any=0;min=i==1U?24U:(i==3U||i==4U?32U:2U);max=i==0U||i==5U?136U:(i==1U?24U:(i==2U?128U:32U));
   while(offset<n&&p[offset]!='\n'){
    unsigned ch=p[offset++];if(!((ch>='0'&&ch<='9')||(ch>='a'&&ch<='f'))||++k>max)return 0;any|=ch!='0';}
@@ -46,15 +50,15 @@ int papacc_personal_effect_upgrade(PAPACC_PERSONAL_PLAN_DATA *p,const unsigned c
 {
  const unsigned char *source;size_t bytes;
  if(!p||p->phase!=PAPACC_PERSONAL_DATA_CAPTURED||p->consumed||p->effectful||!plan||!n||n>PAPACC_PERSONAL_PLAN_MAX||
- overlaps(p,plan,n)||!papacc_personal_effect_source(plan,n,&source,&bytes)||bytes!=p->bytes||memcmp(source,p->plan,bytes))return 0;
+ overlaps(p,plan,n)||n<sizeof(effect_prefix)||memcmp(plan,effect_prefix,sizeof(effect_prefix)-1U)||!papacc_personal_effect_source(plan,n,&source,&bytes)||bytes!=p->bytes||memcmp(source,p->plan,bytes))return 0;
  memcpy(p->plan,plan,n);p->bytes=n;p->effectful=1U;return 1;
 }
 int papacc_personal_effect_confirm(PAPACC_PERSONAL_PLAN_DATA *p,const unsigned char *id,const unsigned char *plan,size_t n,const char *reply,size_t reply_bytes)
 {
  static const char prefix[]="OWNER_NEW_INSTALL_CA_INITIALIZE ";static const char hex[]="0123456789abcdef";
  const unsigned char *source;size_t bytes,i,z=sizeof(prefix)-1U;
- if(!p||!p->effectful||p->phase!=PAPACC_PERSONAL_DATA_PRESENTED)return 0;
- if(!reply||reply_bytes!=z+64U||!match(p,id,plan,n)||!papacc_personal_effect_source(plan,n,&source,&bytes)||memcmp(reply,prefix,z))goto invalid;
+ if(!p||p->effectful!=1U||p->phase!=PAPACC_PERSONAL_DATA_PRESENTED)return 0;
+ if(!reply||reply_bytes!=z+64U||!match(p,id,plan,n)||n<sizeof(effect_prefix)||memcmp(plan,effect_prefix,sizeof(effect_prefix)-1U)||!papacc_personal_effect_source(plan,n,&source,&bytes)||memcmp(reply,prefix,z))goto invalid;
  for(i=0;i<32U;i++)if(reply[z+2U*i]!=hex[id[i]>>4]||reply[z+2U*i+1U]!=hex[id[i]&15U])goto invalid;
  p->phase=PAPACC_PERSONAL_DATA_CONFIRMED;return 1;
 invalid:p->phase=PAPACC_PERSONAL_DATA_INVALID;return 0;
@@ -70,7 +74,7 @@ int papacc_personal_effect_consume(PAPACC_PERSONAL_PLAN_DATA *p,const unsigned c
 int papacc_personal_effect_matches(const unsigned char *plan,size_t n,const PAPACC_PERSONAL_EFFECT_SPEC *v)
 {
  const unsigned char *source,*fields[6];size_t bytes,sizes[6],offset,i,j;static const char hex[]="0123456789abcdef";
- if(!v||!papacc_personal_effect_source(plan,n,&source,&bytes)||!v->configuration||bytes!=v->configuration_bytes||
+ if(!v||!plan||n<sizeof(effect_prefix)||memcmp(plan,effect_prefix,sizeof(effect_prefix)-1U)||!papacc_personal_effect_source(plan,n,&source,&bytes)||!v->configuration||bytes!=v->configuration_bytes||
  memcmp(source,v->configuration,bytes)||!v->operator_bytes||v->operator_bytes>68U||!v->service_bytes||v->service_bytes>68U||!v->leaf_bytes||v->leaf_bytes>64U)return 0;
  fields[0]=v->operator_id;sizes[0]=v->operator_bytes;fields[1]=v->parent_id;sizes[1]=12U;
  fields[2]=v->leaf;sizes[2]=v->leaf_bytes;fields[3]=v->authority;sizes[3]=16U;
@@ -85,3 +89,48 @@ int papacc_personal_effect_matches(const unsigned char *plan,size_t n,const PAPA
  }
  return offset+(sizeof("CONFIGURATION\n")-1U)==(size_t)(source-plan);
 }
+size_t papacc_personal_parent_build(const PAPACC_PERSONAL_EFFECT_SPEC *v,unsigned char *out,size_t cap)
+{
+ const unsigned char *fields[3];size_t sizes[3],need,i;unsigned char *at;
+ if(!v||!out||!v->configuration||!v->configuration_bytes||v->configuration_bytes>PAPACC_PERSONAL_PLAN_MAX||
+  !v->operator_bytes||v->operator_bytes>68U||v->leaf_bytes!=7U||!v->leaf||memcmp(v->leaf,"Papinho",7U)||
+  v->authority||v->generation||v->service_id||v->service_bytes)return 0;
+ fields[0]=v->operator_id;sizes[0]=v->operator_bytes;fields[1]=v->parent_id;sizes[1]=12U;fields[2]=v->leaf;sizes[2]=7U;
+ need=sizeof(parent_prefix)-1U+sizeof("CONFIGURATION\n")-1U+v->configuration_bytes;
+ for(i=0;i<3U;i++){if(!effect_nonzero(fields[i],sizes[i]))return 0;need+=sizes[i]*2U+1U;}
+ if(need>cap||need>PAPACC_PERSONAL_PLAN_MAX||effect_alias(out,need,v,sizeof(*v))||effect_alias(out,need,v->configuration,v->configuration_bytes))return 0;
+ for(i=0;i<3U;i++)if(effect_alias(out,need,fields[i],sizes[i]))return 0;
+ at=out;memcpy(at,parent_prefix,sizeof(parent_prefix)-1U);at+=sizeof(parent_prefix)-1U;
+ for(i=0;i<3U;i++){effect_hex(&at,fields[i],sizes[i]);*at++='\n';}
+ memcpy(at,"CONFIGURATION\n",sizeof("CONFIGURATION\n")-1U);at+=sizeof("CONFIGURATION\n")-1U;memcpy(at,v->configuration,v->configuration_bytes);return need;
+}
+int papacc_personal_parent_matches(const unsigned char *plan,size_t n,const PAPACC_PERSONAL_EFFECT_SPEC *v)
+{
+ const unsigned char *source,*fields[3];size_t bytes,sizes[3],i,j,at=sizeof(parent_prefix)-1U;static const char hex[]="0123456789abcdef";
+ if(!v||!plan||n<=at||memcmp(plan,parent_prefix,at)||!papacc_personal_effect_source(plan,n,&source,&bytes)||
+  !v->configuration||bytes!=v->configuration_bytes||memcmp(source,v->configuration,bytes)||!v->operator_bytes||v->operator_bytes>68U||
+  !v->leaf||v->leaf_bytes!=7U||memcmp(v->leaf,"Papinho",7U)||v->authority||v->generation||v->service_id||v->service_bytes)return 0;
+ fields[0]=v->operator_id;sizes[0]=v->operator_bytes;fields[1]=v->parent_id;sizes[1]=12U;fields[2]=v->leaf;sizes[2]=7U;
+ for(i=0;i<3U;i++){if(!fields[i])return 0;for(j=0;j<sizes[i];j++){
+  if(at+2U>n||plan[at++]!=(unsigned char)hex[fields[i][j]>>4]||plan[at++]!=(unsigned char)hex[fields[i][j]&15U])return 0;
+ }if(at>=n||plan[at++]!='\n')return 0;}
+ return at+sizeof("CONFIGURATION\n")-1U==(size_t)(source-plan);
+}
+int papacc_personal_parent_upgrade(PAPACC_PERSONAL_PLAN_DATA *p,const unsigned char *plan,size_t n)
+{
+ const unsigned char *source;size_t bytes;
+ if(!p||p->phase!=PAPACC_PERSONAL_DATA_CAPTURED||p->consumed||p->effectful||!plan||n<sizeof(parent_prefix)||n>PAPACC_PERSONAL_PLAN_MAX||
+  memcmp(plan,parent_prefix,sizeof(parent_prefix)-1U)||overlaps(p,plan,n)||!papacc_personal_effect_source(plan,n,&source,&bytes)||bytes!=p->bytes||memcmp(source,p->plan,bytes))return 0;
+ memcpy(p->plan,plan,n);p->bytes=n;p->effectful=2U;return 1;
+}
+int papacc_personal_parent_confirm(PAPACC_PERSONAL_PLAN_DATA *p,const unsigned char *id,const unsigned char *plan,size_t n,const char *reply,size_t bytes)
+{
+ static const char prefix[]="OWNER_NEW_INSTALL_PARENT_PREPARE ",hex[]="0123456789abcdef";size_t i,z=sizeof(prefix)-1U;
+ if(!p||p->effectful!=2U||p->phase!=PAPACC_PERSONAL_DATA_PRESENTED)return 0;
+ if(!reply||bytes!=z+64U||!match(p,id,plan,n)||n<sizeof(parent_prefix)||memcmp(plan,parent_prefix,sizeof(parent_prefix)-1U)||memcmp(reply,prefix,z))goto invalid;
+ for(i=0;i<32U;i++)if(reply[z+2U*i]!=hex[id[i]>>4]||reply[z+2U*i+1U]!=hex[id[i]&15U])goto invalid;
+ p->phase=PAPACC_PERSONAL_DATA_CONFIRMED;return 1;
+invalid:p->phase=PAPACC_PERSONAL_DATA_INVALID;return 0;
+}
+
+#include "personal_prepared_plan_data.inc"

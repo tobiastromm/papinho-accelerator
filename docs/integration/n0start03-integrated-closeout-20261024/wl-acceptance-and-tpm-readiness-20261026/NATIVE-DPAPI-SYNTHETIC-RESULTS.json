@@ -1,0 +1,72 @@
+[
+  {
+    "config": "Debug",
+    "mode": "seal",
+    "exit": 0,
+    "output": "SYNTHETIC_DPAPI_CIPHERTEXT_ONLY_CREATED",
+    "expected": 0
+  },
+  {
+    "config": "Debug",
+    "mode": "unseal",
+    "exit": 0,
+    "output": "SYNTHETIC_DPAPI_PROCESS_RESTART=PASS_NO_SECRET_OUTPUT",
+    "expected": 0
+  },
+  {
+    "config": "Debug",
+    "mode": "wrong_binding",
+    "exit": 2,
+    "output": "SYNTHETIC_CUSTODY_DENY_NO_RETRY hresult=0x8007000d",
+    "expected": 2
+  },
+  {
+    "config": "Debug",
+    "mode": "corrupt",
+    "exit": 2,
+    "output": "SYNTHETIC_CUSTODY_DENY_NO_RETRY hresult=0x8007000d",
+    "expected": 2
+  },
+  {
+    "config": "Debug",
+    "mode": "unseal",
+    "exit": 0,
+    "output": "SYNTHETIC_DPAPI_PROCESS_RESTART=PASS_NO_SECRET_OUTPUT",
+    "expected": 0
+  },
+  {
+    "config": "Release",
+    "mode": "seal",
+    "exit": 0,
+    "output": "SYNTHETIC_DPAPI_CIPHERTEXT_ONLY_CREATED",
+    "expected": 0
+  },
+  {
+    "config": "Release",
+    "mode": "unseal",
+    "exit": 0,
+    "output": "SYNTHETIC_DPAPI_PROCESS_RESTART=PASS_NO_SECRET_OUTPUT",
+    "expected": 0
+  },
+  {
+    "config": "Release",
+    "mode": "wrong_binding",
+    "exit": 2,
+    "output": "SYNTHETIC_CUSTODY_DENY_NO_RETRY hresult=0x8007000d",
+    "expected": 2
+  },
+  {
+    "config": "Release",
+    "mode": "corrupt",
+    "exit": 2,
+    "output": "SYNTHETIC_CUSTODY_DENY_NO_RETRY hresult=0x8007000d",
+    "expected": 2
+  },
+  {
+    "config": "Release",
+    "mode": "unseal",
+    "exit": 0,
+    "output": "SYNTHETIC_DPAPI_PROCESS_RESTART=PASS_NO_SECRET_OUTPUT",
+    "expected": 0
+  }
+]

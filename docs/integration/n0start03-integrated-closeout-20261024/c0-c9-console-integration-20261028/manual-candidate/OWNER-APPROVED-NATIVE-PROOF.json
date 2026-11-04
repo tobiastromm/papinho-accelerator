@@ -1,0 +1,40 @@
+{
+  "kind": "OWNER_APPROVAL_TPM_SALTED_PROOF_ONLY",
+  "decision_date": "2026-10-28",
+  "task": "PACC-PHASE6-ED11-C0C9-TPM-OWNER-APPROVAL-AND-HANDOFF",
+  "candidate_operation": "TPMPROOF-C0C9-20261028-CANDIDATE-INERT",
+  "request_sha256": "b575659fe446eb4b2ed3d53881dfbef77855a02a78d87fb76cccc96f3faf0c8b",
+  "executable_sha256": "59c67f6d81d88c49c1d676bde2553aa8a843a1925c76a33deb14acbab3424898",
+  "one_manual_execution": true,
+  "ack_unknown_revocation": true,
+  "ack_no_hardware_admission": true,
+  "ack_internal_tpm_accounting_unknown": true,
+  "source": "Explicit owner authorization in current TASK: one manual native TPM proof with C0-C9 exclusively under exact request b575659fe446eb4b2ed3d53881dfbef77855a02a78d87fb76cccc96f3faf0c8b; recording and manual handoff authorized; automatic execution not authorized.",
+  "conditions": [
+    "New exact owner approval only; 4a5f and all previous approvals used; one invocation, no automatic execution or retry",
+    "Windows PowerShell5.1 x64 already elevated; actual caller parent with approved SID, token LUID continuity/no impersonation and current host/boot237900 exact pins",
+    "Inherited interactive console has exactly actual parent and proof as clients; repeated original parent/native class49 point to one distinct qualified original auxiliary. Historical17204/20976/13944 identities not reused as pins",
+    "Windows original image volume/FileID/size/hash/security descriptor and ntdll ABI pins exact; no mapped-image/console authentication beyond C4 accepted risk",
+    "Fresh preobserver own<=124, held own<=128, unique actual parent+auxiliary<=1024, all applicable roles/freshness/headroom/UNKNOWN obligations; no credits",
+    "Exact file pins for native exe/request/new approval/public certificate. Runtime confirmation includes literal requestSHA and live parentPID creation auxiliaryPID creation. Do not use historical confirmation",
+    "Any divergence or uncertain close freezes acquisitions/commands and retains original dependencies. Host loss UNKNOWN; no kill/FlushContext/cleanup/rearming",
+    "No NV/CreatePrimary/AK/hierarchy/Clear/Q4/LAB/Start/Stop/SCM/ACL/CURRENT/signature/recovery authority"
+  ],
+  "previous_approval_sha256": "4a5f2e001feb29a0607333c40dd46e413b3e75a3957b1c527d7090b2eab1376c",
+  "previous_approval_state": "USED_ONE_INVOCATION_TOPOLOGY_DENIED_NOT_REUSABLE",
+  "not_authorized": [
+    "NV_DefineSpace",
+    "NV_Increment",
+    "NV_UndefineSpace",
+    "Clear",
+    "CreatePrimary",
+    "AK creation",
+    "hierarchy authorization/change",
+    "signing/quote/certificates/remote CA",
+    "Q4/LAB/Start/Stop",
+    "SCM/ACL/quotas",
+    "CURRENT/refund/cleanup/recovery"
+  ],
+  "execution_actor": "OWNER_MANUAL_ONLY",
+  "no_retry": true
+}

@@ -4,13 +4,31 @@
 #define PAPACC_ISSUER_IMAGE_BYTES 8192U
 #define PAPACC_ISSUER_IMAGE_HEADER 256U
 #define PAPACC_ISSUER_EVENT_FIXED 356U
+typedef int (*PAPACC_ISSUER_HASH)(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8[32]);
+#define PAPACC_ISSUER_EVENT_V2_FIXED 468U
+#define PAPACC_ISSUER_PUBLICATION_INTENT ((PAPACC_ISSUER_STATE)9)
+/* Private version2 DATA. Original native owner must confirm these facts. */
+typedef struct PAPACC_ISSUER_PUBLICATION_FACTS {
+ PAPACC_U64 policy_epoch,revision,issuer_revision,administrative_epoch,intent_ordinal;
+ PAPACC_U8 intent_digest[32],correlation[32];
+} PAPACC_ISSUER_PUBLICATION_FACTS;
+PAPACC_ISSUER_RESULT papacc_issuer_image_init_v2(PAPACC_U8 *,const PAPACC_ISSUER_VIEW *,const PAPACC_U8[32],PAPACC_ISSUER_HASH,void *);
+PAPACC_ISSUER_RESULT papacc_issuer_image_intent(PAPACC_U8 *,const PAPACC_ISSUER_RECORD *,const PAPACC_U8[32],PAPACC_U64,PAPACC_ISSUER_HASH,void *);
+PAPACC_ISSUER_RESULT papacc_issuer_image_ack(PAPACC_U8 *,const PAPACC_ISSUER_RECORD *,const PAPACC_ISSUER_PUBLICATION_FACTS *,PAPACC_ISSUER_HASH,void *);
+PAPACC_ISSUER_RESULT papacc_issuer_image_publication(const PAPACC_U8 *,const PAPACC_U8[16],PAPACC_ISSUER_PUBLICATION_FACTS *,PAPACC_ISSUER_HASH,void *);
 /* Private format1 inside ROOT06. Hash function is SHA256 in real adapters;
  * test hashes cannot establish native integrity/authority. No proof flags or
  * operational epoch are reconstructed from this image. */
-typedef int (*PAPACC_ISSUER_HASH)(void *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8[32]);
 PAPACC_ISSUER_RESULT papacc_issuer_image_init(PAPACC_U8 *,const PAPACC_ISSUER_VIEW *,const PAPACC_U8[32],PAPACC_ISSUER_HASH,void *);
 PAPACC_ISSUER_RESULT papacc_issuer_image_validate(const PAPACC_U8 *,PAPACC_ISSUER_VIEW *,PAPACC_ISSUER_HASH,void *);
 PAPACC_ISSUER_RESULT papacc_issuer_image_find(const PAPACC_U8 *,const PAPACC_U8[16],PAPACC_ISSUER_RECORD *,PAPACC_ISSUER_HASH,void *);
+/* Latest exact credential DATA, not an admission decision. Ambiguous digest
+ * in different request identities is CONFLICT, never a Principal-wide match. */
+PAPACC_ISSUER_RESULT papacc_issuer_image_credential(const PAPACC_U8 *,const PAPACC_U8[32],PAPACC_ISSUER_RECORD *,PAPACC_ISSUER_HASH,void *);
+/* Bounded DATA scan only, no hash/native callback or integrity authority.
+ * A consumer may use this on an already validated immutable owner snapshot;
+ * raw input cannot become CURRENT/admission by calling this function. */
+PAPACC_ISSUER_RESULT papacc_issuer_credential_snapshot_data(const PAPACC_U8 *,const PAPACC_U8[32],PAPACC_ISSUER_RECORD *);
 PAPACC_ISSUER_RESULT papacc_issuer_image_append(PAPACC_U8 *,const PAPACC_ISSUER_RECORD *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_ISSUER_HASH,void *);
 PAPACC_ISSUER_RESULT papacc_issuer_image_certificate(const PAPACC_U8 *,const PAPACC_U8[16],PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PAPACC_ISSUER_HASH,void *);
 

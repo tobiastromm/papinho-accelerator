@@ -1,0 +1,385 @@
+--- before/apps/server/personal_native_win32.h
++++ after/apps/server/personal_native_win32.h
+@@ -18,6 +18,7 @@
+  PSECURITY_DESCRIPTOR descriptor,check_descriptor;
+  LPSTR sid_text;
+  DWORD descriptor_bytes,error,close_attempts;
++ DWORD diagnostic_first,diagnostic_error,diagnostic_kind; /* first failure only: API=1, predicate=2, NTSTATUS=3; no authority */
+  unsigned presenter_phase,presenter_ca; /* receipt only: 1 shown,2 confirmed,3 cancelled,4 UNKNOWN; never authority */
+  unsigned char presenter_attempt[32];
+  unsigned phase; /*0 empty,1 live,2 retained,3 closed; never authority */
+--- before/apps/server/server_configuration_personal_native_win32.inc
++++ after/apps/server/server_configuration_personal_native_win32.inc
+@@ -1,64 +1,40 @@
+ #include <wchar.h>
+ #include <aclapi.h>
+ #include <sddl.h>
+-static int personal_group(WELL_KNOWN_SID_TYPE kind,int expected)
+-{
+- BYTE sid[SECURITY_MAX_SID_SIZE];DWORD bytes=sizeof(sid);BOOL member=FALSE;
+- return CreateWellKnownSid(kind,NULL,sid,&bytes)&&CheckTokenMembership(NULL,sid,&member)&&(member?1:0)==expected;
+-}
+-static int personal_token(PAPACC_CONFIG_PENDING *p,int capture)
+-{
+- PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;
+- union {TOKEN_USER alignment;BYTE bytes[sizeof(TOKEN_USER)+SECURITY_MAX_SID_SIZE];} u;
+- TOKEN_STATISTICS current_token;int same;
+- TOKEN_STATISTICS t;TOKEN_ELEVATION e;TOKEN_ELEVATION_TYPE type;DWORD z,session,ps;TOKEN_USER *user=(TOKEN_USER *)&u;
+- if(n->phase!=1U||p->stop||n->unexpected_thread)return 0;
+- if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&n->unexpected_thread))return 0;
+- if(GetLastError()!=ERROR_NO_TOKEN||!personal_group(WinBuiltinAdministratorsSid,1)||!personal_group(WinInteractiveSid,1)||!personal_group(WinServiceSid,0))return 0;
+- if(capture&&!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&p->bootstrap_token))return 0;
+- if(!p->bootstrap_token||!GetTokenInformation(p->bootstrap_token,TokenStatistics,&t,sizeof(t),&z)||t.TokenType!=TokenPrimary||
+- !GetTokenInformation(p->bootstrap_token,TokenElevation,&e,sizeof(e),&z)||!e.TokenIsElevated||
+- !GetTokenInformation(p->bootstrap_token,TokenElevationType,&type,sizeof(type),&z)||type==TokenElevationTypeLimited||
+- !GetTokenInformation(p->bootstrap_token,TokenSessionId,&session,sizeof(session),&z)||!session||
+- !ProcessIdToSessionId(GetCurrentProcessId(),&ps)||ps!=session||session!=WTSGetActiveConsoleSessionId()||
+- !GetTokenInformation(p->bootstrap_token,TokenUser,&u,sizeof(u),&z)||!IsValidSid(user->User.Sid)||GetLengthSid(user->User.Sid)>sizeof(n->sid))return 0;
+- if(capture){n->token=t;n->session=session;n->sid_bytes=GetLengthSid(user->User.Sid);return CopySid(sizeof(n->sid),n->sid,user->User.Sid)!=0;}
+- if(n->check_token||!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&n->check_token))return 0;
+- same=GetTokenInformation(n->check_token,TokenStatistics,&current_token,sizeof(current_token),&z)&&
+- !memcmp(&current_token.TokenId,&t.TokenId,sizeof(LUID))&&!memcmp(&current_token.ModifiedId,&t.ModifiedId,sizeof(LUID));
+- if(!CloseHandle(n->check_token)){n->phase=2U;return 0;}n->check_token=NULL;
+- return same&&n->session==session&&n->sid_bytes==GetLengthSid(user->User.Sid)&&EqualSid(n->sid,user->User.Sid)&&
+- !memcmp(&n->token.TokenId,&t.TokenId,sizeof(LUID))&&!memcmp(&n->token.AuthenticationId,&t.AuthenticationId,sizeof(LUID))&&
+- !memcmp(&n->token.ModifiedId,&t.ModifiedId,sizeof(LUID));
+-}
++#include "server_personal_token_checks_win32.inc"
+ PAPACC_RESULT papacc_configuration_personal_native_open(PAPACC_CONFIGURATION_COMMIT *o,const char *parent)
+ {
+  PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;unsigned i,k,len;char drive[3],device[512];
+  WCHAR path[MAX_PATH+5];UNICODE_STRING name;OBJECT_ATTRIBUTES a;IO_STATUS_BLOCK io;HMODULE mod;FARPROC proc;BOOTSTRAP_NT_CREATE create;
+- PACL dacl;BOOL present,defaulted;
++ PACL dacl;BOOL present,defaulted;NTSTATUS status;
+  if(!o||o->writer!=GetCurrentThreadId()||o->initialized||!parent||o->stopped||o->unresolved)return PAPACC_RESULT_INVALID_STATE;
+  p=&o->pending_commit;n=&p->personal_native;
+  if(n->phase||p->active||p->thread||p->bootstrap_parent||p->bootstrap_token)return PAPACC_RESULT_INVALID_STATE;
+  len=(unsigned)strlen(parent);if(len<3U||len>=MAX_PATH||parent[1]!=':'||parent[2]!='\\'||strstr(parent,".."))return PAPACC_RESULT_INVALID_ARGUMENT;
+  for(i=0;i<len;i++)if((unsigned char)parent[i]<32U||(unsigned char)parent[i]>126U||parent[i]=='/'||(i!=1U&&parent[i]==':'))return PAPACC_RESULT_INVALID_ARGUMENT;
+- n->phase=1U;p->file=INVALID_HANDLE_VALUE;memcpy(p->path,parent,len+1U);
++ n->diagnostic_first=n->diagnostic_error=n->diagnostic_kind=0;n->phase=1U;p->file=INVALID_HANDLE_VALUE;memcpy(p->path,parent,len+1U);
+  if(!personal_token(p,1))return PAPACC_RESULT_INVALID_STATE;
+  drive[0]=parent[0];drive[1]=':';drive[2]=0;
+- if(!QueryDosDeviceA(drive,device,sizeof(device))||strncmp(device,"\\Device\\",8U))return PAPACC_RESULT_NOT_SUPPORTED;
++ if(!QueryDosDeviceA(drive,device,sizeof(device))){(void)personal_deny(p,30,GetLastError(),1);return PAPACC_RESULT_NOT_SUPPORTED;}
++ if(strncmp(device,"\\Device\\",8U)){(void)personal_deny(p,31,0,2);return PAPACC_RESULT_NOT_SUPPORTED;}
+  k=(unsigned)strlen(device);if(k+len-2U>=MAX_PATH+5U)return PAPACC_RESULT_INVALID_ARGUMENT;
+  for(i=0;i<k;i++)path[i]=(WCHAR)(unsigned char)device[i];
+  for(i=2U;i<=len;i++)path[k+i-2U]=(WCHAR)(unsigned char)parent[i];len=k+len-2U;
+  mod=GetModuleHandleA("ntdll.dll");if(!mod)return PAPACC_RESULT_NOT_SUPPORTED;proc=GetProcAddress(mod,"NtCreateFile");if(!proc)return PAPACC_RESULT_NOT_SUPPORTED;memcpy(&create,&proc,sizeof(create));
+  memset(&a,0,sizeof(a));memset(&io,0,sizeof(io));name.Buffer=path;name.Length=(USHORT)(len*2U);name.MaximumLength=name.Length;
+  a.Length=sizeof(a);a.ObjectName=&name;a.Attributes=OBJ_CASE_INSENSITIVE|OBJ_DONT_REPARSE;
+- if(create(&p->bootstrap_parent,FILE_READ_ATTRIBUTES|FILE_TRAVERSE|FILE_ADD_SUBDIRECTORY|READ_CONTROL|SYNCHRONIZE,&a,&io,NULL,
+- FILE_ATTRIBUTE_DIRECTORY,FILE_SHARE_READ,1U,0x00200021U,NULL,0U)<0)return PAPACC_RESULT_INVALID_STATE;
+- if(!GetFileInformationByHandle(p->bootstrap_parent,&n->parent)||!(n->parent.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||
+- (n->parent.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PAPACC_RESULT_INVALID_STATE;
+- if(GetSecurityInfo(p->bootstrap_parent,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->descriptor)!=ERROR_SUCCESS||
+- !IsValidSecurityDescriptor(n->descriptor)||!GetSecurityDescriptorDacl(n->descriptor,&present,&dacl,&defaulted)||!present||!dacl)return PAPACC_RESULT_INVALID_STATE;
++ status=create(&p->bootstrap_parent,FILE_READ_ATTRIBUTES|FILE_TRAVERSE|FILE_ADD_SUBDIRECTORY|READ_CONTROL|SYNCHRONIZE,&a,&io,NULL,
++ FILE_ATTRIBUTE_DIRECTORY,FILE_SHARE_READ,1U,0x00200021U,NULL,0U);
++ if(status<0){(void)personal_deny(p,32,(DWORD)status,3);return PAPACC_RESULT_INVALID_STATE;}
++ if(!GetFileInformationByHandle(p->bootstrap_parent,&n->parent)){(void)personal_deny(p,33,GetLastError(),1);return PAPACC_RESULT_INVALID_STATE;}
++ if(!(n->parent.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||(n->parent.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)){(void)personal_deny(p,34,0,2);return PAPACC_RESULT_INVALID_STATE;}
++ n->error=GetSecurityInfo(p->bootstrap_parent,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&n->descriptor);
++ if(n->error!=ERROR_SUCCESS){(void)personal_deny(p,35,n->error,1);return PAPACC_RESULT_INVALID_STATE;}
++ if(!IsValidSecurityDescriptor(n->descriptor)){(void)personal_deny(p,36,0,2);return PAPACC_RESULT_INVALID_STATE;}
++ if(!GetSecurityDescriptorDacl(n->descriptor,&present,&dacl,&defaulted)){(void)personal_deny(p,37,GetLastError(),1);return PAPACC_RESULT_INVALID_STATE;}
++ if(!present||!dacl){(void)personal_deny(p,38,0,2);return PAPACC_RESULT_INVALID_STATE;}
+  n->descriptor_bytes=GetSecurityDescriptorLength(n->descriptor);
+- if(!ConvertSidToStringSidA(n->sid,&n->sid_text))return PAPACC_RESULT_INVALID_STATE;
++ if(!ConvertSidToStringSidA(n->sid,&n->sid_text)){(void)personal_deny(p,39,GetLastError(),1);return PAPACC_RESULT_INVALID_STATE;}
+  return papacc_configuration_personal_native_current(o);
+ }
+ static PAPACC_RESULT personal_packet_current(PAPACC_CONFIG_PENDING *p)
+--- before/tests/personal_native_win32_test.c
++++ after/tests/personal_native_win32_test.c
+@@ -1,22 +1,43 @@
+ #include "server_configuration_commit_win32.h"
++#include <sddl.h>
+ #include <stdio.h>
+ #include <string.h>
+ static PAPACC_CONFIGURATION_COMMIT model;
++static const char *predicate(DWORD p)
++{switch(p){case 0:return "NONE_OR_UNINSTRUMENTED";case 1:return "NATIVE_PHASE_OR_STOP";case 2:return "NO_IMPERSONATION_TOKEN";case 3:return "ADMIN_ENABLED";case 4:return "INTERACTIVE_ENABLED";case 5:return "SERVICE_GROUP_ABSENT";case 6:return "PRIMARY_TOKEN_OPEN";case 7:return "TOKEN_STATISTICS_QUERY";case 8:return "PRIMARY_TOKEN_TYPE";case 9:return "ELEVATION_QUERY";case 10:return "ELEVATED_REQUIRED";case 11:return "ELEVATION_TYPE_QUERY";case 12:return "NOT_LIMITED_TOKEN";case 13:return "TOKEN_SESSION_QUERY";case 14:return "NONZERO_SESSION";case 15:return "PROCESS_SESSION_QUERY";case 16:return "ACTIVE_CONSOLE_SESSION";case 17:return "TOKEN_USER_QUERY";case 18:return "VALID_OPERATOR_SID";case 19:return "SID_COPY";case 20:return "CURRENT_TOKEN_OPEN";case 21:return "CURRENT_TOKEN_CLOSE";case 22:return "CURRENT_TOKEN_CONTINUITY";case 23:return "ORIGINAL_TOKEN_CONTINUITY";case 30:return "DOS_DEVICE_QUERY";case 31:return "LOCAL_DEVICE_REQUIRED";case 32:return "ORIGINAL_PARENT_OPEN";case 33:return "PARENT_IDENTITY_QUERY";case 34:return "PARENT_DIRECTORY_NO_REPARSE";case 35:return "PARENT_SECURITY_QUERY";case 36:return "VALID_PARENT_DESCRIPTOR";case 37:return "PARENT_DACL_QUERY";case 38:return "PARENT_DACL_PRESENT";case 39:return "OPERATOR_SID_FORMAT";default:return "UNMAPPED";}}
+ int main(void)
+ {
+- char path[MAX_PATH];DWORD n;PAPACC_RESULT r;
++ char path[MAX_PATH],host[256]="UNKNOWN";DWORD n,first,error,kind,size=sizeof(host),used;PAPACC_RESULT r,closed;HANDLE token=NULL;
++ TOKEN_ELEVATION elevation={0};TOKEN_ELEVATION_TYPE type=TokenElevationTypeDefault;
++ union {TOKEN_USER alignment;BYTE bytes[sizeof(TOKEN_USER)+SECURITY_MAX_SID_SIZE];} user;
++ LPSTR sid=NULL;int elevation_known=0,type_known=0,sid_known=0,observer_closed=1,parent_opened;DWORD observer_error=0,admin_attributes=0,token_session=0,process_session=0,active_session=WTSGetActiveConsoleSessionId();int groups_known=0,admin_present=0,session_known=0;
++ union {TOKEN_GROUPS alignment;BYTE bytes[4096];} groups;BYTE admin_sid[SECURITY_MAX_SID_SIZE];DWORD admin_bytes=sizeof(admin_sid),index;
+  model.writer=GetCurrentThreadId();
+  if(papacc_configuration_personal_native_current(&model)==PAPACC_RESULT_OK)return 1;
+  n=GetTempPathA(MAX_PATH,path);if(!n||n>=MAX_PATH)return 2;
+  r=papacc_configuration_personal_native_open(&model,path);
+- if(r!=PAPACC_RESULT_OK){
+- if(papacc_configuration_personal_native_close(&model)!=PAPACC_RESULT_OK)return 3;
+- puts("NATIVE_READ_ONLY_PREFLIGHT_DENIED_NO_ELIGIBLE_CONTEXT_OR_PARENT; POSITIVE_NOT_QUALIFIED");return 0;}
+- if(!model.pending_commit.bootstrap_parent||!model.pending_commit.bootstrap_token||model.pending_commit.bootstrap_created||
+- !model.pending_commit.personal_native.sid_bytes||papacc_configuration_personal_native_current(&model)!=PAPACC_RESULT_OK)return 4;
+- if(papacc_configuration_personal_native_open(&model,path)==PAPACC_RESULT_OK)return 5;
+- model.stopped=1;if(papacc_configuration_personal_native_current(&model)==PAPACC_RESULT_OK)return 6;
+- if(papacc_configuration_personal_native_close(&model)!=PAPACC_RESULT_OK)return 7;
++ first=model.pending_commit.personal_native.diagnostic_first;error=model.pending_commit.personal_native.diagnostic_error;kind=model.pending_commit.personal_native.diagnostic_kind;
++ parent_opened=model.pending_commit.bootstrap_parent!=NULL;
++ /* Independent metadata query AFTER first failure. Never feeds the guard. */
++ if(OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token)){
++  elevation_known=GetTokenInformation(token,TokenElevation,&elevation,sizeof(elevation),&used)!=0;
++  type_known=GetTokenInformation(token,TokenElevationType,&type,sizeof(type),&used)!=0;
++  if(GetTokenInformation(token,TokenUser,&user,sizeof(user),&used)&&IsValidSid(((TOKEN_USER *)&user)->User.Sid))sid_known=ConvertSidToStringSidA(((TOKEN_USER *)&user)->User.Sid,&sid)!=0;
++  session_known=GetTokenInformation(token,TokenSessionId,&token_session,sizeof(token_session),&used)!=0;
++  (void)ProcessIdToSessionId(GetCurrentProcessId(),&process_session);
++  groups_known=GetTokenInformation(token,TokenGroups,&groups,sizeof(groups),&used)!=0;
++  if(groups_known&&CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin_sid,&admin_bytes)){
++   TOKEN_GROUPS *g=(TOKEN_GROUPS *)&groups;for(index=0;index<g->GroupCount;index++)if(EqualSid(admin_sid,g->Groups[index].Sid)){admin_present=1;admin_attributes=g->Groups[index].Attributes;}
++  }
++  if(!CloseHandle(token)){observer_closed=0;observer_error=GetLastError();}
++ }else observer_error=GetLastError();
++ (void)GetComputerNameA(host,&size);
++ closed=papacc_configuration_personal_native_close(&model);
++ printf("{\"observation\":\"INDEPENDENT_AFTER_FIRST_FAILURE\",\"admin_group_query_known\":%s,\"admin_sid_present\":%s,\"admin_group_attributes\":%lu,\"session_known\":%s,\"token_session\":%lu,\"process_session\":%lu,\"active_console_session\":%lu,\"authority\":\"DENY\"}\n",groups_known?"true":"false",admin_present?"true":"false",admin_attributes,session_known?"true":"false",token_session,process_session,active_session);
++ printf("{\"first_predicate\":\"%s\",\"predicate_id\":%lu,\"failure_kind\":%lu,\"native_error\":%lu,\"preflight_result\":%u,\"operator_sid\":\"%s\",\"elevation_known\":%s,\"elevated\":%s,\"elevation_type_known\":%s,\"elevation_type\":%u,\"pid\":%lu,\"host_metadata\":\"%s\",\"uptime_ms\":%llu,\"boot_identity\":\"NOT_ESTABLISHED_BY_UPTIME\",\"parent_scope\":\"TEMP_DIRECTORY_PROBE_NOT_INSTALLATION_TARGET\",\"parent_opened\":%s,\"native_close_result\":%u,\"observer_closed\":%s,\"observer_error\":%lu,\"authority\":\"DENY\"}\n",
++ predicate(first),first,kind,error,(unsigned)r,sid_known?sid:"UNKNOWN",elevation_known?"true":"false",elevation.TokenIsElevated?"true":"false",type_known?"true":"false",(unsigned)type,GetCurrentProcessId(),host,GetTickCount64(),parent_opened?"true":"false",(unsigned)closed,observer_closed?"true":"false",observer_error);
++ if(sid&&LocalFree(sid))return 9;if(!observer_closed||closed!=PAPACC_RESULT_OK)return 3;
++ if(r!=PAPACC_RESULT_OK){puts("NATIVE_READ_ONLY_PREFLIGHT_DENIED; EXACT_FIRST_PREDICATE_REPORTED; POSITIVE_NOT_QUALIFIED");return 0;}
+  if(model.pending_commit.bootstrap_parent||model.pending_commit.bootstrap_token)return 8;
+  puts("NATIVE_READ_ONLY_PREFLIGHT_ELIGIBLE_PARENT_TOKEN_REVALIDATED_CLOSED_NO_CREATION");return 0;
+ }
+--- before/src/provisioning/enrollment.c
++++ after/src/provisioning/enrollment.c
+@@ -99,6 +99,14 @@
+  if(connection!=p->connection||generation!=p->generation||!code||n!=10U||!chars(code,10)||papacc_c2_compare(code,p->code,10)){p->invalid=1;return EP_DENIED;}p->claimed=1;return EP_DATA_ONLY;
+ }
+ void ep_pair_stop(EP_PAIR *p){if(p){p->stopped=1;p->invalid=1;}}
++EP_RESULT ep_trace_csr_candidate(const EP_TRACE *t,const EP_PAIR *p,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now,EP_SLICE *out){
++ if(!t||!p||!out||cross(t,sizeof(*t),p,sizeof(*p))||cross(t,sizeof(*t),out,sizeof(*out))||cross(p,sizeof(*p),out,sizeof(*out)))return EP_INVALID;
++ if(t->stopped||p->stopped)return EP_STOPPED;
++ if(!p->initialized||!p->submitted||!p->claimed||p->invalid||t->terminal||t->phase!=5U||t->pending||!t->csr_size||t->csr_size>sizeof(t->csr))return EP_DENIED;
++ if(connection!=p->connection||generation!=p->generation||memcmp(t->request,p->request,16)||memcmp(t->client_nonce,p->client_nonce,32)||memcmp(t->server_nonce,p->server_nonce,32))return EP_DENIED;
++ if(now<p->last||now>=p->deadline)return EP_EXPIRED;
++ out->data=t->csr;out->size=t->csr_size;return EP_DATA_ONLY;
++}
+ EP_RESULT ep_trace_claim_pair(EP_TRACE *t,EP_PAIR *p,const EP_FRAME *f,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now){
+  EP_RESULT result;const PAPACC_U8 *b;
+  if(!t||!p||!f||cross(t,sizeof(*t),p,sizeof(*p))||cross(t,sizeof(*t),f,sizeof(*f))||
+--- before/src/provisioning/enrollment.h
++++ after/src/provisioning/enrollment.h
+@@ -50,6 +50,10 @@
+  * consumes the pair even on invalid order/code. This is DATA composition,
+  * never password validation, administrative approval or issuance authority. */
+ EP_RESULT ep_trace_claim_pair(EP_TRACE *,EP_PAIR *,const EP_FRAME *,PAPACC_U64,PAPACC_U64,PAPACC_U64);
++/* Borrow the original owned CSR after DATA correlation only. No approval,
++ * PoP verification, issuer authorization, L2 persistence or trust is granted.
++ * Caller retains trace/pair immutable until the slice's factual release. */
++EP_RESULT ep_trace_csr_candidate(const EP_TRACE *,const EP_PAIR *,PAPACC_U64,PAPACC_U64,PAPACC_U64,EP_SLICE *);
+ void ep_pair_stop(EP_PAIR *);
+ /* Native Windows adapter generates public pairing secret only; no keys/CA.
+  * It is not registered at startup or connected to root/CLI. */
+--- before/tests/enrollment_test.c
++++ after/tests/enrollment_test.c
+@@ -102,6 +102,28 @@
+  n=make(2);f.kind=2;f.payload.size=n;CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_DATA_ONLY);saved=t;
+  n=make(3);f.kind=3;f.sequence=2;f.payload.size=n;
+  CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,101)==EP_DATA_ONLY&&p.claimed&&t.phase==3U);
++ {
++ EP_TRACE csr_trace=t,bad;EP_PAIR csr_pair=p,bad_pair;EP_SLICE slice,unchanged;unsigned fault;
++ slice.data=(const PAPACC_U8 *)"unchanged";slice.size=9;unchanged=slice;
++ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,102,&slice)==EP_DENIED&&slice.data==unchanged.data&&slice.size==unchanged.size);
++ f.kind=4;f.sequence=2;f.payload.size=make(4);body[16]=2;CHECK(ep_trace_observe(&csr_trace,&f,EP_S2C)==EP_DATA_ONLY);
++ f.kind=5;f.sequence=3;f.payload.size=make(5);CHECK(ep_trace_observe(&csr_trace,&f,EP_C2S)==EP_DATA_ONLY);
++ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,102,&slice)==EP_DATA_ONLY&&slice.data==csr_trace.csr&&slice.size==1);
++ body[52]^=1;CHECK(slice.data[0]==0x30); /* original owner copy, never recycled RX */
++ for(fault=0;fault<9;fault++){
++  bad=csr_trace;bad_pair=csr_pair;slice=unchanged;
++  if(fault==0)bad.request[0]^=1;if(fault==1)bad.server_nonce[0]^=1;if(fault==2)bad_pair.claimed=0;
++  if(fault==3)bad.terminal=1;if(fault==4)bad.pending=1;if(fault==5)bad.csr_size=sizeof(bad.csr)+1;
++  if(fault==6)bad_pair.invalid=1;if(fault==7)bad.client_nonce[0]^=1;if(fault==8)bad_pair.stopped=1;
++  CHECK(ep_trace_csr_candidate(&bad,&bad_pair,11,12,102,&slice)!=EP_DATA_ONLY&&slice.data==unchanged.data&&slice.size==unchanged.size);
++ }
++ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,99,12,102,&slice)==EP_DENIED);
++ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,99,102,&slice)==EP_DENIED);
++ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,csr_pair.deadline,&slice)==EP_EXPIRED);
++ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,100,&slice)==EP_EXPIRED);
++ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,102,(EP_SLICE *)&csr_trace)==EP_INVALID);
++ f.kind=3;f.sequence=2;f.payload.size=make(3);
++ }
+  CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,102)==EP_REPLAY);
+  for(i=0;i<5U;i++){
+   p=original;t=saved;n=make(3);f.kind=3;f.sequence=2;f.payload.size=n;
+--- before/CMakeLists.txt
++++ after/CMakeLists.txt
+@@ -3278,6 +3278,12 @@
+  target_link_libraries(papacc_personal_native_test PRIVATE papacc_configuration_commit)
+  target_compile_options(papacc_personal_native_test PRIVATE /W4 /WX)
+  add_test(NAME papacc.personal_native.readonly COMMAND papacc_personal_native_test)
++ add_executable(papacc_personal_token_predicate_test tests/personal_token_predicate_test.c)
++ target_include_directories(papacc_personal_token_predicate_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} apps/server)
++ target_link_libraries(papacc_personal_token_predicate_test PRIVATE papacc_configuration_commit advapi32)
++ target_compile_options(papacc_personal_token_predicate_test PRIVATE /W4 /WX)
++ add_test(NAME papacc.personal.token_predicates COMMAND papacc_personal_token_predicate_test)
++ set_property(SOURCE tests/personal_token_predicate_test.c apps/server/server_configuration_commit_win32.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_personal_token_checks_win32.inc")
+  add_executable(papacc_personal_presenter_test tests/personal_presenter_win32_test.c)
+  target_include_directories(papacc_personal_presenter_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} apps/server)
+  target_link_libraries(papacc_personal_presenter_test PRIVATE papacc_configuration_commit papacc_server_run_win32 bcrypt advapi32)
+--- before/docs/capabilities/phase6-scope-and-closure-20261028.md
++++ after/docs/capabilities/phase6-scope-and-closure-20261028.md
+@@ -1,4 +1,8 @@
+ # Phase 6 — escopo recuperado e plano de conclusão
++
++## Contexto nativo e handoff CSR — 2026-10-29
++
++Primeira negação observada: ADMIN_ENABLED, predicado falso sem erro API, token não elevado e Administrators ausente; parent ainda não alcançado. Coletor manual elevado preparado sem autoelevação. Guards inalterados, diagnóstico por primeira causa e fault injection qualificados. AUTOMATIC ganhou borrow DATA da CSR correlacionada à conexão/geração; não é PoP/aprovação ou L2. Quatro builds sem warnings, 76 CTests e oito fixtures PASS. MANUAL/E8/Browser continuam sem produtores factuais de trust; MACHINE/identidade operacional não demonstradas. [Relatório](../integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md). Phase 6 PARTIAL; autoridade DENY.
+ 
+ ## Presenter conjunto nativo — 2026-10-29
+ 
+--- before/docs/capabilities/canonical-phase6-consolidation.md
++++ after/docs/capabilities/canonical-phase6-consolidation.md
+@@ -1,4 +1,8 @@
+ # ConsolidaÃ§Ã£o canÃ´nica Phase 6 â€” estado factual
++
++## Contexto nativo e handoff CSR — 2026-10-29
++
++Primeira negação observada: ADMIN_ENABLED, predicado falso sem erro API, token não elevado e Administrators ausente; parent ainda não alcançado. Coletor manual elevado preparado sem autoelevação. Guards inalterados, diagnóstico por primeira causa e fault injection qualificados. AUTOMATIC ganhou borrow DATA da CSR correlacionada à conexão/geração; não é PoP/aprovação ou L2. Quatro builds sem warnings, 76 CTests e oito fixtures PASS. MANUAL/E8/Browser continuam sem produtores factuais de trust; MACHINE/identidade operacional não demonstradas. [Relatório](../integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md). Phase 6 PARTIAL; autoridade DENY.
+ 
+ ## Presenter conjunto nativo — 2026-10-29
+ 
+--- before/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
++++ after/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
+@@ -77,11 +77,11 @@
+  ('PST','SDK API3/SPI4 normal / API2 produção / R2','docs/adr/DECISION-phase6-canonical-consolidation-20261018.md','Ambos consumidores','INTEGRACAO_OFFLINE_COM_EVIDENCIA','B:docs/integration/api3-real-composition-20261018/CLOSEOUT.txt','qualificação conjunta normal final','C7;E19;E20','OBRIGATORIO_AMPLIADO','Verificar fonte e artefato exatos, não publicar065'),
+  ('LIFECYCLE-E5-E11','Qualificações históricas E5/E11 e ED08/Model E',wire,'Escopos originais separados dos E05/E11 LAB','PRESERVAR_SEM_REGRESSAO_DEMONSTRADA',old,'apenas diferenças de composição/callers atuais','nenhuma reabertura por checkpoint antigo','VALIDO_NO_ESCOPO; NAO_QUALIFICA_TODO_ALVO','Rastrear reutilização e diferenças, não refazer campanha'),
+  ('PROV-MANUAL','Pacote manual + importação granular permanente',manual_norm,'Secure pessoal/produto','FORMATOS_E_F1_F5_G0_G7_ACCEPTED; M1_SOURCE_ABSENT','docs/integration/phase6-product-closure-offline-20261028/CONSOLIDATED-CLOSEOUT.md','mp_auth_pdg_candidate/sp_trust_acquire e Browser M1 ainda negam por fonte factual ausente','PROV-ROOT;PROV-CA;ED11','OBRIGATORIO_AMPLIACAO_ACCEPTED','Integrar producers reais E8 antes de KDF; não pedir novamente formato ou delegação'),
+- ('PROV-AUTO','Enrollment com chave cliente/CSR-PoP/código',auto_norm,'Secure pessoal/produto','TRACE_CLAIM_COMPOSTO_OFFLINE; LISTENER_NAO_REGISTRADO','docs/integration/phase6-product-closure-offline-20261028/CONSOLIDATED-CLOSEOUT.md;docs/integration/phase6-functional-integration-20261028/CONSOLIDATED-CLOSEOUT.md','ep_trace_claim_pair integra claim e trace; L2 ainda exige representação versionada aceita para persistência; faltam sources OPEN/CLOSED/issuer','PROV-ROOT;PROV-CA;ED11','OBRIGATORIO_AMPLIACAO_ACCEPTED','Integrar propósito no mesmo owner após extensão exata; não pedir novamente código/ALPN/framing'),
++ ('PROV-AUTO','Enrollment com chave cliente/CSR-PoP/codigo',auto_norm,'Secure pessoal/produto','TRACE_CLAIM_AND_CSR_BORROW_DATA_QUALIFIED; AUTHORITY_UNBOUND','docs/integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md','CSR original ligada a trace/pair/conexao/geracao e validade; PoP, fontes de emissao e L2 ainda pendentes','PROV-ROOT;PROV-CA;ED11','OBRIGATORIO_AMPLIACAO_ACCEPTED','Integrar consumidor CSR original sem promover DATA a aprovacao ou inventar L2'),
+  ('PROV-ACCESS','OPEN/CLOSED e AUTO/MANUAL_APPROVAL',auto_norm,'Acesso enrollment, não redefinição geral AuthN','CONTRATOS_ACCEPTED; ep_trace_observe somente DATA',prov,'provider password e decisão/request atuais ausentes; código claimed não é aprovação','PROV-AUTO','OBRIGATORIO_AMPLIACAO_ACCEPTED','Conectar fontes factuais/CSR ao issuer; sem grants implícitos'),
+  ('PROV-HOT','Add/approve/renew/revoke sem restart',prov,'Mesmo root/issuer/cadastro','CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado','docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md','PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes','PROV-ROOT;PROV-CA','OBRIGATORIO_AMPLIACAO_ACCEPTED','Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch'),
+  ('PROV-REVOKE','Revogação ativa e novas admissões; histórico',mvp,'Pessoal M7','STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED','docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md','Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED','PROV-HOT;E18','OBRIGATORIO_AMPLIACAO_ACCEPTED','Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência'),
+- ('PROV-ROOT','Root pessoal NEW_INSTALL e presenter conjunto',mvp+';docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md','Pessoal/local','NATIVE_JOINT_PRESENTER_QUALIFIED_OFFLINE; NATIVE_CONTEXT_DENY','docs/integration/phase6-native-presenter-20261029/CONSOLIDATED-CLOSEOUT.md','Plano conjunto e handoff read-only integrados; preflight positivo e custodia MACHINE ainda ausentes','PROV-CA;ED11','OBRIGATORIO_PESSOAL; FIXTURE_NAO_E_AUTORIDADE','Qualificar contexto real e fontes de provisao sem executar instalacao'),
++ ('PROV-ROOT','Root pessoal NEW_INSTALL e presenter conjunto',mvp+';docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md','Pessoal/local','NATIVE_FIRST_DENY_ADMIN_ENABLED; NO_API_ERROR; OWNER_CONTEXT_PENDING','docs/integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md','Token observado nao elevado e sem Administrators; nenhum parent operacional provado; coletor manual pronto','PROV-CA;ED11','OBRIGATORIO_PESSOAL; FIXTURE_NAO_E_AUTORIDADE','Receber metadados do contexto legitimo ja elevado sem relaxar guard'),
+  ('PROV-CA','CA protegida/serial/UTC/issuer NORMAL',mvp+';docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md','M1/M3 NEW_INSTALL ou CA existente','CURRENTUSER_PERSISTENT_FIXTURE_REOPEN_PASS; OPERATIONAL_CEREMONY_DENY','docs/integration/phase6-persistent-ca-fixture-20261029/CONSOLIDATED-CLOSEOUT.md','Uma chave KSP de teste retida; reabertura e NORMAL reais; presenter e custodia MACHINE nao demonstrados','PROV-ROOT;ED11','OBRIGATORIO; RECOVERY_NAO_HERDADA','Integrar presenter nativo F0-F9 sem reutilizar fixture como autoridade; nao repetir cripto/CAS/TPM'),
+  ('SCM','Instalação/lifecycle/conta operacional pessoal',mvp,'Windows pessoal M5','HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS',ed,'readiness/acesso/Stop/restart normal/uninstall','E17;E18;PROV-ROOT','OBRIGATORIO_PESSOAL','Mapear CLI ao mesmo owner; não criar serviço agora'),
+  ('CONFIG','Config settings-only/listeners/live apply',mvp+';docs/adr/DECISION-personal-listener-selection-direction-20261023.md','Pessoal M6 e direção posterior','SUBSET_PARCIAL; detalhes defaultLan não aceitos', 'docs/future/personal-listener-selection-and-live-configuration.md','reconciliação CURRENT/reload e fontes reais','PROV-ROOT;PROV-HOT','OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES','Não congelar gramática/default novos por inferência'),
+--- before/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
++++ after/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
+@@ -42,11 +42,11 @@
+ PST,SDK API3/SPI4 normal / API2 produção / R2,docs/adr/DECISION-phase6-canonical-consolidation-20261018.md,Ambos consumidores,INTEGRACAO_OFFLINE_COM_EVIDENCIA,B:docs/integration/api3-real-composition-20261018/CLOSEOUT.txt,qualificação conjunta normal final,C7;E19;E20,OBRIGATORIO_AMPLIADO,"Verificar fonte e artefato exatos, não publicar065"
+ LIFECYCLE-E5-E11,Qualificações históricas E5/E11 e ED08/Model E,docs/adr/ADR-0034-pacc-c2-revision3-contract-and-separated-gates.md,Escopos originais separados dos E05/E11 LAB,PRESERVAR_SEM_REGRESSAO_DEMONSTRADA,docs/capabilities/phase6-c0-c12-recovery-20261011.md,apenas diferenças de composição/callers atuais,nenhuma reabertura por checkpoint antigo,VALIDO_NO_ESCOPO; NAO_QUALIFICA_TODO_ALVO,"Rastrear reutilização e diferenças, não refazer campanha"
+ PROV-MANUAL,Pacote manual + importação granular permanente,docs/adr/DECISION-production-client-provisioning-20261018.md;docs/adr/DECISION-manual-package-m0-m8-20261020.md;docs/adr/DECISION-package-signer-delegation-persistence-20261020.md;docs/adr/DECISION-factual-evidence-e0-e8-lifecycle-20261021.md,Secure pessoal/produto,FORMATOS_E_F1_F5_G0_G7_ACCEPTED; M1_SOURCE_ABSENT,docs/integration/phase6-product-closure-offline-20261028/CONSOLIDATED-CLOSEOUT.md,mp_auth_pdg_candidate/sp_trust_acquire e Browser M1 ainda negam por fonte factual ausente,PROV-ROOT;PROV-CA;ED11,OBRIGATORIO_AMPLIACAO_ACCEPTED,Integrar producers reais E8 antes de KDF; não pedir novamente formato ou delegação
+-PROV-AUTO,Enrollment com chave cliente/CSR-PoP/código,docs/adr/DECISION-production-client-provisioning-20261018.md;docs/adr/DECISION-pairing-enrollment-transport-20261020.md;docs/adr/DECISION-enrollment-listener-adr0009-specialization-20261020.md,Secure pessoal/produto,TRACE_CLAIM_COMPOSTO_OFFLINE; LISTENER_NAO_REGISTRADO,docs/integration/phase6-product-closure-offline-20261028/CONSOLIDATED-CLOSEOUT.md;docs/integration/phase6-functional-integration-20261028/CONSOLIDATED-CLOSEOUT.md,ep_trace_claim_pair integra claim e trace; L2 ainda exige representação versionada aceita para persistência; faltam sources OPEN/CLOSED/issuer,PROV-ROOT;PROV-CA;ED11,OBRIGATORIO_AMPLIACAO_ACCEPTED,Integrar propósito no mesmo owner após extensão exata; não pedir novamente código/ALPN/framing
++PROV-AUTO,Enrollment com chave cliente/CSR-PoP/codigo,docs/adr/DECISION-production-client-provisioning-20261018.md;docs/adr/DECISION-pairing-enrollment-transport-20261020.md;docs/adr/DECISION-enrollment-listener-adr0009-specialization-20261020.md,Secure pessoal/produto,TRACE_CLAIM_AND_CSR_BORROW_DATA_QUALIFIED; AUTHORITY_UNBOUND,docs/integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md,"CSR original ligada a trace/pair/conexao/geracao e validade; PoP, fontes de emissao e L2 ainda pendentes",PROV-ROOT;PROV-CA;ED11,OBRIGATORIO_AMPLIACAO_ACCEPTED,Integrar consumidor CSR original sem promover DATA a aprovacao ou inventar L2
+ PROV-ACCESS,OPEN/CLOSED e AUTO/MANUAL_APPROVAL,docs/adr/DECISION-production-client-provisioning-20261018.md;docs/adr/DECISION-pairing-enrollment-transport-20261020.md;docs/adr/DECISION-enrollment-listener-adr0009-specialization-20261020.md,"Acesso enrollment, não redefinição geral AuthN",CONTRATOS_ACCEPTED; ep_trace_observe somente DATA,docs/adr/DECISION-production-client-provisioning-20261018.md,provider password e decisão/request atuais ausentes; código claimed não é aprovação,PROV-AUTO,OBRIGATORIO_AMPLIACAO_ACCEPTED,Conectar fontes factuais/CSR ao issuer; sem grants implícitos
+ PROV-HOT,Add/approve/renew/revoke sem restart,docs/adr/DECISION-production-client-provisioning-20261018.md,Mesmo root/issuer/cadastro,CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado,docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md,PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes,PROV-ROOT;PROV-CA,OBRIGATORIO_AMPLIACAO_ACCEPTED,Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch
+ PROV-REVOKE,Revogação ativa e novas admissões; histórico,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Pessoal M7,STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED,docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md,Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED,PROV-HOT;E18,OBRIGATORIO_AMPLIACAO_ACCEPTED,Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência
+-PROV-ROOT,Root pessoal NEW_INSTALL e presenter conjunto,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md,Pessoal/local,NATIVE_JOINT_PRESENTER_QUALIFIED_OFFLINE; NATIVE_CONTEXT_DENY,docs/integration/phase6-native-presenter-20261029/CONSOLIDATED-CLOSEOUT.md,Plano conjunto e handoff read-only integrados; preflight positivo e custodia MACHINE ainda ausentes,PROV-CA;ED11,OBRIGATORIO_PESSOAL; FIXTURE_NAO_E_AUTORIDADE,Qualificar contexto real e fontes de provisao sem executar instalacao
++PROV-ROOT,Root pessoal NEW_INSTALL e presenter conjunto,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md,Pessoal/local,NATIVE_FIRST_DENY_ADMIN_ENABLED; NO_API_ERROR; OWNER_CONTEXT_PENDING,docs/integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md,Token observado nao elevado e sem Administrators; nenhum parent operacional provado; coletor manual pronto,PROV-CA;ED11,OBRIGATORIO_PESSOAL; FIXTURE_NAO_E_AUTORIDADE,Receber metadados do contexto legitimo ja elevado sem relaxar guard
+ PROV-CA,CA protegida/serial/UTC/issuer NORMAL,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md,M1/M3 NEW_INSTALL ou CA existente,CURRENTUSER_PERSISTENT_FIXTURE_REOPEN_PASS; OPERATIONAL_CEREMONY_DENY,docs/integration/phase6-persistent-ca-fixture-20261029/CONSOLIDATED-CLOSEOUT.md,Uma chave KSP de teste retida; reabertura e NORMAL reais; presenter e custodia MACHINE nao demonstrados,PROV-ROOT;ED11,OBRIGATORIO; RECOVERY_NAO_HERDADA,Integrar presenter nativo F0-F9 sem reutilizar fixture como autoridade; nao repetir cripto/CAS/TPM
+ SCM,Instalação/lifecycle/conta operacional pessoal,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Windows pessoal M5,HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS,docs/integration/n0start03-integrated-closeout-20261024/ED11_GATE_MATRIX.csv,readiness/acesso/Stop/restart normal/uninstall,E17;E18;PROV-ROOT,OBRIGATORIO_PESSOAL,Mapear CLI ao mesmo owner; não criar serviço agora
+ CONFIG,Config settings-only/listeners/live apply,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-listener-selection-direction-20261023.md,Pessoal M6 e direção posterior,SUBSET_PARCIAL; detalhes defaultLan não aceitos,docs/future/personal-listener-selection-and-live-configuration.md,reconciliação CURRENT/reload e fontes reais,PROV-ROOT;PROV-HOT,OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES,Não congelar gramática/default novos por inferência
+--- before/apps/server/server_personal_token_checks_win32.inc
++++ after/apps/server/server_personal_token_checks_win32.inc
+@@ -0,0 +1,46 @@
++/* Same checks and order; diagnostics never supply or relax a predicate. */
++static int personal_deny(PAPACC_CONFIG_PENDING *p,DWORD stage,DWORD error,DWORD kind)
++{PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;if(!n->diagnostic_first){n->diagnostic_first=stage;n->diagnostic_error=error;n->diagnostic_kind=kind;}return 0;}
++static int personal_group(PAPACC_CONFIG_PENDING *p,WELL_KNOWN_SID_TYPE kind,int expected,DWORD stage)
++{
++ BYTE sid[SECURITY_MAX_SID_SIZE];DWORD bytes=sizeof(sid);BOOL member=FALSE;
++ if(!CreateWellKnownSid(kind,NULL,sid,&bytes))return personal_deny(p,stage,GetLastError(),1);
++ if(!CheckTokenMembership(NULL,sid,&member))return personal_deny(p,stage,GetLastError(),1);
++ return (member?1:0)==expected?1:personal_deny(p,stage,0,2);
++}
++static int personal_token(PAPACC_CONFIG_PENDING *p,int capture)
++{
++ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&p->personal_native;
++ union {TOKEN_USER alignment;BYTE bytes[sizeof(TOKEN_USER)+SECURITY_MAX_SID_SIZE];} u;
++ TOKEN_STATISTICS current_token,t;TOKEN_ELEVATION e;TOKEN_ELEVATION_TYPE type;DWORD z,session,ps,error;TOKEN_USER *user=(TOKEN_USER *)&u;int same;BOOL queried;
++ if(n->phase!=1U||p->stop||n->unexpected_thread)return personal_deny(p,1,0,2);
++ if(OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&n->unexpected_thread))return personal_deny(p,2,0,2);
++ error=GetLastError();if(error!=ERROR_NO_TOKEN)return personal_deny(p,2,error,1);
++ if(!personal_group(p,WinBuiltinAdministratorsSid,1,3)||!personal_group(p,WinInteractiveSid,1,4)||!personal_group(p,WinServiceSid,0,5))return 0;
++ if(capture&&!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&p->bootstrap_token))return personal_deny(p,6,GetLastError(),1);
++ if(!p->bootstrap_token)return personal_deny(p,6,0,2);
++ if(!GetTokenInformation(p->bootstrap_token,TokenStatistics,&t,sizeof(t),&z))return personal_deny(p,7,GetLastError(),1);
++ if(t.TokenType!=TokenPrimary)return personal_deny(p,8,0,2);
++ if(!GetTokenInformation(p->bootstrap_token,TokenElevation,&e,sizeof(e),&z))return personal_deny(p,9,GetLastError(),1);
++ if(!e.TokenIsElevated)return personal_deny(p,10,0,2);
++ if(!GetTokenInformation(p->bootstrap_token,TokenElevationType,&type,sizeof(type),&z))return personal_deny(p,11,GetLastError(),1);
++ if(type==TokenElevationTypeLimited)return personal_deny(p,12,0,2);
++ if(!GetTokenInformation(p->bootstrap_token,TokenSessionId,&session,sizeof(session),&z))return personal_deny(p,13,GetLastError(),1);
++ if(!session)return personal_deny(p,14,0,2);
++ if(!ProcessIdToSessionId(GetCurrentProcessId(),&ps))return personal_deny(p,15,GetLastError(),1);
++ if(ps!=session||session!=WTSGetActiveConsoleSessionId())return personal_deny(p,16,0,2);
++ if(!GetTokenInformation(p->bootstrap_token,TokenUser,&u,sizeof(u),&z))return personal_deny(p,17,GetLastError(),1);
++ if(!IsValidSid(user->User.Sid)||GetLengthSid(user->User.Sid)>sizeof(n->sid))return personal_deny(p,18,0,2);
++ if(capture){n->token=t;n->session=session;n->sid_bytes=GetLengthSid(user->User.Sid);return CopySid(sizeof(n->sid),n->sid,user->User.Sid)?1:personal_deny(p,19,GetLastError(),1);}
++ if(n->check_token)return personal_deny(p,20,0,2);
++ if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&n->check_token))return personal_deny(p,20,GetLastError(),1);
++ queried=GetTokenInformation(n->check_token,TokenStatistics,&current_token,sizeof(current_token),&z);
++ if(!queried)(void)personal_deny(p,22,GetLastError(),1);
++ same=queried&&
++  !memcmp(&current_token.TokenId,&t.TokenId,sizeof(LUID))&&!memcmp(&current_token.ModifiedId,&t.ModifiedId,sizeof(LUID));
++ if(!CloseHandle(n->check_token)){n->phase=2U;return personal_deny(p,21,GetLastError(),1);}n->check_token=NULL;
++ if(!same)return personal_deny(p,22,0,2);
++ return n->session==session&&n->sid_bytes==GetLengthSid(user->User.Sid)&&EqualSid(n->sid,user->User.Sid)&&
++  !memcmp(&n->token.TokenId,&t.TokenId,sizeof(LUID))&&!memcmp(&n->token.AuthenticationId,&t.AuthenticationId,sizeof(LUID))&&
++  !memcmp(&n->token.ModifiedId,&t.ModifiedId,sizeof(LUID))?1:personal_deny(p,23,0,2);
++}
+--- before/tests/personal_token_predicate_test.c
++++ after/tests/personal_token_predicate_test.c
+@@ -0,0 +1,55 @@
++#include "server_configuration_commit_win32.h"
++#include <sddl.h>
++#include <stdio.h>
++#include <string.h>
++static unsigned fault,checks;static PSID fixture_sid;static PAPACC_CONFIG_PENDING packet;
++static BOOL WINAPI thread_token(HANDLE thread,DWORD rights,BOOL self,PHANDLE out)
++{(void)thread;(void)rights;(void)self;if(fault==2){*out=(HANDLE)3;return TRUE;}SetLastError(fault==24?ERROR_ACCESS_DENIED:ERROR_NO_TOKEN);return FALSE;}
++static BOOL WINAPI membership(HANDLE token,PSID group,PBOOL yes)
++{(void)token;if(fault==25){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}
++ if(IsWellKnownSid(group,WinBuiltinAdministratorsSid))*yes=fault!=3;
++ else if(IsWellKnownSid(group,WinInteractiveSid))*yes=fault!=4;
++ else *yes=fault==5;return TRUE;}
++static BOOL WINAPI process_token(HANDLE process,DWORD rights,PHANDLE out)
++{(void)process;(void)rights;if(fault==6||fault==20){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}*out=packet.bootstrap_token?(HANDLE)2:(HANDLE)1;return TRUE;}
++static BOOL WINAPI information(HANDLE token,TOKEN_INFORMATION_CLASS kind,LPVOID out,DWORD cap,PDWORD used)
++{(void)cap;*used=0;
++ if((fault==7&&kind==TokenStatistics)||(fault==9&&kind==TokenElevation)||(fault==11&&kind==TokenElevationType)||(fault==13&&kind==TokenSessionId)||(fault==17&&kind==TokenUser)) {SetLastError(ERROR_ACCESS_DENIED);return FALSE;}
++ if(kind==TokenStatistics){TOKEN_STATISTICS *t=out;memset(t,0,sizeof(*t));t->TokenType=fault==8?TokenImpersonation:TokenPrimary;t->TokenId.LowPart=(fault==22&&token==(HANDLE)2)?2:1;t->ModifiedId.LowPart=3;}
++ if(kind==TokenElevation)((TOKEN_ELEVATION *)out)->TokenIsElevated=fault!=10;
++ if(kind==TokenElevationType)*(TOKEN_ELEVATION_TYPE *)out=fault==12?TokenElevationTypeLimited:TokenElevationTypeFull;
++ if(kind==TokenSessionId)*(DWORD *)out=fault==14?0:1;
++ if(kind==TokenUser)((TOKEN_USER *)out)->User.Sid=fault==18?NULL:fixture_sid;
++ return TRUE;}
++static BOOL WINAPI query_session(DWORD process,DWORD *out){(void)process;*out=1;if(fault==15){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}
++static DWORD WINAPI active(void){return fault==16?2:1;}
++static BOOL WINAPI close_reference(HANDLE handle){(void)handle;if(fault==21){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;}
++#define OpenThreadToken thread_token
++#define CheckTokenMembership membership
++#define OpenProcessToken process_token
++#define GetTokenInformation information
++#define ProcessIdToSessionId query_session
++#define WTSGetActiveConsoleSessionId active
++#define CloseHandle close_reference
++#include "../apps/server/server_personal_token_checks_win32.inc"
++#define CHECK(x) do{checks++;if(!(x)){printf("FAIL fault=%u line=%u stage=%lu kind=%lu\n",fault,(unsigned)__LINE__,packet.personal_native.diagnostic_first,packet.personal_native.diagnostic_kind);return 1;}}while(0)
++int main(void)
++{unsigned i;DWORD first;static const unsigned cases[]={2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,24,25};
++ CHECK(ConvertStringSidToSidA("S-1-5-21-1-2-3-1001",&fixture_sid));
++ for(i=0;i<sizeof(cases)/sizeof(cases[0]);i++){
++  fault=cases[i];memset(&packet,0,sizeof(packet));packet.personal_native.phase=1;
++  CHECK(!personal_token(&packet,1));first=packet.personal_native.diagnostic_first;
++  CHECK(first==(fault==24?2:fault==25?3:fault));
++  if(fault==24||fault==25||fault==6||fault==7||fault==9||fault==11||fault==13||fault==15||fault==17)CHECK(packet.personal_native.diagnostic_kind==1&&packet.personal_native.diagnostic_error==ERROR_ACCESS_DENIED);
++  else CHECK(packet.personal_native.diagnostic_kind==2&&!packet.personal_native.diagnostic_error);
++  fault=0;(void)personal_deny(&packet,99,99,1);CHECK(packet.personal_native.diagnostic_first==first);
++ }
++ for(i=20;i<=23;i++){
++  fault=0;memset(&packet,0,sizeof(packet));packet.personal_native.phase=1;CHECK(personal_token(&packet,1));
++  fault=i;if(fault==23)packet.personal_native.token.ModifiedId.LowPart++;
++  CHECK(!personal_token(&packet,0)&&packet.personal_native.diagnostic_first==i);
++  if(i==21)CHECK(packet.personal_native.phase==2&&packet.personal_native.check_token);
++ }
++ fault=0;memset(&packet,0,sizeof(packet));packet.personal_native.phase=1;CHECK(personal_token(&packet,1)&&personal_token(&packet,0)&&!packet.personal_native.diagnostic_first);
++ CHECK(!LocalFree(fixture_sid));printf("PASS TOKEN_PREDICATE_FAULTS checks=%u REAL_SID_HELPERS TEST_ONLY_TOKEN_APIS SAME_GUARDS NO_AUTHORITY\n",checks);return 0;
++}

@@ -1,0 +1,225 @@
+papacc_c8_target_view PROC
+
+; 210  : {
+
+$LN14:
+	mov	QWORD PTR [rsp+24], r8
+	mov	QWORD PTR [rsp+16], rdx
+	mov	QWORD PTR [rsp+8], rcx
+	push	rsi
+	push	rdi
+	sub	rsp, 1752				; 000006d8H
+	lea	rdi, QWORD PTR [rsp+32]
+	mov	ecx, 430				; 000001aeH
+	mov	eax, -858993460				; ccccccccH
+	rep stosd
+	mov	rcx, QWORD PTR [rsp+1776]
+	mov	rax, QWORD PTR __security_cookie
+	xor	rax, rsp
+	mov	QWORD PTR __$ArrayPad$[rsp], rax
+
+; 211  :  PAPACC_C8_TARGET_VIEW v;PAPACC_RESULT result;PAPACC_U64 finish;unsigned i;
+; 212  :  if(!s||!b||!out||view_overlap(out,sizeof(*out),s,sizeof(*s))||view_overlap(out,sizeof(*out),b,sizeof(*b)))return PAPACC_RESULT_INVALID_ARGUMENT;
+
+	cmp	QWORD PTR s$[rsp], 0
+	je	SHORT $LN6@papacc_c8_
+	cmp	QWORD PTR b$[rsp], 0
+	je	SHORT $LN6@papacc_c8_
+	cmp	QWORD PTR out$[rsp], 0
+	je	SHORT $LN6@papacc_c8_
+	mov	r9d, 4512				; 000011a0H
+	mov	r8, QWORD PTR s$[rsp]
+	mov	edx, 1624				; 00000658H
+	mov	rcx, QWORD PTR out$[rsp]
+	call	view_overlap
+	test	eax, eax
+	jne	SHORT $LN6@papacc_c8_
+	mov	r9d, 112				; 00000070H
+	mov	r8, QWORD PTR b$[rsp]
+	mov	edx, 1624				; 00000658H
+	mov	rcx, QWORD PTR out$[rsp]
+	call	view_overlap
+	test	eax, eax
+	je	SHORT $LN5@papacc_c8_
+$LN6@papacc_c8_:
+	mov	eax, 1
+	jmp	$LN1@papacc_c8_
+$LN5@papacc_c8_:
+
+; 213  :  if(sizeof(void*)!=8U)return PAPACC_RESULT_INVALID_STATE;
+
+	xor	eax, eax
+	test	eax, eax
+	je	SHORT $LN7@papacc_c8_
+	mov	eax, 4
+	jmp	$LN1@papacc_c8_
+$LN7@papacc_c8_:
+
+; 214  :  memset(&v,0,sizeof(v));result=papacc_c8_target_process_provenance(s,b,&v.provenance);if(result!=PAPACC_RESULT_OK)return result;
+
+	mov	r8d, 1624				; 00000658H
+	xor	edx, edx
+	lea	rcx, QWORD PTR v$[rsp]
+	call	memset
+	lea	r8, QWORD PTR v$[rsp+64]
+	mov	rdx, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	call	papacc_c8_target_process_provenance
+	mov	DWORD PTR result$[rsp], eax
+	cmp	DWORD PTR result$[rsp], 0
+	je	SHORT $LN8@papacc_c8_
+	mov	eax, DWORD PTR result$[rsp]
+	jmp	$LN1@papacc_c8_
+$LN8@papacc_c8_:
+
+; 215  :  if(papacc_pal_monotonic_time_ns(&finish)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INTERNAL_ERROR;
+
+	lea	rcx, QWORD PTR finish$[rsp]
+	call	papacc_pal_monotonic_time_ns
+	test	eax, eax
+	je	SHORT $LN9@papacc_c8_
+	mov	eax, 6
+	jmp	$LN1@papacc_c8_
+$LN9@papacc_c8_:
+
+; 216  :  v.verified_ms=finish/1000000U;
+
+	xor	edx, edx
+	mov	rax, QWORD PTR finish$[rsp]
+	mov	ecx, 1000000				; 000f4240H
+	div	rcx
+	mov	QWORD PTR v$[rsp+56], rax
+
+; 217  :  if(v.verified_ms<v.provenance.validated_ms||papacc_c8_target_validate_raw(s,b,s->evidence.target,v.verified_ms)!=PAPACC_C8_RESOURCE_OK)return PAPACC_RESULT_INVALID_STATE;
+
+	mov	rax, QWORD PTR v$[rsp+112]
+	cmp	QWORD PTR v$[rsp+56], rax
+	jb	SHORT $LN11@papacc_c8_
+	mov	rax, QWORD PTR s$[rsp]
+	add	rax, 112				; 00000070H
+	mov	r9, QWORD PTR v$[rsp+56]
+	mov	r8, rax
+	mov	rdx, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	call	papacc_c8_target_validate_raw
+	test	eax, eax
+	je	SHORT $LN10@papacc_c8_
+$LN11@papacc_c8_:
+	mov	eax, 4
+	jmp	$LN1@papacc_c8_
+$LN10@papacc_c8_:
+
+; 218  :  v.version=PAPACC_C8_TARGET_VIEW_VERSION;v.bytes=sizeof(v);v.origin=s->evidence.origin;
+
+	mov	DWORD PTR v$[rsp], 1
+	mov	DWORD PTR v$[rsp+4], 1624		; 00000658H
+	mov	rax, QWORD PTR s$[rsp]
+	mov	eax, DWORD PTR [rax+276]
+	mov	DWORD PTR v$[rsp+8], eax
+
+; 219  :  v.image_identity=PAPACC_C8_VIEW_IMAGE_PATHS_ONLY;v.package_backend=PAPACC_C8_VIEW_PACKAGE_OPENSSL_X64;v.pointer_bytes=sizeof(void*);
+
+	mov	DWORD PTR v$[rsp+16], 1
+	mov	DWORD PTR v$[rsp+20], 1
+	mov	DWORD PTR v$[rsp+24], 8
+
+; 220  :  /* Policy stays ABSENT: neither this projection nor raw recorded expiry is an
+; 221  :   * installer of product freshness/headroom/provider/kernel approval. */
+; 222  :  v.policy=PAPACC_C8_VIEW_POLICY_ABSENT;v.series=s->series_id;v.first_sequence=s->series_first_sequence;v.owner=b->owner;v.binding=*b;
+
+	mov	DWORD PTR v$[rsp+12], 0
+	mov	rax, QWORD PTR s$[rsp]
+	mov	rax, QWORD PTR [rax+504]
+	mov	QWORD PTR v$[rsp+32], rax
+	mov	rax, QWORD PTR s$[rsp]
+	mov	rax, QWORD PTR [rax+512]
+	mov	QWORD PTR v$[rsp+40], rax
+	mov	rax, QWORD PTR b$[rsp]
+	mov	rax, QWORD PTR [rax+8]
+	mov	QWORD PTR v$[rsp+48], rax
+	lea	rax, QWORD PTR v$[rsp+1264]
+	mov	rdi, rax
+	mov	rsi, QWORD PTR b$[rsp]
+	mov	ecx, 112				; 00000070H
+	rep movsb
+
+; 223  :  memcpy(v.recipe,s->evidence.provenance,32U);
+
+	mov	rax, QWORD PTR s$[rsp]
+	add	rax, 176				; 000000b0H
+	mov	r8d, 32					; 00000020H
+	mov	rdx, rax
+	lea	rcx, QWORD PTR v$[rsp+1376]
+	call	memcpy
+	npad	1
+
+; 224  :  for(i=0U;i<PAPACC_C8_RESOURCE_METRICS;i++){if(!view_metric_valid(i,&s->evidence.metrics[i]))return PAPACC_RESULT_INVALID_STATE;v.metrics[i].observed=s->evidence.metrics[i];v.metrics[i].unit=view_unit(i);v.metrics[i].scope=view_scope(i);}
+
+	mov	DWORD PTR i$[rsp], 0
+	jmp	SHORT $LN4@papacc_c8_
+$LN2@papacc_c8_:
+	mov	eax, DWORD PTR i$[rsp]
+	inc	eax
+	mov	DWORD PTR i$[rsp], eax
+$LN4@papacc_c8_:
+	cmp	DWORD PTR i$[rsp], 9
+	jae	$LN3@papacc_c8_
+	mov	eax, DWORD PTR i$[rsp]
+	imul	rax, rax, 16
+	mov	rcx, QWORD PTR s$[rsp]
+	lea	rax, QWORD PTR [rcx+rax+296]
+	mov	rdx, rax
+	mov	ecx, DWORD PTR i$[rsp]
+	call	view_metric_valid
+	test	eax, eax
+	jne	SHORT $LN12@papacc_c8_
+	mov	eax, 4
+	jmp	$LN1@papacc_c8_
+$LN12@papacc_c8_:
+	mov	eax, DWORD PTR i$[rsp]
+	imul	rax, rax, 16
+	mov	ecx, DWORD PTR i$[rsp]
+	imul	rcx, rcx, 24
+	mov	rdx, QWORD PTR s$[rsp]
+	lea	rdi, QWORD PTR v$[rsp+rcx+1408]
+	lea	rsi, QWORD PTR [rdx+rax+296]
+	mov	ecx, 16
+	rep movsb
+	mov	ecx, DWORD PTR i$[rsp]
+	call	view_unit
+	mov	ecx, DWORD PTR i$[rsp]
+	imul	rcx, rcx, 24
+	mov	DWORD PTR v$[rsp+rcx+1424], eax
+	mov	ecx, DWORD PTR i$[rsp]
+	call	view_scope
+	mov	ecx, DWORD PTR i$[rsp]
+	imul	rcx, rcx, 24
+	mov	DWORD PTR v$[rsp+rcx+1428], eax
+	jmp	$LN2@papacc_c8_
+$LN3@papacc_c8_:
+
+; 225  :  *out=v;return PAPACC_RESULT_OK;
+
+	lea	rax, QWORD PTR v$[rsp]
+	mov	rdi, QWORD PTR out$[rsp]
+	mov	rsi, rax
+	mov	ecx, 1624				; 00000658H
+	rep movsb
+	xor	eax, eax
+$LN1@papacc_c8_:
+
+; 226  : }
+
+	mov	rdi, rax
+	mov	rcx, rsp
+	lea	rdx, OFFSET FLAT:papacc_c8_target_view$rtcFrameData
+	call	_RTC_CheckStackVars
+	mov	rax, rdi
+	mov	rcx, QWORD PTR __$ArrayPad$[rsp]
+	xor	rcx, rsp
+	call	__security_check_cookie
+	add	rsp, 1752				; 000006d8H
+	pop	rdi
+	pop	rsi
+	ret	0
+papacc_c8_target_view ENDP

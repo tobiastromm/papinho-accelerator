@@ -1,0 +1,352 @@
+/* Reuse only the existing API-mocked filesystem fixture. No real collection,
+ * SCM query, file creation, mutation, RNG, endpoint or service operation. */
+#define main staged_update_old_fixture_main
+#include "qualification_staging_test.c"
+#undef main
+static unsigned update_case,scm_opens,scm_closes;
+static unsigned old_moved,new_moved,set_calls,duplicate_denied;
+static unsigned update_installs,update_uninstalls;
+static unsigned scm_queries,prep_duplicate_denied;
+static ACCESS_MASK rename_parent_access;
+static ULONG rename_parent_share;
+/* Windows sharing is bilateral. Metadata/traverse do not count as data read;
+ * directory FILE_ADD_FILE is the FILE_WRITE_DATA access bit. Pure model only. */
+static int update_share_pair(ACCESS_MASK held,ULONG held_share,ACCESS_MASK incoming,ULONG incoming_share)
+{
+ ACCESS_MASK reads=FILE_READ_DATA|FILE_EXECUTE,writes_mask=FILE_WRITE_DATA|FILE_APPEND_DATA;
+ return (!(incoming&reads)||(held_share&FILE_SHARE_READ))&&
+  (!(incoming&writes_mask)||(held_share&FILE_SHARE_WRITE))&&
+  (!(incoming&DELETE)||(held_share&FILE_SHARE_DELETE))&&
+  (!(held&reads)||(incoming_share&FILE_SHARE_READ))&&
+  (!(held&writes_mask)||(incoming_share&FILE_SHARE_WRITE))&&
+  (!(held&DELETE)||(incoming_share&FILE_SHARE_DELETE));
+}
+static DWORD utility_prep_apply(void);
+/* Original executor observations are modeled separately from DATA slot7's
+ * fixture handle. No process/image acquisition or native collection runs. */
+static HMODULE WINAPI update_module_handle(LPCWSTR name)
+{return (HMODULE)(ULONG_PTR)(name&&!wcscmp(name,L"libssl-3-x64.dll")?2U:name&&!wcscmp(name,L"libcrypto-3-x64.dll")?3U:1U);}
+static DWORD WINAPI update_module_path(HMODULE module,LPWSTR path,DWORD count)
+{
+ const WCHAR *leaf=(ULONG_PTR)module==2U?L"libssl-3-x64.dll":(ULONG_PTR)module==3U?L"libcrypto-3-x64.dll":L"papacc_update.exe";
+ if(update_case>=200U){
+  leaf=(ULONG_PTR)module==2U?L"libssl-3-x64.dll":(ULONG_PTR)module==3U?L"libcrypto-3-x64.dll":update_case==206U?L"papacc_update.exe":L"papacc_server.exe";
+  if(update_case==252U)swprintf_s(path,count,L"C:\\A\\B\\C\\D\\E\\F\\%s",leaf);
+  else if(update_case==249U&&!module)wcscpy_s(path,count,L"C:\\A\\B\\C\\D\\E\\F\\G\\papacc_server.exe");
+  else swprintf_s(path,count,L"C:\\Build\\%s",leaf);return (DWORD)wcslen(path);
+ }
+ if(update_case==150U&&!module){wcscpy_s(path,count,L"C:\\Build\\papacc_server.exe");return (DWORD)wcslen(path);}
+ if(update_case==151U&&!module)leaf=L"papacc_server.exe";
+ swprintf_s(path,count,L"C:\\Program Files\\Papinho\\Accelerator\\%s",leaf);return (DWORD)wcslen(path);
+}
+static BOOL WINAPI update_process_image(HANDLE p,DWORD flags,LPWSTR path,PDWORD count)
+{(void)p;(void)flags;wcscpy_s(path,*count,update_case==252U?L"\\Device\\ModelVolume\\A\\B\\C\\D\\E\\F\\papacc_server.exe":update_case>=200U?L"\\Device\\ModelVolume\\Build\\papacc_server.exe":L"\\Device\\ModelVolume\\Program Files\\Papinho\\Accelerator\\papacc_update.exe");*count=(DWORD)wcslen(path);if(update_case==156U||update_case==244U)path[1]='X';return TRUE;}
+static DWORD WINAPI update_final_path(HANDLE h,LPWSTR path,DWORD count,DWORD flags)
+{
+ if(update_case>=200U){
+  PAPACC_QUALIFICATION_STAGING *s=&root.configuration_commit.pending_commit.personal_native.staging;
+  if(h==s->objects[7].handle){wcscpy_s(path,count,update_case==252U?L"\\Device\\ModelVolume\\A\\B\\C\\D\\E\\F\\papacc_server.exe":L"\\Device\\ModelVolume\\Build\\papacc_server.exe");return (DWORD)wcslen(path);}
+  if(flags!=VOLUME_NAME_DOS||(h!=s->objects[9].handle&&h!=s->objects[10].handle))return 0;
+  swprintf_s(path,count,update_case==252U?L"\\\\?\\C:\\A\\B\\C\\D\\E\\F\\%s":L"\\\\?\\C:\\Build\\%s",h==s->objects[9].handle?L"libssl-3-x64.dll":L"libcrypto-3-x64.dll");
+  if(update_case==243U)path[5]='X';return (DWORD)wcslen(path);
+ }
+ if(h==(HANDLE)(ULONG_PTR)18){wcscpy_s(path,count,L"\\Device\\ModelVolume\\Program Files\\Papinho\\Accelerator\\papacc_update.exe");return (DWORD)wcslen(path);}
+ if(flags!=VOLUME_NAME_DOS||((ULONG_PTR)h!=5U&&(ULONG_PTR)h!=6U))return 0;
+ swprintf_s(path,count,L"\\\\?\\C:\\Program Files\\Papinho\\Accelerator\\%s",(ULONG_PTR)h==5U?L"libssl-3-x64.dll":L"libcrypto-3-x64.dll");
+ if(update_case==158U)path[5]='X';return (DWORD)wcslen(path);
+}
+static DWORD WINAPI update_pid(void){return 101U;}
+static BOOL WINAPI update_times(HANDLE p,LPFILETIME created,LPFILETIME exited,LPFILETIME kernel,LPFILETIME user)
+{(void)p;ZeroMemory(created,sizeof(*created));created->dwLowDateTime=(update_case==157U||update_case==234U)&&writes?2U:1U;ZeroMemory(exited,sizeof(*exited));ZeroMemory(kernel,sizeof(*kernel));ZeroMemory(user,sizeof(*user));return TRUE;}
+static DWORD staged_update_apply(void);
+static PAPACC_RESULT update_console_install(PAPACC_SERVER_CONSOLE_WIN32 *c)
+{update_installs++;if(update_case==142U||c->is_installed)return PAPACC_RESULT_INVALID_STATE;c->is_installed=PAPACC_TRUE;return PAPACC_RESULT_OK;}
+static PAPACC_RESULT update_console_uninstall(PAPACC_SERVER_CONSOLE_WIN32 *c)
+{update_uninstalls++;if(update_case==143U)return PAPACC_RESULT_INVALID_STATE;c->is_installed=PAPACC_FALSE;return PAPACC_RESULT_OK;}
+static DWORD WINAPI update_security(HANDLE h,SE_OBJECT_TYPE t,SECURITY_INFORMATION si,PSID *o,PSID *g,PACL *d,PACL *s,PSECURITY_DESCRIPTOR *out)
+{
+ if(((update_case==32U||update_case>=144U)&&h==(HANDLE)(ULONG_PTR)(update_case==153U?18U:7U))||
+  (update_case>=200U&&(ULONG_PTR)h>=5U&&(ULONG_PTR)h<=(update_case==252U?14U:9U))){
+  PSECURITY_DESCRIPTOR inherited=NULL;DWORD bytes;
+  if(!ConvertStringSecurityDescriptorToSecurityDescriptorW(update_case==32U?L"O:BAG:BAD:(A;ID;FA;;;BA)(A;ID;GRGX;;;AU)":
+   update_case==159U||(update_case==228U&&h==(HANDLE)(ULONG_PTR)9)?L"O:BUG:BAD:NO_ACCESS_CONTROL":L"O:BUG:BAD:(A;ID;FA;;;AU)",SDDL_REVISION_1,&inherited,NULL))return ERROR_INVALID_SECURITY_DESCR;
+  bytes=GetSecurityDescriptorLength(inherited);*out=LocalAlloc(LPTR,bytes);if(*out)memcpy(*out,inherited,bytes);LocalFree(inherited);
+  if(*out&&(update_case==163U||(update_case==235U&&h==(HANDLE)(ULONG_PTR)9))&&writes)((BYTE *)*out)[bytes-1U]^=1;
+  if(*out&&(update_case==166U||(update_case==250U&&h==(HANDLE)(ULONG_PTR)9))){PACL acl;BOOL present,def;PACE_HEADER header;if(GetSecurityDescriptorDacl(*out,&present,&acl,&def)&&GetAce(acl,0,(void **)&header))header->AceType=SYSTEM_AUDIT_ACE_TYPE;}
+  return *out?0:ERROR_OUTOFMEMORY;
+ }
+ {DWORD e=model_security(h,t,si,o,g,d,s,out);if(!e&&((update_case==128U&&writes)||(update_case==136U&&new_moved&&h==(HANDLE)(ULONG_PTR)10)||
+  (update_case==162U&&writes&&h==(HANDLE)(ULONG_PTR)18)))((BYTE *)*out)[GetSecurityDescriptorLength(*out)-1U]^=1;return e;}
+}
+static SC_HANDLE WINAPI update_manager(LPCWSTR host,LPCWSTR db,DWORD rights)
+{if(host||db||rights!=SC_MANAGER_CONNECT)return NULL;scm_opens++;return (SC_HANDLE)(ULONG_PTR)30;}
+static SC_HANDLE WINAPI update_service(SC_HANDLE manager,LPCWSTR name,DWORD rights)
+{if(manager!=(SC_HANDLE)(ULONG_PTR)30||wcscmp(name,L"PapinhoAccelerator")||rights!=(SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS)||update_case==8U){SetLastError(ERROR_ACCESS_DENIED);return NULL;}scm_opens++;return (SC_HANDLE)(ULONG_PTR)31;}
+static BOOL WINAPI update_config(SC_HANDLE service,LPQUERY_SERVICE_CONFIGW q,DWORD bytes,LPDWORD needed)
+{
+ WCHAR *p=(WCHAR *)(q+1);size_t n;(void)service;*needed=0;
+ scm_queries++;
+ if(bytes<1024U||update_case==9U){SetLastError(ERROR_INSUFFICIENT_BUFFER);return FALSE;}
+ q->dwServiceType=SERVICE_WIN32_OWN_PROCESS;q->dwStartType=update_case==5U?SERVICE_AUTO_START:SERVICE_DEMAND_START;q->dwErrorControl=SERVICE_ERROR_NORMAL;
+ q->lpBinaryPathName=p;
+ wcscpy_s(p,300,L"\"C:\\Program Files\\Papinho\\Accelerator\\papacc_server.exe\" service host scq-closed");
+ if(update_case==3U)p[1]='X';n=wcslen(p)+1;p+=n;q->lpServiceStartName=p;
+ wcscpy_s(p,96,update_case==4U?L"LocalSystem":L"NT SERVICE\\PapinhoAccelerator");n=wcslen(p)+1;p+=n;
+ q->lpLoadOrderGroup=p;*p++=0;q->lpDependencies=p;*p=update_case==10U?'X':0;p[1]=0;
+ if(update_case==11U)q->lpBinaryPathName=(WCHAR *)(ULONG_PTR)1;
+ if(update_case==12U)q->lpBinaryPathName=(WCHAR *)((BYTE *)q+bytes-2U),q->lpBinaryPathName[0]='X';
+ if(update_case==20U)root.configuration_commit.pending_commit.stop=1;
+ if(update_case==26U)files[4].data[0]^=1;
+ if(update_case==27U)files[4].id++;
+ if(update_case==30U)scenario=18U;
+ if(update_case==165U&&writes)scenario=18U;
+ return TRUE;
+}
+static BOOL WINAPI update_config2(SC_HANDLE service,DWORD level,LPBYTE buffer,DWORD bytes,LPDWORD needed)
+{(void)service;scm_queries++;*needed=0;if(level!=SERVICE_CONFIG_SERVICE_SID_INFO||bytes!=sizeof(SERVICE_SID_INFO))return FALSE;((SERVICE_SID_INFO *)buffer)->dwServiceSidType=update_case==6U?SERVICE_SID_TYPE_NONE:SERVICE_SID_TYPE_UNRESTRICTED;return TRUE;}
+static BOOL WINAPI update_status(SC_HANDLE service,SC_STATUS_TYPE level,LPBYTE buffer,DWORD bytes,LPDWORD count)
+{
+ SERVICE_STATUS_PROCESS *p=(SERVICE_STATUS_PROCESS *)buffer;(void)service;
+ scm_queries++;
+ if(level!=SC_STATUS_PROCESS_INFO||bytes!=sizeof(*p))return FALSE;
+ ZeroMemory(p,sizeof(*p));p->dwServiceType=SERVICE_WIN32_OWN_PROCESS;p->dwCurrentState=update_case==1U||update_case==102U||(update_case==124U&&writes)?SERVICE_RUNNING:SERVICE_STOPPED;
+ p->dwProcessId=update_case==2U?123U:0;*count=update_case==7U?0:sizeof(*p);return TRUE;
+}
+static BOOL WINAPI update_scm_close(SC_HANDLE h)
+{(void)h;scm_closes++;if(update_case==13U||update_case==116U||(update_case==29U&&scm_closes==2U)){SetLastError(ERROR_INVALID_HANDLE);return FALSE;}return TRUE;}
+static NTSTATUS NTAPI update_nt(PHANDLE h,ACCESS_MASK access,POBJECT_ATTRIBUTES a,PIO_STATUS_BLOCK io,PLARGE_INTEGER allocation,ULONG attr,ULONG share,ULONG disposition,ULONG options,PVOID ea,ULONG ea_bytes)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=&root.configuration_commit.pending_commit.personal_native.staged_update;
+ if(update_case>=200U&&disposition==1U&&a->RootDirectory==(HANDLE)(ULONG_PTR)5&&!wcscmp(a->ObjectName->Buffer,L"papacc_update.exe")&&update_case==248U)return (NTSTATUS)0xc0000043L;
+ if(update_case>=200U&&disposition==1U&&share==(FILE_SHARE_READ|FILE_SHARE_WRITE)){
+  HANDLE original=root.configuration_commit.pending_commit.personal_native.staging.objects[14].handle;
+  if(!original||(access&(FILE_WRITE_DATA|DELETE|WRITE_DAC|WRITE_OWNER)))return (NTSTATUS)0xc0000022L;
+  *h=(HANDLE)(ULONG_PTR)++allocated;files[allocated]=*mf(original);files[allocated].closed=0;files[allocated].pos=0;
+  if(update_case==204U)files[allocated].data[0]^=1;if(update_case==205U)files[allocated].id++;
+  io->Information=1U;return 0;
+ }
+ if(disposition==1U&&a->RootDirectory==(HANDLE)(ULONG_PTR)3&&!wcscmp(a->ObjectName->Buffer,L"papacc_update.exe")){
+  unsigned k;if(update_case==152U)return (NTSTATUS)0xc0000022L;
+  if(share!=FILE_SHARE_READ||(access&(FILE_WRITE_DATA|DELETE|WRITE_DAC|WRITE_OWNER)))return (NTSTATUS)0xc0000022L;
+  ZeroMemory(&files[18],sizeof(files[18]));files[18].id=update_case==154U||update_case==161U?4U:update_case==160U?7U:18U;
+  files[18].attributes=FILE_ATTRIBUTE_NORMAL;files[18].size=6001U;
+  for(k=0;k<6001U;k++)files[18].data[k]=(BYTE)(k+18U);
+  *h=(HANDLE)(ULONG_PTR)18;io->Information=1U;return 0;
+ }
+ if(update_case>=100U&&disposition==2U){
+  if(!u->consumed||u->act_state!=3U||!(access&FILE_WRITE_DATA)||(!u->preparation_mode&&!(access&DELETE))||(u->preparation_mode&&(access&DELETE)))return (NTSTATUS)0xc0000022L;
+  if(staged_update_apply()==ERROR_ACCESS_DENIED)duplicate_denied++;
+  if(u->preparation_mode&&utility_prep_apply()==ERROR_ACCESS_DENIED)prep_duplicate_denied++;
+  if(update_case==203U){creates++;return (NTSTATUS)0xc0000035L;}
+  if(update_case==103U){creates++;return (NTSTATUS)0xc0000035L;}
+ }
+ if(update_case>=100U&&disposition==1U&&share==(FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE)){
+  unsigned original=0;
+  if(access&(FILE_WRITE_DATA|DELETE|WRITE_DAC|WRITE_OWNER))return (NTSTATUS)0xc0000022L;
+  if(old_moved&&!wcscmp(a->ObjectName->Buffer,u->previous))original=4U;
+  if(new_moved&&!wcscmp(a->ObjectName->Buffer,L"papacc_server.exe"))original=8U;
+  if(!original)return (NTSTATUS)0xc0000034L;
+  *h=(HANDLE)(ULONG_PTR)++allocated;files[allocated]=files[original];files[allocated].closed=0;files[allocated].pos=0;
+  if(update_case==119U&&original==4U)files[allocated].id++;
+  if(update_case==109U&&original==8U)files[allocated].data[0]^=1;
+  io->Information=1U;return 0;
+ }
+ {NTSTATUS result;
+ if(update_case==167U&&disposition==1U&&!a->RootDirectory)return (NTSTATUS)0xc0000022L;
+ result=model_nt(h,access,a,io,allocation,attr,share,disposition,options,ea,ea_bytes);
+ if(!result&&disposition==1U&&*h==(HANDLE)(ULONG_PTR)3){rename_parent_access=access;rename_parent_share=share;}
+ if(update_case==230U&&disposition==1U&&*h==(HANDLE)(ULONG_PTR)6)mf(*h)->attributes|=FILE_ATTRIBUTE_REPARSE_POINT;
+ if(update_case==224U&&disposition==1U&&*h==(HANDLE)(ULONG_PTR)9)mf(*h)->id=6U;
+ if(update_case==125U&&disposition==2U){io->Status=(NTSTATUS)0x103L;return (NTSTATUS)0x103L;}
+ if(update_case==129U&&disposition==2U&&*h)mf(*h)->id=4U;return result;}
+}
+static NTSTATUS NTAPI update_set(HANDLE h,PIO_STATUS_BLOCK io,PVOID buffer,ULONG bytes,ULONG kind)
+{
+ PAPACC_UPDATE_RENAME_INFO *r=(PAPACC_UPDATE_RENAME_INFO *)buffer;PAPACC_STAGED_UPDATE_STATE *u=&root.configuration_commit.pending_commit.personal_native.staged_update;
+ set_calls++;
+ if(kind!=10U||r->replace||bytes!=FIELD_OFFSET(PAPACC_UPDATE_RENAME_INFO,name)+r->bytes||
+ r->bytes>=sizeof(r->name)||!u->consumed||u->act_state!=3U)return (NTSTATUS)0xc0000022L;
+ /* Model the documented internal target-directory write-open. The old
+  * RootDirectory=parent form is rejected by our own retained share READ. */
+ if(r->parent){
+  if(r->parent!=(HANDLE)(ULONG_PTR)3)return (NTSTATUS)0xc0000022L;
+  if(!update_share_pair(rename_parent_access,rename_parent_share,FILE_WRITE_DATA|SYNCHRONIZE,FILE_SHARE_READ|FILE_SHARE_WRITE))return (NTSTATUS)0xc0000043L;
+  return (NTSTATUS)0xc0000022L; /* product is required to use same-directory */
+ }
+ if((update_case==169U&&set_calls==1U)||(update_case==170U&&set_calls==2U))return (NTSTATUS)0xc0000043L; /* independent conflict remains DENY */
+ if((update_case==107U&&set_calls==1U)||(update_case==108U&&set_calls==2U))return (NTSTATUS)0xc0000022L;
+ if((update_case==140U&&set_calls==1U)||(update_case==141U&&set_calls==2U))return (NTSTATUS)0xc0000035L;
+ if(set_calls==1U&&h==(HANDLE)(ULONG_PTR)4&&r->bytes==wcslen(u->previous)*sizeof(WCHAR)&&!memcmp(r->name,u->previous,r->bytes))old_moved=1U;
+ else if(set_calls==2U&&h==(HANDLE)(ULONG_PTR)8&&old_moved&&r->bytes==(sizeof(L"papacc_server.exe")-sizeof(WCHAR))&&!memcmp(r->name,L"papacc_server.exe",r->bytes))new_moved=1U;
+ else return (NTSTATUS)0xc0000035L;
+ if((update_case==117U&&set_calls==1U)||(update_case==118U&&set_calls==2U)){io->Status=(NTSTATUS)0x103L;return (NTSTATUS)0x103L;}
+ if((update_case==130U&&set_calls==1U)||(update_case==131U&&set_calls==2U))stop_now=1;
+ return 0;
+}
+static NTSTATUS NTAPI update_volume(HANDLE h,PIO_STATUS_BLOCK io,PVOID p,ULONG bytes,ULONG kind)
+{
+ NTSTATUS r=model_volume(h,io,p,bytes,kind);PAPACC_STAGING_VOLUME_SIZE *v=(PAPACC_STAGING_VOLUME_SIZE *)p;
+ if(update_case==114U)v->caller_available.QuadPart=0;
+ if(update_case==132U){io->Status=(NTSTATUS)0x103L;return (NTSTATUS)0x103L;}
+ if(update_case==133U)v->sectors_per_unit=0;
+ if((update_case==138U||update_case==146U)&&!creates)files[7].data[0]^=1;
+ if(update_case==213U)v->caller_available.QuadPart=0;
+ return r;
+}
+static FARPROC WINAPI update_proc(HMODULE module,LPCSTR name)
+{
+ FARPROC p;
+ if(!strcmp(name,"NtCreateFile")){STAGING_NT_CREATE f=update_nt;memcpy(&p,&f,sizeof(p));return p;}
+ if(!strcmp(name,"NtSetInformationFile")){NTSTATUS (NTAPI *f)(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,ULONG)=update_set;memcpy(&p,&f,sizeof(p));return p;}
+ if(!strcmp(name,"NtQueryVolumeInformationFile")){NTSTATUS (NTAPI *f)(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,ULONG)=update_volume;memcpy(&p,&f,sizeof(p));return p;}
+ return model_proc(module,name);
+}
+static int update_confirm(HANDLE in,HANDLE out,const char *text)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=&root.configuration_commit.pending_commit.personal_native.staged_update;(void)in;(void)out;
+ if(update_case>=200U){
+  if(strncmp(text,"OWNER_UTILITY_PREPARE ",strlen("OWNER_UTILITY_PREPARE "))||update_case==201U)return 0;
+  if(update_case==217U)u->candidate[0]='X';if(update_case==218U)stop_now=1;if(update_case==219U)scenario=18U;
+  if(update_case==246U)files[9].id++;if(update_case==247U)files[6].id++;return 1;
+ }
+ if(strncmp(text,"OWNER_BINARY_UPDATE ",20U)||update_case==111U||update_case==123U||update_case==145U)return 0;
+ if(update_case==122U)u->previous[0]='X';
+ if(update_case==135U)scenario=18U;
+ return 1;
+}
+static BOOL WINAPI update_global(LPMEMORYSTATUSEX v)
+{BOOL r=model_global(v);if(update_case>=100U)v->ullAvailPhys=update_case==214U||((update_case==115U||update_case==236U)&&writes)?1U:64ULL*1024U*1024U;return r;}
+static BOOL WINAPI update_performance(PPERFORMANCE_INFORMATION v,DWORD bytes)
+{BOOL r=model_performance(v,bytes);if(update_case>=100U){v->CommitTotal=1;v->CommitLimit=update_case==134U||update_case==237U?1U:32768U;}return r;}
+static BOOL WINAPI update_write(HANDLE h,LPCVOID p,DWORD n,LPDWORD wrote,LPOVERLAPPED ov)
+{
+ BOOL r;
+ if(update_case>=200U){
+  if(h!=root.configuration_commit.pending_commit.personal_native.staging.objects[14].handle){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}
+  if(update_case==207U){writes++;return FALSE;}if(update_case==209U){writes++;*wrote=0;return TRUE;}
+  if(update_case==208U&&n>11U)n=11U;r=model_write(h,p,n,wrote,ov);
+  if(update_case==211U)stop_now=1;if(update_case==212U&&*wrote&&writes==1U)mf(h)->data[0]^=1;return r;
+ }
+ if(h!=(HANDLE)(ULONG_PTR)8){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}
+ if(update_case==105U){writes++;SetLastError(ERROR_WRITE_FAULT);return FALSE;}
+ if(update_case==127U){writes++;*wrote=0;return TRUE;}
+ if(update_case==126U&&n>11U)n=11U;
+ r=model_write(h,p,n,wrote,ov);if(update_case==110U)stop_now=1;if(update_case==120U&&*wrote&&writes==1U)mf(h)->data[0]^=1;return r;
+}
+static BOOL WINAPI update_flush(HANDLE h)
+{if(update_case==106U||update_case==210U){flushes++;SetLastError(ERROR_WRITE_FAULT);return FALSE;}if(update_case==216U||update_case==171U)stop_now=1;return model_flush(h);}
+#define OpenSCManagerW update_manager
+#define OpenServiceW update_service
+#define QueryServiceConfigW update_config
+#define QueryServiceConfig2W update_config2
+#define QueryServiceStatusEx update_status
+#define CloseServiceHandle update_scm_close
+#undef GetProcAddress
+#define GetProcAddress update_proc
+#undef GlobalMemoryStatusEx
+#define GlobalMemoryStatusEx update_global
+#undef GetPerformanceInfo
+#define GetPerformanceInfo update_performance
+#undef WriteFile
+#define WriteFile update_write
+#undef FlushFileBuffers
+#define FlushFileBuffers update_flush
+#define personal_console_confirm update_confirm
+#define papacc_server_console_win32_install update_console_install
+#define papacc_server_console_win32_uninstall update_console_uninstall
+#undef GetSecurityInfo
+#define GetSecurityInfo update_security
+#undef GetModuleFileNameW
+#define GetModuleFileNameW update_module_path
+#undef GetModuleHandleW
+#define GetModuleHandleW update_module_handle
+#define QueryFullProcessImageNameW update_process_image
+#define GetFinalPathNameByHandleW update_final_path
+#define GetProcessTimes update_times
+#define GetCurrentProcessId update_pid
+/* Instantiate the exact observer body with this fixture's low-level API
+ * faults. The stager's earlier instance and its124 guard stay unchanged. */
+#undef PAPACC_PERSONAL_RESOURCE_SAMPLE_DEFINED
+#define personal_resource_error update_resource_error
+#define personal_resource_collect update_resource_collect
+#define personal_resource_sample update_resource_sample
+#include "../apps/server/server_personal_resource_sample_win32.inc"
+#include "../apps/server/server_launcher_staged_update_win32.inc"
+#define main staged_update_utility_program_main
+#include "../apps/server/update_main.c"
+#undef main
+static int update_pin(BYTE out[32],unsigned id)
+{BYTE bytes[6001];unsigned i;for(i=0;i<sizeof(bytes);i++)bytes[i]=(BYTE)(i+id);return pacc_storage_hash_callback(NULL,bytes,sizeof(bytes),out);}
+#include "utility_preparation_fixture.inc"
+int main(int argc,char **argv)
+{
+ if(argc==2&&!strcmp(argv[1],"--utility-preparation"))return utility_preparation_suite();
+ if(argc!=1)return 2;
+ FILE *out=tmpfile();BYTE old_pin[32],new_pin[32],executor_pin[32],dlls[2][32];DWORD executor_id[3]={42,0,18},old_id[3]={42,0,4};unsigned i;int result;PAPACC_STAGED_UPDATE_STATE *u;PSECURITY_DESCRIPTOR saved_sd;
+ if(!out||!ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;GRGX;;;AU)",SDDL_REVISION_1,&good_sd,NULL))return 2;
+ saved_sd=good_sd;
+ for(i=0;i<33U;i++){
+  fixture_reset(0);update_case=i;scm_opens=scm_closes=0;
+  if(!update_pin(old_pin,4)||!update_pin(dlls[0],5)||!update_pin(dlls[1],6)||!update_pin(new_pin,7))return 2;
+  if(i==14U)old_pin[0]^=1;if(i==15U)new_pin[0]^=1;if(i==16U)dlls[0][0]^=1;
+  if(i==17U)scenario=3U;if(i==18U)scenario=18U;if(i==19U)fail_close=1U;if(i==21U)scenario=22U;
+  if(i==22U)scenario=19U;
+  if(i==23U){state=PAPACC_LAUNCHER_RETAINED;}
+  if(i==24U||i==25U||i==28U){if(!ConvertStringSecurityDescriptorToSecurityDescriptorW(i==24U?L"O:BAG:BAD:P(A;;FA;;;BA)(A;;FA;;;AU)":i==25U?L"O:BUG:BAD:P(A;;FA;;;BA)":L"O:BAG:BAD:(A;;FA;;;BA)",SDDL_REVISION_1,&good_sd,NULL))return 2;}
+  old_id[2]=i==31U?999U:4U;
+  result=papacc_server_launcher_staged_update_prepare(L"C:\\Build\\papacc_server.exe",old_id,old_pin,new_pin,dlls,out);u=staged_update_state();
+  T((i==0U||i==32U)==(result==0));T(!creates&&!writes&&!flushes&&!rng_calls&&!u->consumed&&!u->effects);
+  if(i==0U){unsigned before=scm_opens;T(u->prepared&&u->phase==4U&&staging_act()->phase==6U);T(u->missing==15U&&u->new_bytes==6001U&&u->old_bytes==6001U);T(scm_opens==2U&&scm_closes==2U);T(papacc_server_launcher_staged_update_prepare(L"C:\\Build\\papacc_server.exe",old_id,old_pin,new_pin,dlls,out)!=0&&scm_opens==before);}
+  if(i==13U||i==19U||i==21U||i==22U||i==29U){unsigned before=closes,scm_before=scm_closes;T(state==PAPACC_LAUNCHER_RETAINED);T(staged_update_close()!=0&&closes==before&&scm_closes==scm_before);}
+  if(i==23U)T(!allocated&&!scm_opens);
+  if(i==24U||i==25U||i==28U){LocalFree(good_sd);good_sd=saved_sd;}
+ }
+ for(i=100U;i<=171U;i++){
+  int success=i==100U||i==126U||i==137U||i==121U||i==144U;
+  fixture_reset(0);update_case=i;scm_opens=scm_closes=old_moved=new_moved=set_calls=duplicate_denied=0;
+  update_installs=update_uninstalls=0;
+  old_id[2]=4U;T(update_pin(old_pin,4)&&update_pin(dlls[0],5)&&update_pin(dlls[1],6)&&update_pin(new_pin,7));
+  T(update_pin(executor_pin,18));if(i==155U)executor_pin[0]^=1;
+  executor_id[2]=i==160U?7U:i==161U?4U:18U;
+  if(i==147U)scenario=3U;
+  if(i==148U)scenario=18U;
+  if(i==149U)stop_now=1U;
+  if(i==164U)fail_close=1U;
+  if(i==101U)old_pin[0]^=1;if(i==104U)new_pin[0]^=1;if(i==112U)scenario=15U;if(i==113U)capacity_case=2U;if(i==137U)scenario=20U;
+  if(i==121U||i==137U||i==145U||i==150U){
+   char text[5][65];const BYTE *values[5]={old_pin,new_pin,dlls[0],dlls[1],executor_pin};unsigned a,b;
+   const char *args[17]={"papacc_update.exe","--owner-manual-binary-update","C:\\Build\\papacc_server.exe","42","0","3","42","0","4",text[0],text[1],text[2],text[3],"42","0","18",text[4]};
+   for(a=0;a<5U;a++){for(b=0;b<32U;b++)sprintf_s(text[a]+2U*b,3,"%02x",values[a][b]);text[a][64]=0;}
+   result=papacc_update_entry(17,args,out,out);
+  }else {DWORD parent[3]={42,0,i==139U?999U:3U};result=staged_update_entry(L"C:\\Build\\papacc_server.exe",parent,old_id,old_pin,new_pin,dlls,i==168U?NULL:executor_id,executor_pin,out,1);}u=staged_update_state();
+  if(success!=(result==0))printf("UPDATE case=%u result=%d first=%lu prepared=%u act=%u consumed=%u phase=%u created=%u writes=%u sets=%u missing=%lu\n",i,result,(unsigned long)u->first,u->prepared,u->act_state,u->consumed,u->phase,creates,writes,set_calls,(unsigned long)u->missing);
+  T(success==(result==0));
+  T(set_calls<=2U&&creates<=1U);
+  if(allocated>=4U){BYTE actual[32];T(pacc_storage_hash_callback(NULL,files[4].data,files[4].size,actual));if(i!=101U)T(!memcmp(actual,old_pin,32));}
+  if(success){unsigned before=creates;T(old_moved&&new_moved&&u->rename_done==3U&&u->consumed&&u->missing==PAPACC_UPDATE_MISSING_NATIVE);T(u->written==6001U&&duplicate_denied==1U);T(staged_update_apply()!=0&&creates==before);T(update_installs==1U&&update_uninstalls==1U);}
+  else if(u->effects||i==132U){unsigned before=closes,sets=set_calls;T(state==PAPACC_LAUNCHER_RETAINED);T(staged_update_close()!=0&&closes==before&&set_calls==sets);}
+  if(i==108U||i==119U||i==130U)T(old_moved&&!new_moved);
+  if(i==141U||i==170U)T(old_moved&&!new_moved);
+  if(i==169U)T(u->first==(DWORD)0xc0000043L&&u->first_location==701U&&!old_moved&&!new_moved);
+  if(i==170U)T(u->first==(DWORD)0xc0000043L&&u->first_location==702U&&!new_moved);
+  if(i==171U)T(u->consumed&&creates&&!set_calls&&!old_moved&&!new_moved);
+  if(i==109U||i==131U||i==118U||i==136U)T(new_moved);
+  if(i==111U||i==112U||i==113U||i==114U||i==122U||i==123U||i==134U||i==135U)T(!u->consumed&&!creates&&!writes&&!set_calls);
+  if(i==145U||(i>=147U&&i<=156U)||(i>=158U&&i<=161U)||i==166U||i==167U||i==168U)T(!u->consumed&&!creates&&!writes&&!set_calls);
+ }
+ {PAPACC_SCM_RESOURCE_OBSERVATION sample;ZeroMemory(&sample,sizeof(sample));scenario=20U;update_case=100U;T(update_resource_sample(&sample,1U)==ERROR_NOT_ENOUGH_QUOTA);}
+ {const char *args[13]={"papacc_server.exe","--owner-manual-binary-update","C:\\Build\\papacc_server.exe","42","0","3","42","0","4","bad","bad","bad","bad"};
+ unsigned before=creates;T(papacc_server_launcher_binary_update_cli(1,args,out,out)==-1);T(papacc_server_launcher_binary_update_cli(9,args,out,out)==2);T(papacc_server_launcher_binary_update_cli(13,args,out,out)==2&&creates==before);}
+ /* Regression of the historical call, independent of the corrected route. */
+ fixture_reset(0);update_case=100U;u=staged_update_state();u->consumed=1U;u->act_state=3U;
+ {PAPACC_UPDATE_RENAME_INFO r;IO_STATUS_BLOCK io;ZeroMemory(&r,sizeof(r));ZeroMemory(&io,sizeof(io));
+  rename_parent_access=FILE_TRAVERSE|FILE_READ_ATTRIBUTES|FILE_ADD_FILE;rename_parent_share=FILE_SHARE_READ;
+  r.parent=(HANDLE)(ULONG_PTR)3;r.bytes=sizeof(WCHAR);r.name[0]='x';
+  T(update_set((HANDLE)(ULONG_PTR)4,&io,&r,FIELD_OFFSET(PAPACC_UPDATE_RENAME_INFO,name)+r.bytes,10U)==(NTSTATUS)0xc0000043L);
+  T(!update_share_pair(FILE_READ_DATA,FILE_SHARE_READ,DELETE|FILE_READ_DATA,FILE_SHARE_READ));
+  T(update_share_pair(FILE_READ_DATA,FILE_SHARE_READ|FILE_SHARE_DELETE,DELETE|FILE_READ_DATA,FILE_SHARE_READ));
+  T(update_share_pair(rename_parent_access,FILE_SHARE_READ|FILE_SHARE_WRITE,FILE_WRITE_DATA|SYNCHRONIZE,FILE_SHARE_READ|FILE_SHARE_WRITE));
+ }
+ fixture_reset(0);LocalFree(good_sd);fclose(out);
+ printf("PASS STAGED_BINARY_UPDATE cases=106 checks=%u PREPARATION_33_EFFECT_72_SHARING_1 SAME_DIRECTORY_ORIGINAL_HANDLES EXECUTOR_DATA_SEPARATED API_MODELED ONE_CREATE_TWO_EXCLUSIVE_RENAMES ATTRIBUTED_ACT CONSOLE_STOP_BOUND REAL_CODE ZERO_REAL_SCM_RNG_FS_EFFECTS OPAQUE_UNKNOWN NO_ROLLBACK_NO_RETRY\n",checks);return 0;
+}

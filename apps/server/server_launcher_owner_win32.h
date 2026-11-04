@@ -4,6 +4,23 @@
 /* Application-private. Reuse requires confirmed quiescent normal teardown.
  * A retained invocation permanently consumes this bounded process root. */
 #include "server_run_win32.h"
+/* Private preparation only, no operational staging authority or CLI install. */
+int papacc_server_launcher_qualification_staging(const WCHAR *,FILE *,FILE *);
+/* B0-B8 private limited preparation; never install/promotion authority. */
+int papacc_server_launcher_qualification_staging_limited(const WCHAR *,FILE *,FILE *);
+int papacc_server_launcher_staging_observe(FILE *,FILE *);
+int papacc_server_launcher_chain_metadata(FILE *,FILE *);
+/* Read-only preparation only; no CLI dispatch or replacement authority. */
+int papacc_server_launcher_staged_update_prepare(const WCHAR *,const DWORD [3],const BYTE [32],const BYTE [32],const BYTE [2][32],FILE *);
+int papacc_server_launcher_binary_update_cli(int,const char *const *,FILE *,FILE *);
+int papacc_server_launcher_utility_prep_cli(int,const char *const *,FILE *,FILE *);
+int papacc_server_launcher_utility_update_cli(int,const char *const *,FILE *,FILE *);
+size_t papacc_server_launcher_machine_fixture_known_bytes(void); /* census, never authority */
+size_t papacc_server_launcher_utility_update_known_bytes(void);
+size_t papacc_server_launcher_utility_prep_known_bytes(void);
+size_t papacc_server_launcher_binary_update_known_bytes(void); /* census only, never admission */
+int papacc_server_launcher_scq_original_cli(int,const char *const *,FILE *,FILE *);
+int papacc_server_launcher_selected_staging(const char *,const char *,const char *,FILE *,FILE *);
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
 #include "server_configuration_commit_win32.h"
 #include "bind_target.h"
@@ -126,9 +143,12 @@ typedef struct PAPACC_ROOT_CONFIGURATION_PREPARATION {
 #endif
 
 #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ENABLE_PST_OUTBOUND_TLS)
+#include "server_credential_revocation_win32.h"
 typedef struct PAPACC_ROOT_CURRENT_PIN {
  PAPACC_CONFIG_PIN pin;PAPACC_CONFIG_VIEW view;PAPACC_U64 epoch,invocation; /* epoch is P, never A. */
  PAPACC_U64 administrative_epoch,issuer_revision,session_incarnation;PAPACC_BOOL issuer_present;
+ /* Exact credential captured before Session exposure; Principal is separate. */
+ PAPACC_U8 credential_sha256[32];PAPACC_BOOL credential_bound;
 } PAPACC_ROOT_CURRENT_PIN;
 /* Same owner thread and caller-held factual pin required. Read-only report;
  * topology_proven/resolved remain false without a qualified topology proof. */
@@ -179,12 +199,19 @@ typedef struct PAPACC_SERVER_LAUNCHER_OWNER_WIN32 {
     PAPACC_SERVER_CONFIG config;
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
     PAPACC_CONFIGURATION_COMMIT configuration_commit;
+    PAPACC_CA_KEY first_preparation_key; /* same launcher, no second authority */
 #ifdef PAPACC_ENABLE_PST_OUTBOUND_TLS
     PAPACC_ROOT_CONFIGURATION_PREPARATION configuration_preparation;
     PAPACC_ROOT_CURRENT_PIN attachment_pin;
     PAPACC_ROOT_CURRENT_PIN session_revision_pins[4];
     PAPACC_BOOL issuer_projection_validated,issuer_commit_started,issuer_publication_attempted;
     PAPACC_U64 issuer_expected_revision,issuer_expected_policy_epoch;
+    /* Same owner, immutable CAS correlation until factual terminal result.
+     * No authority/proof producer; native staging owns copied image/DER. */
+    PAPACC_ISSUER_PENDING_STORE issuer_port_pending;
+    PAPACC_ISSUER_PUBLICATION_FACTS issuer_port_publication;
+    PAPACC_U64 issuer_port_previous_administrative_epoch;
+    PAPACC_CREDENTIAL_REVOCATION_RECEIPT credential_revocation;
     PAPACC_U32 attachment_state;
     PAPACC_ROOT_LISTENER_COMPOSITION listener_composition;
     PAPACC_C8_RESOURCE_ADMISSION resource_admission;
@@ -253,6 +280,8 @@ PAPACC_RESULT papacc_server_launcher_target_observation_binding(
     PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,PAPACC_C8_TARGET_BINDING *);
 PAPACC_RESULT papacc_server_launcher_target_refresh(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
 PAPACC_RESULT papacc_server_launcher_target_process_provenance(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,PAPACC_C8_PROCESS_PROVENANCE *);
+PAPACC_RESULT papacc_server_launcher_target_evidence_view(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,PAPACC_C8_TARGET_VIEW *);
+PAPACC_RESULT papacc_server_launcher_target_passive_snapshot(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,PAPACC_C8_PASSIVE_SNAPSHOT *);
 PAPACC_RESULT papacc_server_launcher_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *);
 PAPACC_RESULT papacc_server_launcher_network_reserve(PAPACC_SERVER_NETWORK *);
 PAPACC_BOOL papacc_server_launcher_owns_listener(const PAPACC_TCP_SOCKET_WIN32 *);
@@ -344,6 +373,14 @@ PAPACC_RESULT papacc_server_launcher_configuration_checkpoint_poll(PAPACC_SERVER
 PAPACC_RESULT papacc_server_launcher_configuration_issuer_publish_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_ISSUER_CAS_RESULT*);
 PAPACC_RESULT papacc_server_launcher_configuration_issuer_commit_dormant(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
 PAPACC_RESULT papacc_server_launcher_configuration_issuer_port(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_ISSUER_ROOT_PORT*);
+struct PAPACC_ISSUER_CNG_BACKEND;
+/* Dormant explicit CA_INITIALIZE only; no runtime/startup initialization. */
+SECURITY_STATUS papacc_server_launcher_configuration_ca_initialize(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_CA_KEY*,const PAPACC_U8[16],const PAPACC_U8[16],const PAPACC_U8*,DWORD);
+PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_normal_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,struct PAPACC_ISSUER_CNG_BACKEND*);
+PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_existing_ca_bind(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,struct PAPACC_ISSUER_CNG_BACKEND*);
+/* Exact native candidate; no caller Principal or allow flag. */
+PAPACC_RESULT papacc_server_launcher_credential_admit(const PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *);
+PAPACC_ISSUER_RESULT papacc_server_launcher_credential_revoke(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,const PAPACC_ISSUER_VIEW *,const PAPACC_ISSUER_RECORD *);
 PAPACC_RESULT papacc_server_launcher_configuration_transaction_abort(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
 PAPACC_RESULT papacc_server_launcher_configuration_transaction_close(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
 struct PAPACC_C2_SESSION;
@@ -460,9 +497,19 @@ PAPACC_RESULT papacc_server_launcher_supervision_step(PAPACC_SERVER_SECURE_IO_WI
 #endif
 #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
 int papacc_server_launcher_personal_first_install(const char *,const char *,const char *,FILE *);
+int papacc_server_launcher_personal_prepared_validate(const char *,const char *,const char *,FILE *);
+int papacc_server_launcher_personal_first_prepare(const char *,const char *,const char *,FILE *);
+int papacc_server_launcher_personal_parent_prepare(const char *,const char *,const char *,FILE *);
+PAPACC_SIZE papacc_server_launcher_prepared_known_bytes(void);
+PAPACC_SIZE papacc_server_launcher_first_prepare_known_bytes(void); /* pure size census, not capacity */
+/* Explicit joint-purpose read-only presenter, not CA execution permission. */
+int papacc_server_launcher_personal_ca_present(const char *,const char *,const char *,const PAPACC_U8[16],const PAPACC_U8[16],const PAPACC_U8 *,DWORD,FILE *);
 #endif
 #ifdef PAPACC_ENABLE_SERVICE_CLI
 #include "server_service_win32.h"
+int papacc_server_launcher_scq_closed_prepare(void);
+int papacc_server_launcher_scq_closed_evidence_current(void);
+int papacc_server_launcher_scq_closed_arm_running(void);
 int papacc_server_launcher_scm_prepare(const char *,const char *,const PAPACC_SERVICE_IMAGE_VIEW *,FILE *,FILE *);
 #endif
 #endif

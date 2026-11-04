@@ -1,0 +1,4 @@
+# Próximo prompt executável — autorização específica UPDATE FCA preflight
+Como proprietário, autorizo UMA execução manual BINARY_UPDATE_CLOSED PERSONAL_LOCAL conforme ONE-FCA-PREFLIGHT-STAGE-IMAGE-UPDATE-REQUEST.CANDIDATE.md, SHA256877f8a5c4a5d4991703a5bd87e431f6415f8b5d93d7e9817f350e6635c4e4896.
+Seleciono candidato911360bytes/SHA256747ba426d55af50947169a178c8366def46cb57ad4a8c29308ff44664aeaee96. Reutilizar exclusivamente papacc_update.exe protegido/U1–U7/U2, sob originais e gates frescos, SCM parado, preservação do anterior e retenção UNKNOWN. Reconheço riscos de custos opacos e atualização parcial sem rollback.
+Registrar a decisão efetivamente emitida e preparar o comando manual com hashes reais, sem executar automaticamente. Sem retry, limpeza/restauração/rollback, FCA, configuração/Papinho/Accelerator/chave, endpoint/SCQ/StartStop, SCM/ACL, CA/CURRENT, rede/TPM/NV/Q4/refund/kill ou produção. Preservar histórico/PST0.6.4. Em divergência STOP/UNKNOWN.

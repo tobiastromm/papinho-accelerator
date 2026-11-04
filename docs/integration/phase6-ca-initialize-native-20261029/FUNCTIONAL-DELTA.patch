@@ -1,0 +1,375 @@
+--- before/apps/server/server_configuration_personal_ca_win32.inc
++++ after/apps/server/server_configuration_personal_ca_win32.inc
+@@ -1,5 +1,6 @@
+ /* Same writer/packet protects one borrow from the existing CA owner.
+- * No initialization, private export, signature, publication or new manager. */
++ * Explicit initialization has separate one-shot/native gates. No private
++ * export, signature, publication or new manager. */
+ #include "server_issuer_x509_win32.h"
+ PAPACC_RESULT papacc_configuration_personal_ca_match_data(const PAPACC_CONFIGURATION_COMMIT *o,
+  const PAPACC_CA_KEY *ca,const unsigned char id[32],const unsigned char a[16],const unsigned char g[16])
+@@ -41,19 +42,63 @@
+  !(f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)&&(f.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)&&
+  f.dwVolumeSerialNumber==p->bootstrap_volume&&f.nFileIndexHigh==p->bootstrap_high&&f.nFileIndexLow==p->bootstrap_low&&!p->stop;
+ }
++static int ca_initialize_overlap(const void *a,PAPACC_SIZE n,const void *b,PAPACC_SIZE z)
++{ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;if(n>MAXULONG_PTR-x||z>MAXULONG_PTR-y)return 1;return x<y+z&&y<x+n;}
++static SECURITY_STATUS ca_initialize_fail(PAPACC_CONFIGURATION_COMMIT *o,SECURITY_STATUS error)
++{
++ PAPACC_CONFIG_PENDING *p=&o->pending_commit;
++ if(!p->ca_initialize_first)p->ca_initialize_first=error;
++ p->ca_initialize_phase=4U;o->unresolved=1;return p->ca_initialize_first;
++}
++SECURITY_STATUS papacc_configuration_personal_ca_initialize(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_CA_KEY *ca,
++ const unsigned char id[32],const unsigned char a[16],const unsigned char g[16],const unsigned char *service,DWORD service_bytes,PAPACC_SIZE reserved)
++{
++ PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;PAPACC_PERSONAL_EFFECT_SPEC spec;
++ const unsigned char *source;size_t bytes;BYTE parent[12];DWORD values[3];unsigned i,j;SECURITY_STATUS status;
++ PAPACC_SIZE local=sizeof(spec)+sizeof(parent)+sizeof(values)+sizeof(source)+sizeof(bytes)+sizeof(status)+sizeof(i)+sizeof(j)+sizeof(p)+sizeof(n);
++ if(!o||!ca||!id||!a||!g||!service||!service_bytes||service_bytes>SECURITY_MAX_SID_SIZE||o->writer!=GetCurrentThreadId())return NTE_INVALID_PARAMETER;
++ if(ca_initialize_overlap(ca,sizeof(*ca),o,sizeof(*o))||ca_initialize_overlap(ca,sizeof(*ca),id,32)||
++  ca_initialize_overlap(ca,sizeof(*ca),a,16)||ca_initialize_overlap(ca,sizeof(*ca),g,16)||ca_initialize_overlap(ca,sizeof(*ca),service,service_bytes))return NTE_INVALID_PARAMETER;
++ p=&o->pending_commit;n=&p->personal_native;
++ if(reserved<sizeof(*o)+sizeof(*ca)||reserved>PAPACC_ED11_PROCESS_LIMIT||local>PAPACC_ED11_PROCESS_LIMIT-reserved)return NTE_NO_MEMORY;
++ if(o->published||o->prepared||o->committed_pending||o->recovery_selected||o->recovery_guard||o->stopped||o->unresolved||o->authority_lost||
++  p->personal_ca||p->personal_ca_candidate||p->personal_ca_used||p->ca_initialize_phase||p->active||p->thread||p->stop||p->close_error||
++  ca->state!=PAPACC_CA_KEY_EMPTY||ca->key||ca->provider||ca->thread||ca->borrower||ca->first_failure.present||ca->close_attempted||
++  !p->personal_data.effectful||!p->personal_data.consumed||p->personal_data.phase!=PAPACC_PERSONAL_DATA_CONSUMED||
++  memcmp(id,p->personal_data.attempt,32)||memcmp(id,n->handoff_attempt,32)||n->phase!=1U||n->handoff_state!=PAPACC_PERSONAL_HANDOFF_VERIFIED||
++  !p->bootstrap_created||!p->bootstrap_parent||!p->bootstrap_container||p->result!=PAPACC_CAS_SUCCESS||
++  !n->plan_leaf[0]||!memchr(n->plan_leaf,0,sizeof(n->plan_leaf))||memcmp(n->plan_leaf,p->previous,sizeof(n->plan_leaf))||
++  !personal_ca_native_current(o))return NTE_BAD_KEY_STATE;
++ if(!papacc_personal_effect_source(p->personal_data.plan,p->personal_data.bytes,&source,&bytes))return NTE_INVALID_PARAMETER;
++ values[0]=n->parent.dwVolumeSerialNumber;values[1]=n->parent.nFileIndexHigh;values[2]=n->parent.nFileIndexLow;
++ for(i=0;i<3U;i++)for(j=0;j<4U;j++)parent[i*4U+j]=(BYTE)(values[i]>>(j*8U));
++ memset(&spec,0,sizeof(spec));spec.operator_id=n->sid;spec.operator_bytes=n->sid_bytes;spec.parent_id=parent;
++ spec.leaf=(const BYTE *)n->plan_leaf;spec.leaf_bytes=strlen(n->plan_leaf);spec.authority=a;spec.generation=g;
++ spec.service_id=service;spec.service_bytes=service_bytes;spec.configuration=p->next;spec.configuration_bytes=bytes;
++ if(!papacc_personal_effect_matches(p->personal_data.plan,p->personal_data.bytes,&spec)||!personal_ca_native_current(o))return NTE_INVALID_PARAMETER;
++ /* No callback/worker turn between taking the attempt and the one native
++  * create. Even failure before finalize never rearms this consumed act. */
++ p->ca_initialize_phase=1U;p->personal_ca_candidate=ca;
++ status=papacc_ca_key_create(ca,a,g,(PSID)n->sid,(PSID)service);
++ if(status!=ERROR_SUCCESS)return ca_initialize_fail(o,status);
++ if(papacc_configuration_personal_ca_match_data(o,ca,id,a,g)!=PAPACC_RESULT_OK||!personal_ca_native_current(o))return ca_initialize_fail(o,NTE_BAD_KEY_STATE);
++ p->ca_initialize_phase=2U;return ERROR_SUCCESS;
++}
+ PAPACC_RESULT papacc_configuration_personal_ca_bind(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_CA_KEY *ca,
+  const unsigned char id[32],const unsigned char a[16],const unsigned char g[16])
+ {
+  PAPACC_RESULT r;PAPACC_CONFIG_PENDING *p;
+  if(!o||!ca||o->writer!=GetCurrentThreadId()||ca->thread!=GetCurrentThreadId())return PAPACC_RESULT_INVALID_STATE;
+- if(o->published||o->prepared||o->committed_pending||o->recovery_selected||o->pending_commit.personal_ca||o->pending_commit.personal_ca_used||ca->borrower)return PAPACC_RESULT_INVALID_STATE;
++ if(o->published||o->prepared||o->committed_pending||o->recovery_selected||o->pending_commit.personal_ca||o->pending_commit.personal_ca_used||ca->borrower||
++  (o->pending_commit.personal_ca_candidate&&(o->pending_commit.personal_ca_candidate!=ca||o->pending_commit.ca_initialize_phase!=2U)))return PAPACC_RESULT_INVALID_STATE;
+  r=papacc_configuration_personal_ca_match_data(o,ca,id,a,g);if(r!=PAPACC_RESULT_OK)return r;
+  p=&o->pending_commit;
+  if(!personal_ca_native_current(o))return PAPACC_RESULT_NOT_SUPPORTED;
+  if(papacc_ca_key_validate(ca)!=ERROR_SUCCESS||!personal_ca_native_current(o))return PAPACC_RESULT_INVALID_STATE;
+  p->personal_ca_used=1U; /* never rearm after return or failed acquisition */
+- if(papacc_ca_key_borrow(ca,p)!=ERROR_SUCCESS)return PAPACC_RESULT_INVALID_STATE;
+- p->personal_ca=ca;return PAPACC_RESULT_OK; /* borrow only, never authority */
++ if(papacc_ca_key_borrow(ca,p)!=ERROR_SUCCESS){if(p->personal_ca_candidate)(void)ca_initialize_fail(o,NTE_BAD_KEY_STATE);return PAPACC_RESULT_INVALID_STATE;}
++ p->personal_ca=ca;if(p->personal_ca_candidate){p->personal_ca_candidate=NULL;p->ca_initialize_phase=3U;}
++ return PAPACC_RESULT_OK; /* borrow only, never authority */
+ }
+ PAPACC_RESULT papacc_configuration_personal_ca_current(PAPACC_CONFIGURATION_COMMIT *o,
+  const unsigned char id[32],const unsigned char a[16],const unsigned char g[16])
+--- before/apps/server/server_configuration_pending_win32.h
++++ after/apps/server/server_configuration_pending_win32.h
+@@ -25,6 +25,9 @@
+  PAPACC_PERSONAL_NATIVE_CONTEXT personal_native;
+  /* Borrow only; canonical CA owner stays durable on the writer thread. */
+  PAPACC_CA_KEY *personal_ca;
++ PAPACC_CA_KEY *personal_ca_candidate; /* caller-owned native key, never copied */
++ unsigned ca_initialize_phase; /* 0 untouched, 1 taken, 2 created, 3 borrowed, 4 retained */
++ SECURITY_STATUS ca_initialize_first; /* first result, not operational permission */
+  unsigned personal_ca_used; /* monotonic one borrow acquisition per attempt */
+  PAPACC_PERSONAL_PLAN_DATA personal_data; /* owned DATA only, never native permission */
+  PAPACC_STORE_HASH store_hash;
+--- before/apps/server/server_configuration_commit_win32.h
++++ after/apps/server/server_configuration_commit_win32.h
+@@ -249,6 +249,11 @@
+  * CA owner must outlive this root borrow. No create/open/close/delete occurs.
+  * Release is allowed after Stop only with factual worker quiescence. */
+ PAPACC_RESULT papacc_configuration_personal_ca_match_data(const PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CA_KEY *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
++/* Explicit native entry, never startup. Consumed exact NEW_INSTALL plus
++ * CA_INITIALIZE plan and original native references required. Existing native
++ * admission stays closed; tests substitute the key API only in test code.
++ * No cert signature, commit/publication, private export or retry. */
++SECURITY_STATUS papacc_configuration_personal_ca_initialize(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CA_KEY *,const unsigned char[32],const unsigned char[16],const unsigned char[16],const unsigned char *,DWORD,PAPACC_SIZE);
+ PAPACC_RESULT papacc_configuration_personal_ca_bind(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CA_KEY *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
+ PAPACC_RESULT papacc_configuration_personal_ca_current(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
+ PAPACC_RESULT papacc_configuration_personal_ca_release(PAPACC_CONFIGURATION_COMMIT *);
+--- before/apps/server/server_configuration_commit_win32.c
++++ after/apps/server/server_configuration_commit_win32.c
+@@ -14,7 +14,7 @@
+ static int pending_blocks(PAPACC_CONFIGURATION_COMMIT *o)
+ {
+ #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+- return o->pending_commit.personal_ca||(o->pending_commit.personal_native.phase&&o->pending_commit.personal_native.phase!=3U)||(o->pending_commit.personal_data.phase&&o->pending_commit.personal_data.phase!=PAPACC_PERSONAL_DATA_FINISHED)||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&o->pending_commit.store_hash)||o->pending_commit.active||o->authority_lost||o->pending_commit.bootstrap_parent||o->pending_commit.bootstrap_container||o->pending_commit.bootstrap_token;
++ return o->pending_commit.personal_ca||o->pending_commit.personal_ca_candidate||(o->pending_commit.personal_native.phase&&o->pending_commit.personal_native.phase!=3U)||(o->pending_commit.personal_data.phase&&o->pending_commit.personal_data.phase!=PAPACC_PERSONAL_DATA_FINISHED)||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&o->pending_commit.store_hash)||o->pending_commit.active||o->authority_lost||o->pending_commit.bootstrap_parent||o->pending_commit.bootstrap_container||o->pending_commit.bootstrap_token;
+ #else
+  return papacc_store_hash_blocked(&o->store_hash);
+ #endif
+--- before/apps/server/server_configuration_personal_native_win32.inc
++++ after/apps/server/server_configuration_personal_native_win32.inc
+@@ -88,7 +88,7 @@
+ {
+  PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;HANDLE *h[5];HLOCAL m[3];unsigned i;
+  if(!o||o->writer!=GetCurrentThreadId())return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;n=&p->personal_native;
+- if(p->personal_ca||p->active||p->thread||n->phase==2U)return PAPACC_RESULT_INVALID_STATE;
++ if(p->personal_ca||p->personal_ca_candidate||p->active||p->thread||n->phase==2U)return PAPACC_RESULT_INVALID_STATE;
+  if(n->phase==3U)return PAPACC_RESULT_OK;
+  /* The child must close before its protecting parent, after worker signal.
+   * This bit is disjoint from old handles and LocalFree attempt bits. */
+--- before/apps/server/server_configuration_personal_data_win32.inc
++++ after/apps/server/server_configuration_personal_data_win32.inc
+@@ -18,7 +18,7 @@
+  if(!owner(o))return PAPACC_RESULT_INVALID_STATE;p=&o->pending_commit;
+  /* The DATA object never acquires a borrow. Still deny erasure while any
+   * canonical worker/native owner can be pending or retained. */
+- if(p->personal_ca||(p->personal_native.phase&&p->personal_native.phase!=3U)||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&p->store_hash)||p->active||p->thread||p->bootstrap_parent||p->bootstrap_container||p->bootstrap_token||
++ if(p->personal_ca||p->personal_ca_candidate||(p->personal_native.phase&&p->personal_native.phase!=3U)||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&p->store_hash)||p->active||p->thread||p->bootstrap_parent||p->bootstrap_container||p->bootstrap_token||
+  p->transaction||(p->file&&p->file!=INVALID_HANDLE_VALUE)||o->unresolved||
+  o->retained_transaction||(o->retained_file&&o->retained_file!=INVALID_HANDLE_VALUE))return PAPACC_RESULT_INVALID_STATE;
+  papacc_personal_data_invalidate(&p->personal_data);
+--- before/tests/personal_ca_binding_win32_test.c
++++ after/tests/personal_ca_binding_win32_test.c
+@@ -11,6 +11,7 @@
+ static PAPACC_RESULT personal_packet_source(PAPACC_CONFIG_PENDING *p){(void)p;return PAPACC_RESULT_OK;}
+ static BOOL WINAPI model_file(HANDLE h,LPBY_HANDLE_FILE_INFORMATION f){(void)h;memset(f,0,sizeof(*f));f->dwFileAttributes=FILE_ATTRIBUTE_DIRECTORY;f->dwVolumeSerialNumber=20;f->nFileIndexHigh=30;f->nFileIndexLow=target_ok?40:41;return TRUE;}
+ static SECURITY_STATUS model_validate(PAPACC_CA_KEY *k){(void)k;return validate_ok?ERROR_SUCCESS:NTE_BAD_KEY_STATE;}
++#define papacc_configuration_personal_ca_initialize papacc_configuration_personal_ca_initialize_model
+ #define papacc_configuration_personal_ca_match_data papacc_configuration_personal_ca_match_data_model
+ #define papacc_configuration_personal_ca_bind papacc_configuration_personal_ca_bind_model
+ #define papacc_configuration_personal_ca_current papacc_configuration_personal_ca_current_model
+@@ -96,6 +97,10 @@
+  ca.state=PAPACC_CA_KEY_RETAINED;CHECK(papacc_configuration_personal_ca_release(&o)!=PAPACC_RESULT_OK&&o.unresolved&&p->personal_ca==&ca&&ca.borrower==p);
+ #else
+  (void)eligible;(void)target_ok;(void)validate_ok;
++ {PAPACC_CA_KEY candidate;memset(&candidate,0,sizeof(candidate));
++ CHECK(papacc_configuration_personal_ca_initialize(&o,&candidate,id,authority,generation,svc,4,sizeof(o)+sizeof(candidate)+8192)!=ERROR_SUCCESS);
++ CHECK(!candidate.key&&!candidate.provider&&!p->personal_ca_candidate&&!p->ca_initialize_phase);}
++
+  r=papacc_configuration_personal_ca_bind(&o,&ca,id,authority,generation);CHECK(r==PAPACC_RESULT_NOT_SUPPORTED&&!p->personal_ca&&!ca.borrower);
+  CHECK(papacc_configuration_personal_ca_bind(&o,NULL,id,authority,generation)!=PAPACC_RESULT_OK);
+  CHECK(papacc_configuration_personal_ca_current(&o,id,authority,generation)!=PAPACC_RESULT_OK);
+--- before/tests/issuer_normal_source_composition_cases.inc
++++ after/tests/issuer_normal_source_composition_cases.inc
+@@ -1,12 +1,30 @@
+ /* Explicit model of original ceremony/provider/root sources. Positive callbacks
+- * exist ONLY in this test translation unit. No CA/key creation or publication. */
++ * exist ONLY in this test translation unit. No native CA/key creation or publication. */
+ #include "server_configuration_commit_win32.h"
+ static PAPACC_CONFIGURATION_COMMIT source_owner;
+ static int source_native_ok=1;
++static unsigned fixture_ca_creates,fixture_ca_opens,fixture_create_taken;
++static SECURITY_STATUS source_create_error;
++static int source_create_stop;
++static SECURITY_STATUS source_create(PAPACC_CA_KEY *k,const unsigned char a[16],const unsigned char g[16],PSID op,PSID svc)
++{
++ unsigned i,z=0;const wchar_t *prefix=L"PapinhoAccelerator.CA.",*hex=L"0123456789abcdef";
++ fixture_ca_creates++;fixture_create_taken=1;
++ if(source_create_error)return source_create_error;
++ k->thread=GetCurrentThreadId();k->state=PAPACC_CA_KEY_READY;k->key=101;k->provider=202;k->created=1;k->diagnostic_finalization=2;
++ k->operator_size=k->service_size=4;memcpy(k->operator_sid,op,4);memcpy(k->service_sid,svc,4);
++ while(*prefix)k->name[z++]=*prefix++;
++ for(i=0;i<16;i++){k->name[z++]=hex[a[i]>>4];k->name[z++]=hex[a[i]&15];}k->name[z++]=L'.';
++ for(i=0;i<16;i++){k->name[z++]=hex[g[i]>>4];k->name[z++]=hex[g[i]&15];}k->name[z]=0;
++ if(source_create_stop)source_owner.pending_commit.stop=1;
++ return ERROR_SUCCESS;
++}
+ static int personal_native_ceremony_ready(const PAPACC_CONFIG_PENDING *p){(void)p;return source_native_ok;}
+ static PAPACC_RESULT personal_packet_current(PAPACC_CONFIG_PENDING *p){(void)p;return PAPACC_RESULT_OK;}
+ static PAPACC_RESULT personal_packet_source(PAPACC_CONFIG_PENDING *p){(void)p;return PAPACC_RESULT_OK;}
+ static BOOL WINAPI source_file(HANDLE h,LPBY_HANDLE_FILE_INFORMATION f){(void)h;memset(f,0,sizeof(*f));f->dwFileAttributes=FILE_ATTRIBUTE_DIRECTORY;f->dwVolumeSerialNumber=20;f->nFileIndexHigh=30;f->nFileIndexLow=40;return TRUE;}
++#define papacc_configuration_personal_ca_initialize source_initialize
++#define papacc_ca_key_create source_create
+ #define papacc_configuration_personal_ca_match_data source_match
+ #define papacc_configuration_personal_ca_bind source_bind
+ #define papacc_configuration_personal_ca_current source_current
+@@ -17,6 +35,8 @@
+ #define papacc_ca_key_borrow model_borrow
+ #define papacc_ca_key_return model_return
+ #include "../apps/server/server_configuration_personal_ca_win32.inc"
++#undef papacc_configuration_personal_ca_initialize
++#undef papacc_ca_key_create
+ #undef papacc_ca_key_validate
+ #undef papacc_ca_key_borrow
+ #undef papacc_ca_key_return
+@@ -29,17 +49,14 @@
+ #define source_activate papacc_configuration_personal_ca_activate_normal
+ /* Test-only instance construction. Synthetic key handles and signature bytes;
+  * deliberately no NCrypt create/open/sign or production creation entry. */
+-static unsigned fixture_ca_creates,fixture_ca_opens,fixture_create_taken;
+ static BYTE initial_ca_tbs[1024],initial_ca_der[2048];
+ static union {ULONGLONG alignment;BYTE bytes[2048];} initial_ca_decode;
+ static int fixture_create_instance(PAPACC_CONFIG_PENDING *p)
+ {
+  PAPACC_ISSUER_VIEW genesis=fixture_view;CERT_SIGNED_CONTENT_INFO encoded;BYTE signature[256];DWORD n,z;
+- if(fixture_create_taken||key.state!=PAPACC_CA_KEY_EMPTY||key.key||key.provider||p->stop||
+-  !p->personal_data.effectful||!p->personal_data.consumed||p->personal_data.phase!=PAPACC_PERSONAL_DATA_CONSUMED||
+-  !p->bootstrap_created||p->personal_native.handoff_state!=PAPACC_PERSONAL_HANDOFF_VERIFIED)return 0;
+- fixture_create_taken=1;fixture_ca_creates++;key.thread=GetCurrentThreadId();key.state=PAPACC_CA_KEY_READY;
+- key.key=101;key.provider=202;key.created=1;key.diagnostic_finalization=2;
++ const unsigned char service[4]={4,3,2,1};
++ if(source_initialize(&source_owner,&key,p->personal_data.attempt,fixture_view.authority,fixture_view.generation,service,4,
++  sizeof(source_owner)+sizeof(key)+8192)!=ERROR_SUCCESS)return 0;
+  genesis.high_water=1;genesis.revision=genesis.epoch=genesis.administrative_epoch=0;genesis.proofs=0;
+  if(papacc_issuer_x509_ca_tbs(&genesis,1690000000ULL,&ca_public,initial_ca_tbs,sizeof(initial_ca_tbs),&n)!=0)return 0;
+  memset(&encoded,0,sizeof(encoded));memset(signature,0x42,sizeof(signature));encoded.ToBeSigned.pbData=initial_ca_tbs;encoded.ToBeSigned.cbData=n;
+@@ -52,14 +69,14 @@
+  if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,initial_ca_tbs,n,CRYPT_DECODE_NOCOPY_FLAG,NULL,initial_ca_decode.bytes,&z))return 0;
+  fixture_ca=*(CERT_INFO *)initial_ca_decode.bytes;return 1;
+ }
+-static int source_setup(const CERT_PUBLIC_KEY_INFO *client)
++static int source_setup_stage(const CERT_PUBLIC_KEY_INFO *client,int before_create)
+ {
+  PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;PAPACC_PERSONAL_EFFECT_SPEC spec;
+  PAPACC_U8 parent[12]={10,0,0,0,11,0,0,0,12,0,0,0},op[4]={1,2,3,4},service[4]={4,3,2,1};
+  const PAPACC_U8 config[]="format_version 1\nclient_admission DISABLED\n";
+  const char prefix[]="OWNER_NEW_INSTALL_CA_INITIALIZE ",hex[]="0123456789abcdef";
+  char reply[128];size_t bytes,z,i;PAPACC_ISSUER_VIEW selected;
+- normal_profile=1;defer_core_init=1;CHECK(!initialize(client));defer_core_init=0;source_native_ok=1;
++ normal_profile=1;defer_core_init=1;CHECK(!initialize(client));defer_core_init=0;source_native_ok=1;source_create_error=0;source_create_stop=0;
+  memset(&source_owner,0,sizeof(source_owner));source_owner.initialized=1;source_owner.writer=GetCurrentThreadId();memcpy(source_owner.domain,fixture_view.root,32);
+  p=&source_owner.pending_commit;n=&p->personal_native;n->phase=1;n->handoff_state=PAPACC_PERSONAL_HANDOFF_VERIFIED;
+  memcpy(n->handoff_attempt,fixture_view.root,32);memcpy(n->plan_leaf,"child",6);memcpy(p->previous,"child",6);memcpy(p->next,config,sizeof(config)-1);
+@@ -77,6 +94,7 @@
+  CHECK(papacc_personal_effect_consume(&p->personal_data,fixture_view.root,p->previous+1024,bytes));
+  selected=fixture_view;fixture_view.revision=fixture_view.epoch=fixture_view.administrative_epoch=0;fixture_view.proofs=0;
+  CHECK(!fixture_ca_creates&&!key.created&&!key.key&&!key.provider); /* no previous CA */
++ if(before_create)return 0;
+  p->stop=1;CHECK(!fixture_create_instance(p)&&!fixture_ca_creates);p->stop=0;
+  p->personal_data.effectful=0;CHECK(!fixture_create_instance(p)&&!fixture_ca_creates);p->personal_data.effectful=1;
+  CHECK(fixture_create_instance(p)&&fixture_ca_creates==1U);
+@@ -88,6 +106,29 @@
+   * Root worker storage may be reused, the key borrow never returned. */
+  memset(p,0,sizeof(*p));fixture_view=selected;return 0;
+ }
++static int source_setup(const CERT_PUBLIC_KEY_INFO *client){return source_setup_stage(client,0);}
++static int initialize_entry_cases(const CERT_PUBLIC_KEY_INFO *client)
++{
++ PAPACC_CONFIG_PENDING *p=&source_owner.pending_commit;const unsigned char service[4]={4,3,2,1};unsigned i;SECURITY_STATUS status;
++ for(i=0;i<11;i++){
++  CHECK(!source_setup_stage(client,1));
++  if(i==0)p->personal_data.consumed=0;if(i==1)p->personal_data.effectful=0;
++  if(i==2)p->personal_native.handoff_attempt[0]^=1;if(i==3)p->personal_native.sid[0]^=1;
++  if(i==4)p->personal_native.parent.nFileIndexLow^=1;if(i==5)p->next[0]^=1;
++  if(i==6)key.key=1;if(i==7)p->active=1;if(i==8)source_native_ok=0;if(i==9)source_owner.recovery_selected=1;if(i==10)p->personal_native.phase=3;
++  CHECK(source_initialize(&source_owner,&key,p->personal_data.attempt,fixture_view.authority,fixture_view.generation,service,4,sizeof(source_owner)+sizeof(key)+8192)!=0);
++  CHECK(!fixture_ca_creates&&!p->ca_initialize_phase&&!p->personal_ca_candidate);
++ }
++ CHECK(!source_setup_stage(client,1));
++ CHECK(source_initialize(&source_owner,&key,p->personal_data.attempt,fixture_view.authority,fixture_view.generation,service,4,1)==NTE_NO_MEMORY&&!fixture_ca_creates);
++ for(i=0;i<2;i++){
++  CHECK(!source_setup_stage(client,1));if(i==0)source_create_error=NTE_FAIL;else source_create_stop=1;
++  status=source_initialize(&source_owner,&key,p->personal_data.attempt,fixture_view.authority,fixture_view.generation,service,4,sizeof(source_owner)+sizeof(key)+8192);
++  CHECK(status!=0&&fixture_ca_creates==1&&p->ca_initialize_phase==4&&p->personal_ca_candidate==&key&&source_owner.unresolved);
++  CHECK(source_initialize(&source_owner,&key,p->personal_data.attempt,fixture_view.authority,fixture_view.generation,service,4,sizeof(source_owner)+sizeof(key)+8192)!=0&&fixture_ca_creates==1&&p->ca_initialize_first==status);
++ }
++ puts("PASS CA_INITIALIZE_REAL_ENTRY_TEST_ONLY_KEY_API ONE_CREATE RETAINED_FAILURE NO_PRODUCT_EFFECTS");return 0;
++}
+ static DWORD WINAPI source_other_thread(void *ctx)
+ {
+  PAPACC_ISSUER_RESULT *results=ctx;PAPACC_ISSUER_VIEW value;
+@@ -97,6 +138,7 @@
+ static int normal_source_composition_cases(const CERT_PUBLIC_KEY_INFO *client)
+ {
+  PAPACC_ISSUER_VIEW observed;PAPACC_ISSUER_RESULT result;PAPACC_CONFIG_PENDING *p=&source_owner.pending_commit;unsigned i;
++ CHECK(!initialize_entry_cases(client));
+  CHECK(!source_setup(client));CHECK(papacc_issuer_cng_backend_normal_source(&fixture_backend,&observed)==0&&!fixture_core.initialized&&!private_calls&&key.borrower==&fixture_backend);
+  CHECK(source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)==0&&fixture_core.initialized==1&&fixture_backend.custody&&key.borrower==&fixture_backend&&!p->personal_ca);
+  CHECK(source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)!=0); /* no second handoff */
+--- before/tests/canonical_root_transaction_test.c
++++ after/tests/canonical_root_transaction_test.c
+@@ -372,6 +372,7 @@
+    CHECK(port.read(o,id,&before,&absent,&exists)==0&&!exists&&before.epoch==original_p&&!before.proofs);
+    CHECK(before.administrative_epoch==selected_a&&before.administrative_epoch!=0);
+    {PAPACC_ISSUER_CNG_BACKEND absent_backend={0};PAPACC_ISSUER_CORE no_source={0};
++    CHECK(papacc_server_launcher_configuration_ca_initialize(o,NULL,NULL,NULL,NULL,0)!=ERROR_SUCCESS); /* native entry has no fallback */
+     CHECK(papacc_server_launcher_configuration_issuer_normal_activate(o,NULL)==PAPACC_ISSUER_DENIED);
+     CHECK(papacc_server_launcher_configuration_issuer_existing_ca_bind(o,NULL)==PAPACC_ISSUER_DENIED);
+     absent_backend.initialized=1;absent_backend.thread=GetCurrentThreadId();absent_backend.owner=&no_source;absent_backend.root=port;
+--- before/apps/server/server_configuration_root_transaction_win32.inc
++++ after/apps/server/server_configuration_root_transaction_win32.inc
+@@ -624,6 +624,14 @@
+ }
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+ #include "server_issuer_x509_win32.h"
++SECURITY_STATUS papacc_server_launcher_configuration_ca_initialize(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_CA_KEY *ca,const PAPACC_U8 a[16],const PAPACC_U8 g[16],const PAPACC_U8 *service,DWORD bytes)
++{
++ if(o!=&root||GetCurrentThreadId()!=o->owner_thread||InterlockedCompareExchange(&state,0,0)!=PAPACC_LAUNCHER_ACTIVE||
++  o->network.is_active||o->io_loop.initialized||o->secure_io.initialized)return NTE_BAD_KEY_STATE;
++ /* The caller cannot choose another attempt or turn a quota argument into
++  * permission. Native policy/identity/plan/admission gates are rechecked below. */
++ return papacc_configuration_personal_ca_initialize(&o->configuration_commit,ca,o->configuration_commit.pending_commit.personal_data.attempt,a,g,service,bytes,o->reserved_bytes);
++}
+ PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_existing_ca_bind(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_ISSUER_CNG_BACKEND *b)
+ {
+  if(!preparation_owned(o)||!issuer_root_live_ready(o)||!b||!b->initialized||b->thread!=GetCurrentThreadId()||
+@@ -647,6 +655,8 @@
+  return PAPACC_ISSUER_DENIED;
+ }
+ #else
++SECURITY_STATUS papacc_server_launcher_configuration_ca_initialize(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_CA_KEY *ca,const PAPACC_U8 a[16],const PAPACC_U8 g[16],const PAPACC_U8 *service,DWORD bytes)
++{(void)o;(void)ca;(void)a;(void)g;(void)service;(void)bytes;return NTE_NOT_SUPPORTED;}
+ PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_normal_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,struct PAPACC_ISSUER_CNG_BACKEND *b)
+ {(void)o;(void)b;return PAPACC_ISSUER_UNSUPPORTED;}
+ PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_existing_ca_bind(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,struct PAPACC_ISSUER_CNG_BACKEND *b)
+--- before/apps/server/server_launcher_owner_win32.h
++++ after/apps/server/server_launcher_owner_win32.h
+@@ -356,6 +356,8 @@
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_commit_dormant(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_port(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_ISSUER_ROOT_PORT*);
+ struct PAPACC_ISSUER_CNG_BACKEND;
++/* Dormant explicit CA_INITIALIZE only; no runtime/startup initialization. */
++SECURITY_STATUS papacc_server_launcher_configuration_ca_initialize(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_CA_KEY*,const PAPACC_U8[16],const PAPACC_U8[16],const PAPACC_U8*,DWORD);
+ PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_normal_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,struct PAPACC_ISSUER_CNG_BACKEND*);
+ PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_existing_ca_bind(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,struct PAPACC_ISSUER_CNG_BACKEND*);
+ /* Exact native candidate; no caller Principal or allow flag. */
+--- before/docs/capabilities/phase6-scope-and-closure-20261028.md
++++ after/docs/capabilities/phase6-scope-and-closure-20261028.md
+@@ -1,4 +1,8 @@
+ # Phase 6 — escopo recuperado e plano de conclusão
++
++## CA_INITIALIZE nativa — 2026-10-29
++
++Entrada no owner canônico integrada e QUALIFIED_OFFLINE sob autorização técnica explícita. Criação única, referência candidata e primeira falha preservadas; gates nativos continuam DENY. Quatro builds sem warnings, 52 CTests e oito fixtures nativos PASS; jornada NEW_INSTALL/modelo e aquisição existente separadas. Nenhuma criação/assinatura/CURRENT operacional. A composição criptográfica nativa da primeira instância permanece pendente, assim como E8/enrollment/M7 com dependentes reais. [Relatório](../integration/phase6-ca-initialize-native-20261029/CONSOLIDATED-CLOSEOUT.md). ED11/Phase 6 PARTIAL; PST 0.6.4 preservada.
+ 
+ ## Primeira instância versus CA existente — 2026-10-29
+ 
+--- before/docs/capabilities/canonical-phase6-consolidation.md
++++ after/docs/capabilities/canonical-phase6-consolidation.md
+@@ -1,4 +1,8 @@
+ # ConsolidaÃ§Ã£o canÃ´nica Phase 6 â€” estado factual
++
++## CA_INITIALIZE nativa — 2026-10-29
++
++Entrada no owner canônico integrada e QUALIFIED_OFFLINE sob autorização técnica explícita. Criação única, referência candidata e primeira falha preservadas; gates nativos continuam DENY. Quatro builds sem warnings, 52 CTests e oito fixtures nativos PASS; jornada NEW_INSTALL/modelo e aquisição existente separadas. Nenhuma criação/assinatura/CURRENT operacional. A composição criptográfica nativa da primeira instância permanece pendente, assim como E8/enrollment/M7 com dependentes reais. [Relatório](../integration/phase6-ca-initialize-native-20261029/CONSOLIDATED-CLOSEOUT.md). ED11/Phase 6 PARTIAL; PST 0.6.4 preservada.
+ 
+ ## Primeira instância versus CA existente — 2026-10-29
+ 
+--- before/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
++++ after/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
+@@ -82,7 +82,7 @@
+  ('PROV-HOT','Add/approve/renew/revoke sem restart',prov,'Mesmo root/issuer/cadastro','CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado','docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md','PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes','PROV-ROOT;PROV-CA','OBRIGATORIO_AMPLIACAO_ACCEPTED','Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch'),
+  ('PROV-REVOKE','Revogação ativa e novas admissões; histórico',mvp,'Pessoal M7','STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED','docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md','Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED','PROV-HOT;E18','OBRIGATORIO_AMPLIACAO_ACCEPTED','Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência'),
+  ('PROV-ROOT','Autoridade configuração/root/CURRENT/epoch',mvp,'Pessoal NORMAL e configuração produto','DORMANT_NATIVE_OFFLINE; operacional NOT_DEMONSTRATED',c8,'ato autorizado/publicação e referência original viva','autoridade instalação/configuração; sem TPM global','OBRIGATORIO_PRODUTO; INSTANCIA_A_DESCOBRIR','Mapear entrada/consumo atuais antes de propor bootstrap'),
+- ('PROV-CA','CA protegida/serial/UTC/issuer NORMAL',mvp,'M1/M3 pessoal não recuperável','AP_AND_TYPED_CUSTODY_HANDOFF_QUALIFIED_ISOLATED; ORIGINAL_SOURCE_AND_ACK_PENDING','docs/integration/phase6-original-custody-and-ack-decision-20261029/CONSOLIDATED-CLOSEOUT.md','Handoff revalida origem e mantém borrow no CNG entre leases; aquisição original e ack persistido ainda não demonstrados; decisão focal PROPOSED com hash exato','PROV-ROOT;ED11','OBRIGATORIO; RECOVERY_NAO_HERDADA','Decidir representação focal e fornecer/adquirir fonte original sob autoridade própria; não repetir handoff/CAS'),
++ ('PROV-CA','CA protegida/serial/UTC/issuer NORMAL',mvp+';docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md','M1/M3 NEW_INSTALL ou CA existente','CA_INITIALIZE_NATIVE_ENTRY_QUALIFIED_OFFLINE; NORMAL_DENY','docs/integration/phase6-ca-initialize-native-20261029/CONSOLIDATED-CLOSEOUT.md','Entrada one-shot integrada; API de chave substituida somente no teste; admissibilidade/certificado e continuidade nativos pendentes','PROV-ROOT;ED11','OBRIGATORIO; RECOVERY_NAO_HERDADA','Compor fontes originais offline; nao repetir CAS/PUBLISHED ou criar CA operacional'),
+  ('SCM','Instalação/lifecycle/conta operacional pessoal',mvp,'Windows pessoal M5','HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS',ed,'readiness/acesso/Stop/restart normal/uninstall','E17;E18;PROV-ROOT','OBRIGATORIO_PESSOAL','Mapear CLI ao mesmo owner; não criar serviço agora'),
+  ('CONFIG','Config settings-only/listeners/live apply',mvp+';docs/adr/DECISION-personal-listener-selection-direction-20261023.md','Pessoal M6 e direção posterior','SUBSET_PARCIAL; detalhes defaultLan não aceitos', 'docs/future/personal-listener-selection-and-live-configuration.md','reconciliação CURRENT/reload e fontes reais','PROV-ROOT;PROV-HOT','OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES','Não congelar gramática/default novos por inferência'),
+  ('CERTIFICATES','Certificados Browser / CredentialGeneration/Reference/store',prov,'Secure manual e automatic; trust Site separado','R1_CURRENT_HOST_E_SHARED_CORE_LIMITADOS','B:docs/architecture-roadmap.md','pacote/enrollment/renovação/retirement e runtime final','PROV-MANUAL;PROV-AUTO;PST','OBRIGATORIO_CONSUMIDOR','Provar jornada e erro sem exportar chaves'),
+--- before/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
++++ after/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
+@@ -47,7 +47,7 @@
+ PROV-HOT,Add/approve/renew/revoke sem restart,docs/adr/DECISION-production-client-provisioning-20261018.md,Mesmo root/issuer/cadastro,CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado,docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md,PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes,PROV-ROOT;PROV-CA,OBRIGATORIO_AMPLIACAO_ACCEPTED,Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch
+ PROV-REVOKE,Revogação ativa e novas admissões; histórico,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Pessoal M7,STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED,docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md,Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED,PROV-HOT;E18,OBRIGATORIO_AMPLIACAO_ACCEPTED,Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência
+ PROV-ROOT,Autoridade configuração/root/CURRENT/epoch,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Pessoal NORMAL e configuração produto,DORMANT_NATIVE_OFFLINE; operacional NOT_DEMONSTRATED,docs/integration/canonical-root-c2-c3-wiring-20261018/closeout.md,ato autorizado/publicação e referência original viva,autoridade instalação/configuração; sem TPM global,OBRIGATORIO_PRODUTO; INSTANCIA_A_DESCOBRIR,Mapear entrada/consumo atuais antes de propor bootstrap
+-PROV-CA,CA protegida/serial/UTC/issuer NORMAL,docs/adr/DECISION-phase6-personal-mvp-20261022.md,M1/M3 pessoal não recuperável,AP_AND_TYPED_CUSTODY_HANDOFF_QUALIFIED_ISOLATED; ORIGINAL_SOURCE_AND_ACK_PENDING,docs/integration/phase6-original-custody-and-ack-decision-20261029/CONSOLIDATED-CLOSEOUT.md,Handoff revalida origem e mantém borrow no CNG entre leases; aquisição original e ack persistido ainda não demonstrados; decisão focal PROPOSED com hash exato,PROV-ROOT;ED11,OBRIGATORIO; RECOVERY_NAO_HERDADA,Decidir representação focal e fornecer/adquirir fonte original sob autoridade própria; não repetir handoff/CAS
++PROV-CA,CA protegida/serial/UTC/issuer NORMAL,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md,M1/M3 NEW_INSTALL ou CA existente,CA_INITIALIZE_NATIVE_ENTRY_QUALIFIED_OFFLINE; NORMAL_DENY,docs/integration/phase6-ca-initialize-native-20261029/CONSOLIDATED-CLOSEOUT.md,Entrada one-shot integrada; API de chave substituida somente no teste; admissibilidade/certificado e continuidade nativos pendentes,PROV-ROOT;ED11,OBRIGATORIO; RECOVERY_NAO_HERDADA,Compor fontes originais offline; nao repetir CAS/PUBLISHED ou criar CA operacional
+ SCM,Instalação/lifecycle/conta operacional pessoal,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Windows pessoal M5,HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS,docs/integration/n0start03-integrated-closeout-20261024/ED11_GATE_MATRIX.csv,readiness/acesso/Stop/restart normal/uninstall,E17;E18;PROV-ROOT,OBRIGATORIO_PESSOAL,Mapear CLI ao mesmo owner; não criar serviço agora
+ CONFIG,Config settings-only/listeners/live apply,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-listener-selection-direction-20261023.md,Pessoal M6 e direção posterior,SUBSET_PARCIAL; detalhes defaultLan não aceitos,docs/future/personal-listener-selection-and-live-configuration.md,reconciliação CURRENT/reload e fontes reais,PROV-ROOT;PROV-HOT,OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES,Não congelar gramática/default novos por inferência
+ CERTIFICATES,Certificados Browser / CredentialGeneration/Reference/store,docs/adr/DECISION-production-client-provisioning-20261018.md,Secure manual e automatic; trust Site separado,R1_CURRENT_HOST_E_SHARED_CORE_LIMITADOS,B:docs/architecture-roadmap.md,pacote/enrollment/renovação/retirement e runtime final,PROV-MANUAL;PROV-AUTO;PST,OBRIGATORIO_CONSUMIDOR,Provar jornada e erro sem exportar chaves

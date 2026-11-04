@@ -1,0 +1,9 @@
+# Single manual public EK query - no provision/Q4
+
+Use ONE already elevated Windows PowerShell5.1 x64 console. The command is in OWNER-MANUAL-EK-COMMAND.txt, with exact script pin; helper pin is compiled into the script. Run once, return the full bounded JSON output. Agent has not run it. If execution policy blocks it, STOP and do not silently alter machine/user/GPO policy; operator decisions about a permitted process context remain separate. No auto-elevation or fallback PowerShell child is installed.
+
+Collects current operator/PID/creation, event12 Computer hash/boot RecordId/start, current TPM public properties, cmdlet on-disk assembly provenance, EK public-key SHA256 and certificate DER SHA256/origin only. It omits raw public certificates, subject/issuer names and private material. Hash values still identify a device and should be handled as qualification evidence, not published indiscriminately.
+
+The collector releases the current Process and WindowsIdentity references it controls and reports those Dispose return states. Get-Tpm/Get-TpmEndorsementKeyInfo internal native contexts are opaque: their close state is explicitly UNOBSERVED, not fabricated as CLOSED. No new TBS context is opened by this script. Existing native adapter receipts separately demonstrate closure only of their own contexts. No global quiescence, original hardware generation, chain trust or live key possession is inferred.
+
+STOP on hash/helper mismatch, unapproved elevation/impersonation, missing event or typed TPM/EK data, malformed digest/cert format or any first error. No retry or permission remediation. No ownerAuth/secret, NV mutation, hierarchy/Clear, Q4/Start/Stop/CURRENT/signature or network-chain verification. Output first/exit fields govern interpretation; absence of error does not authenticate the TPM endpoint.

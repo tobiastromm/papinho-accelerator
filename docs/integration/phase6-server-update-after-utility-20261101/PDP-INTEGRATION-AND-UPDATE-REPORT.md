@@ -1,0 +1,41 @@
+# PDP0–PDP7 — integração offline e UPDATE manual preparado
+
+## Resultado
+
+PDP0–PDP7 registrado ACCEPTED em DECISION-personal-data-parent-pdp0-pdp7-20261103.md antes do código dependente, após conferência integral/SHA256e68969bed2a8d84ab366378cedc991bc1f105964cfcfff4c7e099d56cd8acd14 da proposta aprovada. Original e accepted anteriores preservados. Main/HEADf341985924d29870d8ff627ed37c8a0874ad6469 e WIP preservados; preimagens/censo em PDP-IMPLEMENTATION-BASELINE.json e pdp-preimages.
+
+Owner, caller frio, packet, worker e primitive de criação existentes receberam um escopo privado PDP distinto. Seleção explícita NEW_INSTALL_PARENT_PREPARE; valida parent real como ProgramData KnownFolder, leaf fixo Papinho e original de configuração mínima. Não cria Accelerator/chave, não consulta identidade de runtime nem gera candidatos CA nesse escopo. O CSPRNG original BCryptGenRandom continua gerando a tentativa no presenter. Nenhuma aprovação ou efeito nativo foi fabricado por hash/CLI/marker/fixture.
+
+Plano e confirmação PDP têm prefixos privados distintos, sem campos fictícios de CA. Upgrade CA recusa plano PDP; confirmação CA não aceita scope2; CA_INITIALIZE rejeita first_mode2 antes de qualquer aquisição. Mesmo consumo monotônico antes de CreateThread, FILE_CREATE exclusivo, SD final protegido operador/SY/BA FA OI|CI na criação, original de parent/ancestrais/source retido e revalidado, readback da identidade/SD e close/retention. Nenhuma edição de ACL existente, owner/serviço/canal, retry, assinatura, CURRENT ou readiness.
+
+## Proteção e continuidade
+
+A política genérica de diretórios permanece estrita; wrapper scqi_directory_sd usa shared0. Exceção exata BU/CI0x02/mask0x116 é chamada somente pela cadeia original privada PDP/FCA. Índice é derivado do percurso da KnownFolder, confrontado com a topologia dos originais; volume, parent, source e outros ancestrais não recebem exceção por string/SD semelhante. Todos os flags/masks/trustees fora da cláusula continuam negar. READ/TO/UPDATE/NEW_INSTALL genérico e Legacy não selecionam esse percurso por fallback. FCA posterior continua independente: um Accelerator e uma chave.
+
+Foi encontrado um defeito no antigo binding frio do plano FCA: o presenter chamava uma entrada DATA que exigia owner inicializado, embora a preparação mantenha a root não inicializada. O modelo anterior construía o plano diretamente, sem exercitar esse ponto. O novo teste usa a função de produção de construção do plano no packet adquirido. Não houve ampliação da guarda DATA genérica: a revisão automática rejeitou essa alternativa e ela não foi aplicada. A solução restrita exige first_owner, perfil1/2, fase original1, referências protegidas, writer, orçamento, source e cadeia atuais; não inicializa a root nem cria autoridade genérica.
+
+## Compartilhamento: correção antes do UPDATE
+
+A conferência final identificou a combinação do parent original com TRAVERSE|ADD_SUBDIRECTORY/shareREAD e uma segunda abertura do mesmo parent com TRAVERSE/shareREAD. A projeção de compartilhamento documentada em [MS-FSA 2.1.5.1.2.2](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsa/8c0e3f4f-0729-49f4-a14d-7f7add593819) rejeita esse par. É análise de código/modelo, não observação de nova falha neste host nem causa retroativa de outra sessão.
+
+A segunda referência agora solicita somente READ_ATTRIBUTES|READ_CONTROL|SYNCHRONIZE, sem traversal/dados. Continua aberta relativamente ao ancestral original, tem identidade e SD comparados ao parent original e permanece retida. A referência original mantém todos os direitos de traversal/criação e o mesmo shareREAD. Source relativo no mesmo parent usa essa referência original, nunca a de metadata. Nenhum handle é fechado por quota; contagem permanece completa, sem mudança das flags de sharing. Outros perfis/chamadas permanecem com o access mask anterior. O modelo verifica o par anterior, o par corrigido, rejeição de outros escritores/delete e impede usar metadata como fonte de traversal. Não é garantia universal do FSD ou suficiência nativa. Qualquer falha real permanece DENY/UNKNOWN, sem fallback.
+
+## Qualificação e recursos
+
+Quatro builds finais Selected/Legacy Debug/Release, zero warnings, 30 testes/configuração:120 pares PASS. Modelo de funções reais Selected276 checks; Legacy17; CLI14 casos de roteamento (não autoridade). Native IO, token, recursos, threads, CNG e SCM substituídos conforme cada modelo; funções SID/SD usadas somente em memória. Sem execução do candidato, coleta, criação de diretório/chave ou SCM real.
+
+Inclui originais/namespace/reparse/SD/identidade/continuidade, parent já existente/colisão, fonte ausente/divergente, seleção/escopo/index indevidos, CA no scopePDP, replay/consumo, Stop, recursos/freshness/deadline, falha de submissão, pending/close UNKNOWN/retention e regressões READ/TO/UPDATE/CA. Campanha pdp-final1 anterior preservada; rodada pdp-share-final necessária pela correção de acesso/compartilhamento, não repetição inalterada.
+
+Selected ROOT381512, KNOWN2008560, K de preparação2880836, quota3145728, margem264892. Delta estrutural8bytes; payload dinâmico794624 permanece cobrado. Legacy hipotético2712268 ultrapassa sua quota2097152 e não ganha fallback positivo. Entry128/guard188/cap192, private1994944/working3145728, physical7239172096/commit3221225472, freshness100ms/window240000/global60000 sem renovar/rebase. Custos opacos e capacidade nativa UNKNOWN. Referência de metadata é adicional real contabilizada, não redução artificial da contagem.
+
+Evidência final: PDP-SHARING-FINAL-OFFLINE-QUALIFICATION.json, logs fca-pdp-share-final-*-build/tests.log. Postimagens e dois exemplares do candidato reconferidos após os builds.
+
+## Imagens e próximo gate
+
+Instalado permanece905728bytes/ID417614100:2555904:1047601/SHA2561ee37a465e6820a5d5967e25630673aadb81d1972a734fb9bf4046ef3b19b2e6, conforme UPDATE anterior reconciliado, sem nova lease/readback. Final Selected/Release911360bytes/SHA256c14dc2a0e2f3e51d19588c9930e354d512c9f3d3c41f0eaff7957dae0734f474; delta5632bytes. Cópia papacc_server.pdp-sharing-911360.exe. Preparatórios910848 preservados, substituídos antes de qualquer execução/consumo; não usar pedidos/comandos rev1/2.
+
+Pedido ativo ONE-PDP-PARENT-IMAGE-UPDATE-REQUEST.REV3.CANDIDATE.md, SHA2567dea315e963e2e8d3307f0277ca85a38a7e4e5c64c8f928b963493ff87a6f430. Procedimento update-pdp-parent-image.REV3.MANUAL.CANDIDATE.ps1, SHA256e49e77af3f58035a51b18a9c4166ef1f4bd8ba12fdd9630785c7a417cc8cbc40. Decisão contextual real OWNER-PDP-PARENT-IMAGE-UPDATE-REV3-APPROVAL.txt, SHA2567497d7175c4add7ae7cb351e9a5693d3847f299e5a7be8e108198bb17a895abb: resposta literal autorizo durante a preparação deste UPDATE, anterior ao último fechamento; não se alega hash citado ou seleção retrospectiva dos bytes finais. Confirmação nativa do plano efetivo obrigatória, uma execução manual pendente, sem execução automática.
+
+Mesmo papacc_update.exe protegido U1–U7/U2,104448bytes/ID417614100:30670848:57859, sem recompilar/substituir updater. Helpers do wrapper byte-exatos, AST sem erros, uma chamada/16argumentos conferidos, pins e efeitos delimitados; nenhum procedimento foi invocado. Manual exato em PDP-PARENT-UPDATE-REV3-MANUAL-COMMAND.md. Exigir SCM STOPPED/PID0/configuração original e todos os originais/SDs/hashes/recursos/Stop frescos no native owner; consumo único, uma cópia/criação e dois renames sem overwrite, anterior retido, readback/close. Falha =>STOP/UNKNOWN sem retry/rollback.
+
+Primeiro gate restante: única execução manual desse UPDATE e reconciliação. Depois preparar original protegido da configuração43bytes (DATA já existe) e pedido próprio PDP; resultado PDP factual conhecido permite preparar FCA independente. Nenhuma dessas criações foi autorizada pelo UPDATE. Não repetir fixture/READ/observações consumidas; diagnóstico READ fechado já alcançado não é reaberto como pré-requisito genérico. P4/K5, emissão/publicação/CURRENT/NORMAL permanecem não qualificados/DENY, além de quaisquer gates produtivos restantes. Retenção histórica/quiescência OS UNKNOWN, PST0.6.4, históricos/pins/EXEs e autorizações consumidas preservados.

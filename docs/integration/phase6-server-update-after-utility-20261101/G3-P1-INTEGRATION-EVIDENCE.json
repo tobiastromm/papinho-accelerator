@@ -1,0 +1,114 @@
+{
+  "task": "PACC-PHASE6-G3-P1-HANDLE-ENVELOPE-INTEGRATION",
+  "head": "f341985924d29870d8ff627ed37c8a0874ad6469",
+  "branch": "main",
+  "proposal_sha256": "9559fbb0f82e875ad33a6dfc80c52fa4572ae3267338d6ff4401c2a901881abf",
+  "normative_record": "docs\\adr\\DECISION-personal-scq-p1-handle-envelope-20261102.md",
+  "normative_record_sha256": "db86736c8b47a231c4fd3aa81f1c5bb92e0cb23878f00a65fd2a3913a48b9a49",
+  "scope": "ONE PERSONAL_LOCAL P1 TRANSPORT_ONLY CLOSED_DIAGNOSTIC; OFFLINE_ONLY",
+  "handles": {
+    "entry_maximum": 128,
+    "guard_deny_at": 188,
+    "maximum": 192,
+    "controlled_slots_budget": 44,
+    "opaque_tolerance": 16,
+    "headroom": 4,
+    "native_maxima_demonstrated": false,
+    "initial_count_discount": false
+  },
+  "census_revalidation": "Same HANDLE arrays/roles and lifetimes as approved census44; only scalar policy/initial counters and borrowed process count/QPC queries added; historical census file preserved. No new HANDLE slot.",
+  "other_g3": {
+    "private_growth_bytes": 1994944,
+    "working_growth_bytes": 1994944,
+    "physical_floor_bytes": 7239172096,
+    "commit_floor_bytes": 9823326208,
+    "freshness_ms": 100,
+    "original_window_ms": 240000,
+    "global_duration_ms": 60000
+  },
+  "builds": [
+    {
+      "profile": "Selected",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "ctest_pairs": 14,
+      "logs": {
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Selected-Debug-build.log": "378572fde59c499c05784cd1f6fa2857dbbd67bc76dbee01615a8cf0db902867",
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Selected-Debug-tests.log": "ef1f381bc4f1bfefdcd3299781680ac3e6055a8f60ca0163532a1e70fe32287e",
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Selected-Debug-paths-tests.log": "049466ee2db96f08e8df41253cf171f0621f38686b0da94f6b1aa720bcf9d914"
+      }
+    },
+    {
+      "profile": "Selected",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "ctest_pairs": 14,
+      "logs": {
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Selected-Release-build.log": "7bd1c8ef8a4097ea8a54c72a43f755ec96aa3f7a6c31bd7d3bfa7ac209d92da1",
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Selected-Release-tests.log": "9b80a68623bc6b5bcb8efb734a9062ee036ecc9d62ed9a8675c673abfda85477",
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Selected-Release-paths-tests.log": "58ff024a687befc468d0fcc4f6100aadbd5aec27066e00fcb306db6c56e0243f"
+      }
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "ctest_pairs": 14,
+      "logs": {
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Legacy-Debug-build.log": "378572fde59c499c05784cd1f6fa2857dbbd67bc76dbee01615a8cf0db902867",
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Legacy-Debug-tests.log": "bbd8905748a3a2c5d48aeb848b03a3eb85e0ef5194570eaf01b26c0124393cfe",
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Legacy-Debug-paths-tests.log": "8872945eceae3e6b647d5db0f059a30ae217670d0d00e0024eb97be8b4676ee1"
+      }
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "ctest_pairs": 14,
+      "logs": {
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Legacy-Release-build.log": "fb596eee8ced5c79bfd25f90f675c83612a6f5ef4dc130e614fc485ed7f00ffe",
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Legacy-Release-tests.log": "f01cf7937291701941e15c78ff0b0fa8318cc284cb1f7a525474dbd4ce6e6bbf",
+        "docs\\integration\\phase6-server-update-after-utility-20261101\\g3-p1-Legacy-Release-paths-tests.log": "6888c2f80e850ade6b44d9c887fe5002d85b90b493e357666e0452c5ad1fed5f"
+      }
+    }
+  ],
+  "ctest_pairs_pass": 56,
+  "sources_sha256": {
+    "apps\\server\\personal_scq_handle_policy_win32.h": "c5a358d5f115c8fb66c821abeff7c0f2373cdeb4a5c4d0f64533fa6f524ee150",
+    "apps\\server\\personal_scq_start_assurance_win32.h": "6b896288719badb3672ed36bbb39cac287db36b7448d58f0822a8a7202846da8",
+    "apps\\server\\personal_scq_start_assurance_win32.inc": "ebb9c27867ef0256f29fca2f17660c5e1f12eb6cf4fe61f611171c38c69153c2",
+    "apps\\server\\personal_scq_start_plan_data_win32.inc": "5f85fb0079babb321963b9b6ac0fe77f75cb5387ed184adb47782623de3448d6",
+    "apps\\server\\personal_native_win32.h": "bf8620214876dc33a3c4908629d0013544cc80c10d8a25c36783881d0b55bee8",
+    "apps\\server\\personal_scq_cold_acquisition_win32.inc": "b49da6bb9eb1e660d07dc17859f4b7f46af03f2fbc5bc99ff390269e683796bc",
+    "apps\\server\\server_launcher_scq_cold_start_win32.inc": "051e8964bbe2dd6ad426a68d8347dd5ab68e602e334af09c5692c801c3292866",
+    "apps\\server\\personal_scq_inputs_win32.inc": "18e282300fee3904cf93ad8b9dad31bce89bf4944e57d51da7088fb0afb5d096",
+    "apps\\server\\personal_scq_image_chain_win32.inc": "5178cfe8d70050ac286a04ac7abfb14ed92c32751c8d00cfb759cc4ef07a8110",
+    "apps\\server\\personal_scq_transport_win32.inc": "151c031b0494d6fd66f9d27cb81bf6e054ab02aee5d6625ece54c55d341d5a43",
+    "apps\\server\\personal_scq_bootstrap_win32.inc": "5b50a853d80b9951d3692fc47f5ef335664a5e8df009206074f0f668563a3f04",
+    "apps\\server\\server_configuration_personal_native_win32.inc": "149694e5615b2ec60a38825a15dba5cb185d81ca686d832966d89927baaecd0a",
+    "tests\\scq_start_assurance_test.c": "7f1fd6e6f1016f8c5acc812c84bcaca9511ebebc075593a0085c6be7c7b576da",
+    "tests\\scq_cold_open_test.c": "ee0418ff0f23452d19e0ed38d2d8ccdbc6572024c881da00798099fc3be37825",
+    "tests\\scq_query_cold_chain_test.c": "25fbc916671770e879f4bcdeb4c1cfbc0557ec8b793ee9120b485a11280801ba",
+    "tests\\scq_p1_entry_test.c": "4831e8bd5e0c04f9b57fe347858eee970b7583c8547d92063548a272d8b5d84f",
+    "tests\\personal_scq_inputs_test.c": "e47ff917af394173f3ca0bdbca4393ac32aefa43c695c78adb8a151b0cf2a432"
+  },
+  "selected_release": {
+    "bytes": 783360,
+    "sha256": "2d056518dd4da617e747e0e79b8e78acf5aab54b8b694118bfec95b75deb4d13",
+    "delta_bytes": 2048,
+    "installed_updated": false,
+    "installed_identity_expected": "417614100:8716288:38019",
+    "installed_state_is_historical": true
+  },
+  "update_request_sha256": "bafa1b8a58c8eed646f00998597c1f4b053262967a78c3ac3603af860270dda0",
+  "update_procedure_sha256": "fa96e9c9cc5ee61cec79ca0599ecd5105dbe1092f2b141518d41b05bc6e3f318",
+  "ast_helpers_unchanged": 6,
+  "real_operations_executed": false,
+  "historical_retention": "UNKNOWN",
+  "os_quiescence": "UNKNOWN",
+  "productive_readiness": "DENY"
+}

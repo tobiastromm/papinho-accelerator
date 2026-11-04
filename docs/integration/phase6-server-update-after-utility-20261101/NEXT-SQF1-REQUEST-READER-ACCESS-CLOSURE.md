@@ -1,0 +1,3 @@
+# Próximo trabalho focal
+
+Ler SQF1-DETAIL-REQUEST-REOPEN-FIRST-CAUSE.md e SQF1-DETAIL-SESSION-RESULT.json. Concluir offline a análise normativa/técnica do reader privado do pedido, reutilizando owner/OHI/SSO-B/SQB3/P0–P7. Identificar cláusula exata antes de especialização de DACL ou entrega. Não inventar acesso efetivo/runtime. Preparar observação manual mínima da disposição atual antes de qualquer nova operação; controlador11760/criação134381469493313573. Não executar coleta, kill, UPDATE, E/Q/S ou mudanças ACL/SCM. Não repetir sessão consumida ou testes inalterados. Entregar menor correção compatível ou proposta focal e hashes.

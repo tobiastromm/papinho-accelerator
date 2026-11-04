@@ -1,0 +1,58 @@
+diff --git a/docs/integration/phase6-update-utility-20261101/staged_binary_update_test.c.preimage b/tests/staged_binary_update_test.c
+index f7281c0..ffc474c 100644
+--- a/docs/integration/phase6-update-utility-20261101/staged_binary_update_test.c.preimage
++++ b/tests/staged_binary_update_test.c
+@@ -12,16 +12,16 @@ static HMODULE WINAPI update_module_handle(LPCWSTR name)
+ {return (HMODULE)(ULONG_PTR)(name&&!wcscmp(name,L"libssl-3-x64.dll")?2U:name&&!wcscmp(name,L"libcrypto-3-x64.dll")?3U:1U);}
+ static DWORD WINAPI update_module_path(HMODULE module,LPWSTR path,DWORD count)
+ {
+- const WCHAR *leaf=(ULONG_PTR)module==2U?L"libssl-3-x64.dll":(ULONG_PTR)module==3U?L"libcrypto-3-x64.dll":L"papacc_admin.exe";
++ const WCHAR *leaf=(ULONG_PTR)module==2U?L"libssl-3-x64.dll":(ULONG_PTR)module==3U?L"libcrypto-3-x64.dll":L"papacc_update.exe";
+  if(update_case==150U&&!module){wcscpy_s(path,count,L"C:\\Build\\papacc_server.exe");return (DWORD)wcslen(path);}
+  if(update_case==151U&&!module)leaf=L"papacc_server.exe";
+  swprintf_s(path,count,L"C:\\Program Files\\Papinho\\Accelerator\\%s",leaf);return (DWORD)wcslen(path);
+ }
+ static BOOL WINAPI update_process_image(HANDLE p,DWORD flags,LPWSTR path,PDWORD count)
+-{(void)p;(void)flags;wcscpy_s(path,*count,L"\\Device\\ModelVolume\\Program Files\\Papinho\\Accelerator\\papacc_admin.exe");*count=(DWORD)wcslen(path);if(update_case==156U)path[1]='X';return TRUE;}
++{(void)p;(void)flags;wcscpy_s(path,*count,L"\\Device\\ModelVolume\\Program Files\\Papinho\\Accelerator\\papacc_update.exe");*count=(DWORD)wcslen(path);if(update_case==156U)path[1]='X';return TRUE;}
+ static DWORD WINAPI update_final_path(HANDLE h,LPWSTR path,DWORD count,DWORD flags)
+ {
+- if(h==(HANDLE)(ULONG_PTR)18){wcscpy_s(path,count,L"\\Device\\ModelVolume\\Program Files\\Papinho\\Accelerator\\papacc_admin.exe");return (DWORD)wcslen(path);}
++ if(h==(HANDLE)(ULONG_PTR)18){wcscpy_s(path,count,L"\\Device\\ModelVolume\\Program Files\\Papinho\\Accelerator\\papacc_update.exe");return (DWORD)wcslen(path);}
+  if(flags!=VOLUME_NAME_DOS||((ULONG_PTR)h!=5U&&(ULONG_PTR)h!=6U))return 0;
+  swprintf_s(path,count,L"\\\\?\\C:\\Program Files\\Papinho\\Accelerator\\%s",(ULONG_PTR)h==5U?L"libssl-3-x64.dll":L"libcrypto-3-x64.dll");
+  if(update_case==158U)path[5]='X';return (DWORD)wcslen(path);
+@@ -85,7 +85,7 @@ static BOOL WINAPI update_scm_close(SC_HANDLE h)
+ static NTSTATUS NTAPI update_nt(PHANDLE h,ACCESS_MASK access,POBJECT_ATTRIBUTES a,PIO_STATUS_BLOCK io,PLARGE_INTEGER allocation,ULONG attr,ULONG share,ULONG disposition,ULONG options,PVOID ea,ULONG ea_bytes)
+ {
+  PAPACC_STAGED_UPDATE_STATE *u=&root.configuration_commit.pending_commit.personal_native.staged_update;
+- if(disposition==1U&&a->RootDirectory==(HANDLE)(ULONG_PTR)3&&!wcscmp(a->ObjectName->Buffer,L"papacc_admin.exe")){
++ if(disposition==1U&&a->RootDirectory==(HANDLE)(ULONG_PTR)3&&!wcscmp(a->ObjectName->Buffer,L"papacc_update.exe")){
+   unsigned k;if(update_case==152U)return (NTSTATUS)0xc0000022L;
+   if(share!=FILE_SHARE_READ||(access&(FILE_WRITE_DATA|DELETE|WRITE_DAC|WRITE_OWNER)))return (NTSTATUS)0xc0000022L;
+   ZeroMemory(&files[18],sizeof(files[18]));files[18].id=update_case==154U||update_case==161U?4U:update_case==160U?7U:18U;
+@@ -206,6 +206,9 @@ static BOOL WINAPI update_flush(HANDLE h)
+ #define personal_resource_sample update_resource_sample
+ #include "../apps/server/server_personal_resource_sample_win32.inc"
+ #include "../apps/server/server_launcher_staged_update_win32.inc"
++#define main staged_update_utility_program_main
++#include "../apps/server/update_main.c"
++#undef main
+ static int update_pin(BYTE out[32],unsigned id)
+ {BYTE bytes[6001];unsigned i;for(i=0;i<sizeof(bytes);i++)bytes[i]=(BYTE)(i+id);return pacc_storage_hash_callback(NULL,bytes,sizeof(bytes),out);}
+ int main(void)
+@@ -241,11 +244,11 @@ int main(void)
+   if(i==149U)stop_now=1U;
+   if(i==164U)fail_close=1U;
+   if(i==101U)old_pin[0]^=1;if(i==104U)new_pin[0]^=1;if(i==112U)scenario=15U;if(i==113U)capacity_case=2U;if(i==137U)scenario=20U;
+-  if(i==121U||i==137U){
++  if(i==121U||i==137U||i==145U||i==150U){
+    char text[5][65];const BYTE *values[5]={old_pin,new_pin,dlls[0],dlls[1],executor_pin};unsigned a,b;
+-   const char *args[17]={"papacc_server.exe","--owner-manual-binary-update","C:\\Build\\papacc_server.exe","42","0","3","42","0","4",text[0],text[1],text[2],text[3],"42","0","18",text[4]};
++   const char *args[17]={"papacc_update.exe","--owner-manual-binary-update","C:\\Build\\papacc_server.exe","42","0","3","42","0","4",text[0],text[1],text[2],text[3],"42","0","18",text[4]};
+    for(a=0;a<5U;a++){for(b=0;b<32U;b++)sprintf_s(text[a]+2U*b,3,"%02x",values[a][b]);text[a][64]=0;}
+-   result=papacc_server_launcher_binary_update_cli(17,args,out,out);
++   result=papacc_update_entry(17,args,out,out);
+   }else {DWORD parent[3]={42,0,i==139U?999U:3U};result=staged_update_entry(L"C:\\Build\\papacc_server.exe",parent,old_id,old_pin,new_pin,dlls,i==168U?NULL:executor_id,executor_pin,out,1);}u=staged_update_state();
+   if(success!=(result==0))printf("UPDATE case=%u result=%d first=%lu prepared=%u act=%u consumed=%u phase=%u created=%u writes=%u sets=%u missing=%lu\n",i,result,(unsigned long)u->first,u->prepared,u->act_state,u->consumed,u->phase,creates,writes,set_calls,(unsigned long)u->missing);
+   T(success==(result==0));

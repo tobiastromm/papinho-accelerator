@@ -1,0 +1,185 @@
+#define _WIN32_WINNT 0x0600
+#include "server_issuer_x509_win32.h"
+#include <bcrypt.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdint.h>
+static int xnz(const BYTE *p,DWORD n){BYTE v=0;DWORD i;for(i=0;i<n;i++)v|=p[i];return v!=0;}
+static int xspan(const void *a,size_t an,const void *b,size_t bn)
+{uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;if(an>UINTPTR_MAX-x||bn>UINTPTR_MAX-y)return 1;return x<y+bn&&y<x+an;}
+static int xhash(const BYTE *p,DWORD n,BYTE d[32]){DWORD z=32;return CryptHashCertificate2(BCRYPT_SHA256_ALGORITHM,0,NULL,p,n,d,&z)&&z==32;}
+static int xspki(const CERT_PUBLIC_KEY_INFO *p,BYTE d[32],BYTE *der,DWORD capacity)
+{DWORD n=capacity;return CryptEncodeObjectEx(X509_ASN_ENCODING,X509_PUBLIC_KEY_INFO,p,0,NULL,der,&n)&&xhash(der,n,d);}
+static int xrsa(const CERT_PUBLIC_KEY_INFO *p,BYTE *bytes,DWORD capacity)
+{
+ DWORD n=capacity;RSAPUBKEY *r;
+ if(!p||!p->Algorithm.pszObjId||strcmp(p->Algorithm.pszObjId,szOID_RSA_RSA)||p->PublicKey.cUnusedBits||
+  p->Algorithm.Parameters.cbData!=2||!p->Algorithm.Parameters.pbData||memcmp(p->Algorithm.Parameters.pbData,"\x05\x00",2))return 0;
+ if(!CryptDecodeObjectEx(X509_ASN_ENCODING,RSA_CSP_PUBLICKEYBLOB,p->PublicKey.pbData,p->PublicKey.cbData,0,NULL,bytes,&n)||n!=276)return 0;
+ r=(RSAPUBKEY *)(bytes+sizeof(PUBLICKEYSTRUC));return r->magic==0x31415352U&&r->bitlen==2048U&&r->pubexp==65537U;
+}
+static int xname(const char *prefix,const BYTE id[16],BYTE out[128],DWORD *n)
+{
+ char name[96];static const char hex[]="0123456789abcdef";size_t k=strlen(prefix);unsigned i;
+ if(k+32>=sizeof(name))return 0;memcpy(name,prefix,k);
+ for(i=0;i<16;i++){name[k++]=hex[id[i]>>4];name[k++]=hex[id[i]&15];}name[k]=0;
+ *n=128;return CertStrToNameA(X509_ASN_ENCODING,name,CERT_X500_NAME_STR,NULL,out,n,NULL)!=0;
+}
+static int xtime(PAPACC_U64 utc,FILETIME *out)
+{
+ ULARGE_INTEGER u;if(utc>(~(PAPACC_U64)0-116444736000000000ULL)/10000000ULL)return 0;
+ u.QuadPart=utc*10000000ULL+116444736000000000ULL;out->dwLowDateTime=u.LowPart;out->dwHighDateTime=u.HighPart;return 1;
+}
+static int xencode(LPCSTR type,const void *value,BYTE *out,DWORD cap,DWORD *n)
+{*n=cap;return CryptEncodeObjectEx(X509_ASN_ENCODING,type,value,0,NULL,out,n)!=0;}
+static PAPACC_ISSUER_RESULT xtbs(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
+ const CERT_INFO *ca,const CERT_PUBLIC_KEY_INFO *key,BYTE *out,DWORD cap,DWORD *used,
+ const CRYPT_DATA_BLOB *server_subject,const CRYPT_DATA_BLOB *server_san)
+{
+ CERT_INFO info;CERT_EXTENSION ext[6];CERT_BASIC_CONSTRAINTS2_INFO bc;
+ CERT_ENHKEY_USAGE eku;CERT_AUTHORITY_KEY_ID2_INFO aki;CRYPT_BIT_BLOB ku;CRYPT_DATA_BLOB ski;
+ BYTE serial[16],subject[128],issuer[128],digest[32],keyid[32],usage=0x80;
+ union {ULONGLONG align;BYTE bytes[5][128];} extension_scratch;
+ BYTE (*extension_bytes)[128]=extension_scratch.bytes;
+ DWORD i,n,z,issuer_n,subject_n;PAPACC_U64 counter;LPSTR oid;
+ PCERT_EXTENSION ca_ski;CERT_BASIC_CONSTRAINTS2_INFO ca_bc;BYTE ca_ku[32];CRYPT_BIT_BLOB *ca_bits=(CRYPT_BIT_BLOB *)ca_ku;
+ if(!v||!r||!ca||!key||!out||!cap||!used||xspan(used,sizeof(*used),v,sizeof(*v))||xspan(used,sizeof(*used),r,sizeof(*r))||xspan(used,sizeof(*used),ca,sizeof(*ca))||xspan(used,sizeof(*used),key,sizeof(*key))||xspan(out,cap,v,sizeof(*v))||xspan(out,cap,r,sizeof(*r))||
+  xspan(out,cap,ca,sizeof(*ca))||xspan(out,cap,key,sizeof(*key))||xspan(out,cap,used,sizeof(*used)))return PAPACC_ISSUER_INVALID;
+ *used=0;
+ if(r->request.purpose==PAPACC_ISSUER_SERVER){if(!server_subject||!server_san)return PAPACC_ISSUER_UNSUPPORTED;}
+ else if(server_subject||server_san||(r->request.purpose!=PAPACC_ISSUER_CLIENT&&r->request.purpose!=PAPACC_ISSUER_PACKAGE))return PAPACC_ISSUER_UNSUPPORTED;
+ if(!xnz(v->authority,16)||!xnz(v->generation,16)||!xnz(v->prefix,8)||(v->prefix[0]&128)||
+  !xnz(r->request.device,16)||memcmp(v->authority,r->authority,16)||memcmp(v->generation,r->generation,16)||
+  !r->counter||r->counter<2||r->counter>v->high_water||!r->approved_epoch||memcmp(v->policy,r->policy,32))return PAPACC_ISSUER_DENIED;
+ memcpy(serial,v->prefix,8);counter=r->counter;for(i=0;i<8;i++){serial[15-i]=(BYTE)counter;counter>>=8;}
+ if(memcmp(serial,r->serial,16)||r->request.not_after<=r->request.not_before||
+  r->request.not_after-r->request.not_before>90ULL*86400ULL||r->request.not_after>v->ca_not_after)return PAPACC_ISSUER_DENIED;
+ /* These public decode/encode calls finish before extension DER is created.
+  * Reuse only this function-owned aligned scratch; no borrow escapes. */
+ if(!xrsa(key,extension_scratch.bytes[0],sizeof(extension_scratch))||!xrsa(&ca->SubjectPublicKeyInfo,extension_scratch.bytes[0],sizeof(extension_scratch))||!xspki(key,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,r->request.key_digest,32)||
+  !xspki(&ca->SubjectPublicKeyInfo,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,v->ca_spki_digest,32)||!memcmp(digest,r->request.key_digest,32))return PAPACC_ISSUER_INVALID;
+ if(ca->dwVersion!=CERT_V3||!xname("CN=Papinho CA ",v->authority,issuer,&issuer_n)||ca->Subject.cbData!=issuer_n||memcmp(ca->Subject.pbData,issuer,issuer_n)||
+  ca->Issuer.cbData!=issuer_n||!ca->Issuer.pbData||memcmp(ca->Issuer.pbData,issuer,issuer_n))return PAPACC_ISSUER_INVALID;
+ {ULARGE_INTEGER lo,hi;BYTE expected_serial[16];DWORD count=16;
+  lo.LowPart=ca->NotBefore.dwLowDateTime;lo.HighPart=ca->NotBefore.dwHighDateTime;hi.LowPart=ca->NotAfter.dwLowDateTime;hi.HighPart=ca->NotAfter.dwHighDateTime;
+  if(hi.QuadPart<lo.QuadPart||hi.QuadPart-lo.QuadPart!=1825ULL*86400ULL*10000000ULL||!ca->SignatureAlgorithm.pszObjId||strcmp(ca->SignatureAlgorithm.pszObjId,szOID_RSA_SHA256RSA)||
+   ca->SignatureAlgorithm.Parameters.cbData!=2||!ca->SignatureAlgorithm.Parameters.pbData||memcmp(ca->SignatureAlgorithm.Parameters.pbData,"\x05\x00",2))return PAPACC_ISSUER_INVALID;
+  expected_serial[0]=1;memset(expected_serial+1,0,7);for(i=0;i<8;i++)expected_serial[8+i]=v->prefix[7-i];
+  while(count>1&&expected_serial[count-1]==0)count--;
+  if(expected_serial[count-1]&128U)expected_serial[count++]=0;
+  if(ca->SerialNumber.cbData!=count||!ca->SerialNumber.pbData||memcmp(ca->SerialNumber.pbData,expected_serial,count))return PAPACC_ISSUER_INVALID;
+ }
+ {FILETIME end;if(!xtime(v->ca_not_after,&end)||CompareFileTime(&end,&ca->NotAfter))return PAPACC_ISSUER_INVALID;}
+ if(ca->cExtension!=3U)return PAPACC_ISSUER_UNSUPPORTED;
+ ca_ski=CertFindExtension(szOID_BASIC_CONSTRAINTS2,ca->cExtension,ca->rgExtension);n=sizeof(ca_bc);
+ if(!ca_ski||!ca_ski->fCritical||!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_BASIC_CONSTRAINTS2,ca_ski->Value.pbData,ca_ski->Value.cbData,0,NULL,&ca_bc,&n)||
+  !ca_bc.fCA||!ca_bc.fPathLenConstraint||ca_bc.dwPathLenConstraint)return PAPACC_ISSUER_INVALID;
+ ca_ski=CertFindExtension(szOID_KEY_USAGE,ca->cExtension,ca->rgExtension);n=sizeof(ca_ku);
+ if(!ca_ski||!ca_ski->fCritical||!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_KEY_USAGE,ca_ski->Value.pbData,ca_ski->Value.cbData,0,NULL,ca_ku,&n)||
+  ca_bits->cbData!=1||ca_bits->pbData[0]!=(CERT_KEY_CERT_SIGN_KEY_USAGE|CERT_CRL_SIGN_KEY_USAGE)||
+  CertFindExtension(szOID_ENHANCED_KEY_USAGE,ca->cExtension,ca->rgExtension))return PAPACC_ISSUER_INVALID;
+ ca_ski=CertFindExtension(szOID_SUBJECT_KEY_IDENTIFIER,ca->cExtension,ca->rgExtension);if(!ca_ski)return PAPACC_ISSUER_INVALID;
+ memset(&info,0,sizeof(info));memset(ext,0,sizeof(ext));memset(&bc,0,sizeof(bc));memset(&aki,0,sizeof(aki));
+ n=sizeof(aki.KeyId); /* Decode SKI into caller-local provider structure, not custom DER. */
+ {BYTE storage[64];CRYPT_DATA_BLOB *id=(CRYPT_DATA_BLOB *)storage;n=sizeof(storage);
+  if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_OCTET_STRING,ca_ski->Value.pbData,ca_ski->Value.cbData,0,NULL,storage,&n)||id->cbData!=32)return PAPACC_ISSUER_INVALID;
+  z=32;if(!CryptHashPublicKeyInfo(0,CALG_SHA_256,0,X509_ASN_ENCODING,(PCERT_PUBLIC_KEY_INFO)&ca->SubjectPublicKeyInfo,digest,&z)||z!=32||memcmp(digest,id->pbData,32))return PAPACC_ISSUER_INVALID;
+  memcpy(keyid,id->pbData,32);}
+ aki.KeyId.pbData=keyid;aki.KeyId.cbData=32;
+ subject_n=0;if(!server_subject&&!xname(r->request.purpose==PAPACC_ISSUER_CLIENT?"CN=Papinho Client ":"CN=Papinho Package ",r->request.device,subject,&subject_n))return PAPACC_ISSUER_INVALID;
+ info.dwVersion=CERT_V3;for(i=0;i<16;i++)serial[i]=r->serial[15-i];
+ info.SerialNumber.pbData=serial;info.SerialNumber.cbData=16;
+ while(info.SerialNumber.cbData>1&&serial[info.SerialNumber.cbData-1]==0)info.SerialNumber.cbData--;
+ if(serial[info.SerialNumber.cbData-1]&128U)serial[info.SerialNumber.cbData++]=0;
+ info.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA256RSA;info.SignatureAlgorithm.Parameters.pbData=(BYTE *)"\x05\x00";info.SignatureAlgorithm.Parameters.cbData=2;
+ info.Issuer=ca->Subject;info.Subject.pbData=subject;info.Subject.cbData=subject_n;info.SubjectPublicKeyInfo=*key;
+ if(server_subject)info.Subject=*server_subject;
+ if(!xtime(r->request.not_before,&info.NotBefore)||!xtime(r->request.not_after,&info.NotAfter)||
+  CompareFileTime(&info.NotBefore,&ca->NotBefore)<0||CompareFileTime(&info.NotAfter,&ca->NotAfter)>0)return PAPACC_ISSUER_INVALID;
+ oid=(LPSTR)(server_subject?szOID_PKIX_KP_SERVER_AUTH:(r->request.purpose==PAPACC_ISSUER_CLIENT?szOID_PKIX_KP_CLIENT_AUTH:szOID_PKIX_KP_CODE_SIGNING));eku.cUsageIdentifier=1;eku.rgpszUsageIdentifier=&oid;
+ ku.cbData=1;ku.pbData=&usage;ku.cUnusedBits=7;
+ ext[0].pszObjId=(LPSTR)szOID_BASIC_CONSTRAINTS2;ext[0].fCritical=TRUE;
+ ext[1].pszObjId=(LPSTR)szOID_KEY_USAGE;ext[1].fCritical=TRUE;
+ ext[2].pszObjId=(LPSTR)szOID_ENHANCED_KEY_USAGE;ext[3].pszObjId=(LPSTR)szOID_AUTHORITY_KEY_IDENTIFIER2;ext[4].pszObjId=(LPSTR)szOID_SUBJECT_KEY_IDENTIFIER;
+ for(i=0;i<5;i++){ext[i].Value.pbData=extension_bytes[i];ext[i].Value.cbData=128;}
+ if(!xencode(X509_BASIC_CONSTRAINTS2,&bc,extension_bytes[0],128,&ext[0].Value.cbData)||
+  !xencode(X509_KEY_USAGE,&ku,extension_bytes[1],128,&ext[1].Value.cbData)||
+  !xencode(X509_ENHANCED_KEY_USAGE,&eku,extension_bytes[2],128,&ext[2].Value.cbData)||
+  !xencode(X509_AUTHORITY_KEY_ID2,&aki,extension_bytes[3],128,&ext[3].Value.cbData))return PAPACC_ISSUER_INVALID;
+ /* Vetted provider key-identifier routine, distinct from request SHA256 digest. */
+ z=32;if(!CryptHashPublicKeyInfo(0,CALG_SHA_256,0,X509_ASN_ENCODING,(PCERT_PUBLIC_KEY_INFO)key,digest,&z)||z!=32)return PAPACC_ISSUER_INVALID;
+ ski.cbData=32;ski.pbData=digest;if(!xencode(X509_OCTET_STRING,&ski,extension_bytes[4],128,&ext[4].Value.cbData))return PAPACC_ISSUER_INVALID;
+ info.cExtension=5;info.rgExtension=ext;
+ if(server_san){ext[5].pszObjId=(LPSTR)szOID_SUBJECT_ALT_NAME2;ext[5].fCritical=TRUE;ext[5].Value=*server_san;info.cExtension=6;}
+ n=cap;if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,&info,0,NULL,out,&n))return GetLastError()==ERROR_MORE_DATA?PAPACC_ISSUER_LIMIT:PAPACC_ISSUER_INVALID;
+ *used=n;return PAPACC_ISSUER_OK;
+}
+/* Public candidate preparation only. Name is not read from CSR nor authority.
+ * Existing signer deliberately has no path to this entry point. */
+PAPACC_ISSUER_RESULT papacc_issuer_x509_tbs(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
+ const CERT_INFO *ca,const CERT_PUBLIC_KEY_INFO *key,BYTE *out,DWORD cap,DWORD *used)
+{return xtbs(v,r,ca,key,out,cap,used,NULL,NULL);}
+PAPACC_ISSUER_RESULT papacc_issuer_x509_server_tbs(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
+ const CERT_INFO *ca,const CERT_PUBLIC_KEY_INFO *key,const char *name,DWORD length,BYTE *out,DWORD cap,DWORD *used)
+{
+ WCHAR dns[254];BYTE subject[2],san[272];DWORD i,label=0,n;int nonnumeric=0;CERT_NAME_INFO subject_info;
+ CERT_ALT_NAME_ENTRY entry;CERT_ALT_NAME_INFO names;CRYPT_DATA_BLOB subject_blob,san_blob;
+ if(!name||!length||length>253||!r||r->request.purpose!=PAPACC_ISSUER_SERVER||!used||!out||!cap||
+  xspan(name,length,out,cap)||xspan(name,length,used,sizeof(*used)))return PAPACC_ISSUER_INVALID;
+ /* DNS ASCII only, no wildcard, IP literal, embedded NUL or normalization.
+  * This validates representation; it does not approve the candidate name. */
+ for(i=0;i<length;i++){unsigned char c=(unsigned char)name[i];
+  if(c=='.'){if(!label||name[i-1]=='-')return PAPACC_ISSUER_INVALID;label=0;}
+  else{if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='-')||label==63||(!label&&c=='-'))return PAPACC_ISSUER_INVALID;label++;if(c<'0'||c>'9')nonnumeric=1;}
+  dns[i]=(WCHAR)c;}
+ if(!label||name[length-1]=='-'||!nonnumeric)return PAPACC_ISSUER_INVALID;
+ dns[length]=0;n=sizeof(subject);memset(&subject_info,0,sizeof(subject_info));
+ /* Subject carries no invented administrative name. The sole identity is
+  * the explicit DNS SAN, critical because the subject is empty. */
+ if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_NAME,&subject_info,0,NULL,subject,&n))return PAPACC_ISSUER_INVALID;
+ subject_blob.pbData=subject;subject_blob.cbData=n;memset(&entry,0,sizeof(entry));
+ entry.dwAltNameChoice=CERT_ALT_NAME_DNS_NAME;entry.pwszDNSName=dns;names.cAltEntry=1;names.rgAltEntry=&entry;n=sizeof(san);
+ if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_ALTERNATE_NAME,&names,0,NULL,san,&n))return PAPACC_ISSUER_INVALID;
+ san_blob.pbData=san;san_blob.cbData=n;
+ return xtbs(v,r,ca,key,out,cap,used,&subject_blob,&san_blob);
+}
+static PAPACC_ISSUER_RESULT xverify(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
+ const CERT_INFO *ca,const BYTE *der,DWORD size,PAPACC_ISSUER_WINDOWS_WORKSPACE *w,BYTE digest[32],const char *name,DWORD length)
+{
+ CERT_SIGNED_CONTENT_INFO *s;CERT_INFO *cert;DWORD a=0,b=0,n,offset;BYTE *tail;CRYPT_DATA_BLOB subject;PAPACC_ISSUER_RESULT result;
+ if(!v||!r||!ca||!der||!size||!w||!w->bytes||!digest||w->capacity>0xffffffffU||((uintptr_t)w->bytes&7U)||
+  xspan(w->bytes,w->capacity,der,size)||xspan(w->bytes,w->capacity,r,sizeof(*r))||xspan(w->bytes,w->capacity,v,sizeof(*v))||
+  xspan(w->bytes,w->capacity,ca,sizeof(*ca))||xspan(w->bytes,w->capacity,w,sizeof(*w))||xspan(w->bytes,w->capacity,digest,32)||xspan(digest,32,der,size)||xspan(digest,32,v,sizeof(*v))||xspan(digest,32,r,sizeof(*r))||xspan(digest,32,ca,sizeof(*ca))||
+  xspan(digest,32,w,sizeof(*w))||xspan(w,sizeof(*w),der,size)||xspan(w,sizeof(*w),r,sizeof(*r))||xspan(w,sizeof(*w),v,sizeof(*v))||xspan(w,sizeof(*w),ca,sizeof(*ca)))return PAPACC_ISSUER_INVALID;
+ memset(digest,0,32);w->native_error=0;if(w->stopped)return PAPACC_ISSUER_STOPPED;
+ if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT,der,size,CRYPT_DECODE_NOCOPY_FLAG,NULL,NULL,&a))goto invalid;
+ if(a>0xfffffff8U)return PAPACC_ISSUER_LIMIT;a=(a+7U)&~7U;if(a>w->capacity)return PAPACC_ISSUER_LIMIT;s=w->bytes;n=a;
+ if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT,der,size,CRYPT_DECODE_NOCOPY_FLAG,NULL,s,&n))goto invalid;
+ if(!s->SignatureAlgorithm.pszObjId||strcmp(s->SignatureAlgorithm.pszObjId,szOID_RSA_SHA256RSA)||s->SignatureAlgorithm.Parameters.cbData!=2||
+  !s->SignatureAlgorithm.Parameters.pbData||memcmp(s->SignatureAlgorithm.Parameters.pbData,"\x05\x00",2)||s->Signature.cbData!=256||s->Signature.cUnusedBits)return PAPACC_ISSUER_INVALID;
+ if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,s->ToBeSigned.pbData,s->ToBeSigned.cbData,CRYPT_DECODE_NOCOPY_FLAG,NULL,NULL,&b))goto invalid;
+ if(b>0xfffffff8U)return PAPACC_ISSUER_LIMIT;b=(b+7U)&~7U;if(b>w->capacity-a)return PAPACC_ISSUER_LIMIT;cert=(CERT_INFO *)((BYTE *)w->bytes+a);n=b;
+ if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,s->ToBeSigned.pbData,s->ToBeSigned.cbData,CRYPT_DECODE_NOCOPY_FLAG,NULL,cert,&n))goto invalid;
+ offset=a+b;tail=(BYTE *)w->bytes+offset;
+ result=name?papacc_issuer_x509_server_tbs(v,r,ca,&cert->SubjectPublicKeyInfo,name,length,tail,(DWORD)w->capacity-offset,&n):
+  papacc_issuer_x509_tbs(v,r,ca,&cert->SubjectPublicKeyInfo,tail,(DWORD)w->capacity-offset,&n);if(result)return result;
+ if(n!=s->ToBeSigned.cbData||memcmp(tail,s->ToBeSigned.pbData,n))return PAPACC_ISSUER_INVALID;
+ n=(DWORD)w->capacity-offset;if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,s,0,NULL,tail,&n))goto invalid;
+ if(n!=size||memcmp(tail,der,size))return PAPACC_ISSUER_INVALID;
+ subject.pbData=(BYTE *)der;subject.cbData=size;
+ if(!CryptVerifyCertificateSignatureEx(0,X509_ASN_ENCODING,CRYPT_VERIFY_CERT_SIGN_SUBJECT_BLOB,&subject,CRYPT_VERIFY_CERT_SIGN_ISSUER_PUBKEY,(void *)&ca->SubjectPublicKeyInfo,0,NULL))goto invalid;
+ if(w->stopped)return PAPACC_ISSUER_STOPPED;
+ return xhash(der,size,digest)?PAPACC_ISSUER_OK:PAPACC_ISSUER_INVALID;
+invalid:w->native_error=GetLastError();return PAPACC_ISSUER_INVALID;
+}
+
+PAPACC_ISSUER_RESULT papacc_issuer_x509_verify(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
+ const CERT_INFO *ca,const BYTE *der,DWORD size,PAPACC_ISSUER_WINDOWS_WORKSPACE *w,BYTE digest[32])
+{return xverify(v,r,ca,der,size,w,digest,NULL,0);}
+PAPACC_ISSUER_RESULT papacc_issuer_x509_server_verify(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
+ const CERT_INFO *ca,const char *name,DWORD length,const BYTE *der,DWORD size,PAPACC_ISSUER_WINDOWS_WORKSPACE *w,BYTE digest[32])
+{
+ if(!name||!length||!w||!digest||xspan(name,length,w,sizeof(*w))||xspan(name,length,digest,32)||
+  (w->bytes&&xspan(name,length,w->bytes,w->capacity)))return PAPACC_ISSUER_INVALID;
+ return xverify(v,r,ca,der,size,w,digest,name,length);
+}

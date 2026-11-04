@@ -1,0 +1,74 @@
+{
+  "state": "OFFLINE_DIAGNOSTIC_QUALIFIED_NOT_INSTALLED_FIRST_INNER_CAUSE_UNKNOWN",
+  "runs": [
+    {
+      "profile": "Selected",
+      "configuration": "Debug",
+      "tests": 18,
+      "warnings": 0,
+      "build_log": "read-transport-cause-final-Selected-Debug-build.log",
+      "build_sha256": "fb7b61e044690c340434a4f32b067a08c240901dd1f802d8e2222fe4e2bbdff6",
+      "test_log": "read-transport-cause-final-Selected-Debug-tests.log",
+      "test_sha256": "cb7e9e3d2703ef11c6dab228bc11f3595ffe2cfb2853234746959c3b9ddd2576"
+    },
+    {
+      "profile": "Selected",
+      "configuration": "Release",
+      "tests": 18,
+      "warnings": 0,
+      "build_log": "read-transport-cause-final-Selected-Release-build.log",
+      "build_sha256": "7615b2addd0fc0b75a01df8ea3c00e59dea1a615a51539fcbf147baccf28cadf",
+      "test_log": "read-transport-cause-final-Selected-Release-tests.log",
+      "test_sha256": "60f7d81ccb751ff0689779eb98dc2c51c18472fcb77206e6f265d4f0cc2d8e38"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Debug",
+      "tests": 18,
+      "warnings": 0,
+      "build_log": "read-transport-cause-final-Legacy-Debug-build.log",
+      "build_sha256": "1985d6c2e7338d50a4b173dd3bf28a03dec7d27e3d325152aae3b44db9070b8b",
+      "test_log": "read-transport-cause-final-Legacy-Debug-tests.log",
+      "test_sha256": "0145ddd18707bfbfcf0e8e390ad178d838c0fe25f15027c7121aeddc262d88c3"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Release",
+      "tests": 18,
+      "warnings": 0,
+      "build_log": "read-transport-cause-final-Legacy-Release-build.log",
+      "build_sha256": "24b4f00547f341f6acbd7242b67bd7fc4ccba6ec408fc3e7f107d3b32805ef93",
+      "test_log": "read-transport-cause-final-Legacy-Release-tests.log",
+      "test_sha256": "064594268df7e685dcfea2748e7941e9d84a5b7308fbc74480f521b4f8f04c43"
+    }
+  ],
+  "pairs": 72,
+  "actual_transport_wrapper_checks": 26,
+  "wrapper_branches": 10,
+  "bootstrap_predicates": 13,
+  "bootstrap": "existing QUERY/read-chain regressions pass; predicates split preserve original short-circuit evaluation and return values",
+  "candidate": {
+    "bytes": 876032,
+    "sha256": "4ebb857d931c63c7ad32d54f66df4cbfc24d51ae7715cbac3da4d1adf2d7bed0",
+    "frozen": "papacc_server.read-transport-cause-876032.exe"
+  },
+  "sources": {
+    "apps/server/server_configuration_personal_native_win32.inc": "d02462c9c2eb3fa5622e8b19d796f5f02f0ed668c1b9c7a4784e98da2b712e0a",
+    "apps/server/personal_scq_transport_continue_win32.inc": "719efa045c49a6a4f121bb0e6ec83bcaf763ff144ddfd6e99abf0a63bb97c485",
+    "apps/server/personal_scq_bootstrap_win32.inc": "6c6d84648564d25a6a790353f5b6ce172e58bcb43f59439dc65b889dd5f9022a",
+    "tests/scq_transport_continue_wrapper_test.c": "d8b9c898fd125c31dcc68974d289cfc503a4698b121a6da86f75a0b6894ed397",
+    "CMakeLists.txt": "1476b93b9019596256779a8a35e460e4d655491516ffe6420cbd1cadf9cd5c2c"
+  },
+  "scope": "original return metadata only; no extra native query/clock/token/resource/handle lookup, no secrets or references emitted",
+  "gates_errors_pending_success": "preserved",
+  "protocol_owner_buffers_quotas": "unchanged",
+  "installed": {
+    "bytes": 872960,
+    "identity": "417614100:3080192:866236",
+    "sha256": "486d7971097087cf31dbe8ff43b7edc0b05ad2efdf5c06a6975dc56d0fb61932"
+  },
+  "update_gate": "fixed active participant disposition requires NEW G5 approval, not inferred",
+  "real_operations": false,
+  "historical_retention": "UNKNOWN",
+  "os_quiescence": "UNKNOWN"
+}

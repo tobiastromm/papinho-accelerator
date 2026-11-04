@@ -1,0 +1,13 @@
+# Continuação — alvo staged e preparação do registro SCM parado
+
+Reconciliar OWNER-STAGING-RESULT.txt, NATIVE-STAGING-RESULT-RECONCILIATION.md e STAGING-RESULT-CONSUMPTION.json deste pacote. Aprovação 72fb886f.../0703ffe9... UTILIZADA; não repetir staging/coleta ou substituir pins de autorizações anteriores.
+
+Staging limitado concluiu com consumed1/effects5/first0/closeknown/retained0. Os objetos devem ser tratados como EXISTENTES; não os recriar/adotar como NEW_INSTALL por ausência de root/CA. Fonte de FileID e estado atual é aquisição original governada futura, não strings/hashes do presenter ou fixtures. Hashes esperados permanecem os do pacote c0f27f94.../DLLs, até divergência demonstrada.
+
+Continuar offline no owner/presenter de SCM_REGISTER_CLOSED existentes: auditar aquisição original e revalidação de diretório/imagem/dependências, proteção e pins; ato administrativo de registro separado; nome PapinhoAccelerator, conta virtual NT SERVICE\PapinhoAccelerator, DEMAND_START, Service SID type e comando diagnóstico fechado exatos. Não criar serviço/conta/owner/root paralelo nem usar confirmação de staging/SCQ/NEW_INSTALL como autoridade SCM.
+
+Identificar o primeiro gate próprio de registro parado em ps_registration_binding_ready e server_scm_registration_resources_win32.inc. Resolver tecnicamente o que os contratos accepted já permitem; não importar B0–B8/B3/171 handles ou dispensar capacidade de SCM por sucesso do staging. Não presumir que o guard legado124 é aplicável ou dispensável sem a fonte normativa específica. Separar custo demonstrado, gate fresco e custo que só aparece no efeito autorizado; não exigir processo de serviço/M1 anterior ao registro parado. Se houver lacuna normativa exclusiva, apresentar a cláusula e alternativa concreta, sem outra família de ADRs por conveniência.
+
+Implementar/qualificar somente mudanças offline necessárias e autorizadas, com APIs mutantes simuladas; não repetir campanhas inalteradas. Preparar pedido byte-exato de registro PARADO somente se plano/artefatos/autoridade/admissão estiverem completos. Se for indispensável observação prévia, demonstrar por que o preflight existente não basta e delimitar a menor prova sem executar. Não emitir comandos/placeholders prematuros ou nova aprovação por inferência.
+
+Não executar aquisição real protegida/coleta, registro SCM, Start/Stop, ACL, endpoint/rede, CA/CURRENT, TPM/NV/Q4, cleanup/refund ou recuperação. Não atualizar/assinar/prometer PST0.6.5. Preservar HEAD/WIP/históricos/UNKNOWN/reservas/PST0.6.4. Entregar qualificação do alvo no alcance disponível, primeiro predicado restante e pedido próprio se completo; staging PASS não é Phase6 ou E21 PASS.

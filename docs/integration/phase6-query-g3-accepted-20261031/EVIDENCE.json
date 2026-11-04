@@ -1,0 +1,378 @@
+{
+    "task":  "PACC-PHASE6-QUERY-G3-ACCEPTANCE-AND-COLD-CHAIN",
+    "date":  "2026-11-01",
+    "branch":  "main",
+    "head":  "f341985924d29870d8ff627ed37c8a0874ad6469",
+    "normative":  "QUERY_G3_ACCEPTED",
+    "values":  "SELECTED_UNCHANGED",
+    "query":  "NATIVE_CALLER_INTEGRATED_OFFLINE",
+    "G3_binding":  "NORMAL_GLOBAL_DEADLINE_AUTHENTICITY_INCOMPLETE",
+    "cold_chain":  "GENERAL_CANONICAL_CHAIN_NOT_COMPLETE",
+    "canonical_preStart_guard":  "DENY_PRESERVED",
+    "coexpiry_component":  "PASS_MODELED_ONLY_NOT_OPERATIONAL_STRATEGY",
+    "deadline_delta":  "CANDIDATE_NOT_APPROVED",
+    "deadline_delta_sha256":  "62548c758282dd6b828b451a01a92bc4a369843ac55f7cc9c52f8c84a25ae11c",
+    "auto_review_rejections":  [
+                                   "Direct initial-receiver-source guard removal rejected; unchanged",
+                                   "SQB2 and buffer growth rejected twice including B3/SCQ1 scope evidence; not applied"
+                               ],
+    "operational_request":  "NOT_READY",
+    "authority":  "DENY",
+    "E21":  "PENDING",
+    "ED11":  "PARTIAL",
+    "phase6":  "PARTIAL",
+    "os_quiescence":  "UNKNOWN",
+    "operational_effects":  0,
+    "native_bilateral":  "NOT_DEMONSTRATED",
+    "staged_updated":  false,
+    "builds":  [
+                   {
+                       "profile":  "Selected-Debug",
+                       "build":  "PASS",
+                       "warnings":  0,
+                       "tests":  "PASS",
+                       "test_configuration_pairs":  28,
+                       "build_log":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-final-build.log",
+                       "test_log":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-tests.log"
+                   },
+                   {
+                       "profile":  "Selected-Release",
+                       "build":  "PASS",
+                       "warnings":  0,
+                       "tests":  "PASS",
+                       "test_configuration_pairs":  28,
+                       "build_log":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Release-final-build.log",
+                       "test_log":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Release-tests.log"
+                   },
+                   {
+                       "profile":  "Legacy-Debug",
+                       "build":  "PASS",
+                       "warnings":  0,
+                       "tests":  "PASS",
+                       "test_configuration_pairs":  28,
+                       "build_log":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Debug-final-build.log",
+                       "test_log":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Debug-tests.log"
+                   },
+                   {
+                       "profile":  "Legacy-Release",
+                       "build":  "PASS",
+                       "warnings":  0,
+                       "tests":  "PASS",
+                       "test_configuration_pairs":  28,
+                       "build_log":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Release-final-build.log",
+                       "test_log":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Release-tests.log"
+                   }
+               ],
+    "test_configuration_pairs":  112,
+    "selected_G3":  {
+                        "handles":  128,
+                        "guard":  124,
+                        "private_growth_bytes":  1994944,
+                        "working_growth_bytes":  1994944,
+                        "physical_floor_bytes":  7239172096,
+                        "commit_floor_bytes":  9823326208,
+                        "freshness_ms":  100,
+                        "authorization_ms":  240000,
+                        "global_duration_ms":  60000
+                    },
+    "model":  {
+                  "query_cases":  20,
+                  "query_checks":  1017,
+                  "coexpiry_readiness_before_fault":  3,
+                  "coexpiry_known_final_close":  2,
+                  "query_resource_cases":  15,
+                  "assurance_cases":  33,
+                  "assurance_checks":  555,
+                  "quantitative_field_mutations":  8,
+                  "protected_APIs":  "MODELED"
+              },
+    "census":  {
+                   "selected_known_bytes":  1994976,
+                   "selected_process_limit_bytes":  3145728,
+                   "increment_known_bytes":  32,
+                   "G3_growth_unchanged":  1994944,
+                   "opaque_costs":  "UNKNOWN"
+               },
+    "files":  [
+                  {
+                      "path":  "apps/server/personal_scq_bootstrap_win32.inc",
+                      "bytes":  18486,
+                      "sha256":  "8256ced6f73c89881d357bc906b96dd4ce0f96da36e46460f65773aa733132f0"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_cold_acquisition_win32.inc",
+                      "bytes":  9501,
+                      "sha256":  "476ef93ea305eae723d44758d076299b24b4190b53a26b011c8d04408c8d83fa"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_start_assurance_win32.h",
+                      "bytes":  1001,
+                      "sha256":  "63d46e0b70520e15118086ca9e60b28fa0f93fc8288cf18f581ef845ad966d75"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_start_assurance_win32.inc",
+                      "bytes":  7346,
+                      "sha256":  "e2c9e17422875c07e59bdf026ba48d87afff229e1b43df7e7d07fbf19fd92129"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_transport_win32.h",
+                      "bytes":  1450,
+                      "sha256":  "e40f3dead222df17ba151cf47076e21d528447bed087f7319c5247a90b53c6e4"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_transport_win32.inc",
+                      "bytes":  31342,
+                      "sha256":  "695f66e96e4532fa069146b48662e419853cf05d8269fb2a007808f73202b55a"
+                  },
+                  {
+                      "path":  "apps/server/server_configuration_personal_native_win32.inc",
+                      "bytes":  92017,
+                      "sha256":  "015bbc71077388d56546738a31b74f45ada6b8f067eae86bcf71b7857f52f1a5"
+                  },
+                  {
+                      "path":  "apps/server/server_service_data.h",
+                      "bytes":  2842,
+                      "sha256":  "7d174b06e65a585c338937fc344d46da525f72fc7a916748b288526e79a63b65"
+                  },
+                  {
+                      "path":  "apps/server/server_service_startup_win32.inc",
+                      "bytes":  9672,
+                      "sha256":  "fc197ad1f86876a86ac432abde4b317ca722f6781e276866c9b2e592413a55df"
+                  },
+                  {
+                      "path":  "apps/server/server_service_win32.c",
+                      "bytes":  31234,
+                      "sha256":  "0e1b7612a12b15ed7a875a4148195b307cd83b3eca06b19b65dc37d509127811"
+                  },
+                  {
+                      "path":  "build/windows-virtual-scm-integration-20261022/Selected/Release/libcrypto-3-x64.dll",
+                      "bytes":  7217664,
+                      "sha256":  "09eec573c9adea156ba2073f8cd61720d0aabeb7562d8498b4ecd21b710a3044"
+                  },
+                  {
+                      "path":  "build/windows-virtual-scm-integration-20261022/Selected/Release/libssl-3-x64.dll",
+                      "bytes":  1321472,
+                      "sha256":  "3fb3cd7804dbe3216c801b470e14461d80214ece99c637ae42ea3d8caf75d7ed"
+                  },
+                  {
+                      "path":  "build/windows-virtual-scm-integration-20261022/Selected/Release/papacc_server.exe",
+                      "bytes":  708608,
+                      "sha256":  "139a9d87955263dbedbbe61218e1b1c85b95a202e1d64fdd18e876431bde49c3"
+                  },
+                  {
+                      "path":  "CMakeLists.txt",
+                      "bytes":  239049,
+                      "sha256":  "17be6dbdf41cb1ce567d520b966d419cddd522b430b0778525fa37407e6df760"
+                  },
+                  {
+                      "path":  "docs/adr/DECISION-personal-scq-initial-query-g3-20261031.md",
+                      "bytes":  2190,
+                      "sha256":  "c2d859b97e2aa6cf983374c1eb22a045e02a123453a6b80f873a3b30d0b19f5f"
+                  },
+                  {
+                      "path":  "docs/capabilities/phase6-scope-and-closure-20261028.md",
+                      "bytes":  31964,
+                      "sha256":  "eed98abc27b0fa8fe95154ed53d66187a52bd0ea304fffd7dc274a20a2d29bf4"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Legacy-Debug-details.log",
+                      "bytes":  28912,
+                      "sha256":  "cee09fb137018765912ba328b401eb312c1e58554591ff785884749c37b304e3"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Legacy-Debug-final-build.log",
+                      "bytes":  15690,
+                      "sha256":  "98ae48a122fff7046d252a84606aa4aaac8ef44a2498243dde1a17d924fe5085"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Legacy-Debug-tests.log",
+                      "bytes":  8854,
+                      "sha256":  "349ae06ef8415a3e5ff5178df8837e51973b5a29625a7723bdad1a2279f51761"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Legacy-Release-details.log",
+                      "bytes":  29024,
+                      "sha256":  "fb4fda0687168feb5dcb371a7110d37904e2032dc21029c65848a2ad13541a3a"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Legacy-Release-final-build.log",
+                      "bytes":  15694,
+                      "sha256":  "ded16c808c56945c0cc2b7c56c81ad9bfcb63cdb33538163da4a280aabce36d0"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Legacy-Release-tests.log",
+                      "bytes":  8862,
+                      "sha256":  "69464e178a21ea4c7dbb17d3eee1edf2a0f7473582688b3a2349a68d282131b6"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Selected-Debug-details.log",
+                      "bytes":  29067,
+                      "sha256":  "1edcf37796989294953f50cd2a9e4881140e59ee3ab85072db979395c60cad83"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Selected-Debug-final-build.log",
+                      "bytes":  9544,
+                      "sha256":  "db36bd86407aa51396e37ad125a688a259679614ea4f35e16dc1081e91a9d162"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Selected-Debug-tests.log",
+                      "bytes":  8862,
+                      "sha256":  "8ef5a487397b4aa2e879c8e10869ae7c66cf425ebc3c84ccf3d1e792f5802b49"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Selected-Release-details.log",
+                      "bytes":  29179,
+                      "sha256":  "c5b5a1bb9e878c7274b2017bf39647ee3425c757cb950eb118d880049f740cad"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Selected-Release-final-build.log",
+                      "bytes":  15698,
+                      "sha256":  "61fc11d83a659701e2fefb929b9e4b60e77322632c4e69feb64c7ae3ef39aed9"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/before-freeze-Selected-Release-tests.log",
+                      "bytes":  8870,
+                      "sha256":  "f6848156bc0d3c41fb01ee7bcd11409b1badb92e10bd5a439f90469d396f0bca"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/build.cmd",
+                      "bytes":  382,
+                      "sha256":  "5f0df6d6cbc297ed0e0c92d1efd8f256b45d630818148b5b3b49f89c46ee51c6"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/capture-evidence.ps1",
+                      "bytes":  4741,
+                      "sha256":  "b3c986479b362f83a017c2e5d964987d3917a3ffe2c0c7a3b9e86530d08deda8"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/CLOSEOUT.md",
+                      "bytes":  9654,
+                      "sha256":  "d85df5cc123355d27d2cfc649ecf1fcc14a87a6eeeee52ab66b8af2abd20d0fc"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Debug-details.log",
+                      "bytes":  28912,
+                      "sha256":  "c191229dcdacadca19a0015912d89b032390413269d625620044db0dd8bd5725"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Debug-final-build.log",
+                      "bytes":  8170,
+                      "sha256":  "f1ae7350ed074700bb1ef5db04731431d02e6983fe09b79797bec015fe36a3fc"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Debug-tests.log",
+                      "bytes":  8854,
+                      "sha256":  "4343f7515a99d49ee81257502252c62dc9256677bc176e8e838fed729eb60610"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Release-details.log",
+                      "bytes":  29024,
+                      "sha256":  "346f7e5b98fef01e96bda0ec9291047b4e76bd63d5edfbf4786ae72fee9641ac"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Release-final-build.log",
+                      "bytes":  8170,
+                      "sha256":  "f1ae7350ed074700bb1ef5db04731431d02e6983fe09b79797bec015fe36a3fc"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Legacy-Release-tests.log",
+                      "bytes":  8862,
+                      "sha256":  "ea6d3405271fa9d19e9a3c17a4d7cbf5ee981fa59612071d4cbb50b09fe0b329"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/NEXT-AUTHENTICATED-GLOBAL-DEADLINE.md",
+                      "bytes":  2463,
+                      "sha256":  "f0ffbafded1620c823c8884087715dcb9220091bf5ec9c0e88de52824c314321"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/PRIVATE-DEADLINE-DELTA.REQUEST.md",
+                      "bytes":  4710,
+                      "sha256":  "62548c758282dd6b828b451a01a92bc4a369843ac55f7cc9c52f8c84a25ae11c"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/qualify.ps1",
+                      "bytes":  1478,
+                      "sha256":  "6762178751c5386b06feacb698f35366f4699747b89b081a8ce945425926d0e7"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-details.log",
+                      "bytes":  29067,
+                      "sha256":  "c4145e9f59719c5c43b760d64a7cd62c083c2b9a1e176858e040bafe6e1e3124"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-final-build.log",
+                      "bytes":  8170,
+                      "sha256":  "f1ae7350ed074700bb1ef5db04731431d02e6983fe09b79797bec015fe36a3fc"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-initial-build.log",
+                      "bytes":  5535,
+                      "sha256":  "b0fab4708685304f0cc0c33f3351a8267ad3acff75164113dea48893df2fa73d"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-query-build.log",
+                      "bytes":  2595,
+                      "sha256":  "4e37101ece2c3251325bc5752d6c89fc29529ce39e6c0d0fcaaede17377a3d84"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-query-build2.log",
+                      "bytes":  286,
+                      "sha256":  "0223c0d15589476c3a743bb611499c354d191041fa734e23fe5d66971230030b"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-query-build3.log",
+                      "bytes":  579,
+                      "sha256":  "195489302fdb1db3637a3a15e44e3bf8b08aa5d01310150e01d6a9f101c70fd4"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-query-resource-test-build.log",
+                      "bytes":  176,
+                      "sha256":  "8f15c5856642906e773f13ddfc682263867229b7922f05f219614a9d314a8a5c"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-resource-build.log",
+                      "bytes":  2615,
+                      "sha256":  "8b74a9ac4193e316adbc667a7b23a56138b3235e9159656229f75768a8f505d5"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Debug-tests.log",
+                      "bytes":  8862,
+                      "sha256":  "fba8f54305e6cfc915702686a86dddcf85446d0c415bcbb30e9f98a4944536ab"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Release-details.log",
+                      "bytes":  29179,
+                      "sha256":  "4d14ce75c6a163c8e99c1a70e1ad90611b2de6658a856ab4e42bc8bc5200dc92"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Release-final-build.log",
+                      "bytes":  8170,
+                      "sha256":  "f1ae7350ed074700bb1ef5db04731431d02e6983fe09b79797bec015fe36a3fc"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-query-g3-accepted-20261031/Selected-Release-tests.log",
+                      "bytes":  8870,
+                      "sha256":  "b4718e75740860eb26336ffa993b1bc2bd6ea484a0c0ce5eaa467e430b156b20"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-receiver-admission-g3-20261031/INITIAL-QUERY-AND-G3.CANDIDATE.md",
+                      "bytes":  10466,
+                      "sha256":  "5b77ddae089ba496c511a562575e22642a29555e536fd4563e5e5ebb8faefeca"
+                  },
+                  {
+                      "path":  "tests/scq_bootstrap_capture_test.c",
+                      "bytes":  10294,
+                      "sha256":  "4a974e3bf812683caa6f784f591682ad03c41313911cf66f243101a27d613656"
+                  },
+                  {
+                      "path":  "tests/scq_query_cold_chain_test.c",
+                      "bytes":  11206,
+                      "sha256":  "23dbf3a07c04e952b4ba2770a0f63fa641bd563f42ed50621b7a7c48417b6d2e"
+                  },
+                  {
+                      "path":  "tests/scq_start_assurance_test.c",
+                      "bytes":  7568,
+                      "sha256":  "008a0f876e2d7cee31086ad8f8bd73850b276599ce9acec58a6b6e3904daa844"
+                  }
+              ]
+}

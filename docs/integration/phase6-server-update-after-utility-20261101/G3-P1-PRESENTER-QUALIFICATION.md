@@ -1,0 +1,13 @@
+# Correção focal do presenter TRANSPORT_ONLY
+
+2026-11-02, main/f341985924d29870d8ff627ed37c8a0874ad6469. WIP preservado.
+
+A sessão anterior passou static/unbound/window (mask7), mas parou após BINARIES. O presenter exigia parent/data não vazios; o produtor selected-object os mantém vazios deliberadamente. Correção de apresentação coberta por TO0–TO9/P0–P7/OHI/G0–G9: não é nova autoridade nem mudança normativa.
+
+O corpo real de projeção foi separado em include privado no mesmo owner para teste direto. Para TRANSPORT_ONLY e modos BINARY_ONLY/SELECTED_OBJECT, parent/data/leaf devem permanecer vazios; mostra DATA_PARENT e DATA_CONTAINER como NOT_APPLICABLE_TRANSPORT_ONLY. binary continua obrigatório. Nos outros propósitos/modos, as três strings continuam obrigatórias. scqa_scope, fonte original e checks anteriores/posteriores permanecem intactos. A projeção não adquire caminhos nem confirma atos; nenhum ProgramData fictício, chamada Shell ou novo mecanismo. Falhas de output continuam negando.
+
+Quatro builds Selected/Legacy Debug/Release PASS, zero warnings finais, mesma receita MSVC x64/W4/WX/PST0.6.4. 56 pares teste/configuração PASS, incluindo 12 cenários da projeção real (P1/binary-only, parent/data/leaf indevidos, binary ausente, fonte ausente, READ sem dados, NEW sem dados, NEW/READ completos, Stop) e 143 falhas de escrita individuais. Console/fonte nas novas verificações são fronteiras simuladas; escopo do plano real preservado. O primeiro teste novo detectou uma fixture READ sem key, corrigida para usar o producer de fixture READ existente; nenhuma guarda de produção dispensada. Não se atribui confirmação ou capacidade nativa aos modelos. Logs g3-p1-presenter-*, hashes em G3-P1-PRESENTER-QUALIFICATION.json. Nenhum teste operacional, SCM, endpoint, Start/Stop, UPDATE ou coleta foi executado.
+
+Novo Selected/Release 785408 bytes, SHA256 f572949bb6b88acc396b81f48b1e527d3b3e680ba1d36c0a9689c5d49134262d; delta +512 bytes. Congelado em papacc_server.g3-p1-presenter-785408.exe. Instalado historicamente 784896/ID417614100:1835008:74889/pin201b0f01d0d6b33f73d653bd492567ff663f14e183170ced4d18a6a6f0ddb752, não atualizado nesta tarefa. DLLs, updater e SCM não alterados. Futuro owner revalida tudo em referência original e SCM STOPPED/PID0 fresco. G3-P1 entry128/guard188/cap192 e demais parâmetros não mudam. Retenção histórica/close nativo anterior/quiescência OS UNKNOWN; produtivo DENY.
+
+Próximo gate: um UPDATE manual contextual autorizado pelo proprietário nesta tarefa, U1–U7/U2, e reconciliação. Só então preparar novos originais e sessão E/Q/S vinculados à identidade realmente criada; não reutilizar a sessão cce1bb4c... consumida. Sem retry/rollback/limpeza.

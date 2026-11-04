@@ -1,0 +1,45 @@
+--- apps/server/server_configuration_q4_data_win32.inc.before
++++ apps/server/server_configuration_q4_data_win32.inc
+@@ -28,3 +28,15 @@
+  *out=value;result=PAPACC_RESULT_OK;
+ done:LeaveCriticalSection(&o->lock);return result;
+ }
++
++/* Existing owner/pin guard is mandatory for each new worker boundary. */
++PAPACC_RESULT papacc_configuration_q4_binding_current(PAPACC_CONFIGURATION_COMMIT *o,
++ const PAPACC_CONFIG_PIN *p,const PAPACC_Q4_ROOT_BINDING_DATA *expected)
++{
++ PAPACC_Q4_ROOT_BINDING_DATA current;PAPACC_RESULT result;
++ if(!o||!p||!expected||issuer06_overlap(expected,sizeof(*expected),o,sizeof(*o))||
++  issuer06_overlap(expected,sizeof(*expected),p,sizeof(*p)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ result=papacc_configuration_q4_binding_data(o,p,&current);
++ if(result!=PAPACC_RESULT_OK)return result;
++ return memcmp(expected,&current,sizeof(current))?PAPACC_RESULT_INVALID_STATE:PAPACC_RESULT_OK;
++}
+--- apps/server/server_configuration_commit_win32.h.before
++++ apps/server/server_configuration_commit_win32.h
+@@ -182,6 +182,8 @@
+  PAPACC_U64 revision,predecessor,administrative_epoch,policy_epoch,ticket,serial;
+ } PAPACC_Q4_ROOT_BINDING_DATA;
+ PAPACC_RESULT papacc_configuration_q4_binding_data(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_Q4_ROOT_BINDING_DATA *);
++/* Revalidate exact DATA snapshot at point of use; no store/NV/admission effect. */
++PAPACC_RESULT papacc_configuration_q4_binding_current(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,const PAPACC_Q4_ROOT_BINDING_DATA *);
+ 
+ /* Offline DATA inspection of a full historical carrier, not file adoption.
+  * Caller owns immutable16384 input and disjoint workspace/output. No CURRENT,
+--- tests/q4_root_binding_data_test.c.before
++++ tests/q4_root_binding_data_test.c
+@@ -20,4 +20,13 @@
+  reset();root.domain[0]=0;root.slots[0].view.domain[0]=0;C(papacc_configuration_q4_binding_data(&root,&pin,&out)!=PAPACC_RESULT_OK);C(!memcmp(&out,&saved,sizeof(out)));
+  reset();C(papacc_configuration_q4_binding_data(&root,&pin,(PAPACC_Q4_ROOT_BINDING_DATA*)&root)==PAPACC_RESULT_INVALID_ARGUMENT);C(root.domain[0]==1);C(papacc_configuration_q4_binding_data(&root,&pin,(PAPACC_Q4_ROOT_BINDING_DATA*)&pin)==PAPACC_RESULT_INVALID_ARGUMENT);C(pin.ticket==6);
+  t=CreateThread(NULL,0,foreign,NULL,0,NULL);C(t!=NULL);C(WaitForSingleObject(t,5000)==WAIT_OBJECT_0);C(GetExitCodeThread(t,&e)&&e==0);C(CloseHandle(t));
++ reset();C(papacc_configuration_q4_binding_data(&root,&pin,&out)==PAPACC_RESULT_OK);
++ C(papacc_configuration_q4_binding_current(&root,&pin,&out)==PAPACC_RESULT_OK);
++ saved=out;
++ for(i=0;i<sizeof(out);i++){((unsigned char*)&out)[i]^=1U;C(papacc_configuration_q4_binding_current(&root,&pin,&out)!=PAPACC_RESULT_OK);out=saved;}
++ root.stopped=1;C(papacc_configuration_q4_binding_current(&root,&pin,&out)!=PAPACC_RESULT_OK);root.stopped=0;
++ pin.ticket++;C(papacc_configuration_q4_binding_current(&root,&pin,&out)!=PAPACC_RESULT_OK);pin.ticket--;
++ root.slots[0].view.revision++;C(papacc_configuration_q4_binding_current(&root,&pin,&out)!=PAPACC_RESULT_OK);root.slots[0].view.revision--;
++ C(papacc_configuration_q4_binding_current(&root,&pin,(const PAPACC_Q4_ROOT_BINDING_DATA*)&root)==PAPACC_RESULT_INVALID_ARGUMENT);
++ C(papacc_configuration_q4_binding_current(&root,&pin,NULL)==PAPACC_RESULT_INVALID_ARGUMENT);
+  root.initialized=0;DeleteCriticalSection(&root.lock);printf("PASS checks=%u binding_bytes=%zu root_bytes=%zu NO_STORE_NO_TPM_NO_AUTHORITY\n",checks,sizeof(out),sizeof(root));return 0;}

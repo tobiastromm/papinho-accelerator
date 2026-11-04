@@ -1,0 +1,239 @@
+{
+  "status": "STAGE212_FIRST_CAUSE_DIAGNOSTIC_QUALIFIED_OFFLINE",
+  "branch": "main",
+  "head": "f341985924d29870d8ff627ed37c8a0874ad6469",
+  "historical_cause": "UNKNOWN",
+  "functional_defect_demonstrated": false,
+  "builds": [
+    {
+      "profile": "Selected",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 24,
+      "build_log_sha256": "39881647256916926d01ea95c6da845109d0476e57d56eb986a12c58c30b249a",
+      "test_log_sha256": "23950b684e2c8cf0b91241fc5733da6c4570dfaa309a1899acce1e12708c8a07"
+    },
+    {
+      "profile": "Selected",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 24,
+      "build_log_sha256": "e0f4877e3b80fe197ff7049edcdba28c78cef9e75696bc2d8d366030a15dffbc",
+      "test_log_sha256": "96ef799549dd4cf3bbf401627b01c56ed2fe142153dc9e7466038234b49e6515"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 24,
+      "build_log_sha256": "8d5242b0b09236092e4d13d2ae8818d9678353fa6e4dd66bf8498ba9f3dc505f",
+      "test_log_sha256": "52d61aad3b4d4932a6fd808562a62e461b612fb5e582f5aa6f77f8cf1c9a498a"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 24,
+      "build_log_sha256": "8c26a96d085e1797aa42490642e74495421dc6b6fe11c8fce19670d8f7c10a7b",
+      "test_log_sha256": "76ab495fb66c3f1ea6311fd5516afa0fa6b1171356baedfaab8b8987d812711e"
+    }
+  ],
+  "test_configuration_pairs": 96,
+  "new_progress_wait_cases": 33,
+  "new_runtime_cases": 18,
+  "packet_persistent_size_delta": 0,
+  "native_execution": false,
+  "installed_image_changed": false,
+  "candidate": {
+    "file": "papacc_server.stage212-797696.exe",
+    "bytes": 797696,
+    "sha256": "bf7d0793428f5f751e87b007b28d676aa10235e6decc36d33bdd1de434508d60"
+  },
+  "source_sha256": {
+    "apps/server/personal_scq_start_progress_win32.inc": "3ae777bc94bea3a8747a34aab021f25da6a09596367988244220bc6fa4d17258",
+    "apps/server/personal_scq_start_wait_win32.inc": "8b8a27f1e3ac0a00e8a28b0d847f3efec34aa674df2fa17be0eaf44ede55c613",
+    "apps/server/personal_runtime_identity_win32.inc": "5300ea548c7f280b276f442312125701a8914ba8ebd71f2e1883e35588cb9dc5",
+    "tests/scq_start_progress_test.c": "7516a7dc76448442fb13e74db8a2d7ef10b94e6b6ddc415b00c4f356fde7e8c8",
+    "tests/scq_start_runtime_diagnostic_test.c": "d78b0cd355b410dbe77c03c096d864458da1f79f6c17141c3bafec345e9bd24f"
+  },
+  "runtime_first_cause_site_map": [
+    {
+      "site": 25,
+      "line": "if(!GetTokenInformation(token,TokenStatistics,statistics,sizeof(*statistics),&n)||n!=sizeof(*statistics))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 26,
+      "line": "if(statistics->TokenType!=TokenPrimary)return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 27,
+      "line": "if(!GetTokenInformation(token,TokenUser,user.bytes,sizeof(user),&n))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 28,
+      "line": "if(n<sizeof(TOKEN_USER)||n>sizeof(user)||!pri_sid_inside(user.bytes,n,u->User.Sid)||!EqualSid(u->User.Sid,r->sid))return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 29,
+      "line": "if(!GetTokenInformation(token,TokenElevation,&elevation,sizeof(elevation),&n)||n!=sizeof(elevation))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 30,
+      "line": "if(elevation.TokenIsElevated)return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 31,
+      "line": "if(!GetTokenInformation(token,TokenElevationType,&elevation_type,sizeof(elevation_type),&n)||n!=sizeof(elevation_type))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 32,
+      "line": "if(elevation_type!=TokenElevationTypeDefault)return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 33,
+      "line": "if(!GetTokenInformation(token,TokenGroups,groups.bytes,sizeof(groups),&n))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 34,
+      "line": "if(n>sizeof(groups)||n<(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)||g->GroupCount!=statistics->GroupCount||g->GroupCount>(n-(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES))return pri_fail(r,ERROR_INVALID_DATA);"
+    },
+    {
+      "site": 36,
+      "line": "if(!pri_sid_inside(groups.bytes,n,g->Groups[i].Sid))return pri_fail(r,ERROR_INVALID_DATA);"
+    },
+    {
+      "site": 37,
+      "line": "if(IsWellKnownSid(g->Groups[i].Sid,WinBuiltinAdministratorsSid)&&(g->Groups[i].Attributes&SE_GROUP_ENABLED))return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 41,
+      "line": "if(matches>1U||(matches==1U&&(!(attributes&SE_GROUP_ENABLED)||(attributes&SE_GROUP_USE_FOR_DENY_ONLY))))return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 42,
+      "line": "if(!GetTokenInformation(token,TokenRestrictedSids,restricted.bytes,sizeof(restricted),&n))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 43,
+      "line": "if(n>sizeof(restricted)||n<(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)||s->GroupCount>(n-(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES))return pri_fail(r,ERROR_INVALID_DATA);"
+    },
+    {
+      "site": 44,
+      "line": "for(i=0;i<s->GroupCount;i++)if(!pri_sid_inside(restricted.bytes,n,s->Groups[i].Sid))return pri_fail(r,ERROR_INVALID_DATA);"
+    },
+    {
+      "site": 47,
+      "line": "if(s->GroupCount||IsTokenRestricted(token))return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 54,
+      "line": "if(!pid||!GetProcessTimes(r->process,&created,&exit_time,&kernel,&user)||!GetExitCodeProcess(r->process,&code))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 56,
+      "line": "if(wait!=WAIT_TIMEOUT)return pri_fail(r,wait==WAIT_FAILED?GetLastError():ERROR_PROCESS_ABORTED);"
+    },
+    {
+      "site": 57,
+      "line": "if(code!=STILL_ACTIVE)return pri_fail(r,ERROR_PROCESS_ABORTED);"
+    },
+    {
+      "site": 59,
+      "line": "return pid==r->pid&&!memcmp(&created,&r->creation,sizeof(created))?0:pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 67,
+      "line": "if(!QueryServiceConfigW(r->service,c,sizeof(config),&n))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 68,
+      "line": "if(n<sizeof(*c)||n>sizeof(config)||(ULONG_PTR)c->lpServiceStartName<(ULONG_PTR)config.bytes)return pri_fail(r,ERROR_INVALID_DATA);"
+    },
+    {
+      "site": 71,
+      "line": "wcscmp(c->lpServiceStartName,L\"NT SERVICE\\\\PapinhoAccelerator\")||c->dwServiceType!=SERVICE_WIN32_OWN_PROCESS)return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 72,
+      "line": "if(!QueryServiceConfig2W(r->service,SERVICE_CONFIG_SERVICE_SID_INFO,(LPBYTE)&sid_type,sizeof(sid_type),&n))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 73,
+      "line": "if(n!=sizeof(sid_type)||sid_type.dwServiceSidType!=r->expected_sid_type)return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 74,
+      "line": "if(!QueryServiceStatusEx(r->service,SC_STATUS_PROCESS_INFO,(LPBYTE)&status,sizeof(status),&n))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 75,
+      "line": "if(n!=sizeof(status)||status.dwServiceType!=SERVICE_WIN32_OWN_PROCESS||status.dwCurrentState!=(r->closed_preparation==1U?(DWORD)SERVICE_START_PENDING:(DWORD)SERVICE_RUNNING)||status.dwProcessId!=r->pid)return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 94,
+      "line": "r->sid_bytes=GetLengthSid(sid);if(!CopySid(sizeof(r->sid),r->sid,sid))return pri_capture_result(closed,pri_fail(r,GetLastError()),__LINE__);"
+    },
+    {
+      "site": 95,
+      "line": "if(!DuplicateHandle(GetCurrentProcess(),process,GetCurrentProcess(),&r->process,PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,0))return pri_capture_result(closed,pri_fail(r,GetLastError()),__LINE__);"
+    },
+    {
+      "site": 98,
+      "line": "r->manager=OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT);if(!r->manager)return pri_capture_result(closed,pri_fail(r,GetLastError()),__LINE__);"
+    },
+    {
+      "site": 99,
+      "line": "r->service=OpenServiceW(r->manager,L\"PapinhoAccelerator\",SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS);if(!r->service)return pri_capture_result(closed,pri_fail(r,GetLastError()),__LINE__);"
+    },
+    {
+      "site": 102,
+      "line": "if(!OpenProcessToken(r->process,TOKEN_QUERY,&r->token))return pri_capture_result(closed,pri_fail(r,GetLastError()),__LINE__);"
+    },
+    {
+      "site": 116,
+      "line": "if(!OpenProcessToken(r->process,TOKEN_QUERY,&r->check_token))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 118,
+      "line": "if(!CloseHandle(r->check_token)){close_error=GetLastError();(void)pri_fail(r,close_error);r->phase=4U;return close_error;}r->check_token=NULL;"
+    },
+    {
+      "site": 120,
+      "line": "if(memcmp(&current.TokenId,&r->statistics.TokenId,sizeof(LUID))||memcmp(&current.AuthenticationId,&r->statistics.AuthenticationId,sizeof(LUID))||memcmp(&current.ModifiedId,&r->statistics.ModifiedId,sizeof(LUID)))return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 138,
+      "line": "memcmp(&st.ModifiedId,&r->statistics.ModifiedId,sizeof(LUID)))return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 139,
+      "line": "if(!GetTokenInformation(r->token,TokenSessionId,&session,sizeof(session),&bytes)||bytes!=sizeof(session))return pri_fail(r,GetLastError());"
+    },
+    {
+      "site": 140,
+      "line": "if(session||!service_logon)return pri_fail(r,ERROR_ACCESS_DENIED);"
+    },
+    {
+      "site": 170,
+      "line": "for(i=0;i<3;i++)if(*refs[i]){if(!CloseHandle(*refs[i])){DWORD e=GetLastError();(void)pri_fail(r,e);r->phase=4U;return e;}*refs[i]=NULL;}"
+    },
+    {
+      "site": 172,
+      "line": "if(r->service){if(!CloseServiceHandle(r->service)){DWORD e=GetLastError();(void)pri_fail(r,e);r->phase=4U;return e;}r->service=NULL;}"
+    },
+    {
+      "site": 173,
+      "line": "if(r->manager){if(!CloseServiceHandle(r->manager)){DWORD e=GetLastError();(void)pri_fail(r,e);r->phase=4U;return e;}r->manager=NULL;}"
+    }
+  ],
+  "first_operational_gate": "Disposition of retained controller and possible runtime; original runtime identity/token not yet proven; no kill/Stop/update authorization inferred",
+  "dlls": {
+    "libssl-3-x64.dll": "3fb3cd7804dbe3216c801b470e14461d80214ece99c637ae42ea3d8caf75d7ed",
+    "libcrypto-3-x64.dll": "09eec573c9adea156ba2073f8cd61720d0aabeb7562d8498b4ecd21b710a3044"
+  },
+  "build_recipe_sha256": "9cd0812779e2aa8b25daa7dce2cec2b728d1a2942a6276536fc5bf77ff6eb2cc"
+}

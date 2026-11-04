@@ -1,0 +1,27 @@
+# Relatório — UPDATE reconciliado e preparação independente fixture pronta para decisão
+
+2026-11-03. Nenhuma nova operação real executada pelo agente. UPDATE manual20849d4e3eb5d27b165f47c6ca7a5d091ce1550f82d7eb3990c014941c62b7c4 reconciliado: first0/consumed1/created1/renames3/closeknown1/canonicalverified1/exit0/wrappercloseuncertainFalse. Novo EXE871936/ID417614100:5373952:164063/SHAe4a36490737eb7e1896997f873e5e69511a7a6a65291b0f44399b4ed18f3b676; anterior retido em .previous. Fonte integral44f2f01ce7d9380e2aa12a7da37658fd41680b21fe0e160d8ac62733df45e48c e resultado dfaeec0f0c3a9c90bccab4dad4c244fb5a14fd4929fd544abb5b666f80694a2f. Missing2/opacos/causa1816/retenção histórica/quiescênciaOS UNKNOWN preservados; nenhum lease SCM atual inferido.
+
+F3 accepted já permite a menor ligação: o pedido histórico permanece original DATA e só a decisão nova recebe uma cópia exclusiva no parent existente. Não há novo owner/serviço/root/canal/CLI genérica. Código nativo instalado não muda; quatro builds/156pares/zero warnings reutilizados e pins reconferidos, sem nova campanha ou UPDATE intermediário.
+
+## Integração documental autorizada offline
+
+machine-fixture-f0-f5-decision.cs especializa o adaptador qualificado machine-fixture-originals.cs, preservado intacto. Mesmo IFirstStartDocumentsIO/stepmachine/FILE_CREATE/rights/share/flush/readback/close/Stop/retenção; loop criador limitado a i=0 e leaf constante MACHINE-TEST-ONLY-FIXTURE-F0-F5-DECISION.ORIGINAL.txt. Create rejeita qualquer outro índice. Um slot de fonte retém a nova decisão real do workspace; outro retém o pedido protegido original, exige ID417614100:6815744:9313 e SHAfc91b7bce523b014c28ce677b60ea889e32c8bc50c39c83b264096d6f923ab5c, SD exato3ACEs e seu digest contínuo. Ancestrais/parent/âncora/mainID5373952:164063/hash/DLLs/proteção são conferidos e retidos. Fontes aliases/substituição negam. Pins da decisão antiga e do UPDATE são explicitamente rejeitados; isso não substitui a aprovação humana real.
+
+Descriptor da nova cópia: owner operador, DACL protegida exatamente operador/SY/BA full, sem herança. Mesmos backing unmanaged de OA/IOSB/Unicode/SD/handle-output permanecem retidos se pending; nenhum novo mecanismo de distribuição ou autoridade. O par histórico nunca é destino de Create; não sofre write/rename/delete/ACLedit.
+
+prepare-machine-fixture-f0-f5-decision.MANUAL.CANDIDATE.ps1 valida pins/host/contexto e requer declaração específica D1 com hashes do pacote novo/pedido histórico/decisão nova. Só quando sua execução única fecha e retorna0 o wrapper prepare-machine-fixture-f0-f5.MANUAL.CANDIDATE.ps1 pode chamar o produtor F existente com oito argumentos. O pedido original recebido por F continua fc91...; o hash operacional do pacote novo não o substitui silenciosamente. A decisão real nova recebe seu próprio hash, referência/identidade/SD na aquisição e no plano vivo. F exige sua declaração/consumo independentes, baseline/guards/resource/deadline próprios. Nome de chave/publicSHA/novoID da cópia não são pré-fabricados.
+
+O adaptador está preparado, mas NÃO existe ainda decisão operacional nova nem cópia ou chave criada. Arquivo candidato, token, hash, imagem, fixture e carrier não concedem autoridade. Não foi inventada confirmação, despacho ou resultado.
+
+## Qualificação delimitada
+
+MACHINE-FIXTURE-F0-F5-PREPARATION-OFFLINE-QUALIFICATION.json/SHA256b40b6f54c3ea38f4487921303ef3acb7ba3a97bfc13cc411962148846481f00d fixa todos os pins. Modelo C# compilado em memória WarningLevel4/TreatWarningsAsErrors,82checks/7pontos de falha/6Stop; caminho positivo uma criação/write/flush/readback/close, consumo/replay, falha parcial/primeiracausa/closeUNKNOWN, helpers SD/parent/owner/herança/ACE/reparse-fault modelado, ABI, ID histórico correto/incorreto e pins antigos negados. Construtor Native NÃO chamado, IO injetado; nenhum arquivo/chave/token nativo operacional adquirido. Duas AST PASS dos wrappers, sem invocação. Fontes nativas continuam nos pins da campanha156pares. Esses modelos não provam latência, custo ou proteção efetiva futuros do Windows.
+
+## Pedido e primeiro gate
+
+ONE-MACHINE-FIXTURE-F0-F5-PREPARATION-REQUEST.CANDIDATE.md/SHA256a772ab19934fcfc1b5829e04fe5fba1f36f5973aadbec50058238c8895f5594a está pronto, NÃO aprovado/executado. Escopo máximo uma decisão auxiliar protegida e uma fixture MACHINE_TEST_ONLY, dois atos/consumos/Stop/close separados; riscos parciais/opacos/retentionUNKNOWN, sem retry/rollback/delete/refund/kill. Limites F0–F5 entrada128/guard188/cap192/commit3GiB, físico7239172096/private-working1994944/fresh100/global60000; LegacyDENY. Nenhuma herança automática de READ/K7 ou garantia de admissão.
+
+Primeiro gate: aprovação operacional específica desse pedido. Só depois registrar decisão realmente emitida e fornecer comando manual com seu hash real. Não executar automaticamente. Próximo prompt NEXT-MACHINE-FIXTURE-F0-F5-PREPARATION-AUTHORIZATION.md. Se a preparação concluir com identidade pública/controle administrativo positivo/close suficientes, preparar READ E/Q/S/P independente e somente depois qualificar diagnóstico/lifecycle reais. Não conceder readiness produtiva.
+
+Preservar HEAD/WIP/históricos/pins/EXEs anteriores/DLLs/SCM/ProgramData, pedidos/decisões anteriores, autorizações utilizadas e PST0.6.4. Sem coleta/UPDATE/cópia real/fixture/KSP/endpoint/SCQ/P/StartStop/ACL-SCM/CA-CURRENT/rede/TPM-NV-Q4/cleanup/refund/kill ou produção nesta continuação offline.

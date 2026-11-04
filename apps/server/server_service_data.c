@@ -1,5 +1,58 @@
 #include "server_service_data.h"
 #include <string.h>
+static int ps_carrier_nonzero(const unsigned char *v,unsigned n)
+{unsigned i;unsigned char b=0;for(i=0;i<n;i++)b=(unsigned char)(b|v[i]);return b!=0;}
+static int ps_carrier_valid(const PS_SCQ_CARRIER *p)
+{
+ unsigned i;
+ if(!p||!p->controller_pid||!(p->controller_creation[0]|p->controller_creation[1])||!(p->until[0]|p->until[1])||
+  p->runtime_sid_bytes<8U||p->runtime_sid_bytes>68U||p->runtime_sid[0]!=1U||p->runtime_sid[1]>15U||p->runtime_sid_bytes!=8U+4U*p->runtime_sid[1])return 0;
+ for(i=p->runtime_sid_bytes;i<68U;i++)if(p->runtime_sid[i])return 0;
+ return ps_carrier_nonzero(p->attempt,32)&&ps_carrier_nonzero(p->policy,32)&&ps_carrier_nonzero(p->target,32)&&
+  ps_carrier_nonzero(p->request,32)&&ps_carrier_nonzero(p->decision,32)&&ps_carrier_nonzero(p->image,32)&&
+  ps_carrier_nonzero(p->endpoint,16);
+}
+static void ps_carrier_put(unsigned char *b,unsigned v)
+{unsigned i;for(i=0;i<4U;i++)b[i]=(unsigned char)(v>>(8U*i));}
+static unsigned ps_carrier_get(const unsigned char *b)
+{unsigned i,v=0;for(i=0;i<4U;i++)v|=(unsigned)b[i]<<(8U*i);return v;}
+static void ps_carrier_pack(const PS_SCQ_CARRIER *p,unsigned char b[PS_SCQ_CARRIER_BYTES])
+{
+ unsigned w[8],i;w[0]=1U;w[1]=2U;w[2]=p->controller_pid;w[3]=p->controller_creation[0];w[4]=p->controller_creation[1];w[5]=p->until[0];w[6]=p->until[1];w[7]=p->runtime_sid_bytes;
+ for(i=0;i<8U;i++)ps_carrier_put(b+4U*i,w[i]);
+ memcpy(b+32,p->attempt,32);memcpy(b+64,p->policy,32);memcpy(b+96,p->target,32);memcpy(b+128,p->request,32);memcpy(b+160,p->decision,32);memcpy(b+192,p->image,32);
+ memcpy(b+224,p->endpoint,16);memcpy(b+240,p->runtime_sid,68);
+}
+int ps_scq_carrier_encode(const PS_SCQ_CARRIER *p,char *out,unsigned cap)
+{
+ static const char hex[]="0123456789abcdef";unsigned char b[PS_SCQ_CARRIER_BYTES];unsigned i;
+ if(!out||cap<PS_SCQ_CARRIER_CHARS||!ps_carrier_valid(p))return 0;
+ ps_carrier_pack(p,b);memcpy(out,"SCQ1:",5);
+ for(i=0;i<PS_SCQ_CARRIER_BYTES;i++){out[5U+2U*i]=hex[b[i]>>4];out[6U+2U*i]=hex[b[i]&15U];}out[PS_SCQ_CARRIER_CHARS-1U]=0;return 1;
+}
+static int ps_carrier_hex(char c)
+{if(c>='0'&&c<='9')return c-'0';if(c>='a'&&c<='f')return c-'a'+10;return -1;}
+int ps_scq_carrier_decode(const char *s,unsigned bytes,PS_SCQ_CARRIER *out)
+{
+ PS_SCQ_CARRIER p;unsigned char b[PS_SCQ_CARRIER_BYTES];unsigned i;int a,c;
+ if(!out||!s||bytes!=PS_SCQ_CARRIER_CHARS-1U||memcmp(s,"SCQ1:",5))return 0;
+ for(i=0;i<PS_SCQ_CARRIER_BYTES;i++){a=ps_carrier_hex(s[5U+2U*i]);c=ps_carrier_hex(s[6U+2U*i]);if(a<0||c<0)return 0;b[i]=(unsigned char)(16*a+c);}
+ if(ps_carrier_get(b)!=1U||ps_carrier_get(b+4)!=2U)return 0;
+ memset(&p,0,sizeof(p));p.controller_pid=ps_carrier_get(b+8);p.controller_creation[0]=ps_carrier_get(b+12);p.controller_creation[1]=ps_carrier_get(b+16);p.until[0]=ps_carrier_get(b+20);p.until[1]=ps_carrier_get(b+24);p.runtime_sid_bytes=ps_carrier_get(b+28);
+ memcpy(p.attempt,b+32,32);memcpy(p.policy,b+64,32);memcpy(p.target,b+96,32);memcpy(p.request,b+128,32);memcpy(p.decision,b+160,32);memcpy(p.image,b+192,32);memcpy(p.endpoint,b+224,16);memcpy(p.runtime_sid,b+240,68);
+ if(!ps_carrier_valid(&p))return 0;*out=p;return 1;
+}
+int ps_scq_carrier_equal(const PS_SCQ_CARRIER *a,const PS_SCQ_CARRIER *b)
+{unsigned char x[PS_SCQ_CARRIER_BYTES],y[PS_SCQ_CARRIER_BYTES];if(!ps_carrier_valid(a)||!ps_carrier_valid(b))return 0;ps_carrier_pack(a,x);ps_carrier_pack(b,y);return !memcmp(x,y,sizeof(x));}
+int ps_scq_remaining_ms(const PS_SCQ_CARRIER *p,unsigned now_low,unsigned now_high,unsigned *out)
+{
+ unsigned long long original,global,now,until,remaining;
+ if(!p||!out)return 0;
+ original=((unsigned long long)p->until[1]<<32)|p->until[0];global=((unsigned long long)p->global_until[1]<<32)|p->global_until[0];
+ now=((unsigned long long)now_high<<32)|now_low;if(!original||!global)return 0;
+ until=original<global?original:global;if(until<=now)return 0;remaining=until-now;
+ if(remaining>60000U)return 0;*out=(unsigned)remaining;return 1;
+}
 int ps_parse(int argc,const char *const *argv,PS_REQUEST *out)
 {
  int i;const char *c;size_t n;
@@ -9,7 +62,8 @@ int ps_parse(int argc,const char *const *argv,PS_REQUEST *out)
  if(argc<3)return 0;c=argv[2];
  if(!strcmp(c,"host"))return -1;
  if(!strcmp(c,"install")){
-  if(argc!=3){
+  if(argc==4&&!strcmp(argv[3],"--scq-closed"))out->install_profile=PS_INSTALL_SCQ_CLOSED;
+  else if(argc!=3){
    if(argc!=8||strcmp(argv[3],"--prepare-lab")||strcmp(argv[4],"--installation")||strcmp(argv[6],"--configuration"))return 0;
    n=strlen(argv[5]);if(!n||n>=sizeof(out->installation))return 0;memcpy(out->installation,argv[5],n+1);
    n=strlen(argv[7]);if(!n||n>=sizeof(out->configuration)||!strcmp(argv[7],".")||!strcmp(argv[7],".."))return 0;
@@ -25,6 +79,7 @@ int ps_parse(int argc,const char *const *argv,PS_REQUEST *out)
   else if(!strcmp(argv[3],"manual"))out->action=PS_MANUAL;
   return out->action!=0U;
  }
+ if(!strcmp(c,"start")&&argc==4&&!strcmp(argv[3],"--scq-closed")){out->action=PS_START;out->start_profile=PS_START_SCQ_CLOSED;return 1;}
  if(argc!=3)return 0;
  if(!strcmp(c,"start"))out->action=PS_START;
  else if(!strcmp(c,"stop"))out->action=PS_STOP;

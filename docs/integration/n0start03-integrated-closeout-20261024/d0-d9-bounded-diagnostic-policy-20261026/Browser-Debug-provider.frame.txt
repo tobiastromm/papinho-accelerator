@@ -1,0 +1,250 @@
+_papinho_pst_owner_provider_snapshot PROC NEAR
+
+; 175  :  unsigned long identity,unsigned long generation,PST_PROVIDER_INFO *out) {
+
+	push	ebp
+	mov	ebp, esp
+	sub	esp, 84					; 00000054H
+	push	esi
+	push	edi
+
+; 176  :  PST_PROVIDER_INFO f;PST_RESULT rc;papinho_pst_owner_registry *r;const pst_connection *connection;
+; 177  :  size_t a=(size_t)o,z=(size_t)out,t;
+
+	mov	eax, DWORD PTR _o$[ebp]
+	mov	DWORD PTR _a$[ebp], eax
+	mov	ecx, DWORD PTR _out$[ebp]
+	mov	DWORD PTR _z$[ebp], ecx
+
+; 178  :  if(!o||!out||!o->registry)return PST_RESULT_INVALID_ARGUMENT;
+
+	cmp	DWORD PTR _o$[ebp], 0
+	je	SHORT $L18967
+	cmp	DWORD PTR _out$[ebp], 0
+	je	SHORT $L18967
+	mov	edx, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [edx+4], 0
+	jne	SHORT $L18966
+$L18967:
+	mov	eax, 1
+	jmp	$L18956
+$L18966:
+
+; 179  :  r=o->registry;t=(size_t)r;
+
+	mov	eax, DWORD PTR _o$[ebp]
+	mov	ecx, DWORD PTR [eax+4]
+	mov	DWORD PTR _r$[ebp], ecx
+	mov	edx, DWORD PTR _r$[ebp]
+	mov	DWORD PTR _t$[ebp], edx
+
+; 180  :  if((z>=a&&z-a<sizeof(*o))||(z<a&&a-z<sizeof(*out))||
+; 181  :     (z>=t&&z-t<sizeof(*r))||(z<t&&t-z<sizeof(*out)))return PST_RESULT_INVALID_ARGUMENT;
+
+	mov	eax, DWORD PTR _z$[ebp]
+	cmp	eax, DWORD PTR _a$[ebp]
+	jb	SHORT $L18972
+	mov	ecx, DWORD PTR _z$[ebp]
+	sub	ecx, DWORD PTR _a$[ebp]
+	cmp	ecx, 148				; 00000094H
+	jb	SHORT $L18971
+$L18972:
+	mov	edx, DWORD PTR _z$[ebp]
+	cmp	edx, DWORD PTR _a$[ebp]
+	jae	SHORT $L18973
+	mov	eax, DWORD PTR _a$[ebp]
+	sub	eax, DWORD PTR _z$[ebp]
+	cmp	eax, 60					; 0000003cH
+	jb	SHORT $L18971
+$L18973:
+	mov	ecx, DWORD PTR _z$[ebp]
+	cmp	ecx, DWORD PTR _t$[ebp]
+	jb	SHORT $L18974
+	mov	edx, DWORD PTR _z$[ebp]
+	sub	edx, DWORD PTR _t$[ebp]
+	cmp	edx, 32					; 00000020H
+	jb	SHORT $L18971
+$L18974:
+	mov	eax, DWORD PTR _z$[ebp]
+	cmp	eax, DWORD PTR _t$[ebp]
+	jae	SHORT $L18970
+	mov	ecx, DWORD PTR _t$[ebp]
+	sub	ecx, DWORD PTR _z$[ebp]
+	cmp	ecx, 60					; 0000003cH
+	jae	SHORT $L18970
+$L18971:
+	mov	eax, 1
+	jmp	$L18956
+$L18970:
+
+; 182  :  EnterCriticalSection(&r->lock);
+
+	mov	edx, DWORD PTR _r$[ebp]
+	push	edx
+	call	DWORD PTR __imp__EnterCriticalSection@4
+
+; 183  :  if(o->identity!=identity||o->generation!=generation||!identity||!generation||
+; 184  :     r->admission_closed||o->closing||o->finalized||o->terminal_retained||
+; 185  :     o->release_attempts||!o->connection||o->thread_id!=GetCurrentThreadId()) {
+
+	mov	eax, DWORD PTR _o$[ebp]
+	mov	ecx, DWORD PTR [eax+52]
+	cmp	ecx, DWORD PTR _identity$[ebp]
+	jne	SHORT $L18977
+	mov	edx, DWORD PTR _o$[ebp]
+	mov	eax, DWORD PTR [edx+56]
+	cmp	eax, DWORD PTR _generation$[ebp]
+	jne	SHORT $L18977
+	cmp	DWORD PTR _identity$[ebp], 0
+	je	SHORT $L18977
+	cmp	DWORD PTR _generation$[ebp], 0
+	je	SHORT $L18977
+	mov	ecx, DWORD PTR _r$[ebp]
+	cmp	DWORD PTR [ecx+28], 0
+	jne	SHORT $L18977
+	mov	edx, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [edx+64], 0
+	jne	SHORT $L18977
+	mov	eax, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [eax+68], 0
+	jne	SHORT $L18977
+	mov	ecx, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [ecx+72], 0
+	jne	SHORT $L18977
+	mov	edx, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [edx+84], 0
+	jne	SHORT $L18977
+	mov	eax, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [eax+8], 0
+	je	SHORT $L18977
+	call	DWORD PTR __imp__GetCurrentThreadId@0
+	mov	ecx, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [ecx+48], eax
+	je	SHORT $L18976
+$L18977:
+
+; 186  :   LeaveCriticalSection(&r->lock);return PST_RESULT_INVALID_STATE;
+
+	mov	edx, DWORD PTR _r$[ebp]
+	push	edx
+	call	DWORD PTR __imp__LeaveCriticalSection@4
+	mov	eax, 2
+	jmp	$L18956
+$L18976:
+
+; 188  :  connection=o->connection;ZeroMemory(&f,sizeof(f));f.struct_size=sizeof(f);f.api_version=PST_API_VERSION;
+
+	mov	eax, DWORD PTR _o$[ebp]
+	mov	ecx, DWORD PTR [eax+8]
+	mov	DWORD PTR _connection$[ebp], ecx
+	push	60					; 0000003cH
+	push	0
+	lea	edx, DWORD PTR _f$[ebp]
+	push	edx
+	call	_memset
+	add	esp, 12					; 0000000cH
+	mov	DWORD PTR _f$[ebp], 60			; 0000003cH
+	mov	DWORD PTR _f$[ebp+4], 196608		; 00030000H
+
+; 189  :  rc=pst_connection_get_provider_info(connection,&f);
+
+	lea	eax, DWORD PTR _f$[ebp]
+	push	eax
+	mov	ecx, DWORD PTR _connection$[ebp]
+	push	ecx
+	call	_pst_connection_get_provider_info
+	add	esp, 8
+	mov	DWORD PTR _rc$[ebp], eax
+
+; 190  :  if(rc==PST_RESULT_OK&&(o->connection!=connection||o->closing||o->finalized||
+; 191  :     o->terminal_retained||o->release_attempts||o->thread_id!=GetCurrentThreadId()||
+; 192  :     o->registry!=r||r->admission_closed||o->identity!=identity||o->generation!=generation||
+; 193  :     !memchr(f.provider_id,0,sizeof(f.provider_id))||strcmp(f.provider_id,"retrozilla-nss")||
+; 194  :     f.available!=1U||f.initialized>1U))rc=PST_RESULT_INVALID_STATE;
+
+	cmp	DWORD PTR _rc$[ebp], 0
+	jne	$L18980
+	mov	edx, DWORD PTR _o$[ebp]
+	mov	eax, DWORD PTR [edx+8]
+	cmp	eax, DWORD PTR _connection$[ebp]
+	jne	$L18981
+	mov	ecx, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [ecx+64], 0
+	jne	$L18981
+	mov	edx, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [edx+68], 0
+	jne	$L18981
+	mov	eax, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [eax+72], 0
+	jne	SHORT $L18981
+	mov	ecx, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [ecx+84], 0
+	jne	SHORT $L18981
+	call	DWORD PTR __imp__GetCurrentThreadId@0
+	mov	edx, DWORD PTR _o$[ebp]
+	cmp	DWORD PTR [edx+48], eax
+	jne	SHORT $L18981
+	mov	eax, DWORD PTR _o$[ebp]
+	mov	ecx, DWORD PTR [eax+4]
+	cmp	ecx, DWORD PTR _r$[ebp]
+	jne	SHORT $L18981
+	mov	edx, DWORD PTR _r$[ebp]
+	cmp	DWORD PTR [edx+28], 0
+	jne	SHORT $L18981
+	mov	eax, DWORD PTR _o$[ebp]
+	mov	ecx, DWORD PTR [eax+52]
+	cmp	ecx, DWORD PTR _identity$[ebp]
+	jne	SHORT $L18981
+	mov	edx, DWORD PTR _o$[ebp]
+	mov	eax, DWORD PTR [edx+56]
+	cmp	eax, DWORD PTR _generation$[ebp]
+	jne	SHORT $L18981
+	push	32					; 00000020H
+	push	0
+	lea	ecx, DWORD PTR _f$[ebp+20]
+	push	ecx
+	call	DWORD PTR __imp__memchr
+	add	esp, 12					; 0000000cH
+	test	eax, eax
+	je	SHORT $L18981
+	push	OFFSET FLAT:$SG18982
+	lea	edx, DWORD PTR _f$[ebp+20]
+	push	edx
+	call	_strcmp
+	add	esp, 8
+	test	eax, eax
+	jne	SHORT $L18981
+	cmp	DWORD PTR _f$[ebp+8], 1
+	jne	SHORT $L18981
+	cmp	DWORD PTR _f$[ebp+12], 1
+	jbe	SHORT $L18980
+$L18981:
+	mov	DWORD PTR _rc$[ebp], 2
+$L18980:
+
+; 195  :  if(rc==PST_RESULT_OK)*out=f;
+
+	cmp	DWORD PTR _rc$[ebp], 0
+	jne	SHORT $L18985
+	mov	ecx, 15					; 0000000fH
+	lea	esi, DWORD PTR _f$[ebp]
+	mov	edi, DWORD PTR _out$[ebp]
+	rep movsd
+$L18985:
+
+; 196  :  LeaveCriticalSection(&r->lock);return rc;
+
+	mov	eax, DWORD PTR _r$[ebp]
+	push	eax
+	call	DWORD PTR __imp__LeaveCriticalSection@4
+	mov	eax, DWORD PTR _rc$[ebp]
+$L18956:
+
+; 197  : }
+
+	pop	edi
+	pop	esi
+	mov	esp, ebp
+	pop	ebp
+	ret	0
+_papinho_pst_owner_provider_snapshot ENDP

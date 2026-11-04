@@ -1,0 +1,17 @@
+{
+  "observed_process": "Self in --self-observation; SCM-reported PID held by limited query reference in future M1, not authenticated runtime",
+  "process_handles": "GetProcessHandleCount on observed process reference; not administrative aggregate",
+  "collector_handles": "Current collector process count; alias self mode is not counted as another actor",
+  "private_commit_bytes": "PROCESS_MEMORY_COUNTERS_EX.PrivateUsage, observed process only",
+  "working_set_bytes": "Observed process current working set, not exclusive unique system RAM ownership",
+  "system_physical_available_bytes": "PERFORMANCE_INFORMATION.PhysicalAvailable * PageSize, current global snapshot",
+  "system_commit_available_bytes": "(CommitLimit - CommitTotal) * PageSize, current global available commit; no reservation or growth guarantee",
+  "handle_query_ticks": "QPC interval of process handle query including counter instrumentation overhead",
+  "memory_query_ticks": "QPC interval of observed-process memory query including counter overhead",
+  "system_query_ticks": "Final query bucket: GetPerformanceInfo plus collector self counters when another process is observed; NOT isolated SCM/kernel/provider cost",
+  "qpc_collection_begin_end": "Entire sample including pre/post status/process continuity checks; multiple API observations are not an atomic global snapshot",
+  "preparation_qpc_ticks": "Future M1 only: SCM/status/process query-reference acquisition; no value demonstrated by self mode",
+  "freshness": "Intervals are observational evidence; no SCQ max age, TTL or validity policy granted",
+  "closed_refs": "Only handles created by metadata observer; never a service/SCQ/global quiescence proof",
+  "native_SCM": "NOT_EXECUTED_THIS_TASK; model logs explicitly identify modeled scope"
+}

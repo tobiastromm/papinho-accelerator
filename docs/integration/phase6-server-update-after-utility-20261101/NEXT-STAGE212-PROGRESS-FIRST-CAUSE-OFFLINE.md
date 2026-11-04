@@ -1,0 +1,7 @@
+# Continuação técnica — primeira causa pós-Start 212
+
+Executar somente análise/integração/qualificação offline dos retornos de papacc_configuration_personal_scq_start_progress e papacc_server_launcher_scq_start_wait. Ler TAKE207-STAGE212-RECONCILIATION.md e STAGE212-READONLY-RECONCILIATION.md. Consulta manual utilizada: SCM START_PENDING/PID18000, controlador7580/criação134381210166495538 ativo; token/runtime/handles/close UNKNOWN. Não executar nova consulta, Stop/kill, UPDATE, endpoint ou Start.
+
+Determinar a menor projeção de primeira causa a partir do resultado original de cada operação: guards de owner/originais, recurso, runtime_bind, oferta, conexão/poll, referências, continuação e wait. Capturar o primeiro retorno sem substituí-lo por erro genérico, sem expor segredos, alterar ordem, reabrir referências ou construir autoridade. Distinguir erro Win32 original de PAPACC_RESULT mapeado. Testar negativos em modelo e qualificar builds afetados somente se código alterado. Não atribuir causa histórica usando instrumentação futura.
+
+Antes de qualquer execução futura, tratar a disposição governada dos dois participantes e retenções atuais. Nenhuma permissão de encerramento de sessão anterior se aplica. Não preparar retry enquanto a disposição for inconclusiva. Entregar subpredicado demonstrado ou UNKNOWN exato, correção demonstrável, delta e primeiro gate operacional indispensável.

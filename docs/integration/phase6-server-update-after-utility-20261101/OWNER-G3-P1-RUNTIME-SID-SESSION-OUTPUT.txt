@@ -1,0 +1,45 @@
+PS C:\WINDOWS\system32> & 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoLogo -NoProfile -ExecutionPolicy Bypass -File 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-server-update-after-utility-20261101\run-g3-p1-runtime-sid-diagnostic.MANUAL.CANDIDATE.ps1' -ExpectedScriptSha256 '2f0a6bc53a0a9754fb6cf8ddb260db4fb54b6a170a7832206f522979f1739ff6' -ExpectedOperationalRequestSha256 'cce1bb4ce0a0f47ab19d2506cbf5908564949bb9a1107cba61f085017b37cbaa' -ExpectedDecisionSha256 'ebbde1881439fde75d21219130d1e7660e432457e94ac6d268173a014f1962fb'
+ONE_MANUAL_G3_P1_RUNTIME_SID_SESSION; TWO_NEW_ORIGINALS_THEN_E_Q_S_SEPARATE; NO_RETRY_NO_STOP_NO_PRODUCTION; ON_DISK_PINS_NOT_MAPPED_IMAGE_ATTESTATION
+TWO_NEW_G3_P1_RUNTIME_SID_ORIGINALS_DATA_ONLY; NO_START_NO_ENDPOINT_NO_SCM; NO_RETRY_NO_DELETE; HASHES_NOT_AUTHORITY
+Request SHA256: cce1bb4ce0a0f47ab19d2506cbf5908564949bb9a1107cba61f085017b37cbaa
+Actual owner decision SHA256: ebbde1881439fde75d21219130d1e7660e432457e94ac6d268173a014f1962fb
+Confirm ONLY the two documentary copies after actual approval of this package. This does not perform the three native E/Q/S confirmations.
+OWNER_G3_P1_RUNTIME_SID_SESSION_DOCUMENTS cce1bb4ce0a0f47ab19d2506cbf5908564949bb9a1107cba61f085017b37cbaa ebbde1881439fde75d21219130d1e7660e432457e94ac6d268173a014f1962fb
+OWNER_G3_P1_RUNTIME_SID_SESSION_DOCUMENTS cce1bb4ce0a0f47ab19d2506cbf5908564949bb9a1107cba61f085017b37cbaa ebbde1881439fde75d21219130d1e7660e432457e94ac6d268173a014f1962fb
+EXCLUSIVE_CREATE_CONFIRMED index=0; PERSISTENT_UNTIL_RECONCILED
+CREATED index=0 identity=417614100:11599872:11740
+EXCLUSIVE_CREATE_CONFIRMED index=1; PERSISTENT_UNTIL_RECONCILED
+CREATED index=1 identity=417614100:1048576:290736
+P1_ORIGINALS prepared=True first=NONE consumed=True created_mask=3 verified_mask=3 close_known=True; DATA_COPIES_ONLY; E_Q_S_NOT_CONFIRMED; OS_QUIESCENCE=UNKNOWN; NO_RETRY_NO_DELETE
+MANUAL_P1_ORIGINALS_EXIT=0; NO_RETRY; EXIT_ALONE_NOT_AUTHORITY
+Compare request/decision IDs with the pair output and every native plan. Cancel on any mismatch. No response is supplied automatically.
+At the native P1 DATA prompt, manually enter ONLY the approved tuple below. DATA is not E/Q/S confirmation or authority:
+P1 TRANSPORT_ONLY AMD64 417614100:131072:226316 417614100:8257536:71209 417614100:1835008:74889 43fb6712be30ce5b7afca8111512bd284672efa4bb4b8678b21a04eb7b36dd87
+Runtime PID/token, bilateral, receipt/close and finite shutdown are pending native proofs. G3-P1-RUNTIME-SID/entry128/guard188/cap192 may deny; no capacity is inferred.
+P1 SELECTOR DATA ONLY: copy the TO/AMD64 object tuple and provenance from the NEW approved original request. Not an approval; E/Q/S remain separate.
+> P1 TRANSPORT_ONLY AMD64 417614100:131072:226316 417614100:8257536:71209 417614100:1835008:74889 43fb6712be30ce5b7afca8111512bd284672efa4bb4b8678b21a04eb7b36dd87
+EXISTING_TARGET_CANDIDATE root_expected=417614100:131072:226316 root_observed=417614100:131072:226316 parent_expected=417614100:8257536:71209 image_expected=417614100:1835008:74889; ORIGINALS_AND_THREE_ATTRIBUTED_ACTS_STILL_REQUIRED; NOT_CURRENT_WINDOWS_MAPPING
+SCQ ONLY: one diagnostic, no NEW_INSTALL/CA/production authority.
+SERVICE=PapinhoAccelerator ACCOUNT=NT SERVICE\PapinhoAccelerator
+version=1 profile=2 purpose=2 schema=1 service=1 from=0:12426578 until=0:12666578
+attempt=4d9f9ea8e107bb26c0cac7311be4c86c1495a860760155b42dca109588006292
+policy=710b04a0990826b8a303f26b237d32f234fd152a93ba56ffb76519fec92c5bd5
+request=cce1bb4ce0a0f47ab19d2506cbf5908564949bb9a1107cba61f085017b37cbaa
+decision=ebbde1881439fde75d21219130d1e7660e432457e94ac6d268173a014f1962fb
+target=fe5de3cb143d496091a4ae2a4073c0ede4cb448344492d391115523872a1b58e
+BINARIES=C:\Program Files\Papinho\Accelerator
+SCQ_COLD_ORIGINAL=DENY; WIN32=5; NO_SCM_START; NO_RETRY
+SCQ_COLD_FIRST_CAUSE stage=0 reference=0 mapped=0 native_error=0 query_attempted=1 query_succeeded=1 count_known=1 own_count=118 query_reference=2 guard=188 cap=192 initial_known=1 initial_handles=113; SCOPE=ORIGINAL_PRE_OPEN_QUERY_NOT_NEW_OBSERVATION; UNKNOWN_NOT_ZERO
+SCQ_COLD_NATIVE_OPEN attempted=1 reference=2 ntstatus=0x00000000 iosb_status_snapshot=0x00000000 iosb_information_snapshot=1 handle_returned=1; CAPTURE_NOT_NEW_QUERY; IOSB_INITIALIZED_NOT_PROVEN_WRITTEN_ON_FAILURE; METADATA_NOT_AUTHORITY
+SCQ_COLD_NATIVE_SD calls=2 ntstatus=0x00000000 needed=108 capacity=108; ORIGINAL_RETAINED_FILE_REFERENCE; NO_HANDLE_REDUCTION_INFERRED; METADATA_NOT_AUTHORITY
+SCQ_COLD_FINAL_PLAN attempted=1 passed_mask=7 rejected=0 unbound_reason=0 unbound_field=0 window_known=1 from=12426578 until=12666578 now=12426593; REJECTED_1_STATIC_2_UNBOUND_3_WINDOW; NO_FIELD_VALUES_NO_AUTHORITY
+MANUAL_P1_DIAGNOSTIC_NATIVE_EXIT=2; NO_RETRY; NO_STOP; NO_PRODUCTIVE_PROMOTION; OS_QUIESCENCE=UNKNOWN
+P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY
+No C:\Projetos\PapinhoAccelerator\docs\integration\phase6-server-update-after-utility-20261101\run-g3-p1-runtime-sid-di
+agnostic.MANUAL.CANDIDATE.ps1:82 caractere:21
++ if($nativeExit-ne0){throw 'P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY'}
++                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY:String) [], RuntimeException
+    + FullyQualifiedErrorId : P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY
+
+PS C:\WINDOWS\system32>

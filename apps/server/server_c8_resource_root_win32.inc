@@ -93,6 +93,28 @@ PAPACC_RESULT papacc_server_launcher_target_process_provenance(PAPACC_SERVER_LAU
  if(o->network.is_active||o->secure_io.dispatch_active)return PAPACC_RESULT_INVALID_STATE;
  return papacc_c8_target_process_provenance(&o->target_producer,&b,out);
 }
+/* Same root and native producer; immutable diagnostic view only. */
+PAPACC_RESULT papacc_server_launcher_target_evidence_view(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_C8_TARGET_VIEW *out)
+{
+ PAPACC_C8_TARGET_BINDING b;PAPACC_RESULT result;ULONG_PTR a=(ULONG_PTR)o,z=(ULONG_PTR)out;
+ if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;
+ if((z>=a&&z-a<sizeof(*o))||(z<a&&a-z<sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
+ result=papacc_server_launcher_target_observation_binding(o,&b);if(result!=PAPACC_RESULT_OK)return result;
+ if(o->network.is_active||o->secure_io.dispatch_active)return PAPACC_RESULT_INVALID_STATE;
+ return papacc_c8_target_view(&o->target_producer,&b,out);
+}
+/* Existing durable owner only. Copy ACTIVE/Stop/retained history; do not
+ * invoke an observer or widen the baseline-only typed admission projection. */
+PAPACC_RESULT papacc_server_launcher_target_passive_snapshot(
+ PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_C8_PASSIVE_SNAPSHOT *out)
+{
+ PAPACC_C8_TARGET_BINDING b;PAPACC_RESULT result;ULONG_PTR a=(ULONG_PTR)o,z=(ULONG_PTR)out;
+ if(!out)return PAPACC_RESULT_INVALID_ARGUMENT;
+ if((z>=a&&z-a<sizeof(*o))||(z<a&&a-z<sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
+ result=papacc_server_launcher_target_observation_binding(o,&b);
+ if(result!=PAPACC_RESULT_OK)return result;
+ return papacc_c8_target_passive_copy(&o->target_producer,&b,out);
+}
 static PAPACC_RESULT root_resource_current(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o)
 {
  PAPACC_C8_TARGET_BINDING b;PAPACC_U64 now;PAPACC_C8_RESOURCE_REASON result;

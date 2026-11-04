@@ -6,6 +6,75 @@ static int c8_root_binding_ready(void)
   root_listener_check_mode(&root,root.network.is_active?1:0)==PAPACC_RESULT_OK&&configuration_c2_owner.initialized&&
   !configuration_c2_owner.manager->stopping&&root.secure_io.stop_state==PAPACC_SERVER_SECURE_STOP_RUNNING;
 }
+PAPACC_RESULT papacc_server_launcher_credential_admit(const PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *candidate)
+{
+ PAPACC_ISSUER_RECORD record;unsigned i;int owned=0;
+ if(!candidate||!c8_root_binding_ready())return PAPACC_RESULT_INVALID_STATE;
+ for(i=0;i<root.secure_io.candidate_capacity;i++)if(candidate==&root.secure_io.candidates[i])owned=1;
+ if(!owned||candidate->owner!=&root.secure_io||!candidate->authenticated_credential_bound||
+  candidate->connection_security.state!=PAPACC_SECURITY_CONTEXT_AUTHORIZED||candidate->close_requested)return PAPACC_RESULT_INVALID_STATE;
+ if(issuer_root_credential_status(&root,candidate->authenticated_credential_sha256,&record)!=PAPACC_ISSUER_OK||
+  record.state!=PAPACC_ISSUER_PUBLISHED||!record.published_epoch)return PAPACC_RESULT_INVALID_STATE;
+ return PAPACC_RESULT_OK;
+}
+#include "server_credential_revocation_win32.inc"
+PAPACC_ISSUER_RESULT papacc_server_launcher_credential_revoke(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_ISSUER_VIEW *expected,const PAPACC_ISSUER_RECORD *requested)
+{
+ PAPACC_ISSUER_RECORD actual,again;PAPACC_ISSUER_VIEW view;PAPACC_CREDENTIAL_REVOCATION_RECEIPT *receipt;
+ PAPACC_RESULT result;PAPACC_ISSUER_RESULT source;unsigned i,j,mask=0,wake_already=0;int found;
+ PAPACC_SERVER_C2_OWNER_WIN32 *consumer=&configuration_c2_owner;
+ if(o==&root&&o->credential_revocation.uncertain)return PAPACC_ISSUER_RETAINED;
+ if(o!=&root||!expected||!requested||!issuer_root_live_ready(o)||requested->state!=PAPACC_ISSUER_REVOKED||
+  !consumer->initialized||!consumer->manager||!consumer->secure||consumer->secure!=&o->secure_io||o->secure_io.dispatch_active)return PAPACC_ISSUER_DENIED;
+ source=issuer_root_port_read(o,requested->request.id,&view,&actual,&found);
+ if(source!=PAPACC_ISSUER_OK||!found||!issuer_port_same_view(&view,expected)||!issuer_port_same_record(&actual,requested))return PAPACC_ISSUER_DENIED;
+ source=issuer_root_credential_status(o,requested->certificate_digest,&actual);
+ if(source!=PAPACC_ISSUER_OK||!issuer_port_same_record(&actual,requested))return PAPACC_ISSUER_DENIED;
+ receipt=&o->credential_revocation;if(receipt->uncertain)return PAPACC_ISSUER_RETAINED;
+ wake_already=receipt->wake_requested&&!memcmp(receipt->request,requested->request.id,16)&&!memcmp(receipt->credential,requested->certificate_digest,32);
+ memset(receipt,0,sizeof(*receipt));receipt->revision=view.revision;receipt->policy_epoch=view.epoch;
+ receipt->administrative_epoch=o->configuration_commit.slots[o->configuration_commit.current].context_epoch;
+ memcpy(receipt->request,requested->request.id,16);memcpy(receipt->credential,requested->certificate_digest,32);
+ /* Resolve every initialized Session before narrowing the cohort. Missing
+  * identity is UNKNOWN, not permission to omit a possible dependent. */
+ for(i=0;i<4U;i++)if(consumer->sessions[i].initialized){
+  PAPACC_C2_SESSION *s=&consumer->sessions[i];PAPACC_ROOT_CURRENT_PIN *pin=&o->session_revision_pins[i];
+  if(!pin->credential_bound||!s->root_bound||pin->session_incarnation!=s->incarnation||
+   pin->invocation!=s->root_invocation||!root_snapshot_held(o,pin)){receipt->first_error=PAPACC_RESULT_INVALID_STATE;goto uncertain;}
+  if(!memcmp(pin->credential_sha256,requested->certificate_digest,32))mask|=1U<<i;
+ }
+ result=credential_stop_cohort(consumer->manager,consumer->sessions,mask,receipt);
+ if(result!=PAPACC_RESULT_OK){if(!receipt->first_error)receipt->first_error=result;goto uncertain;}
+ for(i=0;i<o->secure_io.candidate_capacity;i++){
+  PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *candidate=&o->secure_io.candidates[i];
+  if(candidate->owner==&o->secure_io&&candidate->authenticated_credential_bound&&
+   !memcmp(candidate->authenticated_credential_sha256,requested->certificate_digest,32)&&
+   candidate->state!=PAPACC_SERVER_SECURE_CANDIDATE_UNUSED&&candidate->state!=PAPACC_SERVER_SECURE_CANDIDATE_CLOSED){
+   candidate->close_requested=PAPACC_TRUE;receipt->controls_stop_requested++;
+  }
+ }
+ for(i=0;i<4U;i++)if(mask&(1U<<i)){
+  int control=0;for(j=0;j<o->secure_io.candidate_capacity;j++){
+   PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *candidate=&o->secure_io.candidates[j];
+   if(candidate->owner==&o->secure_io&&candidate->authenticated_credential_bound&&candidate->close_requested&&
+    candidate->connection_instance_id==consumer->sessions[i].control_connection&&
+    !memcmp(candidate->authenticated_credential_sha256,requested->certificate_digest,32))control=1;
+  }
+  if(!control){receipt->first_error=PAPACC_RESULT_INVALID_STATE;goto uncertain;}
+ }
+ if(mask||receipt->controls_stop_requested){
+  if(!wake_already){
+   result=papacc_server_launcher_attachment_wake(o);
+   if(result!=PAPACC_RESULT_OK){receipt->first_error=result;goto uncertain;}
+  }
+  receipt->wake_requested=1U;
+ }
+ /* Local invalidation cannot be acknowledged across a changed CURRENT. */
+ if(issuer_root_credential_status(o,requested->certificate_digest,&again)!=PAPACC_ISSUER_OK||
+  !issuer_port_same_record(&again,requested)||view.revision!=o->configuration_preparation.model.revision){receipt->first_error=PAPACC_RESULT_INVALID_STATE;goto uncertain;}
+ return PAPACC_ISSUER_OK; /* requests only, never quiescence/close */
+uncertain:receipt->uncertain=1U;o->configuration_commit.authority_lost=1;return PAPACC_ISSUER_UNCERTAIN;
+}
 static PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *c8_authenticated_control(PAPACC_POST_CONTROL_PROCESSOR *p)
 {
  PAPACC_SERVER_C2_OWNER_WIN32 *o=&configuration_c2_owner;PAPACC_SESSION *native;
@@ -75,7 +144,7 @@ PAPACC_BOOL papacc_server_launcher_c2_session_current(const PAPACC_C2_SESSION *s
  for(i=0U;i<4U;++i)if(s==&o->sessions[i]){owned=1;admitted=&root.session_revision_pins[i];}
  if(!owned||!s->initialized||!s->root_bound||s->principal!=0U||s->assurance!=1U||
     s->state!=PAPACC_C2_SESSION_ELIGIBLE||s->owner!=o->manager->owner||
-    !admitted||!root_operational_reference_current(&root,admitted)||admitted->session_incarnation!=s->incarnation||
+    !admitted||!admitted->credential_bound||!root_operational_reference_current(&root,admitted)||admitted->session_incarnation!=s->incarnation||
     s->root_invocation!=root.invocation||s->policy_epoch!=root.configuration_preparation.current_policy_epoch||s->policy_epoch!=admitted->epoch||
     s->root_revision!=admitted->view.revision||
     memcmp(s->root_domain,admitted->view.domain,32U))return PAPACC_FALSE;
@@ -85,7 +154,7 @@ PAPACC_BOOL papacc_server_launcher_c2_session_current(const PAPACC_C2_SESSION *s
     slot->post_control_processor.control_channel_instance_id!=s->control_channel||
     !c8_negotiated(&slot->post_control_processor,&snapshot))return PAPACC_FALSE;
  c=c8_authenticated_control(&slot->post_control_processor);
- return c&&memcmp(s->authenticated_principal,c->session_security.principal.value,16U)==0?PAPACC_TRUE:PAPACC_FALSE;
+ return c&&papacc_server_launcher_credential_admit(c)==PAPACC_RESULT_OK&&c->authenticated_credential_bound&&memcmp(admitted->credential_sha256,c->authenticated_credential_sha256,32U)==0&&memcmp(s->authenticated_principal,c->session_security.principal.value,16U)==0?PAPACC_TRUE:PAPACC_FALSE;
 }
 PAPACC_RESULT papacc_server_launcher_c2_adopt(PAPACC_SERVER_C2_OWNER_WIN32 *o,PAPACC_U64 connection)
 {
@@ -96,6 +165,7 @@ PAPACC_RESULT papacc_server_launcher_c2_adopt(PAPACC_SERVER_C2_OWNER_WIN32 *o,PA
  if(!slot||slot->kind!=PAPACC_SERVER_PROTOCOL_SLOT_KIND_POST_CONTROL||
     !c8_negotiated(&slot->post_control_processor,&snapshot))return PAPACC_RESULT_INVALID_STATE;
  c=c8_authenticated_control(&slot->post_control_processor);if(!c)return PAPACC_RESULT_INVALID_STATE;
+ if(!c->authenticated_credential_bound||papacc_server_launcher_credential_admit(c)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
  /* Adoption can run in dispatch. Reclamation belongs exclusively to
   * the existing nondispatch maintenance/begin_wake/abort boundaries. */
  for(i=0U;i<4U;++i){
@@ -111,6 +181,7 @@ PAPACC_RESULT papacc_server_launcher_c2_adopt(PAPACC_SERVER_C2_OWNER_WIN32 *o,PA
   return PAPACC_RESULT_INVALID_STATE;
  }
  admitted->session_incarnation=snapshot->session_instance_id;
+ memcpy(admitted->credential_sha256,c->authenticated_credential_sha256,32U);admitted->credential_bound=PAPACC_TRUE;
  /* Adopt only an already published snapshot after the real full RESULT write.
   * No local OFFER/RESULT, epoch argument, Principal ordinal or new wire grant. */
  memset(s,0,sizeof(*s));s->owner=o->manager->owner;s->incarnation=snapshot->session_instance_id;

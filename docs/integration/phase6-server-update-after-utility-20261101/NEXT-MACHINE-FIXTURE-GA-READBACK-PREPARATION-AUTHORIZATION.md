@@ -1,0 +1,9 @@
+# Próximo trabalho — autorização da nova fixture S0–S5
+
+Conferir ONE-MACHINE-FIXTURE-GA-READBACK-PREPARATION-REQUEST.CANDIDATE.md, SHA25671e1d1a3eb460e43ea1a1960c09587aaff408039d84a1b5b25ef2b881055ac5e, e relatório/manifesto offline correspondentes. Sem autorização específica, não executar D1/F. UPDATE anterior consumido não autoriza fixture.
+
+Após aprovação real: registrar fielmente a decisão recebida em OWNER-MACHINE-FIXTURE-GA-READBACK-PREPARATION-APPROVAL.txt no workspace, congelar hash e preparar comando manual exato de prepare-machine-fixture-ga-readback.MANUAL.CANDIDATE.ps1, SHA256beafa99737f32cd071997d6fd054e092e97e131cdd20c06c04b14b251938d932, com hashes reais de script/pedido/decisão. Não executar automaticamente, não fabricar decisão/confirmação/nome ou PublicSHA. Verificar pins do C#2076b90596f58754be25e7502ec9e1afdf789de6d543c9d3fa75e7d820bf1735 e copy script6312c903227874596ef74b412afec972222d5291714f846dee1004ddef810832. Nenhum build/teste inalterado precisa ser repetido.
+
+Uma única sessão manual D1+F com confirmações/consumos separados, leaf novo exclusivo, todos os originais e chave parcial intactos. Gates nativos frescos/Stop/fechamento/retenção obrigatórios. Se D1 concluir e F negar, preservar arquivo e objetos; sem retry/adoption/delete/ACLedit/kill/rollback. Após saída integral reconciliar efeitos, consumo/identidade/hash/SD/readback/controle público positivo/close; UNKNOWN se inconclusivo. Preservar snapshot de aprovação e registrar resultado separado.
+
+Somente após fixture qualificada preparar READ e atos independentes E/Q/S/P com provas reais de bilateral/probe/receipt/close. Sem Start/Stop, endpoint/SCQ/READ operacional, UPDATE, CA/CURRENT, rede, SCM/ACL, TPM/NV/Q4, cleanup/refund ou produção neste trabalho. Histórico/application-close/retenção/quiescência OS UNKNOWN, PST0.6.4 preservada.

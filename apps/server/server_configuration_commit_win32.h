@@ -44,11 +44,11 @@ typedef struct PAPACC_CONFIG_PIN {
  * Full image owns SNT/PDG/issuer/BODY/policy references. CA is public DER only.
  * Selected Windows process reserves all three slots even when dormant. */
 #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ED11_WINDOWS_3MIB)
-#include "../../src/config/config_root8_v4.h"
+#include "../../src/config/config_root8_v5.h"
 #define PAPACC_CONFIG_V3_CA_BYTES 8192U
 #define PAPACC_CONFIG_V4_CAPTURE_WORKSPACE_MAX 32768U
 typedef struct PAPACC_CONFIG_V3_BACKING {
- unsigned char packet[PC_ROOT8_V4_MAX],ca[PAPACC_CONFIG_V3_CA_BYTES];
+ unsigned char packet[PC_ROOT8_V5_MAX],ca[PAPACC_CONFIG_V3_CA_BYTES];
  unsigned char packet_hash[32],ca_hash[32];
  PAPACC_SIZE packet_bytes,ca_bytes;
  PAPACC_U64 serial; /* exact existing slot generation, not an epoch */
@@ -172,6 +172,55 @@ PAPACC_RESULT papacc_configuration_issuer_copy06(PAPACC_CONFIGURATION_COMMIT *,P
 PAPACC_RESULT papacc_configuration_issuer_snapshot06(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_U8 *);
 PAPACC_RESULT papacc_configuration_issuer_recovery06(PAPACC_CONFIGURATION_COMMIT *,const char *);
 PAPACC_RESULT papacc_configuration_pin_read(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_CONFIG_VIEW *,PAPACC_U64 *,PAPACC_U64 *);
+/* W/L: private value-only preparation binding to the EXISTING root/pin.
+ * Not a serialized ledger, native-file identity proof, grant or CURRENT token.
+ * No owner growth, handles, acquisition, commit, NV command or new authority.
+ * Output remains unchanged on failure and must be disjoint from root/pin. */
+typedef struct PAPACC_Q4_ROOT_BINDING_DATA {
+ unsigned version,scope_data_only;
+ unsigned char domain[32];
+ PAPACC_U64 revision,predecessor,administrative_epoch,policy_epoch,ticket,serial;
+} PAPACC_Q4_ROOT_BINDING_DATA;
+PAPACC_RESULT papacc_configuration_q4_binding_data(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_Q4_ROOT_BINDING_DATA *);
+/* Revalidate exact DATA snapshot at point of use; no store/NV/admission effect. */
+PAPACC_RESULT papacc_configuration_q4_binding_current(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,const PAPACC_Q4_ROOT_BINDING_DATA *);
+
+/* TC0-TC9 DATA review only: caller facts cannot create authenticated authority.
+ * Existing root/pin is revalidated. authority_denied ALWAYS1 and SOURCE_MISSING
+ * remains set until an actual authenticated producer exists. No secret/handle/
+ * serialized format/owner-storage growth or operational effect. */
+#define PAPACC_Q4_TC_FACTS 12U
+#define PAPACC_Q4_TC_VERIFIED 1U
+#define PAPACC_Q4_TC_SOURCE_MISSING 0x80000000UL
+/* facts order: anchor,chain,revocation,custodian,ownerAuth,backing,generation,
+ * original index,current counter,ledger persistence,exclusive invocation,resources */
+typedef struct PAPACC_Q4_TC_REVIEW {
+ unsigned version,profile;
+ PAPACC_Q4_ROOT_BINDING_DATA root;
+ unsigned char ek_spki[32],certificate[32],anchor[32];
+ unsigned char approved_generation[32],current_generation[32];
+ unsigned char approved_custody[32],current_custody[32];
+ unsigned char original_predecessor[32],current_predecessor[32];
+ unsigned facts[PAPACC_Q4_TC_FACTS];
+ PAPACC_U64 baseline,expected,observed;
+ unsigned index,attributes,data_bytes,written;
+} PAPACC_Q4_TC_REVIEW;
+typedef struct PAPACC_Q4_TC_POLICY_DATA {
+ unsigned version,scope_data_only,authority_denied;
+ unsigned long missing;
+} PAPACC_Q4_TC_POLICY_DATA;
+PAPACC_RESULT papacc_configuration_q4_tc_policy_data(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,const PAPACC_Q4_TC_REVIEW *,PAPACC_Q4_TC_POLICY_DATA *);
+
+/* Accepted custody/source designation DATA, not permission to fetch a value. */
+typedef struct PAPACC_Q4_ST20_DESIGNATION_DATA {
+ unsigned version,scope_data_only,custodian_designated,source_designated;
+ unsigned source_type,index,credential_access_denied;
+ char custodian_sid[80];
+ unsigned char custodian_decision[32],source_decision[32],ek_spki[32],certificate[32];
+ PAPACC_Q4_ROOT_BINDING_DATA root;
+} PAPACC_Q4_ST20_DESIGNATION_DATA;
+PAPACC_RESULT papacc_configuration_q4_st20_designation_data(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_Q4_ST20_DESIGNATION_DATA *);
+
 /* Offline DATA inspection of a full historical carrier, not file adoption.
  * Caller owns immutable16384 input and disjoint workspace/output. No CURRENT,
  * epoch/proof bits, source lease, key binding or recovery authority returned.
@@ -200,9 +249,29 @@ PAPACC_RESULT papacc_configuration_recovery_publish04(PAPACC_CONFIGURATION_COMMI
  * CA owner must outlive this root borrow. No create/open/close/delete occurs.
  * Release is allowed after Stop only with factual worker quiescence. */
 PAPACC_RESULT papacc_configuration_personal_ca_match_data(const PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CA_KEY *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
+/* Explicit native entry, never startup. Consumed exact NEW_INSTALL plus
+ * CA_INITIALIZE plan and original native references required. Existing native
+ * admission stays closed; tests substitute the key API only in test code.
+ * No cert signature, commit/publication, private export or retry. */
+SECURITY_STATUS papacc_configuration_personal_ca_initialize(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CA_KEY *,const unsigned char[32],const unsigned char[16],const unsigned char[16],const unsigned char *,DWORD,PAPACC_SIZE);
 PAPACC_RESULT papacc_configuration_personal_ca_bind(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CA_KEY *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
 PAPACC_RESULT papacc_configuration_personal_ca_current(PAPACC_CONFIGURATION_COMMIT *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
 PAPACC_RESULT papacc_configuration_personal_ca_release(PAPACC_CONFIGURATION_COMMIT *);
+struct PAPACC_ISSUER_CNG_BACKEND;
+/* Typed handoff to the existing issuer backend; source revalidated first.
+ * Does not produce NORMAL proof flags, issue or publish anything. */
+PAPACC_RESULT papacc_configuration_personal_ca_handoff(PAPACC_CONFIGURATION_COMMIT *,struct PAPACC_ISSUER_CNG_BACKEND *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
+/* Activate ONLY the original source already transferred by handoff,
+ * after the same root has become factually CURRENT. Never keep a consumed
+ * ceremony packet open to fabricate issuer readiness. Registered backend only.
+ * No key/cert/root creation, proof manufacture, signature or publication.
+ * Prechecks keep the existing borrow untouched. Failure during/after init
+ * retains the recipient and blocks another activation. */
+PAPACC_ISSUER_RESULT papacc_configuration_personal_ca_activate_normal(PAPACC_CONFIGURATION_COMMIT *,struct PAPACC_ISSUER_CNG_BACKEND *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
+/* EXISTING_CURRENT: already opened key, no NEW_INSTALL attempt restored.
+ * Actual original CURRENT/history/proofs remain mandatory. No open/create here. */
+PAPACC_ISSUER_RESULT papacc_configuration_existing_ca_bind(PAPACC_CONFIGURATION_COMMIT *,struct PAPACC_ISSUER_CNG_BACKEND *);
+PAPACC_ISSUER_RESULT papacc_configuration_existing_ca_activate_normal(PAPACC_CONFIGURATION_COMMIT *,struct PAPACC_ISSUER_CNG_BACKEND *);
 PAPACC_PERSONAL_CUSTODY_DATA papacc_configuration_personal_custody_data(const PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CA_KEY *);
 /* One-shot, read-only handoff to the existing worker; no child/key effects.
  * Same owner keeps all inputs frozen until poll confirms signal AND close. */
@@ -216,11 +285,98 @@ PAPACC_RESULT papacc_configuration_personal_target_component_begin(PAPACC_CONFIG
 #endif
 /* Native read-only preflight only; no root identity, child, key or CURRENT. */
 PAPACC_RESULT papacc_configuration_personal_native_open(PAPACC_CONFIGURATION_COMMIT *,const char *);
+/* FCA original preparation; necessary native facts, never publication. */
+PAPACC_RESULT papacc_configuration_personal_first_open(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CA_KEY *,const char *,const char *);
+PAPACC_RESULT papacc_configuration_personal_parent_open(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CA_KEY *,const char *,const char *);
+/* FCR: current protected originals only; selected IDs never grant authority. */
+PAPACC_RESULT papacc_configuration_personal_prepared_open(PAPACC_CONFIGURATION_COMMIT *,PAPACC_CA_KEY *,const char *,const char *,const DWORD[9],const BYTE[16],const BYTE[16]);
+PAPACC_RESULT papacc_configuration_personal_prepared_plan(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_prepared_validate(PAPACC_CONFIGURATION_COMMIT *,BYTE[32]);
+PAPACC_RESULT papacc_configuration_personal_preparation_plan(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_first_confirm(PAPACC_CONFIGURATION_COMMIT *,const BYTE[32]);
+/* Read-only identity DATA in same owner; no SCM/CA authority is acquired. */
+PAPACC_RESULT papacc_configuration_personal_runtime_bind(PAPACC_CONFIGURATION_COMMIT *,HANDLE,PSID,unsigned,DWORD);
+PAPACC_RESULT papacc_configuration_personal_runtime_current(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_observe_runtime_data(PAPACC_CONFIGURATION_COMMIT *,PAPACC_SCQ_RUNTIME_OBSERVATION *);
+PAPACC_RESULT papacc_configuration_personal_runtime_cng_probe(PAPACC_CONFIGURATION_COMMIT *,const WCHAR *);
+PAPACC_RESULT papacc_configuration_personal_layout_new(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_layout_binary(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_layout_binary_current(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_layout_existing(PAPACC_CONFIGURATION_COMMIT *,const WCHAR *,const WCHAR *,const WCHAR *);
+PAPACC_RESULT papacc_configuration_personal_layout_current(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_prepare_data(PAPACC_CONFIGURATION_COMMIT *,const BYTE[32],const WCHAR *);
+PAPACC_RESULT papacc_configuration_personal_scq_dispatch(PAPACC_CONFIGURATION_COMMIT *,const BYTE[32]);
+/* No caller-made source/grant accepted. Native original acquisition required. */
+PAPACC_RESULT papacc_configuration_personal_scq_receive_original(PAPACC_CONFIGURATION_COMMIT *);
+/* Metadata/reference custody only; OK is NOT approval or diagnostic authority. */
+PAPACC_RESULT papacc_configuration_personal_scq_observe_image_data(PAPACC_CONFIGURATION_COMMIT *,PAPACC_SCQ_RUNTIME_OBSERVATION *);
+PAPACC_RESULT papacc_configuration_personal_scq_session_acquire_originals(PAPACC_CONFIGURATION_COMMIT *,const HANDLE [3]);
+PAPACC_RESULT papacc_configuration_personal_scq_session_prepare(PAPACC_CONFIGURATION_COMMIT *,DWORD);
+DWORD papacc_configuration_personal_scq_first_controller(PAPACC_CONFIGURATION_COMMIT *);
+DWORD papacc_configuration_personal_machine_fixture_execute(PAPACC_CONFIGURATION_COMMIT *,FILE *);
+DWORD papacc_configuration_personal_machine_fixture_source(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_MACHINE_FIXTURE_INPUT *);
+DWORD papacc_configuration_personal_scq_cold_machine_read_controller(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SCQ_READ_COLD_INPUT *);
+DWORD papacc_configuration_personal_scq_cold_controller(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SCQ_COLD_START_INPUT *);
+/* Temporary read-only boundary observation: no originals, RNG, SCM or SCQ. */
+DWORD papacc_configuration_personal_cold_handle_observe(PAPACC_CONFIGURATION_COMMIT *,DWORD [15]);
+DWORD papacc_configuration_personal_request_interval_observe(PAPACC_CONFIGURATION_COMMIT *,PAPACC_SCQ_INTERVAL_OBSERVATION *);
+PAPACC_RESULT papacc_configuration_personal_scq_start_plan_capture(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SCQ_START_LIMITS *);
+DWORD papacc_configuration_personal_scq_start_resource_current(PAPACC_CONFIGURATION_COMMIT *,int);
+PAPACC_RESULT papacc_configuration_personal_scq_endpoint_confirm_console(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_session_take_data(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_session_offer_data(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_session_receive_data(PAPACC_CONFIGURATION_COMMIT *,const BYTE *,DWORD);
+PAPACC_RESULT papacc_configuration_personal_scq_session_receipt_data(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_session_ack_data(PAPACC_CONFIGURATION_COMMIT *,const BYTE *,DWORD);
+const BYTE *papacc_configuration_personal_scq_session_output_data(PAPACC_CONFIGURATION_COMMIT *,DWORD *);
+PAPACC_RESULT papacc_configuration_personal_scq_recipient_prepare(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SCQ_PLAN_DATA *,const HANDLE [3],HANDLE);
+PAPACC_RESULT papacc_configuration_personal_scq_recipient_acquire(PAPACC_CONFIGURATION_COMMIT *,HANDLE);
+DWORD papacc_configuration_personal_scq_transport_enter(PAPACC_CONFIGURATION_COMMIT *,DWORD,const WCHAR *);
+DWORD papacc_configuration_personal_scq_transport_references(PAPACC_CONFIGURATION_COMMIT *,HANDLE [3]);
+DWORD papacc_configuration_personal_scq_transport_data(PAPACC_CONFIGURATION_COMMIT *,DWORD,int);
+DWORD papacc_configuration_personal_scq_transport_produce_close(PAPACC_CONFIGURATION_COMMIT *);
+DWORD papacc_configuration_personal_scq_ingress_continue(PAPACC_CONFIGURATION_COMMIT *);
+int papacc_configuration_personal_scq_initial_wait_current(PAPACC_CONFIGURATION_COMMIT *);
+DWORD papacc_configuration_personal_scq_start_progress(PAPACC_CONFIGURATION_COMMIT *,HANDLE);
+PAPACC_RESULT papacc_configuration_personal_scq_start_namespace_current(PAPACC_CONFIGURATION_COMMIT *);
+DWORD papacc_configuration_personal_scq_transport_poll(PAPACC_CONFIGURATION_COMMIT *);
+/* One bounded continuation step; 0 is local protocol close only, not readiness. */
+DWORD papacc_configuration_personal_scq_transport_continue(PAPACC_CONFIGURATION_COMMIT *);
+DWORD papacc_configuration_personal_scq_transport_stop(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_session_peer_lost(PAPACC_CONFIGURATION_COMMIT *);
+/* Query existing original controller source before any runtime binding.
+ * Not ServiceMain admission, readiness, delivery or lifecycle authority. */
+PAPACC_RESULT papacc_configuration_personal_scq_startup_source_current(PAPACC_CONFIGURATION_COMMIT *);
+/* Evidence query only; does not report SCM RUNNING or enable production. */
+PAPACC_RESULT papacc_configuration_personal_scq_controller_inconclusive(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_closed_inconclusive_current(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_closed_ready_current(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_closed_arm_running(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_admin_prepare(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_admin_confirm_console(PAPACC_CONFIGURATION_COMMIT *);
+/* Independent attributed Start event and single consumption; no SCM effect. */
+PAPACC_RESULT papacc_configuration_personal_scq_start_confirm_console(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_start_take(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_start_carrier(PAPACC_CONFIGURATION_COMMIT *,PS_SCQ_CARRIER *);
+PAPACC_RESULT papacc_configuration_personal_scq_start_take_image(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_SERVICE_IMAGE_VIEW *);
+PAPACC_RESULT papacc_configuration_personal_scq_carrier_capture(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_admin_take(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_acquire_contents(PAPACC_CONFIGURATION_COMMIT *);
+PAPACC_RESULT papacc_configuration_personal_scq_capture_inputs(PAPACC_CONFIGURATION_COMMIT *,const HANDLE[3]);
+PAPACC_RESULT papacc_configuration_personal_scq_inputs_current(PAPACC_CONFIGURATION_COMMIT *);
+/* Closed typed DATA projection only. Native source/endpoint gates stay DENY. */
+PAPACC_RESULT papacc_configuration_personal_scq_profile_prepare_machine_read_data(PAPACC_CONFIGURATION_COMMIT *,DWORD,const PAPACC_SCQ_PLAN_DATA *,const PAPACC_SCQ_PEER_DATA *);
+PAPACC_RESULT papacc_configuration_personal_scq_profile_prepare_transport_data(PAPACC_CONFIGURATION_COMMIT *,DWORD,const PAPACC_SCQ_PLAN_DATA *,const PAPACC_SCQ_PEER_DATA *);
+PAPACC_RESULT papacc_configuration_personal_scq_profile_prepare_closed_data(PAPACC_CONFIGURATION_COMMIT *,DWORD,const PAPACC_SCQ_PLAN_DATA *,const PAPACC_SCQ_PEER_DATA *);
+PAPACC_RESULT papacc_configuration_personal_scq_profile_prepare_data(PAPACC_CONFIGURATION_COMMIT *,DWORD,const PAPACC_SCQ_PLAN_DATA *,const PAPACC_SCQ_PEER_DATA *);
+PAPACC_RESULT papacc_configuration_personal_runtime_close(PAPACC_CONFIGURATION_COMMIT *);
 PAPACC_RESULT papacc_configuration_personal_native_current(PAPACC_CONFIGURATION_COMMIT *);
 PAPACC_RESULT papacc_configuration_personal_source_current(PAPACC_CONFIGURATION_COMMIT *);
 PAPACC_RESULT papacc_configuration_personal_native_close(PAPACC_CONFIGURATION_COMMIT *);
 /* Read-only SCM preparation uses SAME parent/token/source owner, no NEW_INSTALL grant. */
 PAPACC_RESULT papacc_configuration_scm_lab_files_open(PAPACC_CONFIGURATION_COMMIT *,const wchar_t *,const char *);
+PAPACC_RESULT papacc_configuration_scm_registration_image_open(PAPACC_CONFIGURATION_COMMIT *,const wchar_t *);
+PAPACC_RESULT papacc_configuration_scm_registration_dependency_open(PAPACC_CONFIGURATION_COMMIT *,unsigned);
 PAPACC_RESULT papacc_configuration_scm_lab_files_current(PAPACC_CONFIGURATION_COMMIT *,const BY_HANDLE_FILE_INFORMATION *);
 /* Independent immutable-plan DATA. No operator, CSPRNG, target or authority
  * is inferred. Owned by this root; no returned buffer borrow. */

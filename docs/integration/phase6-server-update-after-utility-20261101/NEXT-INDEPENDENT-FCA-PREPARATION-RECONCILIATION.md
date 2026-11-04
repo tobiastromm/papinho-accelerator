@@ -1,0 +1,3 @@
+# Próximo prompt — reconciliação da execução manual FCA
+Ler integralmente a saída original da única execução autorizada pelo pedido SHA2562d7d03574ffcacce1bffd64e3510e7082d4e7c5841c1d74cdf157334957ec8a3. Não repetir.
+Identificar primeira falha/etapa, confirmação e consumo, criação exclusiva do Accelerator, identidade e proteção/readback, criação/finalização/nome/identidade pública efetivos da chave, close e retenção. Não inferir sucesso/consumo/readiness apenas do exit; preservar UNKNOWN nos dados ausentes e históricos. Nenhum novo ato autorizado por esse resultado. Atualizar relatório/live docs e preparar o próximo gate factual, sem operações reais.

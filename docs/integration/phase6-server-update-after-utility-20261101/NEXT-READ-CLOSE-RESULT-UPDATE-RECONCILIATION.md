@@ -1,0 +1,3 @@
+# Próximo trabalho
+
+Reconciliar saída manual integral do UPDATE, primeiro erro/consumo/criação/doisrenames/previous/canônico878080/SHA256dc4e65fbbf13dcc432ce6b66581ca4fafac9f665d7a272d8af2e496b36c02ef9/nova identidade nativa/proteção/readback/SCMSTOPPED/close. Exit sozinho não basta. Preservar pending e registrar USED separado. Não repetir, limpar ou completar operação alternativa. Se VERIFIED_CLOSED, preparar novos originais e nova sessão READ independente, mesma fixture qualificada, E/Q/S/P separados, mesmas quotas/gates; autoridade prospectiva existente, sem inventar aprovação histórica. Interpretar SCQ_READ_CLOSE_RESULT_FIRST_CAUSE somente na nova saída. Histórico/close aplicação/quiescênciaUNKNOWN/PST0.6.4/produçãoDENY preservados.

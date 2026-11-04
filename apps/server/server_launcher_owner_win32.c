@@ -1040,5 +1040,329 @@ PAPACC_RESULT papacc_server_launcher_c2_site_template(const PAPACC_C2_SESSION *s
 #include "server_launcher_personal_win32.inc"
 #ifdef PAPACC_ENABLE_SERVICE_CLI
 #include "server_launcher_scm_prepare_win32.inc"
+#include "../../tools/qualification/storage-hash-capsule/storage_sha256.h"
+#include "server_launcher_scm_registration_win32.inc"
+#include "server_launcher_qualification_staging_win32.inc"
+#include "server_launcher_chain_metadata_win32.inc"
+#include "server_launcher_staged_update_win32.inc"
 #endif
+#endif
+
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+#if !defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) || !defined(PAPACC_OFFLINE_D3_WORKER)
+DWORD papacc_server_launcher_scm_registration_target(WCHAR *out,size_t cap)
+{(void)out;(void)cap;return ERROR_NOT_SUPPORTED;}
+int papacc_server_launcher_staged_update_prepare(const WCHAR *s,const DWORD id[3],const BYTE a[32],const BYTE b[32],const BYTE d[2][32],FILE *out)
+{(void)s;(void)id;(void)a;(void)b;(void)d;(void)out;return 2;}
+int papacc_server_launcher_binary_update_cli(int argc,const char *const *argv,FILE *out,FILE *err)
+{(void)out;(void)err;return argc>1&&argv&&argv[1]&&!strcmp(argv[1],"--owner-manual-binary-update")?2:-1;}
+size_t papacc_server_launcher_binary_update_known_bytes(void){return 0U;}
+int papacc_server_launcher_utility_prep_cli(int argc,const char *const *argv,FILE *out,FILE *err)
+{(void)out;(void)err;return argc>1&&argv&&argv[1]&&!strcmp(argv[1],"--owner-manual-prepare-update-utility")?2:-1;}
+size_t papacc_server_launcher_utility_prep_known_bytes(void){return 0U;}
+int papacc_server_launcher_utility_update_cli(int argc,const char *const *argv,FILE *out,FILE *err)
+{(void)out;(void)err;return argc>1&&argv&&argv[1]&&!strcmp(argv[1],"--owner-manual-update-utility")?2:-1;}
+size_t papacc_server_launcher_utility_update_known_bytes(void){return 0U;}
+int papacc_server_launcher_chain_metadata(FILE *out,FILE *err)
+{(void)out;(void)err;return 2;}
+int papacc_server_launcher_selected_staging(const char *a,const char *b,const char *c,FILE *out,FILE *err)
+{(void)a;(void)b;(void)c;(void)out;(void)err;return 2;}
+int papacc_server_launcher_qualification_staging_limited(const WCHAR *source,FILE *out,FILE *err)
+{(void)source;(void)out;(void)err;return 2;}
+int papacc_server_launcher_staging_observe(FILE *out,FILE *err)
+{(void)out;(void)err;return 2;}
+int papacc_server_launcher_qualification_staging(const WCHAR *source,FILE *out,FILE *err)
+{(void)source;(void)out;(void)err;return 2;}
+int papacc_server_launcher_scm_registration_present(const PAPACC_SERVICE_REGISTRATION_VIEW *v,FILE *out,FILE *err)
+{(void)v;(void)out;(void)err;return 2;}
+DWORD papacc_server_launcher_scm_registration_current(const PAPACC_SERVICE_REGISTRATION_VIEW *v){(void)v;return ERROR_NOT_SUPPORTED;}
+DWORD papacc_server_launcher_scm_registration_take(const PAPACC_SERVICE_REGISTRATION_VIEW *v){(void)v;return ERROR_NOT_SUPPORTED;}
+DWORD papacc_server_launcher_scm_registration_effect(const PAPACC_SERVICE_REGISTRATION_VIEW *v,unsigned effect,unsigned returned,DWORD result)
+{(void)v;(void)effect;(void)returned;(void)result;return ERROR_NOT_SUPPORTED;}
+DWORD papacc_server_launcher_scm_registration_finish(const PAPACC_SERVICE_REGISTRATION_VIEW *v,int closed){(void)v;(void)closed;return ERROR_NOT_SUPPORTED;}
+DWORD papacc_server_launcher_scm_registration_resource_report(const PAPACC_SERVICE_REGISTRATION_VIEW *v,PAPACC_SCM_RESOURCE_REPORT *out)
+{(void)v;if(out)memset(out,0,sizeof(*out));return ERROR_NOT_SUPPORTED;}
+#endif
+DWORD papacc_server_launcher_scq_start_carrier(PS_SCQ_CARRIER *out)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ if(!out||papacc_server_launcher_owner_state()!=PAPACC_LAUNCHER_ACTIVE||root.owner_thread!=GetCurrentThreadId()||!root.invocation||
+  root.network.is_active||root.network.listener_set.count||root.configuration_commit.initialized||root.configuration_commit.published)return ERROR_ACCESS_DENIED;
+ return papacc_configuration_personal_scq_start_carrier(&root.configuration_commit,out)==PAPACC_RESULT_OK?0:ERROR_ACCESS_DENIED;
+#else
+ (void)out;return ERROR_NOT_SUPPORTED;
+#endif
+}
+size_t papacc_server_launcher_machine_fixture_known_bytes(void)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ return PAPACC_C8_KNOWN_MANAGED_BYTES+papacc_server_service_storage_bytes()+sizeof(LONG)+PAPACC_MACHINE_FIXTURE_MANAGED_EXTRA;
+#else
+ return 0U;
+#endif
+}
+#include "server_launcher_scq_cold_start_win32.inc"
+DWORD papacc_server_launcher_scq_first_controller(void)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ DWORD e;
+ if(papacc_server_launcher_owner_state()!=PAPACC_LAUNCHER_ACTIVE||root.owner_thread!=GetCurrentThreadId()||!root.invocation||
+  root.network.is_active||root.network.listener_set.count||root.configuration_commit.initialized||root.configuration_commit.published)return ERROR_NOT_FOUND;
+ e=papacc_configuration_personal_scq_first_controller(&root.configuration_commit);
+ if(e==ERROR_IO_INCOMPLETE)InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);
+ return e;
+#else
+ return ERROR_NOT_SUPPORTED;
+#endif
+}
+DWORD papacc_server_launcher_scq_start_namespace_prepare(void)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ PS_SCQ_CARRIER original;PAPACC_SERVICE_DIAGNOSTIC_START_REPORT admission;DWORD e;
+ (void)papacc_server_service_diagnostic_start_status(&admission);
+ if(admission.initial_receiver_source_unavailable)return ERROR_NOT_SUPPORTED;
+ if(papacc_server_launcher_scq_start_carrier(&original)||papacc_server_launcher_scq_start_resource_current())return ERROR_ACCESS_DENIED;
+ if(papacc_configuration_personal_scq_session_take_data(&root.configuration_commit)!=PAPACC_RESULT_OK)return ERROR_ACCESS_DENIED;
+ e=papacc_configuration_personal_scq_transport_enter(&root.configuration_commit,0U,NULL);
+ if(e){root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);}
+ return e;
+#else
+ return ERROR_NOT_SUPPORTED;
+#endif
+}
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+#include "personal_scq_resource_failure_win32.inc"
+#endif
+DWORD papacc_server_launcher_scq_start_resource_current(void)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ if(papacc_server_launcher_owner_state()!=PAPACC_LAUNCHER_ACTIVE||root.owner_thread!=GetCurrentThreadId()||!root.invocation||
+  root.network.is_active||root.network.listener_set.count||root.configuration_commit.initialized||root.configuration_commit.published)return ERROR_ACCESS_DENIED;
+ {DWORD e=papacc_configuration_personal_scq_start_resource_current(&root.configuration_commit,1);
+  if(e)scqg_failure_projection(stderr,&root.configuration_commit.pending_commit.personal_native.scq_start_assurance,e);
+  return e;}
+#else
+ return ERROR_NOT_SUPPORTED;
+#endif
+}
+DWORD papacc_server_launcher_scq_prestart_close(void)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+ PAPACC_SERVER_NETWORK empty=PAPACC_SERVER_NETWORK_INITIALIZER;
+ if(papacc_server_launcher_owner_state()==PAPACC_LAUNCHER_RETAINED)return ERROR_IO_INCOMPLETE;
+ if(papacc_server_launcher_owner_state()!=PAPACC_LAUNCHER_ACTIVE||root.owner_thread!=GetCurrentThreadId()||!root.invocation)return 0;
+ /* Never dispose an unrelated owner or any protected/borrowed effect. */
+ if(n->scq_profile_data.self!=&n->scq_profile_data||n->scq_profile_data.owner!=&root.configuration_commit||
+  n->scq_profile_data.role!=1U||!n->scq_profile_data.pre_readiness)return 0;
+ if(root.network.is_active||root.network.listener_set.count||n->scq_session.transport.phase||
+  n->scq_admin.value.controller_consumed||n->scq_admin.start_consumed||n->scq_admin.endpoint_consumed||root.configuration_commit.unresolved)goto retained;
+ if(papacc_configuration_personal_native_close(&root.configuration_commit)!=PAPACC_RESULT_OK)goto retained;
+ if(n->console.is_installed&&papacc_server_console_win32_uninstall(&n->console)!=PAPACC_RESULT_OK)goto retained;
+ return papacc_server_launcher_owner_finish(&root,&empty,PAPACC_TRUE)==PAPACC_RESULT_OK?0:ERROR_IO_INCOMPLETE;
+retained:InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return ERROR_IO_INCOMPLETE;
+#else
+ return 0;
+#endif
+}
+DWORD papacc_server_launcher_scq_start_take(const PAPACC_SERVICE_IMAGE_VIEW *view)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ PS_SCQ_CARRIER observed;DWORD e;
+ e=papacc_server_launcher_scq_start_carrier(&observed);
+ if(e){
+  PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+  (void)fprintf(stderr,"SCQ_START_TAKE_FIRST_CAUSE step=1 result_known=0 cause=%lu context_known=1 input_first=%lu input_error=%lu chain_first=%lu source_first=%lu start_first=%lu resource_first=%lu; ORIGINAL_CARRIER_DENIED; NO_NEW_QUERY; METADATA_NOT_AUTHORITY\n",
+   (unsigned long)e,(unsigned long)n->scq_inputs.first,(unsigned long)n->scq_inputs.error,
+   (unsigned long)n->scq_inputs.image_chain.first,(unsigned long)n->scq_admin.first,(unsigned long)n->scq_admin.start_first,(unsigned long)n->scq_start_assurance.first);
+  return ERROR_ACCESS_DENIED;
+ }
+ return papacc_configuration_personal_scq_start_take_image(&root.configuration_commit,view)==PAPACC_RESULT_OK?0:ERROR_ACCESS_DENIED;
+#else
+ (void)view;return ERROR_NOT_SUPPORTED;
+#endif
+}
+DWORD papacc_server_launcher_scq_start_namespace_current(void)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ PS_SCQ_CARRIER observed;
+ if(papacc_server_launcher_scq_start_carrier(&observed))return ERROR_ACCESS_DENIED;
+ return papacc_configuration_personal_scq_start_namespace_current(&root.configuration_commit)==PAPACC_RESULT_OK?0:ERROR_ACCESS_DENIED;
+#else
+ return ERROR_NOT_SUPPORTED;
+#endif
+}
+DWORD papacc_server_launcher_scq_start_progress(HANDLE process)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ if(papacc_server_launcher_owner_state()!=PAPACC_LAUNCHER_ACTIVE||root.owner_thread!=GetCurrentThreadId()){(void)fprintf(stderr,"SCQ_START_PROGRESS_LAUNCHER_DENY; ORIGINAL_GUARD_ONLY; METADATA_NOT_AUTHORITY\n");return ERROR_ACCESS_DENIED;}
+ return papacc_configuration_personal_scq_start_progress(&root.configuration_commit,process);
+#else
+ (void)process;return ERROR_NOT_SUPPORTED;
+#endif
+}
+#include "personal_scq_start_wait_win32.inc"
+DWORD papacc_server_launcher_scq_start_wait_terminal(HANDLE process)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ PS_SCQ_CARRIER scope;ULONGLONG now;unsigned remaining;DWORD observed;
+ PAPACC_SCQ_TRANSPORT *t=&root.configuration_commit.pending_commit.personal_native.scq_session.transport;
+ if(!process||papacc_server_launcher_scq_start_carrier(&scope)||!t->close_accepted||!(t->legs&16U)||t->pending||t->operation||!t->event)return ERROR_ACCESS_DENIED;
+ now=GetTickCount64();if(!ps_scq_remaining_ms(&scope,(unsigned)now,(unsigned)(now>>32),&remaining))return ERROR_TIMEOUT;
+ if(!ResetEvent(t->event))return GetLastError();
+ now=GetTickCount64();if(!ps_scq_remaining_ms(&scope,(unsigned)now,(unsigned)(now>>32),&remaining))return ERROR_TIMEOUT;
+ if(papacc_server_console_win32_wait_original(t->event,process,remaining,&observed)!=PAPACC_RESULT_OK)return ERROR_INVALID_STATE;
+ return observed==WAIT_OBJECT_0+1U?0:observed==WAIT_TIMEOUT?ERROR_TIMEOUT:ERROR_CANCELLED;
+#else
+ (void)process;return ERROR_NOT_SUPPORTED;
+#endif
+}
+DWORD papacc_server_launcher_scq_start_finish(HANDLE process)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ PAPACC_SERVER_NETWORK empty=PAPACC_SERVER_NETWORK_INITIALIZER;DWORD exit_code;
+ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+ PAPACC_SCQ_TRANSPORT *t=&root.configuration_commit.pending_commit.personal_native.scq_session.transport;
+ if(!process||papacc_server_launcher_owner_state()!=PAPACC_LAUNCHER_ACTIVE||root.owner_thread!=GetCurrentThreadId()||
+  !t->close_accepted||!(t->legs&16U)||t->pending||t->operation||WaitForSingleObject(process,0)!=WAIT_OBJECT_0||
+  !GetExitCodeProcess(process,&exit_code)||(exit_code&&!(exit_code==ERROR_NOT_FOUND&&papacc_configuration_personal_scq_controller_inconclusive(&root.configuration_commit)==PAPACC_RESULT_OK)))return ERROR_ACCESS_DENIED;
+ if(papacc_configuration_personal_native_close(&root.configuration_commit)!=PAPACC_RESULT_OK)return ERROR_INVALID_STATE;
+ if(n->console.is_installed&&papacc_server_console_win32_uninstall(&n->console)!=PAPACC_RESULT_OK){
+  root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return ERROR_IO_INCOMPLETE;
+ }
+ return papacc_server_launcher_owner_finish(&root,&empty,PAPACC_TRUE)==PAPACC_RESULT_OK?0:ERROR_INVALID_STATE;
+#else
+ (void)process;return ERROR_NOT_SUPPORTED;
+#endif
+}
+int papacc_server_launcher_scq_closed_evidence_current(void)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ if(!papacc_server_service_scq_preparation_current()||papacc_server_launcher_owner_state()!=PAPACC_LAUNCHER_ACTIVE||
+ root.owner_thread!=GetCurrentThreadId()||!root.invocation||root.network.is_active||root.network.listener_set.count||
+ root.configuration_commit.initialized||root.configuration_commit.published)return 0;
+ return papacc_configuration_personal_scq_closed_ready_current(&root.configuration_commit)==PAPACC_RESULT_OK;
+#else
+ return 0;
+#endif
+}
+int papacc_server_launcher_scq_closed_arm_running(void)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ if(!papacc_server_launcher_scq_closed_evidence_current())return 0;
+ return papacc_configuration_personal_scq_closed_arm_running(&root.configuration_commit)==PAPACC_RESULT_OK;
+#else
+ return 0;
+#endif
+}
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+static DWORD papacc_launcher_scq_wait_original(PAPACC_CONFIGURATION_COMMIT *o)
+{
+ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&o->pending_commit.personal_native;
+ PAPACC_SCQ_TRANSPORT *t=&n->scq_session.transport;ULONGLONG now;unsigned remaining;DWORD observed;
+ HANDLE peer=n->scq_recipient.phase>=1U?n->scq_recipient.value.operator_process:t->capture_controller;
+ now=GetTickCount64();
+ if(!t->event||(!peer&&!papacc_configuration_personal_scq_initial_wait_current(o))||!ps_scq_remaining_ms(&n->scq_carrier,(unsigned)now,(unsigned)(now>>32),&remaining))return ERROR_TIMEOUT;
+ if(papacc_server_console_win32_wait_original(t->event,peer,remaining,&observed)!=PAPACC_RESULT_OK)return ERROR_INVALID_STATE;
+ if(observed==WAIT_OBJECT_0+1U){(void)papacc_configuration_personal_scq_session_peer_lost(o);return ERROR_PROCESS_ABORTED;}
+ if(observed==WAIT_TIMEOUT)return ERROR_TIMEOUT;
+ return observed==WAIT_OBJECT_0?0:ERROR_INVALID_STATE;
+}
+#endif
+int papacc_server_launcher_scq_closed_prepare(void)
+{
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ PAPACC_SERVER_NETWORK empty_network=PAPACC_SERVER_NETWORK_INITIALIZER;
+ PAPACC_SERVER_CONFIG closed_config=PAPACC_SERVER_CONFIG_INITIALIZER;
+ PAPACC_LOGGER logger;PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *owned=NULL;int captured_empty=0;
+#endif
+ if(!papacc_server_service_scq_preparation_current())return 2;
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ if(papacc_server_launcher_owner_state()==0U){
+  /* Same existing process-lifetime root: metadata/reservation only. Empty
+   * network/config, no listeners, no WinSock, no CA/parent/CURRENT or endpoint.
+   * This does not manufacture an act, acquire a source or adopt a directory. */
+  memset(&logger,0,sizeof(logger));
+  if(papacc_server_launcher_owner_acquire(&empty_network,&closed_config,&logger,&owned)!=PAPACC_RESULT_OK){
+   papacc_server_service_runtime_retained();return 2;
+  }
+  owned->configuration_commit.writer=owned->owner_thread;
+  owned->configuration_commit.pending_commit.file=INVALID_HANDLE_VALUE;
+  captured_empty=1;
+  /* Same packet captures the transient callback selector as DATA only. It
+   * does not make the still-empty original-source/endpoint set nonempty. */
+  (void)papacc_configuration_personal_scq_carrier_capture(&owned->configuration_commit);
+ }
+#endif
+ /* Independently acquired OHI originals must be in the SAME packet. The
+  * existing recipient/transport APIs obtain and validate these references;
+  * no CLI metadata, default, LAB or fake approval is an original producer. */
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ /* Bounded progress only from already acquired original source/endpoint.
+  * Empty registrations deny before IO. No lifecycle/readiness is inferred
+  * from a step result; no unbudgeted spinning or wait loop is introduced. */
+ if(!captured_empty&&papacc_server_launcher_owner_state()==PAPACC_LAUNCHER_ACTIVE)
+  (void)papacc_configuration_personal_scq_transport_continue(&root.configuration_commit);
+ if(captured_empty&&root.configuration_commit.pending_commit.personal_native.scq_carrier_captured){
+  PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;DWORD progress;
+  /* Finite actor, one submission/poll per continuation. Wait only on held
+   * originals and the original selected window; Stop wakes the same wait. */
+  for(;;){
+   progress=papacc_configuration_personal_scq_ingress_continue(&root.configuration_commit);
+   if(progress==ERROR_MORE_DATA)continue;
+   if(progress==ERROR_IO_PENDING){
+    progress=papacc_launcher_scq_wait_original(&root.configuration_commit);
+    if(!progress)continue;
+    root.configuration_commit.unresolved=1;
+    (void)papacc_configuration_personal_scq_transport_stop(&root.configuration_commit);
+   }
+   break;
+  }
+  if(n->runtime_identity.phase||n->scq_inputs.phase||n->scq_session.transport.phase||root.configuration_commit.unresolved)captured_empty=0;
+ }
+#endif
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ if(papacc_server_service_scq_preparation_current()&&papacc_server_launcher_owner_state()==PAPACC_LAUNCHER_ACTIVE&&
+  root.owner_thread==GetCurrentThreadId()&&root.invocation&&!root.network.is_active&&!root.network.listener_set.count&&
+  !root.configuration_commit.initialized&&!root.configuration_commit.published&&
+  papacc_configuration_personal_scq_closed_inconclusive_current(&root.configuration_commit)==PAPACC_RESULT_OK){
+  if(papacc_configuration_personal_native_close(&root.configuration_commit)==PAPACC_RESULT_OK&&
+   papacc_server_launcher_owner_finish(&root,&empty_network,PAPACC_TRUE)==PAPACC_RESULT_OK&&
+   papacc_server_service_runtime_stopping()){
+   papacc_server_service_runtime_closed();
+   (void)fprintf(stderr,"SCQ_READ_SESSION=CLOSED_INCONCLUSIVE; ISOLATION=DENY; RUNNING=NOT_REPORTED; TERMINAL_CODE=1168; OS_QUIESCENCE=UNKNOWN; NO_RETRY_NO_PRODUCTIVE_PROMOTION\n");
+   return ERROR_NOT_FOUND;
+  }
+  papacc_server_service_runtime_retained();return 2;
+ }
+#endif
+ if(papacc_server_launcher_scq_closed_evidence_current()&&papacc_server_service_scq_closed_ready()){
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+  if(root.configuration_commit.pending_commit.personal_native.scq_carrier_captured){
+   /* One finite closed diagnostic execution. No external ControlService
+    * Stop or productive lifecycle action. RUNNING was reported only after
+    * original receipt/close; controlled release must independently succeed. */
+   if(papacc_configuration_personal_native_close(&root.configuration_commit)==PAPACC_RESULT_OK&&
+    papacc_server_launcher_owner_finish(&root,&empty_network,PAPACC_TRUE)==PAPACC_RESULT_OK&&
+    papacc_server_service_runtime_stopping()){
+    papacc_server_service_runtime_closed();return 0;
+   }
+  }
+#endif
+  papacc_server_service_runtime_retained();return 2;
+ }
+#if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+ if(captured_empty){
+  /* Only the just-created empty metadata owner. Queries above acquire no
+   * references; no receiver/IO/source was constructed in this branch. */
+  if(papacc_server_launcher_owner_finish(owned,&empty_network,PAPACC_TRUE)==PAPACC_RESULT_OK){
+   papacc_server_service_runtime_closed();return 2;
+  }
+ }
+ if(papacc_server_launcher_owner_state()==PAPACC_LAUNCHER_ACTIVE||papacc_server_launcher_owner_state()==PAPACC_LAUNCHER_RETAINED){
+  papacc_server_service_runtime_retained();return 2;
+ }
+#endif
+ papacc_server_service_runtime_closed();return 2; /* factual empty source set */
+}
 #endif

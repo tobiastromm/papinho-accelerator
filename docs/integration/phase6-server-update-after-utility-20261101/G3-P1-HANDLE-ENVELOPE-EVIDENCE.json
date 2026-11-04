@@ -1,0 +1,129 @@
+{
+  "date": "2026-11-02",
+  "branch": "main",
+  "head": "f341985924d29870d8ff627ed37c8a0874ad6469",
+  "status": "PROPOSED_NOT_ACCEPTED_NOT_IMPLEMENTED",
+  "scope": "one P1 PERSONAL_LOCAL TRANSPORT_ONLY closed diagnostic session, controller and runtime separately",
+  "initial_complete_count_tolerance": 128,
+  "controlled_slot_budget": 44.0,
+  "controlled_slot_rows": [
+    {
+      "slots": 3,
+      "source": "apps/server/personal_native_win32.h; personal_scq_cold_acquisition_win32.inc",
+      "note": "raw[3], originals retained until transfer",
+      "group": "cold_originals"
+    },
+    {
+      "slots": 9,
+      "source": "apps/server/personal_scq_inputs_win32.h; personal_scq_image_chain_win32.inc",
+      "note": "8 directory slots + image",
+      "group": "image_chain"
+    },
+    {
+      "slots": 6,
+      "source": "apps/server/personal_scq_inputs_win32.h; personal_scq_inputs_win32.inc",
+      "note": "file[3] + reader[3]",
+      "group": "input_copies_and_readers"
+    },
+    {
+      "slots": 14,
+      "source": "apps/server/personal_scq_transport_win32.h; personal_scq_transport_win32.inc; personal_scq_bootstrap_win32.inc",
+      "note": "pipe,event,files[3],delivery_process,capture_controller,capture_token,capture_refs[3],delivered_inputs[3]; remote_files excluded from sender",
+      "group": "transport_local_slots"
+    },
+    {
+      "slots": 3,
+      "source": "apps/server/personal_runtime_identity_win32.h; personal_runtime_identity_win32.inc",
+      "note": "process/token/check_token; SCM logical contexts separate",
+      "group": "runtime_identity"
+    },
+    {
+      "slots": 2,
+      "source": "apps/server/personal_scq_recipient_win32.inc",
+      "note": "operator process/token",
+      "group": "recipient_operator"
+    },
+    {
+      "slots": 2,
+      "source": "apps/server/personal_scq_handoff_win32.h; server_configuration_personal_native_win32.inc",
+      "note": "conservative overcount: aliases or pseudohandle are not additional real executive handles",
+      "group": "source_operator_views"
+    },
+    {
+      "slots": 2,
+      "source": "apps/server/server_service_win32.c; server_service_virtual_win32.inc",
+      "note": "native.image/start_runtime, no LAB PS_RUNTIME",
+      "group": "scm_adapter_image_and_runtime"
+    },
+    {
+      "slots": 1,
+      "source": "apps/server/server_console_win32.c",
+      "note": "at most one borrowed original wait event, conservative overlap",
+      "group": "console_wait_event"
+    },
+    {
+      "slots": 1,
+      "source": "apps/server/server_personal_token_checks_win32.inc",
+      "note": "bootstrap_token; may already be counted in entry baseline",
+      "group": "original_primary_token"
+    },
+    {
+      "slots": 1,
+      "source": "apps/server/server_personal_token_checks_win32.inc",
+      "note": "check_token or unexpected_thread; acquisition stops on uncertainty",
+      "group": "temporary_or_unexpected_token"
+    }
+  ],
+  "opaque_growth_risk_tolerance": 16,
+  "tail_risk_headroom": 4,
+  "recommended_total_cap": 192.0,
+  "recommended_preacquisition_guard": 188.0,
+  "old_cap": 128,
+  "old_guard": 124,
+  "old_model_B113": {
+    "first_reader_guard": "DENY",
+    "hypothetical_full_overlap": 127,
+    "after_chain5": 121,
+    "after_raw3": 116,
+    "after_copies3": 124
+  },
+  "last_session_projection_constant_other_resources": {
+    "readers_addition": 3,
+    "selected_chain_addition": 5,
+    "observed_preimage": 124,
+    "classification": "MODEL_NOT_MEASUREMENT_OR_GUARANTEED_FUTURE_COUNT",
+    "copies_addition": 3,
+    "projected_overlap": 136,
+    "image_addition": 1
+  },
+  "source_slot_sum_check": "PASS",
+  "proposal_arithmetic_check": "PASS",
+  "real_collection_performed": false,
+  "product_tests_rerun": 0,
+  "operational_code_modified": false,
+  "normative_records_modified": false,
+  "unknown_native_ceiling": "UNKNOWN",
+  "source_hashes": {
+    "apps/server/server_configuration_personal_native_win32.inc": "46a2d0de878a1c1b4351311cb80e1d7600949cadc48d0cd06624f9bdc34ae255",
+    "apps/server/personal_scq_inputs_win32.h": "591706d548acbe16102be9a526db5c441dc2deeee44cf8102b3786edc4b8d250",
+    "apps/server/server_personal_token_checks_win32.inc": "2acecb193249e1c263491409505647e4a3e933373915b4deb1b64da317fb66f4",
+    "apps/server/personal_scq_inputs_win32.inc": "ceb78da6ba1d68b80dd9f3286e5dea2196964a9f952d7948d47fb31b4ba80e1c",
+    "apps/server/personal_scq_cold_acquisition_win32.inc": "328e6363e896293c67381c56605fcdd29908f8bf5e50054b62b34e32cf2b0a07",
+    "apps/server/personal_scq_start_assurance_win32.inc": "e2c9e17422875c07e59bdf026ba48d87afff229e1b43df7e7d07fbf19fd92129",
+    "apps/server/server_service_win32.c": "01b78d0020ccb6094fc4ec9152c3695316c0f6c20cb52b91492eb0f15500140f",
+    "apps/server/personal_scq_cold_start_win32.inc": "8bd99086fcdbac1448b33f9b1e46e5fd5461ceaacceecc6800695f47d38a5875",
+    "apps/server/personal_scq_image_chain_win32.inc": "a2b6651a30d0638e13f32a69fb279ab899cf4fe90d945f54571bd19f0d82faa5",
+    "apps/server/personal_scq_start_plan_data_win32.inc": "deed33d3fe207db64a39601c7f1225ab111dcc5dd869d2e020e442fdaeeb49af",
+    "apps/server/personal_runtime_identity_win32.h": "3a9b42ba3382f7e040dd08b579c33d726a0ee3a7b041c05b5804673ebf5ff7bc",
+    "apps/server/personal_runtime_identity_win32.inc": "ce4486d52fc82b423924a22932a304d20d36e3625577dbe996b0d16285e4c6da",
+    "apps/server/personal_scq_recipient_win32.inc": "58c4f6a6721cbc7390ba14e6971e00becc8a241e23fa078f20e7fbd7681eae82",
+    "apps/server/personal_scq_handoff_win32.h": "1d0795653a3ed42351d7c389e2f16e913012144fe442f2d6769f6f6f12a29d68",
+    "apps/server/personal_scq_transport_win32.h": "eebaa784b3b344a8e4f2d7f52600f5ff815efdd8d3dfbe180db211dba13a6746",
+    "apps/server/personal_scq_transport_win32.inc": "2c40b24fa4bdbf244d80bd22cf683eeb5683fc301a5e3fb681cf7b3d82133a0f",
+    "apps/server/personal_scq_bootstrap_win32.inc": "95368edd193e0cff6782bbcc70a805a450d8ba9dc26272f844ab68d2caeee89a",
+    "apps/server/personal_native_win32.h": "6a41c3174d023b73e5e6253996697462e1265cb5521d155bfb1a53b4d03c3bfe",
+    "apps/server/server_console_win32.c": "6e163d331944680d0f89cd3c41c3cf3ec66a3202259f99dfaba25c30fb6355d6",
+    "apps/server/server_service_virtual_win32.inc": "62e61c50aa589f21ece902a45b17230c23e536b5a4bae9a3f43442124d000254"
+  },
+  "proposal_sha256": "9559fbb0f82e875ad33a6dfc80c52fa4572ae3267338d6ff4401c2a901881abf"
+}

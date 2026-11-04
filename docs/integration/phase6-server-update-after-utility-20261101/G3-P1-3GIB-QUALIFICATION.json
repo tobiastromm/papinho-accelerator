@@ -1,0 +1,94 @@
+{
+  "status": "G3_P1_COMMIT_3GIB_ACCEPTED_INTEGRATED_OFFLINE_QUALIFIED",
+  "decision": "docs/adr/DECISION-personal-scq-p1-commit-floor-3gib-20261102.md",
+  "decision_sha256": "6e8a5461bac47a180d134f3a544a0c4953c7b550451ed9f383fd875ea9d3ee63",
+  "owner_selected_unit": "3 GiB — 3.221.225.472 bytes",
+  "p1_commit_floor_bytes": 3221225472,
+  "legacy_commit_floor_bytes": 9823326208,
+  "previous_p1_floor_bytes": 8589934592,
+  "builds": [
+    {
+      "profile": "Selected",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 17,
+      "known_census_bytes": 2002152,
+      "build_log_sha256": "08061184e6b7f4511e51af27b92c60c836ea403bfb663c4969af0b059aebc215",
+      "tests_log_sha256": "4cbe7c96b352066f7caa1398e2b9ed784affaf32df646069d268363995fe1a9f"
+    },
+    {
+      "profile": "Selected",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 17,
+      "known_census_bytes": 2002152,
+      "build_log_sha256": "08061184e6b7f4511e51af27b92c60c836ea403bfb663c4969af0b059aebc215",
+      "tests_log_sha256": "fba571d2d0c4458de905e7ee61b6519c5a65412e8f4f79f83a992accb13bb861"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 17,
+      "known_census_bytes": 1833584,
+      "build_log_sha256": "42f0f7911c3bce4290595c5331cb8eff28b77de7eaffdb7d2795cf862d2f88c3",
+      "tests_log_sha256": "d82d129c08e1110456dc56a40da2782cbee810c893787e116be3e2ae63dba6c6"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "tests_passed": 17,
+      "known_census_bytes": 1833584,
+      "build_log_sha256": "42f0f7911c3bce4290595c5331cb8eff28b77de7eaffdb7d2795cf862d2f88c3",
+      "tests_log_sha256": "553d52a62173dd5b06781907d315bf38cd61e72b66fb83bf6c01371582b3bca2"
+    }
+  ],
+  "test_configuration_pairs": 68,
+  "boundary_values": [
+    3221225471,
+    3221225472,
+    3221225473
+  ],
+  "cold_selection_negative_cases": 5,
+  "previous_8gib_selection_rejected_for_new_p1": true,
+  "new_policy_sha256": "3961396a607d265f73c730e9599fa8208313a59e65832a24b170bf8206bd15a1",
+  "previous_policy_sha256": "256fe6ab14dcc5554994b589017b1c8e7d7817bcdac89982d44d73048a31cafd",
+  "new_policy_preimage_hex": "47335031d65da3287ac5c1da7f59e6a467498ae2198f0896db801584b4b6c5fedad0ad1bc0701e0000000000c0701e000000000000007daf01000000000000c000000000c00000006400000060ea000080a90300",
+  "source_hashes": {
+    "apps/server/personal_scq_start_assurance_win32.h": "0c4772a38c34faa99933affea1b7c5a242135660c8be1983ab6774df2c12ae92",
+    "apps/server/personal_scq_start_assurance_win32.inc": "6fd2aa3e9a504356f03ac482e96bb150425320de7a4f72ff801c7daa416d219e",
+    "apps/server/personal_scq_start_plan_data_win32.inc": "565647d7d408f13a290d0242716a6f1584cd2308fcfafa9fb9fe18759a3f10ae",
+    "tests/scq_start_assurance_test.c": "cb611b0c5385737c5f1d21b007dd3d109b5b2a1f585372a36488b731ae8686a0",
+    "tests/scq_cold_open_test.c": "d5d5cc738ff66c1ff9d215dacbfaf90ae2fb1d197eb3b57c9f5a5c6f728b9a89",
+    "tests/scq_p1_entry_test.c": "f01add344e370b99e5512287a445b99b2280eaa4f28dede5492e053b2c1bf942"
+  },
+  "new_exe_bytes": 786944,
+  "new_exe_sha256": "bf2f8c67a3f5de3a5a4b88f28b69eb8573aec04db1df8e36c7907f999a6a748a",
+  "installed_expected_bytes": 786944,
+  "installed_expected_id": "417614100:1900544:290164",
+  "installed_expected_sha256": "40b708daadae4342e5cd90090d99189234437ab84f47b2d00f76aeaab05eba76",
+  "size_delta_bytes": 0,
+  "physical_floor_unchanged": 7239172096,
+  "managed_memory_limit_unchanged": true,
+  "handles_unchanged": [
+    128,
+    188,
+    192
+  ],
+  "private_working_growth_unchanged": 1994944,
+  "freshness_window_duration_unchanged": [
+    100,
+    240000,
+    60000
+  ],
+  "public_or_persisted_formats_changed": false,
+  "native_operations_executed": 0,
+  "historical_retention": "UNKNOWN",
+  "os_quiescence": "UNKNOWN",
+  "productive_readiness": "DENY"
+}

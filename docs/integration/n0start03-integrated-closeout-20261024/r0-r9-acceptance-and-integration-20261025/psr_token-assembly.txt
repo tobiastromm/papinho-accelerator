@@ -1,0 +1,1329 @@
+psr_token PROC						; COMDAT
+
+; 51   : {
+
+	push	rbp
+	push	r12
+	lea	rbp, QWORD PTR [rsp-88]
+	sub	rsp, 344				; 00000158H
+	mov	rax, QWORD PTR __security_cookie
+	xor	rax, rsp
+	mov	QWORD PTR __$ArrayPad$[rbp-256], rax
+
+; 52   :  DWORD n,i,gn,pn;TOKEN_STATISTICS stats;TOKEN_ELEVATION elev;
+; 53   :  TOKEN_USER *u=(TOKEN_USER *)native.runtime.user.bytes;TOKEN_GROUPS *g=(TOKEN_GROUPS *)native.runtime.groups.bytes;
+; 54   :  TOKEN_PRIVILEGES *priv=(TOKEN_PRIVILEGES *)native.runtime.privileges.bytes;
+; 55   :  BYTE admin[SECURITY_MAX_SID_SIZE],service[SECURITY_MAX_SID_SIZE];DWORD an=sizeof(admin),sn=sizeof(service);int service_group=0,specific_group=0;
+; 56   : #if defined(PAPACC_PSR_TRACE_LAB) || defined(PAPACC_R0R9_VIRTUAL_USER_LAB)
+; 57   :  DWORD specific_seen=0,specific_attributes=0;
+; 58   : #endif
+; 59   :  PSRT_CONTEXT("TOKEN_PROCESS_AND_THREAD");
+
+	lea	rcx, OFFSET FLAT:??_C@_0BJ@BLNDBEDH@TOKEN_PROCESS_AND_THREAD@
+	mov	DWORD PTR an$[rsp], 68			; 00000044H
+	mov	DWORD PTR sn$[rsp], 68			; 00000044H
+	call	psrt_context
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	cmp	DWORD PTR native+12160, 0
+	jne	$LN41@psr_token
+	cmp	DWORD PTR native+112, 0
+	jne	$LN41@psr_token
+	mov	eax, DWORD PTR host+48
+	test	eax, eax
+	jne	$LN41@psr_token
+	call	papacc_server_console_win32_stop_requested
+	test	eax, eax
+	jne	$LN41@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 62   :  if(native.runtime.r4_busy)return psr_r4_current();
+
+	cmp	DWORD PTR native+4712, eax
+	je	SHORT $LN6@psr_token
+	call	psr_r4_current
+	jmp	$LN1@psr_token
+$LN6@psr_token:
+
+; 63   : #endif
+; 64   :  if(native.runtime.unexpected||native.runtime.token)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
+
+	cmp	QWORD PTR native+4560, 0
+	jne	$LN8@psr_token
+	cmp	QWORD PTR native+4544, 0
+	jne	$LN8@psr_token
+	mov	QWORD PTR [rsp+368], rbx
+	mov	QWORD PTR [rsp+384], rdi
+	mov	QWORD PTR [rsp+328], r14
+
+; 65   :  if(PSRT_BOOL("OpenThreadToken",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"unexpected_thread_impersonation_token");
+
+	call	QWORD PTR __imp_GetCurrentThread
+	mov	r14d, 1
+	lea	r9, OFFSET FLAT:native+4560
+	mov	rcx, rax
+	mov	r8d, r14d
+	mov	edx, 8
+	call	QWORD PTR __imp_OpenThreadToken
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	xor	edi, edi
+	mov	DWORD PTR psrt_record+84, 65		; 00000041H
+	lea	rcx, OFFSET FLAT:??_C@_0BA@MOEFBCGC@OpenThreadToken@
+	mov	DWORD PTR psrt_record+72, 8
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+100, edi
+	setne	cl
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 65   :  if(PSRT_BOOL("OpenThreadToken",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"unexpected_thread_impersonation_token");
+
+	test	ebx, ebx
+	je	SHORT $LN9@psr_token
+	lea	r8, OFFSET FLAT:??_C@_0CG@EKKDACNN@unexpected_thread_impersonation_@
+	mov	edx, 65					; 00000041H
+	mov	ecx, 5
+	call	psrt_return
+	jmp	$LN292@psr_token
+$LN9@psr_token:
+
+; 66   :  if(GetLastError()!=ERROR_NO_TOKEN)return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	call	QWORD PTR __imp_GetLastError
+	cmp	eax, 1008				; 000003f0H
+	je	SHORT $LN10@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	call	QWORD PTR __imp_GetLastError
+	mov	ecx, 31
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 66   :  if(GetLastError()!=ERROR_NO_TOKEN)return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	lea	r8, OFFSET FLAT:??_C@_0BD@LFJFCJHI@native_api_failure@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	test	eax, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 66   :  if(GetLastError()!=ERROR_NO_TOKEN)return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	mov	edx, 66					; 00000042H
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	cmovne	ecx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 66   :  if(GetLastError()!=ERROR_NO_TOKEN)return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	call	psrt_return
+	jmp	$LN292@psr_token
+$LN10@psr_token:
+
+; 67   : #ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+; 68   :  if(!psr_r4_allowed())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"r4_stop_before_initial_acquisition");
+
+	call	psr_r4_allowed
+	test	eax, eax
+	jne	SHORT $LN11@psr_token
+	lea	r8, OFFSET FLAT:??_C@_0CD@FLCMPBNA@r4_stop_before_initial_acquisiti@
+	mov	edx, 68					; 00000044H
+	mov	ecx, 995				; 000003e3H
+	call	psrt_return
+	jmp	$LN292@psr_token
+$LN11@psr_token:
+
+; 70   :  if(!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY|TOKEN_DUPLICATE),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY|TOKEN_DUPLICATE,&native.runtime.token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	call	QWORD PTR __imp_GetCurrentProcess
+	lea	r8, OFFSET FLAT:native+4544
+	mov	edx, 10
+	mov	rcx, rax
+	call	QWORD PTR __imp_OpenProcessToken
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0BB@EANJDCJP@OpenProcessToken@
+	mov	DWORD PTR psrt_record+84, 70		; 00000046H
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 10
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 70   :  if(!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY|TOKEN_DUPLICATE),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY|TOKEN_DUPLICATE,&native.runtime.token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	test	ebx, ebx
+	jne	SHORT $LN12@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	call	QWORD PTR __imp_GetLastError
+	mov	ecx, 31
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 70   :  if(!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY|TOKEN_DUPLICATE),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY|TOKEN_DUPLICATE,&native.runtime.token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	lea	r8, OFFSET FLAT:??_C@_0BD@LFJFCJHI@native_api_failure@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	test	eax, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 70   :  if(!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY|TOKEN_DUPLICATE),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY|TOKEN_DUPLICATE,&native.runtime.token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	mov	edx, 70					; 00000046H
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	cmovne	ecx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 70   :  if(!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY|TOKEN_DUPLICATE),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY|TOKEN_DUPLICATE,&native.runtime.token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	call	psrt_return
+	jmp	$LN292@psr_token
+$LN12@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	cmp	DWORD PTR native+12160, edi
+	mov	r12d, 995				; 000003e3H
+	jne	SHORT $LN56@psr_token
+	cmp	DWORD PTR native+112, edi
+	jne	SHORT $LN56@psr_token
+	mov	eax, DWORD PTR host+48
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	mov	rbx, QWORD PTR native+4544
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	test	eax, eax
+	jne	SHORT $LN56@psr_token
+	call	papacc_server_console_win32_stop_requested
+	test	eax, eax
+	jne	SHORT $LN56@psr_token
+
+; 10   : {if(!psr_r4_allowed()){SetLastError(native.runtime.r4_error?native.runtime.r4_error:ERROR_OPERATION_ABORTED);return FALSE;}return GetTokenInformation(h,c,b,cap,used);}
+
+	lea	rax, QWORD PTR n$[rsp]
+	mov	r9d, 56					; 00000038H
+	lea	r8, QWORD PTR stats$[rsp]
+	mov	QWORD PTR [rsp+32], rax
+	mov	edx, 10
+	mov	rcx, rbx
+	call	QWORD PTR __imp_GetTokenInformation
+	mov	ebx, eax
+	jmp	SHORT $LN51@psr_token
+$LN56@psr_token:
+	mov	eax, DWORD PTR native+4708
+	mov	ecx, r12d
+	test	eax, eax
+	cmovne	ecx, eax
+	call	QWORD PTR __imp_SetLastError
+	mov	ebx, edi
+$LN51@psr_token:
+	mov	QWORD PTR [rsp+376], rsi
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0CE@EGKOLOJP@GetTokenInformation?3TokenStatist@
+	mov	DWORD PTR psrt_record+84, 71		; 00000047H
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 8
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	test	ebx, ebx
+	je	$LN14@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	cmp	DWORD PTR n$[rsp], 56			; 00000038H
+	je	SHORT $LN200@psr_token
+	lea	rax, OFFSET FLAT:??_C@_0BI@DIKKMOHC@token?4statistics?4length@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	jmp	$LN296@psr_token
+$LN200@psr_token:
+	cmp	DWORD PTR stats$[rsp+24], r14d
+	mov	ecx, edi
+	sete	cl
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	je	SHORT $LN72@psr_token
+	lea	rax, OFFSET FLAT:??_C@_0O@LKLGHJJI@token?4primary@
+	mov	QWORD PTR psrt_record+64, rax
+$LN72@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	test	ecx, ecx
+	je	$LN14@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	cmp	DWORD PTR native+12160, edi
+	lea	rsi, OFFSET FLAT:native+4720
+	jne	SHORT $LN89@psr_token
+	cmp	DWORD PTR native+112, edi
+	jne	SHORT $LN89@psr_token
+	mov	eax, DWORD PTR host+48
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	mov	rbx, QWORD PTR native+4544
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	test	eax, eax
+	jne	SHORT $LN89@psr_token
+	call	papacc_server_console_win32_stop_requested
+	test	eax, eax
+	jne	SHORT $LN89@psr_token
+
+; 10   : {if(!psr_r4_allowed()){SetLastError(native.runtime.r4_error?native.runtime.r4_error:ERROR_OPERATION_ABORTED);return FALSE;}return GetTokenInformation(h,c,b,cap,used);}
+
+	lea	rax, QWORD PTR n$[rsp]
+	mov	r9d, 128				; 00000080H
+	mov	r8, rsi
+	mov	QWORD PTR [rsp+32], rax
+	mov	edx, r14d
+	mov	rcx, rbx
+	call	QWORD PTR __imp_GetTokenInformation
+	mov	ebx, eax
+	jmp	SHORT $LN84@psr_token
+$LN89@psr_token:
+	mov	eax, DWORD PTR native+4708
+	mov	ecx, r12d
+	test	eax, eax
+	cmovne	ecx, eax
+	call	QWORD PTR __imp_SetLastError
+	mov	ebx, edi
+$LN84@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0BO@HNIEJMAL@GetTokenInformation?3TokenUser@
+	mov	DWORD PTR psrt_record+84, 72		; 00000048H
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 8
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+
+; 63   :  if(value&&length&&*length<=capacity&&slot<3){psrt_record.token[slot].data=data;psrt_record.token[slot].length=*length;psrt_record.token[slot].capacity=capacity;}
+
+	test	ebx, ebx
+	je	$LN14@psr_token
+	mov	edx, DWORD PTR n$[rsp]
+	cmp	edx, 128				; 00000080H
+	ja	$LN80@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	mov	r8, QWORD PTR native+4720
+	mov	rcx, rsi
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 63   :  if(value&&length&&*length<=capacity&&slot<3){psrt_record.token[slot].data=data;psrt_record.token[slot].length=*length;psrt_record.token[slot].capacity=capacity;}
+
+	mov	QWORD PTR psrt_record, rsi
+	mov	DWORD PTR psrt_record+8, edx
+	mov	DWORD PTR psrt_record+12, 128		; 00000080H
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	call	psr_inside_sid
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	test	eax, eax
+	jne	SHORT $LN198@psr_token
+	lea	rax, OFFSET FLAT:??_C@_0BG@GEHJKODN@token?4user?4sid?4bounds@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	jmp	$LN296@psr_token
+$LN198@psr_token:
+	mov	rcx, QWORD PTR native+4720
+	lea	rdx, OFFSET FLAT:native+16544
+	call	QWORD PTR __imp_EqualSid
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	test	eax, eax
+	jne	SHORT $LN197@psr_token
+	lea	rax, OFFSET FLAT:??_C@_0BP@BPFGBJHL@token?4user?4sid?4matches_service@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	jmp	$LN296@psr_token
+$LN197@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	cmp	DWORD PTR native+12160, edi
+	lea	rsi, OFFSET FLAT:native+4848
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 76   :  native.runtime.statistics=stats;
+
+	movups	xmm0, XMMWORD PTR stats$[rsp]
+	mov	eax, DWORD PTR stats$[rsp+24]
+	movsd	xmm1, QWORD PTR stats$[rsp+16]
+	movaps	XMMWORD PTR native+4592, xmm0
+	movups	xmm0, XMMWORD PTR stats$[rsp+28]
+	mov	DWORD PTR native+4616, eax
+
+; 77   : #endif
+; 78   : #ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+; 79   :  native.runtime.user_bytes=n;
+
+	mov	eax, DWORD PTR n$[rsp]
+	movsd	QWORD PTR native+4608, xmm1
+	movups	xmm1, XMMWORD PTR stats$[rsp+40]
+	mov	DWORD PTR native+4704, eax
+	movups	XMMWORD PTR native+4620, xmm0
+	movups	XMMWORD PTR native+4632, xmm1
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	jne	SHORT $LN105@psr_token
+	cmp	DWORD PTR native+112, edi
+	jne	SHORT $LN105@psr_token
+	mov	eax, DWORD PTR host+48
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 83   :  !PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an))||!PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinServiceSid,NULL,service,&sn)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	mov	rbx, QWORD PTR native+4544
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	test	eax, eax
+	jne	SHORT $LN105@psr_token
+	call	papacc_server_console_win32_stop_requested
+	test	eax, eax
+	jne	SHORT $LN105@psr_token
+
+; 10   : {if(!psr_r4_allowed()){SetLastError(native.runtime.r4_error?native.runtime.r4_error:ERROR_OPERATION_ABORTED);return FALSE;}return GetTokenInformation(h,c,b,cap,used);}
+
+	lea	rax, QWORD PTR gn$[rsp]
+	mov	r9d, 4096				; 00001000H
+	mov	r8, rsi
+	mov	QWORD PTR [rsp+32], rax
+	mov	edx, 2
+	mov	rcx, rbx
+	call	QWORD PTR __imp_GetTokenInformation
+	mov	ebx, eax
+	jmp	SHORT $LN100@psr_token
+$LN105@psr_token:
+	mov	eax, DWORD PTR native+4708
+	mov	ecx, r12d
+	test	eax, eax
+	cmovne	ecx, eax
+	call	QWORD PTR __imp_SetLastError
+	mov	ebx, edi
+$LN100@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0CA@KGNEEHBP@GetTokenInformation?3TokenGroups@
+	mov	DWORD PTR psrt_record+84, 81		; 00000051H
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 8
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+
+; 63   :  if(value&&length&&*length<=capacity&&slot<3){psrt_record.token[slot].data=data;psrt_record.token[slot].length=*length;psrt_record.token[slot].capacity=capacity;}
+
+	test	ebx, ebx
+	je	$LN16@psr_token
+	mov	eax, DWORD PTR gn$[rsp]
+	cmp	eax, 4096				; 00001000H
+	ja	SHORT $LN113@psr_token
+	mov	QWORD PTR psrt_record+16, rsi
+	mov	DWORD PTR psrt_record+24, eax
+	mov	DWORD PTR psrt_record+28, 4096		; 00001000H
+$LN113@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 83   :  !PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an))||!PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinServiceSid,NULL,service,&sn)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	add	eax, -8					; fffffff8H
+	cmp	eax, 4088				; 00000ff8H
+	ja	$LN16@psr_token
+	shr	eax, 4
+	cmp	DWORD PTR native+4848, eax
+	ja	$LN16@psr_token
+	lea	r9, QWORD PTR an$[rsp]
+	xor	edx, edx
+	lea	r8, QWORD PTR admin$[rbp-256]
+	mov	ecx, 26
+	call	QWORD PTR __imp_CreateWellKnownSid
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+84, 83		; 00000053H
+	test	ebx, ebx
+	mov	DWORD PTR psrt_record+72, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+100, edi
+	setne	cl
+	lea	rsi, OFFSET FLAT:??_C@_0BD@INGGIJLP@CreateWellKnownSid@
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	QWORD PTR psrt_record+56, rsi
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 83   :  !PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an))||!PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinServiceSid,NULL,service,&sn)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	test	ebx, ebx
+	je	$LN16@psr_token
+	lea	r9, QWORD PTR sn$[rsp]
+	xor	edx, edx
+	lea	r8, QWORD PTR service$[rbp-256]
+	mov	ecx, 12
+	call	QWORD PTR __imp_CreateWellKnownSid
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	mov	ecx, edi
+	mov	QWORD PTR psrt_record+56, rsi
+	test	ebx, ebx
+	mov	DWORD PTR psrt_record+84, 83		; 00000053H
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+72, edi
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 83   :  !PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an))||!PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinServiceSid,NULL,service,&sn)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	test	ebx, ebx
+	je	$LN16@psr_token
+
+; 84   :  for(i=0;i<g->GroupCount;i++){
+
+	cmp	DWORD PTR native+4848, edi
+	mov	r14d, edi
+	mov	QWORD PTR [rsp+336], r13
+	mov	esi, edi
+	mov	QWORD PTR [rsp+320], r15
+	mov	r13d, edi
+	mov	r15d, edi
+	mov	DWORD PTR service_group$1$[rsp], edi
+	jbe	$LN3@psr_token
+	lea	rdi, OFFSET FLAT:native
+	npad	10
+$LL4@psr_token:
+
+; 85   :   if(!psr_inside_sid(native.runtime.groups.bytes,gn,g->Groups[i].Sid))return PSRT_RETURN(ERROR_INVALID_SID,"original_branch");
+
+	mov	ebx, esi
+
+; 35   :  if(p<start||p-start>n||n-(DWORD)(p-start)<8U)return 0;
+
+	lea	r8, OFFSET FLAT:native+4848
+
+; 85   :   if(!psr_inside_sid(native.runtime.groups.bytes,gn,g->Groups[i].Sid))return PSRT_RETURN(ERROR_INVALID_SID,"original_branch");
+
+	shl	rbx, 4
+	mov	rdi, QWORD PTR [rdi+rbx+4856]
+
+; 35   :  if(p<start||p-start>n||n-(DWORD)(p-start)<8U)return 0;
+
+	cmp	rdi, r8
+	jb	$LN187@psr_token
+
+; 85   :   if(!psr_inside_sid(native.runtime.groups.bytes,gn,g->Groups[i].Sid))return PSRT_RETURN(ERROR_INVALID_SID,"original_branch");
+
+	mov	edx, DWORD PTR gn$[rsp]
+
+; 35   :  if(p<start||p-start>n||n-(DWORD)(p-start)<8U)return 0;
+
+	mov	rcx, rdi
+	sub	rcx, r8
+	cmp	rcx, rdx
+	ja	$LN187@psr_token
+	sub	edx, edi
+	add	edx, r8d
+	cmp	edx, 8
+	jb	$LN187@psr_token
+
+; 36   :  size=8U+4U*((BYTE *)sid)[1];return size<=n-(DWORD)(p-start)&&IsValidSid(sid)&&GetLengthSid(sid)==size;
+
+	movzx	eax, BYTE PTR [rdi+1]
+	lea	r14d, DWORD PTR [rax*4+8]
+	cmp	r14d, edx
+	ja	$LN187@psr_token
+	mov	rcx, rdi
+	call	QWORD PTR __imp_IsValidSid
+	test	eax, eax
+	je	$LN187@psr_token
+	mov	rcx, rdi
+	call	QWORD PTR __imp_GetLengthSid
+	cmp	eax, r14d
+	jne	$LN187@psr_token
+
+; 86   : #if defined(PAPACC_PSR_TRACE_LAB) || defined(PAPACC_R0R9_VIRTUAL_USER_LAB)
+; 87   :   /* Bounded facts from the already validated original query; no new authority. */
+; 88   :   if(EqualSid(g->Groups[i].Sid,native.service_sid)){specific_seen++;specific_attributes|=g->Groups[i].Attributes;}
+
+	lea	rdi, OFFSET FLAT:native
+	mov	rcx, QWORD PTR [rdi+rbx+4856]
+	lea	rdx, OFFSET FLAT:native+16544
+	call	QWORD PTR __imp_EqualSid
+	test	eax, eax
+	je	SHORT $LN213@psr_token
+	inc	r13d
+	or	r15d, DWORD PTR [rbx+rdi+4864]
+$LN213@psr_token:
+
+; 89   : #endif
+; 90   : #ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+; 91   :   if(EqualSid(g->Groups[i].Sid,admin)&&(g->Groups[i].Attributes&SE_GROUP_ENABLED))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_enabled_administrators");
+
+	mov	rcx, QWORD PTR [rdi+rbx+4856]
+	lea	rdx, QWORD PTR admin$[rbp-256]
+	call	QWORD PTR __imp_EqualSid
+	test	eax, eax
+	je	SHORT $LN214@psr_token
+	test	BYTE PTR [rdi+rbx+4864], 4
+	jne	$LN188@psr_token
+$LN214@psr_token:
+	mov	eax, DWORD PTR [rdi+rbx+4864]
+	and	al, 20
+	cmp	al, 4
+
+; 92   : #endif
+; 93   :   if((g->Groups[i].Attributes&SE_GROUP_ENABLED)&&!(g->Groups[i].Attributes&SE_GROUP_USE_FOR_DENY_ONLY)){
+
+	jne	SHORT $LN215@psr_token
+
+; 94   :    if(!PSRT_PRED("token.no_enabled_administrators",!EqualSid(g->Groups[i].Sid,admin)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	mov	rcx, QWORD PTR [rdi+rbx+4856]
+	lea	rdx, QWORD PTR admin$[rbp-256]
+	call	QWORD PTR __imp_EqualSid
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	test	eax, eax
+	jne	$LN212@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 95   :    if(EqualSid(g->Groups[i].Sid,service))service_group=1;
+
+	mov	rcx, QWORD PTR [rdi+rbx+4856]
+	lea	rdx, QWORD PTR service$[rbp-256]
+	call	QWORD PTR __imp_EqualSid
+	mov	r14d, DWORD PTR service_group$1$[rsp]
+
+; 96   :    if(EqualSid(g->Groups[i].Sid,native.service_sid))specific_group=1;
+
+	lea	rdx, OFFSET FLAT:native+16544
+	mov	rcx, QWORD PTR [rdi+rbx+4856]
+	test	eax, eax
+	mov	eax, 1
+	cmovne	r14d, eax
+	mov	DWORD PTR service_group$1$[rsp], r14d
+	call	QWORD PTR __imp_EqualSid
+	jmp	SHORT $LN2@psr_token
+$LN215@psr_token:
+
+; 92   : #endif
+; 93   :   if((g->Groups[i].Attributes&SE_GROUP_ENABLED)&&!(g->Groups[i].Attributes&SE_GROUP_USE_FOR_DENY_ONLY)){
+
+	mov	r14d, DWORD PTR service_group$1$[rsp]
+$LN2@psr_token:
+
+; 84   :  for(i=0;i<g->GroupCount;i++){
+
+	inc	esi
+	cmp	esi, DWORD PTR native+4848
+	jb	$LL4@psr_token
+	xor	edi, edi
+$LN3@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 58   : static void psrt_values(DWORD a,DWORD b){psrt_record.value_a=a;psrt_record.value_b=b;}
+
+	mov	DWORD PTR psrt_record+88, r13d
+	mov	DWORD PTR psrt_record+92, r15d
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	test	r14d, r14d
+	jne	$LN24@psr_token
+	lea	rax, OFFSET FLAT:??_C@_0BM@KGBCENLC@token?4service_group?4enabled@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 104  :  if(!PSRT_PRED("token.service_group.enabled",service_group))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	mov	edx, 104				; 00000068H
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	mov	QWORD PTR psrt_record+64, rax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 104  :  if(!PSRT_PRED("token.service_group.enabled",service_group))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	lea	r8, OFFSET FLAT:??_C@_0CA@DDACEAFN@authorization_or_native_mapping@
+$LN298@psr_token:
+
+; 123  :  if(!PSRT_PRED("r4.duplicate_baseline",n==sizeof(native.runtime.access_statistics)&&native.runtime.access_statistics.TokenType==TokenImpersonation&&!memcmp(&native.runtime.access_statistics.AuthenticationId,&stats.AuthenticationId,sizeof(LUID))))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_duplicate_baseline");
+
+	mov	ecx, 5
+$LN297@psr_token:
+	call	psrt_return
+$LN295@psr_token:
+	mov	r13, QWORD PTR [rsp+336]
+	mov	r15, QWORD PTR [rsp+320]
+$LN293@psr_token:
+	mov	rsi, QWORD PTR [rsp+376]
+$LN292@psr_token:
+	mov	rdi, QWORD PTR [rsp+384]
+	mov	rbx, QWORD PTR [rsp+368]
+	mov	r14, QWORD PTR [rsp+328]
+$LN1@psr_token:
+
+; 125  : #else
+; 126  :  return ERROR_SUCCESS;
+; 127  : #endif
+; 128  : }
+
+	mov	rcx, QWORD PTR __$ArrayPad$[rbp-256]
+	xor	rcx, rsp
+	call	__security_check_cookie
+	add	rsp, 344				; 00000158H
+	pop	r12
+	pop	rbp
+	ret	0
+$LN188@psr_token:
+
+; 89   : #endif
+; 90   : #ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+; 91   :   if(EqualSid(g->Groups[i].Sid,admin)&&(g->Groups[i].Attributes&SE_GROUP_ENABLED))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_enabled_administrators");
+
+	lea	r8, OFFSET FLAT:??_C@_0BK@BHIJIDKM@r4_enabled_administrators@
+	mov	edx, 91					; 0000005bH
+	jmp	SHORT $LN298@psr_token
+$LN212@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	lea	rax, OFFSET FLAT:??_C@_0CA@HKFDAIGP@token?4no_enabled_administrators@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 94   :    if(!PSRT_PRED("token.no_enabled_administrators",!EqualSid(g->Groups[i].Sid,admin)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	mov	edx, 94					; 0000005eH
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	mov	QWORD PTR psrt_record+64, rax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 94   :    if(!PSRT_PRED("token.no_enabled_administrators",!EqualSid(g->Groups[i].Sid,admin)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	lea	r8, OFFSET FLAT:??_C@_0CA@DDACEAFN@authorization_or_native_mapping@
+	jmp	SHORT $LN298@psr_token
+$LN187@psr_token:
+
+; 85   :   if(!psr_inside_sid(native.runtime.groups.bytes,gn,g->Groups[i].Sid))return PSRT_RETURN(ERROR_INVALID_SID,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 85					; 00000055H
+	mov	ecx, 1337				; 00000539H
+	jmp	$LN297@psr_token
+$LN24@psr_token:
+
+; 107  :  if(!PSRT_PRED("r4.specific_group_shape_initial",specific_seen==0U||(specific_seen==1U&&(specific_attributes&SE_GROUP_ENABLED)&&!(specific_attributes&SE_GROUP_USE_FOR_DENY_ONLY))))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_group_shape");
+
+	test	r13d, r13d
+	je	SHORT $LN25@psr_token
+	cmp	r13d, 1
+	jne	SHORT $LN34@psr_token
+	and	r15b, 20
+	cmp	r15b, 4
+	je	SHORT $LN25@psr_token
+$LN34@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	lea	rax, OFFSET FLAT:??_C@_0CA@DJBMCJPA@r4?4specific_group_shape_initial@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 107  :  if(!PSRT_PRED("r4.specific_group_shape_initial",specific_seen==0U||(specific_seen==1U&&(specific_attributes&SE_GROUP_ENABLED)&&!(specific_attributes&SE_GROUP_USE_FOR_DENY_ONLY))))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_group_shape");
+
+	mov	edx, 107				; 0000006bH
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	mov	QWORD PTR psrt_record+64, rax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 107  :  if(!PSRT_PRED("r4.specific_group_shape_initial",specific_seen==0U||(specific_seen==1U&&(specific_attributes&SE_GROUP_ENABLED)&&!(specific_attributes&SE_GROUP_USE_FOR_DENY_ONLY))))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_group_shape");
+
+	lea	r8, OFFSET FLAT:??_C@_0P@OIPCCFOF@r4_group_shape@
+	jmp	$LN298@psr_token
+$LN25@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	cmp	DWORD PTR native+12160, 0
+	lea	rsi, OFFSET FLAT:native+8944
+	jne	SHORT $LN140@psr_token
+	cmp	DWORD PTR native+112, 0
+	jne	SHORT $LN140@psr_token
+	mov	eax, DWORD PTR host+48
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 113  :  !PSRT_TOKEN("GetTokenInformation:TokenElevation",TokenElevation,&elev,sizeof(elev),&n,PSR_QUERY(native.runtime.token,TokenElevation,&elev,sizeof(elev),&n))||n!=sizeof(elev))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	mov	rbx, QWORD PTR native+4544
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	test	eax, eax
+	jne	SHORT $LN140@psr_token
+	call	papacc_server_console_win32_stop_requested
+	test	eax, eax
+	jne	SHORT $LN140@psr_token
+
+; 10   : {if(!psr_r4_allowed()){SetLastError(native.runtime.r4_error?native.runtime.r4_error:ERROR_OPERATION_ABORTED);return FALSE;}return GetTokenInformation(h,c,b,cap,used);}
+
+	lea	rax, QWORD PTR pn$[rsp]
+	mov	r9d, 2048				; 00000800H
+	mov	r8, rsi
+	mov	QWORD PTR [rsp+32], rax
+	mov	edx, 3
+	mov	rcx, rbx
+	call	QWORD PTR __imp_GetTokenInformation
+	mov	ebx, eax
+	jmp	SHORT $LN135@psr_token
+$LN140@psr_token:
+	mov	eax, DWORD PTR native+4708
+	mov	ecx, r12d
+	test	eax, eax
+	cmovne	ecx, eax
+	call	QWORD PTR __imp_SetLastError
+	mov	ebx, edi
+$LN135@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0CE@GAPNAIEB@GetTokenInformation?3TokenPrivile@
+	mov	DWORD PTR psrt_record+84, 111		; 0000006fH
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 8
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+
+; 63   :  if(value&&length&&*length<=capacity&&slot<3){psrt_record.token[slot].data=data;psrt_record.token[slot].length=*length;psrt_record.token[slot].capacity=capacity;}
+
+	test	ebx, ebx
+	je	$LN27@psr_token
+	mov	eax, DWORD PTR pn$[rsp]
+	cmp	eax, 2048				; 00000800H
+	ja	SHORT $LN148@psr_token
+	mov	QWORD PTR psrt_record+32, rsi
+	mov	DWORD PTR psrt_record+40, eax
+	mov	DWORD PTR psrt_record+44, 2048		; 00000800H
+$LN148@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 113  :  !PSRT_TOKEN("GetTokenInformation:TokenElevation",TokenElevation,&elev,sizeof(elev),&n,PSR_QUERY(native.runtime.token,TokenElevation,&elev,sizeof(elev),&n))||n!=sizeof(elev))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	add	eax, -4					; fffffffcH
+	cmp	eax, 2044				; 000007fcH
+	ja	$LN27@psr_token
+	mov	ecx, eax
+	mov	rax, -6148914691236517205		; aaaaaaaaaaaaaaabH
+	mul	rcx
+	mov	eax, DWORD PTR native+8944
+	shr	rdx, 3
+	cmp	rax, rdx
+	ja	$LN27@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	cmp	DWORD PTR native+12160, 0
+	jne	SHORT $LN160@psr_token
+	cmp	DWORD PTR native+112, 0
+	jne	SHORT $LN160@psr_token
+	mov	eax, DWORD PTR host+48
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 113  :  !PSRT_TOKEN("GetTokenInformation:TokenElevation",TokenElevation,&elev,sizeof(elev),&n,PSR_QUERY(native.runtime.token,TokenElevation,&elev,sizeof(elev),&n))||n!=sizeof(elev))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	mov	rbx, QWORD PTR native+4544
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	test	eax, eax
+	jne	SHORT $LN160@psr_token
+	call	papacc_server_console_win32_stop_requested
+	test	eax, eax
+	jne	SHORT $LN160@psr_token
+
+; 10   : {if(!psr_r4_allowed()){SetLastError(native.runtime.r4_error?native.runtime.r4_error:ERROR_OPERATION_ABORTED);return FALSE;}return GetTokenInformation(h,c,b,cap,used);}
+
+	lea	rax, QWORD PTR n$[rsp]
+	mov	r9d, 4
+	lea	r8, QWORD PTR elev$[rsp]
+	mov	QWORD PTR [rsp+32], rax
+	mov	edx, 20
+	mov	rcx, rbx
+	call	QWORD PTR __imp_GetTokenInformation
+	mov	ebx, eax
+	jmp	SHORT $LN155@psr_token
+$LN160@psr_token:
+	mov	eax, DWORD PTR native+4708
+	mov	ecx, r12d
+	test	eax, eax
+	cmovne	ecx, eax
+	call	QWORD PTR __imp_SetLastError
+	mov	ebx, edi
+$LN155@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0CD@GNFCBLPM@GetTokenInformation?3TokenElevati@
+	mov	DWORD PTR psrt_record+84, 113		; 00000071H
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 8
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 113  :  !PSRT_TOKEN("GetTokenInformation:TokenElevation",TokenElevation,&elev,sizeof(elev),&n,PSR_QUERY(native.runtime.token,TokenElevation,&elev,sizeof(elev),&n))||n!=sizeof(elev))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	test	ebx, ebx
+	je	$LN27@psr_token
+	cmp	DWORD PTR n$[rsp], 4
+	jne	$LN27@psr_token
+
+; 114  :  native.runtime.statistics=stats;native.runtime.group_bytes=gn;native.runtime.privilege_bytes=pn;native.runtime.elevated=elev.TokenIsElevated;
+
+	movups	xmm0, XMMWORD PTR stats$[rsp]
+	mov	eax, DWORD PTR stats$[rsp+24]
+	movsd	xmm1, QWORD PTR stats$[rsp+16]
+	mov	DWORD PTR native+4616, eax
+	mov	eax, DWORD PTR gn$[rsp]
+	mov	DWORD PTR native+12144, eax
+	mov	eax, DWORD PTR pn$[rsp]
+	movaps	XMMWORD PTR native+4592, xmm0
+	movups	xmm0, XMMWORD PTR stats$[rsp+28]
+	mov	DWORD PTR native+12148, eax
+	mov	eax, DWORD PTR elev$[rsp]
+	movsd	QWORD PTR native+4608, xmm1
+	movups	xmm1, XMMWORD PTR stats$[rsp+40]
+	mov	DWORD PTR native+12152, eax
+	movups	XMMWORD PTR native+4620, xmm0
+	movups	XMMWORD PTR native+4632, xmm1
+
+; 115  :  /* Keep full group/privilege entries/attributes through runtime quiescence. */
+; 116  : #ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+; 117  :  if(!psr_r4_allowed())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"r4_stop_before_duplicate");
+
+	call	psr_r4_allowed
+	test	eax, eax
+	jne	SHORT $LN28@psr_token
+	lea	r8, OFFSET FLAT:??_C@_0BJ@IKIDDANO@r4_stop_before_duplicate@
+	mov	edx, 117				; 00000075H
+	mov	ecx, r12d
+	jmp	$LN297@psr_token
+$LN28@psr_token:
+
+; 119  :  if(!PSRT_BOOL("DuplicateToken",(TOKEN_DUPLICATE),DuplicateToken(native.runtime.token,SecurityImpersonation,&native.runtime.access_token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	mov	rcx, QWORD PTR native+4544
+	lea	r8, OFFSET FLAT:native+4552
+	mov	edx, 2
+	call	QWORD PTR __imp_DuplicateToken
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0P@OPDGIJLP@DuplicateToken@
+	mov	DWORD PTR psrt_record+84, 119		; 00000077H
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 2
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 119  :  if(!PSRT_BOOL("DuplicateToken",(TOKEN_DUPLICATE),DuplicateToken(native.runtime.token,SecurityImpersonation,&native.runtime.access_token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	test	ebx, ebx
+	jne	SHORT $LN29@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	call	QWORD PTR __imp_GetLastError
+	mov	ecx, 31
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 119  :  if(!PSRT_BOOL("DuplicateToken",(TOKEN_DUPLICATE),DuplicateToken(native.runtime.token,SecurityImpersonation,&native.runtime.access_token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	lea	r8, OFFSET FLAT:??_C@_0BD@LFJFCJHI@native_api_failure@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	test	eax, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 119  :  if(!PSRT_BOOL("DuplicateToken",(TOKEN_DUPLICATE),DuplicateToken(native.runtime.token,SecurityImpersonation,&native.runtime.access_token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	mov	edx, 119				; 00000077H
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	cmovne	ecx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 119  :  if(!PSRT_BOOL("DuplicateToken",(TOKEN_DUPLICATE),DuplicateToken(native.runtime.token,SecurityImpersonation,&native.runtime.access_token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+
+	jmp	$LN297@psr_token
+$LN29@psr_token:
+
+; 120  : #ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+; 121  :  if(!native.runtime.access_token)return PSRT_RETURN(ERROR_INVALID_HANDLE,"r4_duplicate_missing");
+
+	mov	rbx, QWORD PTR native+4552
+	test	rbx, rbx
+	jne	SHORT $LN30@psr_token
+	lea	r8, OFFSET FLAT:??_C@_0BF@MBGAAOHD@r4_duplicate_missing@
+	mov	edx, 121				; 00000079H
+	mov	ecx, 6
+	jmp	$LN297@psr_token
+$LN30@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 10   : {if(!psr_r4_allowed()){SetLastError(native.runtime.r4_error?native.runtime.r4_error:ERROR_OPERATION_ABORTED);return FALSE;}return GetTokenInformation(h,c,b,cap,used);}
+
+	call	psr_r4_allowed
+	test	eax, eax
+	jne	SHORT $LN177@psr_token
+	mov	eax, DWORD PTR native+4708
+	test	eax, eax
+	cmovne	r12d, eax
+	mov	ecx, r12d
+	call	QWORD PTR __imp_SetLastError
+	mov	ebx, edi
+	jmp	SHORT $LN176@psr_token
+$LN177@psr_token:
+	lea	rax, QWORD PTR n$[rsp]
+	mov	r9d, 56					; 00000038H
+	lea	r8, OFFSET FLAT:native+4648
+	mov	QWORD PTR [rsp+32], rax
+	mov	edx, 10
+	mov	rcx, rbx
+	call	QWORD PTR __imp_GetTokenInformation
+	mov	ebx, eax
+$LN176@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0CI@BGJDGPG@GetTokenInformation?3R4DuplicateB@
+	mov	DWORD PTR psrt_record+84, 122		; 0000007aH
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 8
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 122  :  if(!PSRT_BOOL("GetTokenInformation:R4DuplicateBaseline",TOKEN_QUERY,PSR_QUERY(native.runtime.access_token,TokenStatistics,&native.runtime.access_statistics,sizeof(native.runtime.access_statistics),&n)))return PSRT_RETURN(ps_last_error(),"r4_duplicate_baseline_query");
+
+	test	ebx, ebx
+	jne	SHORT $LN31@psr_token
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	call	QWORD PTR __imp_GetLastError
+	mov	ecx, 31
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 122  :  if(!PSRT_BOOL("GetTokenInformation:R4DuplicateBaseline",TOKEN_QUERY,PSR_QUERY(native.runtime.access_token,TokenStatistics,&native.runtime.access_statistics,sizeof(native.runtime.access_statistics),&n)))return PSRT_RETURN(ps_last_error(),"r4_duplicate_baseline_query");
+
+	lea	r8, OFFSET FLAT:??_C@_0BM@BCDPDONF@r4_duplicate_baseline_query@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	test	eax, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 122  :  if(!PSRT_BOOL("GetTokenInformation:R4DuplicateBaseline",TOKEN_QUERY,PSR_QUERY(native.runtime.access_token,TokenStatistics,&native.runtime.access_statistics,sizeof(native.runtime.access_statistics),&n)))return PSRT_RETURN(ps_last_error(),"r4_duplicate_baseline_query");
+
+	mov	edx, 122				; 0000007aH
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_win32.c
+
+; 77   : static DWORD ps_last_error(void){DWORD e=GetLastError();return e?e:ERROR_GEN_FAILURE;}
+
+	cmovne	ecx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 122  :  if(!PSRT_BOOL("GetTokenInformation:R4DuplicateBaseline",TOKEN_QUERY,PSR_QUERY(native.runtime.access_token,TokenStatistics,&native.runtime.access_statistics,sizeof(native.runtime.access_statistics),&n)))return PSRT_RETURN(ps_last_error(),"r4_duplicate_baseline_query");
+
+	jmp	$LN297@psr_token
+$LN31@psr_token:
+
+; 123  :  if(!PSRT_PRED("r4.duplicate_baseline",n==sizeof(native.runtime.access_statistics)&&native.runtime.access_statistics.TokenType==TokenImpersonation&&!memcmp(&native.runtime.access_statistics.AuthenticationId,&stats.AuthenticationId,sizeof(LUID))))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_duplicate_baseline");
+
+	cmp	DWORD PTR n$[rsp], 56			; 00000038H
+	jne	SHORT $LN37@psr_token
+	cmp	DWORD PTR native+4672, 2
+	jne	SHORT $LN37@psr_token
+	mov	r8d, 8
+	lea	rdx, QWORD PTR stats$[rsp+8]
+	lea	rcx, OFFSET FLAT:native+4656
+	call	memcmp
+	test	eax, eax
+	jne	SHORT $LN37@psr_token
+
+; 124  :  return psr_r4_current();
+
+	call	psr_r4_current
+	jmp	$LN295@psr_token
+$LN37@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	lea	rax, OFFSET FLAT:??_C@_0BG@PINHAGLA@r4?4duplicate_baseline@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 123  :  if(!PSRT_PRED("r4.duplicate_baseline",n==sizeof(native.runtime.access_statistics)&&native.runtime.access_statistics.TokenType==TokenImpersonation&&!memcmp(&native.runtime.access_statistics.AuthenticationId,&stats.AuthenticationId,sizeof(LUID))))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_duplicate_baseline");
+
+	mov	edx, 123				; 0000007bH
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	mov	QWORD PTR psrt_record+64, rax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 123  :  if(!PSRT_PRED("r4.duplicate_baseline",n==sizeof(native.runtime.access_statistics)&&native.runtime.access_statistics.TokenType==TokenImpersonation&&!memcmp(&native.runtime.access_statistics.AuthenticationId,&stats.AuthenticationId,sizeof(LUID))))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_duplicate_baseline");
+
+	lea	r8, OFFSET FLAT:??_C@_0BG@FCHCGGMO@r4_duplicate_baseline@
+	jmp	$LN298@psr_token
+$LN27@psr_token:
+
+; 113  :  !PSRT_TOKEN("GetTokenInformation:TokenElevation",TokenElevation,&elev,sizeof(elev),&n,PSR_QUERY(native.runtime.token,TokenElevation,&elev,sizeof(elev),&n))||n!=sizeof(elev))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 113				; 00000071H
+	mov	ecx, 13
+	jmp	$LN297@psr_token
+$LN16@psr_token:
+
+; 83   :  !PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an))||!PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinServiceSid,NULL,service,&sn)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 83					; 00000053H
+	mov	ecx, 13
+	call	psrt_return
+	jmp	$LN293@psr_token
+$LN80@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	lea	rax, OFFSET FLAT:??_C@_0BC@EHPANOEB@token?4user?4length@
+$LN296@psr_token:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 73   :  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	mov	QWORD PTR psrt_record+64, rax
+$LN14@psr_token:
+	lea	r8, OFFSET FLAT:??_C@_0CA@DDACEAFN@authorization_or_native_mapping@
+	mov	edx, 73					; 00000049H
+	mov	ecx, 5
+	call	psrt_return
+	jmp	$LN293@psr_token
+$LN8@psr_token:
+
+; 63   : #endif
+; 64   :  if(native.runtime.unexpected||native.runtime.token)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 64					; 00000040H
+	mov	ecx, 5023				; 0000139fH
+	call	psrt_return
+	jmp	$LN1@psr_token
+$LN41@psr_token:
+
+; 60   : #ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+; 61   :  if(!psr_r4_allowed())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"r4_initial_stop_or_retained");
+
+	lea	r8, OFFSET FLAT:??_C@_0BM@PCCCNPKD@r4_initial_stop_or_retained@
+	mov	edx, 61					; 0000003dH
+	mov	ecx, 995				; 000003e3H
+	call	psrt_return
+	jmp	$LN1@psr_token
+psr_token ENDP

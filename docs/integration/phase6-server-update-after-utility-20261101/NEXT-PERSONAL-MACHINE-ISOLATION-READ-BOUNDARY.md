@@ -1,0 +1,7 @@
+# Próxima continuação — fronteira READ/MACHINE, somente offline
+
+Executar integralmente POST-FIRST-DIAGNOSTIC-PERSONAL-GATE-REVIEW.md. Primeiro diagnóstico TRANSPORT_ONLY concluído; não repetir Start/UPDATE/transporte ou autoridades consumidas. Objetivo exclusivo: definir a menor ligação do probe READ/MACHINE existente ao mesmo owner e runtime, com fonte legítima original da chave de teste e autoridade READ independente. Não converter o pacote chamadoP1-READ em propósitoREAD: ele continuaTO.
+
+Inventariar producer original legítimo da chaveMACHINE e requisitos de uma fixture exclusiva se ausente no escopo. Não usar fixtureCurrentUser retida, keystringinventada ou ausência de chave como isolamentoPASS. Comparar contratos OHI/SSO-B/TO0–TO9/P0–P7/G3/SQB3/Q6/L0–L6 antes de implementar: P1TO especializações não valemREAD. Preparar UMA proposta focal somente se necessária; nenhum novo serviço/owner/protocolo/root. Reutilizar probe/dispatch já implementados, sem recriar KSPgerenciador. Não remover closed_preparation guard ou ampliar quotas por inferência. Não implementar dependência normativa não aceita.
+
+Não executar consultaKSP/SCM/Start/Stop/endpoint/READ/UPDATE/chave/ACL/CA/CURRENT/rede/TPM/NV/Q4/cleanup/refund. Concluir autonomamente desenho e integrações offline já cobertas, qualificar só alterações reais; entregar fonte/caller/proposta se necessária/primeirogate e eventual pedido operacional completo. Preservar UNKNOWN/PST0.6.4.

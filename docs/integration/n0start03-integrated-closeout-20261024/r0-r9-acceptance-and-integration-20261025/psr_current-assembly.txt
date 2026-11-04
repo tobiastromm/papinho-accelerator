@@ -1,0 +1,832 @@
+psr_current PROC					; COMDAT
+
+; 164  : {
+
+	push	rbp
+	lea	rbp, QWORD PTR [rsp-48]
+	sub	rsp, 304				; 00000130H
+	mov	rax, QWORD PTR __security_cookie
+	xor	rax, rsp
+	mov	QWORD PTR __$ArrayPad$[rbp-256], rax
+
+; 165  :  BY_HANDLE_FILE_INFORMATION a;TOKEN_STATISTICS stats;DWORD n,read;LARGE_INTEGER zero;unsigned char digest[32];char hex[65];unsigned i;
+; 166  :  PSRT_CONTEXT("CURRENT_SOURCE_AND_TOKEN");
+
+	lea	rcx, OFFSET FLAT:??_C@_0BJ@IKNBNMEI@CURRENT_SOURCE_AND_TOKEN@
+	call	psrt_context
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	cmp	DWORD PTR native+12160, 0
+	jne	$LN35@psr_curren
+	cmp	DWORD PTR native+112, 0
+	jne	$LN35@psr_curren
+	mov	eax, DWORD PTR host+48
+	test	eax, eax
+	jne	$LN35@psr_curren
+	call	papacc_server_console_win32_stop_requested
+	test	eax, eax
+	jne	$LN35@psr_curren
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 169  :  if(native.runtime.r4_busy)return psr_r4_current();
+
+	cmp	DWORD PTR native+4712, eax
+	je	SHORT $LN6@psr_curren
+	call	psr_r4_current
+	jmp	$LN1@psr_curren
+$LN6@psr_curren:
+
+; 170  : #endif
+; 171  :  if(native.runtime.retained||papacc_server_console_win32_stop_requested()||!native.runtime.parent||!native.runtime.configuration||!native.runtime.token)return PSRT_RETURN(ERROR_OPERATION_ABORTED,"original_branch");
+
+	cmp	DWORD PTR native+12160, 0
+	jne	$LN8@psr_curren
+	call	papacc_server_console_win32_stop_requested
+	test	eax, eax
+	jne	$LN8@psr_curren
+	cmp	QWORD PTR native+4520, 0
+	je	$LN8@psr_curren
+	cmp	QWORD PTR native+4528, 0
+	je	$LN8@psr_curren
+	cmp	QWORD PTR native+4544, 0
+	je	$LN8@psr_curren
+
+; 172  :  if(native.runtime.unexpected||native.runtime.check_token)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
+
+	cmp	QWORD PTR native+4560, 0
+	jne	$LN10@psr_curren
+	cmp	QWORD PTR native+4568, 0
+	jne	$LN10@psr_curren
+	mov	QWORD PTR [rsp+320], rbx
+	mov	QWORD PTR [rsp+336], rdi
+
+; 173  :  if(PSRT_BOOL("OpenThreadToken",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	call	QWORD PTR __imp_GetCurrentThread
+	lea	r9, OFFSET FLAT:native+4560
+	mov	edx, 8
+	mov	rcx, rax
+	mov	r8d, 1
+	call	QWORD PTR __imp_OpenThreadToken
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	xor	edi, edi
+	mov	DWORD PTR psrt_record+84, 173		; 000000adH
+	lea	rcx, OFFSET FLAT:??_C@_0BA@MOEFBCGC@OpenThreadToken@
+	mov	DWORD PTR psrt_record+72, 8
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+100, edi
+	setne	cl
+	mov	r8d, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	r8d, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, r8d
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 173  :  if(PSRT_BOOL("OpenThreadToken",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	test	ebx, ebx
+	je	SHORT $LN11@psr_curren
+	lea	r8, OFFSET FLAT:??_C@_0CA@DDACEAFN@authorization_or_native_mapping@
+	mov	edx, 173				; 000000adH
+	mov	ecx, 5
+	call	psrt_return
+	jmp	$LN156@psr_curren
+$LN11@psr_curren:
+
+; 174  :  if(GetLastError()!=ERROR_NO_TOKEN||!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&native.runtime.check_token)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	call	QWORD PTR __imp_GetLastError
+	cmp	eax, 1008				; 000003f0H
+	jne	$LN13@psr_curren
+	call	QWORD PTR __imp_GetCurrentProcess
+	lea	r8, OFFSET FLAT:native+4568
+	mov	edx, 8
+	mov	rcx, rax
+	call	QWORD PTR __imp_OpenProcessToken
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0BB@EANJDCJP@OpenProcessToken@
+	mov	DWORD PTR psrt_record+84, 174		; 000000aeH
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 8
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 174  :  if(GetLastError()!=ERROR_NO_TOKEN||!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&native.runtime.check_token)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	test	ebx, ebx
+	je	$LN13@psr_curren
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	cmp	DWORD PTR native+12160, edi
+	jne	SHORT $LN46@psr_curren
+	cmp	DWORD PTR native+112, edi
+	jne	SHORT $LN46@psr_curren
+	mov	eax, DWORD PTR host+48
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 176  :  int same=PSRT_TOKEN("GetTokenInformation:TokenStatistics",TokenStatistics,&stats,sizeof(stats),&n,PSR_QUERY(native.runtime.check_token,TokenStatistics,&stats,sizeof(stats),&n))&&n==sizeof(stats)&&
+
+	mov	rbx, QWORD PTR native+4568
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_user_r0r9_win32.inc
+
+; 8    : static int psr_r4_allowed(void){return !native.runtime.retained&&!native.retained&&!host.stop&&!papacc_server_console_win32_stop_requested();}
+
+	test	eax, eax
+	jne	SHORT $LN46@psr_curren
+	call	papacc_server_console_win32_stop_requested
+	test	eax, eax
+	jne	SHORT $LN46@psr_curren
+
+; 10   : {if(!psr_r4_allowed()){SetLastError(native.runtime.r4_error?native.runtime.r4_error:ERROR_OPERATION_ABORTED);return FALSE;}return GetTokenInformation(h,c,b,cap,used);}
+
+	lea	rax, QWORD PTR n$[rsp]
+	mov	r9d, 56					; 00000038H
+	lea	r8, QWORD PTR stats$[rsp]
+	mov	QWORD PTR [rsp+32], rax
+	mov	edx, 10
+	mov	rcx, rbx
+	call	QWORD PTR __imp_GetTokenInformation
+	mov	ebx, eax
+	jmp	SHORT $LN41@psr_curren
+$LN46@psr_curren:
+	mov	eax, DWORD PTR native+4708
+	mov	ecx, 995				; 000003e3H
+	test	eax, eax
+	cmovne	ecx, eax
+	call	QWORD PTR __imp_SetLastError
+	mov	ebx, edi
+$LN41@psr_curren:
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0CE@EGKOLOJP@GetTokenInformation?3TokenStatist@
+	mov	DWORD PTR psrt_record+84, 176		; 000000b0H
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 8
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 176  :  int same=PSRT_TOKEN("GetTokenInformation:TokenStatistics",TokenStatistics,&stats,sizeof(stats),&n,PSR_QUERY(native.runtime.check_token,TokenStatistics,&stats,sizeof(stats),&n))&&n==sizeof(stats)&&
+
+	test	ebx, ebx
+	je	SHORT $LN29@psr_curren
+	cmp	DWORD PTR n$[rsp], 56			; 00000038H
+	jne	SHORT $LN29@psr_curren
+	mov	r8d, 8
+	lea	rdx, OFFSET FLAT:native+4592
+	lea	rcx, QWORD PTR stats$[rsp]
+	call	memcmp
+	test	eax, eax
+	jne	SHORT $LN29@psr_curren
+	mov	r8d, 8
+	lea	rdx, OFFSET FLAT:native+4600
+	lea	rcx, QWORD PTR stats$[rsp+8]
+	call	memcmp
+	test	eax, eax
+	jne	SHORT $LN29@psr_curren
+	mov	r8d, 8
+	lea	rdx, OFFSET FLAT:native+4640
+	lea	rcx, QWORD PTR stats$[rbp-208]
+	call	memcmp
+	mov	ebx, 1
+	test	eax, eax
+	je	SHORT $LN30@psr_curren
+$LN29@psr_curren:
+	mov	ebx, edi
+$LN30@psr_curren:
+
+; 177  :  !memcmp(&stats.TokenId,&native.runtime.statistics.TokenId,sizeof(LUID))&&
+; 178  :  !memcmp(&stats.AuthenticationId,&native.runtime.statistics.AuthenticationId,sizeof(LUID))&&!memcmp(&stats.ModifiedId,&native.runtime.statistics.ModifiedId,sizeof(LUID));
+; 179  :  if(!CloseHandle(native.runtime.check_token)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.check_token=NULL;
+
+	mov	rcx, QWORD PTR native+4568
+	call	QWORD PTR __imp_CloseHandle
+	test	eax, eax
+	jne	SHORT $LN14@psr_curren
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	DWORD PTR native+12160, 1
+	mov	edx, 179				; 000000b3H
+	mov	ecx, 6
+	call	psrt_return
+	jmp	$LN156@psr_curren
+$LN14@psr_curren:
+	mov	QWORD PTR native+4568, rdi
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	test	ebx, ebx
+	jne	SHORT $LN15@psr_curren
+	lea	rax, OFFSET FLAT:??_C@_0BM@KGNGEEJN@token?4same_id_auth_modified@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 180  :  if(!PSRT_PRED("token.same_id_auth_modified",same))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	mov	edx, 180				; 000000b4H
+	lea	r8, OFFSET FLAT:??_C@_0CA@DDACEAFN@authorization_or_native_mapping@
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 57   : static BOOL psrt_pred(const char *name,BOOL value){if(!value)psrt_record.predicate=name;return value;}
+
+	mov	QWORD PTR psrt_record+64, rax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 180  :  if(!PSRT_PRED("token.same_id_auth_modified",same))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	mov	ecx, 5
+	call	psrt_return
+	jmp	$LN156@psr_curren
+$LN15@psr_curren:
+
+; 183  :  !(a.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||(a.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	mov	rcx, QWORD PTR native+4520
+	lea	rdx, QWORD PTR a$[rsp]
+	mov	QWORD PTR [rsp+328], rsi
+	call	QWORD PTR __imp_GetFileInformationByHandle
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+84, 182		; 000000b6H
+	test	ebx, ebx
+	mov	DWORD PTR psrt_record+72, 128		; 00000080H
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+100, edi
+	setne	cl
+	lea	rsi, OFFSET FLAT:??_C@_0BL@JOCCKKDM@GetFileInformationByHandle@
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	QWORD PTR psrt_record+56, rsi
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 183  :  !(a.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||(a.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	test	ebx, ebx
+	je	$LN17@psr_curren
+	cmp	DWORD PTR a$[rsp+28], 417614100		; 18e44914H
+	jne	$LN17@psr_curren
+	cmp	DWORD PTR a$[rsp+44], 1966080		; 001e0000H
+	jne	$LN17@psr_curren
+	cmp	DWORD PTR a$[rsp+48], 79426		; 00013642H
+	jne	$LN17@psr_curren
+	mov	eax, DWORD PTR a$[rsp]
+	and	eax, 1040				; 00000410H
+	cmp	eax, 16
+	jne	$LN17@psr_curren
+
+; 184  :  if(!PSRT_BOOL("GetFileInformationByHandle",(FILE_READ_ATTRIBUTES),GetFileInformationByHandle(native.runtime.relative_image,&a))||!ps_image_same(&a,&native.image_id)||
+
+	mov	rcx, QWORD PTR native+4536
+	lea	rdx, QWORD PTR a$[rsp]
+	call	QWORD PTR __imp_GetFileInformationByHandle
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	mov	ecx, edi
+	mov	QWORD PTR psrt_record+56, rsi
+	test	ebx, ebx
+	mov	DWORD PTR psrt_record+84, 184		; 000000b8H
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+72, 128		; 00000080H
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 184  :  if(!PSRT_BOOL("GetFileInformationByHandle",(FILE_READ_ATTRIBUTES),GetFileInformationByHandle(native.runtime.relative_image,&a))||!ps_image_same(&a,&native.image_id)||
+
+	test	ebx, ebx
+	je	$LN19@psr_curren
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_virtual_win32.inc
+
+; 6    :  return a->dwVolumeSerialNumber==b->dwVolumeSerialNumber&&a->nFileIndexHigh==b->nFileIndexHigh&&
+
+	mov	eax, DWORD PTR native+12316
+	cmp	DWORD PTR a$[rsp+28], eax
+	jne	$LN19@psr_curren
+	mov	eax, DWORD PTR native+12332
+	cmp	DWORD PTR a$[rsp+44], eax
+	jne	$LN19@psr_curren
+	mov	eax, DWORD PTR native+12336
+	cmp	DWORD PTR a$[rsp+48], eax
+	jne	$LN19@psr_curren
+	mov	eax, DWORD PTR native+12320
+	cmp	DWORD PTR a$[rsp+32], eax
+	jne	$LN19@psr_curren
+	mov	eax, DWORD PTR native+12324
+	cmp	DWORD PTR a$[rsp+36], eax
+	jne	$LN19@psr_curren
+	mov	eax, DWORD PTR native+12312
+	cmp	DWORD PTR a$[rsp+24], eax
+	jne	$LN19@psr_curren
+	mov	eax, DWORD PTR native+12308
+	cmp	DWORD PTR a$[rsp+20], eax
+	jne	$LN19@psr_curren
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 184  :  if(!PSRT_BOOL("GetFileInformationByHandle",(FILE_READ_ATTRIBUTES),GetFileInformationByHandle(native.runtime.relative_image,&a))||!ps_image_same(&a,&native.image_id)||
+
+	test	DWORD PTR a$[rsp], 1040			; 00000410H
+	jne	$LN19@psr_curren
+
+; 187  :  a.nFileSizeHigh||a.nFileSizeLow!=116U||(a.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	mov	rcx, QWORD PTR native+4528
+	lea	rdx, QWORD PTR a$[rsp]
+	call	QWORD PTR __imp_GetFileInformationByHandle
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	mov	ecx, edi
+	mov	QWORD PTR psrt_record+56, rsi
+	test	ebx, ebx
+	mov	DWORD PTR psrt_record+84, 186		; 000000baH
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+72, 128		; 00000080H
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 187  :  a.nFileSizeHigh||a.nFileSizeLow!=116U||(a.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	test	ebx, ebx
+	je	$LN21@psr_curren
+	cmp	DWORD PTR a$[rsp+28], 417614100		; 18e44914H
+	jne	$LN21@psr_curren
+	cmp	DWORD PTR a$[rsp+44], 393216		; 00060000H
+	jne	$LN21@psr_curren
+	cmp	DWORD PTR a$[rsp+48], 1120240		; 001117f0H
+	jne	$LN21@psr_curren
+	cmp	DWORD PTR a$[rsp+32], edi
+	jne	$LN21@psr_curren
+	cmp	DWORD PTR a$[rsp+36], 116		; 00000074H
+	jne	$LN21@psr_curren
+	test	DWORD PTR a$[rsp], 1040			; 00000410H
+	jne	$LN21@psr_curren
+
+; 188  :  zero.QuadPart=0;if(!PSRT_BOOL("SetFilePointerEx",(FILE_READ_DATA),SetFilePointerEx(native.runtime.configuration,zero,NULL,FILE_BEGIN))||!PSRT_BOOL("ReadFile",(FILE_READ_DATA),ReadFile(native.runtime.configuration,native.runtime.bytes,sizeof(native.runtime.bytes),&read,NULL))||read!=116U)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	mov	rcx, QWORD PTR native+4528
+	mov	rdx, rdi
+	xor	r9d, r9d
+	xor	r8d, r8d
+	call	QWORD PTR __imp_SetFilePointerEx
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_0BB@GDGABGCO@SetFilePointerEx@
+	mov	DWORD PTR psrt_record+84, 188		; 000000bcH
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 1
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 188  :  zero.QuadPart=0;if(!PSRT_BOOL("SetFilePointerEx",(FILE_READ_DATA),SetFilePointerEx(native.runtime.configuration,zero,NULL,FILE_BEGIN))||!PSRT_BOOL("ReadFile",(FILE_READ_DATA),ReadFile(native.runtime.configuration,native.runtime.bytes,sizeof(native.runtime.bytes),&read,NULL))||read!=116U)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	test	ebx, ebx
+	je	$LN23@psr_curren
+	mov	rcx, QWORD PTR native+4528
+	lea	r9, QWORD PTR read$[rsp]
+	mov	r8d, 128				; 00000080H
+	mov	QWORD PTR [rsp+32], rdi
+	lea	rdx, OFFSET FLAT:native+12016
+	call	QWORD PTR __imp_ReadFile
+	mov	ebx, eax
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_psr_trace_win32.inc
+
+; 48   : {DWORD saved=GetLastError();psrt_record.api=name;psrt_record.line=line;psrt_record.requested=requested;psrt_record.raw=value?0:saved;psrt_record.success=value!=FALSE;psrt_record.native_valid=0;SetLastError(saved);return value;}
+
+	call	QWORD PTR __imp_GetLastError
+	lea	rcx, OFFSET FLAT:??_C@_08KLCHJOKF@ReadFile@
+	mov	DWORD PTR psrt_record+84, 188		; 000000bcH
+	mov	QWORD PTR psrt_record+56, rcx
+	test	ebx, ebx
+	mov	ecx, edi
+	mov	DWORD PTR psrt_record+72, 1
+	setne	cl
+	mov	DWORD PTR psrt_record+100, edi
+	mov	edx, eax
+	mov	DWORD PTR psrt_record+104, ecx
+	cmovne	edx, edi
+	mov	ecx, eax
+	mov	DWORD PTR psrt_record+76, edx
+	call	QWORD PTR __imp_SetLastError
+; File C:\Projetos\PapinhoAccelerator\apps\server\server_service_runtime_win32.inc
+
+; 188  :  zero.QuadPart=0;if(!PSRT_BOOL("SetFilePointerEx",(FILE_READ_DATA),SetFilePointerEx(native.runtime.configuration,zero,NULL,FILE_BEGIN))||!PSRT_BOOL("ReadFile",(FILE_READ_DATA),ReadFile(native.runtime.configuration,native.runtime.bytes,sizeof(native.runtime.bytes),&read,NULL))||read!=116U)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	test	ebx, ebx
+	je	$LN23@psr_curren
+	cmp	DWORD PTR read$[rsp], 116		; 00000074H
+	jne	$LN23@psr_curren
+
+; 189  :  if(!pacc_storage_hash_callback(NULL,native.runtime.bytes,read,digest))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	lea	r9, QWORD PTR digest$[rbp-256]
+	mov	r8d, 116				; 00000074H
+	lea	rdx, OFFSET FLAT:native+12016
+	xor	ecx, ecx
+	call	pacc_storage_hash_callback
+	test	eax, eax
+	jne	SHORT $LN24@psr_curren
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 189				; 000000bdH
+$LN158@psr_curren:
+
+; 185  :  (a.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	mov	ecx, 13
+$LN159@psr_curren:
+	call	psrt_return
+$LN157@psr_curren:
+	mov	rsi, QWORD PTR [rsp+328]
+$LN156@psr_curren:
+	mov	rbx, QWORD PTR [rsp+320]
+	mov	rdi, QWORD PTR [rsp+336]
+$LN1@psr_curren:
+
+; 195  : #else
+; 196  :  return ERROR_SUCCESS;
+; 197  : #endif
+; 198  : }
+
+	mov	rcx, QWORD PTR __$ArrayPad$[rbp-256]
+	xor	rcx, rsp
+	call	__security_check_cookie
+	add	rsp, 304				; 00000130H
+	pop	rbp
+	ret	0
+$LN24@psr_curren:
+
+; 190  :  for(i=0;i<32;i++){hex[2*i]="0123456789abcdef"[digest[i]>>4];hex[2*i+1]="0123456789abcdef"[digest[i]&15];}hex[64]=0;
+
+	mov	r10d, edi
+	lea	r11, OFFSET FLAT:??_C@_0BB@JCEFLFJE@0123456789abcdef@
+	npad	8
+$LL4@psr_curren:
+	lea	r9d, DWORD PTR [r10+r10]
+	mov	eax, r10d
+	lea	ecx, DWORD PTR [r9+1]
+	movzx	edx, BYTE PTR digest$[rbp+rax-256]
+	mov	eax, edx
+	and	edx, 15
+	shr	rax, 4
+	movzx	eax, BYTE PTR [r11+rax]
+	mov	BYTE PTR hex$[rbp+r9-256], al
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+2]
+	lea	eax, DWORD PTR [r10+1]
+	movzx	r8d, BYTE PTR digest$[rbp+rax-256]
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+3]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+2]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+5]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+3]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+7]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+4]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+9]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+5]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+11]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+6]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+13]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+7]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	mov	edx, r8d
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	add	ecx, ecx
+	and	r8d, 15
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+15]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+8]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+17]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+9]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+19]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+10]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+21]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+11]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+23]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+12]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+25]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+13]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	and	r8d, 15
+	shr	rdx, 4
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+27]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+14]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	ecx, ecx
+	mov	edx, r8d
+	shr	rdx, 4
+	and	r8d, 15
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	movzx	eax, BYTE PTR [r11+r8]
+	lea	ecx, DWORD PTR [r9+29]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r10+15]
+	movzx	r8d, BYTE PTR digest$[rbp+rcx-256]
+	add	r10d, 16
+	add	ecx, ecx
+	mov	edx, r8d
+	shr	rdx, 4
+	and	r8d, 15
+	movzx	eax, BYTE PTR [r11+rdx]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	lea	ecx, DWORD PTR [r9+31]
+	movzx	eax, BYTE PTR [r11+r8]
+	mov	BYTE PTR hex$[rbp+rcx-256], al
+	cmp	r10d, 32				; 00000020H
+	jb	$LL4@psr_curren
+
+; 191  :  if(strcmp(hex,psr_config_sha))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	lea	rdx, OFFSET FLAT:psr_config_sha
+	mov	BYTE PTR hex$[rbp-192], dil
+	lea	rcx, QWORD PTR hex$[rbp-256]
+	call	strcmp
+	test	eax, eax
+	je	SHORT $LN25@psr_curren
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 191				; 000000bfH
+	jmp	$LN158@psr_curren
+$LN25@psr_curren:
+
+; 192  :  {DWORD e;if((e=psr_acl(native.runtime.parent,0U,0))||(e=psr_acl(native.runtime.configuration,1U,0))||(e=psr_acl(native.runtime.relative_image,2U,1)))return PSRT_RETURN(e,"propagate_original");}
+
+	mov	rcx, QWORD PTR native+4520
+	xor	r8d, r8d
+	xor	edx, edx
+	call	psr_acl
+	test	eax, eax
+	jne	SHORT $LN27@psr_curren
+	mov	rcx, QWORD PTR native+4528
+	xor	r8d, r8d
+	mov	edx, 1
+	call	psr_acl
+	test	eax, eax
+	jne	SHORT $LN27@psr_curren
+	mov	rcx, QWORD PTR native+4536
+	mov	edx, 2
+	mov	r8d, 1
+	call	psr_acl
+	test	eax, eax
+	jne	SHORT $LN27@psr_curren
+
+; 193  : #ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+; 194  :  return psr_r4_current();
+
+	call	psr_r4_current
+	jmp	$LN157@psr_curren
+$LN27@psr_curren:
+
+; 192  :  {DWORD e;if((e=psr_acl(native.runtime.parent,0U,0))||(e=psr_acl(native.runtime.configuration,1U,0))||(e=psr_acl(native.runtime.relative_image,2U,1)))return PSRT_RETURN(e,"propagate_original");}
+
+	lea	r8, OFFSET FLAT:??_C@_0BD@NNBCKEFO@propagate_original@
+	mov	edx, 192				; 000000c0H
+	mov	ecx, eax
+	jmp	$LN159@psr_curren
+$LN23@psr_curren:
+
+; 188  :  zero.QuadPart=0;if(!PSRT_BOOL("SetFilePointerEx",(FILE_READ_DATA),SetFilePointerEx(native.runtime.configuration,zero,NULL,FILE_BEGIN))||!PSRT_BOOL("ReadFile",(FILE_READ_DATA),ReadFile(native.runtime.configuration,native.runtime.bytes,sizeof(native.runtime.bytes),&read,NULL))||read!=116U)return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 188				; 000000bcH
+	jmp	$LN158@psr_curren
+$LN21@psr_curren:
+
+; 187  :  a.nFileSizeHigh||a.nFileSizeLow!=116U||(a.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 187				; 000000bbH
+	jmp	$LN158@psr_curren
+$LN19@psr_curren:
+
+; 185  :  (a.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 185				; 000000b9H
+	jmp	$LN158@psr_curren
+$LN17@psr_curren:
+
+; 183  :  !(a.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||(a.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 183				; 000000b7H
+	jmp	$LN158@psr_curren
+$LN13@psr_curren:
+
+; 174  :  if(GetLastError()!=ERROR_NO_TOKEN||!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&native.runtime.check_token)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+
+	lea	r8, OFFSET FLAT:??_C@_0CA@DDACEAFN@authorization_or_native_mapping@
+	mov	edx, 174				; 000000aeH
+	mov	ecx, 5
+	call	psrt_return
+	jmp	$LN156@psr_curren
+$LN10@psr_curren:
+
+; 172  :  if(native.runtime.unexpected||native.runtime.check_token)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 172				; 000000acH
+	mov	ecx, 5023				; 0000139fH
+	call	psrt_return
+	jmp	$LN1@psr_curren
+$LN8@psr_curren:
+
+; 170  : #endif
+; 171  :  if(native.runtime.retained||papacc_server_console_win32_stop_requested()||!native.runtime.parent||!native.runtime.configuration||!native.runtime.token)return PSRT_RETURN(ERROR_OPERATION_ABORTED,"original_branch");
+
+	lea	r8, OFFSET FLAT:??_C@_0BA@CGMODFGL@original_branch@
+	mov	edx, 171				; 000000abH
+	mov	ecx, 995				; 000003e3H
+	call	psrt_return
+	jmp	$LN1@psr_curren
+$LN35@psr_curren:
+
+; 167  : #ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+; 168  :  if(!psr_r4_allowed())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"r4_current_stop_or_retained");
+
+	lea	r8, OFFSET FLAT:??_C@_0BM@OPJPHNFG@r4_current_stop_or_retained@
+	mov	edx, 168				; 000000a8H
+	mov	ecx, 995				; 000003e3H
+	call	psrt_return
+	jmp	$LN1@psr_curren
+psr_current ENDP

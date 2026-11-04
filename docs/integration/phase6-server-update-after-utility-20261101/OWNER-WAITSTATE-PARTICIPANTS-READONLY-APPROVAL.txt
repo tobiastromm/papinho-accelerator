@@ -1,0 +1,19 @@
+Registro da autorização atual — consulta read-only WAIT_STATE
+Data: 2026-11-02.
+Mensagem efetivamente recebida do proprietário:
+pode seguir, e esta autorizado o que precisar, so me mandar o que exeutar
+
+Aplicação limitada desta autorização à próxima consulta manual read-only
+preparada para a disposição atual, conforme
+ONE-WAITSTATE-PARTICIPANTS-READONLY-REQUEST.CANDIDATE.md,
+SHA256 e6e06c85e50c4b1f0cf53422022b5de5f73cf192e7cb67c232ab53e205ec4bb2. O proprietário não citou este novo hash;
+o registro vincula o procedimento preparado à instrução atual de prosseguir
+e enviar comandos, sem fabricar aprovação histórica byte-exata.
+Uma chamada manual com confirmação própria, sem retry ou execução automática.
+Não estende esta interpretação a TerminateProcess, Stop, UPDATE ou nova sessão
+E/Q/S. Eventual disposição depende de plano concreto e decisão própria.
+Escopo: SCM somente consulta, controlador12976/criação134381401233458253,
+runtime candidato atual indicado pelo SCM, metadados query-only, seis referências
+do observador fechadas uma vez. Ausência/divergência nega sem fallback.
+Não concede close SCQ, bilateral, autoridade por PID ou solução de UNKNOWN.
+Consulta pendente, não executada. Preservar todos os objetos/históricos/PST0.6.4.

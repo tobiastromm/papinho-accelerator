@@ -33,6 +33,8 @@ typedef struct PAPACC_C3_BRIDGE {
 /* Runtime/credentials/WinSock and manager/scheduler are borrowed from one durable
  * owner. Bridge must remain alive until close confirms success; retention never
  * permits destroying dependencies. No socket value crosses the PACC wire. */
+/* Passive public provider facts under the existing serialized bridge owner. */
+PST_RESULT papacc_c3_bridge_provider_snapshot(const PAPACC_C3_BRIDGE*,PAPACC_U64,PAPACC_U64,PST_PROVIDER_INFO*);
 PAPACC_RESULT papacc_c3_bridge_init(PAPACC_C3_BRIDGE*,pst_runtime*,const PST_CONNECTION_CONFIG*,PAPACC_PST_SECURE_SCHEDULER*,PAPACC_CONNECTION_MANAGER*,PAPACC_U64,PAPACC_U64,PAPACC_U64);
 PAPACC_RESULT papacc_c3_bridge_publish(PAPACC_C3_BRIDGE*);
 PAPACC_RESULT papacc_c3_bridge_accept_ba(PAPACC_C3_BRIDGE*,PAPACC_U64,PAPACC_U64,PAPACC_U64,const PAPACC_U8*,PAPACC_SIZE);

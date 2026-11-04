@@ -1,0 +1,18 @@
+{
+  "query": "official Get-TpmEndorsementKeyInfo -HashAlgorithm Sha256, existing non-elevated token outside sandbox",
+  "initial_projection": {
+    "IsPresent": null,
+    "PublicKeyHash": null,
+    "ManufacturerCertificateCount": 1,
+    "AdditionalCertificateCount": 1
+  },
+  "initial_projection_valid": false,
+  "correction": "PowerShell @($null) count is not certificate presence. Actual result is string, not EK evidence.",
+  "typed_followup": {
+    "type": "System.String",
+    "diagnostic": "O privilegio de administrador e necessario para executar este comando.",
+    "status": "NO_AUTHENTICATED_IDENTITY_OBTAINED"
+  },
+  "owner_auth_queried": false,
+  "UAC_or_ACL_bypass": false
+}

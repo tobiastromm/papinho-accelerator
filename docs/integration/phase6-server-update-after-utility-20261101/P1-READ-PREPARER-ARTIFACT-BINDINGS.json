@@ -1,0 +1,103 @@
+[
+  {
+    "base": "sqf1-detail-session-originals.cs",
+    "base_sha256": "efb3fcb6c014b0acef43cf37a93e67fe9d1699b5066a6a71ca0d10b5f4ee5a46",
+    "artifact": "p1-read-session-originals.cs",
+    "sha256": "169a58a38580ac8a67ad27481ef55d949780f79905a928b1164baa9622a3fc3c",
+    "rules": [
+      {
+        "old": "ONE-SQF1-DETAIL",
+        "new": "ONE-P1-READ",
+        "count": 1
+      },
+      {
+        "old": "OWNER-SQF1-DETAIL",
+        "new": "OWNER-P1-READ",
+        "count": 1
+      },
+      {
+        "old": "FIRST-SQF1-DETAIL",
+        "new": "FIRST-P1-READ",
+        "count": 2
+      },
+      {
+        "old": " public const string Folder=",
+        "new": " public const string RuntimeSid=\"S-1-5-80-3246711204-3501097961-2221176737-2866879599-4054174099\";\n public const string Folder=",
+        "count": 1
+      },
+      {
+        "old": "(A;;FA;;;SY)(A;;FA;;;BA)\");",
+        "new": "(A;;FA;;;SY)(A;;FA;;;BA)(A;;0x00120089;;;\"+RuntimeSid+\")\");",
+        "count": 1
+      },
+      {
+        "old": "d.DiscretionaryAcl.Count!=3",
+        "new": "d.DiscretionaryAcl.Count!=4",
+        "count": 1
+      },
+      {
+        "old": "string[] sid={Actor,\"S-1-5-18\",\"S-1-5-32-544\"};",
+        "new": "string[] sid={Actor,\"S-1-5-18\",\"S-1-5-32-544\",RuntimeSid};",
+        "count": 1
+      },
+      {
+        "old": "for(int i=0;i<3;i++){var a=d.DiscretionaryAcl[i]",
+        "new": "for(int i=0;i<4;i++){var a=d.DiscretionaryAcl[i]",
+        "count": 1
+      },
+      {
+        "old": "a.AccessMask!=0x1f01ff",
+        "new": "a.AccessMask!=(i==3?0x00120089:0x1f01ff)",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "base": "prepare-sqf1-detail-originals.MANUAL.CANDIDATE.ps1",
+    "base_sha256": "0b4260ecfa4636f494b8464c00f125ac66896d048ce61be079c9bc834b94e59e",
+    "artifact": "prepare-p1-read-originals.MANUAL.CANDIDATE.ps1",
+    "sha256": "8c6911f8ca1f0cad8aa2c36b440609f6db760e7feab6e29de88733ac992dca9f",
+    "rules": [
+      {
+        "old": "ONE-SQF1-DETAIL",
+        "new": "ONE-P1-READ",
+        "count": 1
+      },
+      {
+        "old": "OWNER-SQF1-DETAIL",
+        "new": "OWNER-P1-READ",
+        "count": 1
+      },
+      {
+        "old": "sqf1-detail-session-originals.cs",
+        "new": "p1-read-session-originals.cs",
+        "count": 1
+      },
+      {
+        "old": "efb3fcb6c014b0acef43cf37a93e67fe9d1699b5066a6a71ca0d10b5f4ee5a46",
+        "new": "169a58a38580ac8a67ad27481ef55d949780f79905a928b1164baa9622a3fc3c",
+        "count": 1
+      },
+      {
+        "old": "TWO_NEW_SQF1_DETAIL",
+        "new": "TWO_NEW_P1_READ",
+        "count": 1
+      },
+      {
+        "old": "OWNER_SQF1_DETAIL_SESSION_DOCUMENTS",
+        "new": "OWNER_P1_READ_SESSION_DOCUMENTS",
+        "count": 1
+      },
+      {
+        "old": " $oldRequests=@(",
+        "new": " $oldRequests=@('d1dee4fa8bdc00768c27c9448f6da99955b9b616c1e1523f0f778b65c2ab5e54',",
+        "count": 1
+      },
+      {
+        "old": " $oldDecisions=@(",
+        "new": " $oldDecisions=@('82957fe0833f4e1f8b7496e9b925100a6dc1c63986ca20dccaeb67c40219eabb',",
+        "count": 1
+      }
+    ]
+  }
+]

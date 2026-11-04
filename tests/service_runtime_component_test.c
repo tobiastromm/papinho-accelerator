@@ -10,6 +10,10 @@
 static unsigned model_mode,model_closes,model_next,model_stop_flag,model_stop_on_running,model_reports;
 static DWORD model_states[8];
 static BYTE model_sid[SECURITY_MAX_SID_SIZE],model_admin[SECURITY_MAX_SID_SIZE],model_service[SECURITY_MAX_SID_SIZE];
+
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+static BYTE model_relative_sd[2048];
+#endif
 static SECURITY_DESCRIPTOR model_sd;static BYTE model_acl_bytes[1024];
 static const char model_config[]="format_version 1\r\nclient_admission DISABLED\r\nsite_tls_admission DENY\r\ned11_admission DENY\r\nnetwork_egress DISABLED\r\n";
 #ifdef PAPACC_SERVICE_RUNTIME_MODEL
@@ -26,9 +30,25 @@ static FARPROC WINAPI m_proc(HMODULE module,LPCSTR name)
  if(strcmp(name,"NtCreateFile"))return GetProcAddress(module,name);memcpy(&out,&fn,sizeof(out));return out;
 }
 #define GetProcAddress m_proc
-static BOOL WINAPI m_process(HANDLE process,DWORD rights,PHANDLE token){(void)process;(void)rights;*token=(HANDLE)(ULONG_PTR)(++model_next);return TRUE;}
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+static HANDLE model_r4_duplicate,model_r4_original;
+static unsigned model_r4_fault,model_r4_query_count,model_r4_duplicate_stats,model_r4_calls_at_stop;
+static DWORD psr_r4_current(void);
+static DWORD psr_current(void);
+static BOOL WINAPI m_r4_member(HANDLE token,PSID sid,PBOOL member){(void)token;(void)sid;if(model_r4_fault==2U){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}if(model_r4_fault==13U){model_stop_flag=1;model_r4_calls_at_stop=model_r4_query_count;}if(model_r4_fault==16U)(void)psr_current();*member=model_r4_fault==1U?FALSE:TRUE;return TRUE;}
+#define CheckTokenMembership m_r4_member
+#endif
+static BOOL WINAPI m_process(HANDLE process,DWORD rights,PHANDLE token){(void)process;(void)rights;*token=(HANDLE)(ULONG_PTR)(++model_next);
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(!model_r4_original)model_r4_original=*token;
+#endif
+ return TRUE;}
 static BOOL WINAPI m_thread(HANDLE thread,DWORD rights,BOOL self,PHANDLE token){(void)thread;(void)rights;(void)self;if(model_mode==3U){*token=(HANDLE)(ULONG_PTR)(++model_next);return TRUE;}SetLastError(ERROR_NO_TOKEN);return FALSE;}
-static BOOL WINAPI m_duplicate(HANDLE h,SECURITY_IMPERSONATION_LEVEL level,PHANDLE out){(void)h;if(level!=SecurityImpersonation)return FALSE;*out=(HANDLE)(ULONG_PTR)(++model_next);return TRUE;}
+static BOOL WINAPI m_duplicate(HANDLE h,SECURITY_IMPERSONATION_LEVEL level,PHANDLE out){(void)h;if(level!=SecurityImpersonation)return FALSE;*out=(HANDLE)(ULONG_PTR)(++model_next);
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ model_r4_duplicate=*out;
+#endif
+ return TRUE;}
 #ifdef PAPACC_PSR_FILE_RUNTIME_LAB
 #include "service_runtime_file_fixture.inc"
 #endif
@@ -40,12 +60,38 @@ static BOOL WINAPI m_close(HANDLE h){
 static BOOL WINAPI m_token(HANDLE h,TOKEN_INFORMATION_CLASS kind,LPVOID b,DWORD capacity,PDWORD used)
 {
  DWORD n=0;(void)h;
- if(kind==TokenStatistics){TOKEN_STATISTICS *v=b;n=sizeof(*v);if(capacity<n)return FALSE;ZeroMemory(v,n);v->TokenType=model_mode==17U?TokenImpersonation:TokenPrimary;v->TokenId.LowPart=1;v->AuthenticationId.LowPart=2;v->ModifiedId.LowPart=model_mode==10U?2:1;}
- else if(kind==TokenUser){TOKEN_USER *v=b;PSID sid=model_mode==1U?model_admin:model_sid;n=sizeof(*v)+GetLengthSid(sid);if(capacity<n)return FALSE;ZeroMemory(b,capacity);v->User.Sid=(BYTE *)b+sizeof(*v);CopySid(GetLengthSid(sid),v->User.Sid,sid);}
- else if(kind==TokenGroups){TOKEN_GROUPS *v=b;if(model_mode==16U){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}BYTE *next=(BYTE *)b+FIELD_OFFSET(TOKEN_GROUPS,Groups)+3U*sizeof(SID_AND_ATTRIBUTES);unsigned i;PSID sids[3];sids[0]=model_service;sids[1]=model_sid;sids[2]=model_admin;ZeroMemory(b,capacity);v->GroupCount=model_mode==2U?3U:(model_mode==13U?1U:2U);for(i=0;i<v->GroupCount;i++){v->Groups[i].Sid=next;v->Groups[i].Attributes=SE_GROUP_ENABLED;if(model_mode==4U&&i==1U)v->Groups[i].Attributes=SE_GROUP_USE_FOR_DENY_ONLY;if(model_mode==14U&&i==1U)v->Groups[i].Attributes=0;if(model_mode==15U&&i==1U)v->Groups[i].Attributes=SE_GROUP_ENABLED|SE_GROUP_USE_FOR_DENY_ONLY;if(model_mode==18U&&i==1U)v->Groups[i].Attributes=SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_OWNER;CopySid(GetLengthSid(sids[i]),next,sids[i]);next+=GetLengthSid(sids[i]);}n=(DWORD)(next-(BYTE *)b);if(model_mode==5U)v->Groups[0].Sid=(BYTE *)b+capacity;}
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ model_r4_query_count++;
+ if((model_r4_fault==8U&&kind==TokenRestrictedSids)||(model_r4_fault==9U&&kind==TokenHasRestrictions)||(model_r4_fault==10U&&h==model_r4_duplicate&&kind==TokenStatistics)){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}
+#endif
+ if(kind==TokenStatistics){TOKEN_STATISTICS *v=b;n=sizeof(*v);if(capacity<n)return FALSE;ZeroMemory(v,n);v->TokenType=model_mode==17U?TokenImpersonation:TokenPrimary;v->TokenId.LowPart=1;v->AuthenticationId.LowPart=2;v->ModifiedId.LowPart=model_mode==10U?2:1;
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(h==model_r4_duplicate){v->TokenType=TokenImpersonation;v->TokenId.LowPart=77;model_r4_duplicate_stats++;if(model_r4_fault==3U)v->AuthenticationId.LowPart=99;if(model_r4_fault==4U&&model_r4_duplicate_stats>=3U)v->ModifiedId.LowPart++;}
+ if(model_r4_fault==12U&&h!=model_r4_duplicate&&h!=model_r4_original)v->TokenId.LowPart++;
+#endif
+}
+ else if(kind==TokenUser){TOKEN_USER *v=b;PSID sid=model_mode==1U?model_admin:model_sid;
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(model_r4_fault==11U&&h==model_r4_duplicate)sid=model_admin;
+#endif
+n=sizeof(*v)+GetLengthSid(sid);if(capacity<n)return FALSE;ZeroMemory(b,capacity);v->User.Sid=(BYTE *)b+sizeof(*v);CopySid(GetLengthSid(sid),v->User.Sid,sid);}
+ else if(kind==TokenGroups){TOKEN_GROUPS *v=b;if(model_mode==16U){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}BYTE *next=(BYTE *)b+FIELD_OFFSET(TOKEN_GROUPS,Groups)+3U*sizeof(SID_AND_ATTRIBUTES);unsigned i;PSID sids[3];sids[0]=model_service;sids[1]=model_sid;sids[2]=model_admin;ZeroMemory(b,capacity);v->GroupCount=model_mode==2U?3U:(model_mode==13U?1U:2U);for(i=0;i<v->GroupCount;i++){v->Groups[i].Sid=next;v->Groups[i].Attributes=SE_GROUP_ENABLED;if(model_mode==4U&&i==1U)v->Groups[i].Attributes=SE_GROUP_USE_FOR_DENY_ONLY;if(model_mode==14U&&i==1U)v->Groups[i].Attributes=0;if(model_mode==15U&&i==1U)v->Groups[i].Attributes=SE_GROUP_ENABLED|SE_GROUP_USE_FOR_DENY_ONLY;if(model_mode==18U&&i==1U)v->Groups[i].Attributes=SE_GROUP_ENABLED_BY_DEFAULT|SE_GROUP_OWNER;CopySid(GetLengthSid(sids[i]),next,sids[i]);next+=GetLengthSid(sids[i]);}n=(DWORD)(next-(BYTE *)b);if(model_mode==5U)v->Groups[0].Sid=(BYTE *)b+capacity;
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(model_r4_fault==6U)n=(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)-1U;
+ if(model_r4_fault==7U){v->GroupCount=3U;v->Groups[2].Sid=(BYTE *)v->Groups[1].Sid+GetLengthSid(model_sid);v->Groups[2].Attributes=SE_GROUP_ENABLED;CopySid(GetLengthSid(model_sid),v->Groups[2].Sid,model_sid);n=(DWORD)((BYTE *)v->Groups[2].Sid+GetLengthSid(model_sid)-(BYTE *)b);}
+#endif
+}
  else if(kind==TokenPrivileges){TOKEN_PRIVILEGES *v=b;ZeroMemory(b,capacity);v->PrivilegeCount=0;n=(DWORD)FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges);}
- else if(kind==TokenHasRestrictions){if(model_mode==19U){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}if(capacity<sizeof(DWORD))return FALSE;*(DWORD *)b=1;n=1;}
- else if(kind==TokenRestrictedSids){TOKEN_GROUPS *v=b;ZeroMemory(b,capacity);v->GroupCount=0;n=(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups);}
+ else if(kind==TokenHasRestrictions){if(model_mode==19U){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}if(capacity<sizeof(DWORD))return FALSE;*(DWORD *)b=1;n=1;
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ *(DWORD *)b=model_r4_fault==14U?1U:0U;
+#endif
+}
+ else if(kind==TokenRestrictedSids){TOKEN_GROUPS *v=b;ZeroMemory(b,capacity);v->GroupCount=0;n=(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups);
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(model_r4_fault==15U){v->GroupCount=1;v->Groups[0].Sid=(BYTE *)b+FIELD_OFFSET(TOKEN_GROUPS,Groups)+sizeof(SID_AND_ATTRIBUTES);CopySid(GetLengthSid(model_service),v->Groups[0].Sid,model_service);n=(DWORD)((BYTE *)v->Groups[0].Sid+GetLengthSid(model_service)-(BYTE *)b);}
+#endif
+}
  else if(kind==TokenElevation){TOKEN_ELEVATION *v=b;v->TokenIsElevated=0;n=sizeof(*v);}
  else return FALSE;*used=n;return TRUE;
 }
@@ -66,8 +112,18 @@ static BOOL WINAPI m_read(HANDLE h,LPVOID b,DWORD n,LPDWORD used,LPOVERLAPPED ov
  if(h==(HANDLE)(ULONG_PTR)2002)return dm_read(h,b,n,used,ov);
 #endif
 (void)h;(void)ov;if(n<116U||model_mode==11U)return FALSE;memcpy(b,model_config,116U);if(model_mode==6U)((BYTE *)b)[0]='X';*used=116U;return TRUE;}
-static DWORD WINAPI m_security(HANDLE h,SE_OBJECT_TYPE type,SECURITY_INFORMATION info,PSID *owner,PSID *group,PACL *dacl,PACL *sacl,PSECURITY_DESCRIPTOR *sd){(void)h;(void)type;(void)info;(void)owner;(void)group;(void)dacl;(void)sacl;*sd=&model_sd;return ERROR_SUCCESS;}
-static HLOCAL WINAPI m_free(HLOCAL v){if(v==&model_sd)return NULL;return LocalFree(v);}
+static DWORD WINAPI m_security(HANDLE h,SE_OBJECT_TYPE type,SECURITY_INFORMATION info,PSID *owner,PSID *group,PACL *dacl,PACL *sacl,PSECURITY_DESCRIPTOR *sd){(void)h;(void)type;(void)info;(void)owner;(void)group;(void)dacl;(void)sacl;
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+{DWORD size=sizeof(model_relative_sd);if(!MakeSelfRelativeSD(&model_sd,model_relative_sd,&size))return GetLastError();*sd=model_relative_sd;}
+#else
+*sd=&model_sd;
+#endif
+return ERROR_SUCCESS;}
+static HLOCAL WINAPI m_free(HLOCAL v){if(v==&model_sd)return NULL;
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+if(v==model_relative_sd)return NULL;
+#endif
+return LocalFree(v);}
 static BOOL WINAPI m_access(PSECURITY_DESCRIPTOR sd,HANDLE token,DWORD desired,PGENERIC_MAPPING mapping,PPRIVILEGE_SET privileges,LPDWORD size,LPDWORD granted,LPBOOL allowed){(void)sd;(void)token;(void)mapping;(void)privileges;if(desired!=MAXIMUM_ALLOWED)return FALSE;*size=sizeof(PRIVILEGE_SET);*granted=FILE_GENERIC_READ|FILE_GENERIC_EXECUTE;if(model_mode==8U)*granted|=FILE_WRITE_DATA;*allowed=TRUE;return TRUE;}
 static PAPACC_BOOL m_stopped(void){return model_stop_flag?PAPACC_TRUE:PAPACC_FALSE;}
 static void m_stop(void){model_stop_flag=1U;}
@@ -98,6 +154,30 @@ static BOOL WINAPI m_report(SERVICE_STATUS_HANDLE h,LPSERVICE_STATUS status){(vo
 #endif
 #define PAPACC_SCM_REGISTRATION_LAB 1
 #define PAPACC_SCM_RUNTIME_LAB 1
+#include "server_service_win32.h"
+/* Compile-time negative boundary, never an installable product callback. */
+static DWORD model_no_start_carrier(PS_SCQ_CARRIER *out){(void)out;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_take(const PAPACC_SERVICE_IMAGE_VIEW *view){(void)view;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_progress(HANDLE process){(void)process;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_wait(HANDLE process){(void)process;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_terminal(HANDLE process){(void)process;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_finish(HANDLE process){(void)process;return ERROR_ACCESS_DENIED;}
+static DWORD model_no_start_namespace(void){return ERROR_ACCESS_DENIED;}
+static DWORD model_no_first_controller(void){return ERROR_ACCESS_DENIED;}
+static DWORD model_prestart_close(void){return 0;}
+static DWORD model_no_start_resource(void){return ERROR_ACCESS_DENIED;}
+#define papacc_server_launcher_scq_start_resource_current model_no_start_resource
+static DWORD model_no_namespace_prepare(void){return ERROR_ACCESS_DENIED;}
+#define papacc_server_launcher_scq_start_namespace_prepare model_no_namespace_prepare
+#define papacc_server_launcher_scq_first_controller model_no_first_controller
+#define papacc_server_launcher_scq_prestart_close model_prestart_close
+#define papacc_server_launcher_scq_start_carrier model_no_start_carrier
+#define papacc_server_launcher_scq_start_take model_no_start_take
+#define papacc_server_launcher_scq_start_progress model_no_start_progress
+#define papacc_server_launcher_scq_start_wait model_no_start_wait
+#define papacc_server_launcher_scq_start_wait_terminal model_no_start_terminal
+#define papacc_server_launcher_scq_start_finish model_no_start_finish
+#define papacc_server_launcher_scq_start_namespace_current model_no_start_namespace
 #include "../apps/server/server_service_win32.c"
 #define T(x) do{if(!(x)){printf("FAIL line=%d mode=%u\n",__LINE__,model_mode);return 1;}}while(0)
 static int ids(void)

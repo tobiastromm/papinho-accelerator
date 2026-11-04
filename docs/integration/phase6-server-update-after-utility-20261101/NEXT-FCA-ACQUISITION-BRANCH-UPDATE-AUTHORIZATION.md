@@ -1,0 +1,4 @@
+# Próximo prompt executável — autorização UPDATE diagnóstico de aquisição FCA
+Como proprietário, autorizo UMA execução manual BINARY_UPDATE_CLOSED PERSONAL_LOCAL conforme ONE-FCA-ACQUISITION-BRANCH-IMAGE-UPDATE-REQUEST.CANDIDATE.md, SHA2565fb51f54b9832364c19cd79ea4f1189c24a54a43258aecb2720b9982bc575355.
+Seleciono candidato912384bytes/SHA256f4d91013a34da09053dcb800dcd909f82ba544384f1430d9c22584d1d24ea82b, condicionado aos originais/gates frescos/U1–U7/U2, SCM parado e proteção/continuidade. Reconheço riscos opacos/atualização parcial/retenção sem rollback.
+Registrar decisão/hash reais e entregar comando manual, sem executar automaticamente. Sem retry/limpeza/restauração/refund/kill/novo FCA/coleta/endpoint/SCQ/StartStop/SCM-ACL/CA-CURRENT/rede/TPM-NV-Q4/produção. Preservar histórico/consumos/UNKNOWN/PST0.6.4. Divergência STOP.

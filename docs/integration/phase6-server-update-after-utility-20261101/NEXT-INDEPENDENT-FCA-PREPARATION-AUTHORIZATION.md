@@ -1,0 +1,6 @@
+# Próximo prompt executável — autorização FCA independente
+
+Como proprietário, autorizo uma única execução manual da preparação limitada FCA PERSONAL_LOCAL Selected AMD64, exclusivamente conforme ONE-FIRST-INSTANCE-FCA-PREPARATION-REQUEST.CANDIDATE.md, SHA256 2d7d03574ffcacce1bffd64e3510e7082d4e7c5841c1d74cdf157334957ec8a3.
+Autorizo somente uma criação exclusiva de C:\ProgramData\Papinho\Accelerator e uma criação/finalização de chave MACHINE CA pelo owner existente, após conferência byte-exata, originais, proteção, continuidade e gates frescos. Reconheço custos opacos, criação parcial e retenção sem rollback automático.
+Registrar a decisão efetivamente emitida e fornecer o comando manual completo com hashes reais; não executar automaticamente. Reutilizar configuração417614100:2490368:315690 e parent417614100:1310720:452619 sem recriar. Não repetir D1/PDP/UPDATE ou autorizações consumidas.
+Sem retry, limpeza, recuperação, assinatura/certificado/CSR/exportação privada, CA/CURRENT produtivo, endpoint/SCQ/StartStop/SCM-ACL/rede/TPM/NV/Q4/refund/kill ou readiness. Preservar UNKNOWN e PST0.6.4. Em divergência, STOP.

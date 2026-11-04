@@ -236,3 +236,56 @@ See docs/integration/n0start03-integrated-closeout-20261024/q7-scm-readback-corr
 ## Q7 preventive consistency audit — 2026-10-25
 
 Four qualifier configurations PASS with zero warnings; actual automatic build dependency defect corrected, protected inputs and historical SCM state preserved. New exact request `d9279e012bb30db2053098248377591adee3f1c37bfdb8fdf8c917303d95774c` remains unapproved; no operational execution. ED11/Phase6 PARTIAL, token and fresh budgets pending. See [consolidated audit](q7-preconsumption-consistency-audit-20261025/CONSOLIDATED-AUDIT-AND-NEXT-GATE.md).
+
+
+## Q7 audited native result — 2026-10-25
+
+Q4 observation consumed: Start1/Stop0/intent1; qualifier first13, service specific-group predicate5. Complete original-token query found zero matching TokenGroups entries. Original process termination/local closure evidenced; global quiescence UNPROVEN; persistent effects/UNKNOWN retained. Administration997/999 and qualifier118/120/121 are samples only. ED11/Phase6 PARTIAL; no retry. Next: focal V2/Q6/A3 identity-predicate decision and separate Q4 effect disposition review. Evidence: q7-audited-native-result-20261025/CONSOLIDATED-RECONCILIATION-AND-NEXT-GATE.md within the integrated package.
+
+
+## Current ED11 full closure review — 2026-10-25
+
+The full22-gate review supersedes earlier pending Q4/no-token descriptions as CURRENT state, preserving them as history.4 gates demonstrated,12 limited to observed scope,2 normative and4 operational/derived pending. Q4 consumed/Start1/Stop0, exact original-token query found no matching TokenGroups entry; current provisioning matches virtual account/SID UNRESTRICTED. No product predicate, launcher, operational pin or accepted ADR changed. Isolated candidate builds and native own-token access fixtures PASS; protected Q4 readback mechanism prepared and qualified without Verify. Global quiescence remains UNPROVEN; real reserves/UNKNOWN unavailable.
+
+[Consolidated review](ed11-final-closure-resolution-20261025/CONSOLIDATED-CLOSURE-REVIEW.md), [full22-gate matrix](ed11-final-closure-resolution-20261025/CURRENT-ED11-22-GATE-MATRIX.csv), [single critical path](ed11-final-closure-resolution-20261025/MINIMUM-CRITICAL-PATH.md). R0–R9 [normative candidate](../../adr/ADR-CANDIDATE-service-virtual-user-identity-and-q4-documentary-disposition-20261025.md) SHA256 d19ad5922874569af416baab7e86b196b916eaead057418a97dd4226bfc8d9ef remains PROPOSED; independent readback request SHA256 2aa9e0b81352b0efe28e23135fa4644b70d17241565e1fb6e6a6d191312c663b remains unapproved. No new identity or operation. E19/E20 full Browser/C2/C3/provider target qualification cannot be closed by another service diagnostic; no universal opaque-quiescence proof or deferred personal recovery requirement invented. Phase6 remains separately PARTIAL; productive authorities DENY.
+
+
+## R0–R9 acceptance and integrated target review — 2026-10-25
+
+Current normative state: R0–R9 revision1 accepted after exact d19ad592... byte check; prospective fixed-LAB rule integrated opt-in/OFF by default and qualified in four builds, zero warnings.35 actual caller cases/144 assertions plus8 recorder cases per configuration; affected regressions PASS. Full compiled owner adds72bytes, no handle slot; frame/borrow costs ledgered without credits. Historical launcher/pins/107 authority files preserved. This update supersedes older PROPOSED wording only as current live state, retaining history.
+
+ED11 remains4demonstrated/12limited/6pending. E17 normative blocker resolved/offline ready, actual runtime pending. E21 R6–R8 evaluation allowed, protected readback not authorized and documentary disposition NOT_APPLIED. E19/E20 new actual source evidence: Accelerator recipe absent/terminal RESOURCE_UNKNOWN; Browser staticzero c2_target has no writer; accepted ModeC metric/freshness/headroom policy remains separately pending. No LAB observation proves full target capacity; no retry or new identity authorized. Q4 effects/reserves/UNKNOWN preserved, global quiescence UNPROVEN. Phase6 and productive authorities remain PARTIAL/DENY.
+
+[Consolidated integration, hashes, tests and minimum critical path](r0-r9-acceptance-and-integration-20261025/CONSOLIDATED-CLOSEOUT.md).
+
+
+## Q4/target evidence integration — 2026-10-26
+
+Real non-operational implementation now exists in both consumers: Accelerator canonical root exports a private typed native observation; Browser C2 receipt validates typed projections of its existing native slots. No new owner, collector, policy setter, persistent storage or product handle. Four normal Accelerator Selected/Legacy builds and four Browser VC6/x86 candidate/production builds PASS, zero warnings;528 new Accelerator checks/8 regressions and8142 Browser checks/16 regressions PASS. Completion timing and wrong-thread identity fail closed. Stack-only costs are measured; no capacity/credit granted.
+
+Q4 exact packet2aa9.../22 hashes remains unchanged/unapproved; no protected Verify or disposition was run. An initial fixture mistakenly linked the LAB guard and was rejected; its exact internal metadata/mutex outcome is uninstrumented/UNKNOWN, logged separately, never qualification. Final binaries exclude that admission composition. No Start/Stop/consume/SCM or existing-ACL mutation. Historical effects/UNKNOWN/reserves remain. Quantitative ModeC policy and supported provider/kernel recipe remain PROPOSED/incomplete; current positive admission DENY. E17/E18 service proof and actual E19/E20 pair composition remain distinct. ED11 4demonstrated/12limited/6pending and Phase6 PARTIAL; productive authorities DENY.
+
+[Consolidated implementation, sources, hashes, tests, incident and minimum remaining path](q4-target-evidence-closure-20261025/CONSOLIDATED-CLOSEOUT.md).
+
+## First diagnostic Start original callers — 2026-10-31
+
+CLI/owner/controller composition is connected for originals already held;
+independent confirmations and pre-effect close retain consumption/lifetime rules.
+Four final builds zero warnings;92 affected pairs PASS. Cold controller original
+producer and independent receiver/endpoint admission remain incomplete; native
+resource preconditions63 stay UNKNOWN/DENY with effect obligations7 separate.
+No operational request is ready and no protected operation was performed. Existing
+staged/SCM evidence is historical, not refreshed. E21 PENDING, ED11/Phase6 PARTIAL,
+OS_QUIESCENCE UNKNOWN and PST0.6.4 preserved. No gate total was promoted.
+[Current evidence and minimum path](../phase6-original-callers-20261031/CLOSEOUT.md).
+
+## First diagnostic Start endpoint act and assurance — 2026-10-31
+
+Independent original endpoint confirmation/selection/consumption is integrated in
+the same admin source; native creation remains resource-denied. Captured-source
+phase1 resumption bug corrected without replay or recapture. Four final builds
+zero warnings;96 affected pairs PASS. Cold controller input and receiver original
+bootstrap remain incomplete. One resource assurance A/B candidate is PROPOSED,
+not accepted or implemented positively. No protected operation or staged update.
+E21 PENDING; ED11/Phase6 PARTIAL; OS quiescence UNKNOWN; PST0.6.4 preserved.
+[Current closeout and exact decision candidate](../phase6-bootstrap-source-assurance-20261031/CLOSEOUT.md).

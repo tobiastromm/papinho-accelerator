@@ -24,6 +24,9 @@ static DWORD psr_close(void)
  if(native.runtime.descriptor){if(LocalFree(native.runtime.descriptor)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.descriptor=NULL;}
  if(native.runtime.approved_sid){if(LocalFree(native.runtime.approved_sid)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.approved_sid=NULL;}
  for(i=0;i<7;i++)if(*v[i]){if(!CloseHandle(*v[i])){native.runtime.retained=1U;return ps_last_error();}*v[i]=NULL;}
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ native.runtime.r4_busy=0U;native.runtime.r4_error=0;
+#endif
  native.runtime.ready=0U;native.runtime.managers_ready=0U;SecureZeroMemory(native.runtime.bytes,sizeof(native.runtime.bytes));return ERROR_SUCCESS;
 }
 static int psr_inside_sid(const BYTE *b,DWORD n,PSID sid)
@@ -38,6 +41,11 @@ static int psr_inside_sid(const BYTE *b,DWORD n,PSID sid)
 #else
 #define PSR_IMAGE_LEAF L"papacc_server_lab_host.exe"
 #endif
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+#include "server_service_virtual_user_r0r9_win32.inc"
+#else
+#define PSR_QUERY GetTokenInformation
+#endif
 /* Snapshot contents are factual query output, not normalized synthetic grants. */
 static DWORD psr_token(void)
 {
@@ -45,29 +53,42 @@ static DWORD psr_token(void)
  TOKEN_USER *u=(TOKEN_USER *)native.runtime.user.bytes;TOKEN_GROUPS *g=(TOKEN_GROUPS *)native.runtime.groups.bytes;
  TOKEN_PRIVILEGES *priv=(TOKEN_PRIVILEGES *)native.runtime.privileges.bytes;
  BYTE admin[SECURITY_MAX_SID_SIZE],service[SECURITY_MAX_SID_SIZE];DWORD an=sizeof(admin),sn=sizeof(service);int service_group=0,specific_group=0;
-#ifdef PAPACC_PSR_TRACE_LAB
+#if defined(PAPACC_PSR_TRACE_LAB) || defined(PAPACC_R0R9_VIRTUAL_USER_LAB)
  DWORD specific_seen=0,specific_attributes=0;
 #endif
  PSRT_CONTEXT("TOKEN_PROCESS_AND_THREAD");
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(!psr_r4_allowed())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"r4_initial_stop_or_retained");
+ if(native.runtime.r4_busy)return psr_r4_current();
+#endif
  if(native.runtime.unexpected||native.runtime.token)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
  if(PSRT_BOOL("OpenThreadToken",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"unexpected_thread_impersonation_token");
  if(GetLastError()!=ERROR_NO_TOKEN)return PSRT_RETURN(ps_last_error(),"native_api_failure");
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(!psr_r4_allowed())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"r4_stop_before_initial_acquisition");
+#endif
  if(!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY|TOKEN_DUPLICATE),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY|TOKEN_DUPLICATE,&native.runtime.token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
- if(!PSRT_TOKEN("GetTokenInformation:TokenStatistics",TokenStatistics,&stats,sizeof(stats),&n,GetTokenInformation(native.runtime.token,TokenStatistics,&stats,sizeof(stats),&n))||!PSRT_PRED("token.statistics.length",n==sizeof(stats))||!PSRT_PRED("token.primary",stats.TokenType==TokenPrimary)||
- !PSRT_TOKEN("GetTokenInformation:TokenUser",TokenUser,u,sizeof(native.runtime.user.bytes),&n,GetTokenInformation(native.runtime.token,TokenUser,u,sizeof(native.runtime.user.bytes),&n))||!PSRT_PRED("token.user.length",n<=sizeof(native.runtime.user.bytes))||
+ if(!PSRT_TOKEN("GetTokenInformation:TokenStatistics",TokenStatistics,&stats,sizeof(stats),&n,PSR_QUERY(native.runtime.token,TokenStatistics,&stats,sizeof(stats),&n))||!PSRT_PRED("token.statistics.length",n==sizeof(stats))||!PSRT_PRED("token.primary",stats.TokenType==TokenPrimary)||
+ !PSRT_TOKEN("GetTokenInformation:TokenUser",TokenUser,u,sizeof(native.runtime.user.bytes),&n,PSR_QUERY(native.runtime.token,TokenUser,u,sizeof(native.runtime.user.bytes),&n))||!PSRT_PRED("token.user.length",n<=sizeof(native.runtime.user.bytes))||
  !PSRT_PRED("token.user.sid.bounds",psr_inside_sid(native.runtime.user.bytes,n,u->User.Sid))||!PSRT_PRED("token.user.sid.matches_service",EqualSid(u->User.Sid,native.service_sid)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
-#ifdef PAPACC_PSR_TRACE_LAB
+#if defined(PAPACC_PSR_TRACE_LAB) || defined(PAPACC_R0R9_VIRTUAL_USER_LAB)
  /* Reuse owner storage; no ready/admission grant. Baseline survives early denial. */
  native.runtime.statistics=stats;
 #endif
- if(!PSRT_TOKEN("GetTokenInformation:TokenGroups",TokenGroups,g,sizeof(native.runtime.groups.bytes),&gn,GetTokenInformation(native.runtime.token,TokenGroups,g,sizeof(native.runtime.groups.bytes),&gn))||gn>sizeof(native.runtime.groups.bytes)||
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ native.runtime.user_bytes=n;
+#endif
+ if(!PSRT_TOKEN("GetTokenInformation:TokenGroups",TokenGroups,g,sizeof(native.runtime.groups.bytes),&gn,PSR_QUERY(native.runtime.token,TokenGroups,g,sizeof(native.runtime.groups.bytes),&gn))||gn>sizeof(native.runtime.groups.bytes)||
  gn<(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)||g->GroupCount>(gn-FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES)||
  !PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admin,&an))||!PSRT_BOOL("CreateWellKnownSid",(0),CreateWellKnownSid(WinServiceSid,NULL,service,&sn)))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
  for(i=0;i<g->GroupCount;i++){
   if(!psr_inside_sid(native.runtime.groups.bytes,gn,g->Groups[i].Sid))return PSRT_RETURN(ERROR_INVALID_SID,"original_branch");
-#ifdef PAPACC_PSR_TRACE_LAB
+#if defined(PAPACC_PSR_TRACE_LAB) || defined(PAPACC_R0R9_VIRTUAL_USER_LAB)
   /* Bounded facts from the already validated original query; no new authority. */
   if(EqualSid(g->Groups[i].Sid,native.service_sid)){specific_seen++;specific_attributes|=g->Groups[i].Attributes;}
+#endif
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+  if(EqualSid(g->Groups[i].Sid,admin)&&(g->Groups[i].Attributes&SE_GROUP_ENABLED))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_enabled_administrators");
 #endif
   if((g->Groups[i].Attributes&SE_GROUP_ENABLED)&&!(g->Groups[i].Attributes&SE_GROUP_USE_FOR_DENY_ONLY)){
    if(!PSRT_PRED("token.no_enabled_administrators",!EqualSid(g->Groups[i].Sid,admin)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
@@ -80,14 +101,30 @@ static DWORD psr_token(void)
   * More than one match is explicitly ambiguous; no token/SID/handle is exported. */
  PSRT_VALUES(specific_seen,specific_attributes);
 #endif
- if(!PSRT_PRED("token.service_group.enabled",service_group)||!PSRT_PRED("token.specific_group.enabled",specific_group))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
- if(!PSRT_TOKEN("GetTokenInformation:TokenPrivileges",TokenPrivileges,priv,sizeof(native.runtime.privileges.bytes),&pn,GetTokenInformation(native.runtime.token,TokenPrivileges,priv,sizeof(native.runtime.privileges.bytes),&pn))||pn>sizeof(native.runtime.privileges.bytes)||
+ if(!PSRT_PRED("token.service_group.enabled",service_group))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ (void)specific_group;
+ if(!PSRT_PRED("r4.specific_group_shape_initial",specific_seen==0U||(specific_seen==1U&&(specific_attributes&SE_GROUP_ENABLED)&&!(specific_attributes&SE_GROUP_USE_FOR_DENY_ONLY))))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_group_shape");
+#else
+ if(!PSRT_PRED("token.specific_group.enabled",specific_group))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
+#endif
+ if(!PSRT_TOKEN("GetTokenInformation:TokenPrivileges",TokenPrivileges,priv,sizeof(native.runtime.privileges.bytes),&pn,PSR_QUERY(native.runtime.token,TokenPrivileges,priv,sizeof(native.runtime.privileges.bytes),&pn))||pn>sizeof(native.runtime.privileges.bytes)||
  pn<(DWORD)FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges)||priv->PrivilegeCount>(pn-FIELD_OFFSET(TOKEN_PRIVILEGES,Privileges))/sizeof(LUID_AND_ATTRIBUTES)||
- !PSRT_TOKEN("GetTokenInformation:TokenElevation",TokenElevation,&elev,sizeof(elev),&n,GetTokenInformation(native.runtime.token,TokenElevation,&elev,sizeof(elev),&n))||n!=sizeof(elev))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
+ !PSRT_TOKEN("GetTokenInformation:TokenElevation",TokenElevation,&elev,sizeof(elev),&n,PSR_QUERY(native.runtime.token,TokenElevation,&elev,sizeof(elev),&n))||n!=sizeof(elev))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
  native.runtime.statistics=stats;native.runtime.group_bytes=gn;native.runtime.privilege_bytes=pn;native.runtime.elevated=elev.TokenIsElevated;
  /* Keep full group/privilege entries/attributes through runtime quiescence. */
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(!psr_r4_allowed())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"r4_stop_before_duplicate");
+#endif
  if(!PSRT_BOOL("DuplicateToken",(TOKEN_DUPLICATE),DuplicateToken(native.runtime.token,SecurityImpersonation,&native.runtime.access_token)))return PSRT_RETURN(ps_last_error(),"native_api_failure");
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(!native.runtime.access_token)return PSRT_RETURN(ERROR_INVALID_HANDLE,"r4_duplicate_missing");
+ if(!PSRT_BOOL("GetTokenInformation:R4DuplicateBaseline",TOKEN_QUERY,PSR_QUERY(native.runtime.access_token,TokenStatistics,&native.runtime.access_statistics,sizeof(native.runtime.access_statistics),&n)))return PSRT_RETURN(ps_last_error(),"r4_duplicate_baseline_query");
+ if(!PSRT_PRED("r4.duplicate_baseline",n==sizeof(native.runtime.access_statistics)&&native.runtime.access_statistics.TokenType==TokenImpersonation&&!memcmp(&native.runtime.access_statistics.AuthenticationId,&stats.AuthenticationId,sizeof(LUID))))return PSRT_RETURN(ERROR_ACCESS_DENIED,"r4_duplicate_baseline");
+ return psr_r4_current();
+#else
  return ERROR_SUCCESS;
+#endif
 }
 typedef NTSTATUS (NTAPI *PSR_CREATE)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);
 static DWORD psr_open(HANDLE parent,const WCHAR *name,HANDLE *out,int directory)
@@ -127,12 +164,16 @@ static DWORD psr_current(void)
 {
  BY_HANDLE_FILE_INFORMATION a;TOKEN_STATISTICS stats;DWORD n,read;LARGE_INTEGER zero;unsigned char digest[32];char hex[65];unsigned i;
  PSRT_CONTEXT("CURRENT_SOURCE_AND_TOKEN");
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ if(!psr_r4_allowed())return PSRT_RETURN(ERROR_OPERATION_ABORTED,"r4_current_stop_or_retained");
+ if(native.runtime.r4_busy)return psr_r4_current();
+#endif
  if(native.runtime.retained||papacc_server_console_win32_stop_requested()||!native.runtime.parent||!native.runtime.configuration||!native.runtime.token)return PSRT_RETURN(ERROR_OPERATION_ABORTED,"original_branch");
  if(native.runtime.unexpected||native.runtime.check_token)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
  if(PSRT_BOOL("OpenThreadToken",(TOKEN_QUERY),OpenThreadToken(GetCurrentThread(),TOKEN_QUERY,TRUE,&native.runtime.unexpected)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
  if(GetLastError()!=ERROR_NO_TOKEN||!PSRT_BOOL("OpenProcessToken",(TOKEN_QUERY),OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&native.runtime.check_token)))return PSRT_RETURN(ERROR_ACCESS_DENIED,"authorization_or_native_mapping");
  {
- int same=PSRT_TOKEN("GetTokenInformation:TokenStatistics",TokenStatistics,&stats,sizeof(stats),&n,GetTokenInformation(native.runtime.check_token,TokenStatistics,&stats,sizeof(stats),&n))&&n==sizeof(stats)&&
+ int same=PSRT_TOKEN("GetTokenInformation:TokenStatistics",TokenStatistics,&stats,sizeof(stats),&n,PSR_QUERY(native.runtime.check_token,TokenStatistics,&stats,sizeof(stats),&n))&&n==sizeof(stats)&&
  !memcmp(&stats.TokenId,&native.runtime.statistics.TokenId,sizeof(LUID))&&
  !memcmp(&stats.AuthenticationId,&native.runtime.statistics.AuthenticationId,sizeof(LUID))&&!memcmp(&stats.ModifiedId,&native.runtime.statistics.ModifiedId,sizeof(LUID));
  if(!CloseHandle(native.runtime.check_token)){native.runtime.retained=1U;return PSRT_RETURN(ERROR_INVALID_HANDLE,"original_branch");}native.runtime.check_token=NULL;
@@ -149,7 +190,11 @@ static DWORD psr_current(void)
  for(i=0;i<32;i++){hex[2*i]="0123456789abcdef"[digest[i]>>4];hex[2*i+1]="0123456789abcdef"[digest[i]&15];}hex[64]=0;
  if(strcmp(hex,psr_config_sha))return PSRT_RETURN(ERROR_INVALID_DATA,"original_branch");
  {DWORD e;if((e=psr_acl(native.runtime.parent,0U,0))||(e=psr_acl(native.runtime.configuration,1U,0))||(e=psr_acl(native.runtime.relative_image,2U,1)))return PSRT_RETURN(e,"propagate_original");}
+#ifdef PAPACC_R0R9_VIRTUAL_USER_LAB
+ return psr_r4_current();
+#else
  return ERROR_SUCCESS;
+#endif
 }
 static DWORD psr_prepare(void)
 {
@@ -160,7 +205,7 @@ static DWORD psr_prepare(void)
 #endif
  PSRT_CONTEXT("PREPARE");
  if(native.runtime.ready||native.runtime.retained||native.manager||native.service||native.image)return PSRT_RETURN(ERROR_INVALID_STATE,"original_branch");
- e=ps_image_open();if(e)return PSRT_RETURN(e,"propagate_original");
+ e=ps_image_open(NULL);if(e)return PSRT_RETURN(e,"propagate_original");
  native.manager=PSRT_HANDLE("OpenSCManagerW",(SC_MANAGER_CONNECT),OpenSCManagerW(NULL,NULL,SC_MANAGER_CONNECT));if(!native.manager)return PSRT_RETURN(ps_last_error(),"native_api_failure");
  native.service=PSRT_HANDLE("OpenServiceW",(SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS),OpenServiceW(native.manager,ps_name,SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS));if(!native.service)return PSRT_RETURN(ps_last_error(),"native_api_failure");
  e=ps_virtual_readback_start(SERVICE_DEMAND_START);if(e)return PSRT_RETURN(e,"propagate_original");
@@ -192,3 +237,5 @@ int papacc_server_service_qualification_managers_ready(const struct PAPACC_SERVE
  l->c2_owner||psr_current()!=ERROR_SUCCESS)return 0;
  native.runtime.managers_ready=1U;return papacc_server_service_runtime_ready();
 }
+
+#undef PSR_QUERY

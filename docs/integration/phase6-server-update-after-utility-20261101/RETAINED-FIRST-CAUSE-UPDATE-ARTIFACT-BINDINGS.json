@@ -1,0 +1,53 @@
+{
+  "base_sha256": "83adb8e5309086d6d9a149045d080a3bc69c277f0fb1ee609f9e75225dbd4c67",
+  "script_sha256": "1f4c1758bab7733fce03ed3697a07d2a63d947d99a755f577c2894d38c5358c2",
+  "transforms": [
+    {
+      "old": "[string]$ExpectedRequestSha256",
+      "new": "[string]$ExpectedRequestSha256,\n [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$ExpectedDecisionSha256",
+      "count": 1
+    },
+    {
+      "old": "ONE-G3-P1-3GIB-IMAGE-UPDATE-REQUEST.CANDIDATE.md",
+      "new": "ONE-RETAINED-FIRST-CAUSE-IMAGE-UPDATE-REQUEST.CANDIDATE.md",
+      "count": 1
+    },
+    {
+      "old": " if((Get-FileHash -LiteralPath $request).Hash -ne $ExpectedRequestSha256){throw 'REQUEST_HASH_DENY'}",
+      "new": " if((Get-FileHash -LiteralPath $request).Hash -ne $ExpectedRequestSha256){throw 'REQUEST_HASH_DENY'}\n $decision=Join-Path $PSScriptRoot 'OWNER-RETAINED-FIRST-CAUSE-UPDATE-APPROVAL.txt'\n if((Get-FileHash -LiteralPath $decision).Hash -ne $ExpectedDecisionSha256){throw 'DECISION_HASH_DENY'}",
+      "count": 1
+    },
+    {
+      "old": "$oldPin='40b708daadae4342e5cd90090d99189234437ab84f47b2d00f76aeaab05eba76'",
+      "new": "$oldPin='bf2f8c67a3f5de3a5a4b88f28b69eb8573aec04db1df8e36c7907f999a6a748a'",
+      "count": 1
+    },
+    {
+      "old": "$newPin='bf2f8c67a3f5de3a5a4b88f28b69eb8573aec04db1df8e36c7907f999a6a748a'",
+      "new": "$newPin='a2626bf759cfe5e10f7add6515be2e2b8523c8cdc86bf6d49773010a44bf8a94'",
+      "count": 1
+    },
+    {
+      "old": "@{Path=$data;Bytes=786944;Pin=$newPin}",
+      "new": "@{Path=$data;Bytes=787968;Pin=$newPin}",
+      "count": 1
+    },
+    {
+      "old": "417614100,1900544,290164",
+      "new": "417614100,4718592,287758",
+      "count": 1
+    },
+    {
+      "old": "'417614100','1900544','290164'",
+      "new": "'417614100','4718592','287758'",
+      "count": 1
+    },
+    {
+      "old": "ONE_MANUAL_G3_P1_3GIB_IMAGE_UPDATE",
+      "new": "ONE_MANUAL_RETAINED_FIRST_CAUSE_IMAGE_UPDATE",
+      "count": 1
+    }
+  ],
+  "executed": false,
+  "request_sha256": "476dcce9cfa5ff04cc9c81b891ce89b424219f1df96c9b640839eba9d97dd61a"
+}

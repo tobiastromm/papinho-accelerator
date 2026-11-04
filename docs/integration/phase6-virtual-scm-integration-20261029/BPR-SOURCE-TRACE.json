@@ -1,0 +1,197 @@
+[
+  {
+    "path": "apps/server/server_service_win32.c",
+    "sha256": "6392c7281d8fd3421919d2cd2e63c9f00da5e4b7c52668ea99aa7d3b790f6313",
+    "matches": [
+      {
+        "line": 123,
+        "text": "static int ps_binding_ready(void){return 0;}"
+      },
+      {
+        "line": 143,
+        "text": "if(!ps_binding_ready())return ERROR_ACCESS_DENIED;"
+      },
+      {
+        "line": 179,
+        "text": "if(q.action!=PS_STATUS&&!ps_binding_ready()){"
+      },
+      {
+        "line": 325,
+        "text": "if(!ps_binding_ready()){"
+      }
+    ]
+  },
+  {
+    "path": "apps/server/server_configuration_personal_native_win32.inc",
+    "sha256": "bf8aab24bf9bea4adb0c636103d95020c885219ba037480551193fad6c67c5a3",
+    "matches": [
+      {
+        "line": 19,
+        "text": "static const PAPACC_SCQ_OWNER_DECISION *personal_scq_registered_owner_decision(void)"
+      },
+      {
+        "line": 28,
+        "text": "n->scq_inputs.content_verified&&personal_scq_registered_owner_decision()&&"
+      },
+      {
+        "line": 29,
+        "text": "n->scq_admin.registration==personal_scq_registered_owner_decision()&&"
+      },
+      {
+        "line": 38,
+        "text": "PAPACC_PERSONAL_SCQ_ORIGINAL v;const PAPACC_SCQ_OWNER_DECISION *registered=personal_scq_registered_owner_decision();FILETIME exited,kernel,user;"
+      },
+      {
+        "line": 46,
+        "text": "memset(&v,0,sizeof(v));v.controller=o;v.recipient=o;v.purpose=PAPACC_SCQ_PURPOSE_READ;"
+      },
+      {
+        "line": 68,
+        "text": "if(!scqa_scope(personal_scq_registered_owner_decision(),p))return 0;"
+      },
+      {
+        "line": 106,
+        "text": "static PAPACC_PERSONAL_SCQ_ORIGINAL *personal_scq_native_original(PAPACC_CONFIGURATION_COMMIT *o)"
+      },
+      {
+        "line": 144,
+        "text": "{PAPACC_CONFIG_PENDING *p=&o->pending_commit;if(personal_scq_native_original(o))return 0;return p->personal_native.scq_inputs.phase==1U&&!p->personal_native.scq_inputs.first?"
+      },
+      {
+        "line": 178,
+        "text": "e=personal_scq_receive_original(&n->scq_receiver,personal_scq_native_original(o),o,&n->scq_dispatch,&n->runtime_identity,&o->pending_commit.stop);"
+      },
+      {
+        "line": 352,
+        "text": "if(!personal_scq_registered_owner_decision())return PAPACC_RESULT_NOT_SUPPORTED;"
+      },
+      {
+        "line": 362,
+        "text": "if(!personal_scq_registered_owner_decision())return PAPACC_RESULT_NOT_SUPPORTED;"
+      },
+      {
+        "line": 394,
+        "text": "proof=personal_scq_native_original(o);if(!proof){personal_scq_session_native_failed(o,ERROR_NOT_FOUND);return PAPACC_RESULT_NOT_SUPPORTED;}n=&o->pending_commit.personal_native;"
+      },
+      {
+        "line": 402,
+        "text": "if(!personal_scq_native_original(o)){personal_scq_session_native_failed(o,ERROR_NOT_FOUND);return PAPACC_RESULT_NOT_SUPPORTED;}n=&o->pending_commit.personal_native;"
+      },
+      {
+        "line": 433,
+        "text": "original=personal_scq_native_original(o);if(!original)return ERROR_NOT_SUPPORTED;"
+      },
+      {
+        "line": 440,
+        "text": "DWORD e;if(!o||o->writer!=GetCurrentThreadId()||!personal_scq_registered_owner_decision())return ERROR_NOT_SUPPORTED;"
+      }
+    ]
+  },
+  {
+    "path": "apps/server/personal_scq_profile_win32.inc",
+    "sha256": "790f1ad37e3ee0b2533d7d2851b089778b5455b76e3207922622d6d5badfc89f",
+    "matches": [
+      {
+        "line": 51,
+        "text": "static int scqp_unbound(const PAPACC_SCQ_PEER_DATA *p)"
+      },
+      {
+        "line": 133,
+        "text": "c->waiting_runtime=role==1U&&scqp_unbound(&v->runtime);"
+      },
+      {
+        "line": 148,
+        "text": "if(c->role!=1U||!scqp_static(&p)||!scqp_unbound(&p.runtime)||!local||remote||!refs||memcmp(local,&p.administrator,sizeof(*local))||memcmp(refs,p.refs,sizeof(p.refs)))return scqp_fail(c,ERROR_ACCESS_DENIED);"
+      },
+      {
+        "line": 160,
+        "text": "DWORD papacc_scq_profile_bind_runtime_data(PAPACC_SCQ_PROFILE_DATA *c,const void *owner,const PAPACC_SCQ_PEER_DATA *administrator,const PAPACC_SCQ_PEER_DATA *runtime,const PAPACC_SCQ_REF_DATA refs[3],volatile LONG *stop)"
+      }
+    ]
+  },
+  {
+    "path": "apps/server/personal_scq_session_win32.inc",
+    "sha256": "1b94629c8f164bed4bd1c0c248e26e7b90232d7e9a8a40ef4a52b84f8608847a",
+    "matches": [
+      {
+        "line": 39,
+        "text": "if(v->retained||!v->controller_consumed||!personal_scq_original_refs(v)||!scqa_operator(v,remote)||!personal_scq_original_binding(v,c->dispatch,c->runtime))return scqs_fail(c,ERROR_ACCESS_DENIED);}"
+      },
+      {
+        "line": 69,
+        "text": "if(c->profile->waiting_runtime){e=papacc_scq_profile_bind_runtime_data(c->profile,owner,administrator,runtime,refs,stop);if(e)return scqs_fail(c,e);}"
+      },
+      {
+        "line": 93,
+        "text": "memcmp(&local_original_proof->operator_statistics.ModifiedId,administrator->modified,sizeof(LUID))||!scqa_operator(local_original_proof,administrator))return scqs_fail(c,ERROR_ACCESS_DENIED);"
+      }
+    ]
+  },
+  {
+    "path": "apps/server/personal_scq_transport_win32.inc",
+    "sha256": "77498bdc3662d3ff38b250e960cb6e170a33433554a1e9b4601999c6e522db8c",
+    "matches": [
+      {
+        "line": 27,
+        "text": "!personal_scq_original_refs(proof)||!scqa_operator(proof,admin)||"
+      },
+      {
+        "line": 61,
+        "text": "static DWORD scqt_create(PAPACC_SCQ_SESSION_DRIVER *c,const void *owner,"
+      },
+      {
+        "line": 69,
+        "text": "if(!scqa_operator(proof,local)||!personal_scq_original_refs(proof)||!personal_scq_original_binding(proof,c->dispatch,c->runtime)||!scqs_runtime_snapshot(c->runtime,remote))return ERROR_ACCESS_DENIED;"
+      },
+      {
+        "line": 111,
+        "text": "static DWORD scqt_open_local(PAPACC_SCQ_SESSION_DRIVER *c,const void *owner,const WCHAR *name,"
+      },
+      {
+        "line": 122,
+        "text": "if(!scqa_operator(proof,remote)||!personal_scq_original_refs(proof)||!personal_scq_original_binding(proof,c->dispatch,c->runtime)||!scqs_runtime_snapshot(c->runtime,local))return ERROR_ACCESS_DENIED;"
+      }
+    ]
+  },
+  {
+    "path": "apps/server/personal_runtime_identity_win32.inc",
+    "sha256": "38da5c2332b37800b928dc239c37415a5615cd1389e03a7266790152dc9e72da",
+    "matches": [
+      {
+        "line": 56,
+        "text": "static DWORD pri_scm(PAPACC_PERSONAL_RUNTIME_IDENTITY *r)"
+      },
+      {
+        "line": 93,
+        "text": "e=pri_scm(r);if(e)return e;"
+      },
+      {
+        "line": 104,
+        "text": "e=pri_scm(r);if(e)return e;"
+      },
+      {
+        "line": 110,
+        "text": "e=pri_process(r,0);return e?e:pri_scm(r);"
+      }
+    ]
+  },
+  {
+    "path": "apps/server/personal_scq_admin_win32.inc",
+    "sha256": "1176fead84cd3a57c35aeb9478fe6cb02ecd80a6d4d9049f6b725c4ad8ae7d18",
+    "matches": [
+      {
+        "line": 19,
+        "text": "static int scqa_operator(const PAPACC_PERSONAL_SCQ_ORIGINAL *s,const PAPACC_SCQ_PEER_DATA *p)"
+      },
+      {
+        "line": 54,
+        "text": "!personal_scq_original_refs(&c->value)||!scqa_operator(&c->value,&p.administrator)||c->value.retained||"
+      }
+    ]
+  },
+  {
+    "path": "apps/server/personal_scq_handoff_win32.inc",
+    "sha256": "3bdea9bb540a4b8d7f2782f7bbfb43a961abdbb2be346361c0ee00311ed1d208",
+    "matches": []
+  }
+]

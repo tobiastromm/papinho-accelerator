@@ -99,6 +99,33 @@ EP_RESULT ep_pair_claim_data(EP_PAIR *p,const PAPACC_U8 *code,PAPACC_SIZE n,PAPA
  if(connection!=p->connection||generation!=p->generation||!code||n!=10U||!chars(code,10)||papacc_c2_compare(code,p->code,10)){p->invalid=1;return EP_DENIED;}p->claimed=1;return EP_DATA_ONLY;
 }
 void ep_pair_stop(EP_PAIR *p){if(p){p->stopped=1;p->invalid=1;}}
+EP_RESULT ep_trace_csr_candidate(const EP_TRACE *t,const EP_PAIR *p,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now,EP_SLICE *out){
+ if(!t||!p||!out||cross(t,sizeof(*t),p,sizeof(*p))||cross(t,sizeof(*t),out,sizeof(*out))||cross(p,sizeof(*p),out,sizeof(*out)))return EP_INVALID;
+ if(t->stopped||p->stopped)return EP_STOPPED;
+ if(!p->initialized||!p->submitted||!p->claimed||p->invalid||t->terminal||t->credential_released||t->phase!=5U||t->pending||!t->csr_size||t->csr_size>sizeof(t->csr))return EP_DENIED;
+ if(connection!=p->connection||generation!=p->generation||memcmp(t->request,p->request,16)||memcmp(t->client_nonce,p->client_nonce,32)||memcmp(t->server_nonce,p->server_nonce,32))return EP_DENIED;
+ if(now<p->last||now>=p->deadline)return EP_EXPIRED;
+ out->data=t->csr;out->size=t->csr_size;return EP_DATA_ONLY;
+}
+EP_RESULT ep_trace_claim_pair(EP_TRACE *t,EP_PAIR *p,const EP_FRAME *f,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now){
+ EP_RESULT result;const PAPACC_U8 *b;
+ if(!t||!p||!f||cross(t,sizeof(*t),p,sizeof(*p))||cross(t,sizeof(*t),f,sizeof(*f))||
+    cross(p,sizeof(*p),f,sizeof(*f))||!span(f->payload.data,f->payload.size)||
+    cross(t,sizeof(*t),f->payload.data,f->payload.size)||cross(p,sizeof(*p),f->payload.data,f->payload.size))return EP_INVALID;
+ if(t->stopped||p->stopped)return EP_STOPPED;
+ if(!p->initialized)return EP_INVALID;
+ if(p->submitted||p->invalid)return EP_REPLAY;
+ b=f->payload.data;
+ if(t->terminal||t->phase!=2U||f->kind!=3U||!payload(3U,b,f->payload.size)||
+    memcmp(t->request,p->request,16)||memcmp(t->server_nonce,p->server_nonce,32)||memcmp(t->client_nonce,p->client_nonce,32)){
+  p->submitted=1;p->invalid=1;t->terminal=1;return EP_DENIED;
+ }
+ result=ep_pair_claim_data(p,b+48,10U,connection,generation,now);
+ if(result!=EP_DATA_ONLY){t->terminal=1;return result;}
+ result=ep_trace_observe(t,f,EP_C2S);
+ if(result!=EP_DATA_ONLY){p->invalid=1;t->terminal=1;}
+ return result;
+}
 EP_RESULT ep_origin_set(EP_ORIGIN *o,unsigned family,const PAPACC_U8 *a,PAPACC_U32 scope){
  static const PAPACC_U8 mapped[12]={0,0,0,0,0,0,0,0,0,0,255,255};EP_ORIGIN n;
  if(!o||!a||(family!=4U&&family!=6U)||cross(o,sizeof(*o),a,family==4U?4U:16U))return EP_INVALID;

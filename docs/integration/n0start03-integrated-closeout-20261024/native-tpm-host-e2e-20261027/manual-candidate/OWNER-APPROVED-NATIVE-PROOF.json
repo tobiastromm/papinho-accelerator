@@ -1,0 +1,32 @@
+{
+  "kind": "OWNER_APPROVAL_TPM_SALTED_PROOF_ONLY",
+  "decision_date": "2026-10-27",
+  "task": "PACC-PHASE6-ED11-NATIVE-TPM-OWNER-APPROVAL-AND-MANUAL-HANDOFF",
+  "candidate_operation": "TPMPROOF-NATIVE-C-20261027-CANDIDATE-INERT",
+  "request_sha256": "2f225db7af94ffb0879d9057f3d9a04f7a787174f93cb1dc274e3cf46686fbf3",
+  "executable_sha256": "95446475cad9b4666379b75d4b850b1a77e4fdf232d240d937416593387c6857",
+  "one_manual_execution": true,
+  "ack_unknown_revocation": true,
+  "ack_no_hardware_admission": true,
+  "ack_internal_tpm_accounting_unknown": true,
+  "source": "Explicit owner decision in current TASK section1 authorizes one owner-manual native C proof exclusively under the exact request and all its limits; recording and handoff only, no automatic execution",
+  "conditions": "Fresh operator/token/host/boot/original artifact/console gates; preobserver124, own128, shared administration1024; exact interactive confirmation; one invocation only, no retry even before receipt creation; first failure and UNKNOWN preserved",
+  "previous_approval_sha256": "df36112d56b152f2f91e5609c85128770d47c809e8f49567a76d44e219cf7331",
+  "previous_approval_state": "USED_MANUAL_INVOCATION_QUERY249_DENIED_BEFORE_TPM_NOT_REUSABLE",
+  "prior_request_sha256": "4aa1d74fc4dce21e17ae057b8b2c72ddcefc00a5a3a225b23c6cea24a78fe1d8",
+  "not_authorized": [
+    "NV_DefineSpace",
+    "NV_Increment",
+    "NV_UndefineSpace",
+    "Clear",
+    "CreatePrimary",
+    "AK creation",
+    "hierarchy authorization/change",
+    "signing/quote/certificates/remote CA",
+    "Q4/LAB/Start/Stop",
+    "SCM/ACL/quotas",
+    "CURRENT/refund/cleanup/recovery"
+  ],
+  "execution_actor": "OWNER_MANUAL_ONLY",
+  "L1_separate": true
+}

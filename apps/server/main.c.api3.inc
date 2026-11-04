@@ -167,6 +167,10 @@ static int papacc_server_entry(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
+#ifdef PAPACC_ENABLE_SERVICE_CLI
+    if(papacc_server_service_scq_preparation_current())
+        return papacc_server_launcher_scq_closed_prepare();
+#endif
 #if defined(PAPACC_ENABLE_CONFIG_ADMIN_CLI)
     int config_result = papacc_server_config_cli(
         argc, (const char *const *)argv, stdout, stderr);
@@ -239,6 +243,52 @@ int main(int argc, char **argv)
 int main(int argc,char **argv)
 {
  int s;
+ if(argc>1&&argv[1]&&!strcmp(argv[1],"--owner-manual-update-utility")){
+#ifdef PAPACC_SCM_INSTRUMENTED_LAB
+  return 2;
+#else
+  return papacc_server_launcher_utility_update_cli(argc,(const char *const *)argv,stdout,stderr);
+#endif
+ }
+ if(argc>1&&argv[1]&&!strcmp(argv[1],"--owner-manual-prepare-update-utility")){
+#ifdef PAPACC_SCM_INSTRUMENTED_LAB
+  return 2;
+#else
+  return papacc_server_launcher_utility_prep_cli(argc,(const char *const *)argv,stdout,stderr);
+#endif
+ }
+#ifndef PAPACC_SCM_INSTRUMENTED_LAB
+ s=papacc_server_launcher_scq_original_cli(argc,(const char *const *)argv,stdout,stderr);
+ if(s>=0)return s;
+#endif
+ if(argc>1&&argv[1]&&!strcmp(argv[1],"--owner-manual-binary-update")){
+#ifdef PAPACC_SCM_INSTRUMENTED_LAB
+  return 2;
+#else
+  return papacc_server_launcher_binary_update_cli(argc,(const char *const *)argv,stdout,stderr);
+#endif
+ }
+ /* Owner-manual only: native confirmation is mandatory; never default/test. */
+ if(argc==5&&argv[1]&&!strcmp(argv[1],"--owner-manual-selected-staging"))
+#ifdef PAPACC_SCM_INSTRUMENTED_LAB
+  return 2;
+#else
+  return papacc_server_launcher_selected_staging(argv[2],argv[3],argv[4],stdout,stderr);
+#endif
+ /* Explicit read-only observation, not service registration/start or staging.
+  * No default invocation or test campaign runs this native collection. */
+ if(argc==2&&argv[1]&&!strcmp(argv[1],"--owner-manual-root-chain-metadata"))
+#ifdef PAPACC_SCM_INSTRUMENTED_LAB
+  return 2;
+#else
+  return papacc_server_launcher_chain_metadata(stdout,stderr);
+#endif
+ if(argc==2&&argv[1]&&!strcmp(argv[1],"--qualification-staging-observe"))
+#ifdef PAPACC_SCM_INSTRUMENTED_LAB
+  return 2;
+#else
+  return papacc_server_launcher_staging_observe(stdout,stderr);
+#endif
 #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ENABLE_PST_OUTBOUND_TLS)
  s=papacc_server_service_cli(argc,(const char *const *)argv,stdout,stderr,papacc_server_launcher_scm_prepare);
 #else

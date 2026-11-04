@@ -1,0 +1,19 @@
+# FCA predicate23 — validação de capacidade SID corrigida offline
+Tentativa f00f5fadbefac3246aee25907e37b70dd9321a424fc16616d0e4c30457b14a00 usada: aquisição rejeitoupredicate23/result4, orçamento first0, sourcechain última captura sem falha; antes de plano/confirmação/consumo de efeito observado. Fechamento original e wrapper conhecidos/exit2. Flagszero não são ausência independente, sem retry.
+O ramo23 contém resources/LookupAccountName/capacidade/validade SID/tamanho/tipo/identidade distinta/namespace. personal_first_resources registra first_error em falha; first_error0 reduz a hipótese de recurso nesse ramo, sem prova individual de cada campo. Causa nativa histórica continua UNKNOWN: não há cbSid/return/use originais exportados.
+
+## Defeito técnico comprovado e correção
+O produtor FCA exigia GetLengthSid==cbSid. Win32 documenta cbSid como capacidade de entrada e atualização necessária quando buffer insuficiente; não impor escrita de comprimento exato no sucesso sem garantia documentada:
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-lookupaccountnamew
+Os produtores já existentes personal_service_sid_win32.inc e personal_runtime_identity_win32.inc usam comprimento que cabe na capacidade, não igualdade exata. O dado autoritativo associado ao SID deve ser o comprimento validado do SID, não capacidade de storage.
+Mudança mínima FCA: cbSid>=8 e<=sizeof(buffer), IsValidSid, GetLengthSid<=cbSid, mantendo checks SidTypeUser/WellKnownGroup, autoridadeNT, subauthorities6/RID80 e desigualdade com operador; depois n->first_service_bytes=GetLengthSid. Sem nova chamada nativa de lookup, sem aceitar tipo/SID/namespace diferente ou pular fonte legítima.
+Modelo percorre função real: SID32 com capacidade68 mantida passa e se associa32 ao plano/confirmacão. Capacidade31 truncada e69 excedente negam antes de RNG. Caso anterior de tamanho exato preservado. Não se afirma que esta foi a falha exata do host: é um defeito de contrato demonstrado com regressão real.
+Mantidos físico/commit3GiB,128/188/192/private-working/freshness/deadlines/Stop/retenção/readback, proteção/continuidade/originais. Nenhuma decisão normativa nova necessária; mesma especializaçãoFCA accepted, nenhuma guarda de READ/TO/fixture/UPDATE/Legacy ampliada.
+
+## Qualificação e UPDATE
+Quatro builds Selected/Legacy Debug/Release sem warnings/120pares PASS, FCA-SID-CAPACITY-OFFLINE-QUALIFICATION.json. Sem coleta/UPDATE/FCA/Start/chave/diretório executados pelo agente. Instalação anterior912384bytes/417614100:851968:606522/SHA256c4419f97a2e4499da4e30b8a5316a16e55097d18384fc70a0db58870c4188556 preservada.
+Candidato912384bytes/SHA256a3adc6a253bae9fd6589c7e6f74a9b2d4cc04ea17dcf13882f2e84ef28767f8c congelado papacc_server.fca-sid-capacity-912384.exe. UPDATE necessário, mesmo papacc_update protegido/U1–U7/U2; sem reimplementação ou recompilação do updater.
+Pedido35f9652ba08a9c5e08da094ef0639610c590b13dfa290a91af0ba661ba6c2434; wrapper61b77275d33005a95e41a9eef382f00eaf768b2b1ec6b7a7d1a1b3ed4dff81c6, parsezero/uma chamada/16argv conferidos.
+Autorização atual "autorizo sempre os updates chat, n tenho outra escolha" registrada para continuidade desta investigação, sem pedir repetição nem inventar aprovação histórica por hash. Decisão02711b2449c214e91f9ad4fe62f6cf903cb061185098be1689d47a395568a925; comando completo FCA-SID-CAPACITY-UPDATE-MANUAL-COMMAND.md, ainda não executado/consumido.
+Primeiro gate: plano/confirmacão e gates frescos do UPDATE manual. Depois reconciliação e próximo ato concreto com novos IDs realmente retornados, reutilizando configuração/Papinho e sem replay. Não prometer Start ou sucessoFCA após correção. Autorização de continuidade até Start preservada sem dispensar confirmações/autoridade original.
+Preservados HEAD/WIP/históricos/pins/EXEs/consumos/PST0.6.4, UNKNOWN/retenção histórica/quiescência OS/DENY.

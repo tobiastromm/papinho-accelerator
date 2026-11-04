@@ -1,0 +1,48 @@
+{
+  "status": "PROPOSED_NOT_APPROVED_NOT_EFFECTIVE",
+  "purpose": "Q4 historical witness preparation only under W/L/L1/TC; no CA/issuer/other TPM purpose",
+  "operator_sid_candidate": "S-1-5-21-785699550-1440458426-1682014700-1108",
+  "operator_binding": "requires fresh original primary SID/elevation/no impersonation/LUID/PID-creation checks before any separately authorized access; metadata receipt did not emit these",
+  "TPM_identity_reference": {
+    "EK_SPKI_sha256": "1c643066b17bdf9e81c09870661aeb7c9cfff1f2ffbef71b43532c14a25c474e",
+    "EK_certificate_sha256": "965f56aa0d4c5b5772b423d65d8a06a623109f5828c0eddcb8ec4ae8fa3de761",
+    "approved_original_generation_manifest": null,
+    "scope": "observed key/cert reference; not proof of original NV generation or binding of Windows credential to endpoint"
+  },
+  "root_domain_binding": null,
+  "security_boundary": "CurrentUser/same-user/admin per accepted TC/L1; no process isolation, new vault/service/authority or broad hierarchy rights",
+  "framework_decision_sha256": "17636e994d53b449b55e94edf476cf29c0dc22d1737cc773cde3712854b2a23f",
+  "historical_metadata_receipt_sha256": "148cfdb551038d62b9bd00ca2d88df205d30b44f2e9d52af8a6cc0f682248b65",
+  "historical_limit": "displayed hash check after execution; original variable target/token/PID/native identity not proved retrospectively",
+  "owner_decision": null,
+  "credential_access_authorized": false,
+  "NV_Q4_authorized": false,
+  "kind": "WINDOWS_STORAGE20_SOURCE_DESIGNATION_PROPOSAL_ONLY",
+  "source": {
+    "API": "Tbsi_Get_OwnerAuth",
+    "type": 13,
+    "type_name": "STORAGE_20",
+    "controller": "Windows TPM authorization management",
+    "current_evidence": "owner-reported NULL-output source-present indication, not credential read/validity",
+    "not_substitutes": [
+      "TPM1.2_FULL",
+      "TPM1.2_ADMIN",
+      "TPM2_LOCKOUT_AUTH",
+      "Windows_admin_membership",
+      "empty_password"
+    ]
+  },
+  "proposed_delivery": "same governed owner/worker, pinned authorized Windows dependencies and original context, fresh bound purpose/lease/token/device; one API value call into locked caller-owned scratch; synchronous borrow only, no export or persistent hierarchy-secret copy",
+  "guard_prerequisites": [
+    "specific custodian designation",
+    "specific controlled-access-only approval for exact artifacts and lifetime",
+    "original pinned Windows source/context, live operator/token/process and purpose/root bindings; endpoint tied to approved observed TPM identity reference without declaring original NV generation",
+    "revocation UNKNOWN and hardware generation gaps remain DENY for witness/NV/Q4; a memory-delivery-only diagnostic cannot waive downstream gates",
+    "fresh applicable own/admin resource guards; no credits"
+  ],
+  "API_success_is_not": "TPM command authorization, valid credential, ownership, generation, capacity or admission",
+  "retries": 0,
+  "secret_outputs": "NONE; no argv/log/file/report/secret hash",
+  "per_index_auth": "separate future credential subject to L1 and provisioning approval; not created by source designation",
+  "scope_separation": "A future narrowly authorized in-memory custody diagnostic is not NV/witness admission; it must not claim unresolved index generation or require fabricated pre-provisioning index facts."
+}

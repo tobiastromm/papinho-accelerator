@@ -1,0 +1,18 @@
+# K0–K9 — aceitação e integração offline dos componentes
+
+2026-11-03. Estado: ACCEPTED / COMPONENTS_QUALIFIED_OFFLINE / END_TO_END_INCOMPLETE / OPERATIONAL_DENY.
+Decisão normativa docs/adr/DECISION-personal-scq-read-machine-k0-k9-20261103.md incorpora proposta8489c009dfa62df0835415d4544c0632abd850924a35217b2ec451718147ad38, conferida byte-exatamente e registrada antes de código. Sem edição de accepted anteriores.
+
+Integrados no mesmo produto: estadoP no packetcanônico, confirmação/consumo/revalidaçãoREADoriginal, helpersK7/policyG3KR, codecSKR1DATA128bytes; fixtureTEST_ONLY no PAPACC_CA_KEY existente com criação exclusivaMACHINE/SDownerestrito/Stop por operação, bloqueio de borrowprodutivo e controleadministrativopositivo da identidadepública com retençãodereabertura. Probeordinary mantémdenyclosed e TO agora é rejeitado também com closedmetadataalterado. Sem assinatura/exportpriv/delete/CA/CURRENT ou novasautoridades/serviços.
+
+Detalhes/offsets/ownership/limites em READ-MACHINE-TECHNICAL-BINDING-REVIEW.md. Censo+432bytes packet, zerohandles novos pelo ato; pilhas/NCrypt/provider/kernel nãosãomáximos demonstrados. K7não seaplica à preparaçãofixture porinferência. Fixtureusa APIexistente do owner, não outro subsistema.
+
+Quatro builds Selected/Legacy Debug/Release PASS, zero warnings finais;28testes/configuração=112paresPASS. Fixture63checks/12falhasNCrypt/11Stopfronteiras/substituição/closeUNKNOWN; READ541checks/18atos/5modosprobe, codec/correlação/replay/Stop/seleçãoausente e fronteiras127/128/129,187/188/189,191/192/193. RegressõesTO/READordinary/paths/caller/receiptclose/censoafetadaspreservadas. APIs protegidas são mocks; helpersSID/memória/compilação não afirmam fonte/efeito nativo. GetterCNGpermaneceNULL, coldcaller permaneceTO; nenhumpositivooperacionalfabricado.
+
+Duranteaqualificação: um teste novo usou SCMmodelRUNNING para capturaclosed e foi corrigido para START_PENDING; um sombreamento global no mock gerou C4459 sobWX e foi corrigido. Logs finais acima só depois dos ajustes e da proteçãoTO final. Não se dispensouguardparaosmodelospassarem. Fontespins/8logspins finais em READ-MACHINE-K0-K9-OFFLINE-QUALIFICATION.json.
+
+Imagem derivada Selected/Release 810496bytes, SHA25630a90ae9ee0e46a5a2f550740b804f37e2bc19edcbea34c4d1a4a2f4b8378910, delta512bytes. Congelada somente no workspace em papacc_server.read-machine-components-810496.exe. NÃO selecionada, NÃO instalada, NÃO qualificada como percursoREADintegral. Baseline instalado anterior809984/ID417614100:1638400:439388 preservado; nenhum novo readback nativo. Não preparar UPDATE para imagem ainda sem ligaçãoREADcompleta.
+
+Primeira lacuna técnica: ligar produceradministrativooriginal da fixture (incluindo confirmação/consumo/Stop/amostragem/assurancepróprios e digestpúblico) e projeçãooriginalP ao receptor/callerREAD. Depois integrar SKR1 no mesmo I/O/lifecyclefinito e os novosoriginaisREAD4ACEs, com modelo integrado/faultinjection antes de pedidooperacional. Estes passos já estão autorizados OFFLINE por K0–K9 e não precisam novaaprovação normativa para o mesmoescopo. Não produzir enum/bitconsumed/gettertrue como substituto de origem. A operaçãofixture e a operaçãoREAD continuam exigir decisõesoperacionais futuras distintas e byte-exatas.
+
+Nenhuma consultaKSP/SCM, criaçãoMACHINE, alteraçãoACLreal, UPDATE, endpoint/Start/Stop, CA/CURRENT, redeoperacional, TPM/NV/Q4, cleanup/refund ou autorizaçãoprodutiva executada. READ/CNGnativeoriginal e capacidadeprodutiva nãodemonstrados, UNKNOWNhistórico/retention/reservas/OSquiescence/PST0.6.4/HEADWIP/frozenpins/fixtureCurrentUser preservados. O primeiro diagnósticoTOqualificado nãoreabre nem se repete.

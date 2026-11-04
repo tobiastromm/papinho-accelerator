@@ -1,0 +1,49 @@
+& {
+ $ExpectedScriptSha256 = '34b4fa42bc30d4af53866b9a690c3b2125a8f87d6091cc8b87df7fc26b80ea38'
+ $ExpectedRequestSha256 = 'df0e9ee77bf61aabf7535e2037fa5788dff6c1a052b0748949cf5cd76d0afa94'
+ $chainProcedureDirectory = 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-root-chain-procedure-20261031'
+ $chainProcedure = Join-Path $chainProcedureDirectory 'collect-chain-metadata.MANUAL.ps1'
+Set-StrictMode -Version Latest
+$ErrorActionPreference='Stop'
+$chainIdentity=$null
+$chainSubmitted=$false
+$chainExit=2
+try {
+ if((Get-FileHash -LiteralPath $chainProcedure -Algorithm SHA256 -ErrorAction Stop).Hash -ine $ExpectedScriptSha256){throw 'SCRIPT_HASH_DENY'}
+ $chainRequest=Join-Path $chainProcedureDirectory 'ONE-CHAIN-METADATA-REQUEST.CANDIDATE.md'
+ if((Get-FileHash -LiteralPath $chainRequest -Algorithm SHA256 -ErrorAction Stop).Hash -ine $ExpectedRequestSha256){throw 'REQUEST_HASH_DENY'}
+ $chainScope='C:\Projetos\PapinhoAccelerator\docs\integration\phase6-root-metadata-readiness-20261031\READONLY-CHAIN-REQUEST.CANDIDATE.md'
+ if((Get-FileHash -LiteralPath $chainScope -Algorithm SHA256 -ErrorAction Stop).Hash -ine 'a9ffdc0d26ba8583b8e162cf127d5563893e1766f94551ce7ce994258ca6167b'){throw 'SCOPE_HASH_DENY'}
+ if($PSVersionTable.PSEdition -ne 'Desktop' -or $PSVersionTable.PSVersion.Major -ne 5 -or -not [Environment]::Is64BitProcess){throw 'WINDOWS_POWERSHELL_51_X64_REQUIRED'}
+ if([Environment]::MachineName -cne 'TCORP-TOBIAS'){throw 'HOST_DENY'}
+ $chainIdentity=[Security.Principal.WindowsIdentity]::GetCurrent()
+ if($chainIdentity.User.Value -cne 'S-1-5-21-785699550-1440458426-1682014700-1108'){throw 'OPERATOR_DENY'}
+ $chainPrincipal=New-Object Security.Principal.WindowsPrincipal($chainIdentity)
+ if(-not $chainPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'ALREADY_ELEVATED_REQUIRED'}
+ $chainIdentity.Dispose();$chainIdentity=$null
+ $chainDirectory='C:\Projetos\PapinhoAccelerator\build\windows-virtual-scm-integration-20261022\Selected\Release'
+ $chainPins=@(
+  @('papacc_server.exe',570880,'c58d1eb24fa2754d230ad4d27b61458443557daa8f4bcf4e1baad5dd8d1e5b6b'),
+  @('libssl-3-x64.dll',1321472,'3fb3cd7804dbe3216c801b470e14461d80214ece99c637ae42ea3d8caf75d7ed'),
+  @('libcrypto-3-x64.dll',7217664,'09eec573c9adea156ba2073f8cd61720d0aabeb7562d8498b4ecd21b710a3044')
+ )
+ foreach($chainPin in $chainPins){
+  $chainFile=Join-Path $chainDirectory $chainPin[0]
+  if((Get-Item -LiteralPath $chainFile -ErrorAction Stop).Length -ne $chainPin[1]){throw 'ARTIFACT_LENGTH_DENY'}
+  if((Get-FileHash -LiteralPath $chainFile -Algorithm SHA256 -ErrorAction Stop).Hash -ine $chainPin[2]){throw 'ARTIFACT_HASH_DENY'}
+ }
+ Write-Output 'ONE_MANUAL_CHAIN_METADATA; ON_DISK_PINS_NOT_MAPPED_IMAGE_ATTESTATION; NO_STAGING_NO_SCM_NO_KSP; AUTHORITY_DENY; NO_RETRY'
+ $chainBinary=Join-Path $chainDirectory 'papacc_server.exe'
+ $chainSubmitted=$true
+ & $chainBinary '--owner-manual-root-chain-metadata'
+ $chainExit=$LASTEXITCODE
+} catch {
+ Write-Output ('CHAIN_WRAPPER_STOP '+$_.Exception.Message)
+ $chainExit=2
+} finally {
+ if($null -ne $chainIdentity){$chainIdentity.Dispose()}
+ Write-Output ('CHAIN_MANUAL_EXIT={0}; SUBMISSION_ATTEMPTED={1}; NO_RETRY; STAGING_AUTHORITY=DENY; OS_QUIESCENCE=UNKNOWN' -f $chainExit,$chainSubmitted)
+}
+# Do not exit the owner's interactive shell. Native status is reported above.
+
+}

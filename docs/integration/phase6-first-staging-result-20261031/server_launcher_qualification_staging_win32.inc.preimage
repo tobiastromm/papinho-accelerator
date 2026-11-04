@@ -1,0 +1,419 @@
+/* Native qualification staging, same controller/root/packet. Never invokes
+ * bootstrap/LAB as authority. Only the private effect composition is exercised
+ * by API-mocked component tests; operational resource admission is unavailable. */
+#include <winternl.h>
+#include <sddl.h>
+static const WCHAR *const staging_leaf[3]={L"papacc_server.exe",L"libssl-3-x64.dll",L"libcrypto-3-x64.dll"};
+typedef NTSTATUS (NTAPI *STAGING_NT_CREATE)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);
+static PAPACC_QUALIFICATION_STAGING *staging_act(void)
+{return &root.configuration_commit.pending_commit.personal_native.staging;}
+static DWORD staging_fail(DWORD e)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();if(!e)e=ERROR_INVALID_DATA;
+ if(!s->first){s->first=e;s->resources.first_location=s->resources.location;}s->phase=7U;return e;
+}
+static int staging_owned(void)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();
+ return state==PAPACC_LAUNCHER_ACTIVE&&s->self==s&&s->thread==GetCurrentThreadId()&&
+ root.owner_thread==s->thread&&s->invocation==root.invocation;
+}
+#include "server_staging_resources_win32.inc"
+/* Ancestors may legitimately be Windows TrustedInstaller-owned; application
+ * objects use the existing stricter descriptor predicate. No ACL is changed. */
+static int staging_descriptor(PSECURITY_DESCRIPTOR d,int ancestor)
+{
+ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+ PAPACC_QUALIFICATION_STAGING *s=&n->staging;PSID owner;BOOL def,present;PACL acl;DWORD i;
+ BYTE system[SECURITY_MAX_SID_SIZE],admins[SECURITY_MAX_SID_SIZE];DWORD sn=sizeof(system),an=sizeof(admins);
+ const DWORD write_mask=GENERIC_ALL|GENERIC_WRITE|DELETE|WRITE_DAC|WRITE_OWNER|FILE_WRITE_DATA|FILE_APPEND_DATA|FILE_WRITE_EA|FILE_WRITE_ATTRIBUTES|FILE_DELETE_CHILD;
+ if(!ancestor)return scm_descriptor(d,n->sid);
+ if(!IsValidSecurityDescriptor(d)||!GetSecurityDescriptorOwner(d,&owner,&def)||!owner||!IsValidSid(owner)||
+ !CreateWellKnownSid(WinLocalSystemSid,NULL,system,&sn)||!CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,admins,&an)||
+ !GetSecurityDescriptorDacl(d,&present,&acl,&def)||!present||!acl||!IsValidAcl(acl))return 0;
+ if(!EqualSid(owner,n->sid)&&!EqualSid(owner,system)&&!EqualSid(owner,admins)&&!EqualSid(owner,s->trusted_installer))return 0;
+ for(i=0;i<acl->AceCount;i++){
+  PACE_HEADER h;ACCESS_ALLOWED_ACE *a;PSID sid;
+  if(!GetAce(acl,i,(void **)&h)||h->AceSize<FIELD_OFFSET(ACCESS_ALLOWED_ACE,SidStart)+8U)return 0;
+  if(h->AceFlags&INHERIT_ONLY_ACE)continue;
+  if(h->AceType!=ACCESS_ALLOWED_ACE_TYPE&&h->AceType!=ACCESS_DENIED_ACE_TYPE)return 0;
+  a=(ACCESS_ALLOWED_ACE *)h;sid=(PSID)&a->SidStart;
+  if(!IsValidSid(sid)||GetLengthSid(sid)>(DWORD)(h->AceSize-FIELD_OFFSET(ACCESS_ALLOWED_ACE,SidStart)))return 0;
+  if(h->AceType==ACCESS_ALLOWED_ACE_TYPE&&(a->Mask&write_mask)&&!EqualSid(sid,n->sid)&&!EqualSid(sid,system)&&!EqualSid(sid,admins)&&!EqualSid(sid,s->trusted_installer))return 0;
+ }
+ return 1;
+}
+static int staging_acl(PAPACC_STAGING_OBJECT *o,unsigned index,int first)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();BYTE digest[32];DWORD count,revision;SECURITY_DESCRIPTOR_CONTROL control;int ok=0;
+ if(s->scratch)return 0;
+ if(GetSecurityInfo(o->handle,SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION|DACL_SECURITY_INFORMATION,NULL,NULL,NULL,NULL,&s->scratch)!=ERROR_SUCCESS)return 0;
+ if(!s->scratch)return 0;
+ count=GetSecurityDescriptorLength(s->scratch);
+ if(count>s->resources.scratch_peak_bytes)s->resources.scratch_peak_bytes=count;
+ if(count&&count<=65536U&&GetSecurityDescriptorControl(s->scratch,&control,&revision)&&
+ (!o->created||(control&SE_DACL_PROTECTED))&&
+ (index<8U?staging_descriptor(s->scratch,1):o->created?staging_descriptor(s->scratch,0):IsValidSecurityDescriptor(s->scratch))&&
+ pacc_storage_hash_callback(NULL,(BYTE *)s->scratch,count,digest)&&
+ (first||!memcmp(o->acl,digest,32))){if(first)memcpy(o->acl,digest,32);ok=1;}
+ s->close_attempts|=1U<<16;
+ if(LocalFree(s->scratch))return 0;s->scratch=NULL;s->close_attempts&=~(1U<<16);return ok;
+}
+static int staging_object(unsigned index,int first)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();PAPACC_STAGING_OBJECT *o=&s->objects[index];BY_HANDLE_FILE_INFORMATION f;
+ if(!o->handle||!GetFileInformationByHandle(o->handle,&f)||(f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)||
+ !!(f.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)!=!!o->directory)return 0;
+ if(!first&&(f.dwVolumeSerialNumber!=o->identity.dwVolumeSerialNumber||f.nFileIndexHigh!=o->identity.nFileIndexHigh||f.nFileIndexLow!=o->identity.nFileIndexLow))return 0;
+ if(!first&&index>=8U&&index<=10U&&!scm_register_id(&f,&o->identity))return 0;
+ if(first)o->identity=f;
+ return staging_acl(o,index,first);
+}
+static DWORD staging_current(void)
+{
+ PAPACC_CONFIGURATION_COMMIT *c=&root.configuration_commit;PAPACC_QUALIFICATION_STAGING *s=staging_act();unsigned i;BYTE hash[32];DWORD handles;
+ if(!staging_owned()||s->phase<1U||s->phase>4U)return ERROR_INVALID_STATE;
+ if(papacc_server_console_win32_stop_requested()||c->pending_commit.stop)return staging_fail(ERROR_CANCELLED);
+ if(!GetProcessHandleCount(GetCurrentProcess(),&handles))return staging_fail(GetLastError());
+ if((!s->selected_plan&&handles>124U)||(s->selected_plan&&s->resources.ready_frozen&&handles>s->resources.criteria.max_handles))return staging_fail(ERROR_NOT_ENOUGH_QUOTA);
+ if(papacc_configuration_personal_layout_binary_current(c)!=PAPACC_RESULT_OK||papacc_configuration_personal_native_current(c)!=PAPACC_RESULT_OK)return staging_fail(ERROR_ACCESS_DENIED);
+ for(i=0;i<16U;i++)if(s->objects[i].handle&&!staging_object(i,0))return staging_fail(ERROR_ACCESS_DENIED);
+ for(i=0;i<3U;i++)if(!s->objects[8U+i].handle||!scm_register_hash(s->objects[8U+i].handle,hash)||memcmp(hash,s->digest[i],32))return staging_fail(ERROR_CRC);
+ return 0;
+}
+/* Revalidate identity/security before each selected effect without moving
+ * source file cursors. Original source handles forbid competing writers;
+ * content hashes are additionally checked at capture/current/readback. */
+static DWORD staging_limited_refs(void)
+{
+ PAPACC_CONFIGURATION_COMMIT *c=&root.configuration_commit;PAPACC_QUALIFICATION_STAGING *s=staging_act();unsigned i;
+ if(!staging_owned()||s->phase<2U||s->phase>4U)return staging_fail(ERROR_INVALID_STATE);
+ if(papacc_configuration_personal_layout_binary_current(c)!=PAPACC_RESULT_OK||papacc_configuration_personal_native_current(c)!=PAPACC_RESULT_OK)return staging_fail(ERROR_ACCESS_DENIED);
+ for(i=0;i<16U;i++)if(s->objects[i].handle&&!staging_object(i,0))return staging_fail(ERROR_ACCESS_DENIED);
+ return 0;
+}
+static DWORD staging_open(unsigned index,HANDLE parent,const WCHAR *name,int directory,int create)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();PAPACC_STAGING_OBJECT *o=&s->objects[index];
+ STAGING_NT_CREATE fn;FARPROC proc;HMODULE module;UNICODE_STRING u;OBJECT_ATTRIBUTES a;IO_STATUS_BLOCK io;NTSTATUS status;ACCESS_MASK rights;DWORD own;
+ if(o->handle||!name||!name[0]||wcslen(name)>=MAX_PATH||papacc_server_console_win32_stop_requested())return staging_fail(ERROR_INVALID_STATE);
+ if(create&&(!s->consumed||s->phase!=4U))return staging_fail(ERROR_ACCESS_DENIED);
+ if(create&&staging_current())return s->first;
+ /* One additional controlled reference is requested by this FILE_OPEN/CREATE.
+  * Do not accumulate read-side originals past the existing guard between frames.
+  * This does not bound opaque transient handles or grant operational headroom. */
+ s->resources.guard_attempted=1U;s->resources.guard_succeeded=0U;s->resources.guard_count=0U;
+ s->resources.guard_error=0U;s->resources.guard_denied=0U;s->resources.guard_index=index;
+ if(!GetProcessHandleCount(GetCurrentProcess(),&own)){
+  DWORD error=GetLastError();if(!error)error=ERROR_GEN_FAILURE;s->resources.guard_error=error;return staging_fail(error);
+ }
+ s->resources.guard_succeeded=1U;s->resources.guard_count=own;
+ if((!s->selected_plan&&own>=124U)||(s->selected_plan&&s->resources.ready_frozen&&own>=s->resources.criteria.max_handles)){s->resources.guard_denied=1U;return staging_fail(ERROR_NOT_ENOUGH_QUOTA);}
+ module=GetModuleHandleW(L"ntdll.dll");if(!module)return staging_fail(ERROR_NOT_SUPPORTED);
+ proc=GetProcAddress(module,"NtCreateFile");if(!proc)return staging_fail(ERROR_NOT_SUPPORTED);memcpy(&fn,&proc,sizeof(fn));
+ memset(&a,0,sizeof(a));memset(&io,0,sizeof(io));u.Buffer=(WCHAR *)name;u.Length=(USHORT)(wcslen(name)*sizeof(WCHAR));u.MaximumLength=u.Length;
+ a.Length=sizeof(a);a.RootDirectory=parent;a.ObjectName=&u;a.Attributes=OBJ_CASE_INSENSITIVE|0x1000U;a.SecurityDescriptor=create?s->protection:NULL;
+ rights=READ_CONTROL|SYNCHRONIZE|FILE_READ_ATTRIBUTES|(directory?FILE_LIST_DIRECTORY|FILE_TRAVERSE:FILE_READ_DATA);
+ if(directory==2)rights|=FILE_ADD_SUBDIRECTORY;
+ if(create)rights|=directory?FILE_ADD_FILE|FILE_ADD_SUBDIRECTORY:FILE_WRITE_DATA;
+ o->directory=directory?1U:0U;
+ if(create&&s->selected_plan){DWORD e=staging_limited_refresh();if(e)return e;}
+ status=fn(&o->handle,rights,&a,&io,NULL,directory?FILE_ATTRIBUTE_DIRECTORY:FILE_ATTRIBUTE_NORMAL,FILE_SHARE_READ,create?2U:1U,directory?0x00200021U:0x00200060U,NULL,0);
+ if(create){s->effects++;o->created=1U;} /* submission, even if outcome uncertain */
+ if(status!=0){
+  DWORD error=staging_fail((DWORD)status);
+  if(status>0||o->handle){s->phase=8U;root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);}
+  return error;
+ }
+ if(io.Information!=(create?2U:1U)){
+  DWORD error=staging_fail(ERROR_INVALID_DATA);s->phase=8U;root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return error;
+ }
+ if(!staging_object(index,1))return staging_fail(ERROR_ACCESS_DENIED);
+ return 0;
+}
+static DWORD staging_source(unsigned index,const WCHAR *path)
+{
+ WCHAR native_path[MAX_PATH+64],drive[3],device[MAX_PATH];size_t k,n;DWORD count;
+ if(wcslen(path)<3U||path[1]!=L':'||path[2]!=L'\\')return staging_fail(ERROR_INVALID_NAME);
+ drive[0]=path[0];drive[1]=L':';drive[2]=0;
+ count=QueryDosDeviceW(drive,device,MAX_PATH);if(!count||wcsncmp(device,L"\\Device\\",8U))return staging_fail(ERROR_INVALID_NAME);
+ k=wcslen(device);n=wcslen(path);if(k+n-2U>=MAX_PATH+64U)return staging_fail(ERROR_BUFFER_OVERFLOW);
+ memcpy(native_path,device,k*sizeof(WCHAR));memcpy(native_path+k,path+2,(n-1U)*sizeof(WCHAR));
+ return staging_open(index,NULL,native_path,0,0);
+}
+/* Gate immediately before each mutating IO, not a prediction of its outcome.
+ * Admission/consumption cannot be restored by this gate. */
+static DWORD staging_effect_barrier(void)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();
+ if(!staging_owned()||s->phase!=4U||!s->consumed)return staging_fail(ERROR_INVALID_STATE);
+ if(s->first)return s->first;
+ if(papacc_server_console_win32_stop_requested()||root.configuration_commit.pending_commit.stop)return staging_fail(ERROR_CANCELLED);
+ if(s->selected_plan)return staging_limited_refresh();
+ return 0;
+}
+static DWORD staging_copy(unsigned file)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();HANDLE src=s->objects[8U+file].handle,dst;LARGE_INTEGER zero;DWORD n,w,offset;ULONGLONG total=0,expected;BYTE hash[32];
+ if(staging_current()||staging_open(13U+file,s->objects[12].handle,staging_leaf[file],0,1))return s->first;
+ dst=s->objects[13U+file].handle;zero.QuadPart=0;
+ expected=((ULONGLONG)s->objects[8U+file].identity.nFileSizeHigh<<32)|s->objects[8U+file].identity.nFileSizeLow;
+ if(!SetFilePointerEx(src,zero,NULL,FILE_BEGIN))return staging_fail(GetLastError());
+ for(;;){
+  if(papacc_server_console_win32_stop_requested()||root.configuration_commit.pending_commit.stop)return staging_fail(ERROR_CANCELLED);
+  if(!ReadFile(src,s->block,sizeof(s->block),&n,NULL)||n>sizeof(s->block))return staging_fail(GetLastError());
+  if(!n)break;if(total>expected||n>expected-total)return staging_fail(ERROR_INVALID_DATA);
+  for(offset=0;offset<n;offset+=w){w=0;
+   if(staging_effect_barrier())return s->first;
+   if(!WriteFile(dst,s->block+offset,n-offset,&w,NULL)||!w||w>n-offset)return staging_fail(GetLastError());
+  }total+=n;
+ }
+ if(total!=expected||staging_effect_barrier()||!FlushFileBuffers(dst)||staging_current()||!scm_register_hash(dst,hash)||memcmp(hash,s->digest[file],32)||!staging_object(13U+file,0))return staging_fail(ERROR_CRC);
+ {BY_HANDLE_FILE_INFORMATION f;if(!GetFileInformationByHandle(dst,&f)||f.nFileSizeHigh!=s->objects[8U+file].identity.nFileSizeHigh||f.nFileSizeLow!=s->objects[8U+file].identity.nFileSizeLow)return staging_fail(ERROR_INVALID_DATA);}
+ return 0;
+}
+static DWORD staging_apply_composition(void)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();unsigned i;DWORD e;
+ if(!staging_owned()||s->phase!=3U||s->consumed)return ERROR_INVALID_STATE;
+ if(s->resources.first||!s->resources.volume_known)return staging_fail(ERROR_INVALID_STATE);
+ if(staging_observe(6U))return s->first; /* necessary fresh sample, never admission */
+ if((e=staging_current())!=0)return e;
+ if(s->selected_plan){e=staging_limited_refresh();if(e)return e;}
+ s->consumed=1U;s->phase=4U; /* one take before any creating submission */
+ if(staging_current()||staging_open(11U,s->objects[s->ancestor_count-1U].handle,L"Papinho",1,1)||
+ staging_current()||staging_open(12U,s->objects[11].handle,L"Accelerator",1,1))return s->first;
+ for(i=0;i<3U;i++)if((e=staging_copy(i))!=0)return e;
+ if((e=staging_current())!=0)return e;
+ return s->selected_plan?staging_limited_refresh():0;
+}
+/* Sole operational gate; raw composition above is exercised only by mocked
+ * component tests and is never reached without independent admission here. */
+static DWORD staging_apply(void)
+{
+ DWORD error=staging_admit();
+ if(error)return error;
+ return staging_apply_composition();
+}
+static DWORD staging_close(void)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();int i;
+ if(!staging_owned()||s->phase==6U)return ERROR_INVALID_STATE;
+ /* An uncertain close or submitted/partial effect is NOT a rollback. A failure
+  * cohort cannot be drained/retried by this function after returning UNKNOWN. */
+ if(s->phase==8U)return s->first?s->first:ERROR_INVALID_STATE;
+ if(s->effects&&s->phase==4U)(void)staging_current();
+ if(s->effects&&s->first)goto retained;
+ for(i=15;i>=0;i--)if(s->objects[i].handle){
+  if(s->close_attempts&(1U<<i))goto retained;s->close_attempts|=1U<<i;
+  if(!CloseHandle(s->objects[i].handle)){(void)staging_fail(GetLastError());goto retained;}s->objects[i].handle=NULL;
+ }
+ if(s->scratch){if(s->close_attempts&(1U<<16))goto retained;s->close_attempts|=1U<<16;if(LocalFree(s->scratch))goto retained;s->scratch=NULL;}
+ if(s->protection){if(s->close_attempts&(1U<<17))goto retained;s->close_attempts|=1U<<17;if(LocalFree(s->protection))goto retained;s->protection=NULL;}
+ if(s->trusted_installer){if(s->close_attempts&(1U<<18))goto retained;s->close_attempts|=1U<<18;if(LocalFree(s->trusted_installer))goto retained;s->trusted_installer=NULL;}
+ s->phase=5U;
+ if(papacc_configuration_personal_native_close(&root.configuration_commit)!=PAPACC_RESULT_OK)goto retained;
+ s->phase=6U;s->resources.close_known=1U;SecureZeroMemory(s->block,sizeof(s->block));return s->first;
+retained:if(!s->first){s->first=ERROR_INVALID_HANDLE;s->resources.first_location=10U;} /* generic close failure */
+ s->phase=8U;root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return s->first;
+}
+/* Capture/present a separate, exact public-binary staging act. This does NOT
+ * expose an operational apply endpoint or consume F0/SCQ/SCM_REGISTER acts. */
+static int staging_prepare_inputs(const WCHAR *source,FILE *out,FILE *err,int observation_only,unsigned profile,const BYTE selected_pins[3][32])
+{
+ PAPACC_CONFIGURATION_COMMIT *c=&root.configuration_commit;PAPACC_QUALIFICATION_STAGING *s;PAPACC_PERSONAL_NATIVE_CONTEXT *n;
+ WCHAR full[MAX_PATH],part[MAX_PATH];char drive[4],text[1024],reply[96];size_t k,j,start;unsigned i;HANDLE input,output;DWORD mode;int ready=0;
+ static const char hex[]="0123456789abcdef";
+ if((profile!=PAPACC_STAGING_STRICT&&profile!=PAPACC_STAGING_LIMITED_QUALIFICATION)||!source||!out||!err||wcslen(source)>=MAX_PATH||wcslen(source)<3U||source[1]!=L':'||source[2]!=L'\\'||wcsstr(source,L".."))return 2;
+ if(InterlockedCompareExchange(&state,PAPACC_LAUNCHER_ACTIVE,0)!=0)return 2;
+ memset(&root,0,sizeof(root));root.owner_thread=GetCurrentThreadId();root.invocation=++next_invocation;c->writer=root.owner_thread;
+ n=&c->pending_commit.personal_native;s=&n->staging;s->self=s;s->thread=root.owner_thread;s->invocation=root.invocation;s->phase=1U;s->assurance_profile=profile;
+ if(selected_pins){
+  if(profile!=PAPACC_STAGING_LIMITED_QUALIFICATION)goto done;
+  memcpy(s->selected_pins,selected_pins,sizeof(s->selected_pins));s->selected_plan=1U;
+ }
+ s->resources.missing=PAPACC_STAGE_MISSING_ALL;s->resources.observation.sink=out;
+ s->resources.location=1U;
+ /* Known managed storage and named automatic buffers only. Provider/kernel,
+  * dynamic descriptors and host capacity are still UNKNOWN, not admitted. */
+ root.reserved_bytes=PAPACC_C8_KNOWN_MANAGED_BYTES+papacc_server_service_storage_bytes()+sizeof(LONG)+
+ sizeof(full)+sizeof(part)+sizeof(drive)+sizeof(text)+sizeof(reply)+sizeof(PACC_STORAGE_SHA256)+sizeof(LARGE_INTEGER)+1024U+
+ (MAX_PATH+64U+MAX_PATH)*sizeof(WCHAR)+2U*SECURITY_MAX_SID_SIZE+sizeof(BY_HANDLE_FILE_INFORMATION)+SCM_RESOURCE_KNOWN_AUTOMATIC_BYTES+MAX_PATH*sizeof(WCHAR)+65U+(selected_pins?sizeof(s->selected_pins)+3U*sizeof(char *)+3U*sizeof(LARGE_INTEGER)+3U*sizeof(size_t)+sizeof(DWORD)+sizeof(int)+sizeof(void *):0U);
+ if(root.reserved_bytes>PAPACC_LAUNCHER_MANAGED_LIMIT)goto done;
+ if(staging_observe(1U))goto done; /* after loader/root zeroing, not pre-process baseline */
+ if(observation_only){
+  DWORD count,error;s->resources.post_entry_attempted=1U;
+  /* First-frame APIs/stdio can initialize opaque resources AFTER its handle
+   * sample. Isolate that interval before attributing growth to known folders. */
+  if(!GetProcessHandleCount(GetCurrentProcess(),&count)){
+   error=GetLastError();if(!error)error=ERROR_GEN_FAILURE;s->resources.post_entry_error=error;(void)staging_fail(error);goto done;
+  }
+  s->resources.post_entry_succeeded=1U;s->resources.post_entry_count=count;
+  if(count>124U){(void)staging_fail(ERROR_NOT_ENOUGH_QUOTA);goto done;}
+ }
+ input=GetStdHandle(STD_INPUT_HANDLE);output=GetStdHandle(STD_OUTPUT_HANDLE);
+ s->resources.location=2U;
+ if((!observation_only&&(!GetConsoleMode(input,&mode)||!GetConsoleMode(output,&mode)))||papacc_configuration_personal_layout_binary(c)!=PAPACC_RESULT_OK)goto done;
+ if(observation_only&&staging_observe(7U))goto done; /* after known-folder resolution */
+ k=wcslen(n->install_paths.binary);if(k<20U||wcscmp(n->install_paths.binary+k-20U,L"\\Papinho\\Accelerator"))goto done;
+ /* suffix has 20 WCHAR including leading separator, excluding terminator */
+ memcpy(s->program_files,n->install_paths.binary,(k-20U)*sizeof(WCHAR));s->program_files[k-20U]=0;
+ if(wcslen(s->program_files)<3U||s->program_files[1]!=L':'||s->program_files[2]!=L'\\')goto done;
+ drive[0]=(char)s->program_files[0];drive[1]=':';drive[2]='\\';drive[3]=0;
+ s->resources.location=3U;
+ if(papacc_configuration_personal_native_open(c,drive)!=PAPACC_RESULT_OK)goto done;
+ if(observation_only&&staging_observe(8U))goto done; /* original token/volume held */
+ if(!ConvertStringSidToSidW(L"S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464",&s->trusted_installer)||
+ !ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;GRGX;;;AU)",SDDL_REVISION_1,&s->protection,NULL))goto done;
+ s->resources.parent_descriptor_bytes=n->descriptor_bytes;
+ s->resources.protection_bytes=GetSecurityDescriptorLength(s->protection);
+ if(observation_only&&staging_observe(9U))goto done; /* SID/protection materialized */
+ /* OS drive root remains in the existing native context; every intermediate
+  * known-folder directory is acquired relative to that held original. */
+ start=3U;k=wcslen(s->program_files);
+ s->resources.location=4U;
+ for(j=start;j<=k;j++)if(s->program_files[j]==L'\\'||!s->program_files[j]){
+  if(j==start||s->ancestor_count==8U)goto done;
+  memcpy(part,s->program_files+start,(j-start)*sizeof(WCHAR));part[j-start]=0;i=s->ancestor_count;
+  if(staging_open(i,i?s->objects[i-1U].handle:c->pending_commit.bootstrap_parent,part,j==k?2:1,0))goto done;
+  s->ancestor_count++;start=j+1U;
+ }
+ s->resources.location=5U;
+ if(!s->ancestor_count||!staging_descriptor(n->descriptor,1))goto done;
+ if(staging_observe(2U))goto done;
+ wcscpy_s(s->source,MAX_PATH,source);
+ s->resources.location=6U;
+ for(i=0;i<3U;i++){
+  if(swprintf_s(full,MAX_PATH,L"%s\\%s",s->source,staging_leaf[i])<0||staging_source(8U+i,full)||
+  !scm_register_hash(s->objects[8U+i].handle,s->digest[i]))goto done;
+ }
+ s->resources.location=7U;if(staging_current())goto done;
+ s->resources.location=8U;if(staging_volume())goto done;
+ s->resources.location=9U;if(staging_observe(3U))goto done;
+ if(s->selected_plan){
+  for(i=0;i<3U;i++)if(memcmp(s->digest[i],s->selected_pins[i],32)){(void)staging_fail(ERROR_CRC);goto done;}
+  /* READY is frozen below AFTER challenge generation, before presentation. */
+ }
+ if(observation_only){ready=1;goto done;} /* no RNG, presentation, confirmation or take */
+ if(BCryptGenRandom(NULL,s->attempt,32,BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0||staging_current())goto done;
+ {BYTE nonzero=0;for(i=0;i<32U;i++)nonzero|=s->attempt[i];if(!nonzero)goto done;}
+if(s->selected_plan){DWORD e;if(staging_volume()||staging_observe(11U))goto done;e=staging_limited_freeze();if(e){(void)staging_fail(e);goto done;}}
+ if(!personal_console_write(output,"\nQUALIFICATION_STAGING - three new binaries, at most two exclusive directories; no SCM/start/CA/CURRENT.\nOperator: ")||!personal_console_token(output,n->sid_text))goto done;
+ if(!WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,s->source,-1,text,sizeof(text),NULL,NULL)||!personal_console_write(output,"\nSource: ")||!personal_console_token(output,text)||
+ !WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,n->install_paths.binary,-1,text,sizeof(text),NULL,NULL)||!personal_console_write(output,"\nDestination: ")||!personal_console_token(output,text))goto done;
+ for(i=0;i<3U;i++){
+  if(!WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,staging_leaf[i],-1,text,sizeof(text),NULL,NULL)||!personal_console_write(output,"\nFile: ")||!personal_console_token(output,text))goto done;
+  sprintf_s(text,sizeof(text)," bytes=%llu sha256=",((unsigned long long)s->objects[8U+i].identity.nFileSizeHigh<<32)|s->objects[8U+i].identity.nFileSizeLow);if(!personal_console_write(output,text))goto done;
+  for(j=0;j<32U;j++){text[j*2U]=hex[s->digest[i][j]>>4];text[j*2U+1U]=hex[s->digest[i][j]&15U];}text[64]=0;if(!personal_console_write(output,text))goto done;
+ }
+ if(s->selected_plan){
+  sprintf_s(text,sizeof(text),"\nB3 SELECTED: handles READY+5=%lu; private+9094144=%llu; WS+9094144=%llu; physical>=6296461312; commit>=8479985664; disk initial2R/runningR=%llu; freshness500ms; duration120000ms; opaque risk accepted; NO PRODUCTIVE PROMOTION.\n",(unsigned long)s->resources.criteria.max_handles,s->resources.criteria.max_private,s->resources.criteria.max_working,s->resources.frozen_payload);
+  if(!personal_console_write(output,text))goto done;
+ }
+ if(!personal_console_write(output,"\nNew protected DACL: BA/SY full; AU read/execute. No existing ACL edits/adoption. Partial/unknown retains objects; no automatic deletion/retry. Declare legitimate administration and confirm this staging only.\n"))goto done;
+ strcpy_s(reply,sizeof(reply),"OWNER_QUALIFICATION_STAGING ");k=strlen(reply);
+ for(j=0;j<32U;j++){reply[k+j*2U]=hex[s->attempt[j]>>4];reply[k+j*2U+1U]=hex[s->attempt[j]&15U];}reply[k+64U]=0;s->phase=2U;
+ if(!personal_console_write(output,reply)||!personal_console_write(output,"\n")||!personal_console_confirm(input,output,reply)||staging_current())goto done;
+ s->phase=3U;ready=1;
+ /* Required native capacity/provenance/operational execution approval has no
+  * qualified positive producer. Never turn this confirmation into a grant.
+  * Keep the effect composition compiled/typechecked but not user-reachable. */
+done:
+ if(ready)return 0;
+ if(!ready&&!s->first)(void)staging_fail(ERROR_ACCESS_DENIED);
+ (void)staging_close();staging_resource_report(out);s->resources.observation.sink=NULL;
+ if(state!=PAPACC_LAUNCHER_RETAINED)InterlockedExchange(&state,0);
+ fprintf(err,"STAGING_FIRST=%lu; PHASE=%u; AUTHORITY=DENY\n",(unsigned long)s->first,s->phase);return 2;
+}
+static int staging_prepare_profile(const WCHAR *source,FILE *out,FILE *err,int observation_only,unsigned profile)
+{return staging_prepare_inputs(source,out,err,observation_only,profile,NULL);}
+/* Manual original act: exact content pins are DATA until native token/context,
+ * original handles, displayed plan and fresh nonce confirmation agree. */
+int papacc_server_launcher_selected_staging(const char *a,const char *b,const char *c,FILE *out,FILE *err)
+{
+ const char *texts[3];BYTE pins[3][32];WCHAR module[MAX_PATH];DWORD length;size_t i,j;int result;PAPACC_QUALIFICATION_STAGING *s;
+ texts[0]=a;texts[1]=b;texts[2]=c;
+ if(!out||!err)return 2;
+ for(i=0;i<3U;i++){
+  if(!texts[i]||strlen(texts[i])!=64U)return 2;
+  for(j=0;j<32U;j++){
+   unsigned hi,lo;char h=texts[i][j*2U],l=texts[i][j*2U+1U];
+   if(h>='0'&&h<='9')hi=(unsigned)(h-'0');else if(h>='a'&&h<='f')hi=(unsigned)(h-'a'+10);else return 2;
+   if(l>='0'&&l<='9')lo=(unsigned)(l-'0');else if(l>='a'&&l<='f')lo=(unsigned)(l-'a'+10);else return 2;
+   pins[i][j]=(BYTE)((hi<<4)|lo);
+  }
+ }
+ length=GetModuleFileNameW(NULL,module,MAX_PATH);if(!length||length>=MAX_PATH)return 2;
+ for(i=length;i&&module[i-1U]!=L'\\';i--);if(i<4U)return 2;module[i-1U]=0;
+ if(staging_prepare_inputs(module,out,err,0,PAPACC_STAGING_LIMITED_QUALIFICATION,pins))return 2;
+ s=staging_act();result=staging_apply()==0?0:2;
+ if(result&&!s->first)(void)staging_fail(ERROR_ACCESS_DENIED);
+ if(staging_close())result=2;
+ if(s->resources.close_known&&s->resources.ready_frozen){
+  LARGE_INTEGER closed;ULONGLONG frequency=s->resources.observation.first.frequency;
+  if(!QueryPerformanceCounter(&closed)||closed.QuadPart<0||!frequency||frequency>((ULONGLONG)-1)/120000U||
+   (ULONGLONG)closed.QuadPart<s->resources.observation.first.begin||
+   (ULONGLONG)closed.QuadPart-s->resources.observation.first.begin>120000U*frequency/1000U){
+   if(!s->first)s->first=ERROR_TIMEOUT;result=2; /* refs already factually closed: no fabricated retention */
+  }
+ }
+ fprintf(out,"SELECTED_STAGING_RESULT=%s; consumed=%u effects=%u retained=%u; NO_RETRY; NO_PRODUCTIVE_PROMOTION\n",result?"FAILED":"QUALIFICATION_COPIED_VERIFIED_CLOSED",s->consumed,s->effects,s->phase==8U?1U:0U);
+ staging_resource_report(out);s->resources.observation.sink=NULL;
+ if(ferror(out)||ferror(err))result=2;
+ if(state!=PAPACC_LAUNCHER_RETAINED)InterlockedExchange(&state,0);return result;
+}
+static int staging_prepare_mode(const WCHAR *source,FILE *out,FILE *err,int observation_only)
+{return staging_prepare_profile(source,out,err,observation_only,PAPACC_STAGING_STRICT);}
+/* Explicit limited entry, no CLI and no authority to execute. */
+int papacc_server_launcher_qualification_staging_limited(const WCHAR *source,FILE *out,FILE *err)
+{
+ if(staging_prepare_profile(source,out,err,0,PAPACC_STAGING_LIMITED_QUALIFICATION))return 2;
+ (void)staging_apply();
+ fprintf(out,"STAGING_PROFILE=LIMITED_QUALIFICATION; OPAQUE_COSTS=UNKNOWN_ACCEPTED_RISK; PLAN=NOT_AVAILABLE; APPLY=DENY; NO_PRODUCTIVE_PROMOTION\n");
+ (void)staging_close();staging_resource_report(out);staging_act()->resources.observation.sink=NULL;
+ if(state!=PAPACC_LAUNCHER_RETAINED)InterlockedExchange(&state,0);return 2;
+}
+static int staging_prepare(const WCHAR *source,FILE *out,FILE *err)
+{return staging_prepare_mode(source,out,err,0);}
+int papacc_server_launcher_qualification_staging(const WCHAR *source,FILE *out,FILE *err)
+{
+ if(staging_prepare(source,out,err))return 2;
+ (void)staging_apply(); /* independent policy denies before consume/effects */
+ fprintf(out,"QUALIFICATION_STAGING=CONFIRMED_DATA_ONLY; APPLY=DENY; REQUIRED_CAPACITY=UNKNOWN; EFFECTS=0\n");
+ (void)staging_close();staging_resource_report(out);staging_act()->resources.observation.sink=NULL;
+ if(state!=PAPACC_LAUNCHER_RETAINED)InterlockedExchange(&state,0);return 2;
+}
+int papacc_server_launcher_staging_observe(FILE *out,FILE *err)
+{
+ WCHAR module[MAX_PATH];char hex[65];DWORD length;size_t i,j;PAPACC_QUALIFICATION_STAGING *s;int captured;
+ static const char alphabet[]="0123456789abcdef";
+ if(!out||!err)return 2;
+ if(InterlockedCompareExchange(&state,0,0)!=0)return 2;
+ length=GetModuleFileNameW(NULL,module,MAX_PATH);if(!length||length>=MAX_PATH)return 2;
+ for(i=length;i&&module[i-1U]!=L'\\';i--);if(i<4U)return 2;module[i-1U]=0;
+ captured=staging_prepare_mode(module,out,err,1);s=staging_act();
+ if(!captured){
+  fprintf(out,"STAGING_OPERATOR sid=%s; SCOPE=OBSERVED_CONTROLLER_NOT_AUTHORITY\n",root.configuration_commit.pending_commit.personal_native.sid_text);
+  for(i=0;i<3U;i++){
+   BY_HANDLE_FILE_INFORMATION *f=&s->objects[8U+i].identity;
+   for(j=0;j<32U;j++){hex[j*2U]=alphabet[s->digest[i][j]>>4];hex[j*2U+1U]=alphabet[s->digest[i][j]&15U];}hex[64]=0;
+   fprintf(out,"STAGING_SOURCE index=%u bytes=%llu sha256=%s; ORIGINAL_SNAPSHOT_NOT_MAPPED_IMAGE_ATTESTATION\n",(unsigned)i,((unsigned long long)f->nFileSizeHigh<<32)|f->nFileSizeLow,hex);
+  }
+  (void)staging_observe(4U);(void)staging_close();
+  if(state!=PAPACC_LAUNCHER_RETAINED&&s->phase==6U&&!s->resources.first)(void)staging_observe(5U);
+  staging_resource_report(out);s->resources.observation.sink=NULL;
+  if(state!=PAPACC_LAUNCHER_RETAINED)InterlockedExchange(&state,0);
+ }
+ fprintf(out,"STAGING_OBSERVATION=%s; RNG=NOT_CALLED; CONFIRMATION=NOT_REQUESTED; EFFECTS=%u; AUTHORITY=DENY; NO_RETRY\n",captured?"FAILED":"COLLECTED_NOT_ADMITTED",s->effects);
+ return captured||s->first||s->resources.first||state==PAPACC_LAUNCHER_RETAINED?2:0;
+}
+
+
+
+
+
+
+
+
+
+

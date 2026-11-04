@@ -1,0 +1,326 @@
+--- a/apps/server/server_configuration_commit_win32.h
++++ b/apps/server/server_configuration_commit_win32.h
+@@ -211,6 +211,16 @@
+ } PAPACC_Q4_TC_POLICY_DATA;
+ PAPACC_RESULT papacc_configuration_q4_tc_policy_data(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,const PAPACC_Q4_TC_REVIEW *,PAPACC_Q4_TC_POLICY_DATA *);
+ 
++/* Accepted custody/source designation DATA, not permission to fetch a value. */
++typedef struct PAPACC_Q4_ST20_DESIGNATION_DATA {
++ unsigned version,scope_data_only,custodian_designated,source_designated;
++ unsigned source_type,index,credential_access_denied;
++ char custodian_sid[80];
++ unsigned char custodian_decision[32],source_decision[32],ek_spki[32],certificate[32];
++ PAPACC_Q4_ROOT_BINDING_DATA root;
++} PAPACC_Q4_ST20_DESIGNATION_DATA;
++PAPACC_RESULT papacc_configuration_q4_st20_designation_data(PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CONFIG_PIN *,PAPACC_Q4_ST20_DESIGNATION_DATA *);
++
+ /* Offline DATA inspection of a full historical carrier, not file adoption.
+  * Caller owns immutable16384 input and disjoint workspace/output. No CURRENT,
+  * epoch/proof bits, source lease, key binding or recovery authority returned.
+--- a/apps/server/server_configuration_q4_data_win32.inc
++++ b/apps/server/server_configuration_q4_data_win32.inc
+@@ -72,3 +72,20 @@
+   * This DATA result NEVER clears SOURCE_MISSING or grants any effect. */
+  *out=value;return PAPACC_RESULT_OK;
+ }
++
++/* Normative designation and actual delivery/authority remain separate. */
++static const unsigned char q4_st20_custodian[32]={0xdbU,0xc8U,0x28U,0x8dU,0xedU,0xf0U,0xf7U,0x1bU,0x3cU,0x8fU,0x92U,0x82U,0x03U,0x97U,0x7eU,0x84U,0xebU,0x41U,0x59U,0x90U,0xe6U,0x58U,0xb1U,0x28U,0xd0U,0xc9U,0x78U,0x6bU,0xa9U,0x1aU,0xd5U,0xfcU};
++static const unsigned char q4_st20_source[32]={0x2dU,0x50U,0x21U,0x78U,0x8cU,0x01U,0xbeU,0xf6U,0xbfU,0xa2U,0x1aU,0x47U,0x64U,0x70U,0xddU,0x5bU,0x47U,0x2fU,0x16U,0xf2U,0x36U,0x5eU,0x8cU,0x67U,0x01U,0x5aU,0xc4U,0x2aU,0x5fU,0x70U,0x94U,0x69U};
++PAPACC_RESULT papacc_configuration_q4_st20_designation_data(PAPACC_CONFIGURATION_COMMIT *o,
++ const PAPACC_CONFIG_PIN *p,PAPACC_Q4_ST20_DESIGNATION_DATA *out)
++{
++ PAPACC_Q4_ST20_DESIGNATION_DATA value;PAPACC_RESULT result;
++ if(!o||!p||!out||issuer06_overlap(out,sizeof(*out),o,sizeof(*o))||issuer06_overlap(out,sizeof(*out),p,sizeof(*p)))return PAPACC_RESULT_INVALID_ARGUMENT;
++ memset(&value,0,sizeof(value));result=papacc_configuration_q4_binding_data(o,p,&value.root);
++ if(result!=PAPACC_RESULT_OK)return result;
++ value.version=1U;value.scope_data_only=1U;value.custodian_designated=1U;value.source_designated=1U;
++ value.source_type=13U;value.index=0x01804143U;value.credential_access_denied=1U;
++ memcpy(value.custodian_sid,"S-1-5-21-785699550-1440458426-1682014700-1108",sizeof("S-1-5-21-785699550-1440458426-1682014700-1108"));
++ memcpy(value.custodian_decision,q4_st20_custodian,32U);memcpy(value.source_decision,q4_st20_source,32U);
++ memcpy(value.ek_spki,q4_tc_ek,32U);memcpy(value.certificate,q4_tc_cert,32U);memcpy(out,&value,sizeof(value));return PAPACC_RESULT_OK;
++}
+--- a/tests/q4_root_binding_data_test.c
++++ b/tests/q4_root_binding_data_test.c
+@@ -49,7 +49,7 @@
+  for(i=0;i<2U;i++){t=CreateThread(NULL,0,tc_foreign,NULL,0,NULL);C(t!=NULL);C(WaitForSingleObject(t,5000)==WAIT_OBJECT_0);C(GetExitCodeThread(t,&code)&&code==0);C(CloseHandle(t));}
+  printf("TC_DATA review_bytes=%zu output_bytes=%zu always_authority_denied=1\n",sizeof(tc),sizeof(out));return 0;
+ }
+-int main(void){PAPACC_Q4_ROOT_BINDING_DATA out,saved;HANDLE t;DWORD e;unsigned i;
++int main(void){PAPACC_Q4_ROOT_BINDING_DATA out,saved;PAPACC_Q4_ST20_DESIGNATION_DATA designation;HANDLE t;DWORD e;unsigned i;
+  memset(&root,0,sizeof(root));InitializeCriticalSection(&root.lock);reset();memset(&out,0xa5,sizeof(out));saved=out;
+  C(papacc_configuration_q4_binding_data(&root,&pin,&out)==PAPACC_RESULT_OK);C(out.version==1&&out.scope_data_only==1&&out.ticket==6&&out.policy_epoch==4);C(root.slots[0].readers==1&&root.tickets[0].ticket==6);out=saved;
+  for(i=0;i<12;i++){reset();switch(i){case 0:root.stopped=1;break;case 1:root.unresolved=1;break;case 2:root.published=0;break;case 3:root.slots[0].retained=1;break;case 4:pin.serial++;break;case 5:pin.ticket++;break;case 6:root.slots[0].view.domain[0]++;break;case 7:root.slots[0].view.predecessor=0;break;case 8:root.slots[0].context_epoch=0;break;case 9:root.slots[0].operational_epoch=0;break;case 10:root.prepared=1;break;case 11:root.pending_commit.active=1;break;}
+@@ -66,4 +66,4 @@
+  root.slots[0].view.revision++;C(papacc_configuration_q4_binding_current(&root,&pin,&out)!=PAPACC_RESULT_OK);root.slots[0].view.revision--;
+  C(papacc_configuration_q4_binding_current(&root,&pin,(const PAPACC_Q4_ROOT_BINDING_DATA*)&root)==PAPACC_RESULT_INVALID_ARGUMENT);
+  C(papacc_configuration_q4_binding_current(&root,&pin,NULL)==PAPACC_RESULT_INVALID_ARGUMENT);
+- C(tc_tests()==0);root.initialized=0;DeleteCriticalSection(&root.lock);printf("PASS checks=%u binding_bytes=%zu root_bytes=%zu NO_STORE_NO_TPM_NO_AUTHORITY\n",checks,sizeof(out),sizeof(root));return 0;}
++ C(tc_tests()==0);reset();C(papacc_configuration_q4_st20_designation_data(&root,&pin,&designation)==PAPACC_RESULT_OK);C(designation.custodian_designated==1U&&designation.source_designated==1U&&designation.credential_access_denied==1U&&designation.source_type==13U);C(!strcmp(designation.custodian_sid,"S-1-5-21-785699550-1440458426-1682014700-1108"));root.initialized=0;DeleteCriticalSection(&root.lock);printf("PASS checks=%u binding_bytes=%zu root_bytes=%zu NO_STORE_NO_TPM_NO_AUTHORITY\n",checks,sizeof(out),sizeof(root));return 0;}
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3718,7 +3718,7 @@
+   message(FATAL_ERROR "Native TPM diagnostic requires modern Windows x64 MSVC; no legacy/backend fallback")
+  endif()
+  set(tp_native tools/qualification/tpm-native-proof)
+- add_library(papacc_tpm_native_core STATIC ${tp_native}/proof_core.c ${tp_native}/json_data.c)
++ add_library(papacc_tpm_native_core STATIC ${tp_native}/proof_core.c ${tp_native}/json_data.c ${tp_native}/storage20_delivery.c)
+  target_include_directories(papacc_tpm_native_core PUBLIC ${tp_native})
+  target_link_libraries(papacc_tpm_native_core PUBLIC bcrypt psapi)
+  set_target_properties(papacc_tpm_native_core PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+@@ -3726,6 +3726,19 @@
+  add_executable(papacc_tpm_native_proof ${tp_native}/native_host.c ${tp_native}/host_platform.c)
+  target_link_libraries(papacc_tpm_native_proof PRIVATE papacc_tpm_native_core advapi32 crypt32 wevtapi user32)
+  target_compile_options(papacc_tpm_native_proof PRIVATE /W4 /WX /GS /sdl)
++ if(BUILD_TESTING AND TARGET papacc_configuration_commit)
++  add_library(papacc_storage20_binding STATIC ${tp_native}/storage20_binding.c)
++  target_link_libraries(papacc_storage20_binding PUBLIC papacc_tpm_native_core papacc_configuration_commit)
++  target_compile_options(papacc_storage20_binding PRIVATE /W4 /WX /GS /sdl)
++  add_executable(papacc_storage20_delivery_test tests/storage20_delivery_test.c)
++  target_link_libraries(papacc_storage20_delivery_test PRIVATE papacc_tpm_native_core)
++  target_compile_options(papacc_storage20_delivery_test PRIVATE /W4 /WX /GS /sdl)
++  add_executable(papacc_storage20_root_binding_test tests/storage20_root_binding_test.c)
++  target_link_libraries(papacc_storage20_root_binding_test PRIVATE papacc_storage20_binding)
++  target_compile_options(papacc_storage20_root_binding_test PRIVATE /W4 /WX /GS /sdl)
++  add_test(NAME papacc.storage20.delivery_mock COMMAND papacc_storage20_delivery_test)
++  add_test(NAME papacc.storage20.root_binding_mock COMMAND papacc_storage20_root_binding_test)
++ endif()
+  if(BUILD_TESTING)
+   add_executable(papacc_tpm_native_core_test ${tp_native}/proof_test.c)
+   target_link_libraries(papacc_tpm_native_core_test PRIVATE papacc_tpm_native_core)
+--- /dev/null
++++ b/tools/qualification/tpm-native-proof/storage20_delivery.c
+@@ -0,0 +1,49 @@
++#include "storage20_delivery.h"
++#include <string.h>
++BOOL st20_secure_clear(unsigned char *p,unsigned n){volatile unsigned char *v;unsigned i,bad=0;if(!p||!n)return FALSE;SecureZeroMemory(p,n);v=p;for(i=0;i<n;i++)bad|=v[i];return bad==0?TRUE:FALSE;}
++static int overlap(const void *a,SIZE_T n,const void *b,SIZE_T m){ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;return x<=y?y-x<n:x-y<m;}
++static int fail(TP_OWNER *o,const char *s,unsigned long rc){return tp_fail(o,s,rc);}
++static void retain(ST20_DELIVERY *d){d->retained=1;d->owner->retained=1;}
++static int guard(ST20_DELIVERY *d,const ST20_API *a,const char *stage){TP_OWNER *o=d->owner;int accepted;
++ if(o->context!=d->original_context){retain(d);return fail(o,"ST20_ORIGINAL_CONTEXT_CHANGED",0);}
++ if(o->frozen||o->closed||o->stop||o->retained)return fail(o,"ST20_CONTEXT_OR_CUSTODY_DENY",0);
++ accepted=a->guard(o,d,stage);
++ if(o->context!=d->original_context){retain(d);return fail(o,"ST20_ORIGINAL_CONTEXT_CHANGED",0);}
++ if(!accepted||o->frozen||o->closed||o->stop||o->retained)return fail(o,"ST20_CONTEXT_OR_CUSTODY_DENY",0);
++ return 1;
++}
++
++int st20_deliver(ST20_DELIVERY *d,const ST20_API *a){TP_OWNER *o;UINT32 n;TBS_RESULT rc;int use_result,ok=0;
++ if(!d||!a||!d->owner)return 0;o=d->owner;
++ if(o->owner_thread!=GetCurrentThreadId())return 0;
++ if(!d->buffer||!d->capacity||d->capacity>ST20_CAPACITY_LIMIT||!d->original_context||!a->get||!a->lock||!a->unlock||!a->guard||!a->use||!a->clear||
++  overlap(d->buffer,d->capacity,o,sizeof(*o))||overlap(d->buffer,d->capacity,d,sizeof(*d))||overlap(d->buffer,d->capacity,a,sizeof(*a))||overlap(d,sizeof(*d),o,sizeof(*o))||overlap(d,sizeof(*d),a,sizeof(*a)))return fail(o,"ST20_OVERLAP_OR_SHAPE",0);
++ if(InterlockedCompareExchange(&o->busy,1,0))return fail(o,"ST20_REENTRANT",0);
++ if(d->retained||d->locked||o->retained||o->frozen||o->closed||o->stop)goto done;
++ if(InterlockedCompareExchange(&d->used,1,0)){fail(o,"ST20_USED",0);goto done;}
++ d->used_source=a->get;
++ if(!guard(d,a,"BEFORE_LOCK"))goto done;
++ if(!a->lock(d->buffer,d->capacity)){fail(o,"ST20_LOCK",GetLastError());goto done;}d->locked=1;
++ d->wiped=0;
++ if(!a->clear(d->buffer,d->capacity)){fail(o,"ST20_CLEAR_UNKNOWN",GetLastError());retain(d);ok=0;goto done;}d->wiped=1;
++ if(!guard(d,a,"BEFORE_GET"))goto cleanup;
++ n=d->capacity;d->queried=1;d->wiped=0;
++ /* No metadata/value retry, empty-password attempt or other auth type. */
++ rc=d->used_source((TBS_HCONTEXT)d->original_context,TBS_OWNERAUTH_TYPE_STORAGE_20,d->buffer,&n);
++ if(rc){fail(o,"ST20_SOURCE_API",rc);goto cleanup;}
++ if(!n||n>d->capacity){fail(o,"ST20_ABSENT_OR_SIZE",0);goto cleanup;}
++ d->length=n;
++ if(!guard(d,a,"BEFORE_USE"))goto cleanup;
++ d->delivered=1;use_result=a->use(o,d->buffer,n);
++ if(use_result==2){fail(o,"ST20_BORROW_UNKNOWN",0);retain(d);goto done;}
++ if(use_result!=1){fail(o,"ST20_CONSUMER_REJECTED_NOT_AUTH_VALID",0);goto cleanup;}
++ if(!guard(d,a,"AFTER_USE"))goto cleanup;
++ ok=1;
++ cleanup:
++ if(o->context!=d->original_context)retain(d);
++ /* API and synchronous known borrower have returned; no pending use remains. */
++ d->wiped=0;
++ if(!a->clear(d->buffer,d->capacity)){fail(o,"ST20_CLEAR_UNKNOWN",GetLastError());retain(d);ok=0;goto done;}d->wiped=1;d->length=0;
++ if(d->locked){if(!a->unlock(d->buffer,d->capacity)){fail(o,"ST20_UNLOCK_UNKNOWN",GetLastError());retain(d);ok=0;}else d->locked=0;}
++ done:if(!d->retained)InterlockedExchange(&o->busy,0);return ok;
++}
+--- /dev/null
++++ b/tools/qualification/tpm-native-proof/storage20_delivery.h
+@@ -0,0 +1,26 @@
++#ifndef ST20_DELIVERY_H
++#define ST20_DELIVERY_H
++#include "proof_core.h"
++#include <tbs.h>
++/* Isolated borrowed scratch attached to existing TP_OWNER lifetime. No authority,
++ * context acquisition/close, secret persistence or new owner is implemented. */
++#define ST20_CAPACITY_LIMIT 64U
++typedef TBS_RESULT (WINAPI *ST20_GET)(TBS_HCONTEXT,TBS_OWNERAUTH_TYPE,PBYTE,PUINT32);
++typedef BOOL (WINAPI *ST20_LOCK)(LPVOID,SIZE_T);
++typedef BOOL (*ST20_CLEAR)(unsigned char *,unsigned);
++BOOL st20_secure_clear(unsigned char *,unsigned);
++typedef struct ST20_DELIVERY ST20_DELIVERY;
++typedef int (*ST20_GUARD)(TP_OWNER *,const ST20_DELIVERY *,const char *);
++/* Synchronous borrowed use only:0 reject,1 known complete,2 UNKNOWN borrow. */
++typedef int (*ST20_USE)(TP_OWNER *,const unsigned char *,unsigned);
++struct ST20_DELIVERY {
++ TP_OWNER *owner;void *original_context;
++ unsigned char *buffer;unsigned capacity,length;
++ volatile LONG used;
++ unsigned locked,retained,queried,delivered,wiped;
++ void *guard_context; /* borrowed binding, same retained lifetime */
++ ST20_GET used_source; /* engine snapshot; never a new authority */
++};
++typedef struct ST20_API {ST20_GET get;ST20_LOCK lock,unlock;ST20_GUARD guard;ST20_USE use;ST20_CLEAR clear;} ST20_API;
++int st20_deliver(ST20_DELIVERY *,const ST20_API *);
++#endif
+--- /dev/null
++++ b/tools/qualification/tpm-native-proof/storage20_binding.c
+@@ -0,0 +1,30 @@
++#include "storage20_binding.h"
++#include <string.h>
++static int overlaps(const void *a,SIZE_T n,const void *b,SIZE_T m){ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;return x<=y?y-x<n:x-y<m;}
++static int nonzero(const unsigned char *p){unsigned i,n=0;for(i=0;i<32;i++)n|=p[i];return n!=0;}
++ST20_GET st20_windows_source(HMODULE original)
++{
++ wchar_t path[MAX_PATH],expected[MAX_PATH];UINT n;DWORD got;
++ if(!original)return NULL;got=GetModuleFileNameW(original,path,MAX_PATH);
++ n=GetSystemDirectoryW(expected,MAX_PATH);
++ if(!got||got>=MAX_PATH||!n||n>MAX_PATH-9U)return NULL;
++ memcpy(expected+n,L"\\tbs.dll",9U*sizeof(wchar_t));
++ if(_wcsicmp(path,expected))return NULL;
++ return (ST20_GET)(void *)GetProcAddress(original,"Tbsi_Get_OwnerAuth");
++}
++int st20_root_guard(TP_OWNER *o,const ST20_DELIVERY *d,const char *stage)
++{
++ ST20_ROOT_BINDING *b;PAPACC_Q4_ST20_DESIGNATION_DATA now;
++ if(!o||!d||d->owner!=o||!d->guard_context||!o->boundary||o->owner_thread!=GetCurrentThreadId())return 0;
++ b=(ST20_ROOT_BINDING *)d->guard_context;
++ if(!b->root_owner||!b->pin||!b->designated_source||d->used_source!=b->designated_source||!nonzero(b->request_digest)||!nonzero(b->approval_digest))return 0;
++ if(overlaps(d->buffer,d->capacity,b,sizeof(*b))||overlaps(d->buffer,d->capacity,b->root_owner,sizeof(*b->root_owner))||overlaps(d->buffer,d->capacity,b->pin,sizeof(*b->pin)))return 0;
++ if(papacc_configuration_q4_st20_designation_data(b->root_owner,b->pin,&now)!=PAPACC_RESULT_OK)return 0;
++ if(memcmp(&now,&b->expected,sizeof(now))||memcmp(now.custodian_sid,b->current_sid,sizeof(now.custodian_sid))||
++  memcmp(now.ek_spki,b->current_ek,32)||memcmp(now.certificate,b->current_certificate,32))return 0;
++ /* A digest/declared SID is not authority: original owner boundary must validate
++  * native source/module/token/lifetime/resources AND exact operational approval.
++  * No such production producer is installed by this DATA binding. */
++ if(!o->boundary(o,stage)||o->frozen||o->retained||o->stop||o->closed)return 0;
++ return papacc_configuration_q4_binding_current(b->root_owner,b->pin,&now.root)==PAPACC_RESULT_OK;
++}
+--- /dev/null
++++ b/tools/qualification/tpm-native-proof/storage20_binding.h
+@@ -0,0 +1,18 @@
++#ifndef ST20_ROOT_BINDING_H
++#define ST20_ROOT_BINDING_H
++#include "storage20_delivery.h"
++#include "server_configuration_commit_win32.h"
++/* Immutable borrowed binding; no secret or authority producer. Actual owner
++ * boundary MUST independently authenticate all runtime/native/approval facts. */
++typedef struct ST20_ROOT_BINDING {
++ PAPACC_CONFIGURATION_COMMIT *root_owner;const PAPACC_CONFIG_PIN *pin;
++ PAPACC_Q4_ST20_DESIGNATION_DATA expected;
++ ST20_GET designated_source;
++ char current_sid[80];
++ unsigned char current_ek[32],current_certificate[32],request_digest[32],approval_digest[32];
++} ST20_ROOT_BINDING;
++/* Metadata/export resolution only; caller retains original module and must
++ * authenticate original file/provenance in its owner boundary. No API call. */
++ST20_GET st20_windows_source(HMODULE);
++int st20_root_guard(TP_OWNER *,const ST20_DELIVERY *,const char *);
++#endif
+--- /dev/null
++++ b/tests/storage20_delivery_test.c
+@@ -0,0 +1,61 @@
++#include "storage20_delivery.h"
++#include <stdio.h>
++#include <string.h>
++static TP_OWNER o,unknown_owner[3];
++static ST20_DELIVERY d,unknown_delivery[3];
++static ST20_API api;
++static unsigned char *scratch;static unsigned checks,gets,uses,guards,mode,guard_mode,unlock_mode,lock_mode,clear_mode,clear_calls;
++static HANDLE start_event;
++#define C(x) do{checks++;if(!(x)){printf("FAIL line=%u check=%u\n",(unsigned)__LINE__,checks);return 2;}}while(0)
++static int zeros(const unsigned char *p,unsigned n){unsigned i,v=0;for(i=0;i<n;i++)v|=p[i];return v==0;}
++static TBS_RESULT WINAPI get_mock(TBS_HCONTEXT context,TBS_OWNERAUTH_TYPE type,PBYTE output,PUINT32 length){unsigned i;gets++;if(context!=(void *)1||type!=13||!output||*length!=64)return 0x80284002UL;
++ if(mode==1)return 0x80284015UL;for(i=0;i<32;i++)output[i]=(unsigned char)(i+1U);
++ if(mode==2)return 0x80284001UL;if(mode==3){*length=0;return 0;}if(mode==4){*length=65;return 0;}if(mode==5)output[0]^=1;*length=32;return 0;}
++static BOOL WINAPI lock_buffer(LPVOID p,SIZE_T n){if(lock_mode){SetLastError(ERROR_WORKING_SET_QUOTA);return FALSE;}return VirtualLock(p,n);}
++static BOOL WINAPI unlock_buffer(LPVOID p,SIZE_T n){if(unlock_mode){SetLastError(ERROR_LOCK_FAILED);return FALSE;}return VirtualUnlock(p,n);}
++static BOOL clear_buffer(unsigned char *p,unsigned n){clear_calls++;if(clear_mode&&clear_calls==2){SetLastError(ERROR_WRITE_FAULT);return FALSE;}return st20_secure_clear(p,n);}
++static int check_guard(TP_OWNER *owner,const ST20_DELIVERY *delivery,const char *phase){(void)delivery;guards++;
++ if(guard_mode==4){owner->context=(void *)2;return 0;}
++ if(guard_mode==1&&strcmp(phase,"BEFORE_GET")==0)return 0; /* wrong designated custodian/source */
++ if(guard_mode==2&&strcmp(phase,"BEFORE_USE")==0)owner->context=(void *)2;
++ if(guard_mode==3&&strcmp(phase,"AFTER_USE")==0)owner->stop=1;
++ return 1;}
++static int consume(TP_OWNER *owner,const unsigned char *p,unsigned n){unsigned i;uses++;if(mode==6){(void)st20_deliver(&d,&api);return 1;}if(mode==7)return 2;
++ if(owner->context!=(void *)1||n!=32)return 0;for(i=0;i<32;i++)if(p[i]!=(unsigned char)(i+1U))return 0;return 1;}
++static void reset(void){tp_init(&o);o.context=(void *)1;memset(&d,0,sizeof(d));d.owner=&o;d.original_context=(void *)1;d.buffer=scratch;d.capacity=64;memset(scratch,0xa5,64);gets=uses=guards=mode=guard_mode=unlock_mode=lock_mode=clear_mode=clear_calls=0;api.get=get_mock;api.lock=lock_buffer;api.unlock=unlock_buffer;api.guard=check_guard;api.use=consume;api.clear=clear_buffer;}
++static DWORD WINAPI foreign(LPVOID unused){(void)unused;if(WaitForSingleObject(start_event,5000)!=WAIT_OBJECT_0)return 99;return st20_deliver(&d,&api)?98:0;}
++int main(void){unsigned i,oldgets;unsigned char *original;HANDLE threads[2];DWORD code;const char *first;
++ scratch=(unsigned char *)VirtualAlloc(NULL,4096,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);C(scratch!=NULL);
++ reset();C(st20_deliver(&d,&api));C(gets==1&&uses==1&&d.wiped&&!d.locked&&!d.retained&&!o.retained&&zeros(scratch,64));C(d.length==0&&o.busy==0);
++ oldgets=gets;C(!st20_deliver(&d,&api));C(gets==oldgets&&o.frozen);
++ for(i=1;i<=5;i++){reset();mode=i;C(!st20_deliver(&d,&api));C(gets==1&&o.frozen&&d.wiped&&!d.locked&&zeros(scratch,64));C(uses==(i==5?1U:0U));C(!st20_deliver(&d,&api)&&gets==1);if(i==1)C(o.first_native==0x80284015UL);}
++ reset();lock_mode=1;C(!st20_deliver(&d,&api));C(gets==0&&!d.locked&&o.frozen);
++ reset();guard_mode=1;C(!st20_deliver(&d,&api));C(gets==0&&uses==0&&d.wiped&&zeros(scratch,64));
++ reset();o.context=(void *)2;C(!st20_deliver(&d,&api));C(gets==0&&o.retained&&d.retained);
++ reset();guard_mode=2;C(!st20_deliver(&d,&api));C(gets==1&&uses==0&&o.retained&&d.retained&&d.wiped&&zeros(scratch,64));
++ reset();guard_mode=4;C(!st20_deliver(&d,&api));C(gets==0&&o.retained&&d.retained);
++ reset();guard_mode=3;C(!st20_deliver(&d,&api));C(gets==1&&uses==1&&d.wiped&&zeros(scratch,64));
++ reset();mode=6;C(!st20_deliver(&d,&api));C(gets==1&&uses==1&&o.frozen&&d.wiped&&zeros(scratch,64));
++ reset();original=d.buffer;d.buffer=(unsigned char *)&o;C(!st20_deliver(&d,&api)&&gets==0);d.buffer=original;
++ reset();d.buffer=(unsigned char *)&d;C(!st20_deliver(&d,&api)&&gets==0);
++ reset();d.buffer=(unsigned char *)&api;C(!st20_deliver(&d,&api)&&gets==0);
++ reset();d.capacity=65;C(!st20_deliver(&d,&api)&&gets==0);
++ reset();d.capacity=0;C(!st20_deliver(&d,&api)&&gets==0);
++ reset();o.stop=1;C(!st20_deliver(&d,&api)&&gets==0);
++ reset();start_event=CreateEventW(NULL,TRUE,FALSE,NULL);C(start_event!=NULL);
++ for(i=0;i<2;i++){threads[i]=CreateThread(NULL,0,foreign,NULL,0,NULL);C(threads[i]!=NULL);}C(SetEvent(start_event));
++ for(i=0;i<2;i++){C(WaitForSingleObject(threads[i],5000)==WAIT_OBJECT_0);C(GetExitCodeThread(threads[i],&code)&&code==0);C(CloseHandle(threads[i]));}C(CloseHandle(start_event));C(gets==0&&!o.frozen&&d.used==0);C(st20_deliver(&d,&api)&&gets==1);
++ C(VirtualFree(scratch,0,MEM_RELEASE));
++ /* UNKNOWN cases retain original synthetic buffer/page/context dependencies in
++  * static lifetime until fixture process loss, not a claimed operational close. */
++ for(i=0;i<3;i++){
++ ST20_DELIVERY *u=&unknown_delivery[i];TP_OWNER *parent=&unknown_owner[i];
++ scratch=(unsigned char *)VirtualAlloc(NULL,4096,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);C(scratch!=NULL);
++ tp_init(parent);parent->context=(void *)1;memset(u,0,sizeof(*u));u->owner=parent;u->original_context=(void *)1;u->buffer=scratch;u->capacity=64;
++ mode=i==0?7U:0U;unlock_mode=i==1?1U:0U;guard_mode=lock_mode=gets=uses=guards=clear_calls=0;clear_mode=i==2?1U:0U;
++ C(!st20_deliver(u,&api));C(u->retained&&u->locked&&parent->retained&&parent->frozen&&gets==1);C(i==1?u->wiped&&zeros(scratch,64):!u->wiped&&u->length==32);first=parent->first;C(!st20_deliver(u,&api)&&gets==1&&parent->first==first);C(!tp_finish(parent));C(u->locked&&parent->retained&&parent->busy==1&&parent->first==first);
++ }
++
++ printf("LAYOUT borrow=%zu api=%zu capacity=%u; NOT_TOTAL_MEMORY\n",sizeof(ST20_DELIVERY),sizeof(ST20_API),ST20_CAPACITY_LIMIT);
++ printf("PASS checks=%u; SOURCE_API_MOCK_ONLY; WINDOWS_LOCK_WIPE_THREADS_REAL; REAL_OWNERAUTH_READS=0; NV=NONE; UNKNOWN_PAGES_RETAINED_UNTIL_PROCESS_LOSS; NO_AUTHORITY\n",checks);return 0;
++}
+--- /dev/null
++++ b/tests/storage20_root_binding_test.c
+@@ -0,0 +1,34 @@
++/* Root/pin inputs and native authorization are explicitly modeled; Windows
++ * locking/threads and production root/binding/delivery code are real. No TPM. */
++#include "storage20_binding.h"
++#define main st20_prior_root_data_tests
++#include "q4_root_binding_data_test.c"
++#undef main
++static TP_OWNER endpoint;
++static ST20_DELIVERY delivery;
++static ST20_ROOT_BINDING binding;
++static unsigned source_calls,consumer_calls,deny_boundary,stop_during_boundary;
++static TBS_RESULT WINAPI source_mock(TBS_HCONTEXT c,TBS_OWNERAUTH_TYPE kind,PBYTE out,PUINT32 n){source_calls++;if(c!=(void *)1||kind!=13||*n<4)return 99;memset(out,0x5a,4);*n=4;return 0;}
++static TBS_RESULT WINAPI wrong_source(TBS_HCONTEXT c,TBS_OWNERAUTH_TYPE k,PBYTE p,PUINT32 n){(void)c;(void)k;(void)p;(void)n;source_calls+=1000U;return 0x80284001UL;}
++static int native_boundary(TP_OWNER *o,const char *phase){(void)o;(void)phase;if(stop_during_boundary)root.stopped=1;return !deny_boundary;}
++static int known_borrow(TP_OWNER *o,const unsigned char *p,unsigned n){(void)o;consumer_calls++;return n==4&&p[0]==0x5a;}
++static int setup(unsigned char *scratch){reset();root.stopped=0;root.authority_lost=0;root.slots[0].retained=0;root.prepared=0;root.pending_commit.active=0;tp_init(&endpoint);endpoint.context=(void *)1;endpoint.boundary=native_boundary;memset(&binding,0,sizeof(binding));binding.root_owner=&root;binding.pin=&pin;
++ if(papacc_configuration_q4_st20_designation_data(&root,&pin,&binding.expected)!=PAPACC_RESULT_OK)return 0;
++ binding.designated_source=source_mock;memcpy(binding.current_sid,binding.expected.custodian_sid,80);memcpy(binding.current_ek,binding.expected.ek_spki,32);memcpy(binding.current_certificate,binding.expected.certificate,32);binding.request_digest[0]=1;binding.approval_digest[0]=2;
++ memset(&delivery,0,sizeof(delivery));delivery.owner=&endpoint;delivery.original_context=(void *)1;delivery.buffer=scratch;delivery.capacity=64;delivery.guard_context=&binding;source_calls=consumer_calls=deny_boundary=stop_during_boundary=0;return 1;}
++int main(void){ST20_API api;unsigned char *scratch;unsigned i,prior;PAPACC_Q4_ST20_DESIGNATION_DATA now,saved;
++ C(st20_windows_source(NULL)==NULL);C(st20_windows_source(GetModuleHandleW(L"kernel32.dll"))==NULL);C(st20_prior_root_data_tests()==0);memset(&root,0,sizeof(root));InitializeCriticalSection(&root.lock);scratch=(unsigned char *)VirtualAlloc(NULL,4096,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);C(scratch!=NULL);
++ api.get=source_mock;api.lock=VirtualLock;api.unlock=VirtualUnlock;api.guard=st20_root_guard;api.use=known_borrow;api.clear=st20_secure_clear;
++ C(setup(scratch));C(binding.expected.source_type==13&&binding.expected.credential_access_denied==1&&binding.expected.custodian_designated==1&&binding.expected.source_designated==1);
++ C(st20_deliver(&delivery,&api));C(source_calls==1&&consumer_calls==1&&delivery.wiped&&!delivery.locked);C(!st20_deliver(&delivery,&api)&&source_calls==1);
++ for(i=0;i<14;i++){
++ C(setup(scratch));api.get=source_mock;
++ switch(i){case 0:binding.current_sid[0]^=1;break;case 1:binding.current_ek[0]^=1;break;case 2:binding.current_certificate[0]^=1;break;case 3:binding.expected.source_decision[0]^=1;break;case 4:binding.expected.custodian_decision[0]^=1;break;case 5:binding.approval_digest[0]=0;break;case 6:binding.request_digest[0]=0;break;case 7:binding.expected.root.ticket++;break;case 8:root.stopped=1;break;case 9:deny_boundary=1;break;case 10:endpoint.boundary=NULL;break;case 11:api.get=wrong_source;break;case 12:stop_during_boundary=1;break;case 13:delivery.original_context=(void *)2;break;}
++ if(st20_deliver(&delivery,&api)){printf("UNEXPECTED_ACCEPT model_case=%u\n",i);C(0);}
++ C(source_calls==0&&consumer_calls==0);}
++ C(setup(scratch));saved=binding.expected;memset(&now,0xa5,sizeof(now));prior=checks;root.stopped=1;C(papacc_configuration_q4_st20_designation_data(&root,&pin,&now)!=PAPACC_RESULT_OK);C(((unsigned char *)&now)[0]==0xa5);root.stopped=0;
++ C(papacc_configuration_q4_st20_designation_data(&root,&pin,(PAPACC_Q4_ST20_DESIGNATION_DATA *)&root)==PAPACC_RESULT_INVALID_ARGUMENT);
++ C(setup(scratch));delivery.buffer=(unsigned char *)&root;C(!st20_deliver(&delivery,&api)&&source_calls==0);
++ C(setup(scratch));delivery.buffer=(unsigned char *)&binding;C(!st20_deliver(&delivery,&api)&&source_calls==0);
++ C(VirtualFree(scratch,0,MEM_RELEASE));DeleteCriticalSection(&root.lock);
++ printf("PASS checks=%u prior_tail=%u designation_bytes=%zu binding_bytes=%zu delivery_bytes=%zu; ROOT_GUARDS_REAL_AUTHORITY_MODELED; OWNERAUTH_REAL_READS=0; NO_NV\n",checks,prior,sizeof(saved),sizeof(binding),sizeof(delivery));return 0;}

@@ -1,0 +1,33 @@
+# UPDATE PDP reconciliado e próximo ato preparado
+
+2026-11-03. Sem operação automática.
+
+## UPDATE recebido
+
+LIMITED_UPDATE_VERIFIED_CLOSED: first0, consumed1, created1, submitted227, renames3 (dois renames), close_known1 e canonical_verified_closed1. Novo canônico911360bytes/ID417614100:2883584:1065605/SHA256c14dc2a0e2f3e51d19588c9930e354d512c9f3d3c41f0eaff7957dae0734f474. Anterior905728/ID417614100:2555904:1047601 preservado em papacc_server.eca6172e632933912004b5a3a14fc321d3a63bf9da585c8e820df8eab85abf3d.previous. DLLs e configuração SCM continuam sob o protocolo qualificado, cujo sucesso exige stopped/configuração atual antes e após os renames/readback. Não foi executada nova consulta pelo agente e o resultado não é lease atual de SCM/filesystem.
+
+Saída do arquivo anexado copiada byte-exata: OWNER-PDP-SHARING-IMAGE-UPDATE-OUTPUT.txt, SHA256eb9ca8c818bdadca7cd68350057422a68acf9608b9e8e0bcda2a95a6ca21873f. As229amostras foram integralmente processadas, sequência contínua/known1/QPC ordenado/frequência positiva; handles169–171 do processo updater, não capacidade/entrada do futuro processo PDP. K2027314/R913408 são desse executor, não os pisos PDP. missing2 preserva custos nativos opacos UNKNOWN. Exit0 não foi usado isoladamente. Resultado estruturado PDP-SHARING-IMAGE-UPDATE-RESULT.json. Autorização rev3 marcada consumida, sem retry; rev1/2 continuam substituídas sem execução. Retenção histórica/quiescência OS UNKNOWN.
+
+## Preparação técnica restante concluída offline
+
+Uma especialização de um arquivo do materializador administrativo existente foi preparada em pdp-config-original.cs. Mesmos I/O, parent/ancestors/owner/DACL/proteção, FILE_CREATE exclusivo relativo ao parent original e readback; um slot e source43bytes exatos. Atualizados somente alvo, hash/source e identidade/hash/tamanho da imagem corrente; não outro owner/serviço/canal. Nenhuma referência foi adquirida no host por essa adaptação. Close para na primeira incerteza e conserva referências restantes; erro NT de criação permanece hexadecimal original e short read/write não inventa LastError.
+
+D1 prepara somente C:/Program Files/Papinho/Accelerator/FIRST-INSTANCE-PREPARATION.CONFIG.ORIGINAL.conf. É DATA, nunca pedido/decisão restaurada ou autoridade para PDP. Source FCA-FIRST-CONFIG.DATA.txt43bytes/SHA25616c4847a27d32689ad7eb2c0bd29f6f0f698df74092e9df107cc8203e07e0ae7. Owner operador e DACL protegida operador/SYSTEM/Administrators FA no arquivo, sem outros trustees/ACL edit. Não materializado.
+
+Outer run-pdp-parent-preparation.MANUAL.CANDIDATE.ps1: primeiro a cópia D1 com confirmação/consumo próprios; apenas após êxito/readback/close, chamada instalada config/first-install/NEW_INSTALL_PARENT_PREPARE, source protegido e parent C:/ProgramData/leafPapinho. Nova confirmação nativa original e CSPRNG, sem respostas automáticas. Scripts conferem request e decisão futura/pins/host/contexto. Imagem corrente ID/hash e DLLs são conferidos/retidos para leitura; configuração é conferida e retida após D1. Native PDP readquire/protege seus originais e mantém seu worker/consumo próprio. Nenhum stream/hash/CLI do wrapper vira autoridade. Código C# é compilado dos mesmos bytes cujo hash foi validado, sem segunda leitura vulnerável a troca entre hash e Add-Type.
+
+A chamada nativa usa os dez argumentos do entrypoint já qualificado, sem atualizar EXE, SCM, namespace ou protocolo. O ato PDP cria somente Papinho, não Accelerator/chave/CA. O retorno de observação anterior não é lease de ausência; criação exclusiva/collision/proteção/KnownFolder e continuidade atuais no owner efetivo decidem. D1 pode concluir e PDP negar; preservar o arquivo e não repetir o pacote. Consumo ou efeito PDP inconclusivo permanece UNKNOWN, não ausência presumida. Não exigir PID/token futuros de runtime.
+
+## Qualificação
+
+78verificações CodeDom do runner real de um arquivo e helpers de SD/identidade/bytes, sete falhas/seis Stop/replay/closeUNKNOWN e arquivo existente/conteúdo/substituição/BOM/proteção divergentes. Native constructor e APIs de arquivos/SCM/chave não executados. Models substituem I/O; não são prova de efeito nativo. Duas ASTs sem erros; uma chamada PDP de dez argumentos e uma chamada D1 isoladas, nenhum loop de retry. Scripts não invocados. Qualificação em PDP-CONFIG-AND-PARENT-PREPARATION-QUALIFICATION.json; log pdp-config-original-offline-qualification.log. Produto/EXE não mudou: quatro builds e120pares/276checks/14entry anteriores permanecem, sem repetir campanhas inalteradas ou nova instalação.
+
+Envelope PDP preservado128/188/192, private1994944/working3145728, physical7239172096/commit3221225472, freshness100/window240000/global60000 sem rebase. Nenhuma quota ou outro perfil modificado. Recursos CLR do materializador/orquestrador são custos separados desconhecidos, não um falso censo ED11 do processo nativo; pressão do host continua nos gates frescos do owner PDP. Sem capacidade garantida ou transformação de UNKNOWN em PASS.
+
+## Primeiro gate e artefatos
+
+Pedido pronto ONE-PDP-PARENT-PREPARATION-REQUEST.CANDIDATE.md, SHA256e8004335ddadc2badda207e2083b382874c559ccfdfaa60bcb2b2fee8d63c6b0. Autoriza-se futuramente no máximo um arquivo43bytes e um diretório Papinho, dois atos/consumos/confirmações independentes. Não há decisão operacional emitida para esse pedido, nem comando com hash fictício. Primeiro gate restante: autorização específica do proprietário para esses NOVOS efeitos; o UPDATE consumido e PDP accepted offline não os autorizam.
+
+Após aprovação: emitir decisão real, congelar seu SHA e comando manual vinculado aos pins reais; não executar automaticamente. Após saída: reconciliar ambos os atos, identidade/hash/SD/readback/close/consumos, primeira falha e retenção, sem repetir. Somente com PDP factual conhecido preparar FCA independente de um Accelerator e uma chave, reaproveitando legitimamente a configuração protegida após reaquisição/revalidação, sem copiá-la de novo por rotina. P4/K5, assinatura/certificado/CURRENT/NORMAL/Start/readiness produtiva não concedidos. Diagnóstico READ fechado anterior não será repetido genericamente.
+
+HEAD/WIP/históricos/pins/EXEs anteriores, autorizações consumidas e PST0.6.4 preservados. Sem coleta/UPDATE/StartStop/endpoint/SCQ/SCM-ACL/CA-CURRENT/rede/TPM-NV-Q4/limpeza/refund/kill reais nesta etapa do agente. Future directions de listener/live configuration e backup não recebem implementação/publicação por este preparo; suas limitações continuam.

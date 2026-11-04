@@ -1,0 +1,17 @@
+# Reconciliação — documentos criados, fixture negada no orçamento inicial
+
+Fonte: saída enviada pelo proprietário no chat; trecho relevante literal preservado em OWNER-MACHINE-FIXTURE-PREPARATION-OUTPUT.EXCERPT.txt, sem fingir um transcript completo/byte-exato de todo o chat. Resultado estruturado MACHINE-FIXTURE-PREPARATION-RESULT.json. Nenhuma repetição, coleta nativa ou alteração de limite.
+
+D concluído: firstNONE,consumedTrue,created_mask3,verified_mask3,close_knownTrue. Original do pedido417614100:6815744:9313/SHAfc91b7bce523b014c28ce677b60ea889e32c8bc50c39c83b264096d6f923ab5c; decisão417614100:37617664:12786/SHA6ee864d0ec398d8fbd966822b71ea329bf908d1af2bc589f1298c22368f8a9bf. Duas criações exclusivas/SD/hash/flush/readback fechados pelo mecanismo qualificado. Preservar ambos, não recriar/excluir/renomear.
+
+F first1816/source_stage1/budget_first1816, consumed0/created0/controlepositivo0/identidade0; close_known1/persistent_key_created0. Document_calls0,chain_calls0,rng_calls0. A negação ocorreu em papacc_ca_key_fixture_budget_begin antes do token/console/originais/cadeia/RNG e antes da confirmação e consumo F. Campos NTSTATUS/SDstatus zero não são sucesso nativo: nenhuma dessas aberturas foi tentada. Não se criou chave segundo os contadores e resultado originais; não houve teste READ/Start ou efeito de certificado/CA.
+
+O predicado histórico exato continua UNKNOWN: budget_begin pode propagar1816 de uma consulta em personal_resource_collect, OU emitir1816 quando handles>=124, física<7239172096 ou commit<9823326208. Não há amostra/flags de sucesso exportados nesta saída. Não atribuir a handles, falta de commit ou erro de API isoladamente; não usar memória do UPDATE anterior como amostra fresca. Crescimento private/work não é o predicado aplicado neste primeiro gate. Não existe evidência de mudança de arquivo/SD ou falha de exclusividade.
+
+O wrapper exit2/erro na última linha somente propaga o resultado nativo; não é outra tentativa nem causa nova. Sessão manual utilizada, D consumido; F não consumido não autoriza reuso da sessão. Autorização não reutilizável, nenhum retry. Snapshot inicial pendente preservado e estado posterior separado em MACHINE-FIXTURE-PREPARATION-AUTHORIZATION-USED.json. Fechamentos D/F conhecidos não resolvem application-close/retenção/reservas/quiescênciaOS históricos UNKNOWN.
+
+T2 accepted manteve expressamente124/128/private-work1994944/físico7239172096/commit9823326208/fresh100/global60000. A redução de garantia para custos opacos não reduz esses pisos nem transporta K7 READ. Não modificar norma ou instalar instrumentação automaticamente. EXE871424/ID417614100:1703936:630805 e demais objetos permanecem na última evidência reconciliada; nenhuma consulta nova.
+
+Próximo gate: decisão offline focal sobre o envelope próprio da fixture e sua admissibilidade, mantendo a causa histórica delimitada. Não repetir materialização para obter dados ou reusar a aprovação. Uma futura tentativa F, se tecnicamente e normativamente admissível, exige decisão específica nova e binding legítimo dos dois originais já existentes; sua proveniência continua a da tentativa anterior, não se converte em nova aprovação. Não fabricar keyname/publicSHA futuros ou promoção da decisão antiga. Nenhuma coleta adicional automática ou circuito genérico de recursos.
+
+Preservar DENY/UNKNOWN/PST0.6.4/históricos/pins/EXEs/DLLs/SCM/ProgramData/CA-CURRENT; sem cleanup/refund/kill/UPDATE/endpoint/P/SCQ/StartStop. Continuação NEXT-MACHINE-FIXTURE-INITIAL-BUDGET-DENIAL-OFFLINE.md.

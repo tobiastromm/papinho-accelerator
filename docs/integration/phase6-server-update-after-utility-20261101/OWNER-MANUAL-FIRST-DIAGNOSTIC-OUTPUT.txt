@@ -1,0 +1,34 @@
+PS C:\Projetos\PapinhoAccelerator\docs\integration\phase6-root-chain-procedure-20261031> & {
+>>     $s = 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-server-update-after-utility-20261101\run-first-diagnostic.MANUAL.ps1'
+>>     $h = '244531d47ddbebddddbf304cfa2466caae53fbac11127fee4b70a9fbd3d34f35'
+>>     if ((Get-FileHash -LiteralPath $s -Algorithm SHA256 -ErrorAction Stop).Hash -ne $h) {
+>>         throw 'FIRST_DIAGNOSTIC_SCRIPT_PIN_DENY'
+>>     }
+>>     & 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoLogo -NoProfile -ExecutionPolicy Bypass -File $s -ExpectedScriptSha256 $h
+>> }
+ONE_MANUAL_FIRST_DIAGNOSTIC; E_Q_S_SEPARATE; NO_RETRY_NO_STOP_NO_PRODUCTION; ON_DISK_PINS_NOT_MAPPED_IMAGE_ATTESTATION
+Phase 1: one auxiliary decision copy. Existing request and preparation decision are preserved.
+ONE_NEW_OPERATIONAL_DECISION_DATA_ONLY; NO_START_NO_ENDPOINT_NO_SCM; HASHES_NOT_AUTHORITY; NO_RETRY_NO_DELETE
+Request SHA256: 312999dd9ba4f701991560e65b4a25e3a13c7914bc75603a6efb47a11536798d
+Decision SHA256: c6c34866050bc0da189acd8724470838909bc7c790b838e23c46cb86ef58210f
+Confirm only this ONE decision copy after actual owner approval of the three acts and auxiliary copy. No authority is inferred from DATA; the three independent native confirmations remain required. Cancel if scope is missing.
+OWNER_OPERATIONAL_DECISION_DATA 25ea33a28c714952e1b1fb42202e64be7ca933afe0fa7aa37d2a5e654918dff4 312999dd9ba4f701991560e65b4a25e3a13c7914bc75603a6efb47a11536798d c6c34866050bc0da189acd8724470838909bc7c790b838e23c46cb86ef58210f
+OWNER_OPERATIONAL_DECISION_DATA 25ea33a28c714952e1b1fb42202e64be7ca933afe0fa7aa37d2a5e654918dff4 312999dd9ba4f701991560e65b4a25e3a13c7914bc75603a6efb47a11536798d c6c34866050bc0da189acd8724470838909bc7c790b838e23c46cb86ef58210f
+EXCLUSIVE_CREATE_CONFIRMED index=0; PERSISTENT_UNTIL_RECONCILED
+CREATED index=0 identity=417614100:6225920:542803
+OPERATIONAL_DECISION_DATA prepared=True first=NONE consumed=True created_mask=1 verified_mask=1 close_known=True; NO_START_NO_ENDPOINT_NO_SCM_NO_RETRY; OS_QUIESCENCE=UNKNOWN; DATA_ONLY_SCOPE_NOT_INFERRED; NATIVE_THREE_ACTS_NOT_CONFIRMED_BY_THIS_SCRIPT; AUTHORITY_NOT_IMPLIED
+MANUAL_DECISION_COPY_EXIT=0; NO_RETRY; EXIT_ALONE_NOT_AUTHORITY
+Phase 2: original installed controller. Check every native plan and ID; cancel on mismatch. No automatic replies.
+Request ID expected 417614100:1310720:120518; image ID expected 417614100:1900544:539611; new decision ID must match the copy result.
+Pre-Start runtime PID/token remain unbound. Real identity, bilateral admission, receipt/close and finite shutdown are native gates, never presumed PASS.
+SCQ_COLD_ORIGINAL=DENY; WIN32=1816; NO_SCM_START; NO_RETRY
+MANUAL_FIRST_DIAGNOSTIC_NATIVE_EXIT=2; NO_RETRY; NO_PRODUCTIVE_PROMOTION; OS_QUIESCENCE=UNKNOWN
+FIRST_DIAGNOSTIC_FAILED_OR_UNKNOWN_NO_RETRY
+No C:\Projetos\PapinhoAccelerator\docs\integration\phase6-server-update-after-utility-20261101\run-first-diagnostic.MAN
+UAL.ps1:85 caractere:28
++ ... nNativeExit-ne0){throw 'FIRST_DIAGNOSTIC_FAILED_OR_UNKNOWN_NO_RETRY'}
++                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (FIRST_DIAGNOSTI...NKNOWN_NO_RETRY:String) [], RuntimeException
+    + FullyQualifiedErrorId : FIRST_DIAGNOSTIC_FAILED_OR_UNKNOWN_NO_RETRY
+
+PS C:\Projetos\PapinhoAccelerator\docs\integration\phase6-root-chain-procedure-20261031>

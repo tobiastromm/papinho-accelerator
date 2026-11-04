@@ -1,0 +1,3 @@
+# Próximo trabalho
+
+Reconciliar saída integral da consulta read-only FIRSTCAUSE, sem repetir consulta ou sessão. Conferir consumo, controladorPID9004/criação/token originais e runtime candidato SCM atual, revalidações/close do observador. Em erro ou divergência preservar UNKNOWN, nenhum fallback. Se suficiente, preparar menor disposição G5 específica com criação/token/identidade atuais e pedir aprovação própria, sem executar. Não reutilizar G5 antigo. Candidato diagnóstico offline e hashes em READ-CLOSE-RESULT-OFFLINE-REPORT.md; nenhum UPDATE antes da disposição governada. Preservar retenção histórica/close aplicação/quiescênciaUNKNOWN, produçãoDENY e PST0.6.4.

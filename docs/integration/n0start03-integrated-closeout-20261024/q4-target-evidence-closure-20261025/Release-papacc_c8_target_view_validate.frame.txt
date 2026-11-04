@@ -1,0 +1,389 @@
+papacc_c8_target_view_validate PROC			; COMDAT
+
+; 228  : {
+
+$LN135:
+	mov	QWORD PTR [rsp+32], rbx
+	push	rbp
+	push	rsi
+	push	rdi
+	push	r14
+	push	r15
+	sub	rsp, 1264				; 000004f0H
+	mov	rax, QWORD PTR __security_cookie
+	xor	rax, rsp
+	mov	QWORD PTR __$ArrayPad$[rsp], rax
+	mov	r15, r9
+	mov	rbx, r8
+	mov	rsi, rdx
+	mov	rdi, rcx
+
+; 229  :  PAPACC_C8_RESOURCE_REASON raw;const PAPACC_C8_PROCESS_PROVENANCE *p;PAPACC_C8_PROCESS_PROVENANCE current;PAPACC_U64 finish;unsigned i;
+; 230  :  if(!s||!b||!v||view_overlap(v,sizeof(*v),s,sizeof(*s))||view_overlap(v,sizeof(*v),b,sizeof(*b)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	test	rcx, rcx
+	je	$LN6@papacc_c8_
+	test	rdx, rdx
+	je	$LN6@papacc_c8_
+	test	rbx, rbx
+	je	$LN6@papacc_c8_
+
+; 204  : {ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;return x>=y?x-y<bn:y-x<an;}
+
+	xor	ecx, ecx
+	cmp	rbx, rdi
+	jb	SHORT $LN26@papacc_c8_
+	mov	rax, rbx
+	sub	rax, rdi
+	cmp	rax, 4512				; 000011a0H
+	jmp	SHORT $LN132@papacc_c8_
+$LN26@papacc_c8_:
+	mov	rax, rdi
+	sub	rax, rbx
+	cmp	rax, 1624				; 00000658H
+$LN132@papacc_c8_:
+
+; 229  :  PAPACC_C8_RESOURCE_REASON raw;const PAPACC_C8_PROCESS_PROVENANCE *p;PAPACC_C8_PROCESS_PROVENANCE current;PAPACC_U64 finish;unsigned i;
+; 230  :  if(!s||!b||!v||view_overlap(v,sizeof(*v),s,sizeof(*s))||view_overlap(v,sizeof(*v),b,sizeof(*b)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	setb	cl
+	test	ecx, ecx
+	jne	$LN6@papacc_c8_
+
+; 204  : {ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;return x>=y?x-y<bn:y-x<an;}
+
+	cmp	rbx, rsi
+	jb	SHORT $LN30@papacc_c8_
+	mov	rax, rbx
+	sub	rax, rsi
+	cmp	rax, 112				; 00000070H
+	jmp	SHORT $LN133@papacc_c8_
+$LN30@papacc_c8_:
+	mov	rax, rsi
+	sub	rax, rbx
+	cmp	rax, 1624				; 00000658H
+$LN133@papacc_c8_:
+
+; 229  :  PAPACC_C8_RESOURCE_REASON raw;const PAPACC_C8_PROCESS_PROVENANCE *p;PAPACC_C8_PROCESS_PROVENANCE current;PAPACC_U64 finish;unsigned i;
+; 230  :  if(!s||!b||!v||view_overlap(v,sizeof(*v),s,sizeof(*s))||view_overlap(v,sizeof(*v),b,sizeof(*b)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	setb	cl
+	test	ecx, ecx
+	jne	$LN6@papacc_c8_
+
+; 231  :  if(s->process!=GetCurrentProcessId()||s->thread!=GetCurrentThreadId()||b->owner!=s->thread)return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	call	QWORD PTR __imp_GetCurrentProcessId
+	cmp	DWORD PTR [rdi+472], eax
+	jne	$LN6@papacc_c8_
+	call	QWORD PTR __imp_GetCurrentThreadId
+	mov	ebp, DWORD PTR [rdi+476]
+	cmp	ebp, eax
+	jne	$LN6@papacc_c8_
+	mov	rcx, QWORD PTR [rsi+8]
+	cmp	rcx, rbp
+	jne	$LN6@papacc_c8_
+
+; 232  :  p=&v->provenance;
+; 233  :  if(v->version!=PAPACC_C8_TARGET_VIEW_VERSION||v->bytes!=sizeof(*v)||v->origin!=2U||v->origin!=s->evidence.origin||
+; 234  :  v->policy!=PAPACC_C8_VIEW_POLICY_ABSENT||v->provider_runtime||v->image_identity!=PAPACC_C8_VIEW_IMAGE_PATHS_ONLY||
+; 235  :  v->package_backend!=PAPACC_C8_VIEW_PACKAGE_OPENSSL_X64||v->pointer_bytes!=sizeof(void*)||v->pointer_bytes!=8U||
+; 236  :  v->series!=s->series_id||v->first_sequence!=s->series_first_sequence||v->owner!=b->owner||!binding_equal(&v->binding,b)||
+; 237  :  b->stopping||(b->phase!=PAPACC_C8_OBSERVATION_BASELINE&&b->phase!=PAPACC_C8_OBSERVATION_PREPARED)||
+; 238  :  p->creation!=s->creation||p->process!=s->process||p->thread!=s->thread||p->invocation!=b->invocation||p->sequence!=s->sequence||
+; 239  :  p->revision!=b->revision||p->epoch!=b->epoch||p->configured!=b->configured||p->current!=b->current||p->phase!=b->phase||
+; 240  :  p->build_debug!=PAPACC_OBSERVED_BUILD_DEBUG||p->time_presence!=7U||p->clock_source!=1U||
+; 241  :  memcmp(p->domain,b->domain,32U)||memcmp(p->sdk_inventory,s->evidence.sdk_sha256,32U)||memcmp(v->recipe,s->evidence.provenance,32U)||
+; 242  :  !p->image_path[0]||!p->mapped_path[0]||p->image_path[MAX_PATH-1]||p->mapped_path[MAX_PATH-1])return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	cmp	DWORD PTR [rbx], 1
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+4], 1624			; 00000658H
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+8], 2
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rdi+276], 2
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+12], 0
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+28], 0
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+16], 1
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+20], 1
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+24], 8
+	jne	$LN6@papacc_c8_
+	mov	rax, QWORD PTR [rdi+504]
+	cmp	QWORD PTR [rbx+32], rax
+	jne	$LN6@papacc_c8_
+	mov	rax, QWORD PTR [rdi+512]
+	cmp	QWORD PTR [rbx+40], rax
+	jne	$LN6@papacc_c8_
+	cmp	QWORD PTR [rbx+48], rcx
+	jne	$LN6@papacc_c8_
+	lea	rcx, QWORD PTR [rbx+1264]
+	mov	rdx, rsi
+	call	binding_equal
+	test	eax, eax
+	je	$LN6@papacc_c8_
+	cmp	DWORD PTR [rsi+104], 0
+	jne	$LN6@papacc_c8_
+	mov	ecx, DWORD PTR [rsi+84]
+	cmp	ecx, 7
+	je	SHORT $LN11@papacc_c8_
+	cmp	ecx, 1
+	jne	$LN6@papacc_c8_
+$LN11@papacc_c8_:
+	mov	rax, QWORD PTR [rdi+440]
+	cmp	QWORD PTR [rbx+64], rax
+	jne	$LN6@papacc_c8_
+	mov	eax, DWORD PTR [rdi+472]
+	cmp	DWORD PTR [rbx+136], eax
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+140], ebp
+	jne	$LN6@papacc_c8_
+	mov	rax, QWORD PTR [rsi]
+	cmp	QWORD PTR [rbx+72], rax
+	jne	$LN6@papacc_c8_
+	mov	rax, QWORD PTR [rdi+448]
+	cmp	QWORD PTR [rbx+80], rax
+	jne	$LN6@papacc_c8_
+	mov	rax, QWORD PTR [rsi+16]
+	cmp	QWORD PTR [rbx+88], rax
+	jne	$LN6@papacc_c8_
+	mov	rax, QWORD PTR [rsi+24]
+	cmp	QWORD PTR [rbx+96], rax
+	jne	$LN6@papacc_c8_
+	mov	eax, DWORD PTR [rsi+88]
+	cmp	DWORD PTR [rbx+144], eax
+	jne	$LN6@papacc_c8_
+	mov	eax, DWORD PTR [rsi+92]
+	cmp	DWORD PTR [rbx+148], eax
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+152], ecx
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+156], 0
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+128], 7
+	jne	$LN6@papacc_c8_
+	cmp	DWORD PTR [rbx+132], 1
+	jne	$LN6@papacc_c8_
+	lea	rdx, QWORD PTR [rsi+48]
+	mov	r8d, 32					; 00000020H
+	lea	rcx, QWORD PTR [rbx+160]
+	call	memcmp
+	test	eax, eax
+	jne	$LN6@papacc_c8_
+	lea	rdx, QWORD PTR [rdi+144]
+	mov	r8d, 32					; 00000020H
+	lea	rcx, QWORD PTR [rbx+192]
+	call	memcmp
+	test	eax, eax
+	jne	$LN6@papacc_c8_
+	lea	rdx, QWORD PTR [rdi+176]
+	mov	r8d, 32					; 00000020H
+	lea	rcx, QWORD PTR [rbx+1376]
+	call	memcmp
+	test	eax, eax
+	jne	$LN6@papacc_c8_
+	cmp	WORD PTR [rbx+224], ax
+	je	$LN6@papacc_c8_
+	cmp	WORD PTR [rbx+744], ax
+	je	$LN6@papacc_c8_
+	cmp	WORD PTR [rbx+742], ax
+	jne	$LN6@papacc_c8_
+	cmp	WORD PTR [rbx+1262], ax
+	jne	$LN6@papacc_c8_
+
+; 243  :  if(p->observed_ms!=s->evidence.sampled_ms||p->valid_until_ms!=s->evidence.expires_ms||p->validated_ms<p->observed_ms||
+; 244  :  p->validated_ms>p->valid_until_ms||v->verified_ms<p->validated_ms||v->verified_ms>p->valid_until_ms||now<v->verified_ms)return PAPACC_C8_RESOURCE_STALE;
+
+	mov	rax, QWORD PTR [rbx+104]
+	cmp	rax, QWORD PTR [rdi+216]
+	jne	$LN13@papacc_c8_
+	mov	rcx, QWORD PTR [rbx+120]
+	cmp	rcx, QWORD PTR [rdi+224]
+	jne	$LN13@papacc_c8_
+	mov	rdx, QWORD PTR [rbx+112]
+	cmp	rdx, rax
+	jb	$LN13@papacc_c8_
+	cmp	rdx, rcx
+	ja	$LN13@papacc_c8_
+	mov	rax, QWORD PTR [rbx+56]
+	cmp	rax, rdx
+	jb	$LN13@papacc_c8_
+	cmp	rax, rcx
+	ja	$LN13@papacc_c8_
+	cmp	r15, rax
+	jb	$LN13@papacc_c8_
+
+; 245  :  for(i=0U;i<PAPACC_C8_RESOURCE_METRICS;i++)if(!view_metric_valid(i,&s->evidence.metrics[i])||v->metrics[i].unit!=view_unit(i)||v->metrics[i].scope!=view_scope(i)||
+
+	xor	ecx, ecx
+	npad	9
+$LL4@papacc_c8_:
+	mov	r8d, ecx
+
+; 208  : {return m->kind==i+1U&&m->classification==(PAPACC_U32)((i<4U||i==6U||i==7U)?PAPACC_C8_DIRECTLY_MEASURED:PAPACC_C8_EVIDENCE_UNKNOWN);}
+
+	lea	r9d, DWORD PTR [rcx+1]
+
+; 245  :  for(i=0U;i<PAPACC_C8_RESOURCE_METRICS;i++)if(!view_metric_valid(i,&s->evidence.metrics[i])||v->metrics[i].unit!=view_unit(i)||v->metrics[i].scope!=view_scope(i)||
+
+	add	r8, r8
+	mov	edx, ecx
+
+; 208  : {return m->kind==i+1U&&m->classification==(PAPACC_U32)((i<4U||i==6U||i==7U)?PAPACC_C8_DIRECTLY_MEASURED:PAPACC_C8_EVIDENCE_UNKNOWN);}
+
+	cmp	DWORD PTR [rdi+r8*8+304], r9d
+	jne	$LN6@papacc_c8_
+	lea	eax, DWORD PTR [rcx-4]
+	cmp	eax, 1
+	jbe	SHORT $LN58@papacc_c8_
+	cmp	ecx, 8
+	jae	SHORT $LN58@papacc_c8_
+	mov	eax, 1
+	jmp	SHORT $LN35@papacc_c8_
+$LN58@papacc_c8_:
+	xor	eax, eax
+$LN35@papacc_c8_:
+	cmp	DWORD PTR [rdi+r8*8+308], eax
+	jne	$LN6@papacc_c8_
+
+; 205  : static PAPACC_U32 view_unit(unsigned i){return i==3U||i==8U?PAPACC_C8_VIEW_UNIT_COUNT:PAPACC_C8_VIEW_UNIT_BYTES;}
+
+	cmp	ecx, 3
+	je	SHORT $LN40@papacc_c8_
+	mov	eax, 1
+	cmp	ecx, 8
+	jne	SHORT $LN41@papacc_c8_
+$LN40@papacc_c8_:
+	mov	eax, 2
+$LN41@papacc_c8_:
+
+; 245  :  for(i=0U;i<PAPACC_C8_RESOURCE_METRICS;i++)if(!view_metric_valid(i,&s->evidence.metrics[i])||v->metrics[i].unit!=view_unit(i)||v->metrics[i].scope!=view_scope(i)||
+
+	lea	rdx, QWORD PTR [rdx+rdx*2]
+	cmp	DWORD PTR [rbx+rdx*8+1424], eax
+	jne	$LN6@papacc_c8_
+
+; 206  : static PAPACC_U32 view_scope(unsigned i){return i<2U?PAPACC_C8_VIEW_SCOPE_HOST:(i==4U||i==5U?PAPACC_C8_VIEW_SCOPE_CONNECTION:PAPACC_C8_VIEW_SCOPE_PROCESS);}
+
+	cmp	ecx, 2
+	jae	SHORT $LN46@papacc_c8_
+	mov	ecx, 1
+	jmp	SHORT $LN44@papacc_c8_
+$LN46@papacc_c8_:
+	lea	eax, DWORD PTR [rcx-4]
+	xor	ecx, ecx
+	cmp	eax, 1
+	setbe	cl
+	add	ecx, 2
+$LN44@papacc_c8_:
+
+; 245  :  for(i=0U;i<PAPACC_C8_RESOURCE_METRICS;i++)if(!view_metric_valid(i,&s->evidence.metrics[i])||v->metrics[i].unit!=view_unit(i)||v->metrics[i].scope!=view_scope(i)||
+
+	cmp	DWORD PTR [rbx+rdx*8+1428], ecx
+	jne	$LN6@papacc_c8_
+	mov	rax, QWORD PTR [rbx+rdx*8+1408]
+	cmp	rax, QWORD PTR [rdi+r8*8+296]
+	jne	$LN6@papacc_c8_
+	mov	rax, QWORD PTR [rbx+rdx*8+1416]
+	cmp	rax, QWORD PTR [rdi+r8*8+304]
+	jne	$LN6@papacc_c8_
+	mov	ecx, r9d
+	cmp	r9d, 9
+	jb	$LL4@papacc_c8_
+
+; 246  :  memcmp(&v->metrics[i].observed,&s->evidence.metrics[i],sizeof(v->metrics[i].observed)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+; 247  :  raw=papacc_c8_target_validate_raw(s,b,s->evidence.target,now);if(raw!=PAPACC_C8_RESOURCE_OK)return raw;
+
+	lea	r8, QWORD PTR [rdi+112]
+	mov	r9, r15
+	mov	rdx, rsi
+	mov	rcx, rdi
+	call	papacc_c8_target_validate_raw
+	test	eax, eax
+	jne	$LN1@papacc_c8_
+
+; 248  :  /* Identity revalidation cannot renew the immutable original timestamps. */
+; 249  :  if(papacc_c8_target_process_provenance(s,b,&current)!=PAPACC_RESULT_OK)return PAPACC_C8_RESOURCE_UNKNOWN;
+
+	lea	r8, QWORD PTR current$[rsp]
+	mov	rdx, rsi
+	mov	rcx, rdi
+	call	papacc_c8_target_process_provenance
+	test	eax, eax
+	jne	SHORT $LN56@papacc_c8_
+
+; 250  :  if(memcmp(current.image_path,p->image_path,sizeof(p->image_path))||memcmp(current.mapped_path,p->mapped_path,sizeof(p->mapped_path)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	mov	r8d, 520				; 00000208H
+	lea	rdx, QWORD PTR [rbx+224]
+	lea	rcx, QWORD PTR current$[rsp+160]
+	call	memcmp
+	test	eax, eax
+	jne	SHORT $LN6@papacc_c8_
+	mov	r8d, 520				; 00000208H
+	lea	rdx, QWORD PTR [rbx+744]
+	lea	rcx, QWORD PTR current$[rsp+680]
+	call	memcmp
+	test	eax, eax
+	jne	SHORT $LN6@papacc_c8_
+
+; 251  :  if(papacc_pal_monotonic_time_ns(&finish)!=PAPACC_RESULT_OK)return PAPACC_C8_RESOURCE_UNKNOWN;
+
+	lea	rcx, QWORD PTR finish$[rsp]
+	call	papacc_pal_monotonic_time_ns
+	test	eax, eax
+	jne	SHORT $LN56@papacc_c8_
+
+; 252  :  finish/=1000000U;if(finish<v->verified_ms||finish>p->valid_until_ms)return PAPACC_C8_RESOURCE_STALE;
+
+	mov	rax, 4835703278458516699		; 431bde82d7b634dbH
+	mul	QWORD PTR finish$[rsp]
+	shr	rdx, 18
+	cmp	rdx, QWORD PTR [rbx+56]
+	jb	SHORT $LN13@papacc_c8_
+	cmp	rdx, QWORD PTR [rbx+120]
+	ja	SHORT $LN13@papacc_c8_
+$LN56@papacc_c8_:
+
+; 253  :  /* No admission, reservation, credit, numerical policy or recipe is created. */
+; 254  :  return PAPACC_C8_RESOURCE_UNKNOWN;
+; 255  : }
+
+	mov	eax, 1
+	jmp	SHORT $LN1@papacc_c8_
+$LN13@papacc_c8_:
+
+; 243  :  if(p->observed_ms!=s->evidence.sampled_ms||p->valid_until_ms!=s->evidence.expires_ms||p->validated_ms<p->observed_ms||
+; 244  :  p->validated_ms>p->valid_until_ms||v->verified_ms<p->validated_ms||v->verified_ms>p->valid_until_ms||now<v->verified_ms)return PAPACC_C8_RESOURCE_STALE;
+
+	mov	eax, 2
+	jmp	SHORT $LN1@papacc_c8_
+$LN6@papacc_c8_:
+
+; 229  :  PAPACC_C8_RESOURCE_REASON raw;const PAPACC_C8_PROCESS_PROVENANCE *p;PAPACC_C8_PROCESS_PROVENANCE current;PAPACC_U64 finish;unsigned i;
+; 230  :  if(!s||!b||!v||view_overlap(v,sizeof(*v),s,sizeof(*s))||view_overlap(v,sizeof(*v),b,sizeof(*b)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	mov	eax, 4
+$LN1@papacc_c8_:
+
+; 253  :  /* No admission, reservation, credit, numerical policy or recipe is created. */
+; 254  :  return PAPACC_C8_RESOURCE_UNKNOWN;
+; 255  : }
+
+	mov	rcx, QWORD PTR __$ArrayPad$[rsp]
+	xor	rcx, rsp
+	call	__security_check_cookie
+	mov	rbx, QWORD PTR [rsp+1336]
+	add	rsp, 1264				; 000004f0H
+	pop	r15
+	pop	r14
+	pop	rdi
+	pop	rsi
+	pop	rbp
+	ret	0
+papacc_c8_target_view_validate ENDP

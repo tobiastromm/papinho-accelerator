@@ -11,8 +11,10 @@ int main(void){
  memset(&c,0,sizeof(c));memset(&r,0,sizeof(r));memset(&b,0,sizeof(b));
  r.ctx=&reads;r.read=read_port;r.cas=cas_port;r.test_only=1;b.authorize=auth_port;b.utc=clock_port;
  if(papacc_issuer_init(&c,&r,&b)!=PAPACC_ISSUER_DENIED||reads)return 1;
+ if(papacc_issuer_init_normal(&c,&r,&b)!=PAPACC_ISSUER_DENIED||reads)return 5;
  r.test_only=0;b.test_only=1;if(papacc_issuer_init(&c,&r,&b)!=PAPACC_ISSUER_DENIED||reads)return 2;
+ if(papacc_issuer_init_normal(&c,&r,&b)!=PAPACC_ISSUER_DENIED||reads)return 6;
  if(papacc_issuer_init(&c,NULL,&b)!=PAPACC_ISSUER_UNSUPPORTED)return 3;
  b.test_only=0;if(papacc_issuer_init(&c,&r,&b)!=PAPACC_ISSUER_UNSUPPORTED||reads!=1)return 4;
- puts("PASS production_gate_checks=4; test_adapters_rejected_before_root_access; absent_live_root=UNSUPPORTED");return 0;
+ puts("PASS production_gate_checks=6; test_adapters_rejected_before_root_access_including_NORMAL; absent_live_root=UNSUPPORTED");return 0;
 }

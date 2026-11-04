@@ -1,0 +1,188 @@
+papacc_c3_bridge_provider_snapshot PROC			; COMDAT
+
+; 26   : {
+
+$LN57:
+	push	rsi
+	push	rdi
+	push	r14
+	push	r15
+	sub	rsp, 120				; 00000078H
+	mov	rax, QWORD PTR __security_cookie
+	xor	rax, rsp
+	mov	QWORD PTR __$ArrayPad$[rsp], rax
+	mov	rsi, r9
+	mov	r15, r8
+	mov	r14, rdx
+	mov	rdi, rcx
+
+; 27   :  PST_PROVIDER_INFO f;PST_RESULT rc;const pst_connection *connection;
+; 28   :  ULONG_PTR a=(ULONG_PTR)b,z=(ULONG_PTR)out;
+; 29   :  if(!b||!out)return PST_RESULT_INVALID_ARGUMENT;
+
+	test	rcx, rcx
+	je	$LN3@papacc_c3_
+	test	r9, r9
+	je	$LN3@papacc_c3_
+
+; 30   :  if((z>=a&&z-a<sizeof(*b))||(z<a&&a-z<sizeof(*out)))return PST_RESULT_INVALID_ARGUMENT;
+
+	cmp	r9, rcx
+	jb	SHORT $LN21@papacc_c3_
+	mov	rax, r9
+	sub	rax, rcx
+	cmp	rax, 132448				; 00020560H
+	jmp	SHORT $LN55@papacc_c3_
+$LN21@papacc_c3_:
+	mov	rax, rdi
+	sub	rax, rsi
+	cmp	rax, 60					; 0000003cH
+$LN55@papacc_c3_:
+
+; 23   : static int owner(const PAPACC_C3_BRIDGE*b){return b!=NULL&&b->initialized&&b->owner_thread==GetCurrentThreadId();}
+
+	jb	$LN3@papacc_c3_
+	cmp	DWORD PTR [rcx+132360], 0
+	mov	QWORD PTR [rsp+168], rbx
+	mov	QWORD PTR [rsp+112], rbp
+	je	$LN8@papacc_c3_
+	mov	ebx, DWORD PTR [rcx]
+	call	QWORD PTR __imp_GetCurrentThreadId
+	cmp	ebx, eax
+	jne	$LN8@papacc_c3_
+
+; 31   :  if(!owner(b)||b->revoked||b->retained||b->child_destroyed||!b->child_acquired||
+; 32   :     !operation||operation!=b->operation||generation!=b->generation||!b->processor.connection)
+
+	cmp	DWORD PTR [rdi+132400], 0
+	jne	$LN8@papacc_c3_
+	cmp	DWORD PTR [rdi+132404], 0
+	jne	$LN8@papacc_c3_
+	cmp	DWORD PTR [rdi+132388], 0
+	jne	$LN8@papacc_c3_
+	cmp	DWORD PTR [rdi+132220], 0
+	je	$LN8@papacc_c3_
+	test	r14, r14
+	je	$LN8@papacc_c3_
+	cmp	r14, QWORD PTR [rdi+8]
+	jne	$LN8@papacc_c3_
+	cmp	r15, QWORD PTR [rdi+16]
+	jne	$LN8@papacc_c3_
+	mov	rbp, QWORD PTR [rdi+160]
+	test	rbp, rbp
+	je	$LN8@papacc_c3_
+
+; 34   :  connection=b->processor.connection;memset(&f,0,sizeof(f));f.struct_size=sizeof(f);f.api_version=PST_API_VERSION;
+
+	xorps	xmm0, xmm0
+	mov	DWORD PTR f$[rsp+56], 0
+	xorps	xmm1, xmm1
+	mov	DWORD PTR f$[rsp], 60			; 0000003cH
+
+; 35   :  rc=pst_connection_get_provider_info(connection,&f);
+
+	lea	rdx, QWORD PTR f$[rsp]
+	mov	DWORD PTR f$[rsp+4], 196608		; 00030000H
+	mov	rcx, rbp
+	movdqu	XMMWORD PTR f$[rsp+8], xmm0
+	movdqu	XMMWORD PTR f$[rsp+24], xmm1
+	movdqu	XMMWORD PTR f$[rsp+40], xmm0
+	call	pst_connection_get_provider_info
+
+; 36   :  if(rc!=PST_RESULT_OK)return rc;
+
+	test	eax, eax
+	jne	$LN54@papacc_c3_
+
+; 23   : static int owner(const PAPACC_C3_BRIDGE*b){return b!=NULL&&b->initialized&&b->owner_thread==GetCurrentThreadId();}
+
+	cmp	DWORD PTR [rdi+132360], eax
+	je	$LN8@papacc_c3_
+	mov	ebx, DWORD PTR [rdi]
+	call	QWORD PTR __imp_GetCurrentThreadId
+	cmp	ebx, eax
+	jne	$LN8@papacc_c3_
+
+; 37   :  if(!owner(b)||b->revoked||b->retained||b->child_destroyed||!b->child_acquired||b->processor.connection!=connection||
+; 38   :     operation!=b->operation||generation!=b->generation||
+; 39   :     !memchr(f.provider_id,0,sizeof(f.provider_id))||strcmp(f.provider_id,"openssl")||
+; 40   :     f.available!=1U||f.initialized>1U)return PST_RESULT_INVALID_STATE;
+
+	cmp	DWORD PTR [rdi+132400], 0
+	jne	$LN8@papacc_c3_
+	cmp	DWORD PTR [rdi+132404], 0
+	jne	$LN8@papacc_c3_
+	cmp	DWORD PTR [rdi+132388], 0
+	jne	$LN8@papacc_c3_
+	cmp	DWORD PTR [rdi+132220], 0
+	je	$LN8@papacc_c3_
+	cmp	QWORD PTR [rdi+160], rbp
+	jne	$LN8@papacc_c3_
+	cmp	r14, QWORD PTR [rdi+8]
+	jne	$LN8@papacc_c3_
+	cmp	r15, QWORD PTR [rdi+16]
+	jne	$LN8@papacc_c3_
+	xor	edx, edx
+	lea	rcx, QWORD PTR f$[rsp+20]
+	mov	r8d, 32					; 00000020H
+	call	memchr
+	test	rax, rax
+	je	$LN8@papacc_c3_
+	xor	ecx, ecx
+	lea	rdx, QWORD PTR f$[rsp+20]
+	lea	r8, OFFSET FLAT:??_C@_07OHDAOILP@openssl@
+	npad	11
+$LL24@papacc_c3_:
+	movzx	eax, BYTE PTR [rdx+rcx]
+	inc	rcx
+	cmp	al, BYTE PTR [r8+rcx-1]
+	jne	SHORT $LN8@papacc_c3_
+	cmp	rcx, 8
+	jne	SHORT $LL24@papacc_c3_
+	cmp	DWORD PTR f$[rsp+8], 1
+	jne	SHORT $LN8@papacc_c3_
+	cmp	DWORD PTR f$[rsp+12], 1
+	ja	SHORT $LN8@papacc_c3_
+
+; 41   :  *out=f;return PST_RESULT_OK;
+
+	movups	xmm0, XMMWORD PTR f$[rsp]
+	xor	eax, eax
+	movups	xmm1, XMMWORD PTR f$[rsp+16]
+	movups	XMMWORD PTR [rsi], xmm0
+	movups	xmm0, XMMWORD PTR f$[rsp+32]
+	movups	XMMWORD PTR [rsi+16], xmm1
+	movups	xmm1, XMMWORD PTR f$[rsp+44]
+	movups	XMMWORD PTR [rsi+32], xmm0
+	movups	XMMWORD PTR [rsi+44], xmm1
+$LN54@papacc_c3_:
+	mov	rbx, QWORD PTR [rsp+168]
+	mov	rbp, QWORD PTR [rsp+112]
+$LN1@papacc_c3_:
+
+; 42   : }
+
+	mov	rcx, QWORD PTR __$ArrayPad$[rsp]
+	xor	rcx, rsp
+	call	__security_check_cookie
+	add	rsp, 120				; 00000078H
+	pop	r15
+	pop	r14
+	pop	rdi
+	pop	rsi
+	ret	0
+$LN8@papacc_c3_:
+
+; 33   :   return PST_RESULT_INVALID_STATE;
+
+	mov	eax, 2
+	jmp	SHORT $LN54@papacc_c3_
+$LN3@papacc_c3_:
+
+; 27   :  PST_PROVIDER_INFO f;PST_RESULT rc;const pst_connection *connection;
+; 28   :  ULONG_PTR a=(ULONG_PTR)b,z=(ULONG_PTR)out;
+; 29   :  if(!b||!out)return PST_RESULT_INVALID_ARGUMENT;
+
+	mov	eax, 1
+	jmp	SHORT $LN1@papacc_c3_
+papacc_c3_bridge_provider_snapshot ENDP

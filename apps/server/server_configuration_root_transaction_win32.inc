@@ -477,49 +477,191 @@ static PAPACC_ISSUER_RESULT issuer_root_port_read(void *ctx,const PAPACC_U8 id[1
 {
  PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=ctx;PAPACC_U8 image[8192];PAPACC_ISSUER_RESULT r;
  if(!id||!v||!record||!found)return PAPACC_ISSUER_INVALID;memset(v,0,sizeof(*v));memset(record,0,sizeof(*record));*found=0;
- if(!root_dormant_owned(o)||!o->configuration_preparation.normative_committed||!o->configuration_preparation.administrative_published)return PAPACC_ISSUER_DENIED;
+ if((!root_dormant_owned(o)&&!issuer_root_live_ready(o))||!o->configuration_preparation.normative_committed||!o->configuration_preparation.administrative_published)return PAPACC_ISSUER_DENIED;
+ if(o->issuer_projection_validated||o->configuration_commit.pending_commit.active||o->configuration_commit.committed_pending)return PAPACC_ISSUER_PENDING;
+ if(o->issuer_port_pending.active==2U)return PAPACC_ISSUER_UNCERTAIN;
+ if(o->issuer_port_pending.active==1U)return PAPACC_ISSUER_PENDING;
  if(papacc_configuration_issuer_copy06(&o->configuration_commit,image)!=PAPACC_RESULT_OK)return PAPACC_ISSUER_UNSUPPORTED;
  r=papacc_issuer_image_validate(image,v,papacc_configuration_issuer_hash06,&o->configuration_commit);if(r)return r;
  r=papacc_issuer_image_find(image,id,record,papacc_configuration_issuer_hash06,&o->configuration_commit);
  if(r==PAPACC_ISSUER_OK)*found=1;else if(r!=PAPACC_ISSUER_ABSENT)return r;
- /* No key/freshness/prefix-history/CURRENT proof exists yet. Leaving epoch
-  * and proofs absent is deliberate: core init denies, no implicit authority. */
+ /* P is factual only under the existing live root guards; never substitute
+  * A or a revision. Missing key/history/exclusivity proof still denies init. */
+ if(issuer_root_live_ready(o)){v->epoch=o->configuration_preparation.current_policy_epoch;v->administrative_epoch=o->configuration_commit.slots[o->configuration_commit.current].context_epoch;v->continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;}
  return PAPACC_ISSUER_OK;
+}
+static int issuer_port_same_record(const PAPACC_ISSUER_RECORD *a,const PAPACC_ISSUER_RECORD *b)
+{
+ return !memcmp(a->request.id,b->request.id,16)&&!memcmp(a->request.device,b->request.device,16)&&
+  !memcmp(a->request.csr_digest,b->request.csr_digest,32)&&!memcmp(a->request.key_digest,b->request.key_digest,32)&&
+  !memcmp(a->request.predecessor,b->request.predecessor,16)&&a->request.purpose==b->request.purpose&&
+  a->request.not_before==b->request.not_before&&a->request.not_after==b->request.not_after&&
+  a->state==b->state&&a->counter==b->counter&&a->approved_epoch==b->approved_epoch&&a->published_epoch==b->published_epoch&&
+  a->certificate_size==b->certificate_size&&!memcmp(a->authority,b->authority,16)&&!memcmp(a->generation,b->generation,16)&&
+  !memcmp(a->policy,b->policy,32)&&!memcmp(a->serial,b->serial,16)&&!memcmp(a->certificate_digest,b->certificate_digest,32);
+}
+static int issuer_port_same_view(const PAPACC_ISSUER_VIEW *a,const PAPACC_ISSUER_VIEW *b)
+{
+ return a->revision==b->revision&&a->epoch==b->epoch&&a->administrative_epoch==b->administrative_epoch&&a->high_water==b->high_water&&a->ca_not_after==b->ca_not_after&&
+  a->proofs==b->proofs&&a->continuity_profile==b->continuity_profile&&!memcmp(a->root,b->root,32)&&
+  !memcmp(a->authority,b->authority,16)&&!memcmp(a->generation,b->generation,16)&&!memcmp(a->prefix,b->prefix,8)&&
+  !memcmp(a->policy,b->policy,32)&&!memcmp(a->ca_spki_digest,b->ca_spki_digest,32);
+}
+#include "server_issuer_publication_v2_win32.inc"
+/* Synchronous, lock-held observation of the selected immutable issuer image.
+ * Unlike image_credential DATA, this boundary checks the existing root CURRENT.
+ * It grants no issuer proof, CA lease, recovery or publication authority. */
+static PAPACC_ISSUER_RESULT issuer_root_credential_status(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_U8 digest[32],PAPACC_ISSUER_RECORD *record)
+{
+ PAPACC_CONFIGURATION_COMMIT *c;PAPACC_CONFIG_SLOT *slot;const PAPACC_U8 *image;
+ PAPACC_ISSUER_RESULT result=PAPACC_ISSUER_DENIED;
+ if(!preparation_owned(o)||!digest||!record)return result;c=&o->configuration_commit;
+ if(!c->initialized)return result;EnterCriticalSection(&c->lock);slot=&c->slots[c->current];
+ if(!c->published||c->stopped||c->unresolved||c->authority_lost||c->recovery_selected||c->prepared||c->committed_pending||c->pending_commit.active||
+  o->issuer_port_pending.active||o->issuer_projection_validated||c->store02!=6||
+  !o->configuration_preparation.normative_committed||!o->configuration_preparation.administrative_published||
+  !slot->context_epoch||!slot->operational_epoch||slot->operational_epoch!=o->configuration_preparation.current_policy_epoch||
+  slot->view.revision!=o->configuration_preparation.model.revision||!c->issuer_snapshot_valid[c->current]||
+  slot->issuer_revision!=slot->view.revision||memcmp(c->domain,o->configuration_preparation.model.domain,32)||
+  configuration_c2_owner.configuration.state!=PAPACC_C2_CONFIG_CURRENT||configuration_c2_owner.configuration.epoch!=slot->operational_epoch||
+  papacc_server_c2_configuration_authority_current(&configuration_c2_owner)!=PAPACC_RESULT_OK||
+  !root_policy_model_valid(o)||!root_policy_inputs_valid(&o->configuration_preparation)||
+  !papacc_configuration_issuer_projection06(&o->config,&slot->view.config))goto done;
+ /* This exact snapshot was validated before the native commit and copied
+  * from its confirmed packet. No BCrypt or native observer on dispatch. */
+ image=c->issuer_snapshots[c->current];
+ if(memcmp(image+32,c->domain,32)||memcmp(image+104,o->config.policy.identity,32)){result=PAPACC_ISSUER_UNCERTAIN;goto done;}
+ if(!memcmp(image,"PACIS602",8)&&
+  (c->committed_bytes!=16896U||memcmp(c->committed+16384,"PACICP02",8)||
+   publication_u64(c->committed+16384+48)!=slot->view.revision||publication_u64(c->committed+16384+64)!=slot->context_epoch||
+   publication_u64(c->committed+16384+72)!=slot->operational_epoch||memcmp(c->committed+8192,image,8192)))goto done;
+ result=papacc_issuer_credential_snapshot_data(image,digest,record);
+done:LeaveCriticalSection(&c->lock);return result;
+}
+static PAPACC_ISSUER_RESULT issuer_root_port_poll(void *ctx,const PAPACC_ISSUER_VIEW *expected,const PAPACC_ISSUER_RECORD *next,int stopped)
+{
+ PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=ctx;PAPACC_ISSUER_PENDING_STORE *p;
+ PAPACC_CONFIGURATION_COMMIT *c;PAPACC_ISSUER_CAS_RESULT outcome;PAPACC_RESULT result;
+ PAPACC_U8 image[PAPACC_ISSUER_IMAGE_BYTES];PAPACC_ISSUER_VIEW actual;PAPACC_ISSUER_RECORD record;
+ if(!preparation_owned(o)||!expected||!next)return PAPACC_ISSUER_DENIED;
+ p=&o->issuer_port_pending;c=&o->configuration_commit;
+ if(p->active==2U)return PAPACC_ISSUER_RETAINED;
+ if(p->active!=1U)return PAPACC_ISSUER_INVALID;
+ /* A different caller cannot advance or discard the owned transaction. */
+ if(!issuer_port_same_view(expected,&p->before)||!issuer_port_same_record(next,&p->next))return PAPACC_ISSUER_CONFLICT;
+ if(p->continuation)return issuer_publication_poll_v2(o,stopped);
+ if(stopped)(void)papacc_configuration_stop(c); /* component Stop; never SCM */
+ result=papacc_server_launcher_configuration_issuer_publish_live(o,&outcome);
+ if(c->pending_commit.active)return PAPACC_ISSUER_PENDING;
+ if(result!=PAPACC_RESULT_OK||outcome!=PAPACC_CAS_SUCCESS){p->active=2U;c->authority_lost=1;return stopped?PAPACC_ISSUER_STOPPED:outcome==PAPACC_CAS_CONFLICT?PAPACC_ISSUER_CONFLICT:PAPACC_ISSUER_UNCERTAIN;}
+ /* Commit alone is not success. Check the root-selected A, preserved P,
+  * exact native worker packet and current slot before acknowledging CAS. */
+ if(!issuer_root_live_ready(o)||o->issuer_projection_validated||c->committed_pending||c->prepared||c->unresolved||c->authority_lost||
+  c->slots[c->current].view.revision!=p->before.revision+1U||!c->slots[c->current].context_epoch||
+  c->slots[c->current].context_epoch==o->issuer_port_previous_administrative_epoch||
+  c->slots[c->current].operational_epoch!=p->before.epoch||c->slots[c->current].issuer_revision!=p->before.revision+1U||
+  !c->issuer_snapshot_valid[c->current]||c->pending_commit.next_bytes!=16384U||
+  memcmp(c->committed,c->pending_commit.next,16384U)||
+  papacc_configuration_issuer_copy06(c,image)!=PAPACC_RESULT_OK||memcmp(image,c->issuer_snapshots[c->current],sizeof(image))||
+  papacc_issuer_image_validate(image,&actual,papacc_configuration_issuer_hash06,c)!=PAPACC_ISSUER_OK||
+  actual.revision!=p->before.revision+1U||actual.high_water!=p->high||
+  papacc_issuer_image_find(image,p->next.request.id,&record,papacc_configuration_issuer_hash06,c)!=PAPACC_ISSUER_OK||
+  !issuer_port_same_record(&record,&p->next)){p->active=2U;c->authority_lost=1;return PAPACC_ISSUER_UNCERTAIN;}
+ p->active=0;return PAPACC_ISSUER_OK;
 }
 static PAPACC_ISSUER_RESULT issuer_root_port_cas(void *ctx,const PAPACC_ISSUER_VIEW *expected,const PAPACC_ISSUER_RECORD *old,const PAPACC_ISSUER_RECORD *next,PAPACC_U64 high,const PAPACC_U8 *der,PAPACC_SIZE size,int publish)
 {
- PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=ctx;PAPACC_U8 image[8192];PAPACC_ISSUER_VIEW actual;PAPACC_ISSUER_RECORD prior;PAPACC_ISSUER_RESULT r;PAPACC_RESULT result;
- if(publish)return PAPACC_ISSUER_UNSUPPORTED;
- if(!expected||!next||!issuer_root_dormant_ready(o)||expected->epoch!=o->configuration_preparation.current_policy_epoch||next->approved_epoch!=expected->epoch)return PAPACC_ISSUER_DENIED;
+ PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=ctx;PAPACC_U8 image[8192];PAPACC_ISSUER_VIEW actual;PAPACC_ISSUER_RECORD prior;PAPACC_ISSUER_RESULT r;PAPACC_RESULT result;PAPACC_ISSUER_CAS_RESULT outcome;
+
+ if(!expected||!next||!preparation_owned(o))return PAPACC_ISSUER_DENIED;
+ if(o->issuer_port_pending.active)return o->issuer_port_pending.active==1U?PAPACC_ISSUER_BUSY:PAPACC_ISSUER_RETAINED;
+ if(!issuer_root_live_ready(o)||expected->epoch!=o->configuration_preparation.current_policy_epoch||next->approved_epoch!=expected->epoch)return PAPACC_ISSUER_DENIED;
  if(papacc_configuration_issuer_copy06(&o->configuration_commit,image)!=0)return PAPACC_ISSUER_UNSUPPORTED;
  r=papacc_issuer_image_validate(image,&actual,papacc_configuration_issuer_hash06,&o->configuration_commit);if(r)return r;
- if(actual.revision!=expected->revision||actual.high_water!=expected->high_water||memcmp(actual.root,expected->root,32)||memcmp(actual.authority,expected->authority,16)||memcmp(actual.generation,expected->generation,16))return PAPACC_ISSUER_CONFLICT;
+ if(publish&&memcmp(image,"PACIS602",8))return PAPACC_ISSUER_UNSUPPORTED;
+ actual.epoch=o->configuration_preparation.current_policy_epoch;actual.administrative_epoch=o->configuration_commit.slots[o->configuration_commit.current].context_epoch;actual.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;
+ if(!issuer_port_same_view(&actual,expected))return PAPACC_ISSUER_CONFLICT;
  r=papacc_issuer_image_find(image,next->request.id,&prior,papacc_configuration_issuer_hash06,&o->configuration_commit);
- if((old&&(r!=0||prior.state!=old->state||prior.counter!=old->counter||memcmp(old->request.id,next->request.id,16)))||(!old&&r!=PAPACC_ISSUER_ABSENT))return PAPACC_ISSUER_CONFLICT;
- r=papacc_issuer_image_append(image,next,der,size,papacc_configuration_issuer_hash06,&o->configuration_commit);if(r)return r;
+ if((old&&(r!=0||!issuer_port_same_record(&prior,old)||memcmp(old->request.id,next->request.id,16)))||(!old&&r!=PAPACC_ISSUER_ABSENT))return PAPACC_ISSUER_CONFLICT;
+ if(publish){PAPACC_U8 correlation[32];
+  if(size||high!=expected->high_water||!old||old->state!=PAPACC_ISSUER_ISSUED_UNPUBLISHED||next->state!=PAPACC_ISSUER_PUBLISHED||next->published_epoch)return PAPACC_ISSUER_CONFLICT;
+  /* Same original current image/request and authorized core invocation. The
+   * correlation is an identifier, never proof of administrative permission. */
+  if(!papacc_configuration_issuer_hash06(&o->configuration_commit,image,sizeof(image),correlation))return PAPACC_ISSUER_UNCERTAIN;
+  r=papacc_issuer_image_intent(image,next,correlation,expected->epoch,papacc_configuration_issuer_hash06,&o->configuration_commit);
+ }else r=papacc_issuer_image_append(image,next,der,size,papacc_configuration_issuer_hash06,&o->configuration_commit);if(r)return r;
  r=papacc_issuer_image_validate(image,&actual,papacc_configuration_issuer_hash06,&o->configuration_commit);if(r)return r;
  if(actual.high_water!=high)return PAPACC_ISSUER_CONFLICT;
- result=papacc_server_launcher_configuration_issuer_prepare_dormant(o,image,expected->revision,expected->high_water);
- if(result!=PAPACC_RESULT_OK)return PAPACC_ISSUER_DENIED;
- result=papacc_server_launcher_configuration_issuer_commit_dormant(o);(void)result;
- /* A commit alone cannot acknowledge the full COMMIT/CURRENT/EPOCH port.
-  * Never return OK to the signer while normative publication is absent. */
- return PAPACC_ISSUER_UNCERTAIN;
+ result=papacc_server_launcher_configuration_issuer_prepare_live(o,image,&o->config,expected->revision,expected->high_water);
+ if(result!=PAPACC_RESULT_OK)return result==PAPACC_RESULT_LIMIT_EXCEEDED?PAPACC_ISSUER_LIMIT:PAPACC_ISSUER_DENIED;
+ memset(&o->issuer_port_pending,0,sizeof(o->issuer_port_pending));
+ o->issuer_port_pending.before=*expected;o->issuer_port_pending.next=*next;o->issuer_port_pending.high=high;o->issuer_port_pending.active=1U;
+ o->issuer_port_pending.publish=publish?1U:0U;o->issuer_port_pending.continuation=!memcmp(image,"PACIS602",8)?1U:0U;
+ memset(&o->issuer_port_publication,0,sizeof(o->issuer_port_publication));
+ o->issuer_port_previous_administrative_epoch=o->configuration_commit.slots[o->configuration_commit.current].context_epoch;
+ /* The native staged image has copied DER; core retains its lease/output
+  * until this correlation is terminal. Begin once, no waits on owner turns. */
+ result=papacc_server_launcher_configuration_issuer_publish_live(o,&outcome);
+ if(result==PAPACC_RESULT_OK&&outcome==PAPACC_COMMIT_PENDING)return PAPACC_ISSUER_PENDING;
+ o->issuer_port_pending.active=2U;o->configuration_commit.authority_lost=1;return PAPACC_ISSUER_UNCERTAIN;
 }
 static PAPACC_ISSUER_RESULT issuer_root_port_certificate(void *ctx,const PAPACC_U8 id[16],const PAPACC_U8 digest[32],PAPACC_U8 *out,PAPACC_SIZE capacity,PAPACC_SIZE *size)
 {
  PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o=ctx;PAPACC_U8 image[8192];PAPACC_ISSUER_RECORD r;PAPACC_ISSUER_RESULT result;
- if(!id||!digest||!out||!size||!root_dormant_owned(o))return PAPACC_ISSUER_DENIED;
+ if(!id||!digest||!out||!size||(!root_dormant_owned(o)&&!issuer_root_live_ready(o)))return PAPACC_ISSUER_DENIED;
+ if(o->issuer_projection_validated||o->issuer_port_pending.active||o->configuration_commit.committed_pending)return PAPACC_ISSUER_DENIED;
  if(papacc_configuration_issuer_copy06(&o->configuration_commit,image)!=0)return PAPACC_ISSUER_UNSUPPORTED;
  result=papacc_issuer_image_find(image,id,&r,papacc_configuration_issuer_hash06,&o->configuration_commit);if(result)return result;
  if(memcmp(digest,r.certificate_digest,32))return PAPACC_ISSUER_CONFLICT;
  return papacc_issuer_image_certificate(image,id,out,capacity,size,papacc_configuration_issuer_hash06,&o->configuration_commit);
 }
+static PAPACC_ISSUER_RESULT issuer_root_port_revoke(void *ctx,const PAPACC_ISSUER_VIEW *view,const PAPACC_ISSUER_RECORD *record)
+{return papacc_server_launcher_credential_revoke((PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *)ctx,view,record);}
 PAPACC_RESULT papacc_server_launcher_configuration_issuer_port(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_ISSUER_ROOT_PORT *port)
 {
- if(!port)return PAPACC_RESULT_INVALID_ARGUMENT;memset(port,0,sizeof(*port));if(!root_dormant_owned(o))return PAPACC_RESULT_INVALID_STATE;
- port->ctx=o;port->read=issuer_root_port_read;port->cas=issuer_root_port_cas;port->copy_certificate=issuer_root_port_certificate;return PAPACC_RESULT_OK;
+ if(!port)return PAPACC_RESULT_INVALID_ARGUMENT;memset(port,0,sizeof(*port));if(!root_dormant_owned(o)&&!issuer_root_live_ready(o))return PAPACC_RESULT_INVALID_STATE;
+ port->ctx=o;port->read=issuer_root_port_read;port->cas=issuer_root_port_cas;port->poll=issuer_root_port_poll;port->copy_certificate=issuer_root_port_certificate;port->revoke_dependents=issuer_root_port_revoke;port->confirm_publication=issuer_publication_confirm_v2;return PAPACC_RESULT_OK;
 }
+#ifdef PAPACC_OFFLINE_D3_WORKER
+#include "server_issuer_x509_win32.h"
+SECURITY_STATUS papacc_server_launcher_configuration_ca_initialize(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_CA_KEY *ca,const PAPACC_U8 a[16],const PAPACC_U8 g[16],const PAPACC_U8 *service,DWORD bytes)
+{
+ if(o!=&root||GetCurrentThreadId()!=o->owner_thread||InterlockedCompareExchange(&state,0,0)!=PAPACC_LAUNCHER_ACTIVE||
+  o->network.is_active||o->io_loop.initialized||o->secure_io.initialized)return NTE_BAD_KEY_STATE;
+ /* The caller cannot choose another attempt or turn a quota argument into
+  * permission. Native policy/identity/plan/admission gates are rechecked below. */
+ return papacc_configuration_personal_ca_initialize(&o->configuration_commit,ca,o->configuration_commit.pending_commit.personal_data.attempt,a,g,service,bytes,o->reserved_bytes);
+}
+PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_existing_ca_bind(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_ISSUER_CNG_BACKEND *b)
+{
+ if(!preparation_owned(o)||!issuer_root_live_ready(o)||!b||!b->initialized||b->thread!=GetCurrentThreadId()||
+  b->custody||b->source_kind||b->original_source_root||b->root.test_only||b->ports.test_only||
+  b->root.ctx!=o||b->root.read!=issuer_root_port_read||b->root.cas!=issuer_root_port_cas||b->root.poll!=issuer_root_port_poll||
+  b->root.copy_certificate!=issuer_root_port_certificate||b->root.confirm_publication!=issuer_publication_confirm_v2||b->root.revoke_dependents!=issuer_root_port_revoke)
+  return PAPACC_ISSUER_DENIED;
+ return papacc_configuration_existing_ca_bind(&o->configuration_commit,b);
+}
+PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_normal_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_ISSUER_CNG_BACKEND *b)
+{
+ if(!preparation_owned(o)||!issuer_root_live_ready(o)||!b||!b->initialized||b->thread!=GetCurrentThreadId()||
+  b->original_source_root!=&o->configuration_commit||!b->custody||b->root.test_only||b->ports.test_only||
+  b->root.ctx!=o||b->root.read!=issuer_root_port_read||b->root.cas!=issuer_root_port_cas||b->root.poll!=issuer_root_port_poll||
+  b->root.copy_certificate!=issuer_root_port_certificate||b->root.confirm_publication!=issuer_publication_confirm_v2||b->root.revoke_dependents!=issuer_root_port_revoke)
+  return PAPACC_ISSUER_DENIED;
+ /* Original descriptor is latched by the source, never caller-selected
+  * attempt/root/epoch. Actual read still denies without NORMAL facts. */
+ if(b->source_kind==PAPACC_CA_SOURCE_NEW_INSTALL)return papacc_configuration_personal_ca_activate_normal(&o->configuration_commit,b,b->original_attempt,b->original_authority,b->original_generation);
+ if(b->source_kind==PAPACC_CA_SOURCE_EXISTING_CURRENT)return papacc_configuration_existing_ca_activate_normal(&o->configuration_commit,b);
+ return PAPACC_ISSUER_DENIED;
+}
+#else
+SECURITY_STATUS papacc_server_launcher_configuration_ca_initialize(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_CA_KEY *ca,const PAPACC_U8 a[16],const PAPACC_U8 g[16],const PAPACC_U8 *service,DWORD bytes)
+{(void)o;(void)ca;(void)a;(void)g;(void)service;(void)bytes;return NTE_NOT_SUPPORTED;}
+PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_normal_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,struct PAPACC_ISSUER_CNG_BACKEND *b)
+{(void)o;(void)b;return PAPACC_ISSUER_UNSUPPORTED;}
+PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_existing_ca_bind(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,struct PAPACC_ISSUER_CNG_BACKEND *b)
+{(void)o;(void)b;return PAPACC_ISSUER_UNSUPPORTED;}
+#endif
 #if defined(PAPACC_ED11_WINDOWS_3MIB) && defined(PAPACC_OFFLINE_D3_WORKER)
 PAPACC_RESULT papacc_server_launcher_configuration_v3_update_hold(
  PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_U8 *candidate,PAPACC_SIZE bytes,PAPACC_SIZE reserved)

@@ -5,6 +5,9 @@
  * Public issuer signing is deliberately unavailable without root reservation. */
 #include <windows.h>
 #include <ncrypt.h>
+#include "personal_scm_registration_win32.h"
+/* Accepted fixture R0-R4 only; no READ/P1/generic CA fallback. */
+#define PAPACC_CA_FIXTURE_GROWTH_BYTES 16777216ULL
 typedef enum PAPACC_CA_KEY_STATE {
  PAPACC_CA_KEY_EMPTY=0,PAPACC_CA_KEY_READY,PAPACC_CA_KEY_RETAINED,PAPACC_CA_KEY_CLOSED
 } PAPACC_CA_KEY_STATE;
@@ -35,6 +38,12 @@ typedef struct PAPACC_CA_FAILURE {
  /* ownership: 0 no native handles;1 owned handles;2 retained;3 closed.
   * finalization:0 not observed;1 attempted/unconfirmed;2 returned SUCCESS. */
 } PAPACC_CA_FAILURE;
+/* Independent K1 preparation admission under T0/F0/R0. Not K7 READ and not
+ * operational assurance: caller still needs its original attributed act. */
+typedef struct PAPACC_CA_FIXTURE_BUDGET {
+ const struct PAPACC_CA_FIXTURE_BUDGET *self;DWORD thread,active,first;
+ ULONGLONG until;PAPACC_SCM_RESOURCE_OBSERVATION observation;
+} PAPACC_CA_FIXTURE_BUDGET;
 typedef struct PAPACC_CA_KEY {
  NCRYPT_PROV_HANDLE provider;
  NCRYPT_KEY_HANDLE key;
@@ -49,6 +58,13 @@ typedef struct PAPACC_CA_KEY {
  int created,close_attempted,close_confirmed;
  DWORD diagnostic_finalization;
  PAPACC_CA_FAILURE first_failure;
+ volatile LONG *diagnostic_stop; /* same owner lifetime, never IPC */
+ unsigned diagnostic_control_attempted,diagnostic_control_confirmed;
+ unsigned diagnostic_only; /* K1 TEST_ONLY: never a productive issuer borrow */
+ unsigned first_preparation; /* 1 FCA create, 2 FCR read-only; never a productive borrow */
+ PAPACC_CA_FIXTURE_BUDGET diagnostic_budget;
+ const struct PAPACC_SCQ_SESSION_DRIVER *read_session;const struct PAPACC_SCQ_READ_DIAGNOSTIC *read_act;const void *read_owner;
+ NCRYPT_KEY_HANDLE diagnostic_reopen; /* owned until factual close, including failure */
  const void *borrower; /* one factual private lease, not authority or a key copy */
 } PAPACC_CA_KEY;
 /* Explicit operation only: no overwrite, fallback, deletion or regeneration.
@@ -60,4 +76,26 @@ SECURITY_STATUS papacc_ca_key_validate(PAPACC_CA_KEY *);
 SECURITY_STATUS papacc_ca_key_close(PAPACC_CA_KEY *);
 SECURITY_STATUS papacc_ca_key_borrow(PAPACC_CA_KEY *,const void *);
 SECURITY_STATUS papacc_ca_key_return(PAPACC_CA_KEY *,const void *);
+/* Same serialized owner; transfers an existing borrow without an unheld gap.
+ * This is lifetime only, never proof of source, custody authority or key ID. */
+SECURITY_STATUS papacc_ca_key_transfer_borrow(PAPACC_CA_KEY *,const void *,const void *);
+/* K1-K2: same owner primitives; caller still needs an independent original
+ * fixture act and fresh resource gates. No CA/cert/sign/publication operation. */
+void papacc_ca_key_name_data(wchar_t [96],const BYTE [16],const BYTE [16]); /* bounded DATA formatter; caller validates inputs */
+DWORD papacc_ca_key_fixture_budget_check(PAPACC_CA_KEY *,volatile LONG *); /* necessary gates, not authority */
+DWORD papacc_ca_key_fixture_budget_begin(PAPACC_CA_KEY *); /* read-only, no authority */
+SECURITY_STATUS papacc_ca_key_fixture_create(PAPACC_CA_KEY *,const BYTE[16],const BYTE[16],PSID,PSID,volatile LONG *);
+DWORD papacc_ca_key_machine_read_bind(PAPACC_CA_KEY *,const struct PAPACC_SCQ_SESSION_DRIVER *,const struct PAPACC_SCQ_READ_DIAGNOSTIC *,const void *,volatile LONG *);
+SECURITY_STATUS papacc_ca_key_fixture_read_open(PAPACC_CA_KEY *,const BYTE[16],const BYTE[16],PSID,PSID);
+SECURITY_STATUS papacc_ca_key_fixture_control(PAPACC_CA_KEY *,BYTE *,DWORD,DWORD *);
+/* FCA0-FCA7: necessary resource gates only, never original F0 authority.
+ * Uses the same owner/sampler storage; never the fixture growth policy. */
+DWORD papacc_ca_key_first_budget_begin(PAPACC_CA_KEY *,volatile LONG *);
+/* Explicit FCR purpose; necessary budget/readonly properties, not authority. */
+DWORD papacc_ca_key_prepared_budget_begin(PAPACC_CA_KEY *,volatile LONG *);
+SECURITY_STATUS papacc_ca_key_prepared_read_open(PAPACC_CA_KEY *,const BYTE[16],const BYTE[16],PSID,PSID);
+SECURITY_STATUS papacc_ca_key_prepared_public(PAPACC_CA_KEY *,BYTE *,DWORD,DWORD *);
+DWORD papacc_ca_key_first_budget_check(PAPACC_CA_KEY *,volatile LONG *);
+DWORD papacc_ca_key_first_budget_postcheck(PAPACC_CA_KEY *,volatile LONG *);
+DWORD papacc_ca_key_first_budget_arm(PAPACC_CA_KEY *,volatile LONG *);
 #endif

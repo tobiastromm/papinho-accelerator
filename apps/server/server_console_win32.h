@@ -25,5 +25,10 @@ PAPACC_RESULT papacc_server_console_win32_uninstall(
 PAPACC_BOOL papacc_server_console_win32_stop_requested(void);
 void papacc_server_console_win32_request_stop(void);
 void papacc_server_console_win32_wait_for_stop(void);
+/* Synchronous ORIGINAL handle borrows for closed diagnostic progress. No
+ * handle ownership or authority transfer. Busy/error means retain, not close.
+ * A Stop callback can only signal the event during this bounded wait. */
+PAPACC_RESULT papacc_server_console_win32_wait_original(void *,void *,unsigned long,unsigned long *);
+#define PAPACC_CONSOLE_BRIDGE_STORAGE_BYTES (4U*sizeof(long)+sizeof(void *))
 
 #endif

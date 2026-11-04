@@ -1,0 +1,5 @@
+# Próxima decisão focal e disposição
+
+Apresentar duas decisões independentes: (1) proposta P1-ORIGINALS-RUNTIME-READ-SCOPE.CANDIDATE.md SHA256 d8d9f9b2a159393d777c6ec1ffdb68ab119f15d5b81e17fd39d69cb954dc07fc, L0–L6 somente offline após aprovação; (2) consulta manual ONE-SQF1-DETAIL21-PARTICIPANTS-READONLY-REQUEST.CANDIDATE.md SHA256 fbccca9a241d4875fb17e6397e082813441939267a0170b52dcf8657dc6eb1bf, qualificada bindings/compilação/AST sem RunFixed. Registrar decisões reais, não confundir norma com coleta ou disposition G5. Não executar automaticamente.
+
+Consulta identifica runtime atual correlacionado a controller11760/criação134381469493313573. Após saída, se retidos, preparar disposição específica G5 com identidades reais. Não inventar PID ou presumir SCM STOPPED. Após norma aceita, implementar somente novos documentos4ACEs e driver verificador exato, sem tocar históricos/ACL existentes; qualificar testes afetados. Espera-se nenhum EXE novo, mas verificar. Então preparar novos originais/E/Q/S em pedido byte-exato próprio. Sem retry/limpeza/Start automático/UPDATE desnecessário. UNKNOWN/PST0.6.4 preservados.

@@ -96,7 +96,7 @@ static int first_install_span(const char *value, size_t maximum)
 static int first_install_entry(int argc, const char *const *argv, FILE *err)
 {
     if (argc != 11 || strcmp(argv[3], "--declare") != 0 ||
-        strcmp(argv[4], "NEW_INSTALL") != 0 ||
+        (strcmp(argv[4], "NEW_INSTALL") != 0 && strcmp(argv[4], "NEW_INSTALL_CA_PREPARE") != 0 && strcmp(argv[4], "NEW_INSTALL_PARENT_PREPARE") != 0 && strcmp(argv[4], "PREPARED_INSTANCE_VALIDATE") != 0) ||
         strcmp(argv[5], "--source") != 0 ||
         strcmp(argv[7], "--parent") != 0 ||
         strcmp(argv[9], "--container") != 0 ||
@@ -107,6 +107,12 @@ static int first_install_entry(int argc, const char *const *argv, FILE *err)
         return 1;
     }
 #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_OFFLINE_D3_WORKER)
+    if(strcmp(argv[4],"PREPARED_INSTANCE_VALIDATE")==0)
+        return papacc_server_launcher_personal_prepared_validate(argv[6],argv[8],argv[10],err);
+    if(strcmp(argv[4],"NEW_INSTALL_PARENT_PREPARE")==0)
+        return papacc_server_launcher_personal_parent_prepare(argv[6],argv[8],argv[10],err);
+    if(strcmp(argv[4],"NEW_INSTALL_CA_PREPARE")==0)
+        return papacc_server_launcher_personal_first_prepare(argv[6],argv[8],argv[10],err);
     return papacc_server_launcher_personal_first_install(argv[6],argv[8],argv[10],err);
 #else
     /* P1/P2: intentional NEW installation, not UPDATE/restore or absence

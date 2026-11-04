@@ -1,0 +1,7 @@
+# Próximo trabalho técnico: conclusão local da IO final READ
+
+Executar READ-TERMINAL-DISPOSITION-AND-INTERLEAVING-REPORT.md, nova regressão emtests/scq_machine_read_chain_test.c e acceptedI0-I6/OHI/QUERY/SCQ. Disposição5824concluída/consumida, nenhuma sessão pode ser retomada. Defeito de sequenciamento reproduzido emmodelo, ainda NÃOcorrigido: runtime32confirmado/processosinalizado antes de controlador16observarcompletion, guardlive1067 antesdepolllocal.
+
+Avaliar menor continuaçãoexclusiva da IO16jáautorizada/retida: mesmoowner/thread/source/handle/processo-token-criação/endpoint/OVERLAPPED/frame/refs/provasdecloseoriginais; nenhumnovoefeito/authority. Comparar com cláusulas accepted antes de exceção, semdesabilitarguardglobal nempresumir tokensvivosfuturos. Se coberto, implementar e qualificar corpo real de wrapper+poll+apply e modelos intercalados, não somentehelpermock. Incluir peerativo/exit1168/0/inesperado/SCMdivergente, IOincomplete/truncada/erro/cancelamento, framesalterados, fonte/handle/identidadesubstituídos, Stop/deadline/replay/UNKNOWN e preservação deperfis/quotas. Se houver impedimentonormativo real, apontarcláusula e uma única decisãofocalindispensável.
+
+Semcoleta/UPDATE/KSP/EQSP/StartStop/kill/SCM-ACL/CA-CURRENT/rede/TPM-NV-Q4/cleanup/refund real. Não emitir UPDATEinstrumentalsóporhipótese. Preservarhistoricalclose/retention/quiescênciaUNKNOWN, produçãoDENY ePST0.6.4. Nãoencerrar apenascomdocumentação se correçãotécnica coberta puder serconcluída.

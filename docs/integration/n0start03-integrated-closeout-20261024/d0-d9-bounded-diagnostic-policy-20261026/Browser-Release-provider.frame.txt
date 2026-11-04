@@ -1,0 +1,260 @@
+_papinho_pst_owner_provider_snapshot PROC NEAR		; COMDAT
+
+; 175  :  unsigned long identity,unsigned long generation,PST_PROVIDER_INFO *out) {
+
+	sub	esp, 64					; 00000040H
+	push	ebp
+	push	esi
+
+; 176  :  PST_PROVIDER_INFO f;PST_RESULT rc;papinho_pst_owner_registry *r;const pst_connection *connection;
+; 177  :  size_t a=(size_t)o,z=(size_t)out,t;
+; 178  :  if(!o||!out||!o->registry)return PST_RESULT_INVALID_ARGUMENT;
+
+	mov	esi, DWORD PTR _o$[esp+68]
+	push	edi
+	test	esi, esi
+	je	$L19013
+	mov	eax, DWORD PTR _out$[esp+72]
+	test	eax, eax
+	je	$L19013
+	mov	edi, DWORD PTR [esi+4]
+	test	edi, edi
+	mov	DWORD PTR 8+[esp+72], edi
+	je	$L19013
+
+; 179  :  r=o->registry;t=(size_t)r;
+; 180  :  if((z>=a&&z-a<sizeof(*o))||(z<a&&a-z<sizeof(*out))||
+; 181  :     (z>=t&&z-t<sizeof(*r))||(z<t&&t-z<sizeof(*out)))return PST_RESULT_INVALID_ARGUMENT;
+
+	cmp	eax, esi
+	jb	SHORT $L19087
+	mov	ecx, eax
+	sub	ecx, esi
+	cmp	ecx, 148				; 00000094H
+	jb	$L19013
+	jmp	SHORT $L19015
+$L19087:
+	mov	edx, esi
+	sub	edx, eax
+	cmp	edx, 60					; 0000003cH
+	jb	$L19013
+$L19015:
+	cmp	eax, edi
+	jb	SHORT $L19088
+	sub	eax, edi
+	cmp	eax, 32					; 00000020H
+	jb	$L19013
+	jmp	SHORT $L19012
+$L19088:
+	mov	ecx, edi
+	sub	ecx, eax
+	cmp	ecx, 60					; 0000003cH
+	jb	$L19013
+$L19012:
+
+; 182  :  EnterCriticalSection(&r->lock);
+
+	push	edi
+	call	DWORD PTR __imp__EnterCriticalSection@4
+
+; 183  :  if(o->identity!=identity||o->generation!=generation||!identity||!generation||
+; 184  :     r->admission_closed||o->closing||o->finalized||o->terminal_retained||
+; 185  :     o->release_attempts||!o->connection||o->thread_id!=GetCurrentThreadId()) {
+
+	mov	eax, DWORD PTR _identity$[esp+72]
+	mov	ecx, DWORD PTR [esi+52]
+	cmp	ecx, eax
+	jne	$L19019
+	mov	ecx, DWORD PTR _generation$[esp+72]
+	mov	edx, DWORD PTR [esi+56]
+	cmp	edx, ecx
+	jne	$L19019
+	test	eax, eax
+	je	$L19019
+	test	ecx, ecx
+	je	$L19019
+	mov	eax, DWORD PTR [edi+28]
+	test	eax, eax
+	jne	$L19019
+	mov	eax, DWORD PTR [esi+64]
+	test	eax, eax
+	jne	$L19019
+	mov	eax, DWORD PTR [esi+68]
+	test	eax, eax
+	jne	$L19019
+	mov	eax, DWORD PTR [esi+72]
+	test	eax, eax
+	jne	$L19019
+	mov	eax, DWORD PTR [esi+84]
+	test	eax, eax
+	jne	$L19019
+	mov	eax, DWORD PTR [esi+8]
+	test	eax, eax
+	je	$L19019
+	mov	ebp, DWORD PTR __imp__GetCurrentThreadId@0
+	call	ebp
+	cmp	DWORD PTR [esi+48], eax
+	jne	$L19019
+	push	ebx
+
+; 187  :  }
+; 188  :  connection=o->connection;ZeroMemory(&f,sizeof(f));f.struct_size=sizeof(f);f.api_version=PST_API_VERSION;
+
+	mov	ebx, DWORD PTR [esi+8]
+
+; 189  :  rc=pst_connection_get_provider_info(connection,&f);
+
+	lea	edx, DWORD PTR _f$[esp+80]
+	mov	ecx, 15					; 0000000fH
+	xor	eax, eax
+	lea	edi, DWORD PTR _f$[esp+80]
+	push	edx
+	push	ebx
+	rep stosd
+	mov	DWORD PTR _f$[esp+88], 60		; 0000003cH
+	mov	DWORD PTR _f$[esp+92], 196608		; 00030000H
+	call	_pst_connection_get_provider_info
+	add	esp, 8
+	mov	DWORD PTR _rc$[esp+80], eax
+
+; 190  :  if(rc==PST_RESULT_OK&&(o->connection!=connection||o->closing||o->finalized||
+; 191  :     o->terminal_retained||o->release_attempts||o->thread_id!=GetCurrentThreadId()||
+; 192  :     o->registry!=r||r->admission_closed||o->identity!=identity||o->generation!=generation||
+; 193  :     !memchr(f.provider_id,0,sizeof(f.provider_id))||strcmp(f.provider_id,"retrozilla-nss")||
+; 194  :     f.available!=1U||f.initialized>1U))rc=PST_RESULT_INVALID_STATE;
+
+	test	eax, eax
+	jne	$L19027
+	cmp	DWORD PTR [esi+8], ebx
+	jne	$L19023
+	mov	eax, DWORD PTR [esi+64]
+	test	eax, eax
+	jne	$L19023
+	mov	eax, DWORD PTR [esi+68]
+	test	eax, eax
+	jne	$L19023
+	mov	eax, DWORD PTR [esi+72]
+	test	eax, eax
+	jne	$L19023
+	mov	eax, DWORD PTR [esi+84]
+	test	eax, eax
+	jne	$L19023
+	call	ebp
+	cmp	DWORD PTR [esi+48], eax
+	jne	$L19023
+	mov	eax, DWORD PTR 8+[esp+76]
+	mov	ecx, DWORD PTR [esi+4]
+	cmp	ecx, eax
+	jne	$L19023
+	mov	ecx, DWORD PTR [eax+28]
+	test	ecx, ecx
+	jne	SHORT $L19023
+	mov	eax, DWORD PTR _identity$[esp+76]
+	mov	ecx, DWORD PTR [esi+52]
+	cmp	ecx, eax
+	jne	SHORT $L19023
+	mov	ecx, DWORD PTR _generation$[esp+76]
+	mov	eax, DWORD PTR [esi+56]
+	cmp	eax, ecx
+	jne	SHORT $L19023
+	push	32					; 00000020H
+	lea	edx, DWORD PTR _f$[esp+104]
+	push	0
+	push	edx
+	call	DWORD PTR __imp__memchr
+	add	esp, 12					; 0000000cH
+	test	eax, eax
+	je	SHORT $L19023
+	mov	esi, OFFSET FLAT:??_C@_0P@JIHP@retrozilla?9nss?$AA@ ; `string'
+	lea	eax, DWORD PTR _f$[esp+100]
+$L19090:
+	mov	dl, BYTE PTR [eax]
+	mov	bl, BYTE PTR [esi]
+	mov	cl, dl
+	cmp	dl, bl
+	jne	SHORT $L19091
+	test	cl, cl
+	je	SHORT $L19092
+	mov	dl, BYTE PTR [eax+1]
+	mov	bl, BYTE PTR [esi+1]
+	mov	cl, dl
+	cmp	dl, bl
+	jne	SHORT $L19091
+	add	eax, 2
+	add	esi, 2
+	test	cl, cl
+	jne	SHORT $L19090
+$L19092:
+	xor	eax, eax
+	jmp	SHORT $L19093
+$L19091:
+	sbb	eax, eax
+	sbb	eax, -1
+$L19093:
+	test	eax, eax
+	jne	SHORT $L19023
+	mov	ecx, DWORD PTR _f$[esp+88]
+	mov	eax, 1
+	cmp	ecx, eax
+	jne	SHORT $L19023
+	cmp	DWORD PTR _f$[esp+92], eax
+	jbe	SHORT $L19089
+$L19023:
+	mov	DWORD PTR _rc$[esp+80], 2
+
+; 195  :  if(rc==PST_RESULT_OK)*out=f;
+
+	jmp	SHORT $L19027
+$L19089:
+	mov	edi, DWORD PTR _out$[esp+76]
+	mov	ecx, 15					; 0000000fH
+	lea	esi, DWORD PTR _f$[esp+80]
+	rep movsd
+$L19027:
+
+; 196  :  LeaveCriticalSection(&r->lock);return rc;
+
+	mov	eax, DWORD PTR 8+[esp+76]
+	push	eax
+	call	DWORD PTR __imp__LeaveCriticalSection@4
+	mov	eax, DWORD PTR _rc$[esp+80]
+	pop	ebx
+	pop	edi
+	pop	esi
+	pop	ebp
+
+; 197  : }
+
+	add	esp, 64					; 00000040H
+	ret	0
+$L19019:
+
+; 186  :   LeaveCriticalSection(&r->lock);return PST_RESULT_INVALID_STATE;
+
+	push	edi
+	call	DWORD PTR __imp__LeaveCriticalSection@4
+	pop	edi
+	pop	esi
+	mov	eax, 2
+	pop	ebp
+
+; 197  : }
+
+	add	esp, 64					; 00000040H
+	ret	0
+$L19013:
+	pop	edi
+	pop	esi
+
+; 176  :  PST_PROVIDER_INFO f;PST_RESULT rc;papinho_pst_owner_registry *r;const pst_connection *connection;
+; 177  :  size_t a=(size_t)o,z=(size_t)out,t;
+; 178  :  if(!o||!out||!o->registry)return PST_RESULT_INVALID_ARGUMENT;
+
+	mov	eax, 1
+	pop	ebp
+
+; 197  : }
+
+	add	esp, 64					; 00000040H
+	ret	0
+_papinho_pst_owner_provider_snapshot ENDP

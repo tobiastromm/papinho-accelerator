@@ -1,0 +1,24 @@
+{
+  "kind": "CUSTODIAN_DESIGNATION_DRAFT_NOT_APPROVAL",
+  "purpose": "Q4 TPM witness only under accepted W/L/L1/TC",
+  "candidate_custodian_sid": "S-1-5-21-785699550-1440458426-1682014700-1108",
+  "effective_designation": null,
+  "proposed_hierarchy_credential_source": {
+    "interface": "Windows TBS Tbsi_Get_OwnerAuth",
+    "type": 13,
+    "name": "STORAGE_20",
+    "source_controller": "Windows TPM authorization management; current presence indicated by owner metadata receipt",
+    "evidence": "148cfdb551038d62b9bd00ca2d88df205d30b44f2e9d52af8a6cc0f682248b65",
+    "scope": "metadata availability; no credential value or successful NV authorization proved"
+  },
+  "delivery_proposed": "separate specifically authorized same-root worker; verified original context/operator/token/Windows dependencies; bounded API buffer only in protected process memory; no argv/log/ENV/plaintext/secret-hash; zeroization/checked lifetime and UNKNOWN retention",
+  "hierarchy_secret_persistence": "no new copy/vault; use designated Windows source in memory only if entitled and specifically authorized",
+  "per_index_secret": "distinct future32bytes only after provisioning approval; protected same-root DPAPI CurrentUser backing per L1, original native FileID/RAW1 and purpose/generation bindings",
+  "required_fresh_operator_sid_elevation_and_process_guards": true,
+  "trusted_boundary": "CurrentUser/same-user/admin per TC; not application isolation",
+  "actual_delivery_and_validity": "NOT_DEMONSTRATED",
+  "revocation_of_access": "governed lease denial; no implicit TPM auth change or deletion",
+  "approval": null,
+  "secret_retrieval_authorized": false,
+  "NV_Q4_authority": "NONE"
+}

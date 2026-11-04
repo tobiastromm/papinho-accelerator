@@ -1,0 +1,158 @@
+papacc_c8_target_passive_copy PROC
+
+; 25   : {
+
+$LN14:
+	mov	QWORD PTR [rsp+24], r8
+	mov	QWORD PTR [rsp+16], rdx
+	mov	QWORD PTR [rsp+8], rcx
+	push	rsi
+	push	rdi
+	sub	rsp, 72					; 00000048H
+
+; 26   :  ULONG_PTR a=(ULONG_PTR)s,t=(ULONG_PTR)b,z=(ULONG_PTR)out;
+
+	mov	rax, QWORD PTR s$[rsp]
+	mov	QWORD PTR a$[rsp], rax
+	mov	rax, QWORD PTR b$[rsp]
+	mov	QWORD PTR t$[rsp], rax
+	mov	rax, QWORD PTR out$[rsp]
+	mov	QWORD PTR z$[rsp], rax
+
+; 27   :  if(!s||!b||!out)return PAPACC_RESULT_INVALID_ARGUMENT;
+
+	cmp	QWORD PTR s$[rsp], 0
+	je	SHORT $LN3@papacc_c8_
+	cmp	QWORD PTR b$[rsp], 0
+	je	SHORT $LN3@papacc_c8_
+	cmp	QWORD PTR out$[rsp], 0
+	jne	SHORT $LN2@papacc_c8_
+$LN3@papacc_c8_:
+	mov	eax, 1
+	jmp	$LN1@papacc_c8_
+$LN2@papacc_c8_:
+
+; 28   :  if((z>=a&&z-a<sizeof(*s))||(z<a&&a-z<sizeof(*out))||
+; 29   :     (z>=t&&z-t<sizeof(*b))||(z<t&&t-z<sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
+
+	mov	rax, QWORD PTR a$[rsp]
+	cmp	QWORD PTR z$[rsp], rax
+	jb	SHORT $LN6@papacc_c8_
+	mov	rax, QWORD PTR a$[rsp]
+	mov	rcx, QWORD PTR z$[rsp]
+	sub	rcx, rax
+	mov	rax, rcx
+	cmp	rax, 4512				; 000011a0H
+	jb	SHORT $LN5@papacc_c8_
+$LN6@papacc_c8_:
+	mov	rax, QWORD PTR a$[rsp]
+	cmp	QWORD PTR z$[rsp], rax
+	jae	SHORT $LN7@papacc_c8_
+	mov	rax, QWORD PTR z$[rsp]
+	mov	rcx, QWORD PTR a$[rsp]
+	sub	rcx, rax
+	mov	rax, rcx
+	cmp	rax, 4648				; 00001228H
+	jb	SHORT $LN5@papacc_c8_
+$LN7@papacc_c8_:
+	mov	rax, QWORD PTR t$[rsp]
+	cmp	QWORD PTR z$[rsp], rax
+	jb	SHORT $LN8@papacc_c8_
+	mov	rax, QWORD PTR t$[rsp]
+	mov	rcx, QWORD PTR z$[rsp]
+	sub	rcx, rax
+	mov	rax, rcx
+	cmp	rax, 112				; 00000070H
+	jb	SHORT $LN5@papacc_c8_
+$LN8@papacc_c8_:
+	mov	rax, QWORD PTR t$[rsp]
+	cmp	QWORD PTR z$[rsp], rax
+	jae	SHORT $LN4@papacc_c8_
+	mov	rax, QWORD PTR z$[rsp]
+	mov	rcx, QWORD PTR t$[rsp]
+	sub	rcx, rax
+	mov	rax, rcx
+	cmp	rax, 4648				; 00001228H
+	jae	SHORT $LN4@papacc_c8_
+$LN5@papacc_c8_:
+	mov	eax, 1
+	jmp	$LN1@papacc_c8_
+$LN4@papacc_c8_:
+
+; 30   :  /* Failed/overflow captures survive without querying released dependencies. */
+; 31   :  out->version=1U;out->bytes=(PAPACC_U32)sizeof(*out);out->policy=0U;
+
+	mov	rax, QWORD PTR out$[rsp]
+	mov	DWORD PTR [rax], 1
+	mov	rax, QWORD PTR out$[rsp]
+	mov	DWORD PTR [rax+4], 4648			; 00001228H
+	mov	rax, QWORD PTR out$[rsp]
+	mov	DWORD PTR [rax+8], 0
+
+; 32   :  out->capture_incomplete=(!s->status||!s->sequence||s->history_overflow||
+
+	mov	rax, QWORD PTR s$[rsp]
+	cmp	DWORD PTR [rax+500], 0
+	je	SHORT $LN10@papacc_c8_
+	mov	rax, QWORD PTR s$[rsp]
+	cmp	QWORD PTR [rax+448], 0
+	je	SHORT $LN10@papacc_c8_
+	mov	rax, QWORD PTR s$[rsp]
+	cmp	DWORD PTR [rax+532], 0
+	jne	SHORT $LN10@papacc_c8_
+	mov	rax, QWORD PTR s$[rsp]
+	cmp	DWORD PTR [rax+528], 8
+	ja	SHORT $LN10@papacc_c8_
+	mov	DWORD PTR tv91[rsp], 0
+	jmp	SHORT $LN11@papacc_c8_
+$LN10@papacc_c8_:
+	mov	DWORD PTR tv91[rsp], 1
+$LN11@papacc_c8_:
+	mov	rax, QWORD PTR out$[rsp]
+	mov	ecx, DWORD PTR tv91[rsp]
+	mov	DWORD PTR [rax+12], ecx
+
+; 33   :   s->history_count>PAPACC_C8_TARGET_HISTORY_CAPACITY)?1U:0U;
+; 34   :  out->capture_matches_current=binding_equal(&s->binding,b)?1U:0U;
+
+	mov	rax, QWORD PTR s$[rsp]
+	mov	rdx, QWORD PTR b$[rsp]
+	mov	rcx, rax
+	call	binding_equal
+	test	eax, eax
+	je	SHORT $LN12@papacc_c8_
+	mov	DWORD PTR tv130[rsp], 1
+	jmp	SHORT $LN13@papacc_c8_
+$LN12@papacc_c8_:
+	mov	DWORD PTR tv130[rsp], 0
+$LN13@papacc_c8_:
+	mov	rax, QWORD PTR out$[rsp]
+	mov	ecx, DWORD PTR tv130[rsp]
+	mov	DWORD PTR [rax+16], ecx
+
+; 35   :  out->current_binding=*b;out->original=*s;
+
+	mov	rax, QWORD PTR out$[rsp]
+	lea	rdi, QWORD PTR [rax+24]
+	mov	rsi, QWORD PTR b$[rsp]
+	mov	ecx, 112				; 00000070H
+	rep movsb
+	mov	rax, QWORD PTR out$[rsp]
+	add	rax, 136				; 00000088H
+	mov	rdi, rax
+	mov	rsi, QWORD PTR s$[rsp]
+	mov	ecx, 4512				; 000011a0H
+	rep movsb
+
+; 36   :  return PAPACC_RESULT_OK;
+
+	xor	eax, eax
+$LN1@papacc_c8_:
+
+; 37   : }
+
+	add	rsp, 72					; 00000048H
+	pop	rdi
+	pop	rsi
+	ret	0
+papacc_c8_target_passive_copy ENDP

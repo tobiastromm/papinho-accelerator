@@ -35,6 +35,14 @@ typedef struct PAPACC_C8_TARGET_PRODUCER {
  PAPACC_U32 history_count,history_overflow,last_attempt_origin;
  PAPACC_C8_TARGET_HISTORY history[PAPACC_C8_TARGET_HISTORY_CAPACITY];
 } PAPACC_C8_TARGET_PRODUCER;
+/* Passive historical copy. No observation, expiry renewal or admission. */
+typedef struct PAPACC_C8_PASSIVE_SNAPSHOT {
+ PAPACC_U32 version,bytes,policy,capture_incomplete,capture_matches_current;
+ PAPACC_C8_TARGET_BINDING current_binding;
+ PAPACC_C8_TARGET_PRODUCER original;
+} PAPACC_C8_PASSIVE_SNAPSHOT;
+/* Requires existing serialized owner read window. OK is diagnostic only. */
+PAPACC_RESULT papacc_c8_target_passive_copy(const PAPACC_C8_TARGET_PRODUCER *,const PAPACC_C8_TARGET_BINDING *,PAPACC_C8_PASSIVE_SNAPSHOT *);
 /* Private diagnostic result, independent of provenance and sample contents. */
 #define PAPACC_C8_COLLECT_OK 0U
 #define PAPACC_C8_COLLECT_RATE 1U
@@ -71,4 +79,35 @@ PAPACC_RESULT papacc_c8_target_collect(PAPACC_C8_TARGET_PRODUCER *,const PAPACC_
 PAPACC_RESULT papacc_c8_target_observe_offline(PAPACC_C8_TARGET_PRODUCER *,const PAPACC_C8_TARGET_BINDING *,const PAPACC_C8_TARGET_OBSERVATION *);
 PAPACC_C8_RESOURCE_REASON papacc_c8_target_validate_raw(const PAPACC_C8_TARGET_PRODUCER *,const PAPACC_C8_TARGET_BINDING *,const PAPACC_U8 *,PAPACC_U64);
 PAPACC_C8_RESOURCE_REASON papacc_c8_target_admission(const PAPACC_C8_TARGET_PRODUCER *,const PAPACC_C8_TARGET_BINDING *,const PAPACC_U8 *,PAPACC_U64);
+/* Private diagnostic projection, NOT wire/SDK ABI or a capacity authority.
+ * Values/presence are preserved from this owner's original producer. */
+#define PAPACC_C8_TARGET_VIEW_VERSION 1U
+#define PAPACC_C8_VIEW_UNIT_BYTES 1U
+#define PAPACC_C8_VIEW_UNIT_COUNT 2U
+#define PAPACC_C8_VIEW_SCOPE_HOST 1U
+#define PAPACC_C8_VIEW_SCOPE_PROCESS 2U
+#define PAPACC_C8_VIEW_SCOPE_CONNECTION 3U
+#define PAPACC_C8_VIEW_POLICY_ABSENT 0U
+#define PAPACC_C8_VIEW_IMAGE_PATHS_ONLY 1U
+#define PAPACC_C8_VIEW_PACKAGE_OPENSSL_X64 1U
+typedef struct PAPACC_C8_TYPED_METRIC {
+ PAPACC_C8_RESOURCE_METRIC observed;
+ PAPACC_U32 unit,scope;
+} PAPACC_C8_TYPED_METRIC;
+/* package_backend describes the compiled SDK target, not a mapped provider.
+ * provider_runtime=0 is UNKNOWN; no loaded-provider proof is fabricated. */
+typedef struct PAPACC_C8_TARGET_VIEW {
+ PAPACC_U32 version,bytes,origin,policy,image_identity,package_backend,pointer_bytes,provider_runtime;
+ PAPACC_U64 series,first_sequence,owner,verified_ms;
+ PAPACC_C8_PROCESS_PROVENANCE provenance;
+ PAPACC_C8_TARGET_BINDING binding;
+ PAPACC_U8 recipe[32];
+ PAPACC_C8_TYPED_METRIC metrics[PAPACC_C8_RESOURCE_METRICS];
+} PAPACC_C8_TARGET_VIEW;
+/* Successful projection means diagnostic provenance only, never ED11 PASS.
+ * Owner thread, outside dispatch, BASELINE/PREPARED only; no storage renewal. */
+PAPACC_RESULT papacc_c8_target_view(const PAPACC_C8_TARGET_PRODUCER *,const PAPACC_C8_TARGET_BINDING *,PAPACC_C8_TARGET_VIEW *);
+/* Valid complete diagnostics still return RESOURCE_UNKNOWN until a separately
+ * approved Mode C policy AND provider/kernel recipe are installed. */
+PAPACC_C8_RESOURCE_REASON papacc_c8_target_view_validate(const PAPACC_C8_TARGET_PRODUCER *,const PAPACC_C8_TARGET_BINDING *,const PAPACC_C8_TARGET_VIEW *,PAPACC_U64);
 #endif

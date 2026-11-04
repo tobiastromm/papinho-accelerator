@@ -20,6 +20,21 @@ static int binding_equal(const PAPACC_C8_TARGET_BINDING *a,const PAPACC_C8_TARGE
  a->profile==b->profile&&a->phase==b->phase&&a->configured==b->configured&&a->current==b->current&&
  a->concurrency==b->concurrency&&a->retained==b->retained&&a->stopping==b->stopping;
 }
+PAPACC_RESULT papacc_c8_target_passive_copy(const PAPACC_C8_TARGET_PRODUCER *s,
+ const PAPACC_C8_TARGET_BINDING *b,PAPACC_C8_PASSIVE_SNAPSHOT *out)
+{
+ ULONG_PTR a=(ULONG_PTR)s,t=(ULONG_PTR)b,z=(ULONG_PTR)out;
+ if(!s||!b||!out)return PAPACC_RESULT_INVALID_ARGUMENT;
+ if((z>=a&&z-a<sizeof(*s))||(z<a&&a-z<sizeof(*out))||
+    (z>=t&&z-t<sizeof(*b))||(z<t&&t-z<sizeof(*out)))return PAPACC_RESULT_INVALID_ARGUMENT;
+ /* Failed/overflow captures survive without querying released dependencies. */
+ out->version=1U;out->bytes=(PAPACC_U32)sizeof(*out);out->policy=0U;
+ out->capture_incomplete=(!s->status||!s->sequence||s->history_overflow||
+  s->history_count>PAPACC_C8_TARGET_HISTORY_CAPACITY)?1U:0U;
+ out->capture_matches_current=binding_equal(&s->binding,b)?1U:0U;
+ out->current_binding=*b;out->original=*s;
+ return PAPACC_RESULT_OK;
+}
 static PAPACC_RESULT archive_series(PAPACC_C8_TARGET_PRODUCER *s)
 {
  PAPACC_C8_TARGET_HISTORY *h;
@@ -199,4 +214,57 @@ PAPACC_RESULT papacc_c8_target_process_provenance(const PAPACC_C8_TARGET_PRODUCE
  f.build_debug=PAPACC_OBSERVED_BUILD_DEBUG;
  memcpy(f.domain,b->domain,32U);memcpy(f.sdk_inventory,s->evidence.sdk_sha256,32U);
  *out=f;return PAPACC_RESULT_OK;
+}
+static int view_overlap(const void *a,size_t an,const void *b,size_t bn)
+{ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;return x>=y?x-y<bn:y-x<an;}
+static PAPACC_U32 view_unit(unsigned i){return i==3U||i==8U?PAPACC_C8_VIEW_UNIT_COUNT:PAPACC_C8_VIEW_UNIT_BYTES;}
+static PAPACC_U32 view_scope(unsigned i){return i<2U?PAPACC_C8_VIEW_SCOPE_HOST:(i==4U||i==5U?PAPACC_C8_VIEW_SCOPE_CONNECTION:PAPACC_C8_VIEW_SCOPE_PROCESS);}
+static int view_metric_valid(unsigned i,const PAPACC_C8_RESOURCE_METRIC *m)
+{return m->kind==i+1U&&m->classification==(PAPACC_U32)((i<4U||i==6U||i==7U)?PAPACC_C8_DIRECTLY_MEASURED:PAPACC_C8_EVIDENCE_UNKNOWN);}
+PAPACC_RESULT papacc_c8_target_view(const PAPACC_C8_TARGET_PRODUCER *s,const PAPACC_C8_TARGET_BINDING *b,PAPACC_C8_TARGET_VIEW *out)
+{
+ PAPACC_C8_TARGET_VIEW v;PAPACC_RESULT result;PAPACC_U64 finish;unsigned i;
+ if(!s||!b||!out||view_overlap(out,sizeof(*out),s,sizeof(*s))||view_overlap(out,sizeof(*out),b,sizeof(*b)))return PAPACC_RESULT_INVALID_ARGUMENT;
+ if(sizeof(void*)!=8U)return PAPACC_RESULT_INVALID_STATE;
+ memset(&v,0,sizeof(v));result=papacc_c8_target_process_provenance(s,b,&v.provenance);if(result!=PAPACC_RESULT_OK)return result;
+ if(papacc_pal_monotonic_time_ns(&finish)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INTERNAL_ERROR;
+ v.verified_ms=finish/1000000U;
+ if(v.verified_ms<v.provenance.validated_ms||papacc_c8_target_validate_raw(s,b,s->evidence.target,v.verified_ms)!=PAPACC_C8_RESOURCE_OK)return PAPACC_RESULT_INVALID_STATE;
+ v.version=PAPACC_C8_TARGET_VIEW_VERSION;v.bytes=sizeof(v);v.origin=s->evidence.origin;
+ v.image_identity=PAPACC_C8_VIEW_IMAGE_PATHS_ONLY;v.package_backend=PAPACC_C8_VIEW_PACKAGE_OPENSSL_X64;v.pointer_bytes=sizeof(void*);
+ /* Policy stays ABSENT: neither this projection nor raw recorded expiry is an
+  * installer of product freshness/headroom/provider/kernel approval. */
+ v.policy=PAPACC_C8_VIEW_POLICY_ABSENT;v.series=s->series_id;v.first_sequence=s->series_first_sequence;v.owner=b->owner;v.binding=*b;
+ memcpy(v.recipe,s->evidence.provenance,32U);
+ for(i=0U;i<PAPACC_C8_RESOURCE_METRICS;i++){if(!view_metric_valid(i,&s->evidence.metrics[i]))return PAPACC_RESULT_INVALID_STATE;v.metrics[i].observed=s->evidence.metrics[i];v.metrics[i].unit=view_unit(i);v.metrics[i].scope=view_scope(i);}
+ *out=v;return PAPACC_RESULT_OK;
+}
+PAPACC_C8_RESOURCE_REASON papacc_c8_target_view_validate(const PAPACC_C8_TARGET_PRODUCER *s,const PAPACC_C8_TARGET_BINDING *b,const PAPACC_C8_TARGET_VIEW *v,PAPACC_U64 now)
+{
+ PAPACC_C8_RESOURCE_REASON raw;const PAPACC_C8_PROCESS_PROVENANCE *p;PAPACC_C8_PROCESS_PROVENANCE current;PAPACC_U64 finish;unsigned i;
+ if(!s||!b||!v||view_overlap(v,sizeof(*v),s,sizeof(*s))||view_overlap(v,sizeof(*v),b,sizeof(*b)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+ if(s->process!=GetCurrentProcessId()||s->thread!=GetCurrentThreadId()||b->owner!=s->thread)return PAPACC_C8_RESOURCE_STATE_ERROR;
+ p=&v->provenance;
+ if(v->version!=PAPACC_C8_TARGET_VIEW_VERSION||v->bytes!=sizeof(*v)||v->origin!=2U||v->origin!=s->evidence.origin||
+ v->policy!=PAPACC_C8_VIEW_POLICY_ABSENT||v->provider_runtime||v->image_identity!=PAPACC_C8_VIEW_IMAGE_PATHS_ONLY||
+ v->package_backend!=PAPACC_C8_VIEW_PACKAGE_OPENSSL_X64||v->pointer_bytes!=sizeof(void*)||v->pointer_bytes!=8U||
+ v->series!=s->series_id||v->first_sequence!=s->series_first_sequence||v->owner!=b->owner||!binding_equal(&v->binding,b)||
+ b->stopping||(b->phase!=PAPACC_C8_OBSERVATION_BASELINE&&b->phase!=PAPACC_C8_OBSERVATION_PREPARED)||
+ p->creation!=s->creation||p->process!=s->process||p->thread!=s->thread||p->invocation!=b->invocation||p->sequence!=s->sequence||
+ p->revision!=b->revision||p->epoch!=b->epoch||p->configured!=b->configured||p->current!=b->current||p->phase!=b->phase||
+ p->build_debug!=PAPACC_OBSERVED_BUILD_DEBUG||p->time_presence!=7U||p->clock_source!=1U||
+ memcmp(p->domain,b->domain,32U)||memcmp(p->sdk_inventory,s->evidence.sdk_sha256,32U)||memcmp(v->recipe,s->evidence.provenance,32U)||
+ !p->image_path[0]||!p->mapped_path[0]||p->image_path[MAX_PATH-1]||p->mapped_path[MAX_PATH-1])return PAPACC_C8_RESOURCE_STATE_ERROR;
+ if(p->observed_ms!=s->evidence.sampled_ms||p->valid_until_ms!=s->evidence.expires_ms||p->validated_ms<p->observed_ms||
+ p->validated_ms>p->valid_until_ms||v->verified_ms<p->validated_ms||v->verified_ms>p->valid_until_ms||now<v->verified_ms)return PAPACC_C8_RESOURCE_STALE;
+ for(i=0U;i<PAPACC_C8_RESOURCE_METRICS;i++)if(!view_metric_valid(i,&s->evidence.metrics[i])||v->metrics[i].unit!=view_unit(i)||v->metrics[i].scope!=view_scope(i)||
+ memcmp(&v->metrics[i].observed,&s->evidence.metrics[i],sizeof(v->metrics[i].observed)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+ raw=papacc_c8_target_validate_raw(s,b,s->evidence.target,now);if(raw!=PAPACC_C8_RESOURCE_OK)return raw;
+ /* Identity revalidation cannot renew the immutable original timestamps. */
+ if(papacc_c8_target_process_provenance(s,b,&current)!=PAPACC_RESULT_OK)return PAPACC_C8_RESOURCE_UNKNOWN;
+ if(memcmp(current.image_path,p->image_path,sizeof(p->image_path))||memcmp(current.mapped_path,p->mapped_path,sizeof(p->mapped_path)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+ if(papacc_pal_monotonic_time_ns(&finish)!=PAPACC_RESULT_OK)return PAPACC_C8_RESOURCE_UNKNOWN;
+ finish/=1000000U;if(finish<v->verified_ms||finish>p->valid_until_ms)return PAPACC_C8_RESOURCE_STALE;
+ /* No admission, reservation, credit, numerical policy or recipe is created. */
+ return PAPACC_C8_RESOURCE_UNKNOWN;
 }

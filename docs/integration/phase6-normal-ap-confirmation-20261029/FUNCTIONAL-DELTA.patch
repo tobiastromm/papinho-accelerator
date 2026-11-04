@@ -1,0 +1,285 @@
+--- before/src/issuer/issuer_core.h
++++ after/src/issuer/issuer_core.h
+@@ -38,6 +38,7 @@
+ typedef struct PAPACC_ISSUER_VIEW {
+  PAPACC_U8 root[32],authority[16],generation[16],prefix[8],policy[32],ca_spki_digest[32];
+  PAPACC_U64 revision,epoch,high_water,ca_not_after;
++ PAPACC_U64 administrative_epoch; /* A from confirmed root publication. epoch is P. */
+  PAPACC_U32 proofs,continuity_profile; /* private only, never serialized */
+ } PAPACC_ISSUER_VIEW;
+ typedef struct PAPACC_ISSUER_REQUEST {
+--- before/src/issuer/issuer_core.c
++++ after/src/issuer/issuer_core.c
+@@ -25,7 +25,7 @@
+ }
+ static int view_ok(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_VIEW *v){
+  if(!nz(v->root,32)||!nz(v->authority,16)||!nz(v->generation,16)||!nz(v->policy,32)||!nz(v->ca_spki_digest,32)||!nz(v->prefix,8)||(v->prefix[0]&128U)||
+-  !v->revision||!v->epoch||!v->high_water||!v->ca_not_after||!papacc_issuer_view_proofs_valid(v,c->continuity_profile))return 0;
++  !v->revision||!v->epoch||!v->administrative_epoch||!v->high_water||!v->ca_not_after||!papacc_issuer_view_proofs_valid(v,c->continuity_profile))return 0;
+  if(c->initialized&& (memcmp(c->root_id,v->root,32)||memcmp(c->authority,v->authority,16)||memcmp(c->generation,v->generation,16)||memcmp(c->prefix,v->prefix,8)||memcmp(c->ca_spki_digest,v->ca_spki_digest,32)||
+   v->revision<c->minimum_revision||v->high_water<c->minimum_counter))return 0;
+  return 1;
+@@ -65,10 +65,11 @@
+ static PAPACC_ISSUER_RESULT verify_store(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *next,PAPACC_U64 high,int publish){
+  PAPACC_ISSUER_VIEW after;PAPACC_ISSUER_RECORD actual;int found;PAPACC_ISSUER_RESULT s;
+  s=load(c,next->request.id,&after,&actual,&found);
+- if(s!=PAPACC_ISSUER_OK||!found||after.revision<=v->revision||after.high_water!=high||actual.state!=next->state||
++ if(s!=PAPACC_ISSUER_OK||!found||after.revision<=v->revision||after.high_water!=high||after.epoch!=v->epoch||
++  !after.administrative_epoch||after.administrative_epoch==v->administrative_epoch||actual.state!=next->state||
+   !same_request(&actual.request,&next->request)||memcmp(actual.serial,next->serial,16)||actual.counter!=next->counter||
+   memcmp(actual.policy,next->policy,32)||actual.approved_epoch!=next->approved_epoch||memcmp(actual.certificate_digest,next->certificate_digest,32)||
+-  actual.certificate_size!=next->certificate_size||(!publish&&actual.published_epoch!=next->published_epoch)||(publish&&(!actual.published_epoch||actual.published_epoch!=after.epoch))){c->blocked=1;return PAPACC_ISSUER_UNCERTAIN;}
++  actual.certificate_size!=next->certificate_size||(!publish&&actual.published_epoch!=next->published_epoch)||(publish&&(!actual.published_epoch||actual.published_epoch!=after.administrative_epoch))){c->blocked=1;return PAPACC_ISSUER_UNCERTAIN;}
+  return PAPACC_ISSUER_OK;
+ }
+ static PAPACC_ISSUER_RESULT store(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *old,const PAPACC_ISSUER_RECORD *next,PAPACC_U64 high,const PAPACC_U8 *der,PAPACC_SIZE size,int publish){
+@@ -220,7 +221,7 @@
+  s=c->root.revoke_dependents(c->root.ctx,&v,&r);
+  if(s==PAPACC_ISSUER_OK){
+   s=load(c,id,&after,&n,&found);
+-  if(s!=PAPACC_ISSUER_OK||!found||n.state!=PAPACC_ISSUER_REVOKED||after.revision!=v.revision||after.epoch!=v.epoch||
++  if(s!=PAPACC_ISSUER_OK||!found||n.state!=PAPACC_ISSUER_REVOKED||after.revision!=v.revision||after.epoch!=v.epoch||after.administrative_epoch!=v.administrative_epoch||
+      after.high_water!=v.high_water||!same_request(&r.request,&n.request)||memcmp(r.certificate_digest,n.certificate_digest,32))s=PAPACC_ISSUER_UNCERTAIN;
+  }
+  if(s!=PAPACC_ISSUER_OK){c->blocked=1;if(s==PAPACC_ISSUER_RETAINED)c->retained=1;}
+--- before/apps/server/server_issuer_cng_backend_win32.c
++++ after/apps/server/server_issuer_cng_backend_win32.c
+@@ -9,7 +9,7 @@
+ static int req_equal(const PAPACC_ISSUER_REQUEST *a,const PAPACC_ISSUER_REQUEST *b)
+ {return !memcmp(a->id,b->id,16)&&!memcmp(a->device,b->device,16)&&!memcmp(a->csr_digest,b->csr_digest,32)&&!memcmp(a->key_digest,b->key_digest,32)&&!memcmp(a->predecessor,b->predecessor,16)&&a->purpose==b->purpose&&a->not_before==b->not_before&&a->not_after==b->not_after;}
+ static int view_equal(const PAPACC_ISSUER_VIEW *a,const PAPACC_ISSUER_VIEW *b)
+-{return a->revision==b->revision&&a->epoch==b->epoch&&a->high_water==b->high_water&&a->ca_not_after==b->ca_not_after&&a->proofs==b->proofs&&a->continuity_profile==b->continuity_profile&&
++{return a->revision==b->revision&&a->epoch==b->epoch&&a->administrative_epoch==b->administrative_epoch&&a->high_water==b->high_water&&a->ca_not_after==b->ca_not_after&&a->proofs==b->proofs&&a->continuity_profile==b->continuity_profile&&
+  !memcmp(a->root,b->root,32)&&!memcmp(a->authority,b->authority,16)&&!memcmp(a->generation,b->generation,16)&&
+  !memcmp(a->prefix,b->prefix,8)&&!memcmp(a->policy,b->policy,32)&&!memcmp(a->ca_spki_digest,b->ca_spki_digest,32);}
+ static int ready(PAPACC_ISSUER_CNG_BACKEND *b)
+@@ -19,7 +19,7 @@
+  PAPACC_ISSUER_RECORD actual;int found=0;PAPACC_ISSUER_RESULT s;
+  if(!ready(b))return b&&b->retained?PAPACC_ISSUER_RETAINED:PAPACC_ISSUER_DENIED;
+  s=b->root.read(b->root.ctx,r->request.id,v,&actual,&found);if(s)return s;
+- if(!found||!papacc_issuer_view_proofs_valid(v,b->owner->continuity_profile)||!v->revision||!v->epoch||!req_equal(&actual.request,&r->request)||
++ if(!found||!papacc_issuer_view_proofs_valid(v,b->owner->continuity_profile)||!v->revision||!v->epoch||!v->administrative_epoch||!req_equal(&actual.request,&r->request)||
+    memcmp(actual.authority,r->authority,16)||memcmp(actual.generation,r->generation,16)||memcmp(actual.serial,r->serial,16)||
+    memcmp(actual.policy,r->policy,32)||actual.counter!=r->counter||actual.approved_epoch!=r->approved_epoch||actual.state!=r->state||
+    memcmp(v->authority,r->authority,16)||memcmp(v->generation,r->generation,16)||memcmp(v->policy,r->policy,32)||r->counter>v->high_water)return PAPACC_ISSUER_DENIED;
+--- before/apps/server/server_configuration_root_transaction_win32.inc
++++ after/apps/server/server_configuration_root_transaction_win32.inc
+@@ -486,7 +486,7 @@
+  if(r==PAPACC_ISSUER_OK)*found=1;else if(r!=PAPACC_ISSUER_ABSENT)return r;
+  /* P is factual only under the existing live root guards; never substitute
+   * A or a revision. Missing key/history/exclusivity proof still denies init. */
+- if(issuer_root_live_ready(o)){v->epoch=o->configuration_preparation.current_policy_epoch;v->continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;}
++ if(issuer_root_live_ready(o)){v->epoch=o->configuration_preparation.current_policy_epoch;v->administrative_epoch=o->configuration_commit.slots[o->configuration_commit.current].context_epoch;v->continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;}
+  return PAPACC_ISSUER_OK;
+ }
+ static int issuer_port_same_record(const PAPACC_ISSUER_RECORD *a,const PAPACC_ISSUER_RECORD *b)
+@@ -501,7 +501,7 @@
+ }
+ static int issuer_port_same_view(const PAPACC_ISSUER_VIEW *a,const PAPACC_ISSUER_VIEW *b)
+ {
+- return a->revision==b->revision&&a->epoch==b->epoch&&a->high_water==b->high_water&&a->ca_not_after==b->ca_not_after&&
++ return a->revision==b->revision&&a->epoch==b->epoch&&a->administrative_epoch==b->administrative_epoch&&a->high_water==b->high_water&&a->ca_not_after==b->ca_not_after&&
+   a->proofs==b->proofs&&a->continuity_profile==b->continuity_profile&&!memcmp(a->root,b->root,32)&&
+   !memcmp(a->authority,b->authority,16)&&!memcmp(a->generation,b->generation,16)&&!memcmp(a->prefix,b->prefix,8)&&
+   !memcmp(a->policy,b->policy,32)&&!memcmp(a->ca_spki_digest,b->ca_spki_digest,32);
+@@ -571,7 +571,7 @@
+  if(!issuer_root_live_ready(o)||expected->epoch!=o->configuration_preparation.current_policy_epoch||next->approved_epoch!=expected->epoch)return PAPACC_ISSUER_DENIED;
+  if(papacc_configuration_issuer_copy06(&o->configuration_commit,image)!=0)return PAPACC_ISSUER_UNSUPPORTED;
+  r=papacc_issuer_image_validate(image,&actual,papacc_configuration_issuer_hash06,&o->configuration_commit);if(r)return r;
+- actual.epoch=o->configuration_preparation.current_policy_epoch;actual.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;
++ actual.epoch=o->configuration_preparation.current_policy_epoch;actual.administrative_epoch=o->configuration_commit.slots[o->configuration_commit.current].context_epoch;actual.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;
+  if(!issuer_port_same_view(&actual,expected))return PAPACC_ISSUER_CONFLICT;
+  r=papacc_issuer_image_find(image,next->request.id,&prior,papacc_configuration_issuer_hash06,&o->configuration_commit);
+  if((old&&(r!=0||!issuer_port_same_record(&prior,old)||memcmp(old->request.id,next->request.id,16)))||(!old&&r!=PAPACC_ISSUER_ABSENT))return PAPACC_ISSUER_CONFLICT;
+--- before/tests/issuer_core_test.c
++++ after/tests/issuer_core_test.c
+@@ -5,7 +5,7 @@
+ typedef struct MODEL {
+  PAPACC_ISSUER_VIEW view;PAPACC_ISSUER_RECORD records[16];PAPACC_U8 der[16][32];unsigned count;
+  unsigned commits,signs,acquires,releases,auths,clock_calls,fanouts;
+- int fail_fanout;
++ int fail_fanout,ack_fault;
+  int fail_cas,fail_sign,fail_release,deny_auth,bad_request,bad_cert,allow_publish,stop_on_sign,expire_on_acquire,reenter,reenter_result;
+  PAPACC_U64 now;PAPACC_ISSUER_CORE *owner,*competitor;PAPACC_U8 competing_id[16];
+  PAPACC_ISSUER_PENDING_STORE pending;
+@@ -33,8 +33,14 @@
+  if(i<0){if(x->count==16)return PAPACC_ISSUER_LIMIT;i=(int)x->count++;}
+  if(size>32)return PAPACC_ISSUER_LIMIT;
+  if(size){if(!der)return PAPACC_ISSUER_INVALID;memcpy(x->der[i],der,size);}
+- x->records[i]=*next;x->view.high_water=high;x->view.revision++;x->view.epoch++;x->commits++;
+- if(publish)x->records[i].published_epoch=x->view.epoch;
++ x->records[i]=*next;x->view.high_water=high;x->view.revision++;x->view.administrative_epoch++;x->commits++;
++ if(x->ack_fault==1)x->view.administrative_epoch--;
++ if(x->ack_fault==2)x->view.administrative_epoch=0;
++ if(x->ack_fault==3)x->view.epoch++;
++ if(publish)x->records[i].published_epoch=x->view.administrative_epoch;
++ if(publish&&x->ack_fault==4)x->records[i].published_epoch=x->view.epoch;
++ if(publish&&x->ack_fault==5)x->records[i].published_epoch=0;
++ if(publish&&x->ack_fault==6)x->records[i].published_epoch=x->view.administrative_epoch-1U;
+  if(x->fail_cas==2)return PAPACC_ISSUER_UNCERTAIN;
+  return PAPACC_ISSUER_OK;
+ }
+@@ -75,17 +81,43 @@
+  MODEL *x=p;int i=slot(x,r->request.id);
+  if(i<0||x->records[i].state!=PAPACC_ISSUER_REVOKED||v->revision!=x->view.revision||v->epoch!=x->view.epoch)return PAPACC_ISSUER_CONFLICT;
+  x->fanouts++;
++ if(x->fail_fanout==2){x->view.administrative_epoch++;return PAPACC_ISSUER_OK;} /* substituted A after request */
+  return x->fail_fanout?PAPACC_ISSUER_UNCERTAIN:PAPACC_ISSUER_OK; /* synthetic fanout, no native closure claim */
+ }
+ static void setup(void){
+  memset(&m,0,sizeof(m));memset(&root,0,sizeof(root));memset(&backend,0,sizeof(backend));
+  m.view.root[0]=1;m.view.authority[0]=2;m.view.generation[0]=3;m.view.prefix[0]=4;m.view.policy[0]=5;m.view.ca_spki_digest[0]=6;
+- m.view.revision=1;m.view.epoch=1;m.view.high_water=1;m.view.ca_not_after=1000000;m.view.proofs=PAPACC_ISSUER_ROOT_PROOFS;m.now=100;
++ m.view.revision=1;m.view.epoch=7;m.view.administrative_epoch=101;m.view.high_water=1;m.view.ca_not_after=1000000;m.view.proofs=PAPACC_ISSUER_ROOT_PROOFS;m.now=100;
+  root.ctx=&m;root.read=read_root;root.cas=cas_root;root.copy_certificate=copy_cert;root.poll=poll_root;root.test_only=1;
+  backend.ctx=&m;backend.test_only=1;backend.authorize=auth;backend.utc=utc;backend.verify_request=verify_req;
+  backend.acquire=acquire;backend.sign=sign_cert;backend.verify_certificate=verify_cert;backend.release=release;
+ }
+ static PAPACC_ISSUER_REQUEST request(unsigned id){PAPACC_ISSUER_REQUEST q;memset(&q,0,sizeof(q));q.id[0]=(PAPACC_U8)id;q.device[0]=8;q.csr_digest[0]=7;q.key_digest[0]=(PAPACC_U8)id;q.purpose=PAPACC_ISSUER_CLIENT;q.not_before=100;q.not_after=500;return q;}
++static int ap_checks(void){
++ PAPACC_ISSUER_CORE c;PAPACC_ISSUER_REQUEST q;PAPACC_ISSUER_RECORD r;PAPACC_U8 csr=7;unsigned fault,before;
++ for(fault=0;fault<=6U;fault++){
++  setup();memset(&c,0,sizeof(c));m.view.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;m.view.proofs=PAPACC_ISSUER_NORMAL_PROOFS;
++  CHECK(papacc_issuer_init_normal(&c,&root,&backend)==0);q=request(1);
++  CHECK(papacc_issuer_prepare(&c,&q)==0);CHECK(papacc_issuer_reserve(&c,q.id)==0);
++  CHECK(papacc_issuer_issue(&c,q.id,&csr,1,output,sizeof(output))==0&&m.signs==1);
++  CHECK(m.view.epoch==7U&&m.view.administrative_epoch!=m.view.epoch);
++  m.allow_publish=1;m.ack_fault=(int)fault;before=m.commits;
++  if(!fault){
++   m.async_mode=1;CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_PUBLISHED)==PAPACC_ISSUER_PENDING&&m.commits==before);
++   CHECK(papacc_issuer_poll(&c)==PAPACC_ISSUER_PENDING&&m.commits==before&&m.view.epoch==7U);
++   CHECK(papacc_issuer_poll(&c)==PAPACC_ISSUER_OK);CHECK(papacc_issuer_poll(&c)==PAPACC_ISSUER_INVALID);
++  }else CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_PUBLISHED)==PAPACC_ISSUER_UNCERTAIN);
++  CHECK(m.commits==before+1U&&m.signs==1U);
++  if(fault){CHECK(c.blocked);CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_PUBLISHED)==PAPACC_ISSUER_UNCERTAIN&&m.commits==before+1U&&m.signs==1U);}
++  else{CHECK(papacc_issuer_query(&c,q.id,&r)==0&&r.published_epoch==m.view.administrative_epoch&&r.approved_epoch==7U);}
++ }
++ setup();memset(&c,0,sizeof(c));m.view.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;m.view.proofs=PAPACC_ISSUER_NORMAL_PROOFS;root.revoke_dependents=revoke_dependents;
++ CHECK(papacc_issuer_init_normal(&c,&root,&backend)==0);q=request(1);
++ CHECK(papacc_issuer_prepare(&c,&q)==0);CHECK(papacc_issuer_reserve(&c,q.id)==0);CHECK(papacc_issuer_issue(&c,q.id,&csr,1,output,sizeof(output))==0);
++ m.allow_publish=1;CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_PUBLISHED)==0);m.fail_fanout=2;
++ CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_REVOKED)==PAPACC_ISSUER_UNCERTAIN&&c.blocked&&m.fanouts==1U);
++ return 0;
++}
+ static int async_checks(void){
+  PAPACC_ISSUER_CORE c,d;PAPACC_ISSUER_REQUEST q;PAPACC_ISSUER_RECORD r;PAPACC_U8 csr=7;unsigned before,mode;
+  setup();memset(&c,0,sizeof(c));memset(&d,0,sizeof(d));CHECK(papacc_issuer_init(&c,&root,&backend)==0);CHECK(papacc_issuer_init(&d,&root,&backend)==0);
+@@ -154,6 +186,7 @@
+  CHECK(papacc_issuer_init(&c,NULL,&backend)==PAPACC_ISSUER_UNSUPPORTED);
+  printf("PASS production_test_backend_rejection=%u\n",checks);return 0;
+ #else
++ CHECK(ap_checks()==0);
+  CHECK(async_checks()==0);
+  /* M3: NORMAL runs the same prepare/reserve/publish core, but cannot recover.
+   * Root/authorization/sign callbacks here remain an explicit isolated MODEL. */
+--- before/tests/issuer_cng_x509_test.c
++++ after/tests/issuer_cng_x509_test.c
+@@ -54,7 +54,7 @@
+ static PAPACC_ISSUER_RESULT root_read(void *ctx,const PAPACC_U8 id[16],PAPACC_ISSUER_VIEW *view,PAPACC_ISSUER_RECORD *r,int *found)
+ {(void)ctx;*view=v;*found=!memcmp(id,record.request.id,16);if(*found)*r=record;return PAPACC_ISSUER_OK;}
+ static PAPACC_ISSUER_RESULT root_cas(void *ctx,const PAPACC_ISSUER_VIEW *view,const PAPACC_ISSUER_RECORD *old,const PAPACC_ISSUER_RECORD *next,PAPACC_U64 high,const PAPACC_U8 *der,PAPACC_SIZE n,int publish)
+-{(void)ctx;(void)old;(void)der;(void)n;if(publish)return PAPACC_ISSUER_DENIED;if(view->revision!=v.revision)return PAPACC_ISSUER_CONFLICT;record=*next;v.high_water=high;v.revision++;v.epoch++;return PAPACC_ISSUER_OK;}
++{(void)ctx;(void)old;(void)der;(void)n;if(publish)return PAPACC_ISSUER_DENIED;if(view->revision!=v.revision)return PAPACC_ISSUER_CONFLICT;record=*next;v.high_water=high;v.revision++;v.administrative_epoch++;return PAPACC_ISSUER_OK;}
+ static PAPACC_ISSUER_RESULT admin(void *ctx,const PAPACC_ISSUER_VIEW *view,const PAPACC_ISSUER_REQUEST *r,unsigned op)
+ {(void)ctx;(void)view;(void)r;(void)op;return deny_admin?PAPACC_ISSUER_DENIED:PAPACC_ISSUER_OK;}
+ static PAPACC_ISSUER_RESULT clock_value(void *ctx,PAPACC_U64 *now){(void)ctx;*now=1700000000ULL;return PAPACC_ISSUER_OK;}
+@@ -66,7 +66,7 @@
+  DWORD n,z=32;BYTE usage=6,signature[256]={0};unsigned i,k;static const wchar_t hex[]=L"0123456789abcdef";
+  memset(&core,0,sizeof(core));memset(&backend,0,sizeof(backend));memset(&record,0,sizeof(record));memset(&v,0,sizeof(v));memset(&ca,0,sizeof(ca));memset(&key,0,sizeof(key));memset(&administrative,0,sizeof(administrative));memset(&root,0,sizeof(root));
+  private_calls=validation_calls=0;fail_sign=0;bad_signature=deny_admin=stop_on_sign=fail_return=0;
+- v.root[0]=1;v.authority[0]=2;v.generation[0]=3;v.prefix[0]=4;v.policy[0]=5;v.revision=1;v.epoch=9;v.high_water=2;v.ca_not_after=1690000000ULL+1825ULL*86400ULL;v.proofs=31;
++ v.root[0]=1;v.authority[0]=2;v.generation[0]=3;v.prefix[0]=4;v.policy[0]=5;v.revision=1;v.epoch=9;v.administrative_epoch=101;v.high_water=2;v.ca_not_after=1690000000ULL+1825ULL*86400ULL;v.proofs=31;
+  if(normal_profile){v.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;v.proofs=PAPACC_ISSUER_NORMAL_PROOFS;}
+  record.request.id[0]=1;record.request.device[0]=7;record.request.purpose=PAPACC_ISSUER_CLIENT;record.request.not_before=1700000000ULL;record.request.not_after=1700003600ULL;
+  memcpy(record.authority,v.authority,16);memcpy(record.generation,v.generation,16);memcpy(record.policy,v.policy,32);memcpy(record.serial,v.prefix,8);record.serial[15]=2;record.counter=2;record.approved_epoch=9;record.state=PAPACC_ISSUER_SERIAL_RESERVED;
+--- before/tests/canonical_root_transaction_test.c
++++ after/tests/canonical_root_transaction_test.c
+@@ -369,6 +369,7 @@
+    CHECK(papacc_server_launcher_configuration_issuer_port(o,&port)==0&&port.poll&&!port.test_only);
+    CHECK(port.revoke_dependents!=NULL&&papacc_server_launcher_credential_admit(NULL)!=PAPACC_RESULT_OK);
+    CHECK(port.read(o,id,&before,&absent,&exists)==0&&!exists&&before.epoch==original_p&&!before.proofs);
++   CHECK(before.administrative_epoch==selected_a&&before.administrative_epoch!=0);
+    {PAPACC_ISSUER_CORE gate={0};PAPACC_ISSUER_BACKEND no_authority={0};
+     no_authority.authorize=reject_issuer_auth;no_authority.utc=reject_issuer_utc;
+     CHECK(papacc_issuer_init_normal(&gate,&port,&no_authority)==PAPACC_ISSUER_UNCERTAIN&&!gate.initialized&&!rejected_backend_calls);
+@@ -381,6 +382,8 @@
+    CHECK(port.revoke_dependents(o,&before,&wrong_record)!=PAPACC_ISSUER_OK&&!o->credential_revocation.sessions_invalidated&&!o->credential_revocation.controls_stop_requested);
+    wrong_view=before;wrong_view.revision--;
+    CHECK(port.cas(o,&wrong_view,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_CONFLICT&&!o->issuer_port_pending.active);
++   wrong_view=before;wrong_view.administrative_epoch^=1U;
++   CHECK(port.cas(o,&wrong_view,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_CONFLICT&&!o->issuer_port_pending.active);
+    CHECK(port.cas(o,&before,NULL,&record,1,NULL,0,1)==PAPACC_ISSUER_UNSUPPORTED&&!o->issuer_port_pending.active);
+    if(port_unknown){held=CreateFileA(path,GENERIC_READ,0,NULL,OPEN_EXISTING,0,NULL);CHECK(held!=INVALID_HANDLE_VALUE);}
+    if(port_conflict){DWORD n;PAPACC_U8 bad_byte=0;held=CreateFileA(path,GENERIC_WRITE,0,NULL,OPEN_EXISTING,0,NULL);CHECK(held!=INVALID_HANDLE_VALUE);CHECK(WriteFile(held,&bad_byte,1,&n,NULL)&&n==1&&FlushFileBuffers(held));CHECK(CloseHandle(held));held=INVALID_HANDLE_VALUE;}
+@@ -388,6 +391,7 @@
+    CHECK(port.cas(o,&before,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_BUSY);
+    wrong_record=record;wrong_record.request.device[1]=1;
+    CHECK(port.poll(o,&before,&wrong_record,0)==PAPACC_ISSUER_CONFLICT&&o->issuer_port_pending.active==1U);
++   CHECK(port.poll(o,&wrong_view,&record,0)==PAPACC_ISSUER_CONFLICT&&o->issuer_port_pending.active==1U);
+    CHECK(port.read(o,id,&after,&observed,&exists)!=0);
+    if((port_stop&&!port_early)||port_proof||port_readback){
+     started=GetTickCount();while(WaitForSingleObject(o->configuration_commit.pending_commit.thread,0)==WAIT_TIMEOUT){Sleep(1);CHECK(GetTickCount()-started<10000U);}
+@@ -413,6 +417,7 @@
+    CHECK(port.poll(o,&before,&record,0)==PAPACC_ISSUER_INVALID);
+    CHECK(port.cas(o,&before,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_CONFLICT);
+    CHECK(port.read(o,id,&after,&observed,&exists)==0&&exists&&!after.proofs&&after.epoch==original_p&&observed.state==PAPACC_ISSUER_PREPARED);
++   CHECK(after.administrative_epoch==o->configuration_commit.slots[o->configuration_commit.current].context_epoch&&after.administrative_epoch!=before.administrative_epoch);
+    CHECK(o->configuration_commit.slots[o->configuration_commit.current].context_epoch!=selected_a);
+    /* Real port/storage, synthetic records only: serial/marker/DER commits.
+     * No signer/key/credential/normal proof is created by this fixture. */
+--- before/tests/issuer_root_store_win32_test.c
++++ after/tests/issuer_root_store_win32_test.c
+@@ -30,7 +30,7 @@
+  unsigned i;PAPACC_ISSUER_RESULT s;PAPACC_U8 out[4];PAPACC_SIZE n;
+  metadata_init();memset(hash,1,32);
+  CHECK(papacc_issuer_image_init(image,&metadata,hash,papacc_configuration_issuer_hash06,&root)==0);
+- CHECK(papacc_issuer_image_validate(image,&decoded,papacc_configuration_issuer_hash06,&root)==0&&!decoded.epoch&&!decoded.proofs);
++ CHECK(papacc_issuer_image_validate(image,&decoded,papacc_configuration_issuer_hash06,&root)==0&&!decoded.epoch&&!decoded.administrative_epoch&&!decoded.proofs);
+  request_init(1);CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
+  CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==PAPACC_ISSUER_CONFLICT);
+  record.counter=2;memcpy(record.serial,metadata.prefix,8);record.serial[15]=2;record.state=PAPACC_ISSUER_SERIAL_RESERVED;
+--- before/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
++++ after/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
+@@ -82,7 +82,7 @@
+  ('PROV-HOT','Add/approve/renew/revoke sem restart',prov,'Mesmo root/issuer/cadastro','CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado','docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md','PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes','PROV-ROOT;PROV-CA','OBRIGATORIO_AMPLIACAO_ACCEPTED','Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch'),
+  ('PROV-REVOKE','Revogação ativa e novas admissões; histórico',mvp,'Pessoal M7','STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED','docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md','Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED','PROV-HOT;E18','OBRIGATORIO_AMPLIACAO_ACCEPTED','Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência'),
+  ('PROV-ROOT','Autoridade configuração/root/CURRENT/epoch',mvp,'Pessoal NORMAL e configuração produto','DORMANT_NATIVE_OFFLINE; operacional NOT_DEMONSTRATED',c8,'ato autorizado/publicação e referência original viva','autoridade instalação/configuração; sem TPM global','OBRIGATORIO_PRODUTO; INSTANCIA_A_DESCOBRIR','Mapear entrada/consumo atuais antes de propor bootstrap'),
+- ('PROV-CA','CA protegida/serial/UTC/issuer NORMAL',mvp,'M1/M3 pessoal não recuperável','NATIVE_CAS_METADATA_QUALIFIED; NORMAL_DENY_ORIGINAL_CA_AND_ACK_ABSENT','docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md','Borrow da cerimônia não é fonte live; published_epoch v1 exige valor antes de A pós-commit; ver fronteiras exatas do pacote','PROV-ROOT;ED11','OBRIGATORIO; RECOVERY_NAO_HERDADA','Adquirir binding original e revisar representação focal do ack no mesmo root; não usar P/revisão/valor futuro'),
++ ('PROV-CA','CA protegida/serial/UTC/issuer NORMAL',mvp,'M1/M3 pessoal não recuperável','AP_CONSUMER_CORRECTED_PRIVATE_VIEW; NORMAL_DENY_SOURCE_AND_PERSISTED_ACK_ABSENT','docs/integration/phase6-normal-ap-confirmation-20261029/CONSOLIDATED-CLOSEOUT.md','A separado de P no core/CNG/port; CA original/custódia ausente e proposta focal de intenção+ack ainda PROPOSED','PROV-ROOT;ED11','OBRIGATORIO; RECOVERY_NAO_HERDADA','Decidir proposta focal e adquirir fonte original; não converter modelo/codec v1 em ack/autoridade'),
+  ('SCM','Instalação/lifecycle/conta operacional pessoal',mvp,'Windows pessoal M5','HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS',ed,'readiness/acesso/Stop/restart normal/uninstall','E17;E18;PROV-ROOT','OBRIGATORIO_PESSOAL','Mapear CLI ao mesmo owner; não criar serviço agora'),
+  ('CONFIG','Config settings-only/listeners/live apply',mvp+';docs/adr/DECISION-personal-listener-selection-direction-20261023.md','Pessoal M6 e direção posterior','SUBSET_PARCIAL; detalhes defaultLan não aceitos', 'docs/future/personal-listener-selection-and-live-configuration.md','reconciliação CURRENT/reload e fontes reais','PROV-ROOT;PROV-HOT','OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES','Não congelar gramática/default novos por inferência'),
+  ('CERTIFICATES','Certificados Browser / CredentialGeneration/Reference/store',prov,'Secure manual e automatic; trust Site separado','R1_CURRENT_HOST_E_SHARED_CORE_LIMITADOS','B:docs/architecture-roadmap.md','pacote/enrollment/renovação/retirement e runtime final','PROV-MANUAL;PROV-AUTO;PST','OBRIGATORIO_CONSUMIDOR','Provar jornada e erro sem exportar chaves'),
+--- before/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
++++ after/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
+@@ -47,7 +47,7 @@
+ PROV-HOT,Add/approve/renew/revoke sem restart,docs/adr/DECISION-production-client-provisioning-20261018.md,Mesmo root/issuer/cadastro,CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado,docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md,PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes,PROV-ROOT;PROV-CA,OBRIGATORIO_AMPLIACAO_ACCEPTED,Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch
+ PROV-REVOKE,Revogação ativa e novas admissões; histórico,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Pessoal M7,STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED,docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md,Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED,PROV-HOT;E18,OBRIGATORIO_AMPLIACAO_ACCEPTED,Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência
+ PROV-ROOT,Autoridade configuração/root/CURRENT/epoch,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Pessoal NORMAL e configuração produto,DORMANT_NATIVE_OFFLINE; operacional NOT_DEMONSTRATED,docs/integration/canonical-root-c2-c3-wiring-20261018/closeout.md,ato autorizado/publicação e referência original viva,autoridade instalação/configuração; sem TPM global,OBRIGATORIO_PRODUTO; INSTANCIA_A_DESCOBRIR,Mapear entrada/consumo atuais antes de propor bootstrap
+-PROV-CA,CA protegida/serial/UTC/issuer NORMAL,docs/adr/DECISION-phase6-personal-mvp-20261022.md,M1/M3 pessoal não recuperável,NATIVE_CAS_METADATA_QUALIFIED; NORMAL_DENY_ORIGINAL_CA_AND_ACK_ABSENT,docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md,Borrow da cerimônia não é fonte live; published_epoch v1 exige valor antes de A pós-commit; ver fronteiras exatas do pacote,PROV-ROOT;ED11,OBRIGATORIO; RECOVERY_NAO_HERDADA,Adquirir binding original e revisar representação focal do ack no mesmo root; não usar P/revisão/valor futuro
++PROV-CA,CA protegida/serial/UTC/issuer NORMAL,docs/adr/DECISION-phase6-personal-mvp-20261022.md,M1/M3 pessoal não recuperável,AP_CONSUMER_CORRECTED_PRIVATE_VIEW; NORMAL_DENY_SOURCE_AND_PERSISTED_ACK_ABSENT,docs/integration/phase6-normal-ap-confirmation-20261029/CONSOLIDATED-CLOSEOUT.md,A separado de P no core/CNG/port; CA original/custódia ausente e proposta focal de intenção+ack ainda PROPOSED,PROV-ROOT;ED11,OBRIGATORIO; RECOVERY_NAO_HERDADA,Decidir proposta focal e adquirir fonte original; não converter modelo/codec v1 em ack/autoridade
+ SCM,Instalação/lifecycle/conta operacional pessoal,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Windows pessoal M5,HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS,docs/integration/n0start03-integrated-closeout-20261024/ED11_GATE_MATRIX.csv,readiness/acesso/Stop/restart normal/uninstall,E17;E18;PROV-ROOT,OBRIGATORIO_PESSOAL,Mapear CLI ao mesmo owner; não criar serviço agora
+ CONFIG,Config settings-only/listeners/live apply,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-listener-selection-direction-20261023.md,Pessoal M6 e direção posterior,SUBSET_PARCIAL; detalhes defaultLan não aceitos,docs/future/personal-listener-selection-and-live-configuration.md,reconciliação CURRENT/reload e fontes reais,PROV-ROOT;PROV-HOT,OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES,Não congelar gramática/default novos por inferência
+ CERTIFICATES,Certificados Browser / CredentialGeneration/Reference/store,docs/adr/DECISION-production-client-provisioning-20261018.md,Secure manual e automatic; trust Site separado,R1_CURRENT_HOST_E_SHARED_CORE_LIMITADOS,B:docs/architecture-roadmap.md,pacote/enrollment/renovação/retirement e runtime final,PROV-MANUAL;PROV-AUTO;PST,OBRIGATORIO_CONSUMIDOR,Provar jornada e erro sem exportar chaves
+--- before/docs/capabilities/phase6-scope-and-closure-20261028.md
++++ after/docs/capabilities/phase6-scope-and-closure-20261028.md
+@@ -75,6 +75,10 @@
+ 
+ ## Artefatos para continuar
+ 
++### Consumidor A/P e proposta focal, 2026-10-29
++
++O [consumidor A/P foi corrigido](../integration/phase6-normal-ap-confirmation-20261029/CONSOLIDATED-CLOSEOUT.md): a view privada distingue administrative_epoch A e policy epoch P; core/CNG/port usam os dois vínculos e o re-read pós-fanout protege A/R/P. Quatro builds, 40 CTests e 32 execuções focadas PASS, incluindo 279 verificações do core/modelo por configuração. Nenhum byte de PACIS601/ROOT06/ROOT07 mudou. O ack persistido continua ausente e foi preparada uma proposta focal PROPOSED de intenção+ack versionados no mesmo root. A CA original/custódia permanece indisponível. NORMAL completo e fanout nativo positivo não demonstrados; ED11/Phase 6 PARTIAL. Não refazer CAS/M7 nem reaprovar M3; ver as duas decisões/aquisições reais no novo pacote.
++
+ ### Status CURRENT e port M7, 2026-10-29
+ 
+ O [novo pacote funcional](../integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md) implementa lookup da credencial completa no snapshot CURRENT, negação antes de publicação/admissão e o port nativo de revogação para Sessions/operações/candidates exatos. O efeito do cohort foi qualificado isoladamente; a rota nativa positiva ainda depende do status REVOKED original. Quatro builds, 40 CTests e 32 execuções focadas: PASS nos escopos declarados. NORMAL completo continua DENY: falta binding original CA/key/cert/generation e o ack PUBLISHED A/P não cabe na sequência atual sem resolver a representação. Não foi atribuído published_epoch a partir de P/revisão/valor futuro. Ver SOURCE-BINDING-FRONTIER.md e PUBLISHED-ACK-FRONTIER.md; não refazer CAS/M7 nem retomar TPM. ED11/Phase 6 PARTIAL, sem operação produtiva.
+--- before/docs/capabilities/canonical-phase6-consolidation.md
++++ after/docs/capabilities/canonical-phase6-consolidation.md
+@@ -1242,3 +1242,7 @@
+ 
+ [Relatório atual](../integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md): status exato CURRENT e port M7 implementados no mesmo root/owner. Cohort isolado preserva outra credencial do mesmo Principal, borrows, primeira causa e retenção; receipt não afirma quiescência/close. Builds Selected/Legacy Debug/Release, 40 CTests e 32 ensaios focados PASS. Não há demonstração positiva nativa NORMAL/M7: fonte original CA e representação do ack PUBLISHED continuam ausentes. A lacuna de fases está comprovada no codec v1; não houve revisão de ADR/bytes accepted ou concessão de autoridade. Esta atualização sucede a indicação anterior de fanout ausente em código, sem transformar sua implementação em prova operacional. Phase 6/ED11 continuam PARTIAL.
+ 
++# Atualização — A/P separados no consumidor issuer, 2026-10-29
++
++[Relatório](../integration/phase6-normal-ap-confirmation-20261029/CONSOLIDATED-CLOSEOUT.md): A administrativo é agora distinto de P operacional na view não serializada. Native read/CAS/poll e CNG/core preservam e verificam esses vínculos; epoch de P não é mais usado para confirmar published_epoch. Re-read M7 inclui A. Quatro builds, 40 CTests e 32 execuções focadas PASS; 279 verificações do modelo issuer por configuração. Sem alteração de bytes persistidos ou efeitos operacionais. A representação de ack e a fonte original CA/custódia continuam gates, com proposta focal PROPOSED pronta para decisão independente. Essa correção não equivale a NORMAL completo, fanout positivo, ED11 PASS ou Phase 6 concluída.
++

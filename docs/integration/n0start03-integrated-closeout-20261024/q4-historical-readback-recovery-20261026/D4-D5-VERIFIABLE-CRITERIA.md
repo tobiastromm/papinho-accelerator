@@ -1,0 +1,11 @@
+# Target policy criteria; no numeric grant
+
+D2 preparation exception is accepted; target policy remains incomplete.
+
+* Age: require explicit local observation/validation ticks and process-creation clock domain. Compute age only if monotonic order and wrap/domain are unambiguous. At each point of use require age <= approved target maximum, and original recorded expiry coherent; export/copy cannot renew it.
+* Collection validity: record query start/end and collection failure/overflow. Reject reversed, missing or excessive interval against the separately selected metric validity. The source 100 ms rejection mechanism does not establish its target applicability or cancellability.
+* Overall duration: use one original operation-start deadline in each responsible owner, distinct from progress-reset idle and phase deadlines. Specify stop-request bound separately from completion; a blocked API or retained dependency prevents a claim of bounded teardown. No source-local timeout sum supplies a whole-cycle ceiling.
+* Headroom: sample physical available and commit available separately and contemporaneously, with their source and units. Evaluate against independently approved floors and controlled remaining reservations without double charging embedded storage. Process private, commit and WS overlap; sockets/pool quotas cannot complete opaque costs. Missing active cost coverage remains UNKNOWN within the narrowly approved diagnostic policy, not zero or refund.
+* D5: exact committed administrative root/CURRENT/policy/epoch, approved SiteTLS/destination and module original identities must be available at use. Check module mapping separately from package/public-provider metadata. Configuration, process creation, backend, module or epoch changes invalidate reuse and stop new work. Retained historical charges remain unavailable.
+
+Next quantitative decision requires a supported workload/host envelope and justified age/validity/duration/floors. Evidence currently establishes fixed Browser1858020/2097152 bytes and actual source mechanisms only. No active provider/kernel observation or approved total duration/headroom is available. Parameters stay unset; no executable correlated diagnostic request is generated.

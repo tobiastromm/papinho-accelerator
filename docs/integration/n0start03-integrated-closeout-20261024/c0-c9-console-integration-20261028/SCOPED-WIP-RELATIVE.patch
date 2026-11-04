@@ -1,0 +1,398 @@
+--- tools\qualification\tpm-native-proof\artifact_test.c.before-task
++++ tools\qualification\tpm-native-proof\artifact_test.c
+@@ -19,7 +19,7 @@
+ static TP_PLATFORM p,retained;
+ static char canonical[TJ_BYTES];
+ static int request_model(void){int n;memset(p.exe_hash,'a',64);p.exe_hash[64]=0;memset(p.request_hash,'c',64);p.request_hash[64]=0;
+- n=_snprintf_s(p.request.bytes,TJ_BYTES,_TRUNCATE,"{\"kind\":\"OWNER_MANUAL_DIAGNOSTIC_REQUEST_NOT_APPROVAL\",\"executable_sha256\":\"%s\",\"direct_TBS_submit_maximum\":12,\"current_metadata_pins\":{\"operator_sid\":\"%s\",\"current_machine_name_sha256\":\"%s\",\"boot_event_computer_sha256\":\"%s\",\"boot_record\":237900,\"boot_start_utc\":\"%s\"},\"administrative_resource_gate\":{\"native_own_sample_limit\":128,\"native_before_observer_reserve_limit\":124,\"shared_parent_console_sample_limit\":1024},\"UNIT_TEST_MODEL_ONLY\":true}",p.exe_hash,TP_OPERATOR,TP_HOST_SHA,TP_EVENT_HOST_SHA,TP_BOOT_START);
++ n=_snprintf_s(p.request.bytes,TJ_BYTES,_TRUNCATE,"{\"kind\":\"OWNER_MANUAL_DIAGNOSTIC_REQUEST_NOT_APPROVAL\",\"executable_sha256\":\"%s\",\"direct_TBS_submit_maximum\":12,\"console_binding_revision\":\"C0-C9\",\"console_binding_proposal_sha256\":\"7dee709121cc9b56633efb6d968bd0935b81bc6c18b000226ed35cf0a179f985\",\"current_metadata_pins\":{\"operator_sid\":\"%s\",\"current_machine_name_sha256\":\"%s\",\"boot_event_computer_sha256\":\"%s\",\"boot_record\":237900,\"boot_start_utc\":\"%s\"},\"administrative_resource_gate\":{\"native_own_sample_limit\":128,\"native_before_observer_reserve_limit\":124,\"shared_parent_console_sample_limit\":1024},\"UNIT_TEST_MODEL_ONLY\":true}",p.exe_hash,TP_OPERATOR,TP_HOST_SHA,TP_EVENT_HOST_SHA,TP_BOOT_START);
+  C(n>0&&tj_parse(&p.request,(size_t)n));return 1;
+ }
+ static int approval_model(const char *literal){int n=_snprintf_s(p.approval.bytes,TJ_BYTES,_TRUNCATE,"{\"kind\":\"OWNER_APPROVAL_TPM_SALTED_PROOF_ONLY\",\"request_sha256\":\"%s\",\"executable_sha256\":\"%s\",\"one_manual_execution\":%s,\"ack_unknown_revocation\":true,\"ack_no_hardware_admission\":true,\"ack_internal_tpm_accounting_unknown\":true,\"UNIT_TEST_MODEL_ONLY\":true}",p.request_hash,p.exe_hash,literal);C(n>0&&tj_parse(&p.approval,(size_t)n));return 1;}
+@@ -36,7 +36,7 @@
+ }
+ static int test(const wchar_t *base,const wchar_t *cert){char *found,hex[65];unsigned i,length;wchar_t file[MAX_PATH],sub[MAX_PATH];DWORD wrote;HANDLE h;FILE *f=NULL;unsigned char data[32],expected[32];
+  hp_init(&p);C(request_model());strcpy_s(canonical,TJ_BYTES,p.request.bytes);C(hp_request_contract(&p));
+- {const char *needles[]={"\"direct_TBS_submit_maximum\":12","\"boot_record\":237900","native_own_sample_limit\":128","native_before_observer_reserve_limit\":124","shared_parent_console_sample_limit\":1024",TP_HOST_SHA,TP_EVENT_HOST_SHA,TP_OPERATOR,TP_BOOT_START,p.exe_hash};
++ {const char *needles[]={"\"direct_TBS_submit_maximum\":12","\"boot_record\":237900","native_own_sample_limit\":128","native_before_observer_reserve_limit\":124","shared_parent_console_sample_limit\":1024",TP_HOST_SHA,TP_EVENT_HOST_SHA,TP_OPERATOR,TP_BOOT_START,p.exe_hash,"C0-C9","7dee709121cc9b56633efb6d968bd0935b81bc6c18b000226ed35cf0a179f985"};
+  for(i=0;i<sizeof(needles)/sizeof(needles[0]);i++){tp_init(&p.proof);strcpy_s(p.request.bytes,TJ_BYTES,canonical);found=strstr(p.request.bytes,needles[i]);C(found!=NULL);found[strlen(needles[i])-1]^=1;C(tj_parse(&p.request,strlen(p.request.bytes)));C(!hp_request_contract(&p));}}
+  tp_init(&p.proof);C(request_model());C(approval_model("true"));C(hp_approval_contract(&p));
+  C(approval_model("false"));tp_init(&p.proof);C(!hp_approval_contract(&p));C(approval_model("\"true\""));tp_init(&p.proof);C(!hp_approval_contract(&p));
+
+--- CMakeLists.txt.before-task
++++ CMakeLists.txt
+@@ -3736,7 +3736,11 @@
+   add_executable(papacc_tpm_native_artifact_test ${tp_native}/artifact_test.c)
+   target_link_libraries(papacc_tpm_native_artifact_test PRIVATE papacc_tpm_native_core advapi32 crypt32 wevtapi user32)
+   target_compile_options(papacc_tpm_native_artifact_test PRIVATE /W4 /WX /GS /sdl)
+-  add_executable(papacc_tpm_native_e2e_fixture ${tp_native}/host_e2e_fixture.c ${tp_native}/host_platform.c)
++  add_executable(papacc_tpm_native_admin_fixture ${tp_native}/admin_native_fixture.c)
++  target_link_libraries(papacc_tpm_native_admin_fixture PRIVATE papacc_tpm_native_core advapi32 crypt32 wevtapi user32)
++  target_compile_options(papacc_tpm_native_admin_fixture PRIVATE /W4 /WX /GS /sdl)
++  set_target_properties(papacc_tpm_native_admin_fixture PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++  add_executable(papacc_tpm_native_e2e_fixture ${tp_native}/host_e2e_fixture.c)
+   target_link_libraries(papacc_tpm_native_e2e_fixture PRIVATE papacc_tpm_native_core advapi32 crypt32 wevtapi user32)
+   target_compile_options(papacc_tpm_native_e2e_fixture PRIVATE /W4 /WX /GS /sdl)
+   add_test(NAME papacc.tpm_native.artifacts_faults COMMAND ${CMAKE_COMMAND}
+@@ -3745,6 +3749,10 @@
+    -DMODE=artifacts -P ${CMAKE_CURRENT_SOURCE_DIR}/${tp_native}/run_fixture.cmake)
+   option(PAPACC_TPM_NATIVE_HOST_BOUND_TESTS "Run isolated metadata/console fixtures bound to the observed host; never TBS" OFF)
+   if(PAPACC_TPM_NATIVE_HOST_BOUND_TESTS)
++   add_test(NAME papacc.tpm_native.real_admin_graph COMMAND ${CMAKE_COMMAND}
++    -DEXECUTABLE=$<TARGET_FILE:papacc_tpm_native_admin_fixture> -DBASE=${CMAKE_CURRENT_BINARY_DIR}/Testing
++    -DMODE=admin -P ${CMAKE_CURRENT_SOURCE_DIR}/${tp_native}/run_fixture.cmake)
++   add_test(NAME papacc.tpm_native.role_files_readonly COMMAND papacc_tpm_native_platform_test --role-files-readonly)
+    add_test(NAME papacc.tpm_native.metadata_readonly COMMAND papacc_tpm_native_platform_test --current-metadata-readonly)
+    add_test(NAME papacc.tpm_native.console_mock_e2e COMMAND ${CMAKE_COMMAND}
+     -DEXECUTABLE=$<TARGET_FILE:papacc_tpm_native_e2e_fixture> -DBASE=${CMAKE_CURRENT_BINARY_DIR}/Testing
+
+--- tools\qualification\tpm-native-proof\host_e2e_fixture.c.before-task
++++ tools\qualification\tpm-native-proof\host_e2e_fixture.c
+@@ -4,7 +4,12 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <wchar.h>
+-static wchar_t fixture_folder[MAX_PATH];
++static wchar_t fixture_folder[MAX_PATH];static int fixture_maximum;
++static int fixture_role_evidence(TP_PLATFORM *,HANDLE,unsigned);
++#define HP_ADMIN_EVIDENCE fixture_role_evidence
++#include "host_platform.c"
++#undef HP_ADMIN_EVIDENCE
++
+ static int fixture_token(TP_PLATFORM *),fixture_files(TP_PLATFORM *,const char *,const char *),fixture_admin(TP_PLATFORM *),fixture_certificate(TP_PLATFORM *),fixture_boundary(TP_OWNER *,const char *);
+ static void fixture_init(TP_PLATFORM *);
+ #define TP_HOST_FIXTURE 1
+@@ -26,7 +31,7 @@
+ #include "proof_test.c"
+ #undef main
+ static MOCK endpoint;
+-static void fixture_init(TP_PLATFORM *p){hp_init(p);p->proof.boundary=fixture_boundary;memset(&endpoint,0,sizeof(endpoint));endpoint.owner=&p->proof;}
++static void fixture_init(TP_PLATFORM *p){hp_init(p);p->proof.boundary=fixture_boundary;memset(&endpoint,0,sizeof(endpoint));endpoint.owner=&p->proof;endpoint.mode=fixture_maximum?18:0;}
+ static int fixture_token(TP_PLATFORM *p){HANDLE token=NULL;TOKEN_STATISTICS statistics;DWORD bytes=0;unsigned char ids[24];
+  /* Real token resource/lifetime, simulated authority decision only. */
+  if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))return tp_fail(&p->proof,"MODEL_TOKEN_OPEN",GetLastError());
+@@ -48,59 +53,54 @@
+  n=_snprintf_s(model,sizeof(model),_TRUNCATE,"{\"kind\":\"OWNER_APPROVAL_TPM_SALTED_PROOF_ONLY\",\"request_sha256\":\"%s\",\"executable_sha256\":\"%s\",\"one_manual_execution\":true,\"ack_unknown_revocation\":true,\"ack_no_hardware_admission\":true,\"ack_internal_tpm_accounting_unknown\":true,\"UNIT_TEST_MODEL_ONLY\":true}",p->request_hash,p->exe_hash);
+  if(n<0)return 0;memcpy(p->approval.bytes,model,(size_t)n);if(!tj_parse(&p->approval,(size_t)n)||!hp_approval_contract(p))return 0;return tp_sample(&p->proof,"MODEL_ARTIFACTS_PINNED");
+ }
+-static int fixture_admin(TP_PLATFORM *p){DWORD ids[8],start=GetTickCount(),count,aux=0,used=0,handles;unsigned char basic[48];ULONGLONG parent;FILETIME pc,sc,e,k,u;TP_OWNER *o=&p->proof;
+- typedef LONG(NTAPI *QUERY_BASIC)(HANDLE,ULONG,PVOID,ULONG,PULONG);QUERY_BASIC query;
+- while((count=GetConsoleProcessList(ids,8))!=2&&GetTickCount()-start<3000)Sleep(5);
+- if(count!=2)return tp_fail(o,"MODEL_CONSOLE_CLIENT_COUNT",0);
+- p->observer_attempted=1;p->observer_known=GetProcessHandleCount(GetCurrentProcess(),&p->observer_count)!=0;p->observer_error=p->observer_known?0:GetLastError();
+- if(!p->observer_known)return tp_fail(o,"NATIVE_OBSERVER_QUERY_FAILED",p->observer_error);if(p->observer_count>124)return tp_fail(o,"NATIVE_OBSERVER_HEADROOM",0);
+- query=(QUERY_BASIC)(void *)GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtQueryInformationProcess");if(!query||query(GetCurrentProcess(),0,basic,48,&used)||used!=48)return tp_fail(o,"MODEL_PARENT_QUERY",0);memcpy(&parent,basic+40,8);
+- if(!parent||parent>0xffffffffULL)return tp_fail(o,"MODEL_PARENT_PID",0);
+- GetWindowThreadProcessId(GetConsoleWindow(),&aux);p->topology_parent=(DWORD)parent;p->topology_console=aux;p->topology_count=count;memcpy(p->topology_ids,ids,count*sizeof(DWORD));
+- /* This test environment's pseudo-console HWND belongs to the client. The
+-  * production guard correctly denies that topology and is NOT relaxed.
+-  * Borrow self solely as an object-type/resource stand-in; DO NOT sum its
+-  * count into the administrative budget or report it as an admitted role. */
+- p->parent=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,(DWORD)parent);if(!p->parent)return tp_fail(o,"MODEL_PARENT_OPEN",GetLastError());o->controlled_refs++;
+- p->console=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,GetCurrentProcessId());if(!p->console)return tp_fail(o,"MODEL_OBSERVER_OPEN",GetLastError());o->controlled_refs++;
+- if(!GetProcessTimes(p->parent,&pc,&e,&k,&u)||!GetProcessTimes(p->console,&sc,&e,&k,&u)||!GetProcessHandleCount(p->parent,&handles)||!GetProcessHandleCount(p->console,&handles))return tp_fail(o,"MODEL_PROCESS_OBSERVATION",GetLastError());
+- if(!tp_sample(o,"MODEL_OBSERVER_REFS_NO_ADMIN_CREDIT"))return 0;
+- if(!CloseHandle(p->console)){o->retained=1;return tp_fail(o,"MODEL_OBSERVER_CLOSE_UNKNOWN",GetLastError());}p->console=NULL;o->controlled_refs--;
+- if(!CloseHandle(p->parent)){o->retained=1;return tp_fail(o,"MODEL_PARENT_CLOSE_UNKNOWN",GetLastError());}p->parent=NULL;o->controlled_refs--;return 1;
++#include "native_role_fixture.inc"
++
++static int fixture_admin(TP_PLATFORM *p){DWORD ids[8],start=GetTickCount();
++ /* Controller attachment synchronization belongs only to this isolated test. */
++ while(GetConsoleProcessList(ids,8)!=2&&GetTickCount()-start<3000)Sleep(5);
++ return hp_admin(p);
+ }
++
+ static int fixture_certificate(TP_PLATFORM *p){unsigned char blob[512];ULONG n=0;BCRYPT_RSAKEY_BLOB *head=(BCRYPT_RSAKEY_BLOB *)blob;
+  if(BCryptGenerateKeyPair(p->proof.rsa,&endpoint.private_key,2048,0)<0||BCryptFinalizeKeyPair(endpoint.private_key,0)<0)return tp_fail(&p->proof,"MODEL_PRIVATE_KEY",0);
+  if(BCryptExportKey(endpoint.private_key,NULL,BCRYPT_RSAPUBLIC_BLOB,blob,sizeof(blob),&n,0)<0||head->cbModulus!=256||head->cbPublicExp!=3)return tp_fail(&p->proof,"MODEL_PUBLIC_EXPORT",0);
+  return tp_rsa_import(&p->proof,blob+sizeof(*head)+3);
+ }
+ static int fixture_boundary(TP_OWNER *o,const char *phase){TP_PLATFORM *p=o->guard_data;return hp_console_stop(p)&&fixture_token(p)&&fixture_admin(p)&&hp_files_current(p)&&hp_context_current(p,phase);}
+-static unsigned long real_open(void *r,void **out){RUNTIME *x=r;x->native_open_calls++;return mock_open(&endpoint,out);}
++static unsigned long real_open(void *r,void **out){RUNTIME *x=r;if(!fixture_boundary(&x->platform.proof,"MODEL_TBS_MODULE_BEFORE_OPEN"))return ERROR_CANCELLED;x->native_open_calls++;return mock_open(&endpoint,out);}
+ static unsigned long real_send(void *r,void *context,const unsigned char *b,unsigned n,unsigned char *out,unsigned *size){RUNTIME *x=r;x->native_submit_calls++;return mock_send(&endpoint,context,b,n,out,size);}
+ static unsigned long real_close(void *r,void *context){RUNTIME *x=r;x->native_close_calls++;return mock_close(&endpoint,context);}
+ static void fixture_before_finish(RUNTIME *r){if(endpoint.private_key&&!r->platform.proof.retained&&(!r->platform.proof.session_attempted||r->platform.proof.session_ended)){if(BCryptDestroyKey(endpoint.private_key)<0){tp_fail(&r->platform.proof,"MODEL_PRIVATE_CLOSE_UNKNOWN",0);r->platform.proof.retained=1;}else{endpoint.private_key=NULL;puts("MODEL_ENDPOINT_PRIVATE_KEY_CLOSED_BEFORE_PROVIDER");}}}
+ static int child(const wchar_t *folder){wchar_t out[MAX_PATH],a[65],b[65];FILE *file=NULL;int result;wchar_t *argv[4]={L"FIXTURE_ONLY",L"--owner-manual-proof",a,b};
+  if(wcslen(folder)+32>=MAX_PATH)return 3;swprintf_s(fixture_folder,MAX_PATH,L"%s\\",folder);swprintf_s(out,MAX_PATH,L"%sresult.txt",fixture_folder);
+  if(_wfreopen_s(&file,out,L"wx",stdout)!=0||!file)return 3;
+- wmemset(a,L'a',64);a[64]=0;wmemset(b,L'b',64);b[64]=0;puts("FIXTURE AUTHORITY_AND_ADMIN_ROLE_TOPOLOGY_MODEL; REAL_CONSOLE_AND_CLIENT_COUNTS; ADMIN_BUDGET_NOT_OBSERVED");result=fixture_production_entry(4,argv);
++ wmemset(a,L'a',64);a[64]=0;wmemset(b,L'b',64);b[64]=0;puts("FIXTURE TOKEN_AUTHORITY_PARENT_FILE_MODEL; REAL_C0_GUARD_KERNEL_CONSOLE_AND_METRICS; NO_OPERATIONAL_ADMIN_CREDIT");result=fixture_production_entry(4,argv);
+  puts("FIXTURE_ONLY_AUTHORITY_MODEL_NO_TPM_NO_REAL_APPROVAL");if(fclose(file)!=0)return 3;return result;
+ }
+-static int controller(const wchar_t *base,const wchar_t *mode){STARTUPINFOW si;PROCESS_INFORMATION pi;wchar_t exe[MAX_PATH],folder[MAX_PATH],cmd[3*MAX_PATH],line[100];HANDLE input;INPUT_RECORD records[100];DWORD i,len,wrote,start,exitCode=999;int attached=0;BOOL created;DWORD attach_error=0;
++static int controller(const wchar_t *base,const wchar_t *mode){STARTUPINFOW si;PROCESS_INFORMATION pi;wchar_t exe[MAX_PATH],folder[MAX_PATH],cmd[3*MAX_PATH],line[160];HANDLE input;INPUT_RECORD records[192];DWORD i,len,wrote,start,exitCode=999;int attached=0;BOOL created;DWORD attach_error=0;
+  if(!FreeConsole()&&GetLastError()!=ERROR_INVALID_HANDLE){printf("MODEL_DETACH_DENY error=%lu\n",GetLastError());return 1;}
+  if(!GetModuleFileNameW(NULL,exe,MAX_PATH))return 1;if(swprintf_s(folder,MAX_PATH,L"%s\\%s",base,mode)<0||!CreateDirectoryW(folder,NULL))return 1;
+  memset(&si,0,sizeof(si));memset(&pi,0,sizeof(pi));si.cb=sizeof(si);si.dwFlags=STARTF_USESHOWWINDOW;si.wShowWindow=SW_HIDE;
+- if(swprintf_s(cmd,3*MAX_PATH,L"\"%s\" --fixture-child \"%s\"",exe,folder)<0)return 1;
++ if(swprintf_s(cmd,3*MAX_PATH,L"\"%s\" %s \"%s\"",exe,!wcscmp(mode,L"maximum")?L"--fixture-child-max":L"--fixture-child",folder)<0)return 1;
+  created=CreateProcessW(exe,cmd,NULL,NULL,FALSE,CREATE_NEW_CONSOLE,NULL,NULL,&si,&pi);if(!created)return 1;
+  start=GetTickCount();while(GetTickCount()-start<3000){if(AttachConsole(pi.dwProcessId)){attached=1;break;}attach_error=GetLastError();Sleep(5);}
+  if(!attached){printf("UNKNOWN fixture child attach pid=%lu error=%lu no kill\n",pi.dwProcessId,attach_error);return 1;}
+  input=CreateFileW(L"CONIN$",GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);if(input==INVALID_HANDLE_VALUE)return 1;
+- if(!wcscmp(mode,L"wrong"))wcscpy_s(line,100,L"WRONG\r");else{wcscpy_s(line,100,L"PROVE_EK_SESSION ");{size_t prefix=wcslen(line);wmemset(line+prefix,L'c',64);line[prefix+64]=L'\r';line[prefix+65]=0;}}
+- len=(DWORD)wcslen(line);memset(records,0,sizeof(records));for(i=0;i<len;i++){records[i].EventType=KEY_EVENT;records[i].Event.KeyEvent.bKeyDown=TRUE;records[i].Event.KeyEvent.wRepeatCount=1;records[i].Event.KeyEvent.uChar.UnicodeChar=line[i];records[i].Event.KeyEvent.wVirtualKeyCode=line[i]==L'\r'?VK_RETURN:0;}
++ if(!wcscmp(mode,L"wrong"))wcscpy_s(line,160,L"WRONG\r");else{ULONGLONG raw=0;ULONG used=0;DWORD aux;HANDLE h;FILETIME pc,ac,e,k,u;wchar_t hash[65];HP_NATIVE_QUERY query=(HP_NATIVE_QUERY)(void *)GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtQueryInformationProcess");
++ if(!query||query(pi.hProcess,49,&raw,8,&used)||used!=8||!GetProcessTimes(GetCurrentProcess(),&pc,&e,&k,&u))return 1;aux=(DWORD)(raw&~3ULL);h=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,aux);if(!h)return 1;
++ if(!GetProcessTimes(h,&ac,&e,&k,&u)||!CloseHandle(h))return 1;wmemset(hash,L'c',64);hash[64]=0;
++ if(swprintf_s(line,160,L"PROVE_EK_SESSION %s %lu %llu %lu %llu\r",hash,GetCurrentProcessId(),ft(&pc),aux,ft(&ac))<0)return 1;}
++
++ len=(DWORD)wcslen(line);if(len+1>sizeof(records)/sizeof(records[0]))return 1;memset(records,0,sizeof(records));for(i=0;i<len;i++){records[i].EventType=KEY_EVENT;records[i].Event.KeyEvent.bKeyDown=TRUE;records[i].Event.KeyEvent.wRepeatCount=1;records[i].Event.KeyEvent.uChar.UnicodeChar=line[i];records[i].Event.KeyEvent.wVirtualKeyCode=line[i]==L'\r'?VK_RETURN:0;}
+  if(!wcscmp(mode,L"escape")){records[len].EventType=KEY_EVENT;records[len].Event.KeyEvent.bKeyDown=TRUE;records[len].Event.KeyEvent.wRepeatCount=1;records[len].Event.KeyEvent.wVirtualKeyCode=VK_ESCAPE;records[len].Event.KeyEvent.uChar.UnicodeChar=27;len++;}
+  if(!WriteConsoleInputW(input,records,len,&wrote)||wrote!=len||!CloseHandle(input))return 1;
+  if(WaitForSingleObject(pi.hProcess,15000)!=WAIT_OBJECT_0){printf("UNKNOWN fixture child retained pid=%lu no kill\n",pi.dwProcessId);return 1;}
+  if(!GetExitCodeProcess(pi.hProcess,&exitCode)||!CloseHandle(pi.hThread)||!CloseHandle(pi.hProcess))return 1;
+  if(!FreeConsole())return 1;printf("FIXTURE mode=%ls exit=%lu; child refs closed; no TBS\n",mode,exitCode);
+- return exitCode==(!wcscmp(mode,L"clean")?0UL:2UL)?0:1;
++ return exitCode==((!wcscmp(mode,L"clean")||!wcscmp(mode,L"maximum"))?0UL:2UL)?0:1;
+ }
+-int wmain(int argc,wchar_t **argv){if(argc==3&&!wcscmp(argv[1],L"--fixture-child"))return child(argv[2]);if(argc!=3||wcscmp(argv[1],L"--fixture-controller"))return 2;
+- if(controller(argv[2],L"clean")||controller(argv[2],L"wrong")||controller(argv[2],L"escape"))return 1;puts("PASS FULL_CONTROL_FLOW_PRIVATE_CONSOLE_MOCK_TPM_ONLY");return 0;}
++#ifndef TP_E2E_ENTRY
++#define TP_E2E_ENTRY wmain
++#endif
++int TP_E2E_ENTRY(int argc,wchar_t **argv){if(argc==3&&(!wcscmp(argv[1],L"--fixture-child")||!wcscmp(argv[1],L"--fixture-child-max"))){fixture_maximum=!wcscmp(argv[1],L"--fixture-child-max");return child(argv[2]);}if(argc!=3||wcscmp(argv[1],L"--fixture-controller"))return 2;
++ if(controller(argv[2],L"clean")||controller(argv[2],L"wrong")||controller(argv[2],L"escape")||controller(argv[2],L"maximum"))return 1;puts("PASS FULL_CONTROL_FLOW_PRIVATE_CONSOLE_MOCK_TPM_ONLY");return 0;}
+
+--- tools\qualification\tpm-native-proof\host_platform.c.before-task
++++ tools\qualification\tpm-native-proof\host_platform.c
+@@ -56,27 +56,8 @@
+  _snprintf_s(p->live_binding,sizeof(p->live_binding),_TRUNCATE,"%llu|%lu|%llu",TP_BOOT_RECORD,p->pid,p->creation);ok=tp_sample(o,"METADATA_HELD");
+ done:if(o->retained)return 0;if(!close_event(p,&p->render)||!close_event(p,&p->event)||!close_event(p,&p->query))return 0;return ok;
+ }
+-int hp_admin(TP_PLATFORM *p){TP_OWNER *o=&p->proof;unsigned char basic[48];ULONG used=0;ULONGLONG parent64;DWORD parent,console=0,ids[8],count,i,self=GetCurrentProcessId();BOOL seenSelf=FALSE,seenParent=FALSE;FILETIME pc,cc,e,k,u;TP_ADMIN_SAMPLE *s;int ok=0;
+- typedef LONG (NTAPI *QUERY)(HANDLE,ULONG,PVOID,ULONG,PULONG);QUERY query;
+- if(o->frozen)return 0;if(InterlockedCompareExchange(&o->stop,0,0))return tp_fail(o,"OWNER_STOP",0);p->observer_attempted=1;p->observer_known=GetProcessHandleCount(GetCurrentProcess(),&p->observer_count)!=0;p->observer_error=p->observer_known?0:GetLastError();
+- if(!p->observer_known)return tp_fail(o,"NATIVE_OBSERVER_QUERY_FAILED",p->observer_error);if(p->observer_count>TP_OBSERVER_LIMIT)return tp_fail(o,"NATIVE_OBSERVER_HEADROOM",0);
+- query=(QUERY)(void *)GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"NtQueryInformationProcess");if(!query||query(GetCurrentProcess(),0,basic,sizeof(basic),&used)!=0||used!=sizeof(basic))return tp_fail(o,"PARENT_QUERY_UNKNOWN",0);
+- memcpy(&parent64,basic+40,8);if(!parent64||parent64>0xffffffffULL)return tp_fail(o,"PARENT_QUERY_UNKNOWN",0);parent=(DWORD)parent64;
+- if(!GetConsoleWindow()||!GetWindowThreadProcessId(GetConsoleWindow(),&console))return host_fail(p,"CONSOLE_METADATA_UNKNOWN");count=GetConsoleProcessList(ids,8);p->topology_parent=parent;p->topology_console=console;p->topology_count=count;memset(p->topology_ids,0,sizeof(p->topology_ids));if(count<=8)memcpy(p->topology_ids,ids,count*sizeof(DWORD));
+- for(i=0;count<=8&&i<count;i++){if(ids[i]==self)seenSelf=TRUE;if(ids[i]==parent)seenParent=TRUE;}
+- if(count!=2||!seenSelf||!seenParent||!console||console==self||console==parent)return tp_fail(o,"PARTICIPANT_TOPOLOGY_DENY",0);
+- if(p->parent_pid&&(p->parent_pid!=parent||p->console_pid!=console))return tp_fail(o,"ADMIN_PID_CHANGED",0);
+- p->parent=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,parent);if(!p->parent)return host_fail(p,"PARENT_OPEN_QUERY");o->controlled_refs++;
+- p->console=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,console);if(!p->console){host_fail(p,"CONSOLE_OPEN_QUERY");goto done;}o->controlled_refs++;
+- if(p->admin_count==TP_ADMIN_SAMPLES){tp_fail(o,"ADMIN_SAMPLE_CAP",0);goto done;}s=&p->admins[p->admin_count];memset(s,0,sizeof(*s));
+- if(!GetProcessTimes(p->parent,&pc,&e,&k,&u)||!GetProcessTimes(p->console,&cc,&e,&k,&u)||!GetProcessHandleCount(p->parent,&s->parent_handles)||!GetProcessHandleCount(p->console,&s->console_handles)){host_fail(p,"ADMIN_METRIC_UNKNOWN");goto done;}
+- if(!ft(&pc)||!ft(&cc)||!s->parent_handles||!s->console_handles){tp_fail(o,"ADMIN_METRIC_UNKNOWN",0);goto done;}
+- if(p->parent_creation&&(p->parent_creation!=ft(&pc)||p->console_creation!=ft(&cc))){tp_fail(o,"ADMIN_PID_REUSE",0);goto done;}
+- if((ULONGLONG)s->parent_handles+s->console_handles>TP_ADMIN_LIMIT){tp_fail(o,"ADMIN_BUDGET_DENY",0);goto done;}
+- p->parent_pid=parent;p->console_pid=console;p->parent_creation=ft(&pc);p->console_creation=ft(&cc);s->parent_pid=parent;s->console_pid=console;s->parent_creation=ft(&pc);s->console_creation=ft(&cc);s->tick=GetTickCount64();p->admin_count++;
+- ok=tp_sample(o,"OBSERVER_REFERENCES_HELD");
+-done:if(!close_handle(p,&p->console)||!close_handle(p,&p->parent)){p->observer_close_error=GetLastError();return 0;}return ok;
+-}
++#include "host_admin.inc"
++
+ static int file_current(TP_PLATFORM *p,TP_FILE *f){BY_HANDLE_FILE_INFORMATION id;LARGE_INTEGER size;if(!GetFileInformationByHandle(f->handle,&id)||!GetFileSizeEx(f->handle,&size))return host_fail(p,"PINNED_FILE_ID_QUERY");
+  if((id.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)||id.dwVolumeSerialNumber!=f->id.dwVolumeSerialNumber||id.nFileIndexHigh!=f->id.nFileIndexHigh||id.nFileIndexLow!=f->id.nFileIndexLow||size.QuadPart!=f->bytes)return tp_fail(&p->proof,"PINNED_FILE_CHANGED",0);return 1;
+ }
+@@ -121,6 +102,7 @@
+  if(strcmp(hex,TP_CERT_SHA))return tp_fail(&p->proof,"CERT_PIN",0);return hp_request_contract(p)&&hp_approval_contract(p);
+ }
+ int hp_request_contract(TP_PLATFORM *p){TJ_DOC *d=&p->request;int meta=tj_get(d,0,"current_metadata_pins"),limits=tj_get(d,0,"administrative_resource_gate");unsigned long long n;
++ if(!tj_is(d,tj_get(d,0,"console_binding_revision"),"C0-C9")||!tj_is(d,tj_get(d,0,"console_binding_proposal_sha256"),"7dee709121cc9b56633efb6d968bd0935b81bc6c18b000226ed35cf0a179f985"))return tp_fail(&p->proof,"REQUEST_CONSOLE_POLICY",0);
+  if(!tj_is(d,tj_get(d,0,"kind"),"OWNER_MANUAL_DIAGNOSTIC_REQUEST_NOT_APPROVAL")||!tj_is(d,tj_get(d,0,"executable_sha256"),p->exe_hash)||!tj_is(d,tj_get(d,meta,"operator_sid"),TP_OPERATOR)||!tj_is(d,tj_get(d,meta,"current_machine_name_sha256"),TP_HOST_SHA)||!tj_is(d,tj_get(d,meta,"boot_event_computer_sha256"),TP_EVENT_HOST_SHA)||!tj_is(d,tj_get(d,meta,"boot_start_utc"),TP_BOOT_START))return tp_fail(&p->proof,"REQUEST_IDENTITY_SCOPE",0);
+  if(!tj_u64(d,tj_get(d,meta,"boot_record"),&n)||n!=TP_BOOT_RECORD||!tj_u64(d,tj_get(d,0,"direct_TBS_submit_maximum"),&n)||n!=12)return tp_fail(&p->proof,"REQUEST_LIMIT_SCOPE",0);
+  if(!tj_u64(d,tj_get(d,limits,"native_own_sample_limit"),&n)||n!=128||!tj_u64(d,tj_get(d,limits,"native_before_observer_reserve_limit"),&n)||n!=124||!tj_u64(d,tj_get(d,limits,"shared_parent_console_sample_limit"),&n)||n!=1024)return tp_fail(&p->proof,"REQUEST_RESOURCE_SCOPE",0);return 1;
+@@ -129,7 +111,9 @@
+  if(!tj_is(a,tj_get(a,0,"kind"),"OWNER_APPROVAL_TPM_SALTED_PROOF_ONLY")||!tj_is(a,tj_get(a,0,"request_sha256"),p->request_hash)||!tj_is(a,tj_get(a,0,"executable_sha256"),p->exe_hash)||!tj_true(a,tj_get(a,0,"one_manual_execution"))||!tj_true(a,tj_get(a,0,"ack_unknown_revocation"))||!tj_true(a,tj_get(a,0,"ack_no_hardware_admission"))||!tj_true(a,tj_get(a,0,"ack_internal_tpm_accounting_unknown")))return tp_fail(&p->proof,"EXACT_APPROVAL_SCOPE",0);return 1;
+ }
+ int hp_confirm(TP_PLATFORM *p){wchar_t entered[160],expected[160];DWORD mode=0,n=0;HANDLE input=GetStdHandle(STD_INPUT_HANDLE);
+- if(!GetConsoleMode(input,&mode))return host_fail(p,"INTERACTIVE_CONSOLE_REQUIRED");if(swprintf_s(expected,160,L"PROVE_EK_SESSION %S",p->request_hash)<0)return tp_fail(&p->proof,"CONFIRMATION_SHAPE",0);
++ if(!GetConsoleMode(input,&mode))return host_fail(p,"INTERACTIVE_CONSOLE_REQUIRED");if(swprintf_s(expected,160,L"PROVE_EK_SESSION %S %lu %llu %lu %llu",p->request_hash,p->parent_pid,p->parent_creation,p->console_pid,p->console_creation)<0)return tp_fail(&p->proof,"CONFIRMATION_SHAPE",0);
++ if(!p->parent_pid||!p->console_pid||!p->parent_creation||!p->console_creation)return tp_fail(&p->proof,"CONFIRMATION_ROLE_BINDING",0);
++ printf("C0_BIND parent=%lu creation=%llu auxiliary=%lu creation=%llu window_metadata=%lu; CONSOLE_AUTH_AND_MAPPED_IMAGE_UNPROVEN; NO_ADMISSION\n",p->parent_pid,p->parent_creation,p->console_pid,p->console_creation,p->window_owner);
+  printf("TRANSIENT SALTED EK MATHEMATICAL PROOF ONLY; revocation UNKNOWN; no NV/AK/hierarchy/Q4. One attempt; no retry. Type exactly: %ls\n",expected);fflush(stdout);
+  if(!ReadConsoleW(input,entered,159,&n,NULL)||!n||n>=159)return host_fail(p,"CONFIRMATION_READ");entered[n]=0;while(n&&(entered[n-1]==L'\n'||entered[n-1]==L'\r'))entered[--n]=0;
+  return !wcscmp(entered,expected)?1:tp_fail(&p->proof,"CONFIRMATION_DENY",0);
+@@ -157,7 +141,7 @@
+  if(!CertFreeCertificateContext(p->cert)){o->retained=1;return host_fail(p,"CERT_CLOSE_UNKNOWN");}p->cert=NULL;o->controlled_refs--;return tp_sample(o,"CERT_EK_MATCH_READY");
+ }
+ int hp_close(TP_PLATFORM *p){unsigned i;if(p->proof.retained)return 0;p->proof.stage="PLATFORM_CLOSE";
+- if(!close_handle(p,&p->console)||!close_handle(p,&p->parent)||!close_event(p,&p->render)||!close_event(p,&p->event)||!close_event(p,&p->query)||!close_handle(p,&p->token))return 0;
++ if(!close_handle(p,&p->role_image)||!close_handle(p,&p->console)||!close_handle(p,&p->parent)||!close_event(p,&p->render)||!close_event(p,&p->event)||!close_event(p,&p->query)||!close_handle(p,&p->token))return 0;
+  if(p->cert){if(!CertFreeCertificateContext(p->cert)){p->proof.retained=1;return host_fail(p,"CERT_CLOSE_UNKNOWN");}p->cert=NULL;p->proof.controlled_refs--;}
+  for(i=0;i<TP_FILES;i++)if(!close_handle(p,&p->files[i].handle))return 0;return 1;
+ }
+@@ -168,7 +152,7 @@
+  for(i=0;i<o->sample_count;i++){const TP_SAMPLE *s=&o->samples[i];printf("%s{\"phase\":\"%s\",\"tick_ms\":%llu,\"known\":%s,\"count\":",i?",":"",s->phase,s->tick,s->known?"true":"false");
+  if(s->known)printf("%lu",s->count);else printf("null");printf(",\"error\":%lu,\"controlled_refs\":%u,\"memory_known\":%s,\"private_bytes\":",s->error,s->own_refs,s->memory_known?"true":"false");
+  if(s->memory_known)printf("%Iu",s->private_bytes);else printf("null");printf(",\"working_set\":");if(s->memory_known)printf("%Iu",s->working_set);else printf("null");printf(",\"memory_error\":%lu}",s->memory_error);}
+- printf("],\"observer_close_error\":%lu,\"observer_refs_retained\":%s,\"receipt_written\":%lu,\"receipt_expected\":%lu,\"topology_parent\":%lu,\"topology_console\":%lu,\"topology_count\":%lu,\"topology_clients\":[",p->observer_close_error,o->retained&&(p->parent||p->console)?"true":"false",p->receipt_written,p->receipt_expected,p->topology_parent,p->topology_console,p->topology_count);for(i=0;p->topology_count<=8&&i<p->topology_count;i++)printf("%s%lu",i?",":"",p->topology_ids[i]);printf("],\"administrative_samples\":[");
++ printf("],\"observer_close_error\":%lu,\"observer_refs_retained\":%s,\"receipt_written\":%lu,\"receipt_expected\":%lu,\"topology_parent\":%lu,\"topology_console\":%lu,\"topology_count\":%lu,\"topology_clients\":[",p->observer_close_error,o->retained&&(p->parent||p->console)?"true":"false",p->receipt_written,p->receipt_expected,p->topology_parent,p->topology_console,p->topology_count);for(i=0;p->topology_count<=8&&i<p->topology_count;i++)printf("%s%lu",i?",":"",p->topology_ids[i]);printf("],\"console_binding_revision\":\"C0-C9\",\"window_owner_metadata\":%lu,\"role_file_verification_mask_at_last_admin_attempt\":%u,\"native_console_raw\":%llu,\"parent_console_raw\":%llu,\"administrative_samples\":[",p->window_owner,p->role_file_verified_mask,p->self_console_raw,p->console_raw);
+  for(i=0;i<p->admin_count;i++){const TP_ADMIN_SAMPLE *s=&p->admins[i];printf("%s{\"parent\":%lu,\"parent_creation\":%llu,\"handles\":%lu,\"console\":%lu,\"console_creation\":%llu,\"console_handles\":%lu,\"tick_ms\":%llu}",i?",":"",s->parent_pid,s->parent_creation,s->parent_handles,s->console_pid,s->console_creation,s->console_handles,s->tick);}printf("] ,\"artifact_observations\":[");
+  for(i=0;i<TP_FILES;i++){const TP_FILE *f=&p->files[i];printf("%s{\"role_index\":%u,\"native_identity_known\":%s,\"volume\":",i?",":"",i,f->info_known?"true":"false");
+  if(f->info_known)printf("%lu,\"file_id_high\":%lu,\"file_id_low\":%lu,\"bytes\":%lu",f->id.dwVolumeSerialNumber,f->id.nFileIndexHigh,f->id.nFileIndexLow,f->bytes);else printf("null,\"file_id_high\":null,\"file_id_low\":null,\"bytes\":null");
+
+--- tools\qualification\tpm-native-proof\host_platform.h.before-task
++++ tools\qualification\tpm-native-proof\host_platform.h
+@@ -17,11 +17,13 @@
+ typedef struct TP_ADMIN_SAMPLE {DWORD parent_pid,console_pid,parent_handles,console_handles;ULONGLONG parent_creation,console_creation,tick;} TP_ADMIN_SAMPLE;
+ typedef struct TP_PLATFORM {
+  TP_OWNER proof;TP_FILE files[TP_FILES];TJ_DOC request,approval;
+- HANDLE token,parent,console;EVT_HANDLE query,event,render;PCCERT_CONTEXT cert;
++ HANDLE token,parent,console,role_image;volatile LONG admin_busy;EVT_HANDLE query,event,render;PCCERT_CONTEXT cert;
+  unsigned char token_buffer[4096],token_ids[24],expected_context[32],cert_bytes[TP_CERT_MAX];
+  wchar_t folder[MAX_PATH],executable[MAX_PATH];char request_hash[65],approval_hash[65],exe_hash[65],live_binding[128];
+  DWORD pid,parent_pid,console_pid,topology_parent,topology_console,topology_count,topology_ids[8];ULONGLONG creation,parent_creation,console_creation;
+  int token_bound,context_bound,observer_attempted,observer_known;DWORD observer_count,observer_error,observer_close_error;
++ unsigned char role_token_ids[2][24];unsigned role_token_bound[2],role_file_verified_mask;
++ ULONGLONG console_raw,self_console_raw;DWORD window_owner;
+  TP_ADMIN_SAMPLE admins[TP_ADMIN_SAMPLES];unsigned admin_count;int receipt_created,receipt_uncertain;DWORD receipt_written,receipt_expected;
+ } TP_PLATFORM;
+ void hp_init(TP_PLATFORM *p);
+
+--- tools\qualification\tpm-native-proof\platform_test.c.before-task
++++ tools\qualification\tpm-native-proof\platform_test.c
+@@ -6,24 +6,44 @@
+ #include <wchar.h>
+ static unsigned checks;
+ #define C(x) do{checks++;if(!(x)){printf("FAIL line=%u %s\n",(unsigned)__LINE__,#x);return 0;}}while(0)
+-static struct {int active,mode;DWORD own,parent_count,console_count,stats_calls;HANDLE parent,console;DWORD opens,closes;} g;
++static struct {int active,mode,reentered;TP_PLATFORM *owner;int file_fault;DWORD own,parent_count,console_count,stats_calls;HANDLE parent,console;DWORD opens,closes,class_calls,client_calls;} g;
+ static BOOL q_count(HANDLE h,PDWORD count){if(!g.active)return GetProcessHandleCount(h,count);if(h==GetCurrentProcess()){*count=g.own;if(g.mode==1){SetLastError(5);return FALSE;}return TRUE;}*count=h==g.parent?g.parent_count:g.console_count;return TRUE;}
+-static LONG NTAPI q_basic(HANDLE h,ULONG cls,PVOID data,ULONG bytes,PULONG used){ULONGLONG pid=100;(void)h;(void)cls;if(bytes!=48)return -1;memset(data,0,48);memcpy((unsigned char *)data+40,&pid,8);*used=48;return 0;}
++static LONG NTAPI q_basic(HANDLE h,ULONG cls,PVOID data,ULONG bytes,PULONG used){ULONGLONG pid=100;
++ if(cls==49){g.class_calls++;if(g.mode==26&&!g.reentered){g.reentered=1;hp_admin(g.owner);}if(bytes!=8)return -1;pid=201;if(g.mode==17)return (LONG)0xc0000003;if(g.mode==18&&h==g.parent)pid=301;if(g.mode==20)pid=202;if(g.mode==22&&g.class_calls>2)pid=205;memcpy(data,&pid,8);*used=g.mode==21?4:8;return 0;}
++ if(bytes!=48)return -1;memset(data,0,48);memcpy((unsigned char *)data+40,&pid,8);*used=48;return 0;}
++static DWORD q_id(HANDLE h){if(!g.active)return GetProcessId(h);return h==g.parent?100:200;}
++static DWORD q_wait(HANDLE h,DWORD time){if(!g.active)return WaitForSingleObject(h,time);return g.mode==19&&h==g.console?WAIT_OBJECT_0:WAIT_TIMEOUT;}
++static BOOL q_session(DWORD pid,DWORD *session){if(!g.active)return ProcessIdToSessionId(pid,session);*session=1;return TRUE;}
++static int model_admin_evidence(TP_PLATFORM *,HANDLE,unsigned);
++static int model_abi_evidence(TP_PLATFORM *);
++
+ static FARPROC q_proc(HMODULE m,LPCSTR name){if(g.active&&!strcmp(name,"NtQueryInformationProcess"))return (FARPROC)(void *)q_basic;return GetProcAddress(m,name);}
+ static HWND q_console(void){return g.active?(HWND)(ULONG_PTR)1:GetConsoleWindow();}
+ static DWORD q_window(HWND window,LPDWORD pid){if(!g.active)return GetWindowThreadProcessId(window,pid);*pid=g.mode==8?100:g.mode==9?GetCurrentProcessId():200;return 1;}
+-static DWORD q_clients(LPDWORD p,DWORD n){if(!g.active)return GetConsoleProcessList(p,n);if(n<3)return 0;p[0]=GetCurrentProcessId();p[1]=100;p[2]=300;return g.mode==4?3:2;}
++static DWORD q_clients(LPDWORD p,DWORD n){if(!g.active)return GetConsoleProcessList(p,n);g.client_calls++;if(n<3)return 0;p[0]=GetCurrentProcessId();p[1]=100;p[2]=300;return g.mode==4||(g.mode==23&&g.client_calls>1)?3:2;}
+ static HANDLE q_open(DWORD access,BOOL inherit,DWORD pid){HANDLE h;if(!g.active)return OpenProcess(access,inherit,pid);g.opens++;if(g.mode==5&&pid==200){SetLastError(5);return NULL;}h=CreateEventW(NULL,TRUE,FALSE,NULL);if(pid==100)g.parent=h;else g.console=h;return h;}
+ static BOOL q_times(HANDLE h,LPFILETIME c,LPFILETIME e,LPFILETIME k,LPFILETIME u){if(!g.active)return GetProcessTimes(h,c,e,k,u);memset(c,0,sizeof(*c));memset(e,0,sizeof(*e));memset(k,0,sizeof(*k));memset(u,0,sizeof(*u));c->dwLowDateTime=h==g.parent?10:20;if(g.mode==6)c->dwLowDateTime++;return TRUE;}
+-static BOOL q_close(HANDLE h){if(!g.active)return CloseHandle(h);g.closes++;if(g.mode==7&&h==g.console){SetLastError(6);return FALSE;}return CloseHandle(h);}
++static BOOL q_close(HANDLE h){if(!g.active){if(g.file_fault==6&&GetFileType(h)==FILE_TYPE_DISK){SetLastError(6);return FALSE;}return CloseHandle(h);}g.closes++;if(g.mode==7&&h==g.console){SetLastError(6);return FALSE;}return CloseHandle(h);}
+ static BOOL q_thread(HANDLE thread,DWORD access,BOOL asSelf,PHANDLE token){if(!g.active)return OpenThreadToken(thread,access,asSelf,token);*token=NULL;if(g.mode==10){*token=CreateEventW(NULL,TRUE,FALSE,NULL);return TRUE;}SetLastError(g.mode==11?ERROR_ACCESS_DENIED:ERROR_NO_TOKEN);return FALSE;}
+ static BOOL q_token(HANDLE process,DWORD access,PHANDLE token){if(!g.active)return OpenProcessToken(process,access,token);*token=CreateEventW(NULL,TRUE,FALSE,NULL);return *token!=NULL;}
+ static BOOL q_information(HANDLE token,TOKEN_INFORMATION_CLASS cls,LPVOID data,DWORD n,PDWORD used){static const unsigned char sid[]={1,5,0,0,0,0,0,5,21,0,0,0,222,210,212,46,186,166,219,85,236,129,65,100,84,4,0,0};if(!g.active)return GetTokenInformation(token,cls,data,n,used);
+  if(g.mode==15){SetLastError(5);return FALSE;}
+  if(cls==TokenUser){TOKEN_USER *v=data;if(n<sizeof(*v)+sizeof(sid))return FALSE;*used=(DWORD)(sizeof(*v)+sizeof(sid));memset(data,0,*used);v->User.Sid=(unsigned char *)data+sizeof(*v);memcpy(v->User.Sid,sid,sizeof(sid));if(g.mode==12)((unsigned char *)v->User.Sid)[24]^=1;return TRUE;}
++ if(cls==TokenElevation){TOKEN_ELEVATION *v=data;v->TokenIsElevated=g.mode!=13;*used=sizeof(*v);return TRUE;}
++ if(cls==TokenType){*(TOKEN_TYPE *)data=g.mode==29?TokenImpersonation:TokenPrimary;*used=sizeof(TOKEN_TYPE);return TRUE;}
++ if(cls==TokenSessionId){*(DWORD *)data=g.mode==30?99:1;*used=sizeof(DWORD);return TRUE;}
+  if(cls==TokenStatistics){TOKEN_STATISTICS *v=data;if(n<sizeof(*v))return FALSE;memset(v,0,sizeof(*v));v->TokenId.LowPart=111;v->AuthenticationId.LowPart=222;v->ModifiedId.LowPart=333+(g.mode==14?(g.stats_calls%2):0)+(g.mode==16?1:0);*used=sizeof(*v);g.stats_calls++;return TRUE;}return FALSE;
+ }
+ static BOOL q_membership(HANDLE token,PSID sid,PBOOL enabled){if(!g.active)return CheckTokenMembership(token,sid,enabled);*enabled=g.mode!=13;return TRUE;}
++static BOOL q_security(HANDLE h,SECURITY_INFORMATION flags,PSECURITY_DESCRIPTOR data,DWORD bytes,PDWORD needed){BOOL ok;
++ if(g.file_fault==1){SetLastError(5);return FALSE;}ok=GetKernelObjectSecurity(h,flags,data,bytes,needed);if(ok&&g.file_fault==2&&*needed)((unsigned char *)data)[4]^=1;return ok;}
++static BOOL q_file_info(HANDLE h,LPBY_HANDLE_FILE_INFORMATION info){BOOL ok=GetFileInformationByHandle(h,info);if(ok&&g.file_fault==3)info->nFileIndexLow^=1;return ok;}
++static BOOL q_read(HANDLE h,LPVOID b,DWORD n,LPDWORD used,LPOVERLAPPED overlapped){if(g.file_fault==4){*used=0;SetLastError(999);return TRUE;}return ReadFile(h,b,n,used,overlapped);}
++static NTSTATUS q_finish_hash(BCRYPT_HASH_HANDLE h,PUCHAR b,ULONG n,ULONG flags){NTSTATUS status=BCryptFinishHash(h,b,n,flags);if(status==0&&g.file_fault==5&&n)b[0]^=1;return status;}
++#define GetKernelObjectSecurity q_security
++#define GetFileInformationByHandle q_file_info
++#define ReadFile q_read
++#define BCryptFinishHash q_finish_hash
+ #define GetProcessHandleCount q_count
+ #define GetProcAddress q_proc
+ #define GetConsoleWindow q_console
+@@ -31,6 +51,11 @@
+ #define GetConsoleProcessList q_clients
+ #define OpenProcess q_open
+ #define GetProcessTimes q_times
++#define GetProcessId q_id
++#define WaitForSingleObject q_wait
++#define ProcessIdToSessionId q_session
++#define HP_ADMIN_EVIDENCE model_admin_evidence
++#define HP_ABI_EVIDENCE model_abi_evidence
+ #define CloseHandle q_close
+ #define OpenThreadToken q_thread
+ #define OpenProcessToken q_token
+@@ -38,9 +63,13 @@
+ #define CheckTokenMembership q_membership
+ /* Exact production function bodies; only OS calls above are modelled. */
+ #include "host_platform.c"
+-static TP_PLATFORM platform,retained;
++static int model_admin_evidence(TP_PLATFORM *p,HANDLE h,unsigned role){if(!g.active)return hp_admin_evidence(p,h,role);return g.mode==24?tp_fail(&p->proof,"MODEL_ROLE_EVIDENCE_DENY",0):1;}
++static int model_abi_evidence(TP_PLATFORM *p){return g.active?1:hp_role_file(p,NULL,2);}
++static TP_PLATFORM platform,retained,role_file_retained;
++
+ static TJ_DOC doc;
+ static int parse(const char *s){size_t n=strlen(s);if(n>=TJ_BYTES)return 0;memcpy(doc.bytes,s,n);return tj_parse(&doc,n);}
++static DWORD WINAPI other_admin_thread(void *p){return hp_admin(p)?1:0;}
+ static int test(int metadata){unsigned mode,i;ULONGLONG a,b;unsigned long long n;char out[80];PSID expected=NULL;
+  C(ConvertStringSidToSidA(TP_OPERATOR,&expected));C(EqualSid(expected,(PSID)operator_sid));C(LocalFree(expected)==NULL);
+  C(hp_utc_filetime(L"2026-10-26T21:35:16.5000000Z",&a));C(hp_utc_filetime(L"2026-10-26T21:35:16.5Z",&b)&&a==b);C(hp_utc_filetime(L"2026-10-26T18:35:16.5-03:00",&b)&&a==b);
+@@ -50,31 +79,49 @@
+  C(parse("{\"n\":18446744073709551616}"));C(!tj_u64(&doc,tj_get(&doc,0,"n"),&n));
+  memset(&g,0,sizeof(g));g.active=1;g.own=124;g.parent_count=731;g.console_count=271;
+  for(mode=0;mode<=7;mode++){
+- TP_PLATFORM *p=mode==7?&retained:&platform;hp_init(p);g.mode=(int)mode;g.own=mode==2?125:124;g.parent_count=mode==3?754:731;g.opens=0;g.closes=0;
++ TP_PLATFORM *p=mode==7?&retained:&platform;hp_init(p);g.mode=(int)mode;g.own=mode==2?125:124;g.parent_count=mode==3?754:731;g.opens=0;g.closes=0;g.class_calls=g.client_calls=0;
+  if(mode==6){g.mode=0;C(hp_admin(p));g.mode=6;C(!hp_admin(p)&&!strcmp(p->proof.first,"ADMIN_PID_REUSE"));}
+- else if(mode==0)C(hp_admin(p)&&p->admin_count==1&&!p->proof.controlled_refs);
++ else if(mode==0){C(hp_admin(p)&&p->admin_count==1&&!p->proof.controlled_refs);{unsigned closes=g.closes;C(hp_close(p)&&hp_close(p)&&g.closes==closes);}}
+  else C(!hp_admin(p));
+  if(mode==1)C(!strcmp(p->proof.first,"NATIVE_OBSERVER_QUERY_FAILED")&&p->observer_error==5&&!g.opens);
+  if(mode==2)C(!strcmp(p->proof.first,"NATIVE_OBSERVER_HEADROOM")&&p->observer_count==125&&!g.opens);
+  if(mode==3)C(!strcmp(p->proof.first,"ADMIN_BUDGET_DENY"));if(mode==4)C(!strcmp(p->proof.first,"PARTICIPANT_TOPOLOGY_DENY")&&!g.opens);
+  if(mode==5)C(!strcmp(p->proof.first,"CONSOLE_OPEN_QUERY")&&!p->parent&&!p->console);
+- if(mode==7){unsigned opens=g.opens,closes=g.closes;C(p->proof.retained&&p->console&&p->parent);C(!hp_admin(p)&&g.opens==opens&&g.closes==closes);}
++ if(mode==7){unsigned opens=g.opens,closes=g.closes;C(!hp_close(p)&&g.closes==closes);C(p->proof.retained&&p->console&&p->parent);C(!hp_admin(p)&&g.opens==opens&&g.closes==closes);}
+  }
+- /* Exact HWND alias regression from owner native result; no guard relaxation. */
++ /* C0-C9 aliases are metadata; actual auxiliary remains distinct and counted. */
+  for(mode=8;mode<=9;mode++){
+- hp_init(&platform);platform.proof.stage="INITIAL_ADMIN";g.mode=(int)mode;g.own=94;g.opens=g.closes=0;
+- C(!hp_admin(&platform)&&!strcmp(platform.proof.first,"PARTICIPANT_TOPOLOGY_DENY"));
+- C(!strcmp(platform.proof.first_stage,"INITIAL_ADMIN")&&!platform.proof.first_native);
+- C(!g.opens&&!g.closes&&!platform.proof.controlled_refs&&!platform.proof.retained);
+- C(platform.observer_known&&platform.observer_count==94&&platform.topology_count==2);
+- C(platform.topology_parent==100&&platform.topology_console==(mode==8?100:GetCurrentProcessId()));
++ hp_init(&platform);g.mode=(int)mode;g.own=94;g.opens=g.closes=g.class_calls=g.client_calls=0;
++ C(hp_admin(&platform)&&platform.topology_console==200&&platform.parent_pid==100);
++ C(platform.window_owner==(mode==8?100:GetCurrentProcessId())&&platform.admin_count==1&&!platform.proof.controlled_refs);
+  }
+- printf("PASS HWND_PARENT_AND_SELF_ALIASES_DENIED_BEFORE_OBSERVER_ACQUISITION\n");
++ for(mode=17;mode<=24;mode++){
++ hp_init(&platform);g.mode=(int)mode;g.own=94;g.opens=g.closes=g.class_calls=g.client_calls=0;
++ C(!hp_admin(&platform)&&platform.proof.frozen&&!platform.proof.retained&&!platform.proof.controlled_refs);
++ C(!hp_admin(&platform));
++ }
++ hp_init(&platform);g.mode=0;g.own=94;g.opens=g.closes=0;platform.admin_busy=1;C(!hp_admin(&platform)&&!strcmp(platform.proof.first,"ADMIN_REENTRANT")&&!g.opens);
++ hp_init(&platform);g.mode=26;g.owner=&platform;g.reentered=0;g.opens=g.closes=0;C(!hp_admin(&platform)&&g.reentered&&!g.opens&&!strcmp(platform.proof.first,"ADMIN_REENTRANT"));
++ hp_init(&platform);g.mode=0;g.opens=g.closes=0;{HANDLE thread;g.active=0;thread=CreateThread(NULL,0,other_admin_thread,&platform,0,NULL);DWORD code;C(thread!=NULL);C(q_wait(thread,5000)==WAIT_OBJECT_0);C(GetExitCodeThread(thread,&code)&&code==0);C(q_close(thread));C(!g.opens&&!g.closes&&!strcmp(platform.proof.first,"NONE"));g.active=1;}
++ puts("PASS C0_NATIVE_DISCOVERY_ALIASES_QUERY_LIFETIME_REVALIDATION_NEGATIVES");
+  for(mode=0;mode<=6;mode++){hp_init(&platform);g.mode=mode?9+(int)mode:0;g.stats_calls=0;
+  if(!mode){C(hp_token(&platform));g.mode=16;C(!hp_token(&platform)&&!strcmp(platform.proof.first,"TOKEN_CONTINUITY_DENY"));}
+  else C(!hp_token(&platform));C(!platform.token&&!platform.proof.controlled_refs);
+  }
+- if(metadata){g.active=0;hp_init(&platform);C(tp_crypto_init(&platform.proof));C(hp_boot(&platform));C(tp_finish(&platform.proof));C(hp_close(&platform));}
++ for(mode=0;mode<7;mode++){
++ hp_init(&platform);g.mode=mode==0?0:mode==1?12:mode==2?13:mode==3?14:mode==4?15:mode==5?29:30;g.stats_calls=0;
++ platform.token_bound=1;{LUID auth={222,0};memcpy(platform.token_ids+8,&auth,8);}
++ if(!mode)C(hp_role_token(&platform,(HANDLE)(ULONG_PTR)123,0)&&platform.role_token_bound[0]);else C(!hp_role_token(&platform,(HANDLE)(ULONG_PTR)123,0)&&platform.proof.frozen);
++ C(!platform.token&&!platform.proof.controlled_refs);
++ }
++ if(metadata==2){
++ g.active=0;g.file_fault=0;hp_init(&platform);C(tp_crypto_init(&platform.proof));for(i=0;i<3;i++)C(hp_role_file(&platform,NULL,i));C(tp_finish(&platform.proof));C(hp_close(&platform));
++ for(i=1;i<=6;i++){TP_PLATFORM *p=i==6?&role_file_retained:&platform;hp_init(p);C(tp_crypto_init(&p->proof));g.file_fault=(int)i;p->proof.stage="ROLE_FILE_NEGATIVE";
++ C(!hp_role_file(p,NULL,1)&&p->proof.frozen);if(i==4)C(!strcmp(p->proof.first,"ROLE_IMAGE_SHORT_READ")&&!p->proof.first_native);
++ if(i==6){C(p->proof.retained&&p->role_image);C(!hp_role_file(p,NULL,1)&&!hp_close(p));}else{g.file_fault=0;C(tp_finish(&p->proof));C(hp_close(p));C(!p->role_image&&!p->proof.controlled_refs);}}
++ puts("PASS REAL_WINDOWS_ROLE_FILES_NATIVE_ID_HASH_DESCRIPTOR_AND_SIX_FAULTS_NO_TPM");
++ }
++ if(metadata==1){g.active=0;hp_init(&platform);C(tp_crypto_init(&platform.proof));C(hp_boot(&platform));C(tp_finish(&platform.proof));C(hp_close(&platform));}
+  printf("PASS PLATFORM assertions=%u real_metadata_opt_in_only no_TPM no_approval owner_bytes=%Iu\n",checks,sizeof(TP_PLATFORM));return 1;
+ }
+-int main(int argc,char **argv){return test(argc==2&&!strcmp(argv[1],"--current-metadata-readonly"))?0:1;}
++int main(int argc,char **argv){return test(argc==2&&!strcmp(argv[1],"--current-metadata-readonly")?1:argc==2&&!strcmp(argv[1],"--role-files-readonly")?2:0)?0:1;}
+
+--- tools\qualification\tpm-native-proof\run_fixture.cmake.before-task
++++ tools\qualification\tpm-native-proof\run_fixture.cmake
+@@ -6,6 +6,8 @@
+ file(MAKE_DIRECTORY "${fixture_dir}")
+ if(MODE STREQUAL "artifacts")
+  execute_process(COMMAND "${EXECUTABLE}" "${fixture_dir}" "${CERTIFICATE}" RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors)
++elseif(MODE STREQUAL "admin")
++ execute_process(COMMAND "${EXECUTABLE}" "${fixture_dir}" RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors)
+ elseif(MODE STREQUAL "console")
+  execute_process(COMMAND "${EXECUTABLE}" --fixture-controller "${fixture_dir}" RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors)
+ else()

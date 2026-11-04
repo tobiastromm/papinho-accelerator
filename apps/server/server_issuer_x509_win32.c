@@ -18,6 +18,20 @@ static int xrsa(const CERT_PUBLIC_KEY_INFO *p,BYTE *bytes,DWORD capacity)
  if(!CryptDecodeObjectEx(X509_ASN_ENCODING,RSA_CSP_PUBLICKEYBLOB,p->PublicKey.pbData,p->PublicKey.cbData,0,NULL,bytes,&n)||n!=276)return 0;
  r=(RSAPUBKEY *)(bytes+sizeof(PUBLICKEYSTRUC));return r->magic==0x31415352U&&r->bitlen==2048U&&r->pubexp==65537U;
 }
+PAPACC_ISSUER_RESULT papacc_issuer_x509_key_public(NCRYPT_KEY_HANDLE key,BYTE *out,DWORD cap,CERT_PUBLIC_KEY_INFO **value)
+{
+ DWORD n=0,used;CERT_PUBLIC_KEY_INFO *p;BYTE rsa[276];
+ if(!key||!out||!value||((uintptr_t)out&7U)||xspan(value,sizeof(*value),out,cap))return PAPACC_ISSUER_INVALID;
+ *value=NULL;
+ if(!CryptExportPublicKeyInfoEx(key,CERT_NCRYPT_KEY_SPEC,X509_ASN_ENCODING,(LPSTR)szOID_RSA_RSA,0,NULL,NULL,&n))return PAPACC_ISSUER_INVALID;
+ if(n>cap||cap-n<2U)return PAPACC_ISSUER_LIMIT;used=n;p=(CERT_PUBLIC_KEY_INFO *)out;
+ if(!CryptExportPublicKeyInfoEx(key,CERT_NCRYPT_KEY_SPEC,X509_ASN_ENCODING,(LPSTR)szOID_RSA_RSA,0,NULL,p,&used)||used>n)return PAPACC_ISSUER_INVALID;
+ /* CNG may omit optional rsaEncryption parameters. Encode the accepted
+  * canonical NULL without changing the exported modulus/exponent. */
+ if(!p->Algorithm.Parameters.cbData){out[n]=5;out[n+1]=0;p->Algorithm.Parameters.pbData=out+n;p->Algorithm.Parameters.cbData=2;}
+ if(!xrsa(p,rsa,sizeof(rsa)))return PAPACC_ISSUER_INVALID;
+ *value=p;return PAPACC_ISSUER_OK;
+}
 static int xname(const char *prefix,const BYTE id[16],BYTE out[128],DWORD *n)
 {
  char name[96];static const char hex[]="0123456789abcdef";size_t k=strlen(prefix);unsigned i;
@@ -32,32 +46,50 @@ static int xtime(PAPACC_U64 utc,FILETIME *out)
 }
 static int xencode(LPCSTR type,const void *value,BYTE *out,DWORD cap,DWORD *n)
 {*n=cap;return CryptEncodeObjectEx(X509_ASN_ENCODING,type,value,0,NULL,out,n)!=0;}
-static PAPACC_ISSUER_RESULT xtbs(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
- const CERT_INFO *ca,const CERT_PUBLIC_KEY_INFO *key,BYTE *out,DWORD cap,DWORD *used,
- const CRYPT_DATA_BLOB *server_subject,const CRYPT_DATA_BLOB *server_san)
+/* Unsigned public creation DATA. No key owner, private signature, persistence,
+ * prior CURRENT or existing CA is needed or manufactured by this builder. */
+PAPACC_ISSUER_RESULT papacc_issuer_x509_ca_tbs(const PAPACC_ISSUER_VIEW *v,PAPACC_U64 created,
+ const CERT_PUBLIC_KEY_INFO *key,BYTE *out,DWORD cap,DWORD *used)
 {
- CERT_INFO info;CERT_EXTENSION ext[6];CERT_BASIC_CONSTRAINTS2_INFO bc;
- CERT_ENHKEY_USAGE eku;CERT_AUTHORITY_KEY_ID2_INFO aki;CRYPT_BIT_BLOB ku;CRYPT_DATA_BLOB ski;
- BYTE serial[16],subject[128],issuer[128],digest[32],keyid[32],usage=0x80;
- union {ULONGLONG align;BYTE bytes[5][128];} extension_scratch;
- BYTE (*extension_bytes)[128]=extension_scratch.bytes;
- DWORD i,n,z,issuer_n,subject_n;PAPACC_U64 counter;LPSTR oid;
- PCERT_EXTENSION ca_ski;CERT_BASIC_CONSTRAINTS2_INFO ca_bc;BYTE ca_ku[32];CRYPT_BIT_BLOB *ca_bits=(CRYPT_BIT_BLOB *)ca_ku;
- if(!v||!r||!ca||!key||!out||!cap||!used||xspan(used,sizeof(*used),v,sizeof(*v))||xspan(used,sizeof(*used),r,sizeof(*r))||xspan(used,sizeof(*used),ca,sizeof(*ca))||xspan(used,sizeof(*used),key,sizeof(*key))||xspan(out,cap,v,sizeof(*v))||xspan(out,cap,r,sizeof(*r))||
-  xspan(out,cap,ca,sizeof(*ca))||xspan(out,cap,key,sizeof(*key))||xspan(out,cap,used,sizeof(*used)))return PAPACC_ISSUER_INVALID;
+ CERT_INFO info;CERT_EXTENSION ext[3];CERT_BASIC_CONSTRAINTS2_INFO bc={TRUE,TRUE,0};CRYPT_BIT_BLOB ku;CRYPT_DATA_BLOB ski;
+ BYTE subject[128],serial[17]={1},extension[3][128],keyid[32],usage=6;DWORD n,z=32,i;
+ union {ULONGLONG alignment;BYTE bytes[640];} scratch;
+ PAPACC_ISSUER_RESULT result;
+ if(!v||!key||!out||!cap||!used||xspan(out,cap,v,sizeof(*v))||xspan(out,cap,key,sizeof(*key))||
+  xspan(out,cap,used,sizeof(*used))||xspan(used,sizeof(*used),v,sizeof(*v))||xspan(used,sizeof(*used),key,sizeof(*key)))return PAPACC_ISSUER_INVALID;
  *used=0;
- if(r->request.purpose==PAPACC_ISSUER_SERVER){if(!server_subject||!server_san)return PAPACC_ISSUER_UNSUPPORTED;}
- else if(server_subject||server_san||(r->request.purpose!=PAPACC_ISSUER_CLIENT&&r->request.purpose!=PAPACC_ISSUER_PACKAGE))return PAPACC_ISSUER_UNSUPPORTED;
- if(!xnz(v->authority,16)||!xnz(v->generation,16)||!xnz(v->prefix,8)||(v->prefix[0]&128)||
-  !xnz(r->request.device,16)||memcmp(v->authority,r->authority,16)||memcmp(v->generation,r->generation,16)||
-  !r->counter||r->counter<2||r->counter>v->high_water||!r->approved_epoch||memcmp(v->policy,r->policy,32))return PAPACC_ISSUER_DENIED;
- memcpy(serial,v->prefix,8);counter=r->counter;for(i=0;i<8;i++){serial[15-i]=(BYTE)counter;counter>>=8;}
- if(memcmp(serial,r->serial,16)||r->request.not_after<=r->request.not_before||
-  r->request.not_after-r->request.not_before>90ULL*86400ULL||r->request.not_after>v->ca_not_after)return PAPACC_ISSUER_DENIED;
- /* These public decode/encode calls finish before extension DER is created.
-  * Reuse only this function-owned aligned scratch; no borrow escapes. */
- if(!xrsa(key,extension_scratch.bytes[0],sizeof(extension_scratch))||!xrsa(&ca->SubjectPublicKeyInfo,extension_scratch.bytes[0],sizeof(extension_scratch))||!xspki(key,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,r->request.key_digest,32)||
-  !xspki(&ca->SubjectPublicKeyInfo,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,v->ca_spki_digest,32)||!memcmp(digest,r->request.key_digest,32))return PAPACC_ISSUER_INVALID;
+ if(v->high_water!=1||!created||created>(~(PAPACC_U64)0)-1825ULL*86400ULL||v->ca_not_after!=created+1825ULL*86400ULL||
+  !xrsa(key,scratch.bytes,sizeof(scratch.bytes))||!xspki(key,keyid,scratch.bytes,sizeof(scratch.bytes))||memcmp(keyid,v->ca_spki_digest,32))return PAPACC_ISSUER_INVALID;
+ memset(&info,0,sizeof(info));memset(ext,0,sizeof(ext));info.dwVersion=CERT_V3;
+ if(!xname("CN=Papinho CA ",v->authority,subject,&n)||!xtime(created,&info.NotBefore)||!xtime(v->ca_not_after,&info.NotAfter))return PAPACC_ISSUER_INVALID;
+ info.Subject.pbData=subject;info.Subject.cbData=n;info.Issuer=info.Subject;info.SubjectPublicKeyInfo=*key;
+ for(i=0;i<8U;i++)serial[8U+i]=v->prefix[7U-i];n=16;while(n>1U&&!serial[n-1U])n--;if(serial[n-1U]&128U)serial[n++]=0;
+ info.SerialNumber.pbData=serial;info.SerialNumber.cbData=n;info.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA256RSA;
+ info.SignatureAlgorithm.Parameters.pbData=(BYTE *)"\x05\x00";info.SignatureAlgorithm.Parameters.cbData=2;
+ ext[0].pszObjId=(LPSTR)szOID_BASIC_CONSTRAINTS2;ext[0].fCritical=TRUE;ext[1].pszObjId=(LPSTR)szOID_KEY_USAGE;ext[1].fCritical=TRUE;
+ ext[2].pszObjId=(LPSTR)szOID_SUBJECT_KEY_IDENTIFIER;ku.cbData=1;ku.pbData=&usage;ku.cUnusedBits=1;
+ if(!CryptHashPublicKeyInfo(0,CALG_SHA_256,0,X509_ASN_ENCODING,(CERT_PUBLIC_KEY_INFO *)key,keyid,&z)||z!=32)return PAPACC_ISSUER_INVALID;
+ ski.pbData=keyid;ski.cbData=32;
+ if(!xencode(X509_BASIC_CONSTRAINTS2,&bc,extension[0],128,&ext[0].Value.cbData)||
+  !xencode(X509_KEY_USAGE,&ku,extension[1],128,&ext[1].Value.cbData)||
+  !xencode(X509_OCTET_STRING,&ski,extension[2],128,&ext[2].Value.cbData))return PAPACC_ISSUER_INVALID;
+ for(i=0;i<3U;i++)ext[i].Value.pbData=extension[i];info.cExtension=3;info.rgExtension=ext;
+ result=papacc_issuer_x509_ca_matches(v,&info,keyid);if(result)return result;
+ n=cap;if(!CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,&info,0,NULL,out,&n))return GetLastError()==ERROR_MORE_DATA?PAPACC_ISSUER_LIMIT:PAPACC_ISSUER_INVALID;
+ *used=n;return PAPACC_ISSUER_OK;
+}
+/* Public profile binding only. Caller retains original certificate backing;
+ * this does NOT verify its self-signature or manufacture source authority. */
+PAPACC_ISSUER_RESULT papacc_issuer_x509_ca_matches(const PAPACC_ISSUER_VIEW *v,const CERT_INFO *ca,BYTE keyid[32])
+{
+ BYTE issuer[128],digest[32],ca_ku[32];DWORD issuer_n,i,n,z;
+ union {ULONGLONG alignment;BYTE bytes[640];} scratch;
+ PCERT_EXTENSION ca_ski;CERT_BASIC_CONSTRAINTS2_INFO ca_bc;CRYPT_BIT_BLOB *ca_bits=(CRYPT_BIT_BLOB *)ca_ku;
+ if(!v||!ca||!keyid||!ca->Subject.pbData||!ca->Issuer.pbData||!ca->rgExtension||
+  xspan(keyid,32,v,sizeof(*v))||xspan(keyid,32,ca,sizeof(*ca)))return PAPACC_ISSUER_INVALID;
+ if(!xnz(v->authority,16)||!xnz(v->generation,16)||!xnz(v->prefix,8)||(v->prefix[0]&128U)||!v->ca_not_after||
+  !xrsa(&ca->SubjectPublicKeyInfo,scratch.bytes,sizeof(scratch.bytes))||
+  !xspki(&ca->SubjectPublicKeyInfo,digest,scratch.bytes,sizeof(scratch.bytes))||memcmp(digest,v->ca_spki_digest,32))return PAPACC_ISSUER_INVALID;
  if(ca->dwVersion!=CERT_V3||!xname("CN=Papinho CA ",v->authority,issuer,&issuer_n)||ca->Subject.cbData!=issuer_n||memcmp(ca->Subject.pbData,issuer,issuer_n)||
   ca->Issuer.cbData!=issuer_n||!ca->Issuer.pbData||memcmp(ca->Issuer.pbData,issuer,issuer_n))return PAPACC_ISSUER_INVALID;
  {ULARGE_INTEGER lo,hi;BYTE expected_serial[16];DWORD count=16;
@@ -79,12 +111,39 @@ static PAPACC_ISSUER_RESULT xtbs(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER
   ca_bits->cbData!=1||ca_bits->pbData[0]!=(CERT_KEY_CERT_SIGN_KEY_USAGE|CERT_CRL_SIGN_KEY_USAGE)||
   CertFindExtension(szOID_ENHANCED_KEY_USAGE,ca->cExtension,ca->rgExtension))return PAPACC_ISSUER_INVALID;
  ca_ski=CertFindExtension(szOID_SUBJECT_KEY_IDENTIFIER,ca->cExtension,ca->rgExtension);if(!ca_ski)return PAPACC_ISSUER_INVALID;
- memset(&info,0,sizeof(info));memset(ext,0,sizeof(ext));memset(&bc,0,sizeof(bc));memset(&aki,0,sizeof(aki));
- n=sizeof(aki.KeyId); /* Decode SKI into caller-local provider structure, not custom DER. */
  {BYTE storage[64];CRYPT_DATA_BLOB *id=(CRYPT_DATA_BLOB *)storage;n=sizeof(storage);
   if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_OCTET_STRING,ca_ski->Value.pbData,ca_ski->Value.cbData,0,NULL,storage,&n)||id->cbData!=32)return PAPACC_ISSUER_INVALID;
   z=32;if(!CryptHashPublicKeyInfo(0,CALG_SHA_256,0,X509_ASN_ENCODING,(PCERT_PUBLIC_KEY_INFO)&ca->SubjectPublicKeyInfo,digest,&z)||z!=32||memcmp(digest,id->pbData,32))return PAPACC_ISSUER_INVALID;
   memcpy(keyid,id->pbData,32);}
+ return PAPACC_ISSUER_OK;
+}
+static PAPACC_ISSUER_RESULT xtbs(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
+ const CERT_INFO *ca,const CERT_PUBLIC_KEY_INFO *key,BYTE *out,DWORD cap,DWORD *used,
+ const CRYPT_DATA_BLOB *server_subject,const CRYPT_DATA_BLOB *server_san)
+{
+ CERT_INFO info;CERT_EXTENSION ext[6];CERT_BASIC_CONSTRAINTS2_INFO bc;
+ CERT_ENHKEY_USAGE eku;CERT_AUTHORITY_KEY_ID2_INFO aki;CRYPT_BIT_BLOB ku;CRYPT_DATA_BLOB ski;
+ BYTE serial[16],subject[128],digest[32],keyid[32],usage=0x80;
+ union {ULONGLONG align;BYTE bytes[5][128];} extension_scratch;
+ BYTE (*extension_bytes)[128]=extension_scratch.bytes;
+ DWORD i,n,z,subject_n;PAPACC_U64 counter;LPSTR oid;
+ if(!v||!r||!ca||!key||!out||!cap||!used||xspan(used,sizeof(*used),v,sizeof(*v))||xspan(used,sizeof(*used),r,sizeof(*r))||xspan(used,sizeof(*used),ca,sizeof(*ca))||xspan(used,sizeof(*used),key,sizeof(*key))||xspan(out,cap,v,sizeof(*v))||xspan(out,cap,r,sizeof(*r))||
+  xspan(out,cap,ca,sizeof(*ca))||xspan(out,cap,key,sizeof(*key))||xspan(out,cap,used,sizeof(*used)))return PAPACC_ISSUER_INVALID;
+ *used=0;
+ if(r->request.purpose==PAPACC_ISSUER_SERVER){if(!server_subject||!server_san)return PAPACC_ISSUER_UNSUPPORTED;}
+ else if(server_subject||server_san||(r->request.purpose!=PAPACC_ISSUER_CLIENT&&r->request.purpose!=PAPACC_ISSUER_PACKAGE))return PAPACC_ISSUER_UNSUPPORTED;
+ if(!xnz(v->authority,16)||!xnz(v->generation,16)||!xnz(v->prefix,8)||(v->prefix[0]&128)||
+  !xnz(r->request.device,16)||memcmp(v->authority,r->authority,16)||memcmp(v->generation,r->generation,16)||
+  !r->counter||r->counter<2||r->counter>v->high_water||!r->approved_epoch||memcmp(v->policy,r->policy,32))return PAPACC_ISSUER_DENIED;
+ memcpy(serial,v->prefix,8);counter=r->counter;for(i=0;i<8;i++){serial[15-i]=(BYTE)counter;counter>>=8;}
+ if(memcmp(serial,r->serial,16)||r->request.not_after<=r->request.not_before||
+  r->request.not_after-r->request.not_before>90ULL*86400ULL||r->request.not_after>v->ca_not_after)return PAPACC_ISSUER_DENIED;
+ /* These public decode/encode calls finish before extension DER is created.
+  * Reuse only this function-owned aligned scratch; no borrow escapes. */
+ if(!xrsa(key,extension_scratch.bytes[0],sizeof(extension_scratch))||!xrsa(&ca->SubjectPublicKeyInfo,extension_scratch.bytes[0],sizeof(extension_scratch))||!xspki(key,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,r->request.key_digest,32)||
+  !xspki(&ca->SubjectPublicKeyInfo,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,v->ca_spki_digest,32)||!memcmp(digest,r->request.key_digest,32))return PAPACC_ISSUER_INVALID;
+ {PAPACC_ISSUER_RESULT source=papacc_issuer_x509_ca_matches(v,ca,keyid);if(source)return source;}
+ memset(&info,0,sizeof(info));memset(ext,0,sizeof(ext));memset(&bc,0,sizeof(bc));memset(&aki,0,sizeof(aki));
  aki.KeyId.pbData=keyid;aki.KeyId.cbData=32;
  subject_n=0;if(!server_subject&&!xname(r->request.purpose==PAPACC_ISSUER_CLIENT?"CN=Papinho Client ":"CN=Papinho Package ",r->request.device,subject,&subject_n))return PAPACC_ISSUER_INVALID;
  info.dwVersion=CERT_V3;for(i=0;i<16;i++)serial[i]=r->serial[15-i];

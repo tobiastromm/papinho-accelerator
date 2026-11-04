@@ -1,0 +1,10 @@
+from pathlib import Path
+R=Path('C:/Projetos/PapinhoBrowser');h=R/'src/papinho_c2_target_evidence.inc';s=h.read_text(encoding='ascii')
+s=s.replace('unsigned long version,bytes,origin,clock,metric,unit,scope,phase;', 'unsigned long version,bytes,origin,clock,metric,unit,scope,phase;\n unsigned long architecture,backend;char sdk_sha256[65];')
+s=s.replace('v->metric>5U ||', 'v->architecture!=32U || v->backend!=1U || strcmp(v->sdk_sha256,C2_NATIVE_SDK_MANIFEST)!=0 ||\n  v->metric>5U ||')
+s=s.replace('if(v->process!=o->process', 'if(v->architecture!=o->architecture || v->backend!=o->backend ||\n  strcmp(v->sdk_sha256,o->sdk_sha256)!=0 || v->process!=o->process')
+h.write_text(s,encoding='ascii')
+f=R/'src/papinho_c2_s6.inc';s=f.read_text(encoding='utf-8')
+s=s.replace('v->origin=1U;v->clock=1U;', 'v->origin=1U;v->clock=1U;\n v->architecture=32U;v->backend=1U;strcpy(v->sdk_sha256,C2_NATIVE_SDK_MANIFEST);')
+s=s.replace('if(r->presence&(2UL<<metric))v->presence|=2U;', 'if((r->presence&(2UL<<metric)) &&\n    ((metric==2U && !r->handles_error) || (metric>=4U && !r->capacity_error) ||\n     ((metric==0U || metric==1U || metric==3U) && !r->memory_error)))v->presence|=2U;')
+f.write_text(s,encoding='utf-8',newline='\n')

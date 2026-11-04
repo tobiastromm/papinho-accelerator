@@ -1,0 +1,11 @@
+# Phase 6 — fontes NORMAL e confirmação de credencial no mesmo root
+
+Continuar a autorização técnica de PACC-PHASE6-NATIVE-CAS-PUBLICATION-INTEGRATION-AUTHORIZED. Ler o closeout/QUALIFICATION deste pacote e o WIP atual. Não refazer CAS pendente nem repetir os 68 fixtures inalterados. Não iniciar TPM, bootstrap ou auditoria geral.
+
+1. Integrar a transferência/lifetime factual CA/key/cert/generation da cerimônia para o issuer durável no mesmo owner, sem apagar o pacote que detém borrow/contexto. CNG já valida chave/SPKI, mas não produz sozinho original-history/prefix/writer. Usar fontes originais e a identidade protegida do root; não promover DATA/fixture/hash/nome em prova. Sem fonte, conservar DENY e identificar exatamente a aquisição faltante.
+2. Resolver confirmação PUBLISHED no modelo existente: A nasce na root após commit; P é a autorização operacional preservada. Não preencher published_epoch com P/revisão/valor futuro nem mutar bytes committed. Demonstrar se a representação existente comporta o vínculo antes de solicitar uma decisão versionada focal. Não alterar ADR accepted.
+3. Conectar o produtor NORMAL apenas quando todas as provas forem factuais, mantendo RECOVERY separado. Qualificar composição core/port/worker sem callbacks que concedam autoridade real ao fixture. Caso o teste use modelos, identificá-los como modelos, sem declarar publicação de credencial nativa completa.
+4. Usar o hash de credencial já capturado no candidate e pin C2 para integrar status CURRENT e fanout M7 exato aos owners existentes. Não ampliar por Principal. Invalidation, Stop solicitado/aceito, quiescência e release continuam fatos separados; falha conserva contexto e nega novos efeitos.
+5. Builds e testes afetados apenas; preservar Selected/Legacy, diferenças API2/API3/R2, quotas, WIP, históricos e pin 0.6.4. Atualizar live docs/matriz com escopo preciso. Entregar relatório único e a primeira propriedade ainda não demonstrada.
+
+Não executar root/CURRENT produtivos, CA/key/assinatura/credencial produtivas, serviço, Start/Stop real, rede operacional, SCM/ACL, TPM/NV/ownerAuth/Q4, limpeza/refund, recuperação autoritativa ou publicação PST. Nenhuma nova autorização operacional é inferida deste prompt.

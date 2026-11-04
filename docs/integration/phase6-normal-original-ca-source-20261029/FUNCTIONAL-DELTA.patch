@@ -1,0 +1,764 @@
+--- before/apps/server/server_issuer_x509_win32.h
++++ after/apps/server/server_issuer_x509_win32.h
+@@ -2,6 +2,9 @@
+ #define PAPACC_SERVER_ISSUER_X509_WIN32_H
+ #include "server_issuer_windows_validation.h"
+ #include <wincrypt.h>
++/* Borrowed public profile versus same-root authority/generation/prefix/SPKI.
++ * No self-signature/trust/original-source claim. keyid is disjoint output. */
++PAPACC_ISSUER_RESULT papacc_issuer_x509_ca_matches(const PAPACC_ISSUER_VIEW *,const CERT_INFO *,BYTE[32]);
+ /* Public data-only builder. No signature/authority is produced by TBS encoding.
+  * All inputs and output are disjoint immutable/owned caller storage. ca is the
+  * public CA from the same root; caller retains its backing decoded storage. */
+@@ -33,10 +36,18 @@
+  PAPACC_ISSUER_WINDOWS_WORKSPACE workspace;
+  PAPACC_ISSUER_VIEW view;PAPACC_ISSUER_RECORD record;
+  PAPACC_SIZE reserved;NCRYPT_KEY_HANDLE leased_key;DWORD thread;SECURITY_STATUS native_error;DWORD native_stage,win32_error;
++ /* Latched ONLY by the original ceremony handoff. The same root object
++  * outlives backend custody even after its worker packet is reused. */
++ const void *original_source_root;
++ PAPACC_U8 original_attempt[32],original_authority[16],original_generation[16];
+  int initialized,active,retained,stopped,custody;
+ } PAPACC_ISSUER_CNG_BACKEND;
+ PAPACC_ISSUER_RESULT papacc_issuer_cng_backend_init(PAPACC_ISSUER_CNG_BACKEND *,
+  const PAPACC_ISSUER_ROOT_PORT *,const PAPACC_ISSUER_BACKEND *,PAPACC_ISSUER_CORE *,PAPACC_CA_KEY *,const CERT_INFO *,void *,PAPACC_SIZE,PAPACC_SIZE);
++/* Validate existing NORMAL root/key/certificate inputs before custody transfer.
++ * Does not create proofs/borrow/key/cert or change root. Output is DATA only.
++ * Same owner thread and caller-held immutable backing required. */
++PAPACC_ISSUER_RESULT papacc_issuer_cng_backend_normal_source(PAPACC_ISSUER_CNG_BACKEND *,PAPACC_ISSUER_VIEW *);
+ void papacc_issuer_cng_backend_stop(PAPACC_ISSUER_CNG_BACKEND *);
+ /* Returns the transferred lifetime borrow only after factual core finish,
+  * or backend Stop with a never-initialized, idle core.
+--- before/apps/server/server_issuer_x509_win32.c
++++ after/apps/server/server_issuer_x509_win32.c
+@@ -32,32 +32,18 @@
+ }
+ static int xencode(LPCSTR type,const void *value,BYTE *out,DWORD cap,DWORD *n)
+ {*n=cap;return CryptEncodeObjectEx(X509_ASN_ENCODING,type,value,0,NULL,out,n)!=0;}
+-static PAPACC_ISSUER_RESULT xtbs(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
+- const CERT_INFO *ca,const CERT_PUBLIC_KEY_INFO *key,BYTE *out,DWORD cap,DWORD *used,
+- const CRYPT_DATA_BLOB *server_subject,const CRYPT_DATA_BLOB *server_san)
++/* Public profile binding only. Caller retains original certificate backing;
++ * this does NOT verify its self-signature or manufacture source authority. */
++PAPACC_ISSUER_RESULT papacc_issuer_x509_ca_matches(const PAPACC_ISSUER_VIEW *v,const CERT_INFO *ca,BYTE keyid[32])
+ {
+- CERT_INFO info;CERT_EXTENSION ext[6];CERT_BASIC_CONSTRAINTS2_INFO bc;
+- CERT_ENHKEY_USAGE eku;CERT_AUTHORITY_KEY_ID2_INFO aki;CRYPT_BIT_BLOB ku;CRYPT_DATA_BLOB ski;
+- BYTE serial[16],subject[128],issuer[128],digest[32],keyid[32],usage=0x80;
+- union {ULONGLONG align;BYTE bytes[5][128];} extension_scratch;
+- BYTE (*extension_bytes)[128]=extension_scratch.bytes;
+- DWORD i,n,z,issuer_n,subject_n;PAPACC_U64 counter;LPSTR oid;
+- PCERT_EXTENSION ca_ski;CERT_BASIC_CONSTRAINTS2_INFO ca_bc;BYTE ca_ku[32];CRYPT_BIT_BLOB *ca_bits=(CRYPT_BIT_BLOB *)ca_ku;
+- if(!v||!r||!ca||!key||!out||!cap||!used||xspan(used,sizeof(*used),v,sizeof(*v))||xspan(used,sizeof(*used),r,sizeof(*r))||xspan(used,sizeof(*used),ca,sizeof(*ca))||xspan(used,sizeof(*used),key,sizeof(*key))||xspan(out,cap,v,sizeof(*v))||xspan(out,cap,r,sizeof(*r))||
+-  xspan(out,cap,ca,sizeof(*ca))||xspan(out,cap,key,sizeof(*key))||xspan(out,cap,used,sizeof(*used)))return PAPACC_ISSUER_INVALID;
+- *used=0;
+- if(r->request.purpose==PAPACC_ISSUER_SERVER){if(!server_subject||!server_san)return PAPACC_ISSUER_UNSUPPORTED;}
+- else if(server_subject||server_san||(r->request.purpose!=PAPACC_ISSUER_CLIENT&&r->request.purpose!=PAPACC_ISSUER_PACKAGE))return PAPACC_ISSUER_UNSUPPORTED;
+- if(!xnz(v->authority,16)||!xnz(v->generation,16)||!xnz(v->prefix,8)||(v->prefix[0]&128)||
+-  !xnz(r->request.device,16)||memcmp(v->authority,r->authority,16)||memcmp(v->generation,r->generation,16)||
+-  !r->counter||r->counter<2||r->counter>v->high_water||!r->approved_epoch||memcmp(v->policy,r->policy,32))return PAPACC_ISSUER_DENIED;
+- memcpy(serial,v->prefix,8);counter=r->counter;for(i=0;i<8;i++){serial[15-i]=(BYTE)counter;counter>>=8;}
+- if(memcmp(serial,r->serial,16)||r->request.not_after<=r->request.not_before||
+-  r->request.not_after-r->request.not_before>90ULL*86400ULL||r->request.not_after>v->ca_not_after)return PAPACC_ISSUER_DENIED;
+- /* These public decode/encode calls finish before extension DER is created.
+-  * Reuse only this function-owned aligned scratch; no borrow escapes. */
+- if(!xrsa(key,extension_scratch.bytes[0],sizeof(extension_scratch))||!xrsa(&ca->SubjectPublicKeyInfo,extension_scratch.bytes[0],sizeof(extension_scratch))||!xspki(key,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,r->request.key_digest,32)||
+-  !xspki(&ca->SubjectPublicKeyInfo,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,v->ca_spki_digest,32)||!memcmp(digest,r->request.key_digest,32))return PAPACC_ISSUER_INVALID;
++ BYTE issuer[128],digest[32],ca_ku[32];DWORD issuer_n,i,n,z;
++ union {ULONGLONG alignment;BYTE bytes[640];} scratch;
++ PCERT_EXTENSION ca_ski;CERT_BASIC_CONSTRAINTS2_INFO ca_bc;CRYPT_BIT_BLOB *ca_bits=(CRYPT_BIT_BLOB *)ca_ku;
++ if(!v||!ca||!keyid||!ca->Subject.pbData||!ca->Issuer.pbData||!ca->rgExtension||
++  xspan(keyid,32,v,sizeof(*v))||xspan(keyid,32,ca,sizeof(*ca)))return PAPACC_ISSUER_INVALID;
++ if(!xnz(v->authority,16)||!xnz(v->generation,16)||!xnz(v->prefix,8)||(v->prefix[0]&128U)||!v->ca_not_after||
++  !xrsa(&ca->SubjectPublicKeyInfo,scratch.bytes,sizeof(scratch.bytes))||
++  !xspki(&ca->SubjectPublicKeyInfo,digest,scratch.bytes,sizeof(scratch.bytes))||memcmp(digest,v->ca_spki_digest,32))return PAPACC_ISSUER_INVALID;
+  if(ca->dwVersion!=CERT_V3||!xname("CN=Papinho CA ",v->authority,issuer,&issuer_n)||ca->Subject.cbData!=issuer_n||memcmp(ca->Subject.pbData,issuer,issuer_n)||
+   ca->Issuer.cbData!=issuer_n||!ca->Issuer.pbData||memcmp(ca->Issuer.pbData,issuer,issuer_n))return PAPACC_ISSUER_INVALID;
+  {ULARGE_INTEGER lo,hi;BYTE expected_serial[16];DWORD count=16;
+@@ -79,12 +65,39 @@
+   ca_bits->cbData!=1||ca_bits->pbData[0]!=(CERT_KEY_CERT_SIGN_KEY_USAGE|CERT_CRL_SIGN_KEY_USAGE)||
+   CertFindExtension(szOID_ENHANCED_KEY_USAGE,ca->cExtension,ca->rgExtension))return PAPACC_ISSUER_INVALID;
+  ca_ski=CertFindExtension(szOID_SUBJECT_KEY_IDENTIFIER,ca->cExtension,ca->rgExtension);if(!ca_ski)return PAPACC_ISSUER_INVALID;
+- memset(&info,0,sizeof(info));memset(ext,0,sizeof(ext));memset(&bc,0,sizeof(bc));memset(&aki,0,sizeof(aki));
+- n=sizeof(aki.KeyId); /* Decode SKI into caller-local provider structure, not custom DER. */
+  {BYTE storage[64];CRYPT_DATA_BLOB *id=(CRYPT_DATA_BLOB *)storage;n=sizeof(storage);
+   if(!CryptDecodeObjectEx(X509_ASN_ENCODING,X509_OCTET_STRING,ca_ski->Value.pbData,ca_ski->Value.cbData,0,NULL,storage,&n)||id->cbData!=32)return PAPACC_ISSUER_INVALID;
+   z=32;if(!CryptHashPublicKeyInfo(0,CALG_SHA_256,0,X509_ASN_ENCODING,(PCERT_PUBLIC_KEY_INFO)&ca->SubjectPublicKeyInfo,digest,&z)||z!=32||memcmp(digest,id->pbData,32))return PAPACC_ISSUER_INVALID;
+   memcpy(keyid,id->pbData,32);}
++ return PAPACC_ISSUER_OK;
++}
++static PAPACC_ISSUER_RESULT xtbs(const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r,
++ const CERT_INFO *ca,const CERT_PUBLIC_KEY_INFO *key,BYTE *out,DWORD cap,DWORD *used,
++ const CRYPT_DATA_BLOB *server_subject,const CRYPT_DATA_BLOB *server_san)
++{
++ CERT_INFO info;CERT_EXTENSION ext[6];CERT_BASIC_CONSTRAINTS2_INFO bc;
++ CERT_ENHKEY_USAGE eku;CERT_AUTHORITY_KEY_ID2_INFO aki;CRYPT_BIT_BLOB ku;CRYPT_DATA_BLOB ski;
++ BYTE serial[16],subject[128],digest[32],keyid[32],usage=0x80;
++ union {ULONGLONG align;BYTE bytes[5][128];} extension_scratch;
++ BYTE (*extension_bytes)[128]=extension_scratch.bytes;
++ DWORD i,n,z,subject_n;PAPACC_U64 counter;LPSTR oid;
++ if(!v||!r||!ca||!key||!out||!cap||!used||xspan(used,sizeof(*used),v,sizeof(*v))||xspan(used,sizeof(*used),r,sizeof(*r))||xspan(used,sizeof(*used),ca,sizeof(*ca))||xspan(used,sizeof(*used),key,sizeof(*key))||xspan(out,cap,v,sizeof(*v))||xspan(out,cap,r,sizeof(*r))||
++  xspan(out,cap,ca,sizeof(*ca))||xspan(out,cap,key,sizeof(*key))||xspan(out,cap,used,sizeof(*used)))return PAPACC_ISSUER_INVALID;
++ *used=0;
++ if(r->request.purpose==PAPACC_ISSUER_SERVER){if(!server_subject||!server_san)return PAPACC_ISSUER_UNSUPPORTED;}
++ else if(server_subject||server_san||(r->request.purpose!=PAPACC_ISSUER_CLIENT&&r->request.purpose!=PAPACC_ISSUER_PACKAGE))return PAPACC_ISSUER_UNSUPPORTED;
++ if(!xnz(v->authority,16)||!xnz(v->generation,16)||!xnz(v->prefix,8)||(v->prefix[0]&128)||
++  !xnz(r->request.device,16)||memcmp(v->authority,r->authority,16)||memcmp(v->generation,r->generation,16)||
++  !r->counter||r->counter<2||r->counter>v->high_water||!r->approved_epoch||memcmp(v->policy,r->policy,32))return PAPACC_ISSUER_DENIED;
++ memcpy(serial,v->prefix,8);counter=r->counter;for(i=0;i<8;i++){serial[15-i]=(BYTE)counter;counter>>=8;}
++ if(memcmp(serial,r->serial,16)||r->request.not_after<=r->request.not_before||
++  r->request.not_after-r->request.not_before>90ULL*86400ULL||r->request.not_after>v->ca_not_after)return PAPACC_ISSUER_DENIED;
++ /* These public decode/encode calls finish before extension DER is created.
++  * Reuse only this function-owned aligned scratch; no borrow escapes. */
++ if(!xrsa(key,extension_scratch.bytes[0],sizeof(extension_scratch))||!xrsa(&ca->SubjectPublicKeyInfo,extension_scratch.bytes[0],sizeof(extension_scratch))||!xspki(key,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,r->request.key_digest,32)||
++  !xspki(&ca->SubjectPublicKeyInfo,digest,extension_scratch.bytes[0],sizeof(extension_scratch))||memcmp(digest,v->ca_spki_digest,32)||!memcmp(digest,r->request.key_digest,32))return PAPACC_ISSUER_INVALID;
++ {PAPACC_ISSUER_RESULT source=papacc_issuer_x509_ca_matches(v,ca,keyid);if(source)return source;}
++ memset(&info,0,sizeof(info));memset(ext,0,sizeof(ext));memset(&bc,0,sizeof(bc));memset(&aki,0,sizeof(aki));
+  aki.KeyId.pbData=keyid;aki.KeyId.cbData=32;
+  subject_n=0;if(!server_subject&&!xname(r->request.purpose==PAPACC_ISSUER_CLIENT?"CN=Papinho Client ":"CN=Papinho Package ",r->request.device,subject,&subject_n))return PAPACC_ISSUER_INVALID;
+  info.dwVersion=CERT_V3;for(i=0;i<16;i++)serial[i]=r->serial[15-i];
+--- before/apps/server/server_issuer_cng_backend_win32.c
++++ after/apps/server/server_issuer_cng_backend_win32.c
+@@ -4,6 +4,9 @@
+ #include <bcrypt.h>
+ #include <string.h>
+ #include <stdint.h>
++#ifdef PAPACC_OFFLINE_D3_WORKER
++#include "server_configuration_commit_win32.h"
++#endif
+ static int disjoint(const void *a,PAPACC_SIZE an,const void *c,PAPACC_SIZE cn)
+ {uintptr_t x=(uintptr_t)a,y=(uintptr_t)c;return an<=UINTPTR_MAX-x&&cn<=UINTPTR_MAX-y&&!(x<y+cn&&y<x+an);}
+ static int req_equal(const PAPACC_ISSUER_REQUEST *a,const PAPACC_ISSUER_REQUEST *b)
+@@ -45,6 +48,41 @@
+ static int core_call(PAPACC_ISSUER_CNG_BACKEND *b)
+ {return b&&b->owner&&b->owner->initialized==1&&b->owner->busy&&b->owner->backend==&b->ports&&
+  b->owner->root.ctx==b->root.ctx&&b->owner->root.read==b->root.read&&b->owner->root.cas==b->root.cas;}
++PAPACC_ISSUER_RESULT papacc_issuer_cng_backend_normal_source(PAPACC_ISSUER_CNG_BACKEND *b,PAPACC_ISSUER_VIEW *out)
++{
++ PAPACC_ISSUER_VIEW v,again;PAPACC_ISSUER_RECORD r;PAPACC_ISSUER_RESULT result;PAPACC_U8 id[16]={0},keyid[32];int found;
++ wchar_t name[96];static const wchar_t prefix[]=L"PapinhoAccelerator.CA.",hex[]=L"0123456789abcdef";unsigned i,k=0;
++ if(!b||!out||!disjoint(out,sizeof(*out),b,sizeof(*b))||
++  !disjoint(out,sizeof(*out),b->workspace.bytes,b->workspace.capacity)||
++  (b->key&&!disjoint(out,sizeof(*out),b->key,sizeof(*b->key)))||
++  (b->ca&&!disjoint(out,sizeof(*out),b->ca,sizeof(*b->ca)))||
++  (b->owner&&!disjoint(out,sizeof(*out),b->owner,sizeof(*b->owner))))return PAPACC_ISSUER_INVALID;
++ if(!ready(b)||b->active||b->owner->busy||b->owner->lease||b->owner->pending.active||b->owner->retained||b->owner->blocked||!b->key||!b->ca||
++  (b->owner->initialized&&(b->owner->initialized!=1||b->owner->continuity_profile!=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL)))return PAPACC_ISSUER_DENIED;
++#ifndef PAPACC_ISSUER_CNG_OFFLINE_TEST
++ if(b->root.test_only||b->administrative->test_only)return PAPACC_ISSUER_DENIED;
++#endif
++ memset(&v,0,sizeof(v));memset(&r,0,sizeof(r));found=0;
++ result=b->root.read(b->root.ctx,id,&v,&r,&found);if(result)return result;
++ if(found||!v.revision||!v.epoch||!v.administrative_epoch||!v.high_water||
++  !papacc_issuer_view_proofs_valid(&v,PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL))return PAPACC_ISSUER_DENIED;
++ if(b->key->state!=PAPACC_CA_KEY_READY||!b->key->key||!b->key->provider||b->key->thread!=GetCurrentThreadId()||b->key->close_attempted)return PAPACC_ISSUER_DENIED;
++ while(prefix[k]){name[k]=prefix[k];k++;}for(i=0;i<16U;i++){name[k++]=hex[v.authority[i]>>4];name[k++]=hex[v.authority[i]&15U];}name[k++]=L'.';
++ for(i=0;i<16U;i++){name[k++]=hex[v.generation[i]>>4];name[k++]=hex[v.generation[i]&15U];}name[k]=0;
++ if(wcscmp(name,b->key->name))return PAPACC_ISSUER_DENIED;
++ b->native_stage=1;b->native_error=papacc_ca_key_validate(b->key);
++ if(b->native_error)return papacc_issuer_windows_key_result(b->key,b->native_error);
++ if(!public_match(b,&v))return PAPACC_ISSUER_DENIED;
++ result=papacc_issuer_x509_ca_matches(&v,b->ca,keyid);if(result)return result;
++ /* Public provider work cannot bridge a changed CURRENT or Stop. Never
++  * turn a supplied CERT_INFO or key name into source authority. */
++ if(!ready(b))return PAPACC_ISSUER_STOPPED;
++ memset(&again,0,sizeof(again));memset(&r,0,sizeof(r));found=0;
++ result=b->root.read(b->root.ctx,id,&again,&r,&found);if(result)return result;
++ if(!ready(b))return PAPACC_ISSUER_STOPPED;
++ if(found||!view_equal(&v,&again))return PAPACC_ISSUER_CONFLICT;
++ *out=v;return PAPACC_ISSUER_OK;
++}
+ static PAPACC_ISSUER_RESULT acquire(void *ctx,const PAPACC_ISSUER_VIEW *expected,const PAPACC_ISSUER_RECORD *r,void **lease)
+ {
+  PAPACC_ISSUER_CNG_BACKEND *b=ctx;PAPACC_ISSUER_VIEW current;PAPACC_ISSUER_RESULT s;
+@@ -160,3 +198,36 @@
+  if(status){b->retained=1;if(!b->native_error){b->native_stage=5;b->native_error=status;}return PAPACC_ISSUER_RETAINED;}
+  b->custody=0;return PAPACC_ISSUER_OK;
+ }
++
++#ifdef PAPACC_OFFLINE_D3_WORKER
++PAPACC_ISSUER_RESULT papacc_configuration_personal_ca_activate_normal(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER_CNG_BACKEND *b,
++ const unsigned char id[32],const unsigned char a[16],const unsigned char g[16])
++{
++ PAPACC_ISSUER_VIEW v,after;PAPACC_ISSUER_CORE *core;PAPACC_ISSUER_RESULT result;
++ if(!o||!b||!id||!a||!g||o->writer!=GetCurrentThreadId()||b->thread!=GetCurrentThreadId()||!(core=b->owner))return PAPACC_ISSUER_INVALID;
++ if(core->initialized||core->busy||core->blocked||core->retained||core->lease||core->retained_output||core->pending.active||b->active||b->retained||b->stopped)return PAPACC_ISSUER_DENIED;
++ /* Handoff precedes publication: keeping the consumed ceremony packet
++  * open would itself block bootstrap/CAS. Its verified origin survives by
++  * value in the SAME backend, while its single key borrow never lapses. */
++ if(!o->initialized||o->stopped||o->unresolved||o->authority_lost||o->recovery_selected||!b->custody||
++  b->original_source_root!=o||memcmp(b->original_attempt,id,32)||memcmp(b->original_authority,a,16)||memcmp(b->original_generation,g,16)||
++  !b->key||b->key->borrower!=b)return PAPACC_ISSUER_DENIED;
++ result=papacc_issuer_cng_backend_normal_source(b,&v);if(result)return result;
++ if(memcmp(v.root,o->domain,32)||memcmp(v.authority,a,16)||memcmp(v.generation,g,16))return PAPACC_ISSUER_CONFLICT;
++ /* The same source holder is kept through init, future signing leases and
++  * PENDING CAS. No borrowed CERT_INFO or key escapes to another owner. */
++ memset(&after,0,sizeof(after));result=papacc_issuer_init_normal(core,&b->root,&b->ports);
++ if(result==PAPACC_ISSUER_OK)result=papacc_issuer_cng_backend_normal_source(b,&after);
++ if(result==PAPACC_ISSUER_OK&&
++  (after.revision!=v.revision||after.administrative_epoch!=v.administrative_epoch||after.epoch!=v.epoch||after.high_water!=v.high_water||after.ca_not_after!=v.ca_not_after||after.proofs!=v.proofs||after.continuity_profile!=v.continuity_profile||
++   memcmp(after.prefix,v.prefix,8)||memcmp(after.policy,v.policy,32)||
++   memcmp(after.root,v.root,32)||memcmp(after.authority,v.authority,16)||memcmp(after.generation,v.generation,16)||memcmp(after.ca_spki_digest,v.ca_spki_digest,32)))
++  result=PAPACC_ISSUER_CONFLICT;
++ if(result!=PAPACC_ISSUER_OK){
++  /* An effect-free failure still must not silently return a transferred
++   * lifetime borrow. First result is returned, source and recipient retained. */
++  b->retained=1;core->blocked=1;core->retained=1;o->unresolved=1;return result;
++ }
++ return PAPACC_ISSUER_OK;
++}
++#endif
+--- before/apps/server/server_configuration_personal_ca_win32.inc
++++ after/apps/server/server_configuration_personal_ca_win32.inc
+@@ -89,5 +89,6 @@
+  result=papacc_configuration_personal_ca_current(o,id,a,g);if(result!=PAPACC_RESULT_OK)return result;
+  /* No native callback between transfer and recipient metadata publication. */
+  if(papacc_ca_key_transfer_borrow(ca,p,backend)!=ERROR_SUCCESS){o->unresolved=1;return PAPACC_RESULT_INVALID_STATE;}
++ backend->original_source_root=o;memcpy(backend->original_attempt,id,32);memcpy(backend->original_authority,a,16);memcpy(backend->original_generation,g,16);
+  backend->custody=1;p->personal_ca=NULL;return PAPACC_RESULT_OK;
+ }
+--- before/apps/server/server_configuration_commit_win32.h
++++ after/apps/server/server_configuration_commit_win32.h
+@@ -256,6 +256,13 @@
+ /* Typed handoff to the existing issuer backend; source revalidated first.
+  * Does not produce NORMAL proof flags, issue or publish anything. */
+ PAPACC_RESULT papacc_configuration_personal_ca_handoff(PAPACC_CONFIGURATION_COMMIT *,struct PAPACC_ISSUER_CNG_BACKEND *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
++/* Activate ONLY the original source already transferred by handoff,
++ * after the same root has become factually CURRENT. Never keep a consumed
++ * ceremony packet open to fabricate issuer readiness. Registered backend only.
++ * No key/cert/root creation, proof manufacture, signature or publication.
++ * Prechecks keep the existing borrow untouched. Failure during/after init
++ * retains the recipient and blocks another activation. */
++PAPACC_ISSUER_RESULT papacc_configuration_personal_ca_activate_normal(PAPACC_CONFIGURATION_COMMIT *,struct PAPACC_ISSUER_CNG_BACKEND *,const unsigned char[32],const unsigned char[16],const unsigned char[16]);
+ PAPACC_PERSONAL_CUSTODY_DATA papacc_configuration_personal_custody_data(const PAPACC_CONFIGURATION_COMMIT *,const PAPACC_CA_KEY *);
+ /* One-shot, read-only handoff to the existing worker; no child/key effects.
+  * Same owner keeps all inputs frozen until poll confirms signal AND close. */
+--- before/tests/issuer_cng_x509_test.c
++++ after/tests/issuer_cng_x509_test.c
+@@ -6,10 +6,12 @@
+ #include <bcrypt.h>
+ #include <stdio.h>
+ #include <string.h>
++#include <wchar.h>
+ static CERT_PUBLIC_KEY_INFO ca_public;
+ static unsigned checks,private_calls,validation_calls;static SECURITY_STATUS fail_sign;
+ static int bad_signature,deny_admin,stop_on_sign,fail_return,normal_profile,defer_core_init;
+-static PAPACC_ISSUER_CORE core;
++static unsigned source_reads,source_fault_at,source_fault;
++static PAPACC_ISSUER_CORE fixture_core;
+ static BOOL WINAPI model_verify(HCRYPTPROV_LEGACY p,DWORD e,DWORD s,void *a,DWORD i,void *b,DWORD f,void *x)
+ {(void)p;(void)e;(void)s;(void)a;(void)i;(void)b;(void)f;(void)x;return !bad_signature;}
+ static SECURITY_STATUS model_validate(PAPACC_CA_KEY *key){(void)key;validation_calls++;return 0;}
+@@ -21,7 +23,7 @@
+ {
+  BCRYPT_PKCS1_PADDING_INFO *p=pad;(void)key;(void)hash;private_calls++;
+  if(hn!=32||cap!=256||wcscmp(p->pszAlgId,BCRYPT_SHA256_ALGORITHM)||flags!=(NCRYPT_PAD_PKCS1_FLAG|NCRYPT_SILENT_FLAG))return NTE_INVALID_PARAMETER;
+- if(fail_sign)return fail_sign;memset(out,0x5a,256);*used=256;if(stop_on_sign)papacc_issuer_stop(&core);return 0;
++ if(fail_sign)return fail_sign;memset(out,0x5a,256);*used=256;if(stop_on_sign)papacc_issuer_stop(&fixture_core);return 0;
+ }
+ #define CryptVerifyCertificateSignatureEx model_verify
+ #define papacc_ca_key_validate model_validate
+@@ -40,21 +42,27 @@
+ #undef CryptExportPublicKeyInfoEx
+ #undef NCryptSignHash
+ #define CHECK(x) do{checks++;if(!(x)){printf("FAIL %u line %u\n",checks,(unsigned)__LINE__);return 1;}}while(0)
+-static PAPACC_ISSUER_VIEW v;
++static PAPACC_ISSUER_VIEW fixture_view;
+ static PAPACC_ISSUER_RECORD record;
+-static PAPACC_ISSUER_CNG_BACKEND backend;
++static PAPACC_ISSUER_CNG_BACKEND fixture_backend;
+ static PAPACC_CA_KEY key;
+ static PAPACC_ISSUER_BACKEND administrative;
+ static PAPACC_ISSUER_ROOT_PORT root;
+ static union {ULONGLONG alignment;BYTE bytes[4096];} workspace;
+ static BYTE csr[2048],out[2048],tbs[2048],pubder[512],subject[128],root_serial[16],ski_bytes[32],extensions[3][128];
+-static CERT_INFO ca;
++static CERT_INFO fixture_ca;
+ static CERT_EXTENSION ext[3];
+ static DWORD csr_size;
+ static PAPACC_ISSUER_RESULT root_read(void *ctx,const PAPACC_U8 id[16],PAPACC_ISSUER_VIEW *view,PAPACC_ISSUER_RECORD *r,int *found)
+-{(void)ctx;*view=v;*found=!memcmp(id,record.request.id,16);if(*found)*r=record;return PAPACC_ISSUER_OK;}
++{(void)ctx;source_reads++;
++ if(source_fault_at&&source_reads==source_fault_at){
++  if(source_fault==1U)fixture_view.epoch++;if(source_fault==2U)fixture_view.generation[0]^=1U;if(source_fault==3U)fixture_view.revision++;
++  if(source_fault==4U)return PAPACC_ISSUER_UNCERTAIN;if(source_fault==5U)papacc_issuer_cng_backend_stop(&fixture_backend);
++  if(source_fault==6U)fixture_view.administrative_epoch++;if(source_fault==7U)fixture_view.high_water++;if(source_fault==8U)fixture_view.policy[0]^=1U;
++ }
++ *view=fixture_view;*found=!memcmp(id,record.request.id,16);if(*found)*r=record;return PAPACC_ISSUER_OK;}
+ static PAPACC_ISSUER_RESULT root_cas(void *ctx,const PAPACC_ISSUER_VIEW *view,const PAPACC_ISSUER_RECORD *old,const PAPACC_ISSUER_RECORD *next,PAPACC_U64 high,const PAPACC_U8 *der,PAPACC_SIZE n,int publish)
+-{(void)ctx;(void)old;(void)der;(void)n;if(publish)return PAPACC_ISSUER_DENIED;if(view->revision!=v.revision)return PAPACC_ISSUER_CONFLICT;record=*next;v.high_water=high;v.revision++;v.administrative_epoch++;return PAPACC_ISSUER_OK;}
++{(void)ctx;(void)old;(void)der;(void)n;if(publish)return PAPACC_ISSUER_DENIED;if(view->revision!=fixture_view.revision)return PAPACC_ISSUER_CONFLICT;record=*next;fixture_view.high_water=high;fixture_view.revision++;fixture_view.administrative_epoch++;return PAPACC_ISSUER_OK;}
+ static PAPACC_ISSUER_RESULT admin(void *ctx,const PAPACC_ISSUER_VIEW *view,const PAPACC_ISSUER_REQUEST *r,unsigned op)
+ {(void)ctx;(void)view;(void)r;(void)op;return deny_admin?PAPACC_ISSUER_DENIED:PAPACC_ISSUER_OK;}
+ static PAPACC_ISSUER_RESULT clock_value(void *ctx,PAPACC_U64 *now){(void)ctx;*now=1700000000ULL;return PAPACC_ISSUER_OK;}
+@@ -64,34 +72,37 @@
+ {
+  CERT_REQUEST_INFO q;CERT_SIGNED_CONTENT_INFO signed_request;CERT_BASIC_CONSTRAINTS2_INFO bc={TRUE,TRUE,0};CRYPT_BIT_BLOB ku;CRYPT_DATA_BLOB ski;
+  DWORD n,z=32;BYTE usage=6,signature[256]={0};unsigned i,k;static const wchar_t hex[]=L"0123456789abcdef";
+- memset(&core,0,sizeof(core));memset(&backend,0,sizeof(backend));memset(&record,0,sizeof(record));memset(&v,0,sizeof(v));memset(&ca,0,sizeof(ca));memset(&key,0,sizeof(key));memset(&administrative,0,sizeof(administrative));memset(&root,0,sizeof(root));
+- private_calls=validation_calls=0;fail_sign=0;bad_signature=deny_admin=stop_on_sign=fail_return=0;
+- v.root[0]=1;v.authority[0]=2;v.generation[0]=3;v.prefix[0]=4;v.policy[0]=5;v.revision=1;v.epoch=9;v.administrative_epoch=101;v.high_water=2;v.ca_not_after=1690000000ULL+1825ULL*86400ULL;v.proofs=31;
+- if(normal_profile){v.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;v.proofs=PAPACC_ISSUER_NORMAL_PROOFS;}
++ memset(&fixture_core,0,sizeof(fixture_core));memset(&fixture_backend,0,sizeof(fixture_backend));memset(&record,0,sizeof(record));memset(&fixture_view,0,sizeof(fixture_view));memset(&fixture_ca,0,sizeof(fixture_ca));memset(&key,0,sizeof(key));memset(&administrative,0,sizeof(administrative));memset(&root,0,sizeof(root));
++ private_calls=validation_calls=0;source_reads=source_fault_at=source_fault=0;fail_sign=0;bad_signature=deny_admin=stop_on_sign=fail_return=0;
++ fixture_view.root[0]=1;fixture_view.authority[0]=2;fixture_view.generation[0]=3;fixture_view.prefix[0]=4;fixture_view.policy[0]=5;fixture_view.revision=1;fixture_view.epoch=9;fixture_view.administrative_epoch=101;fixture_view.high_water=2;fixture_view.ca_not_after=1690000000ULL+1825ULL*86400ULL;fixture_view.proofs=31;
++ if(normal_profile){fixture_view.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;fixture_view.proofs=PAPACC_ISSUER_NORMAL_PROOFS;}
+  record.request.id[0]=1;record.request.device[0]=7;record.request.purpose=PAPACC_ISSUER_CLIENT;record.request.not_before=1700000000ULL;record.request.not_after=1700003600ULL;
+- memcpy(record.authority,v.authority,16);memcpy(record.generation,v.generation,16);memcpy(record.policy,v.policy,32);memcpy(record.serial,v.prefix,8);record.serial[15]=2;record.counter=2;record.approved_epoch=9;record.state=PAPACC_ISSUER_SERIAL_RESERVED;
+- CHECK(xspki(&ca_public,v.ca_spki_digest,pubder,sizeof(pubder)));CHECK(xspki(client,record.request.key_digest,pubder,sizeof(pubder)));
++ memcpy(record.authority,fixture_view.authority,16);memcpy(record.generation,fixture_view.generation,16);memcpy(record.policy,fixture_view.policy,32);memcpy(record.serial,fixture_view.prefix,8);record.serial[15]=2;record.counter=2;record.approved_epoch=9;record.state=PAPACC_ISSUER_SERIAL_RESERVED;
++ CHECK(xspki(&ca_public,fixture_view.ca_spki_digest,pubder,sizeof(pubder)));CHECK(xspki(client,record.request.key_digest,pubder,sizeof(pubder)));
+  memset(&q,0,sizeof(q));q.SubjectPublicKeyInfo=*client;n=128;CHECK(xname("CN=Ignored CSR Name ",record.request.device,subject,&n));q.Subject.pbData=subject;q.Subject.cbData=n;
+  n=sizeof(tbs);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT_REQUEST_TO_BE_SIGNED,&q,0,NULL,tbs,&n));
+  memset(&signed_request,0,sizeof(signed_request));signed_request.ToBeSigned.pbData=tbs;signed_request.ToBeSigned.cbData=n;signed_request.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA256RSA;
+  signed_request.SignatureAlgorithm.Parameters.pbData=(BYTE *)"\x05\x00";signed_request.SignatureAlgorithm.Parameters.cbData=2;signed_request.Signature.pbData=signature;signed_request.Signature.cbData=256;csr_size=sizeof(csr);
+  CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_request,0,NULL,csr,&csr_size));CHECK(CryptHashCertificate2(BCRYPT_SHA256_ALGORITHM,0,NULL,csr,csr_size,record.request.csr_digest,&z));
+- ca.dwVersion=CERT_V3;ca.SubjectPublicKeyInfo=ca_public;CHECK(xname("CN=Papinho CA ",v.authority,subject,&n));ca.Subject.pbData=subject;ca.Subject.cbData=n;ca.Issuer=ca.Subject;
+- root_serial[0]=1;memset(root_serial+1,0,15);for(i=0;i<8;i++)root_serial[8+i]=v.prefix[7-i];n=16;while(n>1&&!root_serial[n-1])n--;ca.SerialNumber.pbData=root_serial;ca.SerialNumber.cbData=n;
+- ca.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA256RSA;ca.SignatureAlgorithm.Parameters.pbData=(BYTE *)"\x05\x00";ca.SignatureAlgorithm.Parameters.cbData=2;
+- CHECK(xtime(1690000000ULL,&ca.NotBefore));CHECK(xtime(v.ca_not_after,&ca.NotAfter));memset(ext,0,sizeof(ext));
++ fixture_ca.dwVersion=CERT_V3;fixture_ca.SubjectPublicKeyInfo=ca_public;CHECK(xname("CN=Papinho CA ",fixture_view.authority,subject,&n));fixture_ca.Subject.pbData=subject;fixture_ca.Subject.cbData=n;fixture_ca.Issuer=fixture_ca.Subject;
++ root_serial[0]=1;memset(root_serial+1,0,15);for(i=0;i<8;i++)root_serial[8+i]=fixture_view.prefix[7-i];n=16;while(n>1&&!root_serial[n-1])n--;fixture_ca.SerialNumber.pbData=root_serial;fixture_ca.SerialNumber.cbData=n;
++ fixture_ca.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA256RSA;fixture_ca.SignatureAlgorithm.Parameters.pbData=(BYTE *)"\x05\x00";fixture_ca.SignatureAlgorithm.Parameters.cbData=2;
++ CHECK(xtime(1690000000ULL,&fixture_ca.NotBefore));CHECK(xtime(fixture_view.ca_not_after,&fixture_ca.NotAfter));memset(ext,0,sizeof(ext));
+  ext[0].pszObjId=(LPSTR)szOID_BASIC_CONSTRAINTS2;ext[0].fCritical=TRUE;ext[1].pszObjId=(LPSTR)szOID_KEY_USAGE;ext[1].fCritical=TRUE;ext[2].pszObjId=(LPSTR)szOID_SUBJECT_KEY_IDENTIFIER;
+  for(i=0;i<3;i++){ext[i].Value.pbData=extensions[i];ext[i].Value.cbData=128;}
+  CHECK(xencode(X509_BASIC_CONSTRAINTS2,&bc,extensions[0],128,&ext[0].Value.cbData));ku.cbData=1;ku.pbData=&usage;ku.cUnusedBits=1;
+  CHECK(xencode(X509_KEY_USAGE,&ku,extensions[1],128,&ext[1].Value.cbData));z=32;CHECK(CryptHashPublicKeyInfo(0,CALG_SHA_256,0,X509_ASN_ENCODING,&ca_public,ski_bytes,&z));ski.pbData=ski_bytes;ski.cbData=32;
+- CHECK(xencode(X509_OCTET_STRING,&ski,extensions[2],128,&ext[2].Value.cbData));ca.cExtension=3;ca.rgExtension=ext;
+- root.ctx=&v;root.read=root_read;root.cas=root_cas;root.test_only=1;administrative.authorize=admin;administrative.utc=clock_value;administrative.test_only=1;
++ CHECK(xencode(X509_OCTET_STRING,&ski,extensions[2],128,&ext[2].Value.cbData));fixture_ca.cExtension=3;fixture_ca.rgExtension=ext;
++ root.ctx=&fixture_view;root.read=root_read;root.cas=root_cas;root.test_only=1;administrative.authorize=admin;administrative.utc=clock_value;administrative.test_only=1;
+  key.state=PAPACC_CA_KEY_READY;key.key=101;key.provider=202;key.thread=GetCurrentThreadId();k=0;{const wchar_t *prefix=L"PapinhoAccelerator.CA.";while(*prefix)key.name[k++]=*prefix++;}
+- for(i=0;i<16;i++){key.name[k++]=hex[v.authority[i]>>4];key.name[k++]=hex[v.authority[i]&15];}key.name[k++]=L'.';for(i=0;i<16;i++){key.name[k++]=hex[v.generation[i]>>4];key.name[k++]=hex[v.generation[i]&15];}key.name[k]=0;
+- CHECK(papacc_issuer_cng_backend_init(&backend,&root,&administrative,&core,&key,&ca,workspace.bytes,sizeof(workspace.bytes),2084039)==PAPACC_ISSUER_OK);
++ for(i=0;i<16;i++){key.name[k++]=hex[fixture_view.authority[i]>>4];key.name[k++]=hex[fixture_view.authority[i]&15];}key.name[k++]=L'.';for(i=0;i<16;i++){key.name[k++]=hex[fixture_view.generation[i]>>4];key.name[k++]=hex[fixture_view.generation[i]&15];}key.name[k]=0;
++ CHECK(papacc_issuer_cng_backend_init(&fixture_backend,&root,&administrative,&fixture_core,&key,&fixture_ca,workspace.bytes,sizeof(workspace.bytes),2084039)==PAPACC_ISSUER_OK);
+  if(defer_core_init)return 0;
+- CHECK((normal_profile?papacc_issuer_init_normal(&core,&root,&backend.ports):papacc_issuer_init(&core,&root,&backend.ports))==PAPACC_ISSUER_OK);return 0;
+-}
++ CHECK((normal_profile?papacc_issuer_init_normal(&fixture_core,&root,&fixture_backend.ports):papacc_issuer_init(&fixture_core,&root,&fixture_backend.ports))==PAPACC_ISSUER_OK);return 0;
++}
++#ifdef PAPACC_OFFLINE_D3_WORKER
++#include "issuer_normal_source_composition_cases.inc"
++#endif
+ static int inspect_leaf(int package)
+ {
+  PCCERT_CONTEXT leaf;BYTE usage=0,storage[128];DWORD n=sizeof(storage);char name[128];CERT_ENHKEY_USAGE *eku=(CERT_ENHKEY_USAGE *)storage;
+@@ -115,7 +126,7 @@
+  union {ULONGLONG alignment;BYTE bytes[1024];} decoded;
+  const char *name="accel.example";char maximum[254];unsigned i;
+  CHECK(!initialize(public_key));record.request.purpose=PAPACC_ISSUER_SERVER;
+- CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+  z=sizeof(storage);CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,tbs,n,0,NULL,storage,&z));
+  CHECK(info->cExtension==6&&info->dwVersion==CERT_V3);CHECK(info->Subject.cbData==2&&info->Subject.pbData[0]==0x30&&info->Subject.pbData[1]==0);usage=0;
+  CHECK(CertGetIntendedKeyUsage(X509_ASN_ENCODING,info,&usage,1)&&usage==CERT_DIGITAL_SIGNATURE_KEY_USAGE);
+@@ -128,18 +139,18 @@
+  memset(&signed_cert,0,sizeof(signed_cert));signed_cert.ToBeSigned.pbData=tbs;signed_cert.ToBeSigned.cbData=n;
+  signed_cert.SignatureAlgorithm=info->SignatureAlgorithm;signed_cert.Signature.pbData=signature;signed_cert.Signature.cbData=256;z=sizeof(out);
+  CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_cert,0,NULL,out,&z));
+- CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_OK);
+- CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,"other.example",13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);
+- CHECK(papacc_issuer_x509_verify(&v,&record,&ca,out,z,&backend.workspace,digest)==PAPACC_ISSUER_UNSUPPORTED);
+- bad_signature=1;CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);bad_signature=0;
+- CHECK(papacc_issuer_windows_verify_request(&backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_OK);
+- bad_signature=1;CHECK(papacc_issuer_windows_verify_request(&backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_INVALID);bad_signature=0;
++ CHECK(papacc_issuer_x509_server_verify(&fixture_view,&record,&fixture_ca,name,13,out,z,&fixture_backend.workspace,digest)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_x509_server_verify(&fixture_view,&record,&fixture_ca,"other.example",13,out,z,&fixture_backend.workspace,digest)==PAPACC_ISSUER_INVALID);
++ CHECK(papacc_issuer_x509_verify(&fixture_view,&record,&fixture_ca,out,z,&fixture_backend.workspace,digest)==PAPACC_ISSUER_UNSUPPORTED);
++ bad_signature=1;CHECK(papacc_issuer_x509_server_verify(&fixture_view,&record,&fixture_ca,name,13,out,z,&fixture_backend.workspace,digest)==PAPACC_ISSUER_INVALID);bad_signature=0;
++ CHECK(papacc_issuer_windows_verify_request(&fixture_backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_OK);
++ bad_signature=1;CHECK(papacc_issuer_windows_verify_request(&fixture_backend.workspace,&record,csr,csr_size)==PAPACC_ISSUER_INVALID);bad_signature=0;
+  /* Independently corrupt role fields without adding a CN fallback.
+   * Synthetic outer signatures never stand in for a native private operation. */
+  for(i=0;i<4;i++){
+   CERT_ENHKEY_USAGE wrong_eku;LPSTR wrong_oid=(LPSTR)szOID_PKIX_KP_CLIENT_AUTH;BYTE wrong_usage=0xa0;
+   CRYPT_BIT_BLOB bits;CERT_BASIC_CONSTRAINTS2_INFO wrong_bc={TRUE,FALSE,0};DWORD changed;
+-  CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
++  CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+   changed=sizeof(storage);CHECK(CryptDecodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,tbs,n,0,NULL,storage,&changed));
+   if(i==0)info->cExtension=5; /* Remove the only identity-bearing extension. */
+   else{
+@@ -151,92 +162,95 @@
+   }
+   n=sizeof(tbs);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT_TO_BE_SIGNED,info,0,NULL,tbs,&n));
+   signed_cert.ToBeSigned.cbData=n;z=sizeof(out);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_cert,0,NULL,out,&z));
+-  CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);
++  CHECK(papacc_issuer_x509_server_verify(&fixture_view,&record,&fixture_ca,name,13,out,z,&fixture_backend.workspace,digest)==PAPACC_ISSUER_INVALID);
+  }
+ 
+- CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+  signed_cert.ToBeSigned.cbData=n;z=sizeof(out);CHECK(CryptEncodeObjectEx(X509_ASN_ENCODING,X509_CERT,&signed_cert,0,NULL,out,&z));
+- backend.workspace.stopped=1;CHECK(papacc_issuer_x509_server_verify(&v,&record,&ca,name,13,out,z,&backend.workspace,digest)==PAPACC_ISSUER_STOPPED);backend.workspace.stopped=0;
++ fixture_backend.workspace.stopped=1;CHECK(papacc_issuer_x509_server_verify(&fixture_view,&record,&fixture_ca,name,13,out,z,&fixture_backend.workspace,digest)==PAPACC_ISSUER_STOPPED);fixture_backend.workspace.stopped=0;
+  {const char *invalid[]={"","*.example","127.0.0.1","-bad.example","bad-.example","a..b","a.example.","a;CN=bad","a_b.example"};
+- for(i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++)CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,invalid[i],(DWORD)strlen(invalid[i]),tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);}
+- CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,"a\0b",3,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
++ for(i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++)CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,invalid[i],(DWORD)strlen(invalid[i]),tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);}
++ CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,"a\0b",3,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
+  for(i=0;i<253;i++)maximum[i]=((i==63)||(i==127)||(i==191))?'.':'a';maximum[253]=0;
+- CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,maximum,253,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+- maximum[63]='a';CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,maximum,253,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
+- record.serial[15]=3;CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_DENIED);record.serial[15]=2;
+- CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,8,&n)==PAPACC_ISSUER_LIMIT);
+- record.request.purpose=PAPACC_ISSUER_CLIENT;CHECK(papacc_issuer_x509_server_tbs(&v,&record,&ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
+- CHECK(!private_calls);papacc_issuer_stop(&core);papacc_issuer_cng_backend_stop(&backend);CHECK(papacc_issuer_finish(&core)==PAPACC_ISSUER_OK);return 0;
++ CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,maximum,253,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
++ maximum[63]='a';CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,maximum,253,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
++ record.serial[15]=3;CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_DENIED);record.serial[15]=2;
++ CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,name,13,tbs,8,&n)==PAPACC_ISSUER_LIMIT);
++ record.request.purpose=PAPACC_ISSUER_CLIENT;CHECK(papacc_issuer_x509_server_tbs(&fixture_view,&record,&fixture_ca,public_key,name,13,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
++ CHECK(!private_calls);papacc_issuer_stop(&fixture_core);papacc_issuer_cng_backend_stop(&fixture_backend);CHECK(papacc_issuer_finish(&fixture_core)==PAPACC_ISSUER_OK);return 0;
+ }
+ int main(int argc,char **argv)
+ {
+  PCCERT_CONTEXT caf,client;PAPACC_ISSUER_RESULT result;DWORD n;PAPACC_SIZE saved;unsigned before;
+  if(argc!=3)return 2;caf=fixture(argv[1]);client=fixture(argv[2]);CHECK(caf&&client);ca_public=caf->pCertInfo->SubjectPublicKeyInfo;
+  normal_profile=1;CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));
+- CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK&&private_calls==1);
+- CHECK(papacc_issuer_recover(&core,record.request.id)==PAPACC_ISSUER_DENIED);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));v.proofs|=PAPACC_ISSUER_PROOF_COMPLETE_CHAIN;
+- CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNCERTAIN&&!private_calls);
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK&&private_calls==1);
++ CHECK(papacc_issuer_recover(&fixture_core,record.request.id)==PAPACC_ISSUER_DENIED);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fixture_view.proofs|=PAPACC_ISSUER_PROOF_COMPLETE_CHAIN;
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNCERTAIN&&!private_calls);
+  normal_profile=0;
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));
+- result=papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out));CHECK(result==PAPACC_ISSUER_OK);CHECK(private_calls==1&&record.state==PAPACC_ISSUER_ISSUED_UNPUBLISHED&&backend.active==0&&!key.borrower);
++ result=papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out));CHECK(result==PAPACC_ISSUER_OK);CHECK(private_calls==1&&record.state==PAPACC_ISSUER_ISSUED_UNPUBLISHED&&fixture_backend.active==0&&!key.borrower);
+  CHECK(!inspect_leaf(0));printf("MODEL_PUBLIC_DER_BYTES=%Iu CSR_BYTES=%lu NO_VALID_NATIVE_SIGNATURE\n",record.certificate_size,csr_size);
+- before=private_calls;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNSUPPORTED);CHECK(private_calls==before);
++ before=private_calls;CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNSUPPORTED);CHECK(private_calls==before);
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.state=PAPACC_ISSUER_SIGN_REQUESTED;
+- {void *lease=NULL;PAPACC_SIZE z=0;CHECK(backend.ports.acquire(&backend,&v,&record,&lease)==PAPACC_ISSUER_DENIED&&!lease);
+- CHECK(backend.ports.sign(&backend,&backend,&record,csr,csr_size,out,sizeof(out),&z)==PAPACC_ISSUER_DENIED&&!private_calls);}
++ {void *lease=NULL;PAPACC_SIZE z=0;CHECK(fixture_backend.ports.acquire(&fixture_backend,&fixture_view,&record,&lease)==PAPACC_ISSUER_DENIED&&!lease);
++ CHECK(fixture_backend.ports.sign(&fixture_backend,&fixture_backend,&record,csr,csr_size,out,sizeof(out),&z)==PAPACC_ISSUER_DENIED&&!private_calls);}
+ 
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,16)==PAPACC_ISSUER_LIMIT&&!private_calls);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,16)==PAPACC_ISSUER_LIMIT&&!private_calls);
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fail_return=1;
+- CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED);CHECK(private_calls==1&&key.borrower==&backend&&core.lease==&backend&&record.state==PAPACC_ISSUER_ISSUED_UNPUBLISHED);
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED);CHECK(private_calls==1&&key.borrower==&fixture_backend&&fixture_core.lease==&fixture_backend&&record.state==PAPACC_ISSUER_ISSUED_UNPUBLISHED);
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));
+- CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK);
+- {BYTE digest[32];bad_signature=1;CHECK(papacc_issuer_x509_verify(&v,&record,&ca,out,(DWORD)record.certificate_size,&backend.workspace,digest)==PAPACC_ISSUER_INVALID);
+- bad_signature=0;out[10]^=1;CHECK(papacc_issuer_x509_verify(&v,&record,&ca,out,(DWORD)record.certificate_size,&backend.workspace,digest)!=PAPACC_ISSUER_OK);}
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));ca.cExtension=4;CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_UNSUPPORTED);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));memcpy(record.request.key_digest,v.ca_spki_digest,32);
+- CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&ca_public,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK);
++ {BYTE digest[32];bad_signature=1;CHECK(papacc_issuer_x509_verify(&fixture_view,&record,&fixture_ca,out,(DWORD)record.certificate_size,&fixture_backend.workspace,digest)==PAPACC_ISSUER_INVALID);
++ bad_signature=0;out[10]^=1;CHECK(papacc_issuer_x509_verify(&fixture_view,&record,&fixture_ca,out,(DWORD)record.certificate_size,&fixture_backend.workspace,digest)!=PAPACC_ISSUER_OK);}
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fixture_ca.cExtension=4;CHECK(papacc_issuer_x509_tbs(&fixture_view,&record,&fixture_ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_UNSUPPORTED);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));memcpy(record.request.key_digest,fixture_view.ca_spki_digest,32);
++ CHECK(papacc_issuer_x509_tbs(&fixture_view,&record,&fixture_ca,&ca_public,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID);
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_PACKAGE;
+- CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK);CHECK(!inspect_leaf(1));
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.counter=0;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))!=0);CHECK(!private_calls);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));bad_signature=1;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_INVALID);CHECK(!private_calls&&record.state==PAPACC_ISSUER_SERIAL_RESERVED);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));deny_admin=1;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_DENIED);CHECK(!private_calls);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));backend.key=NULL;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_ABSENT);CHECK(!private_calls&&record.state==PAPACC_ISSUER_SIGN_REQUESTED);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fail_sign=NTE_PERM;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED);CHECK(private_calls==1&&backend.native_error==NTE_PERM&&backend.native_stage==4&&core.retained_output==out&&key.borrower==&backend);
+- CHECK(papacc_issuer_finish(&core)==PAPACC_ISSUER_RETAINED);CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));stop_on_sign=1;
+- CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED);CHECK(private_calls==1&&core.stopped&&backend.retained);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));papacc_issuer_stop(&core);CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_STOPPED);CHECK(!private_calls);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));v.proofs=0;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNCERTAIN);CHECK(!private_calls);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.serial[15]=3;CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_DENIED);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));ca.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA1RSA;
+- CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID&&!private_calls);
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK);CHECK(!inspect_leaf(1));
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.counter=0;CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))!=0);CHECK(!private_calls);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));bad_signature=1;CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_INVALID);CHECK(!private_calls&&record.state==PAPACC_ISSUER_SERIAL_RESERVED);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));deny_admin=1;CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_DENIED);CHECK(!private_calls);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fixture_backend.key=NULL;CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_ABSENT);CHECK(!private_calls&&record.state==PAPACC_ISSUER_SIGN_REQUESTED);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fail_sign=NTE_PERM;CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED);CHECK(private_calls==1&&fixture_backend.native_error==NTE_PERM&&fixture_backend.native_stage==4&&fixture_core.retained_output==out&&key.borrower==&fixture_backend);
++ CHECK(papacc_issuer_finish(&fixture_core)==PAPACC_ISSUER_RETAINED);CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));stop_on_sign=1;
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED);CHECK(private_calls==1&&fixture_core.stopped&&fixture_backend.retained);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));papacc_issuer_stop(&fixture_core);CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_STOPPED);CHECK(!private_calls);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fixture_view.proofs=0;CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNCERTAIN);CHECK(!private_calls);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.serial[15]=3;CHECK(papacc_issuer_x509_tbs(&fixture_view,&record,&fixture_ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_DENIED);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fixture_ca.SignatureAlgorithm.pszObjId=(LPSTR)szOID_RSA_SHA1RSA;
++ CHECK(papacc_issuer_x509_tbs(&fixture_view,&record,&fixture_ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_INVALID&&!private_calls);
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_SERVER;
+- CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNSUPPORTED&&!private_calls&&record.state==PAPACC_ISSUER_SERIAL_RESERVED);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_SERVER;CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_UNSUPPORTED);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));saved=backend.reserved;backend.reserved=PAPACC_ED11_PROCESS_LIMIT;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_LIMIT);CHECK(!private_calls);backend.reserved=saved;
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));v.prefix[0]=0;v.prefix[1]=128;memcpy(record.serial,v.prefix,8);
+- {unsigned i,at;for(i=0;i<8;i++)root_serial[8+i]=v.prefix[7-i];ca.SerialNumber.cbData=16;
+- CHECK(papacc_issuer_x509_tbs(&v,&record,&ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNSUPPORTED&&!private_calls&&record.state==PAPACC_ISSUER_SERIAL_RESERVED);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));record.request.purpose=PAPACC_ISSUER_SERVER;CHECK(papacc_issuer_x509_tbs(&fixture_view,&record,&fixture_ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_UNSUPPORTED);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));saved=fixture_backend.reserved;fixture_backend.reserved=PAPACC_ED11_PROCESS_LIMIT;CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_LIMIT);CHECK(!private_calls);fixture_backend.reserved=saved;
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));fixture_view.prefix[0]=0;fixture_view.prefix[1]=128;memcpy(record.serial,fixture_view.prefix,8);
++ {unsigned i,at;for(i=0;i<8;i++)root_serial[8+i]=fixture_view.prefix[7-i];fixture_ca.SerialNumber.cbData=16;
++ CHECK(papacc_issuer_x509_tbs(&fixture_view,&record,&fixture_ca,&client->pCertInfo->SubjectPublicKeyInfo,tbs,sizeof(tbs),&n)==PAPACC_ISSUER_OK);
+  at=(tbs[1]&128U)?2U+(tbs[1]&127U):2U;CHECK(tbs[at]==0xa0);at+=2U+tbs[at+1U];
+  CHECK(tbs[at]==2U&&tbs[at+1U]==16U&&tbs[at+2U]==0U&&tbs[at+3U]==128U);}
+  CHECK(!server_profile(&client->pCertInfo->SubjectPublicKeyInfo));
+- papacc_issuer_stop(&core);papacc_issuer_cng_backend_stop(&backend);CHECK(papacc_issuer_finish(&core)==PAPACC_ISSUER_OK);
+- normal_profile=1;CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));key.borrower=&backend;backend.custody=1;
+- CHECK(papacc_issuer_cng_backend_release_custody(&backend)==PAPACC_ISSUER_DENIED&&key.borrower==&backend);
+- fail_return=1;CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==0&&key.borrower==&backend&&!backend.active&&backend.custody&&private_calls==1);fail_return=0;
+- papacc_issuer_cng_backend_stop(&backend);CHECK(papacc_issuer_cng_backend_release_custody(&backend)==PAPACC_ISSUER_DENIED);
+- papacc_issuer_stop(&core);CHECK(papacc_issuer_finish(&core)==0);CHECK(papacc_issuer_cng_backend_release_custody(&backend)==0&&!key.borrower&&!backend.custody);
+- CHECK(papacc_issuer_cng_backend_release_custody(&backend)==PAPACC_ISSUER_DENIED);
+- normal_profile=0;CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));key.borrower=&backend;backend.custody=1;
+- CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_DENIED&&!private_calls&&key.borrower==&backend);
+- papacc_issuer_stop(&core);papacc_issuer_cng_backend_stop(&backend);CHECK(papacc_issuer_finish(&core)==0);fail_return=1;
+- CHECK(papacc_issuer_cng_backend_release_custody(&backend)==PAPACC_ISSUER_RETAINED&&backend.custody&&key.borrower==&backend);
+- CHECK(papacc_issuer_cng_backend_release_custody(&backend)==PAPACC_ISSUER_RETAINED&&key.borrower==&backend);
++ papacc_issuer_stop(&fixture_core);papacc_issuer_cng_backend_stop(&fixture_backend);CHECK(papacc_issuer_finish(&fixture_core)==PAPACC_ISSUER_OK);
++ normal_profile=1;CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));key.borrower=&fixture_backend;fixture_backend.custody=1;
++ CHECK(papacc_issuer_cng_backend_release_custody(&fixture_backend)==PAPACC_ISSUER_DENIED&&key.borrower==&fixture_backend);
++ fail_return=1;CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==0&&key.borrower==&fixture_backend&&!fixture_backend.active&&fixture_backend.custody&&private_calls==1);fail_return=0;
++ papacc_issuer_cng_backend_stop(&fixture_backend);CHECK(papacc_issuer_cng_backend_release_custody(&fixture_backend)==PAPACC_ISSUER_DENIED);
++ papacc_issuer_stop(&fixture_core);CHECK(papacc_issuer_finish(&fixture_core)==0);CHECK(papacc_issuer_cng_backend_release_custody(&fixture_backend)==0&&!key.borrower&&!fixture_backend.custody);
++ CHECK(papacc_issuer_cng_backend_release_custody(&fixture_backend)==PAPACC_ISSUER_DENIED);
++ normal_profile=0;CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));key.borrower=&fixture_backend;fixture_backend.custody=1;
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_DENIED&&!private_calls&&key.borrower==&fixture_backend);
++ papacc_issuer_stop(&fixture_core);papacc_issuer_cng_backend_stop(&fixture_backend);CHECK(papacc_issuer_finish(&fixture_core)==0);fail_return=1;
++ CHECK(papacc_issuer_cng_backend_release_custody(&fixture_backend)==PAPACC_ISSUER_RETAINED&&fixture_backend.custody&&key.borrower==&fixture_backend);
++ CHECK(papacc_issuer_cng_backend_release_custody(&fixture_backend)==PAPACC_ISSUER_RETAINED&&key.borrower==&fixture_backend);
+  normal_profile=1;defer_core_init=1;CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));defer_core_init=0;
+- key.borrower=&backend;backend.custody=1;papacc_issuer_cng_backend_stop(&backend);
+- CHECK(papacc_issuer_cng_backend_release_custody(&backend)==0&&!key.borrower&&!core.initialized&&!private_calls);
+- CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));key.borrower=&core;backend.custody=1;
+- CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED&&backend.retained&&!private_calls&&key.borrower==&core);
++ key.borrower=&fixture_backend;fixture_backend.custody=1;papacc_issuer_cng_backend_stop(&fixture_backend);
++ CHECK(papacc_issuer_cng_backend_release_custody(&fixture_backend)==0&&!key.borrower&&!fixture_core.initialized&&!private_calls);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));key.borrower=&fixture_core;fixture_backend.custody=1;
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_RETAINED&&fixture_backend.retained&&!private_calls&&key.borrower==&fixture_core);
++ #ifdef PAPACC_OFFLINE_D3_WORKER
++ CHECK(!normal_source_composition_cases(&client->pCertInfo->SubjectPublicKeyInfo));
++#endif
+  CHECK(CertFreeCertificateContext(client));CHECK(CertFreeCertificateContext(caf));
+- printf("PASS %u SYNTHETIC_SIGNATURES_AND_ROOT_ONLY native_private_operations=NOT_RUN backend=%u workspace=%u core=%u key=%u\n",checks,(unsigned)sizeof(backend),(unsigned)sizeof(workspace),(unsigned)sizeof(core),(unsigned)sizeof(key));return 0;
+-}
++ printf("PASS %u SYNTHETIC_SIGNATURES_AND_ROOT_ONLY native_private_operations=NOT_RUN backend=%u workspace=%u core=%u key=%u\n",checks,(unsigned)sizeof(fixture_backend),(unsigned)sizeof(workspace),(unsigned)sizeof(fixture_core),(unsigned)sizeof(key));return 0;
++}
+--- before/tests/personal_ca_binding_win32_test.c
++++ after/tests/personal_ca_binding_win32_test.c
+@@ -16,6 +16,7 @@
+ #define papacc_configuration_personal_ca_current papacc_configuration_personal_ca_current_model
+ #define papacc_configuration_personal_ca_release papacc_configuration_personal_ca_release_model
+ #define papacc_configuration_personal_ca_handoff papacc_configuration_personal_ca_handoff_model
++#define papacc_configuration_personal_ca_activate_normal papacc_configuration_personal_ca_activate_normal_model
+ #define GetFileInformationByHandle model_file
+ #define papacc_ca_key_validate model_validate
+ #include "../apps/server/server_configuration_personal_ca_win32.inc"
+--- before/CMakeLists.txt
++++ after/CMakeLists.txt
+@@ -3306,6 +3306,19 @@
+ endif()
+ 
+ # Same-owner CA borrow association; no automatic native key mutation tests.
++if(TARGET papacc_issuer_cng_windows AND PAPACC_ENABLE_OFFLINE_D3_WORKER)
++ target_link_libraries(papacc_server_run_win32 PUBLIC papacc_issuer_cng_windows)
++ target_compile_definitions(papacc_issuer_cng_windows PRIVATE PAPACC_OFFLINE_D3_WORKER=1)
++ target_include_directories(papacc_issuer_cng_windows PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS})
++ set_property(SOURCE apps/server/server_issuer_cng_backend_win32.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_commit_win32.h")
++ if(TARGET papacc_issuer_cng_x509_test)
++  target_link_libraries(papacc_issuer_cng_x509_test PRIVATE papacc_configuration_commit)
++  target_include_directories(papacc_issuer_cng_x509_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS})
++  set_property(SOURCE tests/issuer_cng_x509_test.c APPEND PROPERTY OBJECT_DEPENDS
++   "${CMAKE_CURRENT_SOURCE_DIR}/tests/issuer_normal_source_composition_cases.inc;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_configuration_personal_ca_win32.inc")
++ set_property(SOURCE apps/server/server_launcher_owner_win32.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_issuer_x509_win32.h")
++ endif()
++endif()
+ if(TARGET papacc_personal_plan_data_test)
+  add_executable(papacc_ca_key_lifetime_test tests/ca_key_offline_test.c apps/server/server_ca_key_win32.c)
+  target_include_directories(papacc_ca_key_lifetime_test PRIVATE apps/server include)
+--- before/docs/capabilities/phase6-scope-and-closure-20261028.md
++++ after/docs/capabilities/phase6-scope-and-closure-20261028.md
+@@ -1,4 +1,10 @@
+ # Phase 6 — escopo recuperado e plano de conclusão
++
++## Composição da fonte CA original — 2026-10-29
++
++[Compositor qualificado offline](../integration/phase6-normal-original-ca-source-20261029/CONSOLIDATED-CLOSEOUT.md): origem do handoff conservada no mesmo backend enquanto o pacote da cerimônia pode ser finalizado/reutilizado; borrow contínua; validação CA/key/view; init NORMAL com re-read; wrapper do launcher restrito à factory canônica. Quatro builds sem warnings, 52 CTests PASS, 1354 checks/configuração do modelo CNG e oito fixtures nativos PASS. Positivo de fonte/emissão é MODEL_ONLY; wrapper nativo sem fonte nega. Backend 808 bytes, custo por sizeof; known managed canônico inalterado, provider/kernel UNKNOWN.
++
++Não foi adquirida instância original CA/key/cert/generation nem produtor factual completo de provas NORMAL. NORMAL DENY, ED11/Phase 6 PARTIAL. M7 com cohort vazio e efeitos isolados preservados, dependentes autenticados ainda pendentes; E8 SOURCE_ABSENT, enrollment L2 e D4/D5 independentes. Nenhuma CA nova, assinatura produtiva ou CURRENT real. [Fronteira de aquisição](../integration/phase6-normal-original-ca-source-20261029/SOURCE-ACQUISITION-BOUNDARY.md) e [próximo prompt](../integration/phase6-normal-original-ca-source-20261029/NEXT-ORIGINAL-INSTANCE-HANDOFF.md). Histórico abaixo conserva a data de cada estado.
+ 
+ ## Ack PUBLISHED versionado — 2026-10-29
+ 
+--- before/docs/capabilities/canonical-phase6-consolidation.md
++++ after/docs/capabilities/canonical-phase6-consolidation.md
+@@ -1,4 +1,10 @@
+ # ConsolidaÃ§Ã£o canÃ´nica Phase 6 â€” estado factual
++
++## Composição da fonte CA original — 2026-10-29
++
++[Compositor qualificado offline](../integration/phase6-normal-original-ca-source-20261029/CONSOLIDATED-CLOSEOUT.md): origem do handoff conservada no mesmo backend enquanto o pacote da cerimônia pode ser finalizado/reutilizado; borrow contínua; validação CA/key/view; init NORMAL com re-read; wrapper do launcher restrito à factory canônica. Quatro builds sem warnings, 52 CTests PASS, 1354 checks/configuração do modelo CNG e oito fixtures nativos PASS. Positivo de fonte/emissão é MODEL_ONLY; wrapper nativo sem fonte nega. Backend 808 bytes, custo por sizeof; known managed canônico inalterado, provider/kernel UNKNOWN.
++
++Não foi adquirida instância original CA/key/cert/generation nem produtor factual completo de provas NORMAL. NORMAL DENY, ED11/Phase 6 PARTIAL. M7 com cohort vazio e efeitos isolados preservados, dependentes autenticados ainda pendentes; E8 SOURCE_ABSENT, enrollment L2 e D4/D5 independentes. Nenhuma CA nova, assinatura produtiva ou CURRENT real. [Fronteira de aquisição](../integration/phase6-normal-original-ca-source-20261029/SOURCE-ACQUISITION-BOUNDARY.md) e [próximo prompt](../integration/phase6-normal-original-ca-source-20261029/NEXT-ORIGINAL-INSTANCE-HANDOFF.md). Histórico abaixo conserva a data de cada estado.
+ 
+ ## Ack PUBLISHED versionado — 2026-10-29
+ 
+--- before/apps/server/server_configuration_root_transaction_win32.inc
++++ after/apps/server/server_configuration_root_transaction_win32.inc
+@@ -622,6 +622,23 @@
+  if(!port)return PAPACC_RESULT_INVALID_ARGUMENT;memset(port,0,sizeof(*port));if(!root_dormant_owned(o)&&!issuer_root_live_ready(o))return PAPACC_RESULT_INVALID_STATE;
+  port->ctx=o;port->read=issuer_root_port_read;port->cas=issuer_root_port_cas;port->poll=issuer_root_port_poll;port->copy_certificate=issuer_root_port_certificate;port->revoke_dependents=issuer_root_port_revoke;port->confirm_publication=issuer_publication_confirm_v2;return PAPACC_RESULT_OK;
+ }
++#ifdef PAPACC_OFFLINE_D3_WORKER
++#include "server_issuer_x509_win32.h"
++PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_normal_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,PAPACC_ISSUER_CNG_BACKEND *b)
++{
++ if(!preparation_owned(o)||!issuer_root_live_ready(o)||!b||!b->initialized||b->thread!=GetCurrentThreadId()||
++  b->original_source_root!=&o->configuration_commit||!b->custody||b->root.test_only||b->ports.test_only||
++  b->root.ctx!=o||b->root.read!=issuer_root_port_read||b->root.cas!=issuer_root_port_cas||b->root.poll!=issuer_root_port_poll||
++  b->root.copy_certificate!=issuer_root_port_certificate||b->root.confirm_publication!=issuer_publication_confirm_v2||b->root.revoke_dependents!=issuer_root_port_revoke)
++  return PAPACC_ISSUER_DENIED;
++ /* Original descriptor is latched by the source, never caller-selected
++  * attempt/root/epoch. Actual read still denies without NORMAL facts. */
++ return papacc_configuration_personal_ca_activate_normal(&o->configuration_commit,b,b->original_attempt,b->original_authority,b->original_generation);
++}
++#else
++PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_normal_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,struct PAPACC_ISSUER_CNG_BACKEND *b)
++{(void)o;(void)b;return PAPACC_ISSUER_UNSUPPORTED;}
++#endif
+ #if defined(PAPACC_ED11_WINDOWS_3MIB) && defined(PAPACC_OFFLINE_D3_WORKER)
+ PAPACC_RESULT papacc_server_launcher_configuration_v3_update_hold(
+  PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const PAPACC_U8 *candidate,PAPACC_SIZE bytes,PAPACC_SIZE reserved)
+--- before/apps/server/server_launcher_owner_win32.h
++++ after/apps/server/server_launcher_owner_win32.h
+@@ -355,6 +355,8 @@
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_publish_live(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_ISSUER_CAS_RESULT*);
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_commit_dormant(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*);
+ PAPACC_RESULT papacc_server_launcher_configuration_issuer_port(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,PAPACC_ISSUER_ROOT_PORT*);
++struct PAPACC_ISSUER_CNG_BACKEND;
++PAPACC_ISSUER_RESULT papacc_server_launcher_configuration_issuer_normal_activate(PAPACC_SERVER_LAUNCHER_OWNER_WIN32*,struct PAPACC_ISSUER_CNG_BACKEND*);
+ /* Exact native candidate; no caller Principal or allow flag. */
+ PAPACC_RESULT papacc_server_launcher_credential_admit(const PAPACC_SERVER_SECURE_CANDIDATE_WIN32 *);
+ PAPACC_ISSUER_RESULT papacc_server_launcher_credential_revoke(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *,const PAPACC_ISSUER_VIEW *,const PAPACC_ISSUER_RECORD *);
+--- before/tests/canonical_root_transaction_test.c
++++ after/tests/canonical_root_transaction_test.c
+@@ -1,6 +1,7 @@
+ #include "../src/core/ed11_process_profile.h"
+ /* Local administrative transaction only. No wait-set, socket or authentication. */
+ #include "server_c8_private_storage_layout_win32.h"
++#include "server_issuer_x509_win32.h"
+ #include <stdio.h>
+ #include <string.h>
+ #include "server_console_win32.h"
+@@ -370,6 +371,13 @@
+    CHECK(port.revoke_dependents!=NULL&&papacc_server_launcher_credential_admit(NULL)!=PAPACC_RESULT_OK);
+    CHECK(port.read(o,id,&before,&absent,&exists)==0&&!exists&&before.epoch==original_p&&!before.proofs);
+    CHECK(before.administrative_epoch==selected_a&&before.administrative_epoch!=0);
++   {PAPACC_ISSUER_CNG_BACKEND absent_backend={0};PAPACC_ISSUER_CORE no_source={0};
++    CHECK(papacc_server_launcher_configuration_issuer_normal_activate(o,NULL)==PAPACC_ISSUER_DENIED);
++    absent_backend.initialized=1;absent_backend.thread=GetCurrentThreadId();absent_backend.owner=&no_source;absent_backend.root=port;
++    CHECK(papacc_server_launcher_configuration_issuer_normal_activate(o,&absent_backend)==PAPACC_ISSUER_DENIED&&!no_source.initialized);
++    absent_backend.original_source_root=&o->configuration_commit;absent_backend.custody=1;
++    CHECK(papacc_server_launcher_configuration_issuer_normal_activate(o,&absent_backend)==PAPACC_ISSUER_DENIED&&!no_source.initialized&&!no_source.lease);
++   }
+    {PAPACC_ISSUER_CORE gate={0};PAPACC_ISSUER_BACKEND no_authority={0};
+     no_authority.authorize=reject_issuer_auth;no_authority.utc=reject_issuer_utc;
+     CHECK(papacc_issuer_init_normal(&gate,&port,&no_authority)==PAPACC_ISSUER_UNCERTAIN&&!gate.initialized&&!rejected_backend_calls);
+--- before/tests/issuer_normal_source_composition_cases.inc
++++ after/tests/issuer_normal_source_composition_cases.inc
+@@ -0,0 +1,100 @@
++/* Explicit model of original ceremony/provider/root sources. Positive callbacks
++ * exist ONLY in this test translation unit. No CA/key creation or publication. */
++#include "server_configuration_commit_win32.h"
++static PAPACC_CONFIGURATION_COMMIT source_owner;
++static int source_native_ok=1;
++static int personal_native_ceremony_ready(const PAPACC_CONFIG_PENDING *p){(void)p;return source_native_ok;}
++static PAPACC_RESULT personal_packet_current(PAPACC_CONFIG_PENDING *p){(void)p;return PAPACC_RESULT_OK;}
++static PAPACC_RESULT personal_packet_source(PAPACC_CONFIG_PENDING *p){(void)p;return PAPACC_RESULT_OK;}
++static BOOL WINAPI source_file(HANDLE h,LPBY_HANDLE_FILE_INFORMATION f){(void)h;memset(f,0,sizeof(*f));f->dwFileAttributes=FILE_ATTRIBUTE_DIRECTORY;f->dwVolumeSerialNumber=20;f->nFileIndexHigh=30;f->nFileIndexLow=40;return TRUE;}
++#define papacc_configuration_personal_ca_match_data source_match
++#define papacc_configuration_personal_ca_bind source_bind
++#define papacc_configuration_personal_ca_current source_current
++#define papacc_configuration_personal_ca_release source_release
++#define papacc_configuration_personal_ca_handoff source_handoff
++#define GetFileInformationByHandle source_file
++#define papacc_ca_key_validate model_validate
++#define papacc_ca_key_borrow model_borrow
++#define papacc_ca_key_return model_return
++#include "../apps/server/server_configuration_personal_ca_win32.inc"
++#undef papacc_ca_key_validate
++#undef papacc_ca_key_borrow
++#undef papacc_ca_key_return
++#undef GetFileInformationByHandle
++#undef papacc_configuration_personal_ca_match_data
++#undef papacc_configuration_personal_ca_bind
++#undef papacc_configuration_personal_ca_current
++#undef papacc_configuration_personal_ca_release
++#undef papacc_configuration_personal_ca_handoff
++#define source_activate papacc_configuration_personal_ca_activate_normal
++static int source_setup(const CERT_PUBLIC_KEY_INFO *client)
++{
++ PAPACC_CONFIG_PENDING *p;PAPACC_PERSONAL_NATIVE_CONTEXT *n;PAPACC_PERSONAL_EFFECT_SPEC spec;
++ PAPACC_U8 parent[12]={10,0,0,0,11,0,0,0,12,0,0,0},op[4]={1,2,3,4},service[4]={4,3,2,1};
++ const PAPACC_U8 config[]="format_version 1\nclient_admission DISABLED\n";
++ const char prefix[]="OWNER_NEW_INSTALL_CA_INITIALIZE ",hex[]="0123456789abcdef";
++ char reply[128];size_t bytes,z,i;
++ normal_profile=1;defer_core_init=1;CHECK(!initialize(client));defer_core_init=0;source_native_ok=1;
++ memset(&source_owner,0,sizeof(source_owner));source_owner.initialized=1;source_owner.writer=GetCurrentThreadId();memcpy(source_owner.domain,fixture_view.root,32);
++ p=&source_owner.pending_commit;n=&p->personal_native;n->phase=1;n->handoff_state=PAPACC_PERSONAL_HANDOFF_VERIFIED;
++ memcpy(n->handoff_attempt,fixture_view.root,32);memcpy(n->plan_leaf,"child",6);memcpy(p->previous,"child",6);memcpy(p->next,config,sizeof(config)-1);
++ n->parent.dwVolumeSerialNumber=10;n->parent.nFileIndexHigh=11;n->parent.nFileIndexLow=12;memcpy(n->sid,op,4);n->sid_bytes=4;
++ p->bootstrap_created=1;p->bootstrap_parent=(HANDLE)(ULONG_PTR)1;p->bootstrap_container=(HANDLE)(ULONG_PTR)2;
++ p->bootstrap_volume=20;p->bootstrap_high=30;p->bootstrap_low=40;p->result=PAPACC_CAS_SUCCESS;
++ key.created=1;key.diagnostic_finalization=2;key.operator_size=key.service_size=4;memcpy(key.operator_sid,op,4);memcpy(key.service_sid,service,4);
++ memset(&spec,0,sizeof(spec));spec.operator_id=op;spec.operator_bytes=4;spec.parent_id=parent;spec.leaf=(const PAPACC_U8 *)"child";spec.leaf_bytes=5;
++ spec.authority=fixture_view.authority;spec.generation=fixture_view.generation;spec.service_id=service;spec.service_bytes=4;spec.configuration=config;spec.configuration_bytes=sizeof(config)-1;
++ bytes=papacc_personal_effect_build(&spec,p->previous+1024,PAPACC_PERSONAL_PLAN_MAX);CHECK(bytes);
++ CHECK(papacc_personal_data_capture(&p->personal_data,fixture_view.root,config,sizeof(config)-1));
++ CHECK(papacc_personal_effect_upgrade(&p->personal_data,p->previous+1024,bytes)&&papacc_personal_data_present(&p->personal_data));
++ z=sizeof(prefix)-1;memcpy(reply,prefix,z);for(i=0;i<32;i++){reply[z+i*2]=hex[fixture_view.root[i]>>4];reply[z+i*2+1]=hex[fixture_view.root[i]&15];}
++ CHECK(papacc_personal_effect_confirm(&p->personal_data,fixture_view.root,p->previous+1024,bytes,reply,z+64));
++ CHECK(papacc_personal_effect_consume(&p->personal_data,fixture_view.root,p->previous+1024,bytes));
++ CHECK(source_bind(&source_owner,&key,fixture_view.root,fixture_view.authority,fixture_view.generation)==0&&key.borrower==p);
++ CHECK(source_handoff(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)==0&&key.borrower==&fixture_backend&&fixture_backend.custody);
++ CHECK(fixture_backend.original_source_root==&source_owner);
++ /* Model completed/retired ceremony: no original handle is real here.
++  * Root worker storage may be reused, the key borrow never returned. */
++ memset(p,0,sizeof(*p));return 0;
++}
++static DWORD WINAPI source_other_thread(void *ctx)
++{
++ PAPACC_ISSUER_RESULT *results=ctx;PAPACC_ISSUER_VIEW value;
++ results[0]=papacc_issuer_cng_backend_normal_source(&fixture_backend,&value);
++ results[1]=source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation);return 0;
++}
++static int normal_source_composition_cases(const CERT_PUBLIC_KEY_INFO *client)
++{
++ PAPACC_ISSUER_VIEW observed;PAPACC_ISSUER_RESULT result;PAPACC_CONFIG_PENDING *p=&source_owner.pending_commit;unsigned i;
++ CHECK(!source_setup(client));CHECK(papacc_issuer_cng_backend_normal_source(&fixture_backend,&observed)==0&&!fixture_core.initialized&&!private_calls&&key.borrower==&fixture_backend);
++ CHECK(source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)==0&&fixture_core.initialized==1&&fixture_backend.custody&&key.borrower==&fixture_backend&&!p->personal_ca);
++ CHECK(source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)!=0); /* no second handoff */
++ CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==0&&private_calls==1&&key.borrower==&fixture_backend&&!fixture_backend.active);
++ papacc_issuer_stop(&fixture_core);papacc_issuer_cng_backend_stop(&fixture_backend);CHECK(papacc_issuer_finish(&fixture_core)==0);
++ CHECK(papacc_issuer_cng_backend_release_custody(&fixture_backend)==0&&!key.borrower);
++ for(i=0;i<10U;i++){
++  CHECK(!source_setup(client));
++  if(i==0U)fixture_view.proofs=0;if(i==1U)fixture_backend.key=NULL;if(i==2U)fixture_ca.SubjectPublicKeyInfo=*client;
++  if(i==3U)key.name[22]^=1U;if(i==4U)fixture_backend.original_attempt[0]^=1U;if(i==5U)source_owner.domain[0]^=1U;
++  if(i==6U)source_owner.stopped=1;if(i==7U)fixture_core.busy=1;if(i==8U)key.borrower=&fixture_core;if(i==9U)fixture_ca.NotAfter.dwLowDateTime^=1U;
++  result=source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation);
++  CHECK(result!=0&&!fixture_core.initialized&&!private_calls&&fixture_backend.custody&&!p->personal_ca);
++ }
++ for(i=1U;i<=8U;i++){
++  CHECK(!source_setup(client));source_reads=0;source_fault_at=2;source_fault=i;
++  CHECK(source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)!=0&&!fixture_core.initialized&&fixture_backend.custody&&key.borrower==&fixture_backend&&!private_calls);
++ }
++ for(i=1U;i<=8U;i++){
++  CHECK(!source_setup(client));source_reads=0;source_fault_at=3;source_fault=i;
++  CHECK(source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)!=0&&fixture_backend.custody&&fixture_backend.retained&&key.borrower==&fixture_backend&&fixture_core.retained&&source_owner.unresolved&&!private_calls);
++  CHECK(source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)!=0&&key.borrower==&fixture_backend);
++ }
++ CHECK(!source_setup(client));source_reads=0;source_fault_at=4;source_fault=4;
++ CHECK(source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)==PAPACC_ISSUER_UNCERTAIN&&fixture_core.initialized==1&&fixture_backend.retained&&key.borrower==&fixture_backend&&!private_calls);
++ CHECK(!source_setup(client));
++ {PAPACC_ISSUER_RESULT results[2]={PAPACC_ISSUER_OK,PAPACC_ISSUER_OK};HANDLE thread=CreateThread(NULL,0,source_other_thread,results,0,NULL);
++  CHECK(thread&&WaitForSingleObject(thread,10000)==WAIT_OBJECT_0&&CloseHandle(thread));
++  CHECK(results[0]!=PAPACC_ISSUER_OK&&results[1]!=PAPACC_ISSUER_OK&&!fixture_core.initialized&&!private_calls&&key.borrower==&fixture_backend);
++ }
++ puts("PASS NORMAL_SOURCE_COMPOSITION_MODEL BORROW_ONLY SOURCE_AND_CNG_COMPOSED NO_NATIVE_PRIVATE_OPERATIONS NO_PRODUCT_AUTHORITY");return 0;
++}

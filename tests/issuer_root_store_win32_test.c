@@ -30,7 +30,7 @@ static int codec_cases(void){
  unsigned i;PAPACC_ISSUER_RESULT s;PAPACC_U8 out[4];PAPACC_SIZE n;
  metadata_init();memset(hash,1,32);
  CHECK(papacc_issuer_image_init(image,&metadata,hash,papacc_configuration_issuer_hash06,&root)==0);
- CHECK(papacc_issuer_image_validate(image,&decoded,papacc_configuration_issuer_hash06,&root)==0&&!decoded.epoch&&!decoded.proofs);
+ CHECK(papacc_issuer_image_validate(image,&decoded,papacc_configuration_issuer_hash06,&root)==0&&!decoded.epoch&&!decoded.administrative_epoch&&!decoded.proofs);
  request_init(1);CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
  CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==PAPACC_ISSUER_CONFLICT);
  record.counter=2;memcpy(record.serial,metadata.prefix,8);record.serial[15]=2;record.state=PAPACC_ISSUER_SERIAL_RESERVED;
@@ -41,8 +41,16 @@ static int codec_cases(void){
  record.counter=2;record.serial[15]=2;CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
  CHECK(papacc_configuration_issuer_hash06(&root,(const PAPACC_U8 *)"DER",3,cert_hash));record.state=PAPACC_ISSUER_ISSUED_UNPUBLISHED;record.certificate_size=3;memcpy(record.certificate_digest,cert_hash,32);
  CHECK(papacc_issuer_image_append(image,&record,(const PAPACC_U8 *)"DER",3,papacc_configuration_issuer_hash06,&root)==0);
- record.state=PAPACC_ISSUER_PUBLISHED;record.published_epoch=10;CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
+ record.state=PAPACC_ISSUER_PUBLISHED;memcpy(saved,image,8192);
+ CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==PAPACC_ISSUER_CONFLICT&&!memcmp(saved,image,8192)); /* no post-commit A yet */
+ record.published_epoch=10;CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
+ CHECK(papacc_issuer_image_credential(image,cert_hash,&found,papacc_configuration_issuer_hash06,&root)==0&&found.state==PAPACC_ISSUER_PUBLISHED&&found.published_epoch==10);
  record.state=PAPACC_ISSUER_REVOKED;CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
+ CHECK(papacc_issuer_image_credential(image,cert_hash,&found,papacc_configuration_issuer_hash06,&root)==0&&found.state==PAPACC_ISSUER_REVOKED);
+ CHECK(papacc_issuer_credential_snapshot_data(image,cert_hash,&found)==0&&found.state==PAPACC_ISSUER_REVOKED);
+ memcpy(saved,image,8192);image[264]=255U;
+ CHECK(papacc_issuer_credential_snapshot_data(image,cert_hash,&found)==PAPACC_ISSUER_INVALID&&!found.certificate_size);memcpy(image,saved,8192);
+ {PAPACC_U8 other[32]={9},empty[32]={0};CHECK(papacc_issuer_image_credential(image,other,&found,papacc_configuration_issuer_hash06,&root)==PAPACC_ISSUER_ABSENT&&!found.certificate_size);CHECK(papacc_issuer_image_credential(image,empty,&found,papacc_configuration_issuer_hash06,&root)==PAPACC_ISSUER_INVALID);}
  CHECK(papacc_issuer_image_find(image,record.request.id,&found,papacc_configuration_issuer_hash06,&root)==0&&found.state==PAPACC_ISSUER_REVOKED);
  CHECK(papacc_issuer_image_certificate(image,record.request.id,out,sizeof(out),&n,papacc_configuration_issuer_hash06,&root)==0&&n==3&&!memcmp(out,"DER",3));
  request_init(2);record.request.predecessor[0]=1;CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
@@ -50,6 +58,18 @@ static int codec_cases(void){
  record.state=PAPACC_ISSUER_SIGN_REQUESTED;CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
  record.state=PAPACC_ISSUER_RECONCILIATION_REQUIRED;CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
  CHECK(papacc_issuer_image_find(image,record.request.id,&found,papacc_configuration_issuer_hash06,&root)==0&&found.counter==3&&found.state==PAPACC_ISSUER_RECONCILIATION_REQUIRED);
+ /* Same certificate digest under another request is ambiguous DATA, never
+  * permission to choose one credential identity or broaden to a Principal. */
+ memcpy(saved,image,8192);request_init(3);
+ CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
+ record.state=PAPACC_ISSUER_SERIAL_RESERVED;record.counter=4;memcpy(record.serial,metadata.prefix,8);record.serial[15]=4;
+ CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
+ record.state=PAPACC_ISSUER_SIGN_REQUESTED;CHECK(papacc_issuer_image_append(image,&record,NULL,0,papacc_configuration_issuer_hash06,&root)==0);
+ record.state=PAPACC_ISSUER_ISSUED_UNPUBLISHED;record.certificate_size=3;memcpy(record.certificate_digest,cert_hash,32);
+ CHECK(papacc_issuer_image_append(image,&record,(const PAPACC_U8 *)"DER",3,papacc_configuration_issuer_hash06,&root)==0);
+ CHECK(papacc_issuer_image_credential(image,cert_hash,&found,papacc_configuration_issuer_hash06,&root)==PAPACC_ISSUER_CONFLICT&&!found.certificate_size);
+ CHECK(papacc_issuer_credential_snapshot_data(image,cert_hash,&found)==PAPACC_ISSUER_CONFLICT&&!found.certificate_size);
+ memcpy(image,saved,8192);
  memcpy(saved,image,8192);for(i=0;i<8192;i+=257){image[i]^=1;CHECK(papacc_issuer_image_validate(image,&decoded,papacc_configuration_issuer_hash06,&root)!=0);memcpy(image,saved,8192);}
  image[8]=1;CHECK(papacc_issuer_image_validate(image,&decoded,papacc_configuration_issuer_hash06,&root)!=0);memcpy(image,saved,8192);
  /* Fill finite physical image, never discard transition history for space. */
@@ -57,6 +77,7 @@ static int codec_cases(void){
  CHECK(i<100&&papacc_issuer_image_validate(image,&decoded,papacc_configuration_issuer_hash06,&root)==0&&decoded.high_water==3);
  return 0;
 }
+#include "issuer_publication_v2_cases.inc"
 static void config_init(PAPACC_SERVER_CONFIG *c){
  PAPACC_SITE_TLS_CATALOG *t;*c=(PAPACC_SERVER_CONFIG)PAPACC_SERVER_CONFIG_INITIALIZER;c->control_port=4433;c->listener_profile=1;c->bind_selection.mode=PAPACC_BIND_SELECTION_ALL_INTERFACES;
  c->security_configuration_ref_valid=1;c->security_configuration_ref_length=1;c->security_configuration_ref[0]='x';c->policy.present=1;c->policy.representation=PAPACC_ADMIN_REPRESENTATION_04;c->policy.identity[0]=1;c->policy.profile=1;c->policy.listener_port=4433;
@@ -75,8 +96,23 @@ static int persist_step(const PAPACC_U8 *der,PAPACC_SIZE size){
 int main(int argc,char **argv){
  PAPACC_SERVER_CONFIG c;PAPACC_RESULT result;PAPACC_U64 expected,high;PAPACC_U8 historical[1024];
  if(argc!=3){puts("usage: test --codec-only|--native NEW_ABSOLUTE_FIXTURE_PATH");return 2;}
+ if(!strncmp(argv[1],"--inspect-v2-",13)){
+  PAPACC_U8 id[16]={1};PAPACC_ISSUER_PUBLICATION_FACTS facts;
+  int expected_state=strstr(argv[1],"before")?PAPACC_ISSUER_ISSUED_UNPUBLISHED:strstr(argv[1],"intent")?9:PAPACC_ISSUER_PUBLISHED;
+  CHECK(papacc_configuration_recovery_init02(&recovered,argv[2])==0);
+  CHECK(papacc_configuration_issuer_recovery06(&recovered,argv[2])==PAPACC_RESULT_NOT_SUPPORTED);
+  CHECK(recovered.recovery_selected&&recovered.recovery_guard&&!recovered.published);
+  CHECK(papacc_configuration_issuer_copy06(&recovered,saved)==0&&!memcmp(saved,"PACIS602",8));
+  CHECK(papacc_issuer_image_validate(saved,&decoded,papacc_configuration_issuer_hash06,&recovered)==0&&!decoded.proofs&&!decoded.epoch&&!decoded.administrative_epoch);
+  CHECK(papacc_issuer_image_find(saved,id,&found,papacc_configuration_issuer_hash06,&recovered)==0&&(int)found.state==expected_state);
+  CHECK(papacc_issuer_image_publication(saved,id,&facts,papacc_configuration_issuer_hash06,&recovered)==(expected_state==PAPACC_ISSUER_PUBLISHED?PAPACC_ISSUER_OK:PAPACC_ISSUER_ABSENT));
+  CHECK(recovered.committed_bytes==(strstr(argv[1],"before")||strstr(argv[1],"checkpoint")?16896U:16384U));
+  CHECK(papacc_configuration_publish(&recovered)==PAPACC_RESULT_NOT_SUPPORTED);
+  CHECK(papacc_configuration_stop(&recovered)==0&&papacc_configuration_finish(&recovered)==0);
+  printf("PASS REOPEN_V2 DATA_state=%d NO_CURRENT_NO_AUTHORITY CLOSE_CONFIRMED checks=%u\n",expected_state,checks);return 0;
+ }
  CHECK(papacc_configuration_commit_init05(&root,argv[2])==PAPACC_RESULT_OK);
- CHECK(codec_cases()==0);CHECK(sizeof(root)>papacc_issuer_preimage_owner_size()&&sizeof(root)<2097152U);
+ CHECK(codec_cases()==0);CHECK(publication_v2_cases()==0);CHECK(sizeof(root)>papacc_issuer_preimage_owner_size()&&sizeof(root)<2097152U);
  printf("CENSUS_OWNER_PRE=%zu POST=%zu DELTA=%zu STAGING=8192 COMMITTED_EXTENSION=8192\n",papacc_issuer_preimage_owner_size(),sizeof(root),sizeof(root)-papacc_issuer_preimage_owner_size());
  if(!strcmp(argv[1],"--codec-only")){CHECK(papacc_configuration_stop(&root)==0);CHECK(papacc_configuration_finish(&root)==0);printf("PASS codec_checks=%u owner=%zu storage=%u model=NATIVE_SHA256_NO_ISSUANCE\n",checks,sizeof(root),PAPACC_CONFIG_STORAGE_BYTES);return 0;}
  if(strcmp(argv[1],"--native")&&strcmp(argv[1],"--native-history")&&strcmp(argv[1],"--native-stop")&&strcmp(argv[1],"--native-snapshots")&&strncmp(argv[1],"--pending-",10))return 2;
@@ -98,6 +134,11 @@ int main(int argc,char **argv){
   PAPACC_ISSUER_CAS_RESULT outcome=PAPACC_COMMIT_IDLE;DWORD start;int stopped=!strcmp(argv[1],"--pending-stop"),unknown=!strcmp(argv[1],"--pending-unknown"),conflict=!strcmp(argv[1],"--pending-conflict");
   if(stopped){root.pending_commit.test_entered=CreateEventA(NULL,TRUE,FALSE,NULL);root.pending_commit.test_release=CreateEventA(NULL,TRUE,FALSE,NULL);CHECK(root.pending_commit.test_entered&&root.pending_commit.test_release);}
   root.pending_commit.test_unknown=unknown;
+  {HANDLE unrelated=CreateEventA(NULL,TRUE,FALSE,NULL);CHECK(unrelated!=NULL);
+   /* Negative-only held namespace field, never accepted as actual custody. */
+   root.pending_commit.bootstrap_parent=unrelated;
+   CHECK(papacc_configuration_issuer_begin06(&root)!=0&&root.pending_commit.bootstrap_parent==unrelated&&!root.pending_commit.active);
+   root.pending_commit.bootstrap_parent=NULL;CHECK(CloseHandle(unrelated));}
   if(conflict){HANDLE f=CreateFileA(argv[2],GENERIC_WRITE,0,NULL,OPEN_EXISTING,0,NULL);DWORD n;unsigned char bad=0;CHECK(f!=INVALID_HANDLE_VALUE);CHECK(WriteFile(f,&bad,1,&n,NULL)&&n==1);CHECK(FlushFileBuffers(f));CHECK(CloseHandle(f));}
   CHECK(papacc_configuration_issuer_begin06(&root)==0);
   CHECK(papacc_configuration_issuer_begin06(&root)!=0);CHECK(papacc_configuration_abort(&root)!=0);CHECK(papacc_configuration_commit(&root)!=0);

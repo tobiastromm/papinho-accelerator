@@ -1,0 +1,207 @@
+--- apps/server/personal_runtime_identity_win32.h (preimage)
++++ apps/server/personal_runtime_identity_win32.h
+@@ -13,11 +13,13 @@
+  TOKEN_STATISTICS statistics;
+  BYTE sid[SECURITY_MAX_SID_SIZE];DWORD sid_bytes;
+  DWORD group_count,specific_matches,specific_attributes;
++ DWORD observed_elevation;unsigned transport_only;
+  unsigned closed_preparation; /* 1 START_PENDING,2 armed closed RUNNING; never productive authority */
+  unsigned phase; /* 0 empty,1 live,2 denied,3 closed,4 close UNKNOWN retained */
+ } PAPACC_PERSONAL_RUNTIME_IDENTITY;
+ DWORD papacc_personal_runtime_capture(PAPACC_PERSONAL_RUNTIME_IDENTITY *,HANDLE,PSID,unsigned,DWORD);
+ DWORD papacc_personal_runtime_capture_closed(PAPACC_PERSONAL_RUNTIME_IDENTITY *,HANDLE,PSID,DWORD);
++DWORD papacc_personal_runtime_capture_transport_closed(PAPACC_PERSONAL_RUNTIME_IDENTITY *,HANDLE,PSID,DWORD);
+ DWORD papacc_personal_runtime_current(PAPACC_PERSONAL_RUNTIME_IDENTITY *);
+ /* Partial native observation, never an admission/source or transferable ref.
+  * Original image stays UNKNOWN; session and service-logon group are queried. */
+--- apps/server/personal_runtime_identity_win32.inc (preimage)
++++ apps/server/personal_runtime_identity_win32.inc
+@@ -27,14 +27,17 @@
+  if(!GetTokenInformation(token,TokenUser,user.bytes,sizeof(user),&n))return pri_fail(r,GetLastError());
+  if(n<sizeof(TOKEN_USER)||n>sizeof(user)||!pri_sid_inside(user.bytes,n,u->User.Sid)||!EqualSid(u->User.Sid,r->sid))return pri_fail(r,ERROR_ACCESS_DENIED);
+  if(!GetTokenInformation(token,TokenElevation,&elevation,sizeof(elevation),&n)||n!=sizeof(elevation))return pri_fail(r,GetLastError());
+- if(elevation.TokenIsElevated)return pri_fail(r,ERROR_ACCESS_DENIED);
++ /* TokenElevation is not Administrators membership. Only the explicitly
++  * selected closed transport binding permits the factual BOOLEAN value1. */
++ if(elevation.TokenIsElevated&&(r->transport_only!=1U||r->profile!=PAPACC_PERSONAL_RUNTIME_VIRTUAL||!r->closed_preparation||elevation.TokenIsElevated!=1U))return pri_fail(r,ERROR_ACCESS_DENIED);
++ if(statistics!=&r->statistics&&elevation.TokenIsElevated!=r->observed_elevation)return pri_fail(r,ERROR_ACCESS_DENIED);
+  if(!GetTokenInformation(token,TokenElevationType,&elevation_type,sizeof(elevation_type),&n)||n!=sizeof(elevation_type))return pri_fail(r,GetLastError());
+  if(elevation_type!=TokenElevationTypeDefault)return pri_fail(r,ERROR_ACCESS_DENIED);
+  if(!GetTokenInformation(token,TokenGroups,groups.bytes,sizeof(groups),&n))return pri_fail(r,GetLastError());
+  if(n>sizeof(groups)||n<(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups)||g->GroupCount!=statistics->GroupCount||g->GroupCount>(n-(DWORD)FIELD_OFFSET(TOKEN_GROUPS,Groups))/sizeof(SID_AND_ATTRIBUTES))return pri_fail(r,ERROR_INVALID_DATA);
+  for(i=0;i<g->GroupCount;i++){
+   if(!pri_sid_inside(groups.bytes,n,g->Groups[i].Sid))return pri_fail(r,ERROR_INVALID_DATA);
+-  if(IsWellKnownSid(g->Groups[i].Sid,WinBuiltinAdministratorsSid)&&(g->Groups[i].Attributes&SE_GROUP_ENABLED))return pri_fail(r,ERROR_ACCESS_DENIED);
++  if(IsWellKnownSid(g->Groups[i].Sid,WinBuiltinAdministratorsSid)&&(r->transport_only||(g->Groups[i].Attributes&SE_GROUP_ENABLED)))return pri_fail(r,ERROR_ACCESS_DENIED);
+   if(IsWellKnownSid(g->Groups[i].Sid,WinServiceSid)){service_matches++;service_attributes=g->Groups[i].Attributes;}
+   if(EqualSid(g->Groups[i].Sid,r->sid)){matches++;attributes=g->Groups[i].Attributes;}
+  }
+@@ -45,6 +48,7 @@
+  /* Restricted/filtered variants require additional effective-access proof;
+   * none is manufactured by this identity-only adapter. */
+  if(s->GroupCount||IsTokenRestricted(token))return pri_fail(r,ERROR_ACCESS_DENIED);
++ if(statistics==&r->statistics)r->observed_elevation=elevation.TokenIsElevated;
+  if(service_logon)*service_logon=service_matches==1U&&(service_attributes&SE_GROUP_ENABLED)&&!(service_attributes&SE_GROUP_USE_FOR_DENY_ONLY)?1U:0U;
+  r->group_count=g->GroupCount;r->specific_matches=matches;r->specific_attributes=attributes;return ERROR_SUCCESS;
+ }
+@@ -75,11 +79,11 @@
+  if(n!=sizeof(status)||status.dwServiceType!=SERVICE_WIN32_OWN_PROCESS||status.dwCurrentState!=(r->closed_preparation==1U?(DWORD)SERVICE_START_PENDING:(DWORD)SERVICE_RUNNING)||status.dwProcessId!=r->pid)return pri_fail(r,ERROR_ACCESS_DENIED);
+  return 0;
+ }
+-static DWORD pri_capture(PAPACC_PERSONAL_RUNTIME_IDENTITY *r,HANDLE process,PSID sid,unsigned profile,DWORD sid_type,unsigned closed)
++static DWORD pri_capture(PAPACC_PERSONAL_RUNTIME_IDENTITY *r,HANDLE process,PSID sid,unsigned profile,DWORD sid_type,unsigned closed,unsigned transport)
+ {
+  BYTE resolved[SECURITY_MAX_SID_SIZE];DWORD bytes=sizeof(resolved),domain_bytes=32,e;WCHAR domain[32];SID_NAME_USE use;
+  SID_IDENTIFIER_AUTHORITY nt=SECURITY_NT_AUTHORITY;
+- if(!r||r->phase||r->closed_preparation||!process||!IsValidSid(sid)||GetLengthSid(sid)>sizeof(r->sid))return pri_capture_result(closed,ERROR_INVALID_PARAMETER,__LINE__);
++ if(!r||r->phase||r->closed_preparation||r->transport_only||r->observed_elevation||!process||!IsValidSid(sid)||GetLengthSid(sid)>sizeof(r->sid))return pri_capture_result(closed,ERROR_INVALID_PARAMETER,__LINE__);
+  if(profile!=PAPACC_PERSONAL_RUNTIME_SAM&&profile!=PAPACC_PERSONAL_RUNTIME_VIRTUAL)return pri_capture_result(closed,ERROR_INVALID_PARAMETER,__LINE__);
+  if((profile==PAPACC_PERSONAL_RUNTIME_VIRTUAL&&(sid_type!=0U&&sid_type!=1U))||(profile==PAPACC_PERSONAL_RUNTIME_SAM&&sid_type!=0U))return pri_capture_result(closed,ERROR_NOT_SUPPORTED,__LINE__);
+  if(memcmp(GetSidIdentifierAuthority(sid),&nt,sizeof(nt))||*GetSidSubAuthorityCount(sid)!=(profile==PAPACC_PERSONAL_RUNTIME_VIRTUAL?6U:5U)||*GetSidSubAuthority(sid,0)!=(profile==PAPACC_PERSONAL_RUNTIME_VIRTUAL?80U:21U))return pri_capture_result(closed,ERROR_ACCESS_DENIED,__LINE__);
+@@ -89,7 +93,8 @@
+   if(bytes>sizeof(resolved)||!IsValidSid(resolved)||!EqualSid(resolved,sid)||(use!=SidTypeUser&&use!=SidTypeWellKnownGroup))return pri_capture_result(closed,ERROR_ACCESS_DENIED,__LINE__);
+  }
+  if(closed&&profile!=PAPACC_PERSONAL_RUNTIME_VIRTUAL)return pri_capture_result(closed,ERROR_INVALID_PARAMETER,__LINE__);
+- r->closed_preparation=closed;
++ if(transport>1U||(transport&&(closed!=1U||profile!=PAPACC_PERSONAL_RUNTIME_VIRTUAL)))return ERROR_INVALID_PARAMETER;
++ r->transport_only=transport;r->closed_preparation=closed;
+  r->thread=GetCurrentThreadId();r->profile=profile;r->expected_sid_type=sid_type;r->phase=1;
+  r->sid_bytes=GetLengthSid(sid);if(!CopySid(sizeof(r->sid),r->sid,sid))return pri_capture_result(closed,pri_fail(r,GetLastError()),__LINE__);
+  if(!DuplicateHandle(GetCurrentProcess(),process,GetCurrentProcess(),&r->process,PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,0))return pri_capture_result(closed,pri_fail(r,GetLastError()),__LINE__);
+@@ -104,13 +109,15 @@
+  return pri_capture_result(closed,papacc_personal_runtime_current(r),__LINE__);
+ }
+ DWORD papacc_personal_runtime_capture(PAPACC_PERSONAL_RUNTIME_IDENTITY *r,HANDLE process,PSID sid,unsigned profile,DWORD sid_type)
+-{return pri_capture(r,process,sid,profile,sid_type,0U);}
++{return pri_capture(r,process,sid,profile,sid_type,0U,0U);}
+ DWORD papacc_personal_runtime_capture_closed(PAPACC_PERSONAL_RUNTIME_IDENTITY *r,HANDLE process,PSID sid,DWORD sid_type)
+-{return pri_capture(r,process,sid,PAPACC_PERSONAL_RUNTIME_VIRTUAL,sid_type,1U);}
++{return pri_capture(r,process,sid,PAPACC_PERSONAL_RUNTIME_VIRTUAL,sid_type,1U,0U);}
++DWORD papacc_personal_runtime_capture_transport_closed(PAPACC_PERSONAL_RUNTIME_IDENTITY *r,HANDLE process,PSID sid,DWORD sid_type)
++{return pri_capture(r,process,sid,PAPACC_PERSONAL_RUNTIME_VIRTUAL,sid_type,1U,1U);}
+ DWORD papacc_personal_runtime_current(PAPACC_PERSONAL_RUNTIME_IDENTITY *r)
+ {
+  TOKEN_STATISTICS current;DWORD e,close_error;
+- if(!r||r->closed_preparation>2U||r->thread!=GetCurrentThreadId()||r->phase!=1U||r->check_token)return ERROR_INVALID_STATE;
++ if(!r||r->closed_preparation>2U||r->transport_only>1U||(r->transport_only&&(r->profile!=PAPACC_PERSONAL_RUNTIME_VIRTUAL||!r->closed_preparation))||r->thread!=GetCurrentThreadId()||r->phase!=1U||r->check_token)return ERROR_INVALID_STATE;
+  e=pri_process(r,0);if(e)return e;
+  e=pri_scm(r);if(e)return e;
+  if(!OpenProcessToken(r->process,TOKEN_QUERY,&r->check_token))return pri_fail(r,GetLastError());
+@@ -148,7 +155,7 @@
+  v.peer.sid_bytes=r->sid_bytes;memcpy(v.peer.sid,r->sid,r->sid_bytes);
+  /* These constants represent predicates checked by current(), not defaults
+   * for fields that current() does not observe. */
+- v.peer.token_type=TokenPrimary;v.peer.elevation_type=TokenElevationTypeDefault;
++ v.peer.token_type=TokenPrimary;v.peer.elevated=r->observed_elevation;v.peer.elevation_type=TokenElevationTypeDefault;
+  v.peer.wait_status=WAIT_TIMEOUT;v.peer.exit_code=STILL_ACTIVE;
+  v.peer.service_type=SERVICE_WIN32_OWN_PROCESS;v.peer.service_state=r->closed_preparation==1U?SERVICE_START_PENDING:SERVICE_RUNNING;
+  v.peer.service_sid_type=r->expected_sid_type;v.peer.session=session;v.peer.logon=service_logon;
+--- apps/server/personal_scq_profile_win32.inc (preimage)
++++ apps/server/personal_scq_profile_win32.inc
+@@ -17,7 +17,7 @@
+ }
+ static int scqp_overlap(const void *a,size_t n,const void *b,size_t m)
+ {ULONG_PTR x=(ULONG_PTR)a,y=(ULONG_PTR)b;return x>=y?x-y<m:y-x<n;}
+-static int scqp_peer_state(const PAPACC_SCQ_PEER_DATA *p,int runtime,DWORD state)
++static int scqp_peer_state(const PAPACC_SCQ_PEER_DATA *p,int runtime,DWORD state,unsigned purpose)
+ {
+  unsigned i;PSID sid=(PSID)p->sid;SID_IDENTIFIER_AUTHORITY nt=SECURITY_NT_AUTHORITY;
+  if(!p->image[0]||!(p->image[1]|p->image[2])||!scqp_nonzero(p->image_digest,32)||!p->pid||!(p->creation[0]|p->creation[1])||!(p->token_id[0]|p->token_id[1])||
+@@ -26,14 +26,14 @@
+  for(i=p->sid_bytes;i<68;i++)if(p->sid[i])return 0;
+  if(runtime){
+   if(memcmp(GetSidIdentifierAuthority(sid),&nt,sizeof(nt))||*GetSidSubAuthorityCount(sid)!=6U||*GetSidSubAuthority(sid,0)!=80U||
+-   p->elevated||p->elevation_type!=TokenElevationTypeDefault||p->matches>1U||p->session||p->logon!=1U||p->administrator_attributes||
++   (p->elevated&&(purpose!=PAPACC_SCQ_PURPOSE_TRANSPORT_ONLY||p->elevated!=1U))||p->elevation_type!=TokenElevationTypeDefault||p->matches>1U||p->session||p->logon!=1U||p->administrator_attributes||
+    p->service_type!=SERVICE_WIN32_OWN_PROCESS||p->service_state!=state||p->service_sid_type>1U)return 0;
+   if(!p->matches)return !p->attributes;
+  }else if(!p->session||p->logon!=2U||p->administrator_attributes!=p->attributes||p->service_type||p->service_state||p->service_sid_type||!p->elevated||(p->elevation_type!=TokenElevationTypeFull&&p->elevation_type!=TokenElevationTypeDefault)||!p->groups||p->matches!=1U)return 0;
+  return (p->attributes&SE_GROUP_ENABLED)&&!(p->attributes&SE_GROUP_USE_FOR_DENY_ONLY);
+ }
+ static int scqp_peer(const PAPACC_SCQ_PEER_DATA *p,int runtime)
+-{return scqp_peer_state(p,runtime,SERVICE_RUNNING);}
++{return scqp_peer_state(p,runtime,SERVICE_RUNNING,PAPACC_SCQ_PURPOSE_READ);}
+ static int scqp_static(const PAPACC_SCQ_PLAN_DATA *p)
+ {
+  unsigned i,j;
+@@ -51,7 +51,7 @@
+ static int scqp_window(const PAPACC_SCQ_PLAN_DATA *p)
+ {ULONGLONG from=((ULONGLONG)p->valid_from[1]<<32)|p->valid_from[0],until=((ULONGLONG)p->valid_until[1]<<32)|p->valid_until[0],now=GetTickCount64();return until>from&&now>=from&&now<until;}
+ static int scqp_plan_state(const PAPACC_SCQ_PLAN_DATA *p,DWORD state)
+-{return scqp_static(p)&&(p->purpose!=PAPACC_SCQ_PURPOSE_TRANSPORT_ONLY||state==SERVICE_START_PENDING)&&scqp_peer_state(&p->runtime,1,state)&&p->runtime.image[0]==p->refs[2].volume&&p->runtime.image[1]==p->refs[2].high&&p->runtime.image[2]==p->refs[2].low&&!memcmp(p->runtime.image_digest,p->refs[2].digest,32)&&p->administrator.pid!=p->runtime.pid&&!EqualSid((PSID)p->administrator.sid,(PSID)p->runtime.sid);}
++{return scqp_static(p)&&(p->purpose!=PAPACC_SCQ_PURPOSE_TRANSPORT_ONLY||state==SERVICE_START_PENDING)&&scqp_peer_state(&p->runtime,1,state,p->purpose)&&p->runtime.image[0]==p->refs[2].volume&&p->runtime.image[1]==p->refs[2].high&&p->runtime.image[2]==p->refs[2].low&&!memcmp(p->runtime.image_digest,p->refs[2].digest,32)&&p->administrator.pid!=p->runtime.pid&&!EqualSid((PSID)p->administrator.sid,(PSID)p->runtime.sid);}
+ static int scqp_plan(const PAPACC_SCQ_PLAN_DATA *p)
+ {return scqp_plan_state(p,SERVICE_RUNNING);}
+ static int scqp_unbound(const PAPACC_SCQ_PEER_DATA *p)
+@@ -177,7 +177,7 @@
+  PAPACC_SCQ_PLAN_DATA p;DWORD e;
+  if(!scqp_owned(c,owner)||c->role!=1U||c->phase!=2U||!c->taken||!c->waiting_runtime||c->used||!runtime)return ERROR_INVALID_STATE;
+  e=scqp_current(c,owner,administrator,NULL,refs,stop);if(e)return e;
+- if(scqp_decode_fields(c->record,sizeof(c->record),&p)||!scqp_peer_state(runtime,1,c->pre_readiness?SERVICE_START_PENDING:SERVICE_RUNNING)||p.runtime.sid_bytes!=runtime->sid_bytes||memcmp(p.runtime.sid,runtime->sid,68))return scqp_fail(c,ERROR_ACCESS_DENIED);
++ if(scqp_decode_fields(c->record,sizeof(c->record),&p)||!scqp_peer_state(runtime,1,c->pre_readiness?SERVICE_START_PENDING:SERVICE_RUNNING,p.purpose)||p.runtime.sid_bytes!=runtime->sid_bytes||memcmp(p.runtime.sid,runtime->sid,68))return scqp_fail(c,ERROR_ACCESS_DENIED);
+  p.runtime=*runtime;if(!scqp_plan_state(&p,c->pre_readiness?SERVICE_START_PENDING:SERVICE_RUNNING))return scqp_fail(c,ERROR_ACCESS_DENIED);
+  e=scqp_encode_fields(&p,c->record,sizeof(c->record));if(e)return scqp_fail(c,e);
+  c->waiting_runtime=0;return 0;
+--- apps/server/server_configuration_personal_native_win32.inc (preimage)
++++ apps/server/server_configuration_personal_native_win32.inc
+@@ -418,8 +418,8 @@
+  if(o->pending_commit.personal_native.scq_profile_data.pre_readiness){
+   /* The controller must already hold its independently confirmed/taken act;
+    * selecting a pending peer is not authority to Start or open an endpoint. */
+-  if(profile!=PAPACC_PERSONAL_RUNTIME_VIRTUAL||papacc_configuration_personal_scq_startup_source_current(o)!=PAPACC_RESULT_OK)return PAPACC_RESULT_NOT_SUPPORTED;
+-  return papacc_personal_runtime_capture_closed(&o->pending_commit.personal_native.runtime_identity,process,sid,sid_type)?PAPACC_RESULT_INVALID_STATE:PAPACC_RESULT_OK;
++  if(profile!=PAPACC_PERSONAL_RUNTIME_VIRTUAL||papacc_configuration_personal_scq_startup_source_current(o)!=PAPACC_RESULT_OK||!o->pending_commit.personal_native.scq_admin.registration)return PAPACC_RESULT_NOT_SUPPORTED;
++  return (o->pending_commit.personal_native.scq_admin.registration->purpose==PAPACC_SCQ_PURPOSE_TRANSPORT_ONLY?papacc_personal_runtime_capture_transport_closed:papacc_personal_runtime_capture_closed)(&o->pending_commit.personal_native.runtime_identity,process,sid,sid_type)?PAPACC_RESULT_INVALID_STATE:PAPACC_RESULT_OK;
+  }
+  return papacc_personal_runtime_capture(&o->pending_commit.personal_native.runtime_identity,process,sid,profile,sid_type)==0?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;
+ }
+@@ -656,7 +656,7 @@
+  if(n->scq_recipient.phase||n->runtime_identity.phase||n->scq_inputs.phase||n->scq_profile_data.phase||n->scq_session.phase)return PAPACC_RESULT_INVALID_STATE;
+  if(plan->purpose==PAPACC_SCQ_PURPOSE_TRANSPORT_ONLY&&!n->install_paths.phase&&
+   papacc_personal_paths_new(&n->install_paths,&o->pending_commit.stop))return PAPACC_RESULT_INVALID_STATE;
+- e=plan->runtime.service_state==SERVICE_START_PENDING?papacc_personal_runtime_capture_closed(&n->runtime_identity,GetCurrentProcess(),(PSID)plan->runtime.sid,plan->runtime.service_sid_type):papacc_personal_runtime_capture(&n->runtime_identity,GetCurrentProcess(),(PSID)plan->runtime.sid,PAPACC_PERSONAL_RUNTIME_VIRTUAL,plan->runtime.service_sid_type);if(e)goto failed;
++ e=plan->runtime.service_state==SERVICE_START_PENDING?(plan->purpose==PAPACC_SCQ_PURPOSE_TRANSPORT_ONLY?papacc_personal_runtime_capture_transport_closed:papacc_personal_runtime_capture_closed)(&n->runtime_identity,GetCurrentProcess(),(PSID)plan->runtime.sid,plan->runtime.service_sid_type):papacc_personal_runtime_capture(&n->runtime_identity,GetCurrentProcess(),(PSID)plan->runtime.sid,PAPACC_PERSONAL_RUNTIME_VIRTUAL,plan->runtime.service_sid_type);if(e)goto failed;
+  if(n->runtime_identity.pid!=GetCurrentProcessId()){e=ERROR_ACCESS_DENIED;goto failed;}
+  e=plan->purpose==PAPACC_SCQ_PURPOSE_TRANSPORT_ONLY?
+   personal_scq_inputs_capture_transport(&n->scq_inputs,originals,(PSID)plan->administrator.sid,plan,&n->install_paths,o,&o->pending_commit.stop):
+@@ -827,7 +827,7 @@
+   !n->scq_carrier_captured)return ERROR_ACCESS_DENIED;
+  if(n->scq_session.phase){e=personal_scq_query_resources(o,0);if(e)goto failed;return papacc_configuration_personal_scq_transport_continue(o); }
+  if(!n->runtime_identity.phase){
+-  e=papacc_personal_runtime_capture_closed(&n->runtime_identity,GetCurrentProcess(),(PSID)n->scq_carrier.runtime_sid,SERVICE_SID_TYPE_UNRESTRICTED);if(e)goto failed;
++  e=papacc_personal_runtime_capture_transport_closed(&n->runtime_identity,GetCurrentProcess(),(PSID)n->scq_carrier.runtime_sid,SERVICE_SID_TYPE_UNRESTRICTED);if(e)goto failed;
+   if(n->runtime_identity.pid!=GetCurrentProcessId()){e=ERROR_ACCESS_DENIED;goto failed;}
+  }
+  if(!n->scq_session.transport.phase){
+--- tests/personal_runtime_identity_test.c (preimage)
++++ tests/personal_runtime_identity_test.c
+@@ -6,6 +6,7 @@
+ #include <string.h>
+ static PSID virtual_sid,sam_sid,service_sid;static int observation_service;static unsigned fault,closes,opens,checks;static DWORD thread=7;
+ static int use_native_thread;
++static DWORD shape_elevation;static PSID shape_admin_sid;
+ static unsigned observation_open_target,observation_fault;static volatile LONG *observation_stop;
+ static BOOL native_thread_close(HANDLE h){return CloseHandle(h);}
+ static DWORD native_wait(HANDLE h,DWORD ms){return WaitForSingleObject(h,ms);}
+@@ -52,10 +53,10 @@
+  if(kind==TokenStatistics){TOKEN_STATISTICS *s=out;memset(s,0,sizeof(*s));s->TokenType=TokenPrimary;s->GroupCount=(observation_service||fault==4||fault==5||fault==6||fault==7||fault==17||fault==18||fault==20)?1:0;s->TokenId.LowPart=(fault==9&&(ULONG_PTR)h>101)?2:1;s->ModifiedId.LowPart=3;*n=sizeof(*s);return TRUE;}
+  if(kind==TokenSessionId){*(DWORD *)out=fault==31?1U:0U;*n=sizeof(DWORD);return TRUE;}
+  if(kind==TokenUser){TOKEN_USER *u=out;if(fault==2)sid=sid==virtual_sid?sam_sid:virtual_sid;z=GetLengthSid(sid);u->User.Sid=b+sizeof(*u);CopySid(z,u->User.Sid,sid);u->User.Attributes=0;*n=sizeof(*u)+z;return TRUE;}
+- if(kind==TokenElevation){((TOKEN_ELEVATION *)out)->TokenIsElevated=fault==3;*n=sizeof(TOKEN_ELEVATION);return TRUE;}
++ if(kind==TokenElevation){((TOKEN_ELEVATION *)out)->TokenIsElevated=shape_elevation?shape_elevation:(fault==3);*n=sizeof(TOKEN_ELEVATION);return TRUE;}
+  if(kind==TokenElevationType){*(TOKEN_ELEVATION_TYPE *)out=fault==19?TokenElevationTypeLimited:TokenElevationTypeDefault;*n=sizeof(TOKEN_ELEVATION_TYPE);return TRUE;}
+  if(kind==TokenGroups||kind==TokenRestrictedSids){TOKEN_GROUPS *g=out;int has=kind==TokenGroups?(observation_service||fault==4||fault==5||fault==6||fault==7||fault==17||fault==18):(fault==7);
+-  g->GroupCount=has?1:0;*n=FIELD_OFFSET(TOKEN_GROUPS,Groups);if(has){if(observation_service&&kind==TokenGroups&&fault!=2)sid=service_sid;z=GetLengthSid(sid);g->Groups[0].Sid=b+sizeof(TOKEN_GROUPS);g->Groups[0].Attributes=fault==4?0:fault==5?(SE_GROUP_ENABLED|SE_GROUP_USE_FOR_DENY_ONLY):fault==18?SE_GROUP_ENABLED_BY_DEFAULT:SE_GROUP_ENABLED;CopySid(z,g->Groups[0].Sid,sid);*n=sizeof(TOKEN_GROUPS)+z;}
++  g->GroupCount=has?1:0;*n=FIELD_OFFSET(TOKEN_GROUPS,Groups);if(has){if(observation_service&&kind==TokenGroups&&fault!=2)sid=service_sid;if(shape_admin_sid&&kind==TokenGroups)sid=shape_admin_sid;z=GetLengthSid(sid);g->Groups[0].Sid=b+sizeof(TOKEN_GROUPS);g->Groups[0].Attributes=fault==4?0:fault==5?(SE_GROUP_ENABLED|SE_GROUP_USE_FOR_DENY_ONLY):fault==18?SE_GROUP_ENABLED_BY_DEFAULT:SE_GROUP_ENABLED;CopySid(z,g->Groups[0].Sid,sid);*n=sizeof(TOKEN_GROUPS)+z;}
+   if(fault==17&&kind==TokenGroups)*n=FIELD_OFFSET(TOKEN_GROUPS,Groups);
+   return TRUE;}
+  SetLastError(ERROR_INVALID_PARAMETER);return FALSE;
+@@ -84,7 +85,7 @@
+ #include "../apps/server/server_ca_key_win32.c"
+ #define C(x) do{checks++;if(!(x)){printf("FAIL line=%u fault=%u\n",(unsigned)__LINE__,fault);return 1;}}while(0)
+ static void reset(PAPACC_PERSONAL_RUNTIME_IDENTITY *r,unsigned f,unsigned profile)
+-{memset(r,0,sizeof(*r));fault=f;opens=closes=0;thread=7;use_native_thread=0;observation_open_target=observation_fault=0;observation_stop=NULL;observation_service=0;identity_expected=profile==PAPACC_PERSONAL_RUNTIME_VIRTUAL?virtual_sid:sam_sid;}
++{memset(r,0,sizeof(*r));fault=f;opens=closes=0;thread=7;use_native_thread=0;observation_open_target=observation_fault=0;observation_stop=NULL;observation_service=0;shape_elevation=0;shape_admin_sid=NULL;identity_expected=profile==PAPACC_PERSONAL_RUNTIME_VIRTUAL?virtual_sid:sam_sid;}
+ static DWORD WINAPI other_thread(LPVOID value)
+ {return papacc_personal_runtime_current((PAPACC_PERSONAL_RUNTIME_IDENTITY *)value);}
+ static int observation_zero(const PAPACC_SCQ_RUNTIME_OBSERVATION *v)

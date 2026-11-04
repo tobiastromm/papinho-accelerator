@@ -1,0 +1,64 @@
+from pathlib import Path
+import json,hashlib,csv
+base=Path('docs/integration/n0start03-integrated-closeout-20261024');p=base/'c0-c9-console-integration-20261028';sha=lambda q:hashlib.sha256(Path(q).read_bytes()).hexdigest();r=p/'manual-candidate/NATIVE-POSSESSION-OPERATION-REQUEST.DRAFT.json';rh=sha(r);eh=sha(p/'manual-candidate/NativeTpmProof.exe');decision=Path('docs/adr/DECISION-tpm-proof-explicit-console-host-binding-20261028.md')
+(p/'MANUAL-CANDIDATE-HANDOFF.md').write_text(f'''# Próxima prova TPM: candidato C0–C9
+
+PREPARED_NOT_APPROVED_NOT_EXECUTED. C0–C9 foi aceita normativamente; isso NÃO autoriza a prova.
+
+Pedido exato [NATIVE-POSSESSION-OPERATION-REQUEST.DRAFT.json](manual-candidate/NATIVE-POSSESSION-OPERATION-REQUEST.DRAFT.json), SHA256 `{rh}`.
+Host C Selected Release [NativeTpmProof.exe](manual-candidate/NativeTpmProof.exe), SHA256 `{eh}`.
+[Demais pins](MANUAL-CANDIDATE-PINS.json); certificado público DER965f56aa... inalterado. [Registro normativo](../../../adr/{decision.name}). O parser C real aceitou549nodes/19651bytes sem executar TPM.
+
+## Aprovação ainda necessária
+
+Uma nova decisão explícita do proprietário para UMA invocação manual conforme os bytes deste pedido. As aprovações anteriores, inclusive4a5f, estão usadas. Não existe novo OWNER-APPROVED-NATIVE-PROOF.json no candidato. Não foi preparado comando operacional com hash de aprovação inventado.
+
+Após decisão específica: registrar UMA aprovação kind OWNER_APPROVAL_TPM_SALTED_PROOF_ONLY com request/exe exatos, one_manual_execution=true e ack_unknown_revocation/ack_no_hardware_admission/ack_internal_tpm_accounting_unknown=true. Calcular SHA literal do novo registro; conferir novamente todos os artefatos e dependências e gerar a linha --owner-manual-proof com hashes completos. Não executar automaticamente.
+
+## Procedimento futuro
+
+Windows PowerShell5.1 x64 já elevado e operador/host/boot atuais aprovados; sem wrapper, pipeline, UAC child ou alteração artificial de console. A descoberta usa o PAI REAL do próprio processo novo, dois clientes desse console e um auxiliar distinto; não usa seed17204/20976/13944 nem os PIDs dos testes como pins. Novo console implica nova identidade factual, nunca adoção silenciosa de histórico.
+
+O programa apresenta C0_BIND com PID/criação de pai e auxiliar, HWND metadado e risco UNPROVEN. Só confirmar a linha INTEGRAL que o programa exibir: PROVE_EK_SESSION, o hash literal deste pedido e os quatro valores LIVE de PID/criação do pai/auxiliar. Não preencher esses valores antecipadamente nem copiar confirmação antiga. Eles só existirão na execução manual.
+
+Antes de TBS, exigir token atual/elevado/sem impersonation/LUID continuidade, originais PID/criação/liveness/sessão e tokens de papéis, class49 repetida no pai/native com perfil válido e auxiliar distinto, arquivo Windows original/volume/ID/size/hash/OWNER-GROUP-DACL para parent/helper/ABI, exact client census,124/128/1024 e demais obrigações. Qualquer divergência => DENY;982 histórico não concede folga futura.
+
+Um contexto TBS, uma sessão HMAC transitória, no máximo12Submits diretos. Nenhum AK/CreatePrimary/NV/hierarchy/Clear/Q4/LAB/Start/Stop/SCM/ACL/CURRENT/assinatura/recuperação. Internos TBS/kernel/transitivos e unsampled peak UNKNOWN. Um resultado matemático não autentica geração física ou revogação/custódia.
+
+Escape/Stop entre chamadas síncronas; não há cancelamento garantido dentro de chamada. Incerto => freeze e referências/dependências originais retidas no processo vivo, sem kill/retry/FlushContext adivinhado. Não apagar receipt/resíduos. A invocação usa a aprovação MESMO SE negar antes do CREATE_NEW administrativo; sua ausência não permite retry e esse marcador não é ledger Q4 resistente a rollback.
+
+Enviar saída INTEGRAL NATIVE_API_COUNTS, C0_BIND e JSON, inclusive negativa/UNKNOWN. Reconciliação verificará first/stage, artefatos originais, papéis, amostras/contagens/calls, challenge/HMAC/Name/session_end/context_close/retained; nenhuma conclusão antecipada de E21/ED11. Não são necessárias novas coletas equivalentes de topologia antes desta decisão: a integração nova e testes estão no pacote; os gates reais serão frescos na futura invocação autorizada.
+
+E21=PENDING; ED11/Phase6=PARTIAL; pedido TPM aguarda aprovação operacional própria.
+''',encoding='utf-8')
+(p/'OWNERSHIP-REVIEW.csv').write_text('''reference,ownership,lifetime,unknown_rule,verification
+parent/native/auxiliary,Same canonical standalone proof owner; original process handles and live GetProcessId+creation,Two temporary parent/auxiliary handles across identity/token/file/metric/revalidation; native pseudohandle never closed,Freeze and retain originals/dependencies; never reopen by reused PID,production guard body native classic/ConPTY/concurrent fixtures and modeled query/reuse/exit faults
+window owner,metadata only,No actor handle and no independent authority,May equal parent/self; never substitutes real auxiliary,accepted C0-C9 and alias tests
+role primary token,Existing token slot reserved before open; checked close,One at a time; captured TokenId/AuthId/ModifiedId per actual role and continuity later,Close failure retains original token and process dependencies; freeze,actual helper through simulated API negatives and actual native token lifetimes in fixtures
+role image or native ABI file,New single original temporary role_image slot,Original volume/FileID/size/descriptor/content checked; closes before next file/token; no image copy,Close/hash uncertainty retains original file/hash/providers/process refs; no retry,actual readonly Windows files and six fault modes
+CNG hash,Existing canonical proof work_hash and fixed buffer,Descriptor digest then streaming content hash serially; no overlap with role token slot,Close uncertainty retains original and dependencies; first error preserved,existing crypto core plus integrated file/hmac overlap tests
+current console clients,Bounded8DATA array and exact two current clients,Rechecked after metrics before guard success,Missing/extra/changed/unsupported => DENY not credits,real native graph and negative matrix
+admin BUSY and thread,Same owner-thread state,Entire guard interval with reentrant freeze; other thread rejected before state mutation,No new acquisitions after freeze/unknown; BUSY release does not release retained handles,reentry API callback and actual other-thread negative
+TPM context/session,Unchanged proof owner,Only future separately approved manual transient proof,No guessed close/flush/retry; unknown keeps dependencies,core protocol cases reused; mock endpoint full flow; no actual TPM
+''',encoding='utf-8')
+(p/'TEST-COVERAGE.csv').write_text('''area,evidence,scope_limit
+C0 locator/census,parent=selfHWND and self=selfHWND allowed only as metadata; actual auxiliary distinct; missing/flags/width/query/cross-console/client-change negatives,Windows APIs modeled for fault/negative control; no operational authorization
+PID creation/lifetime,GetProcessId/Wait0/creation before-after; reuse/change/terminated tests,Actual native ended processes plus simulated identity substitutions; cannot force real PID recycle
+role identity,approved SID/elevation/type/session/AuthId/LUID continuity; wrong SID/non-elevated/type/query/change negatives,Actual primary token lifetimes and previously observed shared AuthId; identity authority of native fixture actors explicitly modeled
+file provenance,Actual protected PowerShell/conhost/ntdll originals ID/hash/descriptor pins and six negative modes,On-disk only; complete mapped-image/auth console relation accepted UNPROVEN
+concurrency,Reentrant same-thread freeze and actual other-thread rejection; two native graphs concurrently,No new product lock/owner or control authority; native targets use modelled role authority
+close/UNKNOWN,Double-close skip; process/token/file close uncertainty; original reference retention and no subsequent acquisition,Fault cases keep modeled uncertain refs in static storage until test process loss; not factual global quiescence
+console classic/ConPTY,Production hp_admin body in two real inherited client processes plus actual Windows auxiliary; checked finite children/process close,Role tokens and parent file authority modeled; no service or actual TPM
+full protocol,Same production entry and C0 guard with actual console/class49/metrics/ABI/helperfile; clean/wrong/Escape/max12Submits,Software TPM endpoint only; parent-file resource surrogate and role authority modelled; no native EK possession
+resources,max214 of256sample slots and16admin samples; model sampled peak92 bothconfigs,Real TBS module/context/internal cost remains unobserved; no budget/credit
+contracts/artifacts,155artifact assertions and new C0 revision/digest rejection; actual request parser549nodes19651bytes,Only DATA qualification; no approval generated
+''',encoding='utf-8')
+# Keep live docs' previous WIP byte images before append, and never promote E21/E22.
+f=base/'ED11_GATE_MATRIX.csv';(p/'ED11_GATE_MATRIX.PREIMAGE.csv').write_bytes(f.read_bytes());rows=list(csv.DictReader(f.open(encoding='utf-8',newline='')));fields=list(rows[0]);g=next(x for x in rows if x['gate']=='E21');g['current_evidence']+='; C0-C9 ACCEPTED exact7dee7091 in DECISION-tpm-proof-explicit-console-host-binding-20261028; same native owner guard integrated explicit actual parent/auxiliary originals/token/file/ABI/census/BUSY;18CTest Debug/Release zero warnings; model peak92/max12Submit16admin214samples; real classic/ConPTY/concurrent graphs plus Windows file descriptor/ID/hash negatives PASS; c0-c9-console-integration-20261028/CONSOLIDATED-CLOSEOUT.md';g['closure_evidence_or_action']='New exact owner-manual C0 integrated proof request '+rh+'; registration/command only after separate operational approval. No more equivalent topology recollection required; fresh actual identity/124/128/1024/other mandatory gates still enforced at invocation. Actual TPM possession/custody/NV/Q4 not demonstrated.'
+with f.open('w',encoding='utf-8',newline='') as out:w=csv.DictWriter(out,fieldnames=fields);w.writeheader();w.writerows(rows)
+live=Path('docs/capabilities/canonical-phase6-consolidation.md');(p/'canonical-phase6-consolidation.PREIMAGE.md').write_bytes(live.read_bytes())
+with live.open('a',encoding='utf-8') as out:out.write(f'''\n\n## 2026-10-28 — C0–C9 accepted and native console binding integrated\n\nExact proposal7dee7091 accepted in DECISION-tpm-proof-explicit-console-host-binding-20261028 before implementation. Same native standalone owner now discovers actual auxiliary from matching repeated current parent/native class49 metadata, independently holds PID/creation/liveness, verifies role primary token continuity/session/logon and original protected Windows/ABI files/ID/hash/descriptor. HWND may alias parent/self without hiding auxiliary or double counting. BUSY/owner-thread/freeze/UNKNOWN and124/128/1024 preserved; no static historical PID or resource credit.18CTest Debug/Release zero warnings PASS, including production guard in real classic/ConPTY/concurrent graphs, real protected file checks and fault injection. Full software-endpoint flow sampled92, maximum12Submits16admin observations214samples; role authority/parent image of fixture actors modeled, not operational proof. TP_PLATFORM166816bytes (+96), core28688 unchanged; actual TBS overhead/possession not observed. Historical binaries/approvals unchanged/used. New manual request `{rh}` prepared, not approved/executed. [Consolidated integration report](../integration/n0start03-integrated-closeout-20261024/c0-c9-console-integration-20261028/CONSOLIDATED-CLOSEOUT.md). E21 pending, ED11/Phase6 PARTIAL; E17–E20 independent.\n''')
+# Parallel factual reuse, no fabricated target quantitative thresholds or service identity/intent.
+data=json.loads((base/'tpm-l1-native-proof-and-parallel-closure-20261026/E19-E20-DECISION-INPUTS.json').read_text());(p/'PARALLEL-E19-E20-REUSE.json').write_text(json.dumps(data,indent=2)+'\n')
+(p/'CRITICAL-PATH.json').write_text(json.dumps(dict(E17='R0-R9 accepted/offline; fresh service identity/effective access/readiness requires separate eligible operation',E18='Lifecycle and safe Stop/quiescence remain factual gates; no historic process exit inference',E19='D2 preparation-only accepted; target D4/D5 age/validity/duration/physical/commit parameters still null',E20='Real one-operation Browser/C2/C3/provider bound to target root/CURRENT/epoch/SiteTLS/destination/backend pending; active provider/kernel UNKNOWN',E21='C0 accepted/integrated offline; next exact manual proof request pending owner approval; actual possession/custody/NV/Q4 absent',E22='DERIVED_PENDING_DEPENDENCIES',counts='4demonstrated/12limited/6pending',Phase6='PARTIAL_SEPARATE_REQUIREMENTS',new_service_identity=False,new_intent=False),indent=2)+'\n')
+print('HANDOFF_READY_WITHOUT_OPERATIONAL_APPROVAL; REQUEST='+rh)

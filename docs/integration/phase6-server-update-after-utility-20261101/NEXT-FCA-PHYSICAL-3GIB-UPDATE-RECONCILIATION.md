@@ -1,0 +1,4 @@
+# Próximo prompt executável — reconciliar UPDATE físico3GiB
+Ler integralmente saída manual do pedidoa2505aeefbe1b43b7d355f2d8605c330ed60ce45c014dbf122777fc1c3ef50ac, sem repetir.
+Conferir primeira falha/consumo/criação/dois renames, OLD preservado, novo912384bytes/SHA256c4419f97a2e4499da4e30b8a5316a16e55097d18384fc70a0db58870c4188556 e ID real, proteção/readback, SCM parado, close/retenção. Não inferir sucesso pelo exit.
+Proprietário já declarou "autorizo update e start": preservar essa autorização contextual ao preparar o próximo ato concreto, sem reaprovações redundantes, mas sem fabricar pré-requisitos/confirmacões independentes/pins futuros. A preparação FCA ainda tem aquisição original UNKNOWN; nenhuma prontidão de Start presumida. Reutilizar configuração/Papinho, sem repetir atos consumidos ou executar automaticamente. Preservar limites/UNKNOWN/históricos/PST0.6.4.

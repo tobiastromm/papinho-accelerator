@@ -1,0 +1,31 @@
+--- approved/NativeProofHost.CANDIDATE.cs
++++ candidate/NativeProofHost.DIAGNOSTIC-CANDIDATE.cs
+@@ -7,6 +7,7 @@
+  [DllImport("tbs.dll",ExactSpelling=true)]static extern uint Tbsip_Submit_Command(IntPtr h,uint locality,uint priority,byte[] command,uint n,byte[] response,ref uint size);
+  [DllImport("tbs.dll",ExactSpelling=true)]static extern uint Tbsip_Context_Close(IntPtr h);
+  [DllImport("kernel32.dll",SetLastError=true)]static extern bool GetProcessHandleCount(IntPtr p,out uint n);
++ static bool observerQueryAttempted,observerQuerySucceeded;static uint observerOwnCount;static int observerQueryError;
+  static SaltedSessionPlan retainedPlan;static byte[] initialToken;static string liveBinding;static IntPtr parentReference,consoleReference;static bool observerUnknown;static uint parentPidPin,consolePidPin;static long parentCreation,consoleCreation;static readonly List<string> adminSamples=new List<string>();static readonly List<uint> handleSamples=new List<uint>();static IntPtr retainedContext;static string stage="OWNER_METADATA",firstStage="NONE",first="NONE";static int observerCloseError;static bool contextOpenAttempted,contextOpened,sessionAttempted,sessionEnded;static int calls;static string folder=AppDomain.CurrentDomain.BaseDirectory;
+  [DllImport("advapi32.dll",SetLastError=true)]static extern bool GetTokenInformation(IntPtr h,int cls,byte[] data,uint size,out uint used);
+  static byte[] TokenState(){using(WindowsIdentity id=WindowsIdentity.GetCurrent()){
+@@ -31,7 +32,10 @@
+  [DllImport("kernel32.dll",SetLastError=true)]static extern bool GetProcessTimes(IntPtr h,out long created,out long exited,out long kernel,out long user);
+  [DllImport("kernel32.dll",SetLastError=true)]static extern bool CloseHandle(IntPtr h);
+  static void AdministrativeSample(){
+-  uint own;if(!GetProcessHandleCount(new IntPtr(-1),out own)||own>124)Fail("NATIVE_OBSERVER_HEADROOM");
++  observerQueryAttempted=true;uint own;bool queried=GetProcessHandleCount(new IntPtr(-1),out own);
++  observerQueryError=queried?0:Marshal.GetLastWin32Error();observerQuerySucceeded=queried;observerOwnCount=own;
++  if(!queried)Fail("NATIVE_OBSERVER_QUERY_FAILED");
++  if(own>124)Fail("NATIVE_OBSERVER_HEADROOM");
+   byte[] basic=new byte[48];int used;if(NtQueryInformationProcess(new IntPtr(-1),0,basic,48,out used)!=0||used!=48)Fail("PARENT_UNKNOWN");long parent=BitConverter.ToInt64(basic,40);if(parent<=0||parent>uint.MaxValue)Fail("PARENT_UNKNOWN");
+   uint aux=0;if(GetConsoleWindow()==IntPtr.Zero||GetWindowThreadProcessId(GetConsoleWindow(),out aux)==0)Fail("CONSOLE_METADATA_UNKNOWN");uint[] ids=new uint[8];uint count=GetConsoleProcessList(ids,8);uint self=GetCurrentProcessId();bool seenSelf=false,seenParent=false;for(int i=0;i<count&&i<8;i++){if(ids[i]==self)seenSelf=true;if(ids[i]==(uint)parent)seenParent=true;}
+   if(count!=2||!seenSelf||!seenParent||aux==0||aux==self||aux==(uint)parent)Fail("PARTICIPANT_TOPOLOGY_DENY");
+@@ -89,7 +93,7 @@
+    }
+   }catch(Exception e){if(first=="NONE"){first=e.Message;firstStage=stage;}}
+   if(observerUnknown)retained=true;if(h!=IntPtr.Zero){if(retained||(sessionAttempted&&!sessionEnded)){retained=true;retainedContext=h;}else{uint code=Tbsip_Context_Close(h);if(code==0){close=true;h=IntPtr.Zero;}else{if(first=="NONE"){first="TBS_CLOSE_"+code.ToString("x8");firstStage="TBS_CONTEXT_CLOSE";}retained=true;retainedContext=h;}}}
+-  Console.WriteLine(new JavaScriptSerializer().Serialize(new {first=first,first_stage=firstStage,observer_close_error=observerCloseError,proof=proof,request_sha256=requestHash,live_binding=liveBinding,calls=calls,handle_samples=handleSamples.ToArray(),administrative_samples=adminSamples.ToArray(),console_association="METADATA_NOT_AUTHENTICATED",unsampled_peak="UNKNOWN",public_area_name=publicAreaName==null?null:Hex(publicAreaName),session_end=sessionEnded?"AUTHENTICATED_CONTINUE_CLEAR_SEMANTIC":"NOT_CONFIRMED",context_close=close,context_opened=contextOpened,context_state=close?"CLOSED_CONFIRMED":h!=IntPtr.Zero?"UNKNOWN_RETAINED":contextOpenAttempted?"OPEN_FAILED_NO_HANDLE":"NOT_OPENED",observer_refs_retained=observerUnknown,retained=retained,revocation="UNKNOWN",device_generation="NOT_ESTABLISHED",NV_mutations="NONE",Q4="NOT_EXECUTED",authority="DENY",no_retry=true}));
++  Console.WriteLine(new JavaScriptSerializer().Serialize(new {first=first,first_stage=firstStage,observer_query_attempted=observerQueryAttempted,observer_query_succeeded=observerQuerySucceeded,observer_own_count=observerQuerySucceeded?(uint?)observerOwnCount:null,observer_query_error=observerQueryError,observer_reserve_limit=124,observer_close_error=observerCloseError,proof=proof,request_sha256=requestHash,live_binding=liveBinding,calls=calls,handle_samples=handleSamples.ToArray(),administrative_samples=adminSamples.ToArray(),console_association="METADATA_NOT_AUTHENTICATED",unsampled_peak="UNKNOWN",public_area_name=publicAreaName==null?null:Hex(publicAreaName),session_end=sessionEnded?"AUTHENTICATED_CONTINUE_CLEAR_SEMANTIC":"NOT_CONFIRMED",context_close=close,context_opened=contextOpened,context_state=close?"CLOSED_CONFIRMED":h!=IntPtr.Zero?"UNKNOWN_RETAINED":contextOpenAttempted?"OPEN_FAILED_NO_HANDLE":"NOT_OPENED",observer_refs_retained=observerUnknown,retained=retained,revocation="UNKNOWN",device_generation="NOT_ESTABLISHED",NV_mutations="NONE",Q4="NOT_EXECUTED",authority="DENY",no_retry=true}));
+   if(retained){Console.WriteLine("UNKNOWN: original TBS reference retained; no retry, no FlushContext guessing. Abrupt host loss leaves UNKNOWN.");while(true)System.Threading.Thread.Sleep(1000);}
+   if(retainedPlan!=null){retainedPlan.CloseFactualContext();retainedPlan=null;}GC.KeepAlive(retainedContext);return proof&&close&&first=="NONE"?0:2;
+  }

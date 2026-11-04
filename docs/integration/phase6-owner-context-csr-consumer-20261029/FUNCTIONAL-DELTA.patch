@@ -1,0 +1,435 @@
+--- before/CMakeLists.txt
++++ after/CMakeLists.txt
+@@ -3008,6 +3008,21 @@
+  target_include_directories(papacc_enrollment PUBLIC src/provisioning include)
+  set_target_properties(papacc_enrollment PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+  papacc_enable_warnings(papacc_enrollment)
++ add_library(papacc_enrollment_issuer STATIC src/provisioning/enrollment_issuer.c)
++ target_link_libraries(papacc_enrollment_issuer PUBLIC papacc_enrollment papacc_issuer)
++ set_target_properties(papacc_enrollment_issuer PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++ papacc_enable_warnings(papacc_enrollment_issuer)
++ if(BUILD_TESTING)
++  add_executable(papacc_enrollment_issuer_test tests/enrollment_issuer_model_test.c src/issuer/issuer_core.c)
++  target_link_libraries(papacc_enrollment_issuer_test PRIVATE papacc_enrollment_issuer)
++  target_compile_definitions(papacc_enrollment_issuer_test PRIVATE PAPACC_ISSUER_OFFLINE_TEST=1)
++  papacc_enable_warnings(papacc_enrollment_issuer_test)
++  set_property(SOURCE tests/enrollment_issuer_model_test.c APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/issuer_core_test.c")
++  add_test(NAME papacc.enrollment.issuer_composition COMMAND papacc_enrollment_issuer_test)
++ endif()
++ if(TARGET papacc_issuer_cng_x509_test)
++  target_link_libraries(papacc_issuer_cng_x509_test PRIVATE papacc_enrollment_issuer)
++ endif()
+  if(WIN32)
+   add_library(papacc_enrollment_windows STATIC src/provisioning/enrollment_windows.c)
+   target_link_libraries(papacc_enrollment_windows PUBLIC papacc_enrollment bcrypt)
+--- before/tests/issuer_native_ephemeral_cases.inc
++++ after/tests/issuer_native_ephemeral_cases.inc
+@@ -1,6 +1,7 @@
+ /* Test translation only. Real ephemeral CNG; simulated authorization/CURRENT.
+  * Never linked into the product or used as a source of operational proofs. */
+ #include "../src/issuer/issuer_codec.h"
++#include "../src/provisioning/enrollment_issuer.h"
+ static int persistent_note(const char *text)
+ {DWORD used=0,n=(DWORD)strlen(text);return WriteFile(persistent_receipt,text,n,&used,NULL)&&used==n&&FlushFileBuffers(persistent_receipt);}
+ static int persistent_fixture_prepare(const char *receipt)
+@@ -94,10 +95,31 @@
+  record=*next;if(publish)record.published_epoch=ephemeral_ack.administrative_epoch;
+  fixture_view.revision=decoded.revision;fixture_view.high_water=high;fixture_view.administrative_epoch+=publish?2:1;return PAPACC_ISSUER_OK;
+ }
++/* Actual existing trace/parser/claim path, no TLS or administrative grant. */
++static EP_TRACE enrollment_trace;
++static EP_PAIR enrollment_pair;
++static int enrollment_frames(void)
++{
++ BYTE random[55]={1},client_nonce[32]={7},fingerprint[32]={42},payload[52+4096];EP_FRAME frame;DWORD n;
++ memset(&enrollment_trace,0,sizeof(enrollment_trace));memset(&enrollment_pair,0,sizeof(enrollment_pair));
++ memcpy(random+7,record.request.id,16);memset(random+23,9,32);
++ CHECK(ep_pair_prepare_data(&enrollment_pair,random,client_nonce,11,12,100,NULL,0)==EP_DATA_ONLY);
++ memset(payload,0,sizeof(payload));memcpy(payload,client_nonce,32);memcpy(payload+32,fingerprint,32);payload[65]=1;payload[66]='a';frame.payload.data=payload;frame.kind=1;frame.sequence=1;frame.payload.size=67;
++ CHECK(ep_trace_observe(&enrollment_trace,&frame,EP_C2S)==EP_DATA_ONLY);
++ memset(payload,0,120);memcpy(payload,record.request.id,16);memcpy(payload+16,client_nonce,32);memcpy(payload+48,enrollment_pair.server_nonce,32);memcpy(payload+80,fingerprint,32);payload[117]=4;payload[118]=147;payload[119]=224;
++ frame.kind=2;frame.payload.size=120;CHECK(ep_trace_observe(&enrollment_trace,&frame,EP_S2C)==EP_DATA_ONLY);
++ memset(payload,0,62);memcpy(payload,record.request.id,16);memcpy(payload+16,enrollment_pair.server_nonce,32);memcpy(payload+48,enrollment_pair.code,10);frame.kind=3;frame.sequence=2;frame.payload.size=62;
++ CHECK(ep_trace_claim_pair(&enrollment_trace,&enrollment_pair,&frame,11,12,101)==EP_DATA_ONLY);
++ memset(payload,0,20);memcpy(payload,record.request.id,16);payload[16]=2;frame.kind=4;frame.payload.size=20;
++ CHECK(ep_trace_observe(&enrollment_trace,&frame,EP_S2C)==EP_DATA_ONLY);
++ memcpy(payload,record.request.id,16);memcpy(payload+16,enrollment_pair.server_nonce,32);n=csr_size;payload[48]=(BYTE)(n>>24);payload[49]=(BYTE)(n>>16);payload[50]=(BYTE)(n>>8);payload[51]=(BYTE)n;memcpy(payload+52,csr,n);frame.kind=5;frame.sequence=3;frame.payload.size=52+n;
++ CHECK(ep_trace_observe(&enrollment_trace,&frame,EP_C2S)==EP_DATA_ONLY);memset(payload,0,sizeof(payload));
++ CHECK(enrollment_trace.csr_size==csr_size&&!memcmp(enrollment_trace.csr,csr,csr_size));return 0;
++}
+ static int native_ephemeral_journey(void)
+ {
+  DWORD n;PAPACC_ISSUER_VIEW metadata,after;PAPACC_ISSUER_RECORD prepared,actual;PAPACC_SIZE bytes;
+- BYTE base[32]={1},digest[32];CRYPT_DATA_BLOB blob;unsigned before;CERT_PUBLIC_KEY_INFO saved_public;
++ BYTE base[32]={1},digest[32],delivered[2048];PAPACC_SIZE delivered_size;CRYPT_DATA_BLOB blob;unsigned before;CERT_PUBLIC_KEY_INFO saved_public;
+  native_crypto=1;
+  CHECK(NCryptOpenStorageProvider(&ephemeral_provider,MS_KEY_STORAGE_PROVIDER,0)==ERROR_SUCCESS);
+  CHECK(ephemeral_new(&ephemeral_client)==ERROR_SUCCESS);
+@@ -130,14 +152,35 @@
+  {PAPACC_ISSUER_RESULT results[2]={PAPACC_ISSUER_OK,PAPACC_ISSUER_OK};HANDLE thread=CreateThread(NULL,0,source_other_thread,results,0,NULL);
+   CHECK(thread&&WaitForSingleObject(thread,10000)==WAIT_OBJECT_0&&CloseHandle(thread));CHECK(results[0]!=0&&results[1]!=0);}
+  if(persistent_fixture)CHECK(!persistent_reacquire());
+- before=native_signs;
+- CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==0&&native_signs==before+1);
++ CHECK(!enrollment_frames());before=native_signs;memset(delivered,0xa5,sizeof(delivered));delivered_size=99;
++ deny_admin=1;CHECK(ep_issuer_submit(&fixture_core,&enrollment_trace,&enrollment_pair,11,12,102,out,sizeof(out))==PAPACC_ISSUER_DENIED&&native_signs==before);deny_admin=0;
++ CHECK(ep_issuer_submit(&fixture_core,&enrollment_trace,&enrollment_pair,11,99,102,out,sizeof(out))==PAPACC_ISSUER_DENIED&&native_signs==before);
++ CHECK(ep_issuer_deliver(&fixture_core,&enrollment_trace,&enrollment_pair,11,12,102,out,sizeof(out),delivered,sizeof(delivered),&delivered_size)!=0&&delivered[0]==0xa5&&delivered_size==99);
++ CHECK(ep_issuer_submit(&fixture_core,&enrollment_trace,&enrollment_pair,11,12,102,out,sizeof(out))==0&&native_signs==before+1);
++ CHECK(ep_issuer_submit(&fixture_core,&enrollment_trace,&enrollment_pair,11,12,102,out,sizeof(out))==PAPACC_ISSUER_CONFLICT&&native_signs==before+1);
++ CHECK(ep_issuer_deliver(&fixture_core,&enrollment_trace,&enrollment_pair,11,12,102,out,sizeof(out),delivered,sizeof(delivered),&delivered_size)!=0&&delivered[0]==0xa5&&delivered_size==99);
+  CHECK(record.state==PAPACC_ISSUER_ISSUED_UNPUBLISHED);
+  CHECK(ephemeral_copy_cert(NULL,record.request.id,record.certificate_digest,ephemeral_copy,sizeof(ephemeral_copy),&bytes)==0);
+  blob.pbData=ephemeral_copy;blob.cbData=(DWORD)bytes;
+  CHECK(CryptVerifyCertificateSignatureEx(0,X509_ASN_ENCODING,CRYPT_VERIFY_CERT_SIGN_SUBJECT_BLOB,&blob,CRYPT_VERIFY_CERT_SIGN_ISSUER_PUBKEY,&ca_public,0,NULL));
+- {PAPACC_ISSUER_RESULT r=papacc_issuer_transition(&fixture_core,record.request.id,PAPACC_ISSUER_PUBLISHED);if(r)printf("NATIVE_TEST publish=%u phase=%u rev=%llu A=%llu factrev=%llu factA=%llu\n",r,record.state,fixture_view.revision,fixture_view.administrative_epoch,ephemeral_ack.revision,ephemeral_ack.administrative_epoch);CHECK(r==0&&native_signs==before+1);}
++ {PAPACC_ISSUER_RESULT r=ep_issuer_publish(&fixture_core,&enrollment_trace,&enrollment_pair,11,12,102);if(r)printf("NATIVE_TEST publish=%u phase=%u rev=%llu A=%llu factrev=%llu factA=%llu\n",r,record.state,fixture_view.revision,fixture_view.administrative_epoch,ephemeral_ack.revision,ephemeral_ack.administrative_epoch);CHECK(r==0&&native_signs==before+1);}
+  CHECK(papacc_issuer_query(&fixture_core,record.request.id,&actual)==0&&actual.published_epoch==ephemeral_ack.administrative_epoch);
++ CHECK(fixture_backend.ports.verify_request(&fixture_backend,&actual,enrollment_trace.csr,enrollment_trace.csr_size)==PAPACC_ISSUER_DENIED);
++ CHECK(fixture_backend.ports.verify_request_data(&fixture_backend,&actual,enrollment_trace.csr,enrollment_trace.csr_size)==0);
++ enrollment_trace.csr[enrollment_trace.csr_size-1]^=1;CHECK(ep_issuer_deliver(&fixture_core,&enrollment_trace,&enrollment_pair,11,12,102,out,sizeof(out),delivered,sizeof(delivered),&delivered_size)!=0&&native_signs==before+1);enrollment_trace.csr[enrollment_trace.csr_size-1]^=1;
++ CHECK(ep_issuer_deliver(&fixture_core,&enrollment_trace,&enrollment_pair,11,12,102,out,sizeof(out),delivered,sizeof(delivered),&delivered_size)==0&&delivered_size==record.certificate_size&&!memcmp(delivered,ephemeral_copy,delivered_size)&&native_signs==before+1);
++ CHECK(ep_issuer_deliver(&fixture_core,&enrollment_trace,&enrollment_pair,11,12,102,out,sizeof(out),delivered,sizeof(delivered),&delivered_size)!=0&&enrollment_trace.credential_released==1&&native_signs==before+1);
++ /* Existing CREDENTIALS layout, leaf then original public CA; no network.
++  * CSR is already copied into the trace and no core pending borrow remains. */
++ {PAPACC_SIZE message=24+delivered_size+initial_ca_der_bytes,wire_used;EP_FRAME frame;DWORD length;
++  CHECK(message<=sizeof(csr));memcpy(csr,enrollment_trace.request,16);length=(DWORD)delivered_size;
++  csr[16]=(BYTE)(length>>24);csr[17]=(BYTE)(length>>16);csr[18]=(BYTE)(length>>8);csr[19]=(BYTE)length;length=initial_ca_der_bytes;
++  csr[20]=(BYTE)(length>>24);csr[21]=(BYTE)(length>>16);csr[22]=(BYTE)(length>>8);csr[23]=(BYTE)length;
++  memcpy(csr+24,delivered,delivered_size);memcpy(csr+24+delivered_size,initial_ca_der,initial_ca_der_bytes);
++  CHECK(ep_frame_encode(6,3,EP_S2C,csr,message,out,sizeof(out),&wire_used)==EP_DATA_ONLY);
++  CHECK(ep_frame_decode(out,wire_used,EP_S2C,&frame)==EP_DATA_ONLY&&ep_trace_observe(&enrollment_trace,&frame,EP_S2C)==EP_DATA_ONLY&&enrollment_trace.terminal);
++  CHECK(ep_trace_observe(&enrollment_trace,&frame,EP_S2C)==EP_DENIED);
++ }
+  after=fixture_view;after.epoch++;CHECK(ephemeral_confirm(NULL,&fixture_view,&record,&after,&record)!=0);
+  ephemeral_image[400]^=1;CHECK(papacc_issuer_image_validate(ephemeral_image,&metadata,ephemeral_hash,NULL)!=0);ephemeral_image[400]^=1;
+  CHECK(papacc_issuer_image_ack(ephemeral_image,&record,&ephemeral_ack,ephemeral_hash,NULL)!=0); /* replay denied */
+--- before/docs/capabilities/phase6-scope-and-closure-20261028.md
++++ after/docs/capabilities/phase6-scope-and-closure-20261028.md
+@@ -1,4 +1,8 @@
+ # Phase 6 — escopo recuperado e plano de conclusão
++
++## Contexto elevado e consumidor CSR — 2026-10-29
++
++Coleta manual do proprietário reconciliada PASS no probe TEMP: Administrators habilitado, token Full e referências fechadas; nenhuma autoridade de instalação. Consumidor CSR integrado ao mesmo NORMAL com registro CLIENT original, PoP, quarentena, PENDING/poll, PUBLISHED/re-read e entrega única. Quatro builds sem warnings e 80 CTests PASS; CNG real efêmero, publicação/TLS/autoridade de fixture. E8 continua sem fontes factuais e L2 pendente. Valores recomendados, ainda não escolhidos: parent C:\ProgramData\PapinhoAccelerator, contêiner Personal e conta padrão dedicada .\PapaccRuntime. [Relatório](../integration/phase6-owner-context-csr-consumer-20261029/CONSOLIDATED-CLOSEOUT.md). Phase6 PARTIAL, autoridade DENY.
+ 
+ ## Contexto nativo e handoff CSR — 2026-10-29
+ 
+--- before/docs/capabilities/canonical-phase6-consolidation.md
++++ after/docs/capabilities/canonical-phase6-consolidation.md
+@@ -1,4 +1,8 @@
+ # ConsolidaÃ§Ã£o canÃ´nica Phase 6 â€” estado factual
++
++## Contexto elevado e consumidor CSR — 2026-10-29
++
++Coleta manual do proprietário reconciliada PASS no probe TEMP: Administrators habilitado, token Full e referências fechadas; nenhuma autoridade de instalação. Consumidor CSR integrado ao mesmo NORMAL com registro CLIENT original, PoP, quarentena, PENDING/poll, PUBLISHED/re-read e entrega única. Quatro builds sem warnings e 80 CTests PASS; CNG real efêmero, publicação/TLS/autoridade de fixture. E8 continua sem fontes factuais e L2 pendente. Valores recomendados, ainda não escolhidos: parent C:\ProgramData\PapinhoAccelerator, contêiner Personal e conta padrão dedicada .\PapaccRuntime. [Relatório](../integration/phase6-owner-context-csr-consumer-20261029/CONSOLIDATED-CLOSEOUT.md). Phase6 PARTIAL, autoridade DENY.
+ 
+ ## Contexto nativo e handoff CSR — 2026-10-29
+ 
+--- before/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
++++ after/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
+@@ -77,11 +77,11 @@
+  ('PST','SDK API3/SPI4 normal / API2 produção / R2','docs/adr/DECISION-phase6-canonical-consolidation-20261018.md','Ambos consumidores','INTEGRACAO_OFFLINE_COM_EVIDENCIA','B:docs/integration/api3-real-composition-20261018/CLOSEOUT.txt','qualificação conjunta normal final','C7;E19;E20','OBRIGATORIO_AMPLIADO','Verificar fonte e artefato exatos, não publicar065'),
+  ('LIFECYCLE-E5-E11','Qualificações históricas E5/E11 e ED08/Model E',wire,'Escopos originais separados dos E05/E11 LAB','PRESERVAR_SEM_REGRESSAO_DEMONSTRADA',old,'apenas diferenças de composição/callers atuais','nenhuma reabertura por checkpoint antigo','VALIDO_NO_ESCOPO; NAO_QUALIFICA_TODO_ALVO','Rastrear reutilização e diferenças, não refazer campanha'),
+  ('PROV-MANUAL','Pacote manual + importação granular permanente',manual_norm,'Secure pessoal/produto','FORMATOS_E_F1_F5_G0_G7_ACCEPTED; M1_SOURCE_ABSENT','docs/integration/phase6-product-closure-offline-20261028/CONSOLIDATED-CLOSEOUT.md','mp_auth_pdg_candidate/sp_trust_acquire e Browser M1 ainda negam por fonte factual ausente','PROV-ROOT;PROV-CA;ED11','OBRIGATORIO_AMPLIACAO_ACCEPTED','Integrar producers reais E8 antes de KDF; não pedir novamente formato ou delegação'),
+- ('PROV-AUTO','Enrollment com chave cliente/CSR-PoP/codigo',auto_norm,'Secure pessoal/produto','TRACE_CLAIM_AND_CSR_BORROW_DATA_QUALIFIED; AUTHORITY_UNBOUND','docs/integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md','CSR original ligada a trace/pair/conexao/geracao e validade; PoP, fontes de emissao e L2 ainda pendentes','PROV-ROOT;PROV-CA;ED11','OBRIGATORIO_AMPLIACAO_ACCEPTED','Integrar consumidor CSR original sem promover DATA a aprovacao ou inventar L2'),
++ ('PROV-AUTO','Enrollment CSR/PoP e entrega',auto_norm,'Secure pessoal/produto','CSR_NORMAL_PUBLISHED_DELIVERY_QUALIFIED_OFFLINE','docs/integration/phase6-owner-context-csr-consumer-20261029/CONSOLIDATED-CLOSEOUT.md','Consumidor real e PoP CNG; original CLIENT e publicacao exigidos, entrega unica; TLS/listener/L2/fontes operacionais pendentes','PROV-ROOT;PROV-CA;ED11','OBRIGATORIO_AMPLIACAO_ACCEPTED','Integrar fontes e representacao listener somente sob contratos accepted sem promover wire APPROVED a autoridade'),
+  ('PROV-ACCESS','OPEN/CLOSED e AUTO/MANUAL_APPROVAL',auto_norm,'Acesso enrollment, não redefinição geral AuthN','CONTRATOS_ACCEPTED; ep_trace_observe somente DATA',prov,'provider password e decisão/request atuais ausentes; código claimed não é aprovação','PROV-AUTO','OBRIGATORIO_AMPLIACAO_ACCEPTED','Conectar fontes factuais/CSR ao issuer; sem grants implícitos'),
+  ('PROV-HOT','Add/approve/renew/revoke sem restart',prov,'Mesmo root/issuer/cadastro','CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado','docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md','PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes','PROV-ROOT;PROV-CA','OBRIGATORIO_AMPLIACAO_ACCEPTED','Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch'),
+  ('PROV-REVOKE','Revogação ativa e novas admissões; histórico',mvp,'Pessoal M7','STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED','docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md','Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED','PROV-HOT;E18','OBRIGATORIO_AMPLIACAO_ACCEPTED','Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência'),
+- ('PROV-ROOT','Root pessoal NEW_INSTALL e presenter conjunto',mvp+';docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md','Pessoal/local','NATIVE_FIRST_DENY_ADMIN_ENABLED; NO_API_ERROR; OWNER_CONTEXT_PENDING','docs/integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md','Token observado nao elevado e sem Administrators; nenhum parent operacional provado; coletor manual pronto','PROV-CA;ED11','OBRIGATORIO_PESSOAL; FIXTURE_NAO_E_AUTORIDADE','Receber metadados do contexto legitimo ja elevado sem relaxar guard'),
++ ('PROV-ROOT','Root pessoal e presenter conjunto',mvp+';docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md','Pessoal/local','ELEVATED_TEMP_PROBE_PASS; TARGET_AND_RUNTIME_NOT_SELECTED','docs/integration/phase6-owner-context-csr-consumer-20261029/CONSOLIDATED-CLOSEOUT.md','Contexto elevado manual reconciliado; recomendacoes ainda nao designadas; parent real, SID/runtime e custodia MACHINE pendentes','PROV-CA;ED11','OBRIGATORIO_PESSOAL; FIXTURE_NAO_E_AUTORIDADE','Selecionar valores previstos e preparar metadados originais sem criar instalacao'),
+  ('PROV-CA','CA protegida/serial/UTC/issuer NORMAL',mvp+';docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md','M1/M3 NEW_INSTALL ou CA existente','CURRENTUSER_PERSISTENT_FIXTURE_REOPEN_PASS; OPERATIONAL_CEREMONY_DENY','docs/integration/phase6-persistent-ca-fixture-20261029/CONSOLIDATED-CLOSEOUT.md','Uma chave KSP de teste retida; reabertura e NORMAL reais; presenter e custodia MACHINE nao demonstrados','PROV-ROOT;ED11','OBRIGATORIO; RECOVERY_NAO_HERDADA','Integrar presenter nativo F0-F9 sem reutilizar fixture como autoridade; nao repetir cripto/CAS/TPM'),
+  ('SCM','Instalação/lifecycle/conta operacional pessoal',mvp,'Windows pessoal M5','HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS',ed,'readiness/acesso/Stop/restart normal/uninstall','E17;E18;PROV-ROOT','OBRIGATORIO_PESSOAL','Mapear CLI ao mesmo owner; não criar serviço agora'),
+  ('CONFIG','Config settings-only/listeners/live apply',mvp+';docs/adr/DECISION-personal-listener-selection-direction-20261023.md','Pessoal M6 e direção posterior','SUBSET_PARCIAL; detalhes defaultLan não aceitos', 'docs/future/personal-listener-selection-and-live-configuration.md','reconciliação CURRENT/reload e fontes reais','PROV-ROOT;PROV-HOT','OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES','Não congelar gramática/default novos por inferência'),
+--- before/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
++++ after/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
+@@ -42,11 +42,11 @@
+ PST,SDK API3/SPI4 normal / API2 produção / R2,docs/adr/DECISION-phase6-canonical-consolidation-20261018.md,Ambos consumidores,INTEGRACAO_OFFLINE_COM_EVIDENCIA,B:docs/integration/api3-real-composition-20261018/CLOSEOUT.txt,qualificação conjunta normal final,C7;E19;E20,OBRIGATORIO_AMPLIADO,"Verificar fonte e artefato exatos, não publicar065"
+ LIFECYCLE-E5-E11,Qualificações históricas E5/E11 e ED08/Model E,docs/adr/ADR-0034-pacc-c2-revision3-contract-and-separated-gates.md,Escopos originais separados dos E05/E11 LAB,PRESERVAR_SEM_REGRESSAO_DEMONSTRADA,docs/capabilities/phase6-c0-c12-recovery-20261011.md,apenas diferenças de composição/callers atuais,nenhuma reabertura por checkpoint antigo,VALIDO_NO_ESCOPO; NAO_QUALIFICA_TODO_ALVO,"Rastrear reutilização e diferenças, não refazer campanha"
+ PROV-MANUAL,Pacote manual + importação granular permanente,docs/adr/DECISION-production-client-provisioning-20261018.md;docs/adr/DECISION-manual-package-m0-m8-20261020.md;docs/adr/DECISION-package-signer-delegation-persistence-20261020.md;docs/adr/DECISION-factual-evidence-e0-e8-lifecycle-20261021.md,Secure pessoal/produto,FORMATOS_E_F1_F5_G0_G7_ACCEPTED; M1_SOURCE_ABSENT,docs/integration/phase6-product-closure-offline-20261028/CONSOLIDATED-CLOSEOUT.md,mp_auth_pdg_candidate/sp_trust_acquire e Browser M1 ainda negam por fonte factual ausente,PROV-ROOT;PROV-CA;ED11,OBRIGATORIO_AMPLIACAO_ACCEPTED,Integrar producers reais E8 antes de KDF; não pedir novamente formato ou delegação
+-PROV-AUTO,Enrollment com chave cliente/CSR-PoP/codigo,docs/adr/DECISION-production-client-provisioning-20261018.md;docs/adr/DECISION-pairing-enrollment-transport-20261020.md;docs/adr/DECISION-enrollment-listener-adr0009-specialization-20261020.md,Secure pessoal/produto,TRACE_CLAIM_AND_CSR_BORROW_DATA_QUALIFIED; AUTHORITY_UNBOUND,docs/integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md,"CSR original ligada a trace/pair/conexao/geracao e validade; PoP, fontes de emissao e L2 ainda pendentes",PROV-ROOT;PROV-CA;ED11,OBRIGATORIO_AMPLIACAO_ACCEPTED,Integrar consumidor CSR original sem promover DATA a aprovacao ou inventar L2
++PROV-AUTO,Enrollment CSR/PoP e entrega,docs/adr/DECISION-production-client-provisioning-20261018.md;docs/adr/DECISION-pairing-enrollment-transport-20261020.md;docs/adr/DECISION-enrollment-listener-adr0009-specialization-20261020.md,Secure pessoal/produto,CSR_NORMAL_PUBLISHED_DELIVERY_QUALIFIED_OFFLINE,docs/integration/phase6-owner-context-csr-consumer-20261029/CONSOLIDATED-CLOSEOUT.md,"Consumidor real e PoP CNG; original CLIENT e publicacao exigidos, entrega unica; TLS/listener/L2/fontes operacionais pendentes",PROV-ROOT;PROV-CA;ED11,OBRIGATORIO_AMPLIACAO_ACCEPTED,Integrar fontes e representacao listener somente sob contratos accepted sem promover wire APPROVED a autoridade
+ PROV-ACCESS,OPEN/CLOSED e AUTO/MANUAL_APPROVAL,docs/adr/DECISION-production-client-provisioning-20261018.md;docs/adr/DECISION-pairing-enrollment-transport-20261020.md;docs/adr/DECISION-enrollment-listener-adr0009-specialization-20261020.md,"Acesso enrollment, não redefinição geral AuthN",CONTRATOS_ACCEPTED; ep_trace_observe somente DATA,docs/adr/DECISION-production-client-provisioning-20261018.md,provider password e decisão/request atuais ausentes; código claimed não é aprovação,PROV-AUTO,OBRIGATORIO_AMPLIACAO_ACCEPTED,Conectar fontes factuais/CSR ao issuer; sem grants implícitos
+ PROV-HOT,Add/approve/renew/revoke sem restart,docs/adr/DECISION-production-client-provisioning-20261018.md,Mesmo root/issuer/cadastro,CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado,docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md,PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes,PROV-ROOT;PROV-CA,OBRIGATORIO_AMPLIACAO_ACCEPTED,Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch
+ PROV-REVOKE,Revogação ativa e novas admissões; histórico,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Pessoal M7,STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED,docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md,Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED,PROV-HOT;E18,OBRIGATORIO_AMPLIACAO_ACCEPTED,Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência
+-PROV-ROOT,Root pessoal NEW_INSTALL e presenter conjunto,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md,Pessoal/local,NATIVE_FIRST_DENY_ADMIN_ENABLED; NO_API_ERROR; OWNER_CONTEXT_PENDING,docs/integration/phase6-native-context-20261029/CONSOLIDATED-CLOSEOUT.md,Token observado nao elevado e sem Administrators; nenhum parent operacional provado; coletor manual pronto,PROV-CA;ED11,OBRIGATORIO_PESSOAL; FIXTURE_NAO_E_AUTORIDADE,Receber metadados do contexto legitimo ja elevado sem relaxar guard
++PROV-ROOT,Root pessoal e presenter conjunto,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md,Pessoal/local,ELEVATED_TEMP_PROBE_PASS; TARGET_AND_RUNTIME_NOT_SELECTED,docs/integration/phase6-owner-context-csr-consumer-20261029/CONSOLIDATED-CLOSEOUT.md,"Contexto elevado manual reconciliado; recomendacoes ainda nao designadas; parent real, SID/runtime e custodia MACHINE pendentes",PROV-CA;ED11,OBRIGATORIO_PESSOAL; FIXTURE_NAO_E_AUTORIDADE,Selecionar valores previstos e preparar metadados originais sem criar instalacao
+ PROV-CA,CA protegida/serial/UTC/issuer NORMAL,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md,M1/M3 NEW_INSTALL ou CA existente,CURRENTUSER_PERSISTENT_FIXTURE_REOPEN_PASS; OPERATIONAL_CEREMONY_DENY,docs/integration/phase6-persistent-ca-fixture-20261029/CONSOLIDATED-CLOSEOUT.md,Uma chave KSP de teste retida; reabertura e NORMAL reais; presenter e custodia MACHINE nao demonstrados,PROV-ROOT;ED11,OBRIGATORIO; RECOVERY_NAO_HERDADA,Integrar presenter nativo F0-F9 sem reutilizar fixture como autoridade; nao repetir cripto/CAS/TPM
+ SCM,Instalação/lifecycle/conta operacional pessoal,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Windows pessoal M5,HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS,docs/integration/n0start03-integrated-closeout-20261024/ED11_GATE_MATRIX.csv,readiness/acesso/Stop/restart normal/uninstall,E17;E18;PROV-ROOT,OBRIGATORIO_PESSOAL,Mapear CLI ao mesmo owner; não criar serviço agora
+ CONFIG,Config settings-only/listeners/live apply,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-listener-selection-direction-20261023.md,Pessoal M6 e direção posterior,SUBSET_PARCIAL; detalhes defaultLan não aceitos,docs/future/personal-listener-selection-and-live-configuration.md,reconciliação CURRENT/reload e fontes reais,PROV-ROOT;PROV-HOT,OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES,Não congelar gramática/default novos por inferência
+--- before/src/issuer/issuer_core.h
++++ after/src/issuer/issuer_core.h
+@@ -93,6 +93,9 @@
+   * ports are unavailable unless separate approved initialization binds them. */
+  PAPACC_ISSUER_RESULT (*entropy)(void *,PAPACC_U8 *,PAPACC_SIZE);
+  PAPACC_ISSUER_RESULT (*generate_key)(void *,const PAPACC_ISSUER_VIEW *,void **);
++ /* Optional public CSR/PoP validation only, including delivery after issuance.
++  * Never used by core to waive verify_request/sign-phase/authorize checks. */
++ PAPACC_ISSUER_RESULT (*verify_request_data)(void *,const PAPACC_ISSUER_RECORD *,const PAPACC_U8 *,PAPACC_SIZE);
+ } PAPACC_ISSUER_BACKEND;
+ typedef struct PAPACC_ISSUER_PENDING_STORE {
+  PAPACC_ISSUER_VIEW before;
+--- before/apps/server/server_issuer_windows_validation.c
++++ after/apps/server/server_issuer_windows_validation.c
+@@ -24,7 +24,7 @@
+ {
+  return p->cbData==2U&&p->pbData&&p->pbData[0]==5U&&p->pbData[1]==0U;
+ }
+-PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request(void *context,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE size)
++static PAPACC_ISSUER_RESULT verify_request_common(void *context,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE size,int enforce_phase)
+ {
+  PAPACC_ISSUER_WINDOWS_WORKSPACE *w=context;BYTE *cursor,*temporary,digest[32];
+  DWORD left,n,amount;void *space;CERT_SIGNED_CONTENT_INFO *signed_info;
+@@ -36,7 +36,7 @@
+     overlap(w,sizeof(*w),der,size)||overlap(w,sizeof(*w),r,sizeof(*r)))return PAPACC_ISSUER_INVALID;
+  w->native_error=0;if(w->stopped)return PAPACC_ISSUER_STOPPED;
+  if(r->request.purpose<PAPACC_ISSUER_CLIENT||r->request.purpose>PAPACC_ISSUER_PACKAGE||
+-   (r->state!=PAPACC_ISSUER_SERIAL_RESERVED&&r->state!=PAPACC_ISSUER_SIGN_REQUESTED))return PAPACC_ISSUER_DENIED;
++   (enforce_phase&&r->state!=PAPACC_ISSUER_SERIAL_RESERVED&&r->state!=PAPACC_ISSUER_SIGN_REQUESTED))return PAPACC_ISSUER_DENIED;
+  n=sizeof(digest);
+  if(!CryptHashCertificate2(BCRYPT_SHA256_ALGORITHM,0,NULL,der,(DWORD)size,digest,&n))return native_failure(w);
+  if(n!=sizeof(digest)||memcmp(digest,r->request.csr_digest,32U))return PAPACC_ISSUER_CONFLICT;
+@@ -90,3 +90,8 @@
+  /* A raw SUCCESS or READY flag cannot establish root reservation/authority. */
+  return PAPACC_ISSUER_DENIED;
+ }
++
++PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request(void *context,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE size)
++{return verify_request_common(context,r,der,size,1);}
++PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request_data(void *context,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE size)
++{return verify_request_common(context,r,der,size,0);} /* public proof only, never a signing-phase permit */
+--- before/apps/server/server_issuer_windows_validation.h
++++ after/apps/server/server_issuer_windows_validation.h
+@@ -16,6 +16,9 @@
+  * Attributes are unsupported in this first bounded preparation slice.
+  * Caller owns immutable record/CSR and must keep both disjoint from workspace. */
+ PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request(void *,const PAPACC_ISSUER_RECORD *,const PAPACC_U8 *,PAPACC_SIZE);
++/* Public CSR digest/SPKI/PoP check independent of issuance phase. Does not
++ * authorize issuance or reinterpret a published row as SIGN_REQUESTED. */
++PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request_data(void *,const PAPACC_ISSUER_RECORD *,const PAPACC_U8 *,PAPACC_SIZE);
+ /* Classification only; preserves key owner and original error receipt. Never
+  * creates, opens, signs, frees or retries. BAD_KEYSET is not global absence. */
+ PAPACC_ISSUER_RESULT papacc_issuer_windows_key_result(const PAPACC_CA_KEY *,SECURITY_STATUS);
+--- before/apps/server/server_issuer_cng_backend_win32.c
++++ after/apps/server/server_issuer_cng_backend_win32.c
+@@ -34,6 +34,8 @@
+ {PAPACC_ISSUER_CNG_BACKEND *b=ctx;if(!ready(b))return PAPACC_ISSUER_STOPPED;return b->administrative->utc(b->administrative->ctx,now);}
+ static PAPACC_ISSUER_RESULT request(void *ctx,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *csr,PAPACC_SIZE n)
+ {PAPACC_ISSUER_CNG_BACKEND *b=ctx;if(!ready(b))return PAPACC_ISSUER_STOPPED;return papacc_issuer_windows_verify_request(&b->workspace,r,csr,n);}
++static PAPACC_ISSUER_RESULT request_data(void *ctx,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *csr,PAPACC_SIZE n)
++{PAPACC_ISSUER_CNG_BACKEND *b=ctx;if(!ready(b)||b->active)return PAPACC_ISSUER_STOPPED;return papacc_issuer_windows_verify_request_data(&b->workspace,r,csr,n);}
+ static int public_match(PAPACC_ISSUER_CNG_BACKEND *b,const PAPACC_ISSUER_VIEW *v)
+ {
+  CERT_PUBLIC_KEY_INFO *info;BYTE *encoded,digest[32];DWORD n=0,k,z=32;b->win32_error=0;
+@@ -184,7 +186,7 @@
+  b->workspace.bytes=scratch;b->workspace.capacity=capacity;b->reserved=reserved+extra+capacity;b->thread=GetCurrentThreadId();b->initialized=1;
+  b->ports.ctx=b;b->ports.test_only=root->test_only||administrative->test_only;
+  b->ports.authorize=auth;b->ports.utc=utc;b->ports.verify_request=request;b->ports.acquire=acquire;
+- b->ports.sign=sign_request;b->ports.verify_certificate=certificate;b->ports.release=release;
++ b->ports.verify_request_data=request_data;b->ports.sign=sign_request;b->ports.verify_certificate=certificate;b->ports.release=release;
+  return PAPACC_ISSUER_OK;
+ }
+ void papacc_issuer_cng_backend_stop(PAPACC_ISSUER_CNG_BACKEND *b)
+--- before/src/provisioning/enrollment.c
++++ after/src/provisioning/enrollment.c
+@@ -102,7 +102,7 @@
+ EP_RESULT ep_trace_csr_candidate(const EP_TRACE *t,const EP_PAIR *p,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now,EP_SLICE *out){
+  if(!t||!p||!out||cross(t,sizeof(*t),p,sizeof(*p))||cross(t,sizeof(*t),out,sizeof(*out))||cross(p,sizeof(*p),out,sizeof(*out)))return EP_INVALID;
+  if(t->stopped||p->stopped)return EP_STOPPED;
+- if(!p->initialized||!p->submitted||!p->claimed||p->invalid||t->terminal||t->phase!=5U||t->pending||!t->csr_size||t->csr_size>sizeof(t->csr))return EP_DENIED;
++ if(!p->initialized||!p->submitted||!p->claimed||p->invalid||t->terminal||t->credential_released||t->phase!=5U||t->pending||!t->csr_size||t->csr_size>sizeof(t->csr))return EP_DENIED;
+  if(connection!=p->connection||generation!=p->generation||memcmp(t->request,p->request,16)||memcmp(t->client_nonce,p->client_nonce,32)||memcmp(t->server_nonce,p->server_nonce,32))return EP_DENIED;
+  if(now<p->last||now>=p->deadline)return EP_EXPIRED;
+  out->data=t->csr;out->size=t->csr_size;return EP_DATA_ONLY;
+--- before/src/provisioning/enrollment.h
++++ after/src/provisioning/enrollment.h
+@@ -28,6 +28,7 @@
+  * approval/policy/CURRENT/CSR-to-issuer binding remains UNBOUND and DENIED. */
+ typedef struct EP_TRACE {
+  unsigned sequence[2],phase,access,approval,wait_seen,pending,terminal,stopped;
++ unsigned credential_released; /* one recipient copy by existing owner, never an approval */
+  PAPACC_SIZE bytes[2],csr_size;
+  PAPACC_U8 client_nonce[32],server_nonce[32],server_fingerprint[32],request[16],csr[4096];
+ } EP_TRACE;
+--- before/src/provisioning/enrollment_issuer.c
++++ after/src/provisioning/enrollment_issuer.c
+@@ -0,0 +1,91 @@
++#include "enrollment_issuer.h"
++#include <string.h>
++static int ei_overlap(const void *p,PAPACC_SIZE n,const void *q,PAPACC_SIZE m)
++{PAPACC_SIZE a=(PAPACC_SIZE)p,b=(PAPACC_SIZE)q;if(n>(PAPACC_SIZE)-1-a||m>(PAPACC_SIZE)-1-b)return 1;return n&&m&&(a<=b?b-a<n:a-b<m);}
++static int ei_buffer(const PAPACC_ISSUER_CORE *c,const EP_TRACE *t,const EP_PAIR *p,const void *buffer,PAPACC_SIZE n)
++{return buffer&&n&&!ei_overlap(buffer,n,c,sizeof(*c))&&!ei_overlap(buffer,n,t,sizeof(*t))&&!ei_overlap(buffer,n,p,sizeof(*p));}
++static int ei_request_equal(const PAPACC_ISSUER_REQUEST *a,const PAPACC_ISSUER_REQUEST *b)
++{return !memcmp(a->id,b->id,16)&&!memcmp(a->device,b->device,16)&&!memcmp(a->csr_digest,b->csr_digest,32)&&!memcmp(a->key_digest,b->key_digest,32)&&!memcmp(a->predecessor,b->predecessor,16)&&a->purpose==b->purpose&&a->not_before==b->not_before&&a->not_after==b->not_after;}
++static PAPACC_ISSUER_RESULT ei_candidate(PAPACC_ISSUER_CORE *c,const EP_TRACE *t,const EP_PAIR *p,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now,EP_SLICE *csr)
++{
++ EP_RESULT r;
++ if(!c||!t||!p||ei_overlap(c,sizeof(*c),t,sizeof(*t))||ei_overlap(c,sizeof(*c),p,sizeof(*p))||ei_overlap(t,sizeof(*t),p,sizeof(*p)))return PAPACC_ISSUER_INVALID;
++ if(c->initialized!=1||c->continuity_profile!=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL)return PAPACC_ISSUER_DENIED;
++ if(c->busy)return PAPACC_ISSUER_BUSY;if(c->stopped)return PAPACC_ISSUER_STOPPED;
++ if(c->retained||c->blocked)return PAPACC_ISSUER_RETAINED;
++ r=ep_trace_csr_candidate(t,p,connection,generation,now,csr);
++ return r==EP_DATA_ONLY?PAPACC_ISSUER_OK:r==EP_INVALID?PAPACC_ISSUER_INVALID:r==EP_STOPPED?PAPACC_ISSUER_STOPPED:PAPACC_ISSUER_DENIED;
++}
++static PAPACC_ISSUER_RESULT ei_record(PAPACC_ISSUER_CORE *c,const EP_TRACE *t,PAPACC_ISSUER_RECORD *record)
++{
++ PAPACC_ISSUER_VIEW view;PAPACC_ISSUER_RECORD exact;int found=0;
++ PAPACC_ISSUER_RESULT r=papacc_issuer_query(c,t->request,record);
++ if(r)return r;
++ if(record->request.purpose!=PAPACC_ISSUER_CLIENT||memcmp(record->request.id,t->request,16))return PAPACC_ISSUER_DENIED;
++ /* An old row/received APPROVED is not current policy. Use only the original
++  * core root port, in the same serialized owner turn; never a supplied grant. */
++ r=c->root.read(c->root.ctx,t->request,&view,&exact,&found);if(r)return r;
++ if(!found||!papacc_issuer_view_proofs_valid(&view,PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL)||
++  view.revision<c->minimum_revision||view.high_water<c->minimum_counter||memcmp(view.root,c->root_id,32)||
++  !view.administrative_epoch||memcmp(view.prefix,c->prefix,8)||memcmp(view.authority,c->authority,16)||memcmp(view.generation,c->generation,16)||memcmp(view.ca_spki_digest,c->ca_spki_digest,32)||
++  view.epoch!=record->approved_epoch||memcmp(view.policy,record->policy,32))return PAPACC_ISSUER_DENIED;
++ if(exact.state!=record->state||!ei_request_equal(&exact.request,&record->request)||
++  memcmp(exact.authority,record->authority,16)||memcmp(exact.generation,record->generation,16)||memcmp(exact.serial,record->serial,16)||
++  memcmp(exact.policy,record->policy,32)||memcmp(exact.certificate_digest,record->certificate_digest,32)||
++  exact.counter!=record->counter||exact.approved_epoch!=record->approved_epoch||exact.published_epoch!=record->published_epoch||exact.certificate_size!=record->certificate_size)return PAPACC_ISSUER_CONFLICT;
++ return PAPACC_ISSUER_OK;
++}
++PAPACC_ISSUER_RESULT ep_issuer_submit(PAPACC_ISSUER_CORE *c,const EP_TRACE *t,const EP_PAIR *p,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now,PAPACC_U8 *quarantine,PAPACC_SIZE cap)
++{
++ EP_SLICE csr;PAPACC_ISSUER_RECORD record;PAPACC_ISSUER_RESULT r=ei_candidate(c,t,p,connection,generation,now,&csr);
++ if(r)return r;if(!ei_buffer(c,t,p,quarantine,cap))return PAPACC_ISSUER_INVALID;
++ if(c->pending.active)return PAPACC_ISSUER_BUSY;
++ r=ei_record(c,t,&record);if(r)return r;
++ /* No prepare/reserve/approval inferred from a wire APPROVED or a token. */
++ if(record.state!=PAPACC_ISSUER_SERIAL_RESERVED)return PAPACC_ISSUER_CONFLICT;
++ return papacc_issuer_issue(c,t->request,csr.data,csr.size,quarantine,cap);
++}
++PAPACC_ISSUER_RESULT ep_issuer_poll(PAPACC_ISSUER_CORE *c,const EP_TRACE *t,const EP_PAIR *p,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now,PAPACC_U8 *quarantine,PAPACC_SIZE cap)
++{
++ EP_SLICE csr;PAPACC_ISSUER_RESULT r=ei_candidate(c,t,p,connection,generation,now,&csr);
++ if(r==PAPACC_ISSUER_INVALID||r==PAPACC_ISSUER_BUSY)return r;
++ if(r&&!(r==PAPACC_ISSUER_STOPPED&&c&&c->stopped&&c->pending.active&&p->connection==connection&&p->generation==generation&&
++   !memcmp(t->request,p->request,16)&&!memcmp(t->client_nonce,p->client_nonce,32)&&!memcmp(t->server_nonce,p->server_nonce,32))){
++  /* No implicit global Stop, release or retry for an expired/lost connection.
++   * Explicit issuer Stop above permits ONLY its factual core poll below. */
++  if(c&&c->pending.active)return PAPACC_ISSUER_RETAINED;return r;
++ }
++ if(!ei_buffer(c,t,p,quarantine,cap)||!c->pending.active||memcmp(c->pending.next.request.id,t->request,16))return PAPACC_ISSUER_INVALID;
++ if(!c->pending.publish&&(c->pending.output!=quarantine||c->pending.output_capacity!=cap||
++   (c->pending.csr&&(c->pending.csr!=t->csr||c->pending.csr_size!=t->csr_size))))return PAPACC_ISSUER_CONFLICT;
++ return papacc_issuer_poll(c);
++}
++PAPACC_ISSUER_RESULT ep_issuer_publish(PAPACC_ISSUER_CORE *c,const EP_TRACE *t,const EP_PAIR *p,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now)
++{
++ EP_SLICE csr;PAPACC_ISSUER_RECORD record;PAPACC_ISSUER_RESULT r=ei_candidate(c,t,p,connection,generation,now,&csr);
++ if(r)return r;if(c->pending.active)return PAPACC_ISSUER_BUSY;
++ r=ei_record(c,t,&record);if(r)return r;
++ if(record.state!=PAPACC_ISSUER_ISSUED_UNPUBLISHED)return PAPACC_ISSUER_CONFLICT;
++ /* Actual PUBLISH authorization and original ack remain in the core/root. */
++ return papacc_issuer_transition(c,t->request,PAPACC_ISSUER_PUBLISHED);
++}
++PAPACC_ISSUER_RESULT ep_issuer_deliver(PAPACC_ISSUER_CORE *c,EP_TRACE *t,const EP_PAIR *p,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now,PAPACC_U8 *quarantine,PAPACC_SIZE cap,PAPACC_U8 *out,PAPACC_SIZE outcap,PAPACC_SIZE *used)
++{
++ EP_SLICE csr;PAPACC_ISSUER_RECORD before,after;PAPACC_ISSUER_RESULT r=ei_candidate(c,t,p,connection,generation,now,&csr);
++ if(r)return r;
++ if(!used||!ei_buffer(c,t,p,quarantine,cap)||!ei_buffer(c,t,p,out,outcap)||!ei_buffer(c,t,p,used,sizeof(*used))||
++  ei_overlap(quarantine,cap,out,outcap)||ei_overlap(used,sizeof(*used),out,outcap)||ei_overlap(used,sizeof(*used),quarantine,cap))return PAPACC_ISSUER_INVALID;
++ if(c->pending.active)return PAPACC_ISSUER_RETAINED;
++ r=ei_record(c,t,&before);if(r)return r;
++ if(before.state!=PAPACC_ISSUER_PUBLISHED||!before.published_epoch)return PAPACC_ISSUER_DENIED;
++ if(!before.certificate_size||before.certificate_size>cap||before.certificate_size>outcap)return PAPACC_ISSUER_LIMIT;
++ if(!c->backend||!c->backend->verify_request_data)return PAPACC_ISSUER_UNSUPPORTED;
++ r=c->backend->verify_request_data(c->backend->ctx,&before,csr.data,csr.size);if(r)return r;
++ r=papacc_issuer_issue(c,t->request,csr.data,csr.size,quarantine,cap);if(r)return r; /* verified existing DER; never resign */
++ r=ei_candidate(c,t,p,connection,generation,now,&csr);if(r)return r;
++ r=ei_record(c,t,&after);if(r)return r;
++ if(after.state!=PAPACC_ISSUER_PUBLISHED||!ei_request_equal(&after.request,&before.request)||after.counter!=before.counter||memcmp(after.policy,before.policy,32)||after.published_epoch!=before.published_epoch||after.certificate_size!=before.certificate_size||
++  memcmp(after.certificate_digest,before.certificate_digest,32)||memcmp(after.authority,before.authority,16)||memcmp(after.generation,before.generation,16)||
++  memcmp(after.serial,before.serial,16)||after.approved_epoch!=before.approved_epoch)return PAPACC_ISSUER_CONFLICT;
++ memcpy(out,quarantine,before.certificate_size);*used=before.certificate_size;t->credential_released=1;return PAPACC_ISSUER_OK;
++}
+--- before/src/provisioning/enrollment_issuer.h
++++ after/src/provisioning/enrollment_issuer.h
+@@ -0,0 +1,13 @@
++#ifndef PAPACC_ENROLLMENT_ISSUER_H
++#define PAPACC_ENROLLMENT_ISSUER_H
++#include "enrollment.h"
++#include "../issuer/issuer_core.h"
++/* Existing serialized owner only. No owner, approval, listener or authority
++ * factory. Requires a pre-existing authorized CLIENT record in NORMAL root.
++ * The trace/pair and quarantine stay immutable/alive through PENDING/RETAINED.
++ * No recipient output is exposed until explicit publication and revalidation. */
++PAPACC_ISSUER_RESULT ep_issuer_submit(PAPACC_ISSUER_CORE *,const EP_TRACE *,const EP_PAIR *,PAPACC_U64,PAPACC_U64,PAPACC_U64,PAPACC_U8 *,PAPACC_SIZE);
++PAPACC_ISSUER_RESULT ep_issuer_poll(PAPACC_ISSUER_CORE *,const EP_TRACE *,const EP_PAIR *,PAPACC_U64,PAPACC_U64,PAPACC_U64,PAPACC_U8 *,PAPACC_SIZE);
++PAPACC_ISSUER_RESULT ep_issuer_publish(PAPACC_ISSUER_CORE *,const EP_TRACE *,const EP_PAIR *,PAPACC_U64,PAPACC_U64,PAPACC_U64);
++PAPACC_ISSUER_RESULT ep_issuer_deliver(PAPACC_ISSUER_CORE *,EP_TRACE *,const EP_PAIR *,PAPACC_U64,PAPACC_U64,PAPACC_U64,PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *);
++#endif
+--- before/tests/enrollment_issuer_model_test.c
++++ after/tests/enrollment_issuer_model_test.c
+@@ -0,0 +1,68 @@
++/* Same issuer model, explicitly test-only authority. No product source grant. */
++#define main previous_issuer_model_main
++#include "issuer_core_test.c"
++#undef main
++#include "../src/provisioning/enrollment_issuer.h"
++static PAPACC_ISSUER_CORE consumer_core;
++static EP_TRACE consumer_trace;
++static EP_PAIR consumer_pair;
++static PAPACC_U8 quarantine[128],recipient[128];
++static PAPACC_ISSUER_RESULT mutate_request(void *ctx,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE n)
++{PAPACC_ISSUER_RESULT result=verify_req(ctx,r,der,n);m.records[0].request.device[0]^=1;return result;}
++static int consumer_setup(void)
++{
++ PAPACC_ISSUER_REQUEST q;setup();memset(&consumer_core,0,sizeof(consumer_core));
++ m.view.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;m.view.proofs=PAPACC_ISSUER_NORMAL_PROOFS;
++ backend.verify_request_data=verify_req;
++ CHECK(papacc_issuer_init_normal(&consumer_core,&root,&backend)==0);q=request(1);
++ CHECK(papacc_issuer_prepare(&consumer_core,&q)==0&&papacc_issuer_reserve(&consumer_core,q.id)==0);
++ memset(&consumer_trace,0,sizeof(consumer_trace));memset(&consumer_pair,0,sizeof(consumer_pair));
++ consumer_trace.phase=5;consumer_trace.csr[0]=7;consumer_trace.csr_size=1;memcpy(consumer_trace.request,q.id,16);memcpy(consumer_pair.request,q.id,16);
++ consumer_pair.initialized=consumer_pair.submitted=consumer_pair.claimed=1;consumer_pair.connection=11;consumer_pair.generation=12;consumer_pair.start=100;consumer_pair.last=101;consumer_pair.deadline=300100;
++ memset(quarantine,0,sizeof(quarantine));memset(recipient,0xa5,sizeof(recipient));m.owner=&consumer_core;return 0;
++}
++#define SUBMIT() ep_issuer_submit(&consumer_core,&consumer_trace,&consumer_pair,11,12,102,quarantine,sizeof(quarantine))
++#define POLL() ep_issuer_poll(&consumer_core,&consumer_trace,&consumer_pair,11,12,102,quarantine,sizeof(quarantine))
++#define PUBLISH() ep_issuer_publish(&consumer_core,&consumer_trace,&consumer_pair,11,12,102)
++#define DELIVER() ep_issuer_deliver(&consumer_core,&consumer_trace,&consumer_pair,11,12,102,quarantine,sizeof(quarantine),recipient,sizeof(recipient),&used)
++int main(void)
++{
++ unsigned fault,before,turn;PAPACC_SIZE used=77;PAPACC_ISSUER_RESULT r;
++ for(fault=0;fault<7;fault++){
++  CHECK(!consumer_setup());before=m.signs;
++  if(fault==0)m.deny_auth=1;if(fault==1)consumer_pair.generation++;
++  if(fault==2)consumer_trace.terminal=1;if(fault==3)m.view.epoch++;
++  if(fault==4)m.records[0].request.purpose=PAPACC_ISSUER_PACKAGE;
++  if(fault==5)consumer_trace.stopped=1;if(fault==6)m.view.proofs=0;
++  CHECK(SUBMIT()!=0&&m.signs==before&&recipient[0]==0xa5);
++ }
++ CHECK(!consumer_setup());CHECK(DELIVER()!=0&&used==77&&recipient[0]==0xa5);
++ CHECK(SUBMIT()==0&&m.signs==1);CHECK(SUBMIT()==PAPACC_ISSUER_CONFLICT&&m.signs==1);
++ CHECK(DELIVER()!=0&&used==77&&recipient[0]==0xa5);
++ m.allow_publish=1;CHECK(PUBLISH()==0);
++ memset(recipient,0xa5,sizeof(recipient));used=77;backend.verify_request_data=NULL;CHECK(DELIVER()==PAPACC_ISSUER_UNSUPPORTED&&used==77&&recipient[0]==0xa5);backend.verify_request_data=verify_req;
++ m.view.epoch++;CHECK(DELIVER()!=0&&used==77&&recipient[0]==0xa5);m.view.epoch--;
++ backend.verify_request_data=mutate_request;CHECK(DELIVER()==PAPACC_ISSUER_CONFLICT&&used==77&&recipient[0]==0xa5);m.records[0].request.device[0]^=1;backend.verify_request_data=verify_req;
++ m.bad_request=1;CHECK(DELIVER()!=0&&used==77&&recipient[0]==0xa5);m.bad_request=0;
++ m.bad_cert=1;CHECK(DELIVER()!=0&&used==77&&recipient[0]==0xa5);m.bad_cert=0;
++ CHECK(ep_issuer_deliver(&consumer_core,&consumer_trace,&consumer_pair,11,12,102,quarantine,sizeof(quarantine),quarantine,sizeof(quarantine),&used)==PAPACC_ISSUER_INVALID);
++ CHECK(DELIVER()==0&&used==3&&!memcmp(recipient,"DER",3)&&m.signs==1&&consumer_trace.credential_released==1);
++ CHECK(DELIVER()!=0&&used==3&&!memcmp(recipient,"DER",3)&&m.signs==1);
++ m.records[0].state=PAPACC_ISSUER_REVOKED;CHECK(DELIVER()!=0&&used==3&&!memcmp(recipient,"DER",3));
++ CHECK(!consumer_setup());m.async_mode=1;CHECK(SUBMIT()==PAPACC_ISSUER_PENDING&&!m.signs);
++ before=m.starts;CHECK(SUBMIT()==PAPACC_ISSUER_BUSY&&m.starts==before);
++ CHECK(POLL()==PAPACC_ISSUER_PENDING&&!m.signs);CHECK(POLL()==PAPACC_ISSUER_PENDING&&m.signs==1);
++ CHECK(POLL()==PAPACC_ISSUER_PENDING&&m.signs==1);CHECK(POLL()==0&&m.signs==1&&!consumer_core.lease);
++ m.allow_publish=1;CHECK(PUBLISH()==PAPACC_ISSUER_PENDING);CHECK(POLL()==PAPACC_ISSUER_PENDING);CHECK(POLL()==0&&m.signs==1);
++ CHECK(DELIVER()==0&&used==3&&m.signs==1);
++ CHECK(!consumer_setup());m.async_mode=1;CHECK(SUBMIT()==PAPACC_ISSUER_PENDING);
++ before=m.polls;CHECK(ep_issuer_poll(&consumer_core,&consumer_trace,&consumer_pair,11,99,102,quarantine,sizeof(quarantine))==PAPACC_ISSUER_RETAINED&&m.polls==before&&!m.signs);
++ CHECK(ep_issuer_poll(&consumer_core,&consumer_trace,&consumer_pair,11,12,consumer_pair.deadline,quarantine,sizeof(quarantine))==PAPACC_ISSUER_RETAINED&&m.polls==before);
++ papacc_issuer_stop(&consumer_core);r=PAPACC_ISSUER_PENDING;for(turn=0;turn<3&&r==PAPACC_ISSUER_PENDING;turn++)r=POLL();
++ CHECK(r==PAPACC_ISSUER_STOPPED&&!m.signs); /* factual owner query, not adapter retry */
++ CHECK(!consumer_setup());m.fail_release=1;CHECK(SUBMIT()==PAPACC_ISSUER_RETAINED&&m.signs==1&&consumer_core.lease);
++ CHECK(SUBMIT()==PAPACC_ISSUER_RETAINED&&m.signs==1);CHECK(DELIVER()!=0&&recipient[0]==0xa5);
++ CHECK(!consumer_setup());m.async_mode=1;CHECK(SUBMIT()==PAPACC_ISSUER_PENDING);consumer_trace.csr[0]=8;
++ CHECK(POLL()==PAPACC_ISSUER_PENDING);CHECK(POLL()!=0&&!m.signs);
++ printf("PASS ENROLLMENT_ISSUER_MODEL checks=%u ORIGINAL_CORE_PENDING_POLL_NO_RESIGN RECIPIENT_QUARANTINED NO_PRODUCT_AUTHORITY\n",checks);return 0;
++}

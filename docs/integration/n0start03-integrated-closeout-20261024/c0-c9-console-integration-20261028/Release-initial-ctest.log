@@ -1,0 +1,121 @@
+Internal ctest changing into directory: C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release
+UpdateCTestConfiguration  from :C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/DartConfiguration.tcl
+Parse Config file:C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/DartConfiguration.tcl
+UpdateCTestConfiguration  from :C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/DartConfiguration.tcl
+Parse Config file:C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/DartConfiguration.tcl
+Test project C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 144
+    Start 144: papacc.tpm_native.artifacts_faults
+
+144: Test command: C:\Strawberry\c\bin\cmake.exe "-DEXECUTABLE=C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/papacc_tpm_native_artifact_test.exe" "-DBASE=C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/Testing" "-DCERTIFICATE=C:/Projetos/PapinhoAccelerator/tools/qualification/tpm-native-proof/fixtures/ek-certificate.PUBLIC.der" "-DMODE=artifacts" "-P" "C:/Projetos/PapinhoAccelerator/tools/qualification/tpm-native-proof/run_fixture.cmake"
+144: Working Directory: C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release
+144: Test timeout computed to be: 1500
+144: -- PASS SIX_CONCURRENT_RECEIPT_CREATORS EXACTLY_ONE_MODEL_WINNER NO_AUTHORITY
+144: PASS ARTIFACT assertions=149 original_file/JSON/pin/publicDER/oneuse/stop/shortwrite/first/retained; no TPM, no real approval created
+144: 
+1/7 Test #144: papacc.tpm_native.artifacts_faults ....   Passed    0.15 sec
+test 145
+    Start 145: papacc.tpm_native.metadata_readonly
+
+145: Test command: C:\Projetos\PapinhoAccelerator\build\v3-backings-20261021\Selected\Release\papacc_tpm_native_platform_test.exe "--current-metadata-readonly"
+145: Working Directory: C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release
+145: Test timeout computed to be: 1500
+145: PASS C0_NATIVE_DISCOVERY_ALIASES_QUERY_LIFETIME_REVALIDATION_NEGATIVES
+145: PASS PLATFORM assertions=96 real_metadata_opt_in_only no_TPM no_approval owner_bytes=166808
+2/7 Test #145: papacc.tpm_native.metadata_readonly ...   Passed    0.04 sec
+test 146
+    Start 146: papacc.tpm_native.console_mock_e2e
+
+146: Test command: C:\Strawberry\c\bin\cmake.exe "-DEXECUTABLE=C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/papacc_tpm_native_e2e_fixture.exe" "-DBASE=C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/Testing" "-DMODE=console" "-P" "C:/Projetos/PapinhoAccelerator/tools/qualification/tpm-native-proof/run_fixture.cmake"
+146: Working Directory: C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release
+146: Test timeout computed to be: 1500
+146: -- UNKNOWN fixture child retained pid=13272 no kill
+146: 
+146: CMake Error at C:/Projetos/PapinhoAccelerator/tools/qualification/tpm-native-proof/run_fixture.cmake:17 (message):
+146:   Fixture failed (1); files retained in
+146:   C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/Testing/tpm-console-ae8e216bf45d6c23;
+146:   no operational retry/cleanup authority
+146: 
+146: 
+3/7 Test #146: papacc.tpm_native.console_mock_e2e ....***Failed   15.15 sec
+test 147
+    Start 147: papacc.tpm_native.protocol_offline
+
+147: Test command: C:\Projetos\PapinhoAccelerator\build\v3-backings-20261021\Selected\Release\papacc_tpm_native_core_test.exe "C:/Projetos/PapinhoAccelerator/tools/qualification/tpm-native-proof/fixtures/csharp-vectors.bin"
+147: Working Directory: C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release
+147: Test timeout computed to be: 1500
+147: CASE mode=0 peak=64 samples=26 retained=0 refs=0 first=NONE
+147: CASE mode=1 peak=63 samples=3 retained=0 refs=0 first=TBS_CONTEXT_OPEN
+147: CASE mode=2 peak=63 samples=3 retained=1 refs=5 first=TBS_CONTEXT_OPEN
+147: CASE mode=3 peak=65 samples=4 retained=0 refs=0 first=TPM_ERROR
+147: CASE mode=4 peak=65 samples=10 retained=1 refs=5 first=TBS_SUBMIT
+147: CASE mode=5 peak=66 samples=11 retained=1 refs=5 first=START_RESPONSE_UNKNOWN
+147: CASE mode=6 peak=67 samples=22 retained=1 refs=5 first=PROOF_HMAC_UNKNOWN
+147: CASE mode=7 peak=68 samples=24 retained=0 refs=0 first=FINAL_EK_CHANGED
+147: CASE mode=8 peak=68 samples=25 retained=1 refs=5 first=CONTEXT_CLOSE_UNKNOWN
+147: CASE mode=9 peak=69 samples=7 retained=0 refs=0 first=OWNER_STOP
+147: CASE mode=10 peak=68 samples=2 retained=0 refs=0 first=NATIVE_OBSERVER_HEADROOM
+147: CASE mode=11 peak=69 samples=26 retained=0 refs=0 first=NONE
+147: CASE mode=12 peak=69 samples=9 retained=0 refs=0 first=TOKEN_CONTINUITY_DENY
+147: CASE mode=13 peak=69 samples=4 retained=0 refs=0 first=RESPONSE_FRAME_UNKNOWN
+147: CASE mode=14 peak=69 samples=4 retained=0 refs=0 first=CAPABILITY_INCOMPLETE
+147: CASE mode=15 peak=69 samples=10 retained=0 refs=0 first=MULTIPLE_MATCHES
+147: CASE mode=16 peak=69 samples=6 retained=0 refs=0 first=NO_MATCHING_EK_NO_FALLBACK
+147: CASE mode=17 peak=69 samples=14 retained=1 refs=5 first=OWNER_STOP
+147: CASE mode=18 peak=70 samples=40 retained=0 refs=0 first=NONE
+147: CASE mode=19 peak=69 samples=3 retained=1 refs=4 first=TBS_CONTEXT_OPEN
+147: CASE mode=20 peak=70 samples=5 retained=0 refs=0 first=INJECTED_HASH_FAILURE
+147: PASS REAL_SYNTHETIC_HANDLE_PRESSURE_REJECTED BEFORE_ANY_TPM
+147: PASS assertions=3935 retained_models=7 no_real_TPM_no_authority owner_bytes=28688
+147: FINAL_ASSERTIONS=4375
+147: PASS CROSS_LANGUAGE exact KDF/319/48/89/HMAC/public398/capability/AES-CFB and398 public mutation decisions
+4/7 Test #147: papacc.tpm_native.protocol_offline ....   Passed    1.36 sec
+test 148
+    Start 148: papacc.tpm_native.guards_offline
+
+148: Test command: C:\Projetos\PapinhoAccelerator\build\v3-backings-20261021\Selected\Release\papacc_tpm_native_platform_test.exe
+148: Working Directory: C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release
+148: Test timeout computed to be: 1500
+148: PASS C0_NATIVE_DISCOVERY_ALIASES_QUERY_LIFETIME_REVALIDATION_NEGATIVES
+148: PASS PLATFORM assertions=92 real_metadata_opt_in_only no_TPM no_approval owner_bytes=166808
+5/7 Test #148: papacc.tpm_native.guards_offline ......   Passed    0.02 sec
+test 149
+    Start 149: papacc.tpm_native.selfcheck_no_tpm
+
+149: Test command: C:\Projetos\PapinhoAccelerator\build\v3-backings-20261021\Selected\Release\papacc_tpm_native_proof.exe "--selfcheck"
+149: Working Directory: C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release
+149: Test timeout computed to be: 1500
+149: SELF_CHECK_PASS CNG_ONLY NO_TPM_NO_APPROVAL_NO_AUTHORITY owner_bytes=28688 platform_bytes=166808 sampled_peak=81
+6/7 Test #149: papacc.tpm_native.selfcheck_no_tpm ....   Passed    0.04 sec
+test 150
+    Start 150: papacc.tpm_native.default_deny
+
+150: Test command: C:\Projetos\PapinhoAccelerator\build\v3-backings-20261021\Selected\Release\papacc_tpm_native_proof.exe
+150: Working Directory: C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release
+150: Test timeout computed to be: 1500
+150: DENY_NO_EXPLICIT_MANUAL_PROOF_PINS; NO_TPM
+7/7 Test #150: papacc.tpm_native.default_deny ........   Passed    0.02 sec
+
+The following tests passed:
+	papacc.tpm_native.artifacts_faults
+	papacc.tpm_native.metadata_readonly
+	papacc.tpm_native.protocol_offline
+	papacc.tpm_native.guards_offline
+	papacc.tpm_native.selfcheck_no_tpm
+	papacc.tpm_native.default_deny
+
+86% tests passed, 1 tests failed out of 7
+
+Total Test time (real) =  16.80 sec
+
+The following tests FAILED:
+	146 - papacc.tpm_native.console_mock_e2e (Failed)
+Errors while running CTest
+Output from these tests are in: C:/Projetos/PapinhoAccelerator/build/v3-backings-20261021/Selected/Release/Testing/Temporary/LastTest.log
+Use "--rerun-failed --output-on-failure" to re-run the failed cases verbosely.

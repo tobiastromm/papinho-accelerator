@@ -24,7 +24,7 @@ static int parameters(const CRYPT_OBJID_BLOB *p)
 {
  return p->cbData==2U&&p->pbData&&p->pbData[0]==5U&&p->pbData[1]==0U;
 }
-PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request(void *context,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE size)
+static PAPACC_ISSUER_RESULT verify_request_common(void *context,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE size,int enforce_phase)
 {
  PAPACC_ISSUER_WINDOWS_WORKSPACE *w=context;BYTE *cursor,*temporary,digest[32];
  DWORD left,n,amount;void *space;CERT_SIGNED_CONTENT_INFO *signed_info;
@@ -36,7 +36,7 @@ PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request(void *context,const PA
     overlap(w,sizeof(*w),der,size)||overlap(w,sizeof(*w),r,sizeof(*r)))return PAPACC_ISSUER_INVALID;
  w->native_error=0;if(w->stopped)return PAPACC_ISSUER_STOPPED;
  if(r->request.purpose<PAPACC_ISSUER_CLIENT||r->request.purpose>PAPACC_ISSUER_PACKAGE||
-   (r->state!=PAPACC_ISSUER_SERIAL_RESERVED&&r->state!=PAPACC_ISSUER_SIGN_REQUESTED))return PAPACC_ISSUER_DENIED;
+   (enforce_phase&&r->state!=PAPACC_ISSUER_SERIAL_RESERVED&&r->state!=PAPACC_ISSUER_SIGN_REQUESTED))return PAPACC_ISSUER_DENIED;
  n=sizeof(digest);
  if(!CryptHashCertificate2(BCRYPT_SHA256_ALGORITHM,0,NULL,der,(DWORD)size,digest,&n))return native_failure(w);
  if(n!=sizeof(digest)||memcmp(digest,r->request.csr_digest,32U))return PAPACC_ISSUER_CONFLICT;
@@ -90,3 +90,8 @@ PAPACC_ISSUER_RESULT papacc_issuer_windows_key_result(const PAPACC_CA_KEY *key,S
  /* A raw SUCCESS or READY flag cannot establish root reservation/authority. */
  return PAPACC_ISSUER_DENIED;
 }
+
+PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request(void *context,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE size)
+{return verify_request_common(context,r,der,size,1);}
+PAPACC_ISSUER_RESULT papacc_issuer_windows_verify_request_data(void *context,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE size)
+{return verify_request_common(context,r,der,size,0);} /* public proof only, never a signing-phase permit */

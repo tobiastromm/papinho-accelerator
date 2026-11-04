@@ -1,0 +1,21 @@
+{
+  "status": "INCOMPLETE_NORMATIVE_AND_LEDGER_BINDING_REQUIRED",
+  "historical_operation": "N0TOKEN-20261025-01",
+  "historical_attempt": "10584f02e11f92c92b43cddf0d9d316f",
+  "current_host_boot_operator": null,
+  "approval": null,
+  "existing_governed_consumption_ledger": null,
+  "ledger_native_identity_RAW1": null,
+  "script_hash": null,
+  "permitted": "prospective exact original-handle historical readback only",
+  "replay_protocol": [
+    "validate fresh context, operator, approval and original ledger parent using retained native handles",
+    "create one exclusive claim relative to original parent with explicit approved protection before any protected observation",
+    "bind authorization, historical identity, current context, exact artifact and original ledger identity",
+    "write complete record and flush; any partial/error/uncertain close consumes or quarantines authority and forbids observation/retry",
+    "revalidate original claim identity/content/security and factual closure before observation",
+    "existing claim of any content never adopted or overwritten; new process cannot reuse authority"
+  ],
+  "stop": "missing identity, substituted parent/claim, RAW1 mismatch, ambiguity, replay, Stop or failure => DENY/UNKNOWN; no automatic rollback",
+  "warning": "Protocol design only; native relative create/RAW1/ledger authority not implemented by fixture; no operational command generated"
+}

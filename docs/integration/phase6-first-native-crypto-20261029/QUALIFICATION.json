@@ -1,0 +1,100 @@
+{
+  "head": "f341985924d29870d8ff627ed37c8a0874ad6469",
+  "runs": [
+    {
+      "profile": "Selected",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "ctests": 14,
+      "synthetic_model_checks": 2718,
+      "native_ephemeral_checks": 67,
+      "real_signatures": 3,
+      "authority": "DENY",
+      "private_export": "NONE",
+      "persistent_keys": "NONE",
+      "binaries": {
+        "papacc_server.exe": "60eb6cb585460a1b7f58545e5ed8065ee67e257c32dae2b4e3997535132dcb74",
+        "papacc_issuer_cng_x509_test.exe": "c798c44e36d80b3335b3380f00b86d4edcc9089bebd7549aab40a8676341dbb0",
+        "papacc_issuer_cng_production_gate_test.exe": "88ddfb007ba5faf6727ac818821dc8377fbe027466af4e8c05a507069156d746"
+      }
+    },
+    {
+      "profile": "Selected",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "ctests": 14,
+      "synthetic_model_checks": 2718,
+      "native_ephemeral_checks": 67,
+      "real_signatures": 3,
+      "authority": "DENY",
+      "private_export": "NONE",
+      "persistent_keys": "NONE",
+      "binaries": {
+        "papacc_server.exe": "6c847f06234b2775fabb424c4e9ef9e2dd631bbdea6ab3466092bf6311156d13",
+        "papacc_issuer_cng_x509_test.exe": "1ecc623d0f6d7bc717c067b8103e860550d7697aa58d415c70967767dea3ba91",
+        "papacc_issuer_cng_production_gate_test.exe": "b466677638b94a786d075a61c84422593c3f729b01be644102bb49c60149e0dc"
+      }
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "ctests": 14,
+      "synthetic_model_checks": 2718,
+      "native_ephemeral_checks": 67,
+      "real_signatures": 3,
+      "authority": "DENY",
+      "private_export": "NONE",
+      "persistent_keys": "NONE",
+      "binaries": {
+        "papacc_server.exe": "49cf103f0bd4495eabb6a3451625400a731454643ef2d69fc3033dd96bb6045e",
+        "papacc_issuer_cng_x509_test.exe": "81e8ef4328ffccad0925f9fd014aafc650c5fae93928b50f576d4fc71e0098b3",
+        "papacc_issuer_cng_production_gate_test.exe": "545ab94707ae9b2c378a8ab7ebd8551951ea3c0901cd50329cceb4463e242fcc"
+      }
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Release",
+      "build": "PASS",
+      "warnings": 0,
+      "ctests": 14,
+      "synthetic_model_checks": 2718,
+      "native_ephemeral_checks": 67,
+      "real_signatures": 3,
+      "authority": "DENY",
+      "private_export": "NONE",
+      "persistent_keys": "NONE",
+      "binaries": {
+        "papacc_server.exe": "f7d5c6d32fb2cf85d6a23d6ad38844a3a0bf3544d0f3009feb512be280cb5a7f",
+        "papacc_issuer_cng_x509_test.exe": "1bdd49073ae99e53bd7f4b3cdafb6f70b0f3ec9d93d4a623dc2390e087fc541a",
+        "papacc_issuer_cng_production_gate_test.exe": "9c7b3b318fc5d85df383d22cdd6325df7fe120dfca2b923666f6344e6501e79c"
+      }
+    }
+  ],
+  "ctest_runs": 56,
+  "native_crypto": "CNG_SOFTWARE_KSP_EPHEMERAL_RSA2048_SHA256_REAL",
+  "creation_route": "REAL_CA_INITIALIZE_BODY_TEST_TRANSLATION; TEST_ONLY_NATIVE_CONTEXT_AND_KEY_CREATOR",
+  "ca_self_signature": "REAL_CNG_TEST_ORCHESTRATION_WITH_PRODUCT_TBS",
+  "leaf_signature": "REAL_PRODUCT_CNG_BACKEND_WITH_TEST_ONLY_ROOT_AUTHORITY",
+  "publication": "REAL_V2_CODEC_AND_SHA256; IN_MEMORY_CURRENT_AND_AUTHORITY_SIMULATED",
+  "custody": "REAL_BORROW_TRANSFER_RETURN; PERSISTENT_ACL_AND_CUSTODY_NOT_QUALIFIED",
+  "m7": "ACTUAL_ISSUED_DER_DIGEST_TO_SIMULATED_SESSION_COHORT; REAL_EFFECT_ONLY_API; NO_CLOSE_OR_QUIESCENCE_CLAIM",
+  "product_operations": "NONE",
+  "ephemeral_crypto": "EXECUTED_AUTHORIZED_ISOLATED",
+  "provider_kernel": "UNKNOWN",
+  "NORMAL": "DENY",
+  "ED11": "PARTIAL",
+  "Phase6": "PARTIAL",
+  "reused_unchanged_sources": {
+    "apps/server/server_configuration_personal_ca_win32.inc": "6cf39dbb905823944db0bd79960d324cd008b8e77380a1c1936aa267775e493d",
+    "apps/server/server_configuration_personal_data_win32.inc": "525901331afc3909b9b86f47c22cb4a7d0fbad6bec65503489149007c1109cb7",
+    "apps/server/server_configuration_root_transaction_win32.inc": "eba5f86a99b935f82f5f8a15529bf0dca4ca3aa398beef5eb064af9fb935605a",
+    "apps/server/server_configuration_pending_win32.h": "ff2275b16bf809cff2294f151ac42d47ff693ae7d86bebd887aeeb07d650d2ec",
+    "src/issuer/issuer_core.c": "e2cde813e6128f5f698f17ba669747dcd98f2111cf6c5481a46207ce1faf5630",
+    "src/issuer/issuer_codec.c": "26d693bf635a64e11caf906a2f9314cfab629853815f998bad8c7c4197bf96bc",
+    "src/issuer/issuer_publication_v2.inc": "df4e2d75caf924f56e378357e657499dd8ba41f70351ef72b3c62f725319b59d"
+  }
+}

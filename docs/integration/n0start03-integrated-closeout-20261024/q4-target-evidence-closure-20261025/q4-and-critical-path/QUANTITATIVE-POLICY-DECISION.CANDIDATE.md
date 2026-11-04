@@ -1,0 +1,11 @@
+# Quantitative target evidence policy: decision required, no values proposed as fact
+
+Status: PROPOSED decision alternatives only. No accepted ADR is modified; no target producer is activated for admission. Authority: DECISION-mode-c-evidence-validity-semantics-20261018 rules1–6 explicitly leave target metric/max-age/headroom PENDING_EVIDENCE_AND_SEPARATE_NORMATIVE_DECISION. Scope is the exact canonical Browser/C2/C3/provider pair and actual configured logical operations; LAB limits and residual acceptance H/Q do not supply product policy.
+
+A. Supported hard envelope: choose this only when each mandatory provider/kernel/transitive category has a verifiable exact backend/architecture recipe and a justified ceiling. Benefit: explicit bounded guarantee. Consequence: unavailable category keeps DENY; source requests and sampled maxima cannot qualify as ceilings.
+
+B. Delimited empirical coverage: choose only after specifying which opaque categories lack a hard envelope, which guarantee is relaxed, exact supported pair/host/profile/multiplicity/lifecycle, representative phases/negative coverage, observation overhead and stopping/invalidation conditions. Controlled references, retained credit, identity, freshness, Stop and no-replay remain mandatory. Consequence: bounded scope of residual risk, never a universal cap or zero cost. No existing H/Q acceptance is inherited.
+
+C. Preserve STOP: retain data-only evidence and RESOURCE_UNKNOWN until A or B is justified. Consequence: tests/producers can improve provenance but cannot positively reserve capacity.
+
+For A or B the owner must explicitly decide, backed by actual evidence: target metric(s) and units; maximum sample age and collection validity at the actual local validation point; absolute/delta headroom and non-overlap accounting; per-process versus shared host scope; supported actual pair/module/configuration/policy identities; permitted multiplicities including retained operations; policy expiration/invalidation and handling of observation failure. No numerical placeholder is an approved zero/unlimited value. The decision must be registered normatively before dependent positive admission integration. Distinct operational composition approval remains necessary after technical qualification.

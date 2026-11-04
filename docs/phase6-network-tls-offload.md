@@ -1,5 +1,15 @@
 # Phase 6 — Network & TLS Offload
 
+## Plano consolidado recuperado — 2026-10-28
+
+O [plano de escopo e fechamento](capabilities/phase6-scope-and-closure-20261028.md)
+reconcilia C0–C12, Modes A–D, provisão pessoal/produto e ED11 E01–E22 numa
+matriz rastreável. A rota histórica Q4/cross-boot/TPM permanece governada no
+seu escopo; não é pré-requisito TPM universal de NEW_INSTALL ou da integração
+offline. Esta anotação corrige a sequência documental, sem dispensar reservas,
+UNKNOWN, gates accepted ou autorizar bootstrap/publicação. O relatório histórico
+e as ampliações expressamente aprovadas abaixo permanecem preservados.
+
 Status atual (2026-10-18): Phase 6 integral OPEN / NOT COMPLETE.
 O READY/complete do relatório original abaixo qualifica somente o escopo
 histórico Network & TLS Offload/Mode B; não fecha a integração canônica posterior
@@ -429,3 +439,24 @@ portable security repeats  5/5 PASS
 high-risk six-gate matrix   3/3 PASS
 git diff --check           PASS
 ```
+
+## 2026-10-31 — original caller integration, offline only
+
+Closed diagnostic Start now calls the existing owner/controller preparation and
+separate SCQ/Start confirmation composition, with pre-effect close and UNKNOWN
+retention. Four final builds are warning-free;92 affected CTest/configuration
+pairs pass. This is partial: cold administrative-original acquisition and the
+receiver's independent bootstrap/endpoint source are still absent; native resource
+sufficiency remains UNKNOWN/DENY. No Start, endpoint, staged update or protected
+operation occurred. E21 PENDING; ED11/Phase6 PARTIAL; OS quiescence UNKNOWN.
+[Evidence and precise cuts](integration/phase6-original-callers-20261031/CLOSEOUT.md).
+
+## 2026-10-31 — original endpoint act, offline
+
+Endpoint confirmation/one-use consumption now has an independent source-local
+act; it does not authorize Start or resources. Original capture phase1 can resume
+the controller composition without recapture. Four final builds zero warnings;
+96 affected test/configuration pairs PASS. Cold initial sources remain incomplete,
+native Start admission UNKNOWN/DENY; assurance choice is PROPOSED only. No staged
+update, endpoint, Start/Stop or other protected effect. E21 PENDING; ED11/Phase6
+PARTIAL, OS quiescence UNKNOWN. [Evidence](integration/phase6-bootstrap-source-assurance-20261031/CLOSEOUT.md).

@@ -1,0 +1,4 @@
+# Próximo prompt executável — autorização observação focal
+Como proprietário, autorizo uma única execução manual somente leitura conforme ONE-FCA-INITIAL-RESOURCE-OBSERVATION-REQUEST.CANDIDATE.md, SHA256a8661aea0ce677f53ff8e39ca04a3206df909ec9c07ca0858f7272540c56220d.
+Reconheço que são outro processo/instante/custos, não prova da amostra histórica nem admissão futura FCA, e que o observador não consegue demonstrar handles históricos do controlador. Registrar decisão e preparar comando manual com hashes reais, sem executar automaticamente.
+Sem retry, UPDATE/FCA/coleta adicional/SCM/StartStop/endpoint/chaves/diretórios/ACL/CA-CURRENT/rede/TPM-NV-Q4/limpeza/refund/kill/produção. Manter limites/UNKNOWN/históricos/consumos/PST0.6.4.

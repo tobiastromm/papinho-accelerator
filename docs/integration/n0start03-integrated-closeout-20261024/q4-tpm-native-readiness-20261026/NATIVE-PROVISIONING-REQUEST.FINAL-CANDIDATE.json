@@ -1,0 +1,81 @@
+{
+  "status": "REVISED_CANDIDATE_NOT_EXECUTABLE_NATIVE_READONLY_QUALIFIED_FACTUAL_GAPS_REMAIN",
+  "purpose": "isolated real TPM counter provision/persistence experiment only, no Q4 reader or root publication",
+  "historical_reference_only": "N0TOKEN-20261025-01 /10584f02e11f92c92b43cddf0d9d316f; no consumed authority reused",
+  "index": "0x01804143",
+  "definition": {
+    "hierarchy": "TPM_RH_OWNER",
+    "name_alg": "SHA256",
+    "data_bytes": 8,
+    "attributes": "0x00040014",
+    "authPolicy": "empty; AUTHREAD/AUTHWRITE with independently approved 32-byte auth credential and HMAC session",
+    "ORDERLY": false
+  },
+  "permitted_future_effects_if_exactly_approved": {
+    "NV_DefineSpace_maximum": 1,
+    "NV_Increment_total_maximum": 2,
+    "increment_roles": [
+      "one initialization burn; observe actual baseline, never assume zero or one",
+      "at most one synthetic consumption increment; must match pinned baseline+1"
+    ],
+    "NV_ReadPublic": "same newly created index only",
+    "NV_Read": "8-byte counter of new owned index only",
+    "reboot": "not authorized by this candidate; separate owner-controlled persistence observation after current result",
+    "real_failure_injection": "NONE; destructive/reset/close faults simulated only"
+  },
+  "preconditions": {
+    "W0_W7_acceptance": "ABSENT",
+    "L0_L7_designation": "ABSENT",
+    "new_exact_operational_approval": null,
+    "actual_host_boot_operator_token": null,
+    "authenticated_device_generation": "NOT_OBTAINED; public EK query returned admin-required string; manual public collector prepared",
+    "NV_hierarchy_authorization_custody": null,
+    "per_index_auth_custody": null,
+    "native_write_adapter_and_hash": "NOT_QUALIFIED; no mutating command allowed by read-only transport",
+    "approved_resource_envelope": null,
+    "native_readonly_adapter": "ReadOnlyAdapter.cs; native metadata + GetCapability + candidate NV_ReadPublic; structural tests qualified"
+  },
+  "STOP": [
+    "index present/collision => no adoption, no alternative index",
+    "cannot authenticate device/generation => no write",
+    "owner hierarchy auth unavailable => no empty-password attempt or registry secret extraction",
+    "credential custody unproved => no definition",
+    "blocked command or auth failure => no policy edits or retries",
+    "increment request sent but result ambiguous => burn/UNKNOWN, no resend",
+    "baseline mismatch, readback failure, overflow, local commit/close UNKNOWN => no further effects",
+    "no credential/lease wipe or dependency release before factual closure; preserve UNKNOWN"
+  ],
+  "prohibited": [
+    "TPM2_Clear",
+    "undefine/redefine or reuse index",
+    "change hierarchy/GPO/SCM/ACL",
+    "attempt real wrong auth or DA-lockout tests",
+    "adopt other existing NV objects",
+    "operational intent/Q4/LAB/Start/Stop",
+    "root/CURRENT publication",
+    "delete/overwrite/rollback/retry/refund",
+    "new infrastructure or generic authority"
+  ],
+  "retention": "index persists on completion/failure; no automatic deletion or cleanup approved; spent authority never reused; any future disposal requires separate exact authorization",
+  "manual_command": null,
+  "approval_created_by_agent": false,
+  "candidate_native_observation": {
+    "index": "0x01804143",
+    "capability_absent": true,
+    "NV_ReadPublic_TPM_RC": "0x0000008b",
+    "close": true,
+    "retained": false,
+    "first": "TPM_0000008b",
+    "exit": 2,
+    "scope": "missing/unavailable handle negative; no public area observed, not ownership proof"
+  },
+  "parameter_review": {
+    "index": "unchanged; absence not reservation",
+    "attributes": "unchanged candidate0x00040014, ORDERLY clear; actual future readback required",
+    "initial_counter": "never assumed zero/one; actual first increment value must be observed",
+    "increments": "unchanged max2; no concurrency-induced extra increments",
+    "authorization": "AUTHREAD/AUTHWRITE; hierarchy secret and index auth never guessed or retrieved by this task; HMAC command transport still required before write readiness",
+    "retention": "defined index remains; no auto deletion, credential custody must survive authorized restart, no refund"
+  },
+  "prior_candidate_sha256": "3686c32133f635aeebb331a34902154e0ea6e2d01ed14c32c2f32a3db53845d0"
+}

@@ -1,0 +1,561 @@
+--- before/CMakeLists.txt
++++ after/CMakeLists.txt
+@@ -2777,7 +2777,7 @@
+     if(NOT PAPACC_ENABLE_OFFLINE_LST1)
+         message(FATAL_ERROR "ROOT8 requires existing offline LST1 codec")
+     endif()
+-    add_library(papacc_config_root8 STATIC src/config/config_root8.c src/config/config_root8_v2.c src/config/config_root8_v3.c src/config/config_root8_v4.c src/config/config_root8_time_source_key.c src/issuer/strict_ed25519.c)
++    add_library(papacc_config_root8 STATIC src/config/config_root8.c src/config/config_root8_v2.c src/config/config_root8_v3.c src/config/config_root8_v4.c src/config/config_root8_v5.c src/config/config_root8_time_source_key.c src/issuer/strict_ed25519.c)
+     target_include_directories(papacc_config_root8 PUBLIC src/config include)
+     target_link_libraries(papacc_config_root8 PUBLIC papacc_config_lst1 papacc_issuer)
+     set_target_properties(papacc_config_root8 PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+@@ -3680,3 +3680,33 @@
+  set_target_properties(papacc_q4_root_binding_data_test PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+  add_test(NAME papacc.q4.root_binding_data COMMAND papacc_q4_root_binding_data_test)
+ endif()
++
++# Accepted L1 carrier DATA, no authority or native execution.
++if(TARGET papacc_config_root8_v4_test)
++ add_executable(papacc_config_root8_v5_test tests/config_root8_v5_test.c apps/server/server_config_root8_data_win32.c)
++ target_include_directories(papacc_config_root8_v5_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} src/config src/issuer apps/server)
++ target_compile_definitions(papacc_config_root8_v5_test PRIVATE PAPACC_OFFLINE_D3_WORKER=1)
++ target_link_libraries(papacc_config_root8_v5_test PRIVATE papacc_config_root8 papacc_server_run_win32 papacc_config_binding papacc_issuer papacc_root8_signer_data crypt32)
++ papacc_enable_warnings(papacc_config_root8_v5_test)
++ papacc_stage_pst_runtime(papacc_config_root8_v5_test)
++ add_test(NAME papacc.config_root8.v5_offline COMMAND papacc_config_root8_v5_test)
++endif()
++
++if(TARGET papacc_v4_transaction_worker_test)
++ add_executable(papacc_v5_transaction_worker_test tests/v5_transaction_worker_win32_test.c
++  apps/server/server_configuration_commit_win32.c apps/server/server_config_root8_data_win32.c)
++ target_compile_definitions(papacc_v5_transaction_worker_test PRIVATE PAPACC_V3_BACKING_FIXTURE=1 PAPACC_V4_BACKING_FIXTURE=1
++  PAPACC_V5_BACKING_FIXTURE=1 PAPACC_OFFLINE_D3_WORKER=1 PAPACC_ISSUER_STORAGE_COMPONENT_TEST=1)
++ target_include_directories(papacc_v5_transaction_worker_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} src/config src/issuer apps/server)
++ target_link_libraries(papacc_v5_transaction_worker_test PRIVATE papacc_config_root8 papacc_server_config
++  papacc_issuer papacc_root8_signer_data papacc_storage_sha256 bcrypt ktmw32 crypt32 advapi32)
++ target_compile_options(papacc_v5_transaction_worker_test PRIVATE /W4 /WX)
++endif()
++
++# The direct same-worker fixtures reuse the canonical personal DATA dependency
++# already required by the current worker translation unit; no alternative stub.
++foreach(t papacc_v4_transaction_worker_test papacc_v5_transaction_worker_test)
++ if(TARGET ${t})
++  target_sources(${t} PRIVATE apps/server/personal_plan_data.c)
++ endif()
++endforeach()
+--- before/apps/server/server_configuration_pending_win32.h
++++ after/apps/server/server_configuration_pending_win32.h
+@@ -9,8 +9,8 @@
+ /* Storage capacity only: format/admission/authority guards remain independent.
+  * Historical codec constants and non-selected targets are unchanged. */
+ #if defined(PAPACC_ED11_WINDOWS_3MIB)
+-#include "../../src/config/config_root8_v4.h"
+-#define PAPACC_CONFIG_TRANSACTION_BYTES PC_ROOT8_V4_MAX
++#include "../../src/config/config_root8_v5.h"
++#define PAPACC_CONFIG_TRANSACTION_BYTES PC_ROOT8_V5_MAX
+ #else
+ #define PAPACC_CONFIG_TRANSACTION_BYTES PAPACC_ISSUER_LINKED_ROOT_BYTES
+ #endif
+--- before/apps/server/server_configuration_commit_win32.h
++++ after/apps/server/server_configuration_commit_win32.h
+@@ -44,11 +44,11 @@
+  * Full image owns SNT/PDG/issuer/BODY/policy references. CA is public DER only.
+  * Selected Windows process reserves all three slots even when dormant. */
+ #if defined(PAPACC_C8_PRIVATE_STORAGE_PROFILE) && defined(PAPACC_ED11_WINDOWS_3MIB)
+-#include "../../src/config/config_root8_v4.h"
++#include "../../src/config/config_root8_v5.h"
+ #define PAPACC_CONFIG_V3_CA_BYTES 8192U
+ #define PAPACC_CONFIG_V4_CAPTURE_WORKSPACE_MAX 32768U
+ typedef struct PAPACC_CONFIG_V3_BACKING {
+- unsigned char packet[PC_ROOT8_V4_MAX],ca[PAPACC_CONFIG_V3_CA_BYTES];
++ unsigned char packet[PC_ROOT8_V5_MAX],ca[PAPACC_CONFIG_V3_CA_BYTES];
+  unsigned char packet_hash[32],ca_hash[32];
+  PAPACC_SIZE packet_bytes,ca_bytes;
+  PAPACC_U64 serial; /* exact existing slot generation, not an epoch */
+--- before/apps/server/server_configuration_pending_win32.inc
++++ after/apps/server/server_configuration_pending_win32.inc
+@@ -46,7 +46,7 @@
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+     &&p->packet_format!=8U
+ #if defined(PAPACC_ED11_WINDOWS_3MIB)
+-    &&p->packet_format!=11U
++    &&p->packet_format!=11U&&p->packet_format!=14U
+ #endif
+ #endif
+    )return 0;
+@@ -59,7 +59,8 @@
+ #ifdef PAPACC_OFFLINE_D3_WORKER
+  else if(p->packet_format==8U){if(!pending_d3_packet_valid(p))return 0;}
+ #if defined(PAPACC_ED11_WINDOWS_3MIB)
+- else if(!pending_packet11_valid(&p->store_hash,p))return 0;
++ else if(p->packet_format==11U){if(!pending_packet11_valid(&p->store_hash,p))return 0;}
++ else if(p->packet_format==14U){if(!pending_packet14_valid(&p->store_hash,p))return 0;}
+ #endif
+ #endif
+  if(InterlockedCompareExchange(&p->stop,0,0))return 0;
+@@ -260,7 +261,7 @@
+   return PAPACC_RESULT_OK;
+  } if(p->packet_format==8U
+ #if defined(PAPACC_ED11_WINDOWS_3MIB)
+-    ||p->packet_format==11U
++    ||p->packet_format==11U||p->packet_format==14U
+ #endif
+    ){
+   /* Persisted packet is NOT a published slot. Preserve both images and deny
+@@ -574,4 +575,20 @@
+ }
+ PAPACC_RESULT papacc_v3_worker_fixture_poll(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER_CAS_RESULT *out)
+ {if(!owner(o)||o->pending_commit.packet_format!=11U)return PAPACC_RESULT_INVALID_STATE;return pending_poll06(o,out);}
+-#endif
++PAPACC_RESULT papacc_v5_worker_fixture_start(PAPACC_CONFIGURATION_COMMIT *o,HANDLE identity)
++{
++ PAPACC_CONFIG_PENDING *p;BY_HANDLE_FILE_INFORMATION f;
++ if(!owner(o)||o->published||o->prepared||o->committed_pending||o->stopped||o->unresolved||o->authority_lost)return PAPACC_RESULT_INVALID_STATE;
++ p=&o->pending_commit;if(papacc_store_hash_blocked(&p->store_hash))return PAPACC_RESULT_INVALID_STATE;
++ if(p->active||p->thread||!pending_packet14_valid(&o->store_hash,p)||identity==INVALID_HANDLE_VALUE||
++ !GetFileInformationByHandle(identity,&f)||(f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return PAPACC_RESULT_INVALID_STATE;
++ p->packet_format=14U;p->file=INVALID_HANDLE_VALUE;p->expected_volume=f.dwVolumeSerialNumber;
++ p->expected_index_high=f.nFileIndexHigh;p->expected_index_low=f.nFileIndexLow;
++ memcpy(p->path,o->path,sizeof(p->path));p->result=PAPACC_COMMIT_PENDING;p->active=1;
++ p->thread=CreateThread(NULL,PAPACC_PENDING_STACK_BYTES,pending_worker,p,STACK_SIZE_PARAM_IS_A_RESERVATION,NULL);
++ if(!p->thread){p->active=0;p->native_error=GetLastError();p->result=PAPACC_COMMIT_FAILED;return PAPACC_RESULT_INTERNAL_ERROR;}
++ return PAPACC_RESULT_OK;
++}
++PAPACC_RESULT papacc_v5_worker_fixture_poll(PAPACC_CONFIGURATION_COMMIT *o,PAPACC_ISSUER_CAS_RESULT *out)
++{if(!owner(o)||o->pending_commit.packet_format!=14U)return PAPACC_RESULT_INVALID_STATE;return pending_poll06(o,out);}
++#endif
+--- before/apps/server/server_configuration_d3_worker_win32.inc
++++ after/apps/server/server_configuration_d3_worker_win32.inc
+@@ -1,6 +1,7 @@
+ /* Opt-in offline adapter, same worker and root. No initialization/publication. */
+ #include "../../src/config/config_root8.h"
+ #include "server_config_root8_data_win32.h"
++#include "../../src/config/config_root8_time_source_key.h"
+ static PAPACC_U64 d3_u64(const PAPACC_U8 *p)
+ {PAPACC_U64 x=0;unsigned i;for(i=0;i<8U;i++)x|=(PAPACC_U64)p[i]<<(8U*i);return x;}
+ static unsigned d3_u32(const PAPACC_U8 *p)
+@@ -74,4 +75,21 @@
+  if(K!=D||(K&&memcmp(a+d3_u32(a+276)+64U,b+d3_u32(b+276)+64U,384U*K)))return 0;
+  return 1;
+ }
++/* Packet14 is frozen documentary DATA only. No public positive producer.
++ * Full component/trust qualification precedes freezing, as for packet11. */
++static int q4_worker_hash(void *ctx,const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 out[32])
++{return n<=PC_ROOT8_V5_MAX&&store03_hash((PAPACC_STORE_HASH *)ctx,p,(unsigned)n,out);}
++static PC_ROOT8_RESULT q4_frozen_component(void *ctx,unsigned kind,const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *header)
++{
++ if(kind==5U)return papacc_root8_body05_data(ctx,kind,p,n,row,header);
++ if(kind==9U)return header[8]==5U?pc_root8_v5_key_data(ctx,kind,p,n,row,header):pc_root8_time_source_key_data(ctx,kind,p,n,row,header);
++ /* Structural frozen guard only; NOT authentication/manifest resolution. */
++ return kind>=5U&&kind<=10U?PC_ROOT8_OK:PC_ROOT8_INCOMPLETE;
++}
++static int pending_packet14_valid(PAPACC_STORE_HASH *ctx,const PAPACC_CONFIG_PENDING *p)
++{
++ if(p->previous_bytes>sizeof(p->previous)||p->next_bytes>sizeof(p->next))return 0;
++ if(pc_root8_v5_base_link(p->next,p->next_bytes,p->previous,p->previous_bytes,q4_worker_hash,ctx,q4_frozen_component,ctx)!=PC_ROOT8_OK)return 0;
++ return store03_zero(p->next+d3_u32(p->next+56),512U);
++}
+ #endif
+--- before/docs/capabilities/canonical-phase6-consolidation.md
++++ after/docs/capabilities/canonical-phase6-consolidation.md
+@@ -1130,3 +1130,8 @@
+ ## 2026-10-26 - L1 exact amendment and single native possession experiment candidate
+ 
+ Prepared proposed512byte Q4 component/root-v5 amendment; not accepted or product-linked. New salted unbound HMAC proof avoids AK/key creation/hierarchy auth if a qualified existing EK is accessible. Eight isolated builds zero warnings;1092 new mock assertions plus17 affected worker tests and4 component methods PASS. Native host compiled, selfchecked/denied WITHOUT TPM; real mode blocked by exact owner approval, metadata/token/budget guards and interactive confirmation. No approval file or native command activated. Existing528/46 artifacts hash-match and were reused. Worker fixture now enforces writer-thread ownership and exact expected preimage. Revocation stays UNKNOWN; mathematical proof would not grant W2/W4 trust, NV generation, credits or Q4. E17/E18 source reuse confirmed; D4/D5 and actual target E19/E20 remain independent, no invented parameters. [Consolidated report](../integration/n0start03-integrated-closeout-20261024/tpm-l1-native-proof-and-parallel-closure-20261026/CONSOLIDATED-CLOSEOUT.md). E21 pending; ED11/Phase6 PARTIAL; histories/pins/reservations preserved.
++
++
++## 2026-10-27 — L1 accepted and owner-manual TPM proof ready
++
++Exact L1 amendment accepted in DECISION-q4-l1-single-root-component-20261027. New private carrier5/Q4 component and packet14 freeze guard reuse the canonical owner/backings/native CAS worker, preserving v3/v4 readers and sources. Four product/codec builds zero warnings; new DATA and native synthetic conflict/Stop/UNKNOWN tests qualified. Selected root266656bytes (+3072 across six buffers), Legacy98088 unchanged; no quota/credit. This is technical format/frozen-worker qualification, not a factual manifest/authority producer, real TPM persistence or root publication. Separate exact transient salted-proof approval registered; manual command ready, native mode NOT_EXECUTED. Hardware generation, custody/NV, Q4 readback/disposition remain pending. E17/E18 still need eligible independent service lifecycle; E19/E20 need justified D4/D5 and bound actual composition independently of TPM. [Consolidated report](../integration/n0start03-integrated-closeout-20261024/l1-accepted-tpm-manual-readiness-20261027/CONSOLIDATED-CLOSEOUT.md). E21/ED11/Phase6 remain pending/PARTIAL; histories/pins/UNKNOWN/reservations preserved.
+--- before/docs/integration/n0start03-integrated-closeout-20261024/ED11_GATE_MATRIX.csv
++++ after/docs/integration/n0start03-integrated-closeout-20261024/ED11_GATE_MATRIX.csv
+@@ -1,6 +1,6 @@
+ gate,requirement,status,current_evidence,factual_gap,closure_evidence_or_action,operational_dependency,stop_condition,closure_class
+ E01,ED11 normative limits/profile separation,PASS_DEMONSTRADO,Normas accepted/quotas e separação LAB/produção válidas; ed11-final-closure-resolution-20261025/CONSOLIDATED-CLOSURE-REVIEW.md,R0–R9 ACCEPTED apenas para regra prospectiva privada e avaliação documental; nenhuma autoridade operacional,Preservar limites e escopos accepted; sem waiver geral,NONE_FOR_EXISTING_NORMS,Different scope/authority => DENY,PASS_DEMONSTRADO
+-E02,Managed own storage/individual quotas/lifetime accounting,PASS_LIMITADO_AO_ESCOPO_OBSERVADO,"Ledgers A1/storage e transporte qualificados offline; nenhum storage de produto alterado; ed11-final-closure-resolution-20261025/CONSOLIDATED-CLOSURE-REVIEW.md; R integrado: +72bytes no owner compilado, frame próprio/custos distintos medidos; r0-r9-acceptance-and-integration-20261025/CONSOLIDATED-CLOSEOUT.md; typedviews: Accelerator1624bytes caller scratch/zero persistent owner growth; Browser216bytes scratch, frames measured; q4-target-evidence-closure-20261025/CONSOLIDATED-CLOSEOUT.md; compiled bounds: C2 manager527824, bridge132448, Browser child charge1858020bytes; composite-target-quantitative-closure-20261026/CONSOLIDATED-CLOSEOUT.md; passive caller copy4648/provider value60 bytes; persistent owner layouts unchanged; own frames measured; d0-d9-bounded-diagnostic-policy-20261026/CONSOLIDATED-CLOSEOUT.md; W/L root binding caller88bytes, root struct unchanged, no ED11 credit; wl-acceptance-and-tpm-readiness-20261026/SOURCE-REVIEW.json","Custos novos ledgerados offline, sem crédito; composição completa do serviço e alvo ainda não observada",Cobrir recursos reais em ciclo futuro elegível e no alvo composto,OPERATIONAL,Missing controlled charge/overlap or limit crossing => DENY,PASS_LIMITADO_AO_ESCOPO_OBSERVADO
++E02,Managed own storage/individual quotas/lifetime accounting,PASS_LIMITADO_AO_ESCOPO_OBSERVADO,"Ledgers A1/storage e transporte qualificados offline; nenhum storage de produto alterado; ed11-final-closure-resolution-20261025/CONSOLIDATED-CLOSURE-REVIEW.md; R integrado: +72bytes no owner compilado, frame próprio/custos distintos medidos; r0-r9-acceptance-and-integration-20261025/CONSOLIDATED-CLOSEOUT.md; typedviews: Accelerator1624bytes caller scratch/zero persistent owner growth; Browser216bytes scratch, frames measured; q4-target-evidence-closure-20261025/CONSOLIDATED-CLOSEOUT.md; compiled bounds: C2 manager527824, bridge132448, Browser child charge1858020bytes; composite-target-quantitative-closure-20261026/CONSOLIDATED-CLOSEOUT.md; passive caller copy4648/provider value60 bytes; persistent owner layouts unchanged; own frames measured; d0-d9-bounded-diagnostic-policy-20261026/CONSOLIDATED-CLOSEOUT.md; W/L root binding caller88bytes, root struct unchanged, no ED11 credit; wl-acceptance-and-tpm-readiness-20261026/SOURCE-REVIEW.json; L1 ACCEPTED exact335dd1: carrier5 DATA and same-owner packet14 qualified; Selected owner266656 delta3072, Legacy98088 unchanged; 4builds zero warnings; 20native synthetic CAS/Stop/UNKNOWN cases; native proof approved manual NOT_EXECUTED; l1-accepted-tpm-manual-readiness-20261027/CONSOLIDATED-CLOSEOUT.md","Custos novos ledgerados offline, sem crédito; composição completa do serviço e alvo ainda não observada",Cobrir recursos reais em ciclo futuro elegível e no alvo composto,OPERATIONAL,Missing controlled charge/overlap or limit crossing => DENY,PASS_LIMITADO_AO_ESCOPO_OBSERVADO
+ E03,Canonical owner/exclusivity/once-only mechanisms,PASS_LIMITADO_AO_ESCOPO_OBSERVADO,Owner/mutex/consumo único executados; intent Q4 consumido e não reutilizável; ed11-final-closure-resolution-20261025/CONSOLIDATED-CLOSURE-REVIEW.md,Nova admissão não coberta; nenhuma reserva histórica liberada,Dispor Q4 sob escopo próprio e exigir nova identidade/autorização antes de futuro ciclo,NORMATIVE_AND_OPERATIONAL,Competing owner/claim/pending controlled resource => STOP,PASS_LIMITADO_AO_ESCOPO_OBSERVADO
+ E04,N0 protected original file identity/RAW1/provenance,PASS_LIMITADO_AO_ESCOPO_OBSERVADO,Dossiê Q4 IDs originais/RAW1 passou na execução pela sequência fixada; ed11-final-closure-resolution-20261025/CONSOLIDATED-CLOSURE-REVIEW.md,Readback atual dos novos efeitos protegido ainda não executado,Uma leitura protegida original de intent/imagem/sink/config/dossiê; nenhuma nova colocação,READONLY_MANUAL,Any missing/stale/substituted/reparse/RAW mismatch => DENY,PASS_LIMITADO_AO_ESCOPO_OBSERVADO
+ E05,Specific N7 and historical H/P3 coverage,PASS_DEMONSTRADO,N7 específico e H/P/Q riscos aceitos para identidades exatas; UNKNOWN preservado; ed11-final-closure-resolution-20261025/CONSOLIDATED-CLOSURE-REVIEW.md,Não se aplicam automaticamente a outra operação nem extinguem custos,Preservar registros; nova identidade precisaria escopo/N7 próprio,NONE_FOR_HISTORICAL_SCOPE,Unknown controlled lifetime or incompatible obligations => DENY,PASS_DEMONSTRADO
+@@ -19,7 +19,7 @@
+ E18,Actual service Stop/termination/quiescence/final close,PENDENTE_OBSERVACAO_OPERACIONAL,Processo original terminou e close local confirmado; Stop0; ed11-final-closure-resolution-20261025/CONSOLIDATED-CLOSURE-REVIEW.md; desenho de Stop solicitado/aceito/concluído e retenção independente preparado; q4-target-evidence-closure-20261025/CONSOLIDATED-CLOSEOUT.md,Stop solicitado/aceito/concluído e readiness real não demonstrados,Um ciclo positivo independente elegível deve provar Stop governado e fechamento; não repetir identidade consumida,OPERATIONAL_AFTER_SCOPE,Stop requested != accepted != done; timeout/window close != quiescence; retain UNKNOWN,PENDENTE_OBSERVACAO_OPERACIONAL
+ E19,User/kernel/provider total target attribution,PENDENTE_DECISAO_NORMATIVA_E_INTEGRACAO_ALVO,"Projeção tipada do produtor native já existente integrada ao root; 528checks novos, quatro builds normais e APIs/fontes oficiais conferidas; q4-target-evidence-closure-20261025/CONSOLIDATED-CLOSEOUT.md; new native runtime-core20processes/240lifetimes/500samples providerinitialized0; six compiled layout probes; composite-target-quantitative-closure-20261026/CONSOLIDATED-CLOSEOUT.md; one-op getter prototype4builds/68simulated checks, offline coverage33cases; one-op-correlated-diagnostic-design-20261026/CONSOLIDATED-CLOSEOUT.md; active-capable provider metadata getters now integrated in existing C3/Browser owners; raw C8 passive history copy preserves phase/timestamps; 6product builds/134simulated getter checks/608normal-root checks; d0-d9-bounded-diagnostic-policy-20261026/CONSOLIDATED-CLOSEOUT.md","Direction B selected; D2 ACCEPTED preparation-only (DECISION-mode-c-d2-one-operation-preparation-exception-20261026); remainder D0-D9 proposed. No active correlated provider/kernel envelope, justified target freshness/overall duration/headroom or complete applicable policy",Owner decide garantia/suporte; produzir anexo quantitativo com evidência e receita exata antes de instalação/admissão positiva; nenhuma constante LAB herdada,TARGET_POLICY_THEN_PRODUCER_AND_REAL_COMPOSITION,Unknown controlled lifetime blocks; opaque historic residues stay UNKNOWN under H not fictitious zero,PENDENTE_DECISAO_NORMATIVA_E_INTEGRACAO_ALVO
+ E20,Full Browser/C2/C3/shared-owner runtime total ED11,PENDENTE_INTEGRACAO_E_QUALIFICACAO_ALVO,"Browser owner receipt usa projeções tipadas de slots nativos existentes; 4builds VC6/x86,8142checks,16regressões; Accelerator4builds/12runs normais; q4-target-evidence-closure-20261025/CONSOLIDATED-CLOSEOUT.md; actual VC6 Browser charge1858020bytes fits once, twice3716040 exceeds2097152 controlled cap; no quota change; composite-target-quantitative-closure-20261026/CONSOLIDATED-CLOSEOUT.md; real one-op topology and per-owner phases mapped; offline prefix/identity/backend/clock/replay checks integrated; one-op-correlated-diagnostic-design-20261026/CONSOLIDATED-CLOSEOUT.md; offline artifact-byte bound corrected for actual1.73MiB pair images, actual-byte/synthetic-reference regression passes DENY; normal MSVC Selected/Legacy and Browser VC6 candidate builds pass; passive getter/copy paths integrated without positive admission; d0-d9-bounded-diagnostic-policy-20261026/CONSOLIDATED-CLOSEOUT.md",No active correlated pair or approved policy. Slot maximum2 is not guarantee of two reservations; even one remains denied without provider/kernel/host policy,"D2 ACCEPTED preparation-only; owner decides justified D4/D5 quantitative annex; bind actual root/CURRENT/epoch/SiteTLS/destination/modules/host, then exact separately approved one-operation request; no repeated selection of B",TARGET_POLICY_AND_ARTIFACT_PAIR_THEN_AUTHORIZED_TARGET_RUN,Do not promote scoped fixture or LAB decision to full target PASS,PENDENTE_INTEGRACAO_E_QUALIFICACAO_ALVO
+-E21,Independent budgets/credits/retained historical reservations,PENDENTE_READBACK_E_DISPOSICAO_DOCUMENTAL,"Owner manual Verify reported HOST_BOOT_DENY at script line48 before protected readers; 22 repository dependency hashes PASS; q4-readback-reconciliation-and-d4d5-20261026/CONSOLIDATED-REPORT.md; cross-boot accepted; eight mechanism classes audited; actual issuer checkpoint Debug/Release104checks PASS; q4-durable-ledger-resolution-20261026/CONSOLIDATED-CLOSEOUT.md; TPM native read-only adapter254mock checks + actual missing-index RC0x8b/closed observation; q4-tpm-native-readiness-20261026/CONSOLIDATED-CLOSEOUT.md; W/L ACCEPTED independently; logical root pin bridge + isolated write/custody qualified; no native EK/provisioning/readback; wl-acceptance-and-tpm-readiness-20261026/CONSOLIDATED-CLOSEOUT.md; owner public EK query firstNONE/exit0 reconciled scoped metadata, not authenticated TPM or Q4; ek-public-native-result-reconciliation-20261026/CONSOLIDATED-RECONCILIATION.md; isolated credential728checks and protocol38methods/160fault combinations PASS; no native possession/durable worker proof; tpm-identity-custody-closure-20261026/CONSOLIDATED-CLOSEOUT.md; isolated flushed worker14tests and mock adapter134checks PASS, collector prepared not executed; ek-collection-and-durable-worker-20261026/CONSOLIDATED-CLOSEOUT.md; actual EK PKCS1/certificate exact match and Intel chain signatures verified; device CRL403 and possession/generation UNKNOWN; ek-public-bytes-native-result-20261026/CONSOLIDATED-RECONCILIATION.md; canonical binding-current528checks/4builds and fresh software possession46checks PASS; no native possession or persistent product participant; tpm-possession-custody-root-integration-20261026/CONSOLIDATED-CLOSEOUT.md; exact L1 amendment proposed and single salted-session native proof host prepared NOT_EXECUTED;1092mock checks/17worker tests/4component methods PASS; tpm-l1-native-proof-and-parallel-closure-20261026/CONSOLIDATED-CLOSEOUT.md","Protected Q4 readback/R7 absent; EK public metadata observed but trust/live possession/device generation not proved; actual hierarchy/index custody, native NV persistence and persistent root component missing; historical UNKNOWN/reservations preserved",Resolve authenticated-device and credential/durable binding prerequisites; no equivalent metadata query repeat; separate exact hardware experiment and later Q4/disposition approvals,MANUAL_EK_FACTS_AND_SEPARATE_HARDWARE_Q4_DISPOSITION_APPROVALS,Incompatible real reservations or controlled UNKNOWN => DENY,PENDENTE_READBACK_E_DISPOSICAO_DOCUMENTAL
++E21,Independent budgets/credits/retained historical reservations,PENDENTE_READBACK_E_DISPOSICAO_DOCUMENTAL,"Owner manual Verify reported HOST_BOOT_DENY at script line48 before protected readers; 22 repository dependency hashes PASS; q4-readback-reconciliation-and-d4d5-20261026/CONSOLIDATED-REPORT.md; cross-boot accepted; eight mechanism classes audited; actual issuer checkpoint Debug/Release104checks PASS; q4-durable-ledger-resolution-20261026/CONSOLIDATED-CLOSEOUT.md; TPM native read-only adapter254mock checks + actual missing-index RC0x8b/closed observation; q4-tpm-native-readiness-20261026/CONSOLIDATED-CLOSEOUT.md; W/L ACCEPTED independently; logical root pin bridge + isolated write/custody qualified; no native EK/provisioning/readback; wl-acceptance-and-tpm-readiness-20261026/CONSOLIDATED-CLOSEOUT.md; owner public EK query firstNONE/exit0 reconciled scoped metadata, not authenticated TPM or Q4; ek-public-native-result-reconciliation-20261026/CONSOLIDATED-RECONCILIATION.md; isolated credential728checks and protocol38methods/160fault combinations PASS; no native possession/durable worker proof; tpm-identity-custody-closure-20261026/CONSOLIDATED-CLOSEOUT.md; isolated flushed worker14tests and mock adapter134checks PASS, collector prepared not executed; ek-collection-and-durable-worker-20261026/CONSOLIDATED-CLOSEOUT.md; actual EK PKCS1/certificate exact match and Intel chain signatures verified; device CRL403 and possession/generation UNKNOWN; ek-public-bytes-native-result-20261026/CONSOLIDATED-RECONCILIATION.md; canonical binding-current528checks/4builds and fresh software possession46checks PASS; no native possession or persistent product participant; tpm-possession-custody-root-integration-20261026/CONSOLIDATED-CLOSEOUT.md; exact L1 amendment proposed and single salted-session native proof host prepared NOT_EXECUTED;1092mock checks/17worker tests/4component methods PASS; tpm-l1-native-proof-and-parallel-closure-20261026/CONSOLIDATED-CLOSEOUT.md; L1 ACCEPTED exact335dd1: carrier5 DATA and same-owner packet14 qualified; Selected owner266656 delta3072, Legacy98088 unchanged; 4builds zero warnings; 20native synthetic CAS/Stop/UNKNOWN cases; native proof approved manual NOT_EXECUTED; l1-accepted-tpm-manual-readiness-20261027/CONSOLIDATED-CLOSEOUT.md",Protected Q4 readback/R7 absent; native EK possession and hardware generation not proved; actual custody/NV persistence and factual protected manifests pending. Carrier5/packet14 qualified offline/synthetic only; no production authority producer or root publication. Historical UNKNOWN/reservations retained.,Resolve authenticated-device and credential/durable binding prerequisites; no equivalent metadata query repeat; separate exact hardware experiment and later Q4/disposition approvals,MANUAL_EK_FACTS_AND_SEPARATE_HARDWARE_Q4_DISPOSITION_APPROVALS,Incompatible real reservations or controlled UNKNOWN => DENY,PENDENTE_READBACK_E_DISPOSICAO_DOCUMENTAL
+ E22,ED11 total closure,PENDENTE_DEPENDENCIAS,"4demonstrados/12limitados/6pendentes mantidos; novas implementações reais e testes não equivalem a admissão/fechamento; q4-target-evidence-closure-20261025/CONSOLIDATED-CLOSEOUT.md; quantitative investigation adds controlled bounds/core observations only; composite-target-quantitative-closure-20261026/CONSOLIDATED-CLOSEOUT.md; one-op design/analysis only, unchanged4demonstrated/12limited/6pending; one-op-correlated-diagnostic-design-20261026/CONSOLIDATED-CLOSEOUT.md; Option B technical implementation qualified but no normative acceptance/effects; 4/12/6 preserved; d0-d9-bounded-diagnostic-policy-20261026/CONSOLIDATED-CLOSEOUT.md",E17/E18/E19/E20/E21 e escopos reais dos gates limitados ainda abertos,Fechar dependências do caminho crítico; nenhum teste/registro isolado fecha este agregado,DERIVED_NO_EXTRA_CLOSURE_OPERATION,Any mandatory applicable gate unresolved => PARTIAL/operational DENY,PENDENTE_DEPENDENCIAS
+ Q4_PREPARATION,Independent token diagnostic identity and bounded scope,PROPOSED,q4-independent-token-diagnostic-20261025/CONSOLIDATED-CLOSEOUT.md; four isolated builds zero warnings; models/native fixture checks PASS,New service token unobserved; final binding N7 budget and operation approval absent,Owner exact annex selection Q5 scope and separate technical integration authority,YES separately approved future operation,Controlled UNKNOWN incompatible reservation wrong identity or absent authority => DENY,PENDING_NATIVE
+ Q4_BINDING,Independent selected identity and closed canonical integration,QUALIFIED_OFFLINE_CLOSED,q4-annex-acceptance-and-binding-20261025/CONSOLIDATED-CLOSEOUT.md; supersedes proposed identity-stage state of Q4_PREPARATION,New specific N7 protected inputs and fresh independent budget absent; service token still UNKNOWN,Exact N7 and new protected binding review; final Q7 manual authorization later,YES separate future exact authority,Absent mandatory proof or controlled UNKNOWN => DENY,PENDING_NATIVE
+--- /dev/null
++++ after/src/config/config_root8_v5.c
+@@ -0,0 +1,191 @@
++#include "config_root8_v5.h"
++#include "config_root8_internal.h"
++#include "../issuer/issuer_codec.h"
++#include <stdint.h>
++#include "../issuer/strict_ed25519.h"
++#include <string.h>
++static unsigned u16(const PAPACC_U8 *p){return (unsigned)p[0]|((unsigned)p[1]<<8);}
++static PAPACC_U32 u32(const PAPACC_U8 *p){return (PAPACC_U32)p[0]|((PAPACC_U32)p[1]<<8)|((PAPACC_U32)p[2]<<16)|((PAPACC_U32)p[3]<<24);}
++static PAPACC_U64 u64(const PAPACC_U8 *p){PAPACC_U64 x=0;unsigned j;for(j=0;j<8U;j++)x|=(PAPACC_U64)p[j]<<(8U*j);return x;}
++static int range(const void *p,PAPACC_SIZE n){return p&&n&&n-1U<=UINTPTR_MAX-(uintptr_t)p;}
++static int cross(const void *a,PAPACC_SIZE n,const void *b,PAPACC_SIZE m){uintptr_t x=(uintptr_t)a,y=(uintptr_t)b;return x<=y?y-x<n:x-y<m;}
++static int zero(const PAPACC_U8 *p,PAPACC_SIZE n){PAPACC_SIZE j;for(j=0;j<n;j++)if(p[j])return 0;return 1;}
++static PC_ROOT8_RESULT digest(const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *expected,PC_LST1_HASH hash,void *ctx)
++{PAPACC_U8 d[32];if(!hash||!hash(ctx,p,n,d))return PC_ROOT8_HASH_FAILED;return memcmp(d,expected,32)?PC_ROOT8_INVALID:PC_ROOT8_OK;}
++static PC_ROOT8_RESULT header(const PAPACC_U8 *p,PAPACC_SIZE n)
++{
++ unsigned N,K,D,B,H;PAPACC_SIZE O,S,U,V,L,Q,F;PAPACC_U64 pre;
++ if(!range(p,n)||n<PC_ROOT8_V5_MIN-32U||n>PC_ROOT8_V5_FIELDS_MAX||memcmp(p,"PACROOT8",8)||u16(p+8)!=5U||
++ u16(p+10)!=512U||u32(p+12)!=n+32U||u32(p+16)!=3U||u16(p+22)!=512U||u16(p+24)!=1024U||u16(p+26)!=1U||
++ u16(p+28)!=512U||u16(p+30)!=1U||zero(p+72,32)||u32(p+128)!=31U||u16(p+132)!=5U||u16(p+134)!=1U||
++ u32(p+168)!=15U||!zero(p+172,4)||(u16(p+240)!=4U&&u16(p+240)!=5U)||u16(p+242)!=1U||u16(p+254)!=768U||
++ u16(p+256)!=1U||u16(p+258)!=1U||u16(p+270)!=384U||u16(p+272)!=1U||(u16(p+274)!=1U||u16(p+286)!=384U||u16(p+288)!=1U||u16(p+290)||u32(p+296)!=512U||u16(p+300)!=1U||u16(p+302)!=1U||!zero(p+304,208)))return PC_ROOT8_INVALID;
++ N=u16(p+20);K=u16(p+252);D=u16(p+268);H=u16(p+284);L=u32(p+44);
++ if(!N||N>4U||!K||K>N||D>K||H>3U||L<672U||L>2208U||(L-160U)%512U)return PC_ROOT8_INVALID;
++ B=(unsigned)((L-160U)/512U);if(!B||B>4U)return PC_ROOT8_INVALID;
++ O=512U+1536U*N;S=96U+768U*K;U=O+S;V=96U+384U*D;F=96U+384U*H;Q=U+V+F+L+16384U;
++ if(Q+1024U!=n||u32(p+292)!=Q||u32(p+32)!=512U||u32(p+36)!=1536U*N||u32(p+40)!=U+V+F||u32(p+48)!=U+V+F+L||
++ u32(p+52)!=16384U||u32(p+56)!=Q+512U||u32(p+60)!=512U||u32(p+64)!=Q+1024U||u32(p+68)!=32U||u32(p+244)!=O||
++ u32(p+248)!=S||u32(p+260)!=U||u32(p+264)!=V||u32(p+276)!=U+V||u32(p+280)!=F)return PC_ROOT8_INVALID;
++ pre=u64(p+112);if(!pre||pre==(PAPACC_U64)-1||u64(p+104)!=pre+1U||u64(p+136)!=pre||
++ !u64(p+144)||!u64(p+152)||!u64(p+160)||!u64(p+120)||u64(p+120)<u64(p+160))return PC_ROOT8_INVALID;
++ return PC_ROOT8_OK;
++}
++static int endpoint(const PAPACC_U8 *a)
++{
++ unsigned family=u16(a+22);const PAPACC_U8 *ip=a+152;
++ if(u16(a+168)!=5319U)return 0;
++ if(family==4U)return !zero(ip,4)&&ip[0]<224U&&zero(ip+4,12);
++ if(family!=6U||zero(ip,16)||ip[0]==255U||(ip[0]==254U&&(ip[1]&192U)==128U))return 0;
++ if(zero(ip,10)&&ip[10]==255U&&ip[11]==255U)return 0;
++ return 1;
++}
++static PC_ROOT8_RESULT sources(const PAPACC_U8 *p,int integrity,PC_LST1_HASH hash,void *hc)
++{
++ const PAPACC_U8 *s=p+u32(p+276),*a;PAPACC_SIZE F=u32(p+280);PAPACC_U8 d[32];unsigned j;
++ if(memcmp(s,"PACTSC01",8)||u16(s+8)!=1U||u16(s+10)!=64U||u32(s+12)!=F||u16(s+16)!=u16(p+284)||u16(s+18)!=384U||u32(s+20)||memcmp(s+24,p+72,32)||u64(s+56)!=u64(p+104))return PC_ROOT8_INVALID;
++ for(j=0;j<u16(s+16);j++){
++  a=s+64U+384U*j;
++  if(memcmp(a,"PACTSR01",8)||u16(a+8)!=1U||u16(a+10)!=384U||u32(a+12)!=1U||u16(a+16)>3U||u16(a+18)!=1U||u16(a+20)!=1U||
++   zero(a+24,32)||zero(a+56,32)||zero(a+88,32)||zero(a+120,32)||!endpoint(a)||!zero(a+170,6)||zero(a+176,32)||
++   !u64(a+208)||u64(a+208)>u64(p+104)||!u64(a+216)||u64(a+224)<=u64(a+216)||zero(a+232,32)||zero(a+264,32)||zero(a+296,32)||!zero(a+328,56)||
++   (j&&memcmp(a-384U+24U,a+24,32)>=0))return PC_ROOT8_INVALID;
++  if(!hash||!hash(hc,a+88,32,d))return PC_ROOT8_HASH_FAILED;if(memcmp(d,a+120,32))return PC_ROOT8_INVALID;
++ }
++ return integrity?digest(s,F-32U,s+F-32U,hash,hc):PC_ROOT8_OK;
++}
++static PC_ROOT8_RESULT source_keys(const PAPACC_U8 *p,PC_ROOT8_COMPONENT component,void *cc)
++{
++ unsigned j;PC_ROOT8_RESULT s;const PAPACC_U8 *a;
++ if(u16(p+284)&&!component)return PC_ROOT8_INCOMPLETE;
++ for(j=0;j<u16(p+284);j++){
++  a=p+u32(p+276)+64U+384U*j;
++  /* Private DATA discriminator9, not wire/policy/authority. Adapter must prove
++   * public Ed25519 key validity using an existing qualified backend. It must
++   * never resolve operator/act/status/CURRENT or grant positive trust here. */
++  s=component(cc,9U,a,384U,a,p);if(s)return s;
++ }
++ return PC_ROOT8_OK;
++}
++static PC_ROOT8_RESULT checkpoint(const PAPACC_U8 *p,int integrity,PC_LST1_HASH hash,void *hc)
++{
++ const PAPACC_U8 *c=p+u32(p+56);PC_ROOT8_RESULT s;if(zero(c,512))return PC_ROOT8_OK;
++ if(memcmp(c,"PACR8CP5",8)||u16(c+8)!=5U||u16(c+10)!=512U||u32(c+12)!=1U||memcmp(c+16,p+72,32)||
++ u64(c+48)!=u64(p+104)||u64(c+56)!=u64(p+112)||!u64(c+64)||!u64(c+72)||u64(c+80)!=u64(p+120)||
++ memcmp(c+120,p+176,64)||!zero(c+184,296))return PC_ROOT8_INVALID;
++ s=digest(p,u32(p+56),c+88,hash,hc);if(s)return s;return integrity?digest(c,480,c+480,hash,hc):PC_ROOT8_OK;
++}
++PC_ROOT8_RESULT pc_root8_v5_key_data(void *ctx,unsigned kind,const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *h)
++{
++ int result;(void)ctx;
++ if(kind!=9U)return PC_ROOT8_UNSUPPORTED;
++ if(!p||n!=384U||p!=row||!h||memcmp(h,"PACROOT8",8)||h[8]!=5U||h[9]||memcmp(p,"PACTSR01",8)||p[8]!=1U||p[9]||p[10]!=128U||p[11]!=1U)return PC_ROOT8_INVALID;
++ result=papacc_time_source_ed25519_check(p+88U,32U);
++ return result==PAPACC_ED25519_VALID?PC_ROOT8_OK:result==PAPACC_ED25519_INVALID?PC_ROOT8_INVALID:result==PAPACC_ED25519_BACKEND_UNAVAILABLE?PC_ROOT8_UNSUPPORTED:PC_ROOT8_INCOMPLETE;
++}
++static PAPACC_U64 be64(const PAPACC_U8 *p)
++{PAPACC_U64 v=0;unsigned j;for(j=0;j<8U;j++)v=(v<<8)|p[j];return v;}
++PC_ROOT8_RESULT pc_root8_q4_data(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc)
++{
++ unsigned j;PAPACC_U64 first;
++ if(!range(p,n)||n!=512U||memcmp(p,"PACQ4D01",8)||p[8]!=1U||p[9]<1U||p[9]>4U||!zero(p+10,2)||!zero(p+372,140))return PC_ROOT8_INVALID;
++ first=be64(p+44);
++ if(be64(p+12)==(PAPACC_U64)-1||be64(p+20)!=be64(p+12)+1U||!be64(p+28)||be64(p+28)>0xffffffffU||!be64(p+36)||
++ (first>11U&&first!=255U)||(p[9]<4U&&first)||(p[9]==4U&&!first))return PC_ROOT8_INVALID;
++ for(j=0;j<9U;j++)if(zero(p+52U+32U*j,32))return PC_ROOT8_INCOMPLETE;
++ return digest(p,340U,p+340U,hash,hc);
++}
++/* No resumption/adoption: same original invocation and frozen manifests. */
++static PC_ROOT8_RESULT q4_link(const PAPACC_U8 *next,const PAPACC_U8 *base,PAPACC_SIZE bn,unsigned version,PC_LST1_HASH hash,void *hc)
++{
++ const PAPACC_U8 *b=next+u32(next+292),*a;unsigned x,y;PAPACC_U8 whole[32];
++ if(memcmp(b+52,next+72,32))return PC_ROOT8_INVALID;
++ if(version==4U){if(!hash||!hash(hc,base,bn,whole))return PC_ROOT8_HASH_FAILED;return b[9]==1U&&!memcmp(b+84,whole,32)?PC_ROOT8_OK:PC_ROOT8_INVALID;}
++ a=base+u32(base+292);x=a[9];y=b[9];
++ if(memcmp(a+12,b+12,32)||memcmp(a+52,b+52,288))return PC_ROOT8_INVALID;
++ if(!((x==1U&&(y==2U||y==4U))||(x==2U&&(y==3U||y==4U))))return PC_ROOT8_INVALID;
++ return PC_ROOT8_OK;
++}
++/* BODY0.5 root lineage and its two checksums may change; configuration cannot. */
++static PC_ROOT8_RESULT documentary_only(const PAPACC_U8 *a,const PAPACC_U8 *b)
++{
++ unsigned j,N=u16(a+20);const PAPACC_U8 *x,*y;
++ if(N!=u16(b+20)||u64(a+120)!=u64(b+120)||memcmp(a+u32(a+48),b+u32(b+48),16384))return PC_ROOT8_INVALID;
++ for(j=0;j<N;j++){
++ x=a+512U+1536U*j;y=b+512U+1536U*j;
++ if(memcmp(x,y,312)||memcmp(x+344,y+344,168)||memcmp(x+512,y+512,40)||
++ memcmp(x+568,y+568,424)||memcmp(x+1024,y+1024,480))return PC_ROOT8_INVALID;
++ }
++ return PC_ROOT8_OK;
++}
++static PC_ROOT8_RESULT shape(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{
++ PC_ROOT8_RESULT s;s=header(p,n);if(s)return s;s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;
++ s=pc_root8_pdg_data(p,1,hash,hc);if(s)return s;s=sources(p,1,hash,hc);if(s)return s;s=checkpoint(p,1,hash,hc);if(s)return s;
++ s=pc_root8_components_data(p,hash,hc,component,cc);if(s)return s;s=pc_root8_pdg_records_data(p,hash,hc,component,cc);if(s)return s;s=source_keys(p,component,cc);if(s)return s;s=pc_root8_q4_data(p+u32(p+292),512U,hash,hc);if(s)return s;return component?component(cc,10U,p+u32(p+292),512U,NULL,p):PC_ROOT8_INCOMPLETE;
++}
++static int outputs(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used)
++{return range(p,n)&&range(out,cap)&&range(used,sizeof(*used))&&!cross(p,n,out,cap)&&!cross(p,n,used,sizeof(*used))&&!cross(out,cap,used,sizeof(*used));}
++PC_ROOT8_RESULT pc_root8_v5_validate(const PAPACC_U8 *p,PAPACC_SIZE n,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{PC_ROOT8_RESULT s;if(!range(p,n)||n<PC_ROOT8_V5_MIN||n>PC_ROOT8_V5_MAX)return PC_ROOT8_INVALID;s=header(p,n-32U);if(s)return s;
++ s=digest(p,n-32U,p+n-32U,hash,hc);if(s)return s;return shape(p,n-32U,hash,hc,component,cc);}
++PC_ROOT8_RESULT pc_root8_v5_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{PAPACC_U8 d[32];PC_ROOT8_RESULT s;if(!outputs(p,n,out,cap,used)||n>PC_ROOT8_V5_FIELDS_MAX||cap<n+32U)return PC_ROOT8_INVALID;
++ *used=0;s=shape(p,n,hash,hc,component,cc);if(s)return s;if(!hash||!hash(hc,p,n,d))return PC_ROOT8_HASH_FAILED;
++ memcpy(out,p,n);memcpy(out+n,d,32);*used=n+32U;return PC_ROOT8_OK;}
++PC_ROOT8_RESULT pc_root8_v5_decode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,int *complete,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{PC_ROOT8_RESULT s;if(!outputs(p,n,out,cap,used)||!range(complete,sizeof(*complete))||cross(complete,sizeof(*complete),p,n)||cross(complete,sizeof(*complete),out,cap)||cross(complete,sizeof(*complete),used,sizeof(*used)))return PC_ROOT8_INVALID;
++ *used=0;*complete=0;if(n<PC_ROOT8_V5_MIN||n>PC_ROOT8_V5_MAX||cap<n-32U)return PC_ROOT8_INVALID;
++ s=pc_root8_v5_validate(p,n,hash,hc,component,cc);if(s)return s;memcpy(out,p,n-32U);*used=n-32U;*complete=1;return PC_ROOT8_OK;}
++/* No owned view escapes the synchronous fragment call. */
++static PC_ROOT8_RESULT fragment(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc,unsigned kind)
++{
++ PC_ROOT8_RESULT s;PAPACC_SIZE off,len;PAPACC_U8 d[32];if(!outputs(p,n,out,cap,used))return PC_ROOT8_INVALID;*used=0;
++ s=header(p,n);if(s)return s;
++ if(kind==1U){off=u32(p+244);len=u32(p+248);s=pc_root8_snt_data(p,0,hash,hc);}
++ else if(kind==2U){s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;off=u32(p+260);len=u32(p+264);s=pc_root8_pdg_data(p,0,hash,hc);}
++ else if(kind==4U){s=sources(p,0,hash,hc);off=u32(p+276);len=u32(p+280);}
++ else{s=pc_root8_snt_data(p,1,hash,hc);if(s)return s;s=pc_root8_pdg_data(p,1,hash,hc);if(s)return s;s=sources(p,1,hash,hc);if(s)return s;off=u32(p+56);len=512;s=checkpoint(p,0,hash,hc);}
++ if(s)return s;if(cap<len)return PC_ROOT8_INVALID;if(kind==3U&&zero(p+off,512)){memset(out,0,512);*used=512;return PC_ROOT8_OK;}
++ if(!hash||!hash(hc,p+off,len-32U,d))return PC_ROOT8_HASH_FAILED;memcpy(out,p+off,len-32U);memcpy(out+len-32U,d,32);*used=len;return PC_ROOT8_OK;
++}
++PC_ROOT8_RESULT pc_root8_v5_snt_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc)
++{return fragment(p,n,out,cap,used,hash,hc,1U);}
++PC_ROOT8_RESULT pc_root8_v5_pdg_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc)
++{return fragment(p,n,out,cap,used,hash,hc,2U);}
++PC_ROOT8_RESULT pc_root8_v5_cp_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc)
++{return fragment(p,n,out,cap,used,hash,hc,3U);}
++PC_ROOT8_RESULT pc_root8_v5_tsc_encode(const PAPACC_U8 *p,PAPACC_SIZE n,PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *used,PC_LST1_HASH hash,void *hc)
++{return fragment(p,n,out,cap,used,hash,hc,4U);}
++PC_ROOT8_RESULT pc_root8_v5_base_link(const PAPACC_U8 *next,PAPACC_SIZE nn,const PAPACC_U8 *base,PAPACC_SIZE bn,PC_LST1_HASH hash,void *hc,PC_ROOT8_COMPONENT component,void *cc)
++{
++ PC_ROOT8_RESULT s;const PAPACC_U8 *cp,*a,*b,*lst;PAPACC_U8 d[32];unsigned version,j,N,K,D;PAPACC_SIZE bo,no;
++ PAPACC_ISSUER_CHECKPOINT_REPORT report;PAPACC_ISSUER_RESULT ir;
++ if(!range(next,nn)||nn<PC_ROOT8_V5_MIN||nn>PC_ROOT8_V5_MAX)return PC_ROOT8_INVALID;
++ if(!base)return bn?PC_ROOT8_INVALID:PC_ROOT8_INCOMPLETE;
++ if(!range(base,bn)||bn<PC_ROOT8_V4_MIN||bn>PC_ROOT8_V5_MAX||cross(next,nn,base,bn))return PC_ROOT8_INVALID;
++ s=pc_root8_v5_validate(next,nn,hash,hc,component,cc);if(s)return s;
++ if(memcmp(base,"PACROOT8",8))return PC_ROOT8_INVALID;version=u16(base+8);
++ if(version==4U)s=pc_root8_v4_validate(base,bn,hash,hc,component,cc);
++ else if(version==5U)s=pc_root8_v5_validate(base,bn,hash,hc,component,cc);else return PC_ROOT8_UNSUPPORTED;
++ if(s)return s;if(u16(next+240)!=version||memcmp(next+72,base+72,32)||u64(next+112)!=u64(base+104)||u64(next+136)!=u64(base+104)||memcmp(next+208,base+bn-32U,32))return PC_ROOT8_INVALID;
++ cp=base+u32(base+56);if(zero(cp,512))return PC_ROOT8_INCOMPLETE;
++ if(u64(next+144)!=u64(cp+64)||u64(next+152)!=u64(cp+72)||u64(next+160)!=u64(cp+80))return PC_ROOT8_INVALID;
++ if(!hash||!hash(hc,base,u32(base+56),d))return PC_ROOT8_HASH_FAILED;if(memcmp(d,next+176,32))return PC_ROOT8_INVALID;
++ N=u16(base+20);lst=next+u32(next+40);if(u32(next+44)!=160U+512U*N)return PC_ROOT8_INVALID;
++ for(j=0;j<N;j++){a=base+512U+1536U*j;b=lst+128U+512U*j;if(memcmp(a,b,344)||!zero(b+344,40)||memcmp(a+384,b+384,128))return PC_ROOT8_INVALID;}
++ bo=u32(base+48);no=u32(next+48);if(memcmp(base+bo,next+no,8192))return PC_ROOT8_INVALID;
++ ir=papacc_issuer_checkpoint_assess(next+no+8192,8192,base+bo+8192,8192,hash,hc,0,&report);
++ if(ir==PAPACC_ISSUER_UNCERTAIN)return PC_ROOT8_HASH_FAILED;
++ if(ir!=PAPACC_ISSUER_DENIED||report.state!=PAPACC_ISSUER_CHECKPOINT_DATA_VALID_RECOVERY_DENIED)return PC_ROOT8_INVALID;
++ K=u16(base+252);if(u16(next+252)!=K)return PC_ROOT8_INCOMPLETE;
++ if(memcmp(base+u32(base+244)+64U,next+u32(next+244)+64U,768U*K))return PC_ROOT8_INCOMPLETE;
++ D=u16(base+268);if(D!=u16(next+268))return PC_ROOT8_INCOMPLETE;
++ if(D&&memcmp(base+u32(base+260)+64U,next+u32(next+260)+64U,384U*D))return PC_ROOT8_INCOMPLETE;
++ /* A change needs the separately protected administrative disposition source.
++  * Identical bytes are DATA continuity, never that source or CURRENT. */
++ j=u16(base+284);if(j!=u16(next+284))return PC_ROOT8_INCOMPLETE;
++ if(j&&memcmp(base+u32(base+276)+64U,next+u32(next+276)+64U,384U*j))return PC_ROOT8_INCOMPLETE;
++ s=documentary_only(base,next);if(s)return s;return q4_link(next,base,bn,version,hash,hc);
++}
++
+--- /dev/null
++++ after/src/config/config_root8_v5.h
+@@ -0,0 +1,22 @@
++#ifndef PAPACC_CONFIG_ROOT8_V5_H
++#define PAPACC_CONFIG_ROOT8_V5_H
++#include "config_root8_v4.h"
++#define PC_ROOT8_V5_MIN 21216U
++#define PC_ROOT8_V5_MAX 32352U
++#define PC_ROOT8_V5_FIELDS_MAX 32320U
++/* See accepted L1; DATA only, never publication/admission. */
++PC_ROOT8_RESULT pc_root8_v5_key_data(void *,unsigned,const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,const PAPACC_U8 *);
++PC_ROOT8_RESULT pc_root8_q4_data(const PAPACC_U8 *,PAPACC_SIZE,PC_LST1_HASH,void *);
++/* Private synchronous carrier5 DATA; kind10 validates complete frozen Q4
++ * manifests through the existing owner. Missing adapter is INCOMPLETE. */
++PC_ROOT8_RESULT pc_root8_v5_validate(const PAPACC_U8 *,PAPACC_SIZE,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++PC_ROOT8_RESULT pc_root8_v5_encode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++PC_ROOT8_RESULT pc_root8_v5_decode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,int *,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++PC_ROOT8_RESULT pc_root8_v5_snt_encode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *);
++PC_ROOT8_RESULT pc_root8_v5_pdg_encode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *);
++PC_ROOT8_RESULT pc_root8_v5_tsc_encode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *);
++PC_ROOT8_RESULT pc_root8_v5_cp_encode(const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *,PC_LST1_HASH,void *);
++/* Complete v4/v5 predecessor DATA only. Changed sources => INCOMPLETE.
++ * Never resolves approval, currentness, pins or CAS. No historic fallback. */
++PC_ROOT8_RESULT pc_root8_v5_base_link(const PAPACC_U8 *,PAPACC_SIZE,const PAPACC_U8 *,PAPACC_SIZE,PC_LST1_HASH,void *,PC_ROOT8_COMPONENT,void *);
++#endif
+--- /dev/null
++++ after/tests/config_root8_v5_test.c
+@@ -0,0 +1,92 @@
++/* Accepted L1 DATA and SAME owner; synthetic manifests never authority. */
++#define PAPACC_V4_BACKING_FIXTURE 1
++#include "config_root8_v4_test.c"
++#include "config_root8_v5.h"
++static PAPACC_U8 f5[PC_ROOT8_V5_FIELDS_MAX],e5[PC_ROOT8_V5_MAX],saved5[PC_ROOT8_V5_MAX],origin5[PC_ROOT8_V5_MAX];
++static PAPACC_SIZE n5,z5;
++static unsigned q4_calls;static int deny_q4;
++static void wb64(PAPACC_U8 *p,PAPACC_U64 v){unsigned i;for(i=0;i<8U;i++)p[7U-i]=(PAPACC_U8)(v>>(8U*i));}
++static PC_ROOT8_RESULT component5(void *ctx,unsigned kind,const PAPACC_U8 *p,PAPACC_SIZE n,const PAPACC_U8 *row,const PAPACC_U8 *h)
++{if(kind==9U&&h[8]==5U)return pc_root8_v5_key_data(ctx,kind,p,n,row,h);if(kind==10U){q4_calls++;return deny_q4?PC_ROOT8_INCOMPLETE:pc_root8_q4_data(p,n,hash,&owner);}return component4(ctx,kind,p,n,row,h);}
++static int seal5(void)
++{
++ PAPACC_SIZE n;PAPACC_U8 *q=f5+r32(f5+292);
++ CHECK(hash(&owner,q,340,q+340));
++ CHECK(pc_root8_v5_snt_encode(f5,n5,part,sizeof(part),&n,hash,&owner)==0);memcpy(f5+r32(f5+244),part,n);
++ CHECK(pc_root8_v5_pdg_encode(f5,n5,part,sizeof(part),&n,hash,&owner)==0);memcpy(f5+r32(f5+260),part,n);
++ CHECK(pc_root8_v5_tsc_encode(f5,n5,part,sizeof(part),&n,hash,&owner)==0);memcpy(f5+r32(f5+276),part,n);
++ CHECK(pc_root8_v5_encode(f5,n5,e5,sizeof(e5),&z5,hash,&owner,component5,NULL)==0);return 1;
++}
++static int upgrade5(void)
++{
++ unsigned Q=r32(f4+56),i;PAPACC_U8 *q;
++ n5=n4+512U;memset(f5,0,sizeof(f5));memcpy(f5,f4,Q);memcpy(f5+Q+512U,f4+Q,n4-Q);
++ w16(f5+8,5);w16(f5+240,4);w32(f5+12,(PAPACC_U32)(n5+32U));w32(f5+56,Q+512U);w32(f5+64,Q+1024U);
++ w32(f5+292,Q);w32(f5+296,512);w16(f5+300,1);w16(f5+302,1);
++ q=f5+Q;memcpy(q,"PACQ4D01",8);q[8]=1;q[9]=1;wb64(q+12,10);wb64(q+20,11);wb64(q+28,100);wb64(q+36,200);
++ for(i=0;i<9U;i++)q[52U+32U*i]=(PAPACC_U8)(i+1U);
++ memcpy(q+52,f5+72,32);CHECK(hash(&owner,base4,z4,q+84));return seal5();
++}
++static int cp5(void)
++{
++ PAPACC_U8 *c=f5+r32(f5+56);PAPACC_SIZE n;memset(c,0,512);memcpy(c,"PACR8CP5",8);w16(c+8,5);w16(c+10,512);w32(c+12,1);memcpy(c+16,f5+72,32);
++ w64(c+48,r64(f5+104));w64(c+56,r64(f5+112));w64(c+64,18);w64(c+72,9);w64(c+80,r64(f5+120));memcpy(c+120,f5+176,64);CHECK(hash(&owner,f5,r32(f5+56),c+88));
++ CHECK(pc_root8_v5_cp_encode(f5,n5,part,sizeof(part),&n,hash,&owner)==0);memcpy(c,part,n);return seal5();
++}
++static int next5(PAPACC_SIZE bn,unsigned state)
++{
++ unsigned j,N=f5[20];PAPACC_SIZE L,n;PAPACC_U8 *a,*b;PAPACC_U64 R=r64(saved5+104)+1U;
++ w16(f5+240,5);w64(f5+104,R);w64(f5+112,R-1);w64(f5+136,R-1);memcpy(f5+176,saved5+r32(saved5+56)+88,32);memcpy(f5+208,saved5+bn-32U,32);memset(f5+r32(f5+56),0,512);
++ w64(f5+r32(f5+244)+56,R);w64(f5+r32(f5+260)+56,R);w64(f5+r32(f5+276)+56,R);
++ for(j=0;j<N;j++){a=f5+512U+1536U*j;config_init(j,R);CHECK(papacc_configuration_body05_encode(&fixture_store_hash,&view,a+512,1024)==0);CHECK(hash(&owner,a+512,1024,a+312));}
++ L=r32(f5+44);b=f5+r32(f5+40);memset(&lst,0,sizeof(lst));memcpy(lst.fields,b,L-32U);w64(lst.fields+56,R-1);w64(lst.fields+88,R-2);
++ for(j=0;j<N;j++){memcpy(lst.fields+128U+512U*j,saved5+512U+1536U*j,512);memset(lst.fields+128U+512U*j+344U,0,40);}
++ CHECK(pc_lst1_encode(&lst,b,L,&n,hash,&owner)==0);a=f5+r32(f5+292);a[9]=(PAPACC_U8)state;if(state==4U)wb64(a+44,10);return seal5();
++}
++static int initial5(unsigned N,unsigned B,unsigned D,unsigned H)
++{
++ PAPACC_SIZE bn;CHECK(setup3(N,B,D));CHECK(upgrade4(H));CHECK(cp4());bn=z4;memcpy(base4,e4,bn);CHECK(next4(bn));CHECK(upgrade5());
++ if(N==B)CHECK(pc_root8_v5_base_link(e5,z5,base4,bn,hash,&owner,component5,NULL)==0);else CHECK(pc_root8_v5_base_link(e5,z5,base4,bn,hash,&owner,component5,NULL)!=0);return 1;
++}
++#ifndef PAPACC_V5_BACKING_FIXTURE
++static int run5(void)
++{
++ unsigned N,B,D,H,i;PAPACC_SIZE n,bn;int complete;PAPACC_U8 *q;PC_ROOT8_RESULT status;char path[MAX_PATH];DWORD length;
++ length=GetFullPathNameA("v5-unused-no-store",MAX_PATH,path,NULL);CHECK(length&&length<MAX_PATH);CHECK(papacc_configuration_commit_init03(&owner,path)==0);
++ for(N=1;N<=4U;N++)for(B=N;B<=N;B++)for(D=0;D<=N;D++)for(H=0;H<=3U;H++){
++ CHECK(initial5(N,B,D,H));CHECK(pc_root8_v5_validate(e5,z5,hash,&owner,component5,NULL)==0);
++ CHECK(pc_root8_v5_decode(e5,z5,saved5,sizeof(saved5),&n,&complete,hash,&owner,component5,NULL)==0&&complete&&n==n5&&!memcmp(f5,saved5,n5));
++ CHECK(pc_root8_v4_validate(e5,z5,hash,&owner,component4,NULL)!=0);CHECK(cp5());}
++ CHECK(initial5(4,4,4,3));CHECK(z5==PC_ROOT8_V5_MAX);memcpy(origin5,e5,z5);
++ for(n=0;n<z5;n++){e5[n]^=1;CHECK(pc_root8_v5_validate(e5,z5,hash,&owner,component5,NULL)!=0);e5[n]^=1;}
++ for(n=0;n<z5;n++)CHECK(pc_root8_v5_validate(e5,n,hash,&owner,component5,NULL)!=0);
++ deny_q4=1;CHECK(pc_root8_v5_validate(e5,z5,hash,&owner,component5,NULL)==PC_ROOT8_INCOMPLETE);deny_q4=0;
++ CHECK(pc_root8_v5_validate(e5,z5,hash,&owner,NULL,NULL)==PC_ROOT8_INCOMPLETE);
++ CHECK(pc_root8_v5_validate(e5,z5,fail_hash,NULL,component5,NULL)==PC_ROOT8_HASH_FAILED);
++ q=f5+r32(f5+292);
++ for(i=0;i<512U;i++){q[i]^=1;status=pc_root8_q4_data(q,512,hash,&owner);q[i]^=1;CHECK(status!=0);}
++ /* Rehashed structure attacks, not merely accidental outer corruption. */
++ {static const unsigned offsets[]={8,10,12,56,64,104,112,292,296,300,302,304};
++ for(i=0;i<sizeof(offsets)/sizeof(offsets[0]);i++){memcpy(f5,origin5,n5);f5[offsets[i]]^=1;n=99;CHECK(pc_root8_v5_encode(f5,n5,e5,sizeof(e5),&n,hash,&owner,component5,NULL)!=0&&n==0);}}
++ memcpy(f5,origin5,n5);w16(f5+240,5);CHECK(seal5());CHECK(pc_root8_v5_base_link(e5,z5,base4,z4,hash,&owner,component5,NULL)!=0);
++ memcpy(f5,origin5,n5);q=f5+r32(f5+292);
++ wb64(q+12,(PAPACC_U64)-1);wb64(q+20,0);CHECK(hash(&owner,q,340,q+340));CHECK(pc_root8_q4_data(q,512,hash,&owner)!=0);
++ memcpy(f5,origin5,n5);q=f5+r32(f5+292);wb64(q+28,0x100000000ULL);CHECK(hash(&owner,q,340,q+340));CHECK(pc_root8_q4_data(q,512,hash,&owner)!=0);
++ memcpy(f5,origin5,n5);q=f5+r32(f5+292);q[9]=4;CHECK(hash(&owner,q,340,q+340));CHECK(pc_root8_q4_data(q,512,hash,&owner)!=0);
++ memcpy(f5,origin5,n5);q=f5+r32(f5+292);memcpy(q+84,f5+208,32);CHECK(seal5());
++ CHECK(pc_root8_v5_base_link(e5,z5,base4,z4,hash,&owner,component5,NULL)!=0); /* prefix digest is not whole-file identity */
++ memcpy(f5,origin5,n5);config_init(0,r64(f5+104));view.config.site_tls.max_bytes++;
++ CHECK(papacc_configuration_body05_encode(&fixture_store_hash,&view,f5+1024,1024)==0);CHECK(hash(&owner,f5+1024,1024,f5+824));CHECK(seal5());
++ CHECK(pc_root8_v5_validate(e5,z5,hash,&owner,component5,NULL)==0);CHECK(pc_root8_v5_base_link(e5,z5,base4,z4,hash,&owner,component5,NULL)!=0);
++ memcpy(f5,origin5,n5);CHECK(seal5());
++ CHECK(cp5());bn=z5;memcpy(saved5,e5,bn);CHECK(next5(bn,2));CHECK(pc_root8_v5_base_link(e5,z5,saved5,bn,hash,&owner,component5,NULL)==0);
++ q=f5+r32(f5+292);q[9]=3;CHECK(seal5());CHECK(pc_root8_v5_base_link(e5,z5,saved5,bn,hash,&owner,component5,NULL)!=0);
++ q[9]=2;q[116]^=1;CHECK(seal5());CHECK(pc_root8_v5_base_link(e5,z5,saved5,bn,hash,&owner,component5,NULL)!=0);q[116]^=1;
++ q[9]=4;wb64(q+44,11);CHECK(seal5());CHECK(pc_root8_v5_base_link(e5,z5,saved5,bn,hash,&owner,component5,NULL)==0);
++ q[9]=2;wb64(q+44,0);CHECK(seal5());CHECK(cp5());bn=z5;memcpy(saved5,e5,bn);CHECK(next5(bn,3));CHECK(pc_root8_v5_base_link(e5,z5,saved5,bn,hash,&owner,component5,NULL)==0);
++ CHECK(cp5());bn=z5;memcpy(saved5,e5,bn);CHECK(next5(bn,3));CHECK(pc_root8_v5_base_link(e5,z5,saved5,bn,hash,&owner,component5,NULL)!=0);
++ CHECK(!owner.published&&!owner.pending_commit.active);CHECK(papacc_configuration_stop(&owner)==0);CHECK(papacc_configuration_finish(&owner)==0);
++ printf("PASS V5_DATA assertions=%u q4_calls=%u max=%u owner=%Iu pending=%Iu no_io_no_authority\n",checks,q4_calls,PC_ROOT8_V5_MAX,sizeof(owner),sizeof(owner.pending_commit));return 1;
++}
++int main(void){return run5()?0:1;}
++#endif
+--- /dev/null
++++ after/tests/v5_transaction_worker_win32_test.c
+@@ -0,0 +1,56 @@
++/* Synthetic full v3 administrative context, REAL same-worker native TxF CAS.
++ * No root CURRENT/authority, no keys/certificates generated or signature. */
++#define _WIN32_WINNT 0x0600
++#include "config_root8_v5_test.c"
++#include <stdlib.h>
++extern PAPACC_RESULT papacc_v5_worker_fixture_start(PAPACC_CONFIGURATION_COMMIT *,HANDLE);
++extern PAPACC_RESULT papacc_v5_worker_fixture_poll(PAPACC_CONFIGURATION_COMMIT *,PAPACC_ISSUER_CAS_RESULT *);
++static PAPACC_U8 observed_v5[PC_ROOT8_V5_MAX];
++int main(int argc,char **argv)
++{
++ PAPACC_CONFIG_PENDING *p=&owner.pending_commit;HANDLE file,identity;DWORD count,start;
++ PAPACC_ISSUER_CAS_RESULT outcome=PAPACC_COMMIT_IDLE;PAPACC_SIZE bn;const PAPACC_U8 *old_image;unsigned q,base_version;int stop,unknown,conflict,identity_conflict;char identity_path[MAX_PATH];
++ CHECK(argc==4);base_version=(unsigned)atoi(argv[3]);CHECK(base_version==4U||base_version==5U);stop=!strcmp(argv[1],"stop");unknown=!strcmp(argv[1],"unknown");identity_conflict=!strcmp(argv[1],"identity");conflict=identity_conflict||!strcmp(argv[1],"conflict");
++ CHECK(papacc_configuration_commit_init03(&owner,argv[2])==0);
++ CHECK(initial5(4,4,4,3));
++ if(base_version==4U){bn=z4;old_image=base4;}
++ else{CHECK(cp5());bn=z5;memcpy(saved5,e5,bn);old_image=saved5;CHECK(next5(bn,2));}
++ CHECK(pc_root8_v5_base_link(e5,z5,old_image,bn,hash,&owner,component5,NULL)==0);
++ CHECK(sizeof(p->next)==PAPACC_CONFIG_TRANSACTION_BYTES&&sizeof(owner.committed)==PAPACC_CONFIG_TRANSACTION_BYTES);
++ memcpy(owner.committed,old_image,bn);owner.committed_bytes=(DWORD)bn;
++ memcpy(p->previous,old_image,bn);p->previous_bytes=(DWORD)bn;memcpy(p->next,e5,z5);p->next_bytes=(DWORD)z5;
++ file=CreateFileA(argv[2],GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(file!=INVALID_HANDLE_VALUE);
++ CHECK(WriteFile(file,old_image,(DWORD)bn,&count,NULL)&&count==bn&&FlushFileBuffers(file));CHECK(CloseHandle(file));
++ identity=CreateFileA(argv[2],0,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(identity!=INVALID_HANDLE_VALUE);
++ q=r32(p->previous+56);p->previous[q+64]^=1;CHECK(papacc_v5_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->previous[q+64]^=1;
++ p->next[112]^=1;CHECK(papacc_v5_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[112]^=1;
++ p->next[z5-1]^=1;CHECK(papacc_v5_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[z5-1]^=1;
++ /* Resealed outer digest cannot authorize unknown versions or lost history. */
++ p->next[8]=6U;CHECK(hash(&owner,p->next,z5-32U,p->next+z5-32U));CHECK(papacc_v5_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[8]=5U;
++ CHECK(hash(&owner,p->next,z5-32U,p->next+z5-32U));
++ q=r32(p->next+48);p->next[q+8192U+112U]^=1;CHECK(hash(&owner,p->next,z5-32U,p->next+z5-32U));CHECK(papacc_v5_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[q+8192U+112U]^=1;
++ CHECK(hash(&owner,p->next,z5-32U,p->next+z5-32U));
++ if(base_version>=4U){q=r32(p->next+276)+64U+88U;p->next[q]^=1;CHECK(hash(&owner,p->next,z5-32U,p->next+z5-32U));CHECK(papacc_v5_worker_fixture_start(&owner,identity)!=0&&!p->thread);p->next[q]^=1;CHECK(hash(&owner,p->next,z5-32U,p->next+z5-32U));}
++ owner.published=1;CHECK(papacc_v5_worker_fixture_start(&owner,identity)!=0);owner.published=0;
++ if(identity_conflict){CHECK(strlen(argv[2])+10U<MAX_PATH);strcpy_s(identity_path,MAX_PATH,argv[2]);strcat_s(identity_path,MAX_PATH,".identity");CHECK(CloseHandle(identity));
++ identity=CreateFileA(identity_path,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);CHECK(identity!=INVALID_HANDLE_VALUE);}
++ if(conflict&&!identity_conflict){file=CreateFileA(argv[2],GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,0,NULL);CHECK(file!=INVALID_HANDLE_VALUE);CHECK(SetFilePointer(file,(LONG)(bn-1U),NULL,FILE_BEGIN)!=INVALID_SET_FILE_POINTER);CHECK(WriteFile(file,"X",1,&count,NULL)&&count==1&&FlushFileBuffers(file));CHECK(CloseHandle(file));}
++ if(stop){p->test_entered=CreateEventA(NULL,TRUE,FALSE,NULL);p->test_release=CreateEventA(NULL,TRUE,FALSE,NULL);CHECK(p->test_entered&&p->test_release);}
++ p->test_unknown=unknown;
++ CHECK(papacc_v5_worker_fixture_start(&owner,identity)==0);CHECK(papacc_v5_worker_fixture_start(&owner,identity)!=0);CHECK(CloseHandle(identity));
++ if(stop){CHECK(WaitForSingleObject(p->test_entered,10000)==WAIT_OBJECT_0);start=GetTickCount();CHECK(papacc_configuration_stop(&owner)==0);CHECK(GetTickCount()-start<1000);CHECK(papacc_configuration_finish(&owner)!=0);CHECK(SetEvent(p->test_release));}
++ start=GetTickCount();do{CHECK(papacc_v5_worker_fixture_poll(&owner,&outcome)==0);if(outcome==PAPACC_COMMIT_PENDING)Sleep(1);}while(outcome==PAPACC_COMMIT_PENDING&&GetTickCount()-start<10000);
++ CHECK(outcome==(stop?PAPACC_COMMIT_FAILED:unknown?PAPACC_CAS_UNKNOWN:conflict?PAPACC_CAS_CONFLICT:PAPACC_CAS_SUCCESS));
++ if(unknown)CHECK(owner.unresolved&&owner.authority_lost&&p->transaction&&p->file!=INVALID_HANDLE_VALUE&&!p->committed);
++ if(stop)CHECK(!p->transaction&&p->file==INVALID_HANDLE_VALUE&&!p->committed);
++ CHECK(!memcmp(owner.committed,old_image,bn)&&!memcmp(p->previous,old_image,bn));
++ CHECK(!memcmp(p->next,e5,z5)&&!owner.published);
++ CHECK(!memcmp(p->previous+r32(old_image+48),p->next+r32(e5+48),16384));
++ CHECK(papacc_configuration_publish(&owner)!=0);
++ if(!unknown){file=CreateFileA(argv[2],GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);CHECK(file!=INVALID_HANDLE_VALUE);CHECK(ReadFile(file,observed_v5,sizeof(observed_v5),&count,NULL));CHECK(CloseHandle(file));
++ if(!stop&&!conflict){CHECK(count==z5&&!memcmp(observed_v5,e5,z5));}else if(stop||identity_conflict){CHECK(count==bn&&!memcmp(observed_v5,old_image,bn));}
++ else if(conflict){CHECK(count==bn&&!memcmp(observed_v5,old_image,bn-1U)&&observed_v5[bn-1U]=='X');}}
++ if(stop){CHECK(CloseHandle(p->test_entered));CHECK(CloseHandle(p->test_release));}
++ CHECK(papacc_configuration_stop(&owner)==0);if(!stop)CHECK(papacc_configuration_finish(&owner)!=0);
++ printf("PASS V5_NATIVE_SAME_WORKER mode=%s outcome=%d bytes=%Iu old_bytes=%Iu owner=%Iu pending=%Iu SYNTHETIC_ADMIN_NO_CURRENT_NO_TRUST_RETAINED\n",argv[1],outcome,z5,bn,sizeof(owner),sizeof(*p));return 0;
++}

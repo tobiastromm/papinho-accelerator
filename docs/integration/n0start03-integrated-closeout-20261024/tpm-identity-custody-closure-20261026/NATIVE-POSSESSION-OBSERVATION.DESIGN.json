@@ -1,0 +1,22 @@
+{
+  "status": "DESIGN_ONLY_NOT_EXECUTABLE",
+  "scope": "fresh TPM credential activation against specifically qualified EK and AK Name; no NV, persistent key, enrollment, signature or Q4",
+  "profile": "RSA2048/SHA256/AES128-CFB fixture ONLY; actual EK profile not inferred from digest",
+  "missing": [
+    "exact EK public bytes/profile and trust basis",
+    "qualified AK public Name/template/lifetime or separate transient-creation authorization",
+    "actual permitted endorsement/AK authorization; no empty fallback",
+    "native authenticated session/channel qualification",
+    "fresh host/token/device-generation/live invocation bindings",
+    "exact command sequence/resources/effects and independent owner approval"
+  ],
+  "limits": [
+    "no NV mutation",
+    "no persistent key/CA/network/enrollment",
+    "no hierarchy change/Clear/EvictControl",
+    "no retry or adoption",
+    "retain ambiguous handles/dependencies; no replacement invocation"
+  ],
+  "manual_command": null,
+  "approval": null
+}

@@ -1,0 +1,328 @@
+/* Actual controller preparation + native composition. ALL filesystem/token/
+ * console/RNG calls below are modeled, SHA256 and SD parsing are real math.
+ * No filesystem endpoint, directory, payload, service or key is created. */
+#define WIN32_LEAN_AND_MEAN 1
+#include "server_launcher_owner_win32.h"
+#include "server_c8_private_storage_layout_win32.h"
+#include <winternl.h>
+#include <aclapi.h>
+#include <sddl.h>
+#include <bcrypt.h>
+#include <psapi.h>
+#include <stdio.h>
+#include "../tools/qualification/storage-hash-capsule/storage_sha256.h"
+static PAPACC_SERVER_LAUNCHER_OWNER_WIN32 root;
+static volatile LONG state;
+static PAPACC_U64 next_invocation;
+size_t papacc_server_service_storage_bytes(void){return 13060U;} /* modeled separate static charge */
+typedef struct MODEL_FILE {BYTE data[8192];DWORD size,pos,id,attributes;unsigned closed;} MODEL_FILE;
+static MODEL_FILE files[20];static unsigned allocated,creates,writes,closes,scenario,checks,cases;
+static unsigned fail_create,fail_close,stop_now,mutation,flushes,full_prepare,free_calls,fail_free;
+static unsigned capacity_case,counter_calls,volume_calls,rng_calls;
+static unsigned handle_calls,layout_calls;
+static LONGLONG counter_tick;
+static PSECURITY_DESCRIPTOR good_sd;
+static MODEL_FILE *mf(HANDLE h){ULONG_PTR id=(ULONG_PTR)h;return id&&id<20U?&files[id]:NULL;}
+static BOOL WINAPI model_info(HANDLE h,LPBY_HANDLE_FILE_INFORMATION f)
+{
+ MODEL_FILE *m=mf(h);if(!m||m->closed)return FALSE;ZeroMemory(f,sizeof(*f));
+ f->dwVolumeSerialNumber=42;f->nFileIndexLow=m->id;f->dwFileAttributes=m->attributes;f->nFileSizeLow=m->size;
+ if(capacity_case==17U&&m->attributes!=FILE_ATTRIBUTE_DIRECTORY)f->nFileSizeHigh=f->nFileSizeLow=MAXDWORD;
+ if(mutation==1U&&creates&&m->attributes==FILE_ATTRIBUTE_DIRECTORY)f->nFileIndexLow++;
+ if(mutation==2U&&creates&&m->attributes==FILE_ATTRIBUTE_DIRECTORY)f->dwFileAttributes|=FILE_ATTRIBUTE_REPARSE_POINT;
+ return TRUE;
+}
+static BOOL WINAPI model_seek(HANDLE h,LARGE_INTEGER d,PLARGE_INTEGER at,DWORD origin)
+{MODEL_FILE *m=mf(h);(void)at;if(!m||origin!=FILE_BEGIN||d.QuadPart)return FALSE;m->pos=0;return TRUE;}
+static BOOL WINAPI model_read(HANDLE h,LPVOID b,DWORD capacity,LPDWORD n,LPOVERLAPPED ov)
+{
+ MODEL_FILE *m=mf(h);DWORD count;(void)ov;if(!m||m->closed||m->pos>m->size)return FALSE;
+ count=m->size-m->pos;if(count>capacity)count=capacity;if(scenario==6U&&count>17U)count=17U;
+ memcpy(b,m->data+m->pos,count);m->pos+=count;*n=count;
+ if(creates==3U&&((scenario==29U&&!count)||(scenario==31U&&count)))root.configuration_commit.pending_commit.stop=1;return TRUE;
+}
+static BOOL WINAPI model_write(HANDLE h,LPCVOID b,DWORD count,LPDWORD n,LPOVERLAPPED ov)
+{
+ MODEL_FILE *m=mf(h);(void)ov;writes++;if(!m||m->closed)return FALSE;
+ if(scenario==7U)return FALSE;if(scenario==8U){*n=0;return TRUE;}
+ if((scenario==6U||scenario==30U)&&count>11U)count=11U;if(m->pos+count>sizeof(m->data))return FALSE;
+ memcpy(m->data+m->pos,b,count);if(scenario==9U&&count)m->data[m->pos]^=1;
+ m->pos+=count;if(m->pos>m->size)m->size=m->pos;*n=count;
+ if(scenario==30U)root.configuration_commit.pending_commit.stop=1;return TRUE;
+}
+static BOOL WINAPI model_flush(HANDLE h)
+{(void)h;flushes++;if(scenario==10U)return FALSE;if(scenario==11U)stop_now=1;if(scenario==12U)mutation=1;if(scenario==13U)mutation=2;return TRUE;}
+static BOOL WINAPI model_close(HANDLE h)
+{MODEL_FILE *m=mf(h);closes++;if(fail_close&&closes==fail_close){SetLastError(ERROR_INVALID_HANDLE);return FALSE;}if(!m||m->closed)return FALSE;m->closed=1;return TRUE;}
+static DWORD WINAPI model_security(HANDLE h,SE_OBJECT_TYPE type,SECURITY_INFORMATION si,PSID *owner,PSID *group,PACL *dacl,PACL *sacl,PSECURITY_DESCRIPTOR *out)
+{
+ DWORD n=GetSecurityDescriptorLength(good_sd);(void)h;(void)type;(void)si;(void)owner;(void)group;(void)dacl;(void)sacl;
+ *out=LocalAlloc(LPTR,n);if(!*out)return ERROR_OUTOFMEMORY;memcpy(*out,good_sd,n);
+ if(scenario==14U&&creates)((BYTE *)*out)[n-1U]^=1;return 0;
+}
+static HLOCAL WINAPI model_free(HLOCAL value)
+{free_calls++;if(fail_free==free_calls)return value;return LocalFree(value);}
+static NTSTATUS NTAPI model_nt(PHANDLE h,ACCESS_MASK access,POBJECT_ATTRIBUTES a,PIO_STATUS_BLOCK io,PLARGE_INTEGER allocation,ULONG attr,ULONG share,ULONG disposition,ULONG options,PVOID ea,ULONG ea_bytes)
+{
+ MODEL_FILE *m;unsigned i;(void)allocation;(void)options;(void)ea;(void)ea_bytes;
+ if(!(a->Attributes&0x1000U)||share!=FILE_SHARE_READ)return (NTSTATUS)0xc0000022L;
+ if(disposition==2U){
+  creates++;
+  if(creates==fail_create)return (NTSTATUS)0xc0000035L;
+  if(!a->RootDirectory||!a->SecurityDescriptor||(access&WRITE_OWNER))return (NTSTATUS)0xc0000022L;
+ }
+ if(allocated>=19U)return (NTSTATUS)0xc0000017L;
+ m=&files[++allocated];m->id=allocated;m->attributes=attr;*h=(HANDLE)(ULONG_PTR)allocated;
+ if(disposition==1U&&attr!=FILE_ATTRIBUTE_DIRECTORY){m->size=6001;for(i=0;i<m->size;i++)m->data[i]=(BYTE)(i+allocated);}
+ if(scenario==3U&&disposition==1U&&attr==FILE_ATTRIBUTE_DIRECTORY)m->attributes|=FILE_ATTRIBUTE_REPARSE_POINT;
+ io->Information=scenario==23U?0U:disposition==2U?2U:1U;return scenario==22U?(NTSTATUS)0x103L:0;
+}
+static HMODULE WINAPI model_module(LPCWSTR name){(void)name;return (HMODULE)(ULONG_PTR)1;}
+static NTSTATUS NTAPI model_volume(HANDLE file,PIO_STATUS_BLOCK io,PVOID buffer,ULONG bytes,ULONG info)
+{
+ PAPACC_STAGING_VOLUME_SIZE *v=(PAPACC_STAGING_VOLUME_SIZE *)buffer;volume_calls++;
+ if(!mf(file)||bytes!=sizeof(*v)||info!=7U)return (NTSTATUS)0xc000000dL;
+ if(capacity_case==9U)return (NTSTATUS)0xc0000022L;
+ if(capacity_case==10U)return (NTSTATUS)0x103L;
+ v->total.QuadPart=100000;v->caller_available.QuadPart=capacity_case==11U?0:10000;
+ v->actual_available.QuadPart=20000;v->sectors_per_unit=8;v->bytes_per_sector=512;
+ if(capacity_case==12U)v->caller_available.QuadPart=-1;
+ if(capacity_case==13U)v->bytes_per_sector=0;
+ if(capacity_case==14U){v->caller_available.QuadPart=v->actual_available.QuadPart=v->total.QuadPart=0x7fffffffffffffffLL;}
+ if(capacity_case==15U)v->actual_available.QuadPart=1;
+ io->Status=capacity_case==18U?(NTSTATUS)0x103L:0;io->Information=capacity_case==16U?1U:sizeof(*v);return 0;
+}
+static FARPROC WINAPI model_proc(HMODULE module,LPCSTR name)
+{
+ FARPROC p;NTSTATUS (NTAPI *fn)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG)=model_nt;
+ NTSTATUS (NTAPI *vol)(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,ULONG)=model_volume;(void)module;
+ if(!strcmp(name,"NtQueryVolumeInformationFile")){memcpy(&p,&vol,sizeof(p));return p;}
+ if(strcmp(name,"NtCreateFile"))return NULL;memcpy(&p,&fn,sizeof(p));return p;
+}
+static DWORD WINAPI model_dos(LPCWSTR d,LPWSTR target,DWORD capacity)
+{(void)d;return wcscpy_s(target,capacity,L"\\Device\\ModelVolume")?0U:20U;}
+static BOOL WINAPI model_mode(HANDLE h,LPDWORD mode){(void)h;*mode=0;return scenario!=1U;}
+static BOOL WINAPI model_handles(HANDLE h,LPDWORD count)
+{
+ (void)h;
+ handle_calls++;
+ if(scenario==27U||scenario==28U){
+  *count=115U;
+  if(handle_calls==2U){if(scenario==28U){SetLastError(ERROR_NOT_ENOUGH_QUOTA);return FALSE;}*count=125U;}return TRUE;
+ }
+ if(scenario==25U||scenario==26U){
+  *count=115U;
+  if(root.configuration_commit.pending_commit.personal_native.staging.resources.location==4U){
+   if(scenario==26U){SetLastError(ERROR_NOT_ENOUGH_QUOTA);return FALSE;}*count=124U;
+  }return TRUE;
+ }
+ *count=scenario==20U?125U:scenario==24U?124U:80U;if(scenario==21U){SetLastError(ERROR_ACCESS_DENIED);return FALSE;}return TRUE;
+}
+static HANDLE WINAPI model_std(DWORD which){return (HANDLE)(ULONG_PTR)which;}
+static NTSTATUS WINAPI model_rng(BCRYPT_ALG_HANDLE h,PUCHAR p,ULONG n,ULONG flags)
+{ULONG i;(void)h;(void)flags;rng_calls++;if(scenario==15U)return (NTSTATUS)0xc0000001L;for(i=0;i<n;i++)p[i]=(BYTE)(i+1U);return 0;}
+static BOOL WINAPI model_frequency(LARGE_INTEGER *v){v->QuadPart=10000000;return capacity_case!=1U;}
+static BOOL WINAPI model_counter(LARGE_INTEGER *v){counter_calls++;v->QuadPart=++counter_tick;return TRUE;}
+static BOOL WINAPI model_memory(HANDLE h,PPROCESS_MEMORY_COUNTERS info,DWORD bytes)
+{PROCESS_MEMORY_COUNTERS_EX *v=(PROCESS_MEMORY_COUNTERS_EX *)info;(void)h;(void)bytes;if(capacity_case==2U)return FALSE;v->PrivateUsage=2048;v->WorkingSetSize=4096;return TRUE;}
+static BOOL WINAPI model_global(LPMEMORYSTATUSEX v)
+{if(capacity_case==3U)return FALSE;v->ullTotalPhys=8192;v->ullAvailPhys=capacity_case==4U?0:4096;return TRUE;}
+static BOOL WINAPI model_performance(PPERFORMANCE_INFORMATION v,DWORD bytes)
+{(void)bytes;if(capacity_case==5U)return FALSE;v->PageSize=capacity_case==6U?0U:4096U;v->CommitTotal=capacity_case==7U?8U:2U;v->CommitLimit=capacity_case==8U?(SIZE_T)-1:8U;return TRUE;}
+static DWORD WINAPI model_module_path(HMODULE module,LPWSTR path,DWORD count)
+{(void)module;return wcscpy_s(path,count,L"C:\\Build\\papacc_server.exe")?0U:26U;}
+PAPACC_BOOL papacc_server_console_win32_stop_requested(void){return stop_now?PAPACC_TRUE:PAPACC_FALSE;}
+static int personal_console_write(HANDLE h,const char *text){(void)h;(void)text;return 1;}
+static int personal_console_token(HANDLE h,const char *text){return personal_console_write(h,text);}
+static int personal_console_confirm(HANDLE input,HANDLE output,const char *text)
+{(void)input;(void)output;return scenario!=2U&&!strncmp(text,"OWNER_QUALIFICATION_STAGING ",27U);}
+static PAPACC_RESULT model_layout(PAPACC_CONFIGURATION_COMMIT *c)
+{
+ PAPACC_PERSONAL_INSTALL_PATHS *p=&c->pending_commit.personal_native.install_paths;
+ layout_calls++;p->mode=PAPACC_PERSONAL_PATHS_BINARY_ONLY;p->phase=PAPACC_PERSONAL_PATHS_READY;p->thread=GetCurrentThreadId();
+ wcscpy_s(p->binary,MAX_PATH,L"C:\\Program Files\\Papinho\\Accelerator");return 0;
+}
+static PAPACC_RESULT model_layout_current(PAPACC_CONFIGURATION_COMMIT *c)
+{return scenario==16U||c->pending_commit.personal_native.install_paths.mode!=PAPACC_PERSONAL_PATHS_BINARY_ONLY?PAPACC_RESULT_INVALID_STATE:PAPACC_RESULT_OK;}
+PAPACC_RESULT staging_test_forbidden_full_layout(PAPACC_CONFIGURATION_COMMIT *c)
+{(void)c;return PAPACC_RESULT_INVALID_STATE;} /* regression must not call actual host resolver */
+static PAPACC_RESULT model_native_open(PAPACC_CONFIGURATION_COMMIT *c,const char *path)
+{
+ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&c->pending_commit.personal_native;DWORD count=sizeof(n->sid),bytes=GetSecurityDescriptorLength(good_sd);(void)path;
+ if(scenario==17U)return PAPACC_RESULT_INVALID_STATE;
+ if(!CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,n->sid,&count))return PAPACC_RESULT_INVALID_STATE;
+ n->descriptor=LocalAlloc(LPTR,bytes);if(!n->descriptor)return PAPACC_RESULT_INVALID_STATE;memcpy(n->descriptor,good_sd,bytes);
+ n->sid_text="MODEL_OPERATOR_NOT_NATIVE_CUSTODY_PROOF";n->phase=1;
+ c->pending_commit.bootstrap_parent=(HANDLE)(ULONG_PTR)19;files[19].attributes=FILE_ATTRIBUTE_DIRECTORY;files[19].id=19;return 0;
+}
+static PAPACC_RESULT model_native_current(PAPACC_CONFIGURATION_COMMIT *c)
+{return c->pending_commit.personal_native.phase==1U&&scenario!=18U?PAPACC_RESULT_OK:PAPACC_RESULT_INVALID_STATE;}
+static PAPACC_RESULT model_native_close(PAPACC_CONFIGURATION_COMMIT *c)
+{if(scenario==19U)return PAPACC_RESULT_INVALID_STATE;if(c->pending_commit.personal_native.descriptor){LocalFree(c->pending_commit.personal_native.descriptor);c->pending_commit.personal_native.descriptor=NULL;}return 0;}
+#define GetFileInformationByHandle model_info
+#define SetFilePointerEx model_seek
+#define ReadFile model_read
+#define WriteFile model_write
+#define FlushFileBuffers model_flush
+#define CloseHandle model_close
+#define GetSecurityInfo model_security
+#define GetModuleHandleW model_module
+#define GetProcAddress model_proc
+#define QueryDosDeviceW model_dos
+#define GetConsoleMode model_mode
+#define GetStdHandle model_std
+#define BCryptGenRandom model_rng
+#define GetProcessHandleCount model_handles
+#undef GetProcessMemoryInfo
+#undef GetPerformanceInfo
+#define GetProcessMemoryInfo model_memory
+#define GetPerformanceInfo model_performance
+#define GlobalMemoryStatusEx model_global
+#define QueryPerformanceFrequency model_frequency
+#define QueryPerformanceCounter model_counter
+#define GetModuleFileNameW model_module_path
+#define LocalFree model_free
+#define papacc_configuration_personal_layout_binary model_layout
+#define papacc_configuration_personal_layout_binary_current model_layout_current
+#define papacc_configuration_personal_layout_new staging_test_forbidden_full_layout
+#define papacc_configuration_personal_layout_current staging_test_forbidden_full_layout
+#define papacc_configuration_personal_native_open model_native_open
+#define papacc_configuration_personal_native_current model_native_current
+#define papacc_configuration_personal_native_close model_native_close
+#define PAPACC_SCM_DESCRIPTOR_TEST 1
+#include "../apps/server/server_launcher_scm_prepare_win32.inc"
+#include "../apps/server/server_original_file_win32.inc"
+#include "../apps/server/server_launcher_qualification_staging_win32.inc"
+#undef LocalFree
+#define T(x) do{checks++;if(!(x)){printf("FAIL staging scenario=%u line=%u phase=%u first=%lu creates=%u\n",scenario,(unsigned)__LINE__,staging_act()->phase,(unsigned long)staging_act()->first,creates);return 1;}}while(0)
+static void fixture_reset(unsigned which)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+ /* Test allocator disposal, never product cleanup of uncertain native refs. */
+ if(s->protection)LocalFree(s->protection);if(s->scratch)LocalFree(s->scratch);if(s->trusted_installer)LocalFree(s->trusted_installer);if(n->descriptor)LocalFree(n->descriptor);
+ ZeroMemory(&root,sizeof(root));ZeroMemory(files,sizeof(files));state=0;scenario=which;
+ allocated=creates=writes=closes=fail_create=fail_close=stop_now=mutation=flushes=full_prepare=free_calls=fail_free=0;
+ capacity_case=counter_calls=volume_calls=rng_calls=0;counter_tick=0;cases++;
+ handle_calls=layout_calls=0;
+}
+int main(int argc,char **argv)
+{
+ FILE *out=tmpfile(),*err=tmpfile();unsigned i,j;DWORD e,old;PAPACC_QUALIFICATION_STAGING copy;
+ if(!out||!err||!ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;GRGX;;;AU)",SDDL_REVISION_1,&good_sd,NULL))return 2;
+ if(argc==2&&!strcmp(argv[1],"--resources")){
+  fixture_reset(0);T(papacc_server_launcher_staging_observe(out,err)==0);T(!creates&&!writes&&!rng_calls&&!staging_act()->consumed&&volume_calls==1U);
+  T(staging_act()->resources.observation.samples==8U&&staging_act()->resources.volume_known);
+  T(staging_act()->resources.missing==19U&&staging_act()->resources.logical_bytes==18003U&&staging_act()->resources.payload_allocated==24576U);
+  for(i=1U;i<=18U;i++){
+   fixture_reset(0);capacity_case=i;T(papacc_server_launcher_staging_observe(out,err)!=0);T(!creates&&!writes&&!rng_calls&&!staging_act()->consumed);
+   old=counter_calls;e=volume_calls;T(staging_act()->resources.missing!=0U);
+   if(i==10U||i==18U){T(staging_act()->phase==8U&&state==PAPACC_LAUNCHER_RETAINED);T(staging_close()!=0&&counter_calls==old&&volume_calls==e);}
+  }
+  fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);capacity_case=4U;T(staging_apply_composition()!=0&&!creates&&!staging_act()->consumed);(void)staging_close();
+  fixture_reset(0);T(staging_prepare_mode(L"C:\\Build",out,err,1)==0);T(!rng_calls);T(papacc_server_launcher_staging_observe(out,err)!=0&&!creates);T(staging_close()==0);
+  fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);T(staging_apply_composition()==0);capacity_case=4U;T(staging_observe(7U)!=0);old=closes;T(staging_close()!=0&&closes==old&&staging_act()->phase==8U);
+  fixture_reset(0);T(staging_prepare_mode(L"C:\\Build",out,err,1)==0);fail_close=1U;T(staging_close()!=0&&staging_act()->phase==8U);old=closes;T(staging_close()!=0&&closes==old);
+  fixture_reset(0);T(papacc_server_launcher_qualification_staging(L"C:\\Build",out,err)!=0&&!creates);T(staging_act()->resources.missing==19U);
+  fixture_reset(24U);T(papacc_server_launcher_staging_observe(out,err)!=0&&!allocated&&!creates&&!rng_calls);
+  for(i=25U;i<=26U;i++){
+   PAPACC_STAGING_RESOURCES *r;
+   fixture_reset(i);T(papacc_server_launcher_staging_observe(out,err)!=0);r=&staging_act()->resources;
+   T(staging_act()->first==1816U&&r->first_location==4U&&!allocated&&!creates&&!rng_calls&&!volume_calls);
+   T(r->observation.first.handles==115U&&r->guard_attempted==1U&&r->guard_index==0U);
+   if(i==25U){T(r->guard_succeeded==1U&&r->guard_count==124U&&!r->guard_error&&r->guard_denied==1U);}
+   else {T(!r->guard_succeeded&&!r->guard_count&&r->guard_error==1816U&&!r->guard_denied);}
+   T(r->close_known==1U&&staging_act()->phase==6U&&state==0);
+  }
+  for(i=27U;i<=28U;i++){
+   PAPACC_STAGING_RESOURCES *r;
+   fixture_reset(i);T(papacc_server_launcher_staging_observe(out,err)!=0);r=&staging_act()->resources;
+   T(staging_act()->first==1816U&&r->first_location==1U&&!layout_calls&&!allocated&&!creates&&!rng_calls&&!volume_calls);
+   T(r->observation.first.handles==115U&&r->post_entry_attempted==1U&&!r->guard_attempted);
+   if(i==27U){T(r->post_entry_succeeded==1U&&r->post_entry_count==125U&&!r->post_entry_error);}
+   else{T(!r->post_entry_succeeded&&!r->post_entry_count&&r->post_entry_error==1816U);}
+   T(r->close_known==1U&&staging_act()->phase==6U&&state==0);
+  }
+  /* Admission is separate from raw effect composition: no diagnostic DATA grant. */
+  fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);
+  T(staging_policy_missing()==19U&&staging_admit()==ERROR_NOT_SUPPORTED);
+  T(!(staging_policy_missing()&(PAPACC_STAGE_MISSING_RETENTION|PAPACC_STAGE_MISSING_ADMIN_COHORT)));
+  root.configuration_commit.unresolved=1;T(staging_policy_missing()&PAPACC_STAGE_MISSING_RETENTION);root.configuration_commit.unresolved=0;
+  old=staging_act()->thread;staging_act()->thread++;T(staging_policy_missing()&PAPACC_STAGE_MISSING_ADMIN_COHORT);T(staging_admit()==ERROR_INVALID_STATE);staging_act()->thread=old;
+  staging_act()->phase=8U;T(staging_policy_missing()&PAPACC_STAGE_MISSING_RETENTION);T(staging_apply()==ERROR_INVALID_STATE);staging_act()->phase=3U;
+  staging_act()->resources.missing=0;T(staging_apply()==ERROR_NOT_SUPPORTED&&!creates&&!writes&&!staging_act()->consumed);
+  staging_act()->resources.observation.last.handles=132U;T(staging_admit()==ERROR_NOT_SUPPORTED);
+  staging_act()->resources.observation.last.handles=0U;T(staging_admit()==ERROR_NOT_SUPPORTED);
+  staging_act()->resources.volume_known=0;T(staging_policy_missing()&PAPACC_STAGE_MISSING_VOLUME);
+  staging_act()->resources.observation.first_error=ERROR_ACCESS_DENIED;T(staging_policy_missing()&PAPACC_STAGE_MISSING_OBSERVATION);
+  stop_now=1;T(staging_apply()==ERROR_CANCELLED&&!creates);stop_now=0;
+  staging_act()->consumed=1;T(staging_apply()==ERROR_INVALID_STATE);staging_act()->consumed=0;
+  old=staging_act()->thread;staging_act()->thread++;T(staging_apply()==ERROR_INVALID_STATE);staging_act()->thread=old;
+  T(staging_close()==0);T(staging_apply()==ERROR_INVALID_STATE);
+  fixture_reset(0);T(staging_prepare_profile(L"C:\\Build",out,err,0,PAPACC_STAGING_LIMITED_QUALIFICATION)==0);
+  T(staging_act()->assurance_profile==PAPACC_STAGING_LIMITED_QUALIFICATION);
+  T(staging_policy_missing()==19U&&staging_policy_blockers()==130U);
+  staging_act()->resources.missing=0;T(staging_apply()==ERROR_NOT_SUPPORTED&&!creates&&!writes&&!staging_act()->consumed);
+  staging_act()->assurance_profile=3U;T(staging_apply()==ERROR_INVALID_STATE&&!creates);
+  staging_act()->assurance_profile=PAPACC_STAGING_STRICT;T(staging_policy_blockers()==19U&&staging_apply()==ERROR_NOT_SUPPORTED);
+  T(staging_close()==0);
+  fixture_reset(0);T(papacc_server_launcher_qualification_staging_limited(L"C:\\Build",out,err)!=0&&!creates&&!writes&&state==0);
+  fixture_reset(0);T(staging_prepare_profile(L"C:\\Build",out,err,0,3U)!=0&&!allocated&&!creates&&!rng_calls);
+  fixture_reset(0);LocalFree(good_sd);T(!fclose(out)&&!fclose(err));printf("PASS STAGING_RESOURCES cases=%u checks=%u NATIVE_QUERIES_MODELED ZERO_RNG_OR_MUTATIONS UNKNOWN_NOT_ADMISSION\n",cases,checks);return 0;
+ }
+ fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);T(!creates&&staging_act()->phase==3U);
+ T(staging_apply_composition()==0&&creates==5U&&flushes==3U);T(staging_act()->consumed);
+ for(i=0;i<3U;i++){MODEL_FILE *src=mf(staging_act()->objects[8U+i].handle),*dst=mf(staging_act()->objects[13U+i].handle);T(src&&dst&&src->size==dst->size&&!memcmp(src->data,dst->data,src->size));}
+ T(staging_apply_composition()!=0&&creates==5U);T(staging_close()==0&&staging_act()->phase==6U);old=closes;T(staging_close()!=0&&closes==old);
+ fixture_reset(6U);T(staging_prepare(L"C:\\Build",out,err)==0);T(staging_apply_composition()==0&&writes>500U);T(staging_close()==0);
+ for(i=1;i<=5U;i++){
+  fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);fail_create=i;
+  T(staging_apply_composition()!=0&&creates==i);old=closes;T(staging_close()!=0&&closes==old&&staging_act()->phase==8U);T(staging_apply_composition()!=0&&creates==i);
+ }
+ for(i=1;i<=18U;i++)if(i!=6U){
+  fixture_reset(i);e=(DWORD)staging_prepare(L"C:\\Build",out,err);
+  if(i<=3U||i>=15U){T(e!=0&&!creates);continue;}
+  T(!e);if(i==4U)stop_now=1;if(i==5U)staging_act()->digest[0][0]^=1;
+  T(staging_apply_composition()!=0);if(creates){T(staging_close()!=0&&staging_act()->phase==8U);}else T(staging_close()==staging_act()->first);
+ }
+ for(i=1;i<=9U;i++){
+  fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);T(staging_apply_composition()==0);fail_close=i;
+  T(staging_close()!=0&&staging_act()->phase==8U);old=closes;T(staging_close()!=0&&closes==old);
+ }
+ fixture_reset(19U);T(staging_prepare(L"C:\\Build",out,err)==0);T(staging_apply_composition()==0);T(staging_close()!=0&&staging_act()->phase==8U);
+ fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);copy=*staging_act();staging_act()->self=&copy;T(staging_apply_composition()!=0&&!creates);staging_act()->self=staging_act();
+ old=staging_act()->thread;staging_act()->thread++;T(staging_apply_composition()!=0&&!creates);staging_act()->thread=old;T(staging_close()==0);
+ fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);T(papacc_server_launcher_qualification_staging(L"C:\\Build",out,err)!=0&&!creates);T(staging_close()==0);
+ fixture_reset(0);T(papacc_server_launcher_qualification_staging(L"C:\\Build",out,err)!=0&&!creates&&state==0);
+ for(i=20U;i<=23U;i++){fixture_reset(i);T(staging_prepare(L"C:\\Build",out,err)!=0&&!creates);if(i>=22U)T(state==PAPACC_LAUNCHER_RETAINED&&staging_act()->phase==8U&&!closes);}
+ fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);fail_free=free_calls+1U;T(staging_apply_composition()!=0&&!creates);old=free_calls;T(staging_close()!=0&&staging_act()->phase==8U&&free_calls==old);
+ fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);T(staging_apply_composition()==0);stop_now=1;T(staging_close()!=0&&staging_act()->phase==8U);
+ fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);
+ {PSECURITY_DESCRIPTOR bad=NULL;T(ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:BAG:BAD:P(A;;FA;;;WD)",SDDL_REVISION_1,&bad,NULL));T(!staging_descriptor(bad,1)&&!staging_descriptor(bad,0));LocalFree(bad);}T(staging_close()==0);
+ for(j=0;j<3U;j++){fixture_reset(0);T(staging_prepare(L"C:\\Build",out,err)==0);if(j==0U)staging_act()->objects[8].identity.nFileIndexLow++;if(j==1U)staging_act()->objects[0].acl[0]^=1;if(j==2U)stop_now=1;T(staging_apply_composition()!=0&&!creates);(void)staging_close();}
+ /* Stop on EOF must suppress flush; Stop during partial IO suppresses next
+  * write; Stop after read suppresses the first write. Effects stay retained. */
+ for(i=29U;i<=31U;i++){
+  fixture_reset(i);T(staging_prepare(L"C:\\Build",out,err)==0);
+  T(staging_apply_composition()!=0&&staging_act()->first==ERROR_CANCELLED&&!flushes);
+  if(i==30U)T(writes==1U);if(i==31U)T(!writes);
+  old=closes;T(staging_close()!=0&&closes==old&&staging_act()->phase==8U);
+ }
+ /* Raw LIMITED effect composition is exercised with modeled APIs only;
+  * the admitted public LIMITED entry above still denies without B3/B8. */
+ fixture_reset(0);T(staging_prepare_profile(L"C:\\Build",out,err,0,PAPACC_STAGING_LIMITED_QUALIFICATION)==0);
+ T(staging_apply_composition()==0&&creates==5U&&flushes==3U);
+ T(staging_act()->assurance_profile==PAPACC_STAGING_LIMITED_QUALIFICATION&&staging_act()->consumed);
+ T(staging_apply_composition()!=0&&creates==5U);T(staging_close()==0);
+ for(i=7U;i<=10U;i++){
+  fixture_reset(i);T(staging_prepare_profile(L"C:\\Build",out,err,0,PAPACC_STAGING_LIMITED_QUALIFICATION)==0);
+  T(staging_apply_composition()!=0);old=closes;T(staging_close()!=0&&closes==old&&staging_act()->phase==8U);
+ }
+ fixture_reset(0);T(!staging_act()->phase);LocalFree(good_sd);T(!fclose(out)&&!fclose(err));
+ printf("PASS STAGING scenarios=%u checks=%u REAL_SHA256_SD_PARSING MODELED_NATIVE_API ZERO_PROTECTED_EFFECTS\n",cases,checks);return 0;
+}
+
+
+
+
+
+

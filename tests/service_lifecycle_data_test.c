@@ -6,8 +6,12 @@ int main(void)
 {
  PS_REQUEST q;PS_LIFETIME s;char big[140];const char *v[5]={"p","service","install","--account",".\\LocalOperator"};
  T(ps_parse(3,v,&q)==1&&q.action==PS_INSTALL&&!strcmp(q.account,"NT SERVICE\\PapinhoAccelerator"));
+ T(q.install_profile==PS_INSTALL_PRODUCT);
+ v[3]="--scq-closed";T(ps_parse(4,v,&q)==1&&q.action==PS_INSTALL&&q.install_profile==PS_INSTALL_SCQ_CLOSED&&!q.prepare_lab);
+ T(!ps_parse(5,v,&q));v[3]="--account";T(ps_parse(3,v,&q)==1);
  T(ps_action_allowed(q.action,0,PS_EMPTY));T(!ps_action_allowed(q.action,1,PS_STOPPED));T(!ps_parse(5,v,&q));
  v[2]="start";T(ps_parse(3,v,&q)==1&&q.action==PS_START);
+ v[3]="--scq-closed";T(ps_parse(4,v,&q)==1&&q.start_profile==PS_START_SCQ_CLOSED);T(ps_parse(3,v,&q)==1&&!q.start_profile);
  T(ps_action_allowed(q.action,1,PS_STOPPED));T(!ps_action_allowed(q.action,0,PS_EMPTY));
  T(!ps_action_allowed(q.action,1,PS_RUNNING));T(!ps_action_allowed(q.action,1,PS_RETAINED));
  v[2]="stop";T(ps_parse(3,v,&q)==1&&q.action==PS_STOP);T(ps_action_allowed(q.action,1,PS_RUNNING));

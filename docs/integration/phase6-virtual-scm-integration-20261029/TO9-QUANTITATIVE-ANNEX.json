@@ -1,0 +1,64 @@
+{
+  "status": "INCOMPLETE_NOT_OPERATIONAL_POLICY",
+  "native_measurements_this_task": 0,
+  "sources": [
+    "TO9-Selected-Debug-LastTest.log",
+    "TO9-Legacy-Debug-LastTest.log",
+    "TO9-SOURCE-HASHES.json",
+    "STO-QUANTITATIVE-ANNEX.json"
+  ],
+  "known": {
+    "own_handle_guard": 124,
+    "own_handle_limit": 128,
+    "administrative_handle_limit": 1024,
+    "record_bytes": 1048,
+    "SQR1_bytes": 1052,
+    "SQC1_bytes": 1076,
+    "distinct_payload_bytes": 3176,
+    "Selected_managed_bytes": 1979784,
+    "Selected_managed_limit_bytes": 3145728,
+    "Legacy_managed_bytes": 1811216,
+    "Legacy_managed_limit_bytes": 2097152,
+    "SCM_separate_static_bytes": 12924,
+    "Selected_static_sum_bytes": 1992708,
+    "Legacy_static_sum_bytes": 1824140,
+    "dispatch_bytes": 352,
+    "dispatch_growth_bytes": 8
+  },
+  "limitations": [
+    "Static compiler census is not physical or commit headroom or a universal peak.",
+    "Payload sum excludes framing, repeated I/O, kernel and transient allocations; do not double-charge identical owned storage.",
+    "No KSP does not remove public RNG/hash CNG costs.",
+    "Future implementation requires refreshed compiler census."
+  ],
+  "unjustified": {
+    "authorization_validity_ms": null,
+    "global_duration_ms": null,
+    "observation_max_age_ms": null,
+    "collection_validity_ms": null,
+    "physical_headroom_bytes": null,
+    "commit_headroom_bytes": null,
+    "provider_kernel_active_cost_bytes": null,
+    "close_deadline_ms": null
+  },
+  "measurement_plan": {
+    "validity": "Bind original plan/decision, actor, attempt and invalidation conditions; monotonic start/end and freshness gates. No copied sample renews validity.",
+    "duration": "Measure before first authorized effect through protocol/readiness and governed terminal close. Separate Stop and retained-state duration; local timeouts are not a global bound.",
+    "freshness": "Record collection start/end, observation age and identity invalidation at effects, receive, close and readiness; preserve clock-domain provenance.",
+    "resources": "Per-phase pre/post baselines and retained maxima; separate managed census, physical, commit, stacks, kernel, pipe, SCM/token queries and public hash/RNG. Attribute shared ownership once, deduplicate participants by original process identity and PID/creation. UNKNOWN stays charged/denied.",
+    "close": "SQR1 DATA is not close. Correlate SQC1 original producer and delivered reference IDs against original destination-table evidence; independent actor receipts, outstanding I/O and retained references; no timeout-as-quiescence or retry."
+  },
+  "not_reusable_as_policy": [
+    "Browser D4/D5 values or incomplete annex",
+    "LAB timeouts/headroom",
+    "finite model peaks as universal ceilings"
+  ],
+  "derived_artifacts": "TO9-CANDIDATE-ARTIFACTS.json; require owner selection",
+  "additional_source_local_storage": {
+    "function": "scqs_current",
+    "type": "PAPACC_SCQ_PLAN_DATA",
+    "bytes": 1048,
+    "classification": "local validation snapshot; not a full stack-frame or peak measurement; transitive native stack remains UNKNOWN"
+  },
+  "justification": "Only invariant byte sizes and fixed accepted handle caps are established. Models justify rejection/order, not empirical native latency or costs. No positive numeric operational policy has been derived."
+}

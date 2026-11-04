@@ -1,0 +1,6 @@
+# Próximo prompt executável — avançar após bloqueio físico prospectivo
+Reutilizar FCA-PROSPECTIVE-PHYSICAL-FLOOR-RESULT-REPORT.md e resultados originais. A coleta a866... está consumida; não repetir. A FCAe3c11... também foi usada; não repetir/rearmar.
+A observação independente mostrou física6912655360 <piso7239172096, commit5584437248 >3GiB e handles56 apenas do observador. Não é causa histórica provada nem admissão futura.
+Não alterar nenhum piso/guard, não executar coleta/UPDATE/FCA/Start ou fechamento de processos. A imagem912384bytes já está instalada com captura26ramos. Não recriar configuração/Papinho nem ampliar infraestrutura.
+Quando houver nova condição factual de RAM informada pelo proprietário, preparar o menor pedido específico de tentativa FCA independente sob os limites accepted, deixando amostra original/admissão como gate fresco e sem prometer PASS. Se o proprietário selecionar mudança normativa do piso físico, formalizar primeiro somente essa decisão focal; não confundir com piso de commit3GiB nem propagar para outros perfis.
+Preservar UNKNOWN/históricos/consumos/PST0.6.4.

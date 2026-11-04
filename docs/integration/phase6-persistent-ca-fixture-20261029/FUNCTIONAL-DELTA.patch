@@ -1,0 +1,167 @@
+--- before/tests/issuer_cng_x509_test.c
++++ after/tests/issuer_cng_x509_test.c
+@@ -7,7 +7,9 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <wchar.h>
+-static int native_crypto;
++static int native_crypto,persistent_fixture;
++static wchar_t qualification_key_name[112];
++static HANDLE persistent_receipt=INVALID_HANDLE_VALUE;
+ static NCRYPT_PROV_HANDLE ephemeral_provider;
+ static NCRYPT_KEY_HANDLE ephemeral_ca,ephemeral_client;
+ static union {ULONGLONG alignment;BYTE bytes[2048];} ephemeral_ca_public,ephemeral_client_public;
+@@ -15,7 +17,7 @@
+ static SECURITY_STATUS ephemeral_new(NCRYPT_KEY_HANDLE *k)
+ {
+  DWORD bits=2048;SECURITY_STATUS r;
+- r=NCryptCreatePersistedKey(ephemeral_provider,k,NCRYPT_RSA_ALGORITHM,NULL,0,0);if(r)return r;
++ r=NCryptCreatePersistedKey(ephemeral_provider,k,NCRYPT_RSA_ALGORITHM,(persistent_fixture&&k==&ephemeral_ca)?qualification_key_name:NULL,0,0);if(r)return r;
+  r=NCryptSetProperty(*k,NCRYPT_LENGTH_PROPERTY,(PBYTE)&bits,sizeof(bits),0);if(r)return r;
+  return NCryptFinalizeKey(*k,0);
+ }
+@@ -40,8 +42,9 @@
+ static PAPACC_ISSUER_CORE fixture_core;
+ static BOOL WINAPI model_verify(HCRYPTPROV_LEGACY p,DWORD e,DWORD s,void *a,DWORD i,void *b,DWORD f,void *x)
+ {if(native_crypto)return ephemeral_verify(p,e,s,a,i,b,f,x);(void)p;(void)e;(void)s;(void)a;(void)i;(void)b;(void)f;(void)x;return !bad_signature;}
+-static SECURITY_STATUS model_validate(PAPACC_CA_KEY *key){DWORD bits=0,policy=1,n=0;validation_calls++;
++static SECURITY_STATUS model_validate(PAPACC_CA_KEY *key){DWORD bits=0,policy=1,n=0;wchar_t observed_name[112];validation_calls++;
+  if(!native_crypto)return 0;
++ if(persistent_fixture&&(!key||NCryptGetProperty(key->key,NCRYPT_NAME_PROPERTY,(PBYTE)observed_name,sizeof(observed_name),&n,0)||n>sizeof(observed_name)||!wmemchr(observed_name,0,112)||wcscmp(observed_name,qualification_key_name)))return NTE_BAD_KEY_STATE;
+  if(!key||key->key!=ephemeral_ca||key->provider!=ephemeral_provider||key->thread!=GetCurrentThreadId())return NTE_BAD_KEY_STATE;
+  if(NCryptGetProperty(key->key,NCRYPT_LENGTH_PROPERTY,(PBYTE)&bits,sizeof(bits),&n,0)||n!=sizeof(bits)||bits!=2048)return NTE_BAD_KEY_STATE;
+  if(NCryptGetProperty(key->key,NCRYPT_EXPORT_POLICY_PROPERTY,(PBYTE)&policy,sizeof(policy),&n,0)||n!=sizeof(policy)||policy)return NTE_BAD_KEY_STATE;
+@@ -224,7 +227,7 @@
+ int main(int argc,char **argv)
+ {
+  PCCERT_CONTEXT caf,client;PAPACC_ISSUER_RESULT result;DWORD n;PAPACC_SIZE saved;unsigned before;
+- if(argc==4&&!strcmp(argv[3],"--native-ephemeral"))return native_ephemeral_journey();if(argc!=3)return 2;caf=fixture(argv[1]);client=fixture(argv[2]);CHECK(caf&&client);ca_public=caf->pCertInfo->SubjectPublicKeyInfo;
++ if(argc==5&&!strcmp(argv[3],"--native-persistent")){if(!persistent_fixture_prepare(argv[4]))return 2;persistent_fixture=1;return native_ephemeral_journey();}if(argc==4&&!strcmp(argv[3],"--native-ephemeral"))return native_ephemeral_journey();if(argc!=3)return 2;caf=fixture(argv[1]);client=fixture(argv[2]);CHECK(caf&&client);ca_public=caf->pCertInfo->SubjectPublicKeyInfo;
+  normal_profile=1;CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));
+  CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK&&private_calls==1);
+  CHECK(papacc_issuer_recover(&fixture_core,record.request.id)==PAPACC_ISSUER_DENIED);
+--- before/tests/issuer_native_ephemeral_cases.inc
++++ after/tests/issuer_native_ephemeral_cases.inc
+@@ -1,6 +1,49 @@
+ /* Test translation only. Real ephemeral CNG; simulated authorization/CURRENT.
+  * Never linked into the product or used as a source of operational proofs. */
+ #include "../src/issuer/issuer_codec.h"
++static int persistent_note(const char *text)
++{DWORD used=0,n=(DWORD)strlen(text);return WriteFile(persistent_receipt,text,n,&used,NULL)&&used==n&&FlushFileBuffers(persistent_receipt);}
++static int persistent_fixture_prepare(const char *receipt)
++{
++ BYTE random[32];unsigned i,z;const wchar_t *prefix=L"Papacc.Qualification.FirstCA.",*hex=L"0123456789abcdef";char line[256];
++ if(!receipt||strstr(receipt,"..")||strstr(receipt,"CURRENT"))return 0;
++ if(BCryptGenRandom(NULL,random,sizeof(random),BCRYPT_USE_SYSTEM_PREFERRED_RNG))return 0;
++ z=0;while(*prefix)qualification_key_name[z++]=*prefix++;
++ for(i=0;i<32;i++){qualification_key_name[z++]=hex[random[i]>>4];qualification_key_name[z++]=hex[random[i]&15];}qualification_key_name[z]=0;
++ persistent_receipt=CreateFileA(receipt,GENERIC_WRITE,0,NULL,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,NULL);
++ if(persistent_receipt==INVALID_HANDLE_VALUE)return 0;
++ if(sprintf_s(line,sizeof(line),"INTENT TEST_ONLY CURRENTUSER KEY=%ls NO_RETRY NO_DELETE\r\n",qualification_key_name)<0)return 0;
++ return persistent_note(line);
++}
++static int persistent_reacquire(void)
++{
++ CERT_PUBLIC_KEY_INFO *public_value;union {ULONGLONG alignment;BYTE bytes[2048];} public_buffer;BYTE old_digest[32],new_digest[32];NCRYPT_KEY_HANDLE absent=0;
++ /* Retire all first-instance borrows before closing native references. */
++ memcpy(old_digest,fixture_view.ca_spki_digest,32);
++ papacc_issuer_stop(&fixture_core);papacc_issuer_cng_backend_stop(&fixture_backend);
++ CHECK(papacc_issuer_finish(&fixture_core)==0&&papacc_issuer_cng_backend_release_custody(&fixture_backend)==0&&!key.borrower);
++ CHECK(persistent_note("CREATED; BORROWS_RETURNED; KEY_RETAINED_IN_KSP\r\n"));
++ CHECK(NCryptFreeObject(ephemeral_ca)==0);ephemeral_ca=0;key.key=0;
++ CHECK(NCryptFreeObject(ephemeral_client)==0);ephemeral_client=0;
++ CHECK(NCryptFreeObject(ephemeral_provider)==0);ephemeral_provider=0;key.provider=0;
++ CHECK(NCryptOpenStorageProvider(&ephemeral_provider,MS_KEY_STORAGE_PROVIDER,0)==0);
++ CHECK(NCryptOpenKey(ephemeral_provider,&ephemeral_ca,qualification_key_name,0,NCRYPT_SILENT_FLAG)==0);
++ CHECK(papacc_issuer_x509_key_public(ephemeral_ca,public_buffer.bytes,sizeof(public_buffer.bytes),&public_value)==0);
++ CHECK(xspki(public_value,new_digest,pubder,sizeof(pubder))&&!memcmp(new_digest,old_digest,32));
++ CHECK(NCryptOpenKey(ephemeral_provider,&absent,L"Papacc.Qualification.Missing.NoCreate",0,NCRYPT_SILENT_FLAG)!=0&&!absent);
++ key.key=ephemeral_ca;key.provider=ephemeral_provider;key.created=0;
++ CHECK(model_validate(&key)==0);
++ memset(&fixture_core,0,sizeof(fixture_core));memset(&fixture_backend,0,sizeof(fixture_backend));
++ memset(&source_owner,0,sizeof(source_owner));source_owner.initialized=source_owner.published=1;source_owner.writer=GetCurrentThreadId();source_owner.store02=6;
++ memcpy(source_owner.domain,fixture_view.root,32);source_owner.slots[0].view.revision=fixture_view.revision;source_owner.slots[0].issuer_revision=fixture_view.revision;
++ source_owner.slots[0].context_epoch=fixture_view.administrative_epoch;source_owner.slots[0].operational_epoch=fixture_view.epoch;
++ CHECK(papacc_issuer_cng_backend_init(&fixture_backend,&root,&administrative,&fixture_core,&key,&fixture_ca,workspace.bytes,sizeof(workspace.bytes),2084039)==0);
++ CHECK(papacc_configuration_existing_ca_bind(&source_owner,&fixture_backend)==0&&fixture_backend.source_kind==PAPACC_CA_SOURCE_EXISTING_CURRENT);
++ CHECK(papacc_configuration_existing_ca_bind(&source_owner,&fixture_backend)!=0); /* no duplicate custody */
++ CHECK(papacc_configuration_existing_ca_activate_normal(&source_owner,&fixture_backend)==0);
++ CHECK(persistent_note("REOPENED NEW_PROVIDER; NAME_SPKI_EXPORT_POLICY_MATCH; EXISTING_CURRENT_BOUND; PUBLICATION_STILL_SIMULATED\r\n"));
++ return 0;
++}
+ #include "c2_operation_win32.h"
+ #include "server_credential_revocation_win32.h"
+ #include "../apps/server/server_credential_revocation_win32.inc"
+@@ -86,6 +129,7 @@
+  CHECK(source_activate(&source_owner,&fixture_backend,fixture_view.root,fixture_view.authority,fixture_view.generation)==0);
+  {PAPACC_ISSUER_RESULT results[2]={PAPACC_ISSUER_OK,PAPACC_ISSUER_OK};HANDLE thread=CreateThread(NULL,0,source_other_thread,results,0,NULL);
+   CHECK(thread&&WaitForSingleObject(thread,10000)==WAIT_OBJECT_0&&CloseHandle(thread));CHECK(results[0]!=0&&results[1]!=0);}
++ if(persistent_fixture)CHECK(!persistent_reacquire());
+  before=native_signs;
+  CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))==0&&native_signs==before+1);
+  CHECK(record.state==PAPACC_ISSUER_ISSUED_UNPUBLISHED);
+@@ -115,7 +159,8 @@
+  CHECK(papacc_issuer_issue(&fixture_core,record.request.id,csr,csr_size,out,sizeof(out))!=0&&native_signs==before+1);
+  CHECK(papacc_issuer_finish(&fixture_core)==0&&papacc_issuer_cng_backend_release_custody(&fixture_backend)==0&&!key.borrower);
+  CHECK(NCryptFreeObject(ephemeral_ca)==0);ephemeral_ca=0;key.key=0;
+- CHECK(NCryptFreeObject(ephemeral_client)==0);ephemeral_client=0;
++ if(ephemeral_client){CHECK(NCryptFreeObject(ephemeral_client)==0);ephemeral_client=0;}
+  CHECK(NCryptFreeObject(ephemeral_provider)==0);ephemeral_provider=0;key.provider=0;
++ if(persistent_fixture){CHECK(persistent_note("PASS REOPEN_AND_ISSUE; SIGNATURE_AND_PUBLISHED_V2_VERIFIED; NATIVE_REFS_CLOSED; KEY_RETAINED; NO_DELETE; NO_PRODUCT_AUTHORITY\r\n"));CHECK(CloseHandle(persistent_receipt));persistent_receipt=INVALID_HANDLE_VALUE;printf("PASS NATIVE_PERSISTENT_FIXTURE checks=%u CNG_CURRENTUSER_REAL REOPEN=PASS EXPORT_POLICY=ZERO KEY_RETAINED=TRUE PUBLICATION=SIMULATED PRODUCT_AUTHORITY=DENY\n",checks);return 0;}
+  printf("PASS NATIVE_EPHEMERAL_COMPOSITION checks=%u CNG_RSA2048_REAL signatures=%u verifications=%u PUBLISHED_V2_SIMULATED PRIVATE_EXPORT=NONE PERSISTENT_KEYS=NONE PRODUCT_AUTHORITY=DENY\n",checks,native_signs,native_verifications);return 0;
+ }
+--- before/CMakeLists.txt
++++ after/CMakeLists.txt
+@@ -2963,7 +2963,7 @@
+   add_executable(papacc_issuer_cng_x509_test tests/issuer_cng_x509_test.c src/issuer/issuer_core.c)
+   target_include_directories(papacc_issuer_cng_x509_test PRIVATE apps/server src/issuer include)
+   target_compile_definitions(papacc_issuer_cng_x509_test PRIVATE PAPACC_ISSUER_OFFLINE_TEST=1)
+-  target_link_libraries(papacc_issuer_cng_x509_test PRIVATE crypt32 ncrypt)
++  target_link_libraries(papacc_issuer_cng_x509_test PRIVATE crypt32 ncrypt bcrypt)
+   papacc_enable_warnings(papacc_issuer_cng_x509_test)
+   add_test(NAME papacc.issuer.cng_x509_model COMMAND papacc_issuer_cng_x509_test "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/ca.der.b64" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/security/client-a.der.b64")
+   add_executable(papacc_issuer_cng_production_gate_test tests/issuer_cng_production_gate_test.c)
+--- before/docs/capabilities/phase6-scope-and-closure-20261028.md
++++ after/docs/capabilities/phase6-scope-and-closure-20261028.md
+@@ -1,4 +1,8 @@
+ # Phase 6 — escopo recuperado e plano de conclusão
++
++## Persistência CNG do fixture — 2026-10-29
++
++Uma criação CurrentUser isolada e exclusiva, seguida de fechamento/reabertura por novo provider e aquisição EXISTING_CURRENT, passou com 85 verificações. Chave de qualificação retida, sem exclusão; nome/export policy/SPKI/certificado conferidos realmente. Quatro builds sem warnings e 12 regressões afetadas PASS. Não demonstra reboot, ACL MACHINE ou autoridade NEW_INSTALL; presenter F0–F9 e fontes operacionais ainda pendentes, guard produtivo fechado. [Relatório](../integration/phase6-persistent-ca-fixture-20261029/CONSOLIDATED-CLOSEOUT.md). Phase 6/ED11 PARTIAL.
+ 
+ ## Composição criptográfica nativa isolada — 2026-10-29
+ 
+--- before/docs/capabilities/canonical-phase6-consolidation.md
++++ after/docs/capabilities/canonical-phase6-consolidation.md
+@@ -1,4 +1,8 @@
+ # ConsolidaÃ§Ã£o canÃ´nica Phase 6 â€” estado factual
++
++## Persistência CNG do fixture — 2026-10-29
++
++Uma criação CurrentUser isolada e exclusiva, seguida de fechamento/reabertura por novo provider e aquisição EXISTING_CURRENT, passou com 85 verificações. Chave de qualificação retida, sem exclusão; nome/export policy/SPKI/certificado conferidos realmente. Quatro builds sem warnings e 12 regressões afetadas PASS. Não demonstra reboot, ACL MACHINE ou autoridade NEW_INSTALL; presenter F0–F9 e fontes operacionais ainda pendentes, guard produtivo fechado. [Relatório](../integration/phase6-persistent-ca-fixture-20261029/CONSOLIDATED-CLOSEOUT.md). Phase 6/ED11 PARTIAL.
+ 
+ ## Composição criptográfica nativa isolada — 2026-10-29
+ 
+--- before/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
++++ after/docs/integration/phase6-original-scope-recovery-20261028/build_matrix.py
+@@ -82,7 +82,7 @@
+  ('PROV-HOT','Add/approve/renew/revoke sem restart',prov,'Mesmo root/issuer/cadastro','CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado','docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md','PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes','PROV-ROOT;PROV-CA','OBRIGATORIO_AMPLIACAO_ACCEPTED','Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch'),
+  ('PROV-REVOKE','Revogação ativa e novas admissões; histórico',mvp,'Pessoal M7','STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED','docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md','Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED','PROV-HOT;E18','OBRIGATORIO_AMPLIACAO_ACCEPTED','Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência'),
+  ('PROV-ROOT','Autoridade configuração/root/CURRENT/epoch',mvp,'Pessoal NORMAL e configuração produto','DORMANT_NATIVE_OFFLINE; operacional NOT_DEMONSTRATED',c8,'ato autorizado/publicação e referência original viva','autoridade instalação/configuração; sem TPM global','OBRIGATORIO_PRODUTO; INSTANCIA_A_DESCOBRIR','Mapear entrada/consumo atuais antes de propor bootstrap'),
+- ('PROV-CA','CA protegida/serial/UTC/issuer NORMAL',mvp+';docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md','M1/M3 NEW_INSTALL ou CA existente','NATIVE_EPHEMERAL_CRYPTO_QUALIFIED; CEREMONY_CURRENT_SIMULATED; NORMAL_DENY','docs/integration/phase6-first-native-crypto-20261029/CONSOLIDATED-CLOSEOUT.md','CA e CSR/leaf CNG reais efemeros; PUBLISHED v2 em memoria; fontes originais e custodia persistente ainda ausentes','PROV-ROOT;ED11','OBRIGATORIO; RECOVERY_NAO_HERDADA','Integrar admissibilidade e instancia original offline sem promover fixture; nao repetir CAS/TPM'),
++ ('PROV-CA','CA protegida/serial/UTC/issuer NORMAL',mvp+';docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md','M1/M3 NEW_INSTALL ou CA existente','CURRENTUSER_PERSISTENT_FIXTURE_REOPEN_PASS; OPERATIONAL_CEREMONY_DENY','docs/integration/phase6-persistent-ca-fixture-20261029/CONSOLIDATED-CLOSEOUT.md','Uma chave KSP de teste retida; reabertura e NORMAL reais; presenter e custodia MACHINE nao demonstrados','PROV-ROOT;ED11','OBRIGATORIO; RECOVERY_NAO_HERDADA','Integrar presenter nativo F0-F9 sem reutilizar fixture como autoridade; nao repetir cripto/CAS/TPM'),
+  ('SCM','Instalação/lifecycle/conta operacional pessoal',mvp,'Windows pessoal M5','HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS',ed,'readiness/acesso/Stop/restart normal/uninstall','E17;E18;PROV-ROOT','OBRIGATORIO_PESSOAL','Mapear CLI ao mesmo owner; não criar serviço agora'),
+  ('CONFIG','Config settings-only/listeners/live apply',mvp+';docs/adr/DECISION-personal-listener-selection-direction-20261023.md','Pessoal M6 e direção posterior','SUBSET_PARCIAL; detalhes defaultLan não aceitos', 'docs/future/personal-listener-selection-and-live-configuration.md','reconciliação CURRENT/reload e fontes reais','PROV-ROOT;PROV-HOT','OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES','Não congelar gramática/default novos por inferência'),
+  ('CERTIFICATES','Certificados Browser / CredentialGeneration/Reference/store',prov,'Secure manual e automatic; trust Site separado','R1_CURRENT_HOST_E_SHARED_CORE_LIMITADOS','B:docs/architecture-roadmap.md','pacote/enrollment/renovação/retirement e runtime final','PROV-MANUAL;PROV-AUTO;PST','OBRIGATORIO_CONSUMIDOR','Provar jornada e erro sem exportar chaves'),
+--- before/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
++++ after/docs/integration/phase6-original-scope-recovery-20261028/REQUIREMENTS.csv
+@@ -47,7 +47,7 @@
+ PROV-HOT,Add/approve/renew/revoke sem restart,docs/adr/DECISION-production-client-provisioning-20261018.md,Mesmo root/issuer/cadastro,CAS_PORT_NATIVE_OFFLINE_QUALIFIED; fluxo produtivo não demonstrado,docs/integration/phase6-native-cas-publication-20261029/CONSOLIDATED-CLOSEOUT.md,PUBLICADO de credencial e fanout completos; prova NORMAL e callers hot ainda ausentes,PROV-ROOT;PROV-CA,OBRIGATORIO_AMPLIACAO_ACCEPTED,Preservar CAS pendente qualificado; integrar fontes NORMAL e confirmação A/P sem inventar epoch
+ PROV-REVOKE,Revogação ativa e novas admissões; histórico,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Pessoal M7,STATUS_CURRENT_AND_NATIVE_PORT_IMPLEMENTED; COHORT_QUALIFIED_ISOLATED,docs/integration/phase6-normal-status-fanout-20261029/CONSOLIDATED-CLOSEOUT.md,Port revalida REVOKED original e identidade exata; execução nativa positiva/receipts de close dependem de fontes NORMAL/PUBLISHED,PROV-HOT;E18,OBRIGATORIO_AMPLIACAO_ACCEPTED,Não refazer consulta/cohort; qualificar fonte legítima e finalização real sem inferir quiescência
+ PROV-ROOT,Autoridade configuração/root/CURRENT/epoch,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Pessoal NORMAL e configuração produto,DORMANT_NATIVE_OFFLINE; operacional NOT_DEMONSTRATED,docs/integration/canonical-root-c2-c3-wiring-20261018/closeout.md,ato autorizado/publicação e referência original viva,autoridade instalação/configuração; sem TPM global,OBRIGATORIO_PRODUTO; INSTANCIA_A_DESCOBRIR,Mapear entrada/consumo atuais antes de propor bootstrap
+-PROV-CA,CA protegida/serial/UTC/issuer NORMAL,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md,M1/M3 NEW_INSTALL ou CA existente,NATIVE_EPHEMERAL_CRYPTO_QUALIFIED; CEREMONY_CURRENT_SIMULATED; NORMAL_DENY,docs/integration/phase6-first-native-crypto-20261029/CONSOLIDATED-CLOSEOUT.md,CA e CSR/leaf CNG reais efemeros; PUBLISHED v2 em memoria; fontes originais e custodia persistente ainda ausentes,PROV-ROOT;ED11,OBRIGATORIO; RECOVERY_NAO_HERDADA,Integrar admissibilidade e instancia original offline sem promover fixture; nao repetir CAS/TPM
++PROV-CA,CA protegida/serial/UTC/issuer NORMAL,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-first-install-authorization-f0-f9-20261022.md,M1/M3 NEW_INSTALL ou CA existente,CURRENTUSER_PERSISTENT_FIXTURE_REOPEN_PASS; OPERATIONAL_CEREMONY_DENY,docs/integration/phase6-persistent-ca-fixture-20261029/CONSOLIDATED-CLOSEOUT.md,Uma chave KSP de teste retida; reabertura e NORMAL reais; presenter e custodia MACHINE nao demonstrados,PROV-ROOT;ED11,OBRIGATORIO; RECOVERY_NAO_HERDADA,Integrar presenter nativo F0-F9 sem reutilizar fixture como autoridade; nao repetir cripto/CAS/TPM
+ SCM,Instalação/lifecycle/conta operacional pessoal,docs/adr/DECISION-phase6-personal-mvp-20261022.md,Windows pessoal M5,HOST_INTEGRADO; LAB_START_FAIL_NAO_E_READINESS,docs/integration/n0start03-integrated-closeout-20261024/ED11_GATE_MATRIX.csv,readiness/acesso/Stop/restart normal/uninstall,E17;E18;PROV-ROOT,OBRIGATORIO_PESSOAL,Mapear CLI ao mesmo owner; não criar serviço agora
+ CONFIG,Config settings-only/listeners/live apply,docs/adr/DECISION-phase6-personal-mvp-20261022.md;docs/adr/DECISION-personal-listener-selection-direction-20261023.md,Pessoal M6 e direção posterior,SUBSET_PARCIAL; detalhes defaultLan não aceitos,docs/future/personal-listener-selection-and-live-configuration.md,reconciliação CURRENT/reload e fontes reais,PROV-ROOT;PROV-HOT,OBRIGATORIO_NOS_PONTOS_ACCEPTED; DETALHES_PENDENTES,Não congelar gramática/default novos por inferência
+ CERTIFICATES,Certificados Browser / CredentialGeneration/Reference/store,docs/adr/DECISION-production-client-provisioning-20261018.md,Secure manual e automatic; trust Site separado,R1_CURRENT_HOST_E_SHARED_CORE_LIMITADOS,B:docs/architecture-roadmap.md,pacote/enrollment/renovação/retirement e runtime final,PROV-MANUAL;PROV-AUTO;PST,OBRIGATORIO_CONSUMIDOR,Provar jornada e erro sem exportar chaves

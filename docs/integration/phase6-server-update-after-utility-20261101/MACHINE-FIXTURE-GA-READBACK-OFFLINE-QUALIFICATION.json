@@ -1,0 +1,107 @@
+{
+  "status": "OFFLINE_QUALIFIED_NOT_INSTALLED",
+  "proposal_sha256": "3b090974b4abbf5db2543e8ef223cebf78ec8a4b08581d9fa3d7e7beb9b53d47",
+  "accepted_record": "docs\\adr\\DECISION-personal-machine-fixture-ga-readback-s0-s5-20261103.md",
+  "accepted_record_sha256": "8eeb6da08d28c9f22d3df75cd840758db7e5f57ceda7db3f6f4db2e428ac1186",
+  "runs": [
+    {
+      "profile": "Selected",
+      "configuration": "Debug",
+      "tests": 15,
+      "warnings": 0,
+      "build_log": "docs\\integration\\phase6-server-update-after-utility-20261101\\fixture-ga-readback-final-Selected-Debug-build.log",
+      "build_sha256": "163be4cfc5f75e1935f77cfee87849ea2bebce0b92ad6ff212731e6422c15045",
+      "test_log": "docs\\integration\\phase6-server-update-after-utility-20261101\\fixture-ga-readback-final-Selected-Debug-tests.log",
+      "test_sha256": "d0a849d7bd487c7bb78e16dcde79b437934d37f65c326fe3dceccd813ff5486d"
+    },
+    {
+      "profile": "Selected",
+      "configuration": "Release",
+      "tests": 15,
+      "warnings": 0,
+      "build_log": "docs\\integration\\phase6-server-update-after-utility-20261101\\fixture-ga-readback-final-Selected-Release-build.log",
+      "build_sha256": "c8cc094c9702622858d5362f4d66fa2763a4af6c802c7e2f0c1d2ac11863985d",
+      "test_log": "docs\\integration\\phase6-server-update-after-utility-20261101\\fixture-ga-readback-final-Selected-Release-tests.log",
+      "test_sha256": "fb6f5ab3dc2bf121014ec96fb0afef8a816ba26930f525dd0da40e4d46330c8f"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Debug",
+      "tests": 15,
+      "warnings": 0,
+      "build_log": "docs\\integration\\phase6-server-update-after-utility-20261101\\fixture-ga-readback-final-Legacy-Debug-build.log",
+      "build_sha256": "a165daf807b07d7ca69d0c4db513c2b663ea0016639f08098992773d26d5ddc7",
+      "test_log": "docs\\integration\\phase6-server-update-after-utility-20261101\\fixture-ga-readback-final-Legacy-Debug-tests.log",
+      "test_sha256": "2e61dc2a8c25e880b67cb29a14a9f396b996c49169e2b407d9791ef1a3936a82"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Release",
+      "tests": 15,
+      "warnings": 0,
+      "build_log": "docs\\integration\\phase6-server-update-after-utility-20261101\\fixture-ga-readback-final-Legacy-Release-build.log",
+      "build_sha256": "3e4eb404909818da8e2c5fc65767584f098c95ceb6da05f8f72c90985ae356e7",
+      "test_log": "docs\\integration\\phase6-server-update-after-utility-20261101\\fixture-ga-readback-final-Legacy-Release-tests.log",
+      "test_sha256": "4f8bbed4de32cedc7a55163fb6751d5971e4727c8f04361503071a32507f9ac6"
+    }
+  ],
+  "test_configuration_pairs": 60,
+  "template_cases": 81,
+  "fixture_checks": 370,
+  "source_cases_per_form": 37,
+  "source_checks_per_form": 147,
+  "read_cases_per_form": 27,
+  "read_closed_positive_per_form": 4,
+  "read_checks_per_form": 1474,
+  "candidate": {
+    "path": "build\\windows-virtual-scm-integration-20261022\\Selected\\Release\\papacc_server.exe",
+    "bytes": 872960,
+    "sha256": "f2aa63a82e92137be15438d60dae3b4f0332330b9b8df9a51617211e060c772d",
+    "frozen": "docs\\integration\\phase6-server-update-after-utility-20261101\\papacc_server.fixture-ga-readback-872960.exe"
+  },
+  "installed_baseline": {
+    "bytes": 871936,
+    "identity": "417614100:10223616:73344",
+    "sha256": "a6b8ee1ac5ef3e7b6908686f3690ce2a6ca6c4171812a201b7d3024ea6f2ab8a",
+    "freshness": "historical successful update; no new native read"
+  },
+  "sources": {
+    "CMakeLists.txt": "2789043c037bf651c4d4262be8a1d621b8357a0a6dc6f62e1e87374f46cc2137",
+    "apps/server/server_ca_key_win32.c": "797e2cfc43a65506a275d3df38a6ab9d9df6cb7a5609e88c83a5c04e87eac00a",
+    "apps/server/personal_machine_fixture_source_win32.inc": "927a967eaa19ff323ab80559dd6c89a71ec52e40b9f10088850d2a0b6eed3520",
+    "tests/scq_machine_fixture_test.c": "8dae461f6a95140a3491626e93322c3a691883064630c24169d350eca2a80bb9",
+    "tests/scq_machine_read_ca_model.c": "6d0c5fd99b35d9b5ab2e326dd579f05f40665669ac31c878c919ecb2f13a7564",
+    "tests/scq_machine_read_chain_test.c": "6945520c12e9a79a094dc3b5c2801b739f9215086c6ceb6ca28facec93be5e10",
+    "tests/machine_fixture_source_test.c": "0726dc806be671303209e76fe78a0b887f7ddec735077301f00530b712b517ea"
+  },
+  "setter": "GA unchanged",
+  "diagnostic_readback": [
+    "uniform 0x10000000 x3",
+    "uniform 0xd01f01ff x3"
+  ],
+  "mixed_masks": "DENY",
+  "ordinary_ca": "unchanged; existing behavior tested, no new policy",
+  "resources": {
+    "entry": 128,
+    "guard": 188,
+    "cap": 192,
+    "physical_floor": 7239172096,
+    "commit_floor": 3221225472,
+    "fixture_private_growth": 16777216,
+    "fixture_working_growth": 16777216,
+    "freshness_ms": 100,
+    "global_ms": 60000,
+    "ROOT": 380408,
+    "KNOWN": 2007456,
+    "Kfixture": 3071004,
+    "quota": 3145728,
+    "Legacy": "K2902436 >2097152 remains DENY"
+  },
+  "real_operations": false,
+  "partial_key": "preserved; no adoption; not qualified",
+  "historical_cause": "UNKNOWN",
+  "historical_retention": "UNKNOWN",
+  "os_quiescence": "UNKNOWN",
+  "head": "f341985924d29870d8ff627ed37c8a0874ad6469",
+  "branch": "main"
+}

@@ -1,0 +1,11 @@
+# Sessão WS3M manual preparada
+
+UPDATE798720/ID417614100:4128768:327703/pin6ad6e378ea5ec074ad6af44327b6fd1a22880a8cf18a8f02a3ecc28baf0edb9e reconciliado LIMITED_UPDATE_VERIFIED_CLOSED: first0, consumo/criação, dois renames, readback/close conhecidos. Anterior retido, autorização UPDATE consumida. Não é lease SCM ou prova de Start. Ver WORKING-GROWTH-IMAGE-UPDATE-RESULT.json.
+
+A autorização prospectiva efetivamente recebida para atualizar/testar esta correção foi registrada fielmente em OWNER-WS3M-THREE-ACTS-APPROVAL.txt, sem atribuir ao proprietário mensagem histórica com hash que ele não escreveu. Pedido ONE-WS3M-THREE-ACTS-REQUEST.CANDIDATE.md/SHA2569249509a3a942554defa8142bb6b78252e1c5ff9cc39db7bb11082548867653b; decisão SHA2562161c0f085438c1e217d30063df9b5856d3e01733b2d33a8e29a3c1f6891dd69; driver SHA256ba95b2054cb35422c2949b0a8501a29284804f44a9299d25131ef9facdb8d213. Não reutiliza TOKENFIX consumida. Três confirmações E/Q/S independentes ainda são obrigatórias; nenhuma resposta automática.
+
+Novas cópias auxiliares exclusivas, nomes FIRST-WS3M-SESSION-REQUEST.ORIGINAL.md/FIRST-WS3M-OPERATIONAL-DECISION.ORIGINAL.txt, sem criação nesta preparação.6artefatos/deltas exatos/AST/78verificações documentais/36guards PASS; fonteC# só4nomes alterados. Nenhum constructor nativo/Prepare/arquivo protegido/endpoint/SCM/Start foi invocado. Campanha do produto4builds/60pares reutilizada, sem repetir testes inalterados.
+
+G3: private1994944, working3145728, físico7239172096, commit3221225472, entrada128/guard188/cap192/freshness100ms/janela240000/global60000 sem renovação; policy0b260c85dfceec5e6e861bb998e4504723785b927d875d113d41a405e1ce1b60. Origem/P1/identidade/proteção/continuidade e gates frescos do SCM ainda podem negar. Runtime/PID/token/bilateral/empréstimo/receipt-close/RUNNING somente diagnóstico/término natural são provas futuras. Não pressupor PASS pelo UPDATE.
+
+Comando manual pronto, uma sessão sem retry; não executado automaticamente. Se retiver, disposições antigas não autorizam Stop/kill/fechar janela ou limpeza. Retidos/históricos/OS UNKNOWN; produtivo/KSP/CA/CURRENT/rede/TPM/NV/Q4 DENY. Próximo trabalho é reconciliar exclusivamente a saída manual real, não repetir a sessão.

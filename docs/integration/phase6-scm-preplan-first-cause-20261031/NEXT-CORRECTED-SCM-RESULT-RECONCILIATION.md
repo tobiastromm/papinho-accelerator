@@ -1,0 +1,9 @@
+# Próxima continuação — resultado da execução manual SCM corrigida
+
+Ler OWNER-CORRECTED-STOPPED-SCM-AUTHORIZATION.json, AUTHORIZED-MANUAL-HANDOFF.md, pedido aprovado fd08f3ae… e contratos accepted R0–R9. Aprovação anterior7eb9e691… UTILIZADA; nova execução ainda pendente até receber evidência do proprietário. Nenhuma execução automática, status/coleta SCM ou retry autorizado.
+
+Após receber saída manual completa, preservar texto e origem declarada, sem tratá-los como atestação independente. Conferir correspondência do pedido/script/controlador, plano/pins, tentativa e confirmação, primeira causa estágio/tipo/valor e subdiagnóstico quando disponíveis, amostras/QPC/recursos, consumo e se Create/configuração foram alcançados. Não concluir ACL inadequada por erro5 genérico nem inferir RNG PASS sem evidência.
+
+Registrar esta autorização como utilizada mesmo em falha/cancelamento/consumo0, sem rearmar. Distinguir erro anterior à submissão, Create com conflito/erro, registro parcial, configuração/readback/close incertos. Exigir conta/comando/tipo/início/error-control/SID type e SERVICE_STOPPED concordantes, com fechamento controlado conhecido, para qualificação limitada. Wrapper exit0 sozinho não basta; estado global do serviço não é inferido de ausência de efeitos desta tentativa. Manter UNKNOWN e retenção quando cabível; OS quiescence universal continua UNKNOWN.
+
+Não executar registro/retry, Start/Stop/Delete, staging, ACL, endpoint, CA/CURRENT, TPM/NV/Q4, cleanup/refund ou recuperação. Observação adicional requer autoridade própria, sem coletar automaticamente para preencher lacunas. Se houver registro parado comprovado, preparar o menor pedido separado para qualificação de Start diagnóstico com fonte original e gates tardios de PID/token; não executá-lo ou conceder rede/readiness produtiva por consequência. Preservar HEAD/WIP, históricos/pins, reservas/UNKNOWN e PST0.6.4; E21/ED11/Phase6 só avançam no alcance demonstrado.

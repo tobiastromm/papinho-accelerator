@@ -1,0 +1,69 @@
+{
+  "task": "PACC-PHASE6-SPC-ONE-NATIVE-ORIGINAL-BINDING",
+  "configurations": [
+    {
+      "configuration": "Selected-Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 5,
+      "result": "PASS",
+      "native_bilateral": "NOT_DEMONSTRATED"
+    },
+    {
+      "configuration": "Selected-Release",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 5,
+      "result": "PASS",
+      "native_bilateral": "NOT_DEMONSTRATED"
+    },
+    {
+      "configuration": "Legacy-Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 5,
+      "result": "PASS",
+      "native_bilateral": "NOT_DEMONSTRATED"
+    },
+    {
+      "configuration": "Legacy-Release",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 5,
+      "result": "PASS",
+      "native_bilateral": "NOT_DEMONSTRATED"
+    }
+  ],
+  "mutants": [
+    {
+      "mutant": "missing_original_close_producer",
+      "compile": "PASS",
+      "rejected": true,
+      "scope": "MODEL_EXECUTABLE_ONLY"
+    },
+    {
+      "mutant": "missing_original_close_delivery",
+      "compile": "PASS",
+      "rejected": true,
+      "scope": "MODEL_EXECUTABLE_ONLY"
+    }
+  ],
+  "binding_rules": 16,
+  "close_order": "ORIGINAL_SQR1_ACK_SQC1_PRODUCED_DELIVERED_VALIDATED_BEFORE_CLOSED_RUNNING",
+  "new_chain": {
+    "cases": 21,
+    "checks_per_configuration": 916,
+    "ready_before_final_close_failures": 4,
+    "retained_host_models": 17
+  },
+  "layout_growth": 0,
+  "request": "NOT_READY",
+  "first_gap": "EXACT_ORIGINAL_OPERATION_PLAN_DECISION_AND_JUSTIFIED_POLICY_VALUES",
+  "future_pid_token": "FRESH_GATES_NOT_PRESESSION_VALUES",
+  "native_bilateral": "NOT_DEMONSTRATED",
+  "native_operations": "NONE",
+  "authority": "DENY",
+  "E21": "PENDING",
+  "ED11": "PARTIAL",
+  "Phase6": "PARTIAL"
+}

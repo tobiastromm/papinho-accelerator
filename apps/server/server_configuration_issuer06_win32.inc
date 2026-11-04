@@ -169,14 +169,24 @@ PAPACC_RESULT papacc_configuration_issuer_prepare06(PAPACC_CONFIGURATION_COMMIT 
  if(papacc_issuer_image_validate(image,&v,papacc_configuration_issuer_hash06,o)!=PAPACC_ISSUER_OK||memcmp(v.root,o->domain,32)||v.revision!=expected+1)goto done;
  if(!papacc_configuration_issuer_hash06(o,o->committed,PAPACC_CONFIG_STORE_BYTES,hash)||memcmp(hash,image+192,32))goto done;
 #ifndef PAPACC_ISSUER_STORAGE_COMPONENT_TEST
- {PAPACC_SIZE pos=256;PAPACC_U32 last=0;while(pos<p03_get32(image+12)){last=p03_get32(image+pos+320);pos+=p03_get32(image+pos+8);}
-  if(last==PAPACC_ISSUER_PUBLISHED||last==PAPACC_ISSUER_REVOKED){result=PAPACC_RESULT_NOT_SUPPORTED;goto done;}}
+ {PAPACC_SIZE pos=256,last_pos=0;PAPACC_U32 last=0;
+  while(pos<p03_get32(image+12)){last_pos=pos;last=p03_get32(image+pos+320);pos+=p03_get32(image+pos+8);}
+  if(memcmp(image,"PACIS602",8)&&(last==PAPACC_ISSUER_PUBLISHED||last==PAPACC_ISSUER_REVOKED)){result=PAPACC_RESULT_NOT_SUPPORTED;goto done;}
+  if(!memcmp(image,"PACIS602",8)&&last==PAPACC_ISSUER_PUBLISHED){
+   PAPACC_ISSUER_PUBLICATION_FACTS facts;PAPACC_CONFIG_SLOT *origin=&o->slots[o->current];
+   /* Codec integrity is DATA, not proof of A. Even a direct private caller
+    * must reference the ORIGINAL selected intention before committing ack. */
+   if(o->store02!=6||!o->issuer_snapshot_valid[o->current]||!origin->context_epoch||!origin->operational_epoch||
+    papacc_issuer_image_publication(image,image+last_pos+48,&facts,papacc_configuration_issuer_hash06,o)!=PAPACC_ISSUER_OK||
+    facts.revision!=origin->view.revision||facts.issuer_revision!=origin->issuer_revision||
+    facts.administrative_epoch!=origin->context_epoch||facts.policy_epoch!=origin->operational_epoch)goto done;
+  }}
 #endif
  if(o->store02==5){if(expected_high!=1||v.high_water!=1||p03_get32(image+16)!=0||get64(image+24)!=expected+1)goto done;}
  else{
   if(papacc_issuer_image_validate(o->committed+PAPACC_CONFIG_STORE_BYTES,&old,papacc_configuration_issuer_hash06,o)!=PAPACC_ISSUER_OK||old.high_water!=expected_high)goto done;
   used=p03_get32(o->committed+PAPACC_CONFIG_STORE_BYTES+12);
-  if(p03_get32(image+16)!=p03_get32(o->committed+PAPACC_CONFIG_STORE_BYTES+16)+1||
+  if(memcmp(image,o->committed+PAPACC_CONFIG_STORE_BYTES,12)||p03_get32(image+16)!=p03_get32(o->committed+PAPACC_CONFIG_STORE_BYTES+16)+1||
    memcmp(image+24,o->committed+PAPACC_CONFIG_STORE_BYTES+24,144)||memcmp(image+176,o->committed+PAPACC_CONFIG_STORE_BYTES+176,8)||
    memcmp(image+192,o->committed+PAPACC_CONFIG_STORE_BYTES+192,32)||memcmp(image+256,o->committed+PAPACC_CONFIG_STORE_BYTES+256,used-256))goto done;
  }

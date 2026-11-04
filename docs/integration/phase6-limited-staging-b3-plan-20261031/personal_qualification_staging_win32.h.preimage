@@ -1,0 +1,50 @@
+#ifndef PAPACC_PERSONAL_QUALIFICATION_STAGING_WIN32_H
+#define PAPACC_PERSONAL_QUALIFICATION_STAGING_WIN32_H
+#include <windows.h>
+#include <winternl.h>
+#include "personal_scm_registration_win32.h"
+typedef struct PAPACC_STAGING_VOLUME_SIZE {
+ LARGE_INTEGER total,caller_available,actual_available;
+ ULONG sectors_per_unit,bytes_per_sector;
+} PAPACC_STAGING_VOLUME_SIZE;
+enum { PAPACC_STAGE_MISSING_NATIVE_ENVELOPE=1U,PAPACC_STAGE_MISSING_HOST_MARGIN=2U,
+ PAPACC_STAGE_MISSING_RETENTION=4U,PAPACC_STAGE_MISSING_ADMIN_COHORT=8U,
+ PAPACC_STAGE_MISSING_FS_METADATA=16U,PAPACC_STAGE_MISSING_OBSERVATION=32U,
+ PAPACC_STAGE_MISSING_VOLUME=64U, /* bits4/8 are conditional failures, not mandatory SCQ costs */
+ PAPACC_STAGE_MISSING_ALL=1U|2U|16U|32U|64U };
+typedef struct PAPACC_STAGING_RESOURCES {
+ PAPACC_SCM_RESOURCE_OBSERVATION observation;
+ PAPACC_STAGING_VOLUME_SIZE volume;
+ IO_STATUS_BLOCK volume_io; /* retained if an unexpected pending query occurs */
+ ULONGLONG unit_bytes,caller_free,actual_free,logical_bytes,payload_allocated;
+ DWORD first,missing,parent_descriptor_bytes,protection_bytes,scratch_peak_bytes;
+ DWORD location,first_location;
+ DWORD guard_attempted,guard_succeeded,guard_count,guard_error,guard_denied,guard_index;
+ DWORD post_entry_attempted,post_entry_succeeded,post_entry_count,post_entry_error;
+ unsigned volume_attempted,volume_known,close_known;
+} PAPACC_STAGING_RESOURCES;
+enum { PAPACC_STAGING_STRICT=1U,PAPACC_STAGING_LIMITED_QUALIFICATION=2U, PAPACC_STAGE_MISSING_EXACT_LIMITED_PLAN=128U };
+/* Bounded custody in the EXISTING personal packet. No persisted authority. */
+typedef struct PAPACC_STAGING_OBJECT {
+ HANDLE handle;
+ BY_HANDLE_FILE_INFORMATION identity;
+ BYTE acl[32];
+ unsigned directory,created;
+} PAPACC_STAGING_OBJECT;
+typedef struct PAPACC_QUALIFICATION_STAGING {
+ const void *self;
+ DWORD thread,first;
+ ULONGLONG invocation;
+ unsigned phase,consumed,effects,ancestor_count,close_attempts,assurance_profile;
+ /* 0..7 OS ancestors, 8..10 sources, 11..12 new dirs, 13..15 copies. */
+ PAPACC_STAGING_OBJECT objects[16];
+ WCHAR source[MAX_PATH],program_files[MAX_PATH];
+ BYTE digest[3][32],attempt[32];
+ PSECURITY_DESCRIPTOR protection,scratch;
+ PSID trusted_installer;
+ BYTE block[4096];
+ PAPACC_STAGING_RESOURCES resources; /* observations, never an approval/grant */
+} PAPACC_QUALIFICATION_STAGING;
+#endif
+
+

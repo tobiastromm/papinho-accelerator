@@ -1,0 +1,30 @@
+#ifndef PAPACC_PERSONAL_STAGED_UPDATE_WIN32_H
+#define PAPACC_PERSONAL_STAGED_UPDATE_WIN32_H
+/* Independent U1-U7 act in the canonical packet. Pins/reports do not authorize
+ * replacing a binary. No persisted/public format or new owner. */
+enum { PAPACC_UPDATE_MISSING_ACT=1U,PAPACC_UPDATE_MISSING_NATIVE=2U,
+ PAPACC_UPDATE_MISSING_MARGIN=4U,PAPACC_UPDATE_MISSING_REPLACEMENT=8U };
+typedef struct PAPACC_UPDATE_RENAME_INFO {
+ BOOLEAN replace;HANDLE parent;ULONG bytes;WCHAR name[96];
+} PAPACC_UPDATE_RENAME_INFO;
+typedef struct PAPACC_STAGED_UPDATE_STATE {
+ const void *self;DWORD thread;ULONGLONG invocation;
+ SC_HANDLE manager,service;
+ DWORD first,missing,close_attempts;
+ DWORD location,first_location; /* first-cause metadata, never authority */
+ unsigned phase,prepared,consumed,effects;
+ BYTE old_hash[32],new_hash[32],dll_hash[2][32];
+ DWORD expected_old_id[3]; /* selected volume/high/low, DATA not authority */
+ DWORD expected_parent_id[3]; /* existing staged target, no directory adoption */
+ DWORD executor_id[3],executor_pid;FILETIME executor_creation;
+ BYTE executor_hash[32];WCHAR executor_path[MAX_PATH];
+ ULONGLONG old_bytes,new_bytes;
+ unsigned execute_mode,act_state,confirmed,created,rename_done,rename_submitted;
+ BYTE attempt[32],plan_hash[32];
+ WCHAR candidate[96],previous[96],source_path[MAX_PATH];
+ BYTE query[4096]; /* SCM queries cannot overwrite a live copy block */
+ PAPACC_UPDATE_RENAME_INFO rename_info;IO_STATUS_BLOCK rename_io;
+ PAPACC_SCM_RESOURCE_OBSERVATION resources;
+ ULONGLONG written,unit,rounded,caller_free,actual_free,gate_tick;
+} PAPACC_STAGED_UPDATE_STATE;
+#endif

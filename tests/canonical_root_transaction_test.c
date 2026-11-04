@@ -1,6 +1,7 @@
 #include "../src/core/ed11_process_profile.h"
 /* Local administrative transaction only. No wait-set, socket or authentication. */
 #include "server_c8_private_storage_layout_win32.h"
+#include "server_issuer_x509_win32.h"
 #include <stdio.h>
 #include <string.h>
 #include "server_console_win32.h"
@@ -12,6 +13,12 @@ static PAPACC_NETWORK_INTERFACE_PERSISTENT_ID consumed_interface;
 static PAPACC_SERVER_NETWORK network;
 static PAPACC_SERVER_CONFIG config=PAPACC_SERVER_CONFIG_INITIALIZER;
 static PAPACC_LOGGER logger={NULL,NULL,PAPACC_LOG_LEVEL_OFF};
+/* Negative producer gate: these callbacks cannot grant or sign anything. */
+static unsigned rejected_backend_calls;
+static PAPACC_ISSUER_RESULT reject_issuer_auth(void *ctx,const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_REQUEST *q,unsigned action)
+{(void)ctx;(void)v;(void)q;(void)action;rejected_backend_calls++;return PAPACC_ISSUER_DENIED;}
+static PAPACC_ISSUER_RESULT reject_issuer_utc(void *ctx,PAPACC_U64 *now)
+{(void)ctx;(void)now;rejected_backend_calls++;return PAPACC_ISSUER_DENIED;}
 #define CHECK(x) do{++checks;if(!(x)){printf("FAIL line=%u expression=%s\n",(unsigned)__LINE__,#x);return 1;}}while(0)
 /* Real same-file TxF checkpoint; synthetic issuer metadata, no signing. */
 static int checkpoint_roundtrip(PAPACC_SERVER_LAUNCHER_OWNER_WIN32 *o,const char *path)
@@ -302,7 +309,7 @@ int main(int argc,char **argv)
   memcpy(iv.root,o->configuration_commit.domain,32);memcpy(iv.policy,config.policy.identity,32);
   iv.authority[0]=1;iv.generation[0]=2;iv.prefix[0]=3;iv.ca_spki_digest[0]=4;iv.revision=2;iv.high_water=1;iv.ca_not_after=1000000;
   CHECK(papacc_configuration_issuer_hash06(&o->configuration_commit,o->configuration_commit.committed,8192,digest));
-  CHECK(papacc_issuer_image_init(image,&iv,digest,papacc_configuration_issuer_hash06,&o->configuration_commit)==0);
+  CHECK((strstr(argv[1],"-v2")?papacc_issuer_image_init_v2:papacc_issuer_image_init)(image,&iv,digest,papacc_configuration_issuer_hash06,&o->configuration_commit)==0);
   CHECK(pin.epoch==original_p&&original_a&&pin.view.revision==1&&!pin.issuer_present);
   /* Existing normal runtime/wait-set attachment; no listener or Connection. */
   CHECK(papacc_server_launcher_attach_closed(o,t->combined_reserved+4096U)==0);
@@ -353,6 +360,147 @@ int main(int argc,char **argv)
    printf("PASS checks=%u LIVE_FAILURE=%s outcome=%d P_UNCHANGED OLD_SESSION_RETAINED NO_CURRENT_NO_RETRY NO_NETWORK\n",checks,argv[1],(int)outcome);return 0;
   }
   CHECK(result==0&&outcome==PAPACC_CAS_SUCCESS&&t->model.revision==2&&t->current_policy_epoch==original_p);
+  if(!strncmp(argv[1],"catalog-live-port",17)){
+   PAPACC_ISSUER_ROOT_PORT port;PAPACC_ISSUER_VIEW before,wrong_view,after;
+   PAPACC_ISSUER_RECORD absent,wrong_record,observed;PAPACC_ISSUER_RESULT status;
+   PAPACC_U8 id[16]={1};int exists;PAPACC_U64 selected_a=o->configuration_commit.slots[o->configuration_commit.current].context_epoch;
+   int port_stop=strstr(argv[1],"stop")!=NULL&&!strstr(argv[1],"-publish-"),port_unknown=strstr(argv[1],"unknown")!=NULL;
+   int port_proof=strstr(argv[1],"proof")!=NULL,port_readback=strstr(argv[1],"readback")!=NULL;
+   int port_conflict=strstr(argv[1],"native-conflict")!=NULL,port_early=strstr(argv[1],"early")!=NULL;
+   CHECK(papacc_server_launcher_configuration_issuer_port(o,&port)==0&&port.poll&&!port.test_only);
+   CHECK(port.revoke_dependents!=NULL&&papacc_server_launcher_credential_admit(NULL)!=PAPACC_RESULT_OK);
+   CHECK(port.read(o,id,&before,&absent,&exists)==0&&!exists&&before.epoch==original_p&&!before.proofs);
+   CHECK(before.administrative_epoch==selected_a&&before.administrative_epoch!=0);
+   {PAPACC_ISSUER_CNG_BACKEND absent_backend={0};PAPACC_ISSUER_CORE no_source={0};
+    CHECK(papacc_server_launcher_configuration_ca_initialize(o,NULL,NULL,NULL,NULL,0)!=ERROR_SUCCESS); /* native entry has no fallback */
+    CHECK(papacc_server_launcher_configuration_issuer_normal_activate(o,NULL)==PAPACC_ISSUER_DENIED);
+    CHECK(papacc_server_launcher_configuration_issuer_existing_ca_bind(o,NULL)==PAPACC_ISSUER_DENIED);
+    absent_backend.initialized=1;absent_backend.thread=GetCurrentThreadId();absent_backend.owner=&no_source;absent_backend.root=port;
+    CHECK(papacc_server_launcher_configuration_issuer_normal_activate(o,&absent_backend)==PAPACC_ISSUER_DENIED&&!no_source.initialized);
+    CHECK(papacc_server_launcher_configuration_issuer_existing_ca_bind(o,&absent_backend)==PAPACC_ISSUER_DENIED&&!no_source.initialized);
+    absent_backend.original_source_root=&o->configuration_commit;absent_backend.custody=1;
+    CHECK(papacc_server_launcher_configuration_issuer_normal_activate(o,&absent_backend)==PAPACC_ISSUER_DENIED&&!no_source.initialized&&!no_source.lease);
+   }
+   {PAPACC_ISSUER_CORE gate={0};PAPACC_ISSUER_BACKEND no_authority={0};
+    no_authority.authorize=reject_issuer_auth;no_authority.utc=reject_issuer_utc;
+    CHECK(papacc_issuer_init_normal(&gate,&port,&no_authority)==PAPACC_ISSUER_UNCERTAIN&&!gate.initialized&&!rejected_backend_calls);
+    memset(&gate,0,sizeof(gate));
+    CHECK(papacc_issuer_init(&gate,&port,&no_authority)==PAPACC_ISSUER_UNCERTAIN&&!gate.initialized&&!rejected_backend_calls);}
+   record.request.id[0]=1;record.request.device[0]=7;record.request.key_digest[0]=8;record.request.csr_digest[0]=9;
+   record.request.not_before=100;record.request.not_after=500;record.request.purpose=1;record.approved_epoch=original_p;record.state=PAPACC_ISSUER_PREPARED;
+   memcpy(record.authority,iv.authority,16);memcpy(record.generation,iv.generation,16);memcpy(record.policy,iv.policy,32);
+   wrong_record=record;wrong_record.state=PAPACC_ISSUER_REVOKED;
+   CHECK(port.revoke_dependents(o,&before,&wrong_record)!=PAPACC_ISSUER_OK&&!o->credential_revocation.sessions_invalidated&&!o->credential_revocation.controls_stop_requested);
+   wrong_view=before;wrong_view.revision--;
+   CHECK(port.cas(o,&wrong_view,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_CONFLICT&&!o->issuer_port_pending.active);
+   wrong_view=before;wrong_view.administrative_epoch^=1U;
+   CHECK(port.cas(o,&wrong_view,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_CONFLICT&&!o->issuer_port_pending.active);
+   CHECK(port.cas(o,&before,NULL,&record,1,NULL,0,1)==(strstr(argv[1],"-v2")?PAPACC_ISSUER_CONFLICT:PAPACC_ISSUER_UNSUPPORTED)&&!o->issuer_port_pending.active);
+   if(port_unknown){held=CreateFileA(path,GENERIC_READ,0,NULL,OPEN_EXISTING,0,NULL);CHECK(held!=INVALID_HANDLE_VALUE);}
+   if(port_conflict){DWORD n;PAPACC_U8 bad_byte=0;held=CreateFileA(path,GENERIC_WRITE,0,NULL,OPEN_EXISTING,0,NULL);CHECK(held!=INVALID_HANDLE_VALUE);CHECK(WriteFile(held,&bad_byte,1,&n,NULL)&&n==1&&FlushFileBuffers(held));CHECK(CloseHandle(held));held=INVALID_HANDLE_VALUE;}
+   CHECK(port.cas(o,&before,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_PENDING&&o->issuer_port_pending.active==1U);
+   CHECK(port.cas(o,&before,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_BUSY);
+   wrong_record=record;wrong_record.request.device[1]=1;
+   CHECK(port.poll(o,&before,&wrong_record,0)==PAPACC_ISSUER_CONFLICT&&o->issuer_port_pending.active==1U);
+   CHECK(port.poll(o,&wrong_view,&record,0)==PAPACC_ISSUER_CONFLICT&&o->issuer_port_pending.active==1U);
+   CHECK(port.read(o,id,&after,&observed,&exists)!=0);
+   if((port_stop&&!port_early)||port_proof||port_readback){
+    started=GetTickCount();while(WaitForSingleObject(o->configuration_commit.pending_commit.thread,0)==WAIT_TIMEOUT){Sleep(1);CHECK(GetTickCount()-started<10000U);}
+    CHECK(o->configuration_commit.pending_commit.committed);
+    if(port_proof)o->config.site_tls.max_bytes++; /* negative-only invalidation */
+    if(port_readback){CHECK(papacc_configuration_issuer_poll06(&o->configuration_commit,&outcome)==0&&outcome==PAPACC_CAS_SUCCESS);o->configuration_commit.committed[8192U+255U]^=1U;}
+   }
+   started=GetTickCount();do{status=port.poll(o,&before,&record,port_stop);if(status==PAPACC_ISSUER_PENDING)Sleep(1);CHECK(GetTickCount()-started<10000U);}while(status==PAPACC_ISSUER_PENDING);
+   if(port_stop||port_unknown||port_proof||port_readback||port_conflict){
+    CHECK(status!=PAPACC_ISSUER_OK&&o->issuer_port_pending.active==2U);
+    CHECK(o->configuration_commit.authority_lost);
+    CHECK(papacc_server_launcher_configuration_current_pin(o,&fresh)!=0&&!fresh.pin.ticket);
+    if(port_unknown)CHECK(!o->configuration_commit.pending_commit.committed);
+    if(port_conflict)CHECK(status==PAPACC_ISSUER_CONFLICT&&!o->configuration_commit.pending_commit.committed);
+    CHECK(port.poll(o,&before,&record,0)==PAPACC_ISSUER_RETAINED);
+    CHECK(port.cas(o,&before,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_RETAINED);
+    if(port_unknown)CHECK(CloseHandle(held));
+    CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)!=0);
+    CHECK(!o->network.is_active);
+    printf("PASS NATIVE_PORT=%s result=%d UNKNOWN_RETAINED NO_RETRY NO_NETWORK NO_SIGNING checks=%u\n",argv[1],(int)status,checks);return 0;
+   }
+   CHECK(status==PAPACC_ISSUER_OK&&!o->issuer_port_pending.active&&t->model.revision==3);
+   CHECK(port.poll(o,&before,&record,0)==PAPACC_ISSUER_INVALID);
+   CHECK(port.cas(o,&before,NULL,&record,1,NULL,0,0)==PAPACC_ISSUER_CONFLICT);
+   CHECK(port.read(o,id,&after,&observed,&exists)==0&&exists&&!after.proofs&&after.epoch==original_p&&observed.state==PAPACC_ISSUER_PREPARED);
+   CHECK(after.administrative_epoch==o->configuration_commit.slots[o->configuration_commit.current].context_epoch&&after.administrative_epoch!=before.administrative_epoch);
+   CHECK(o->configuration_commit.slots[o->configuration_commit.current].context_epoch!=selected_a);
+   /* Real port/storage, synthetic records only: serial/marker/DER commits.
+    * No signer/key/credential/normal proof is created by this fixture. */
+   for(i=0;i<3U;i++){
+    PAPACC_U8 fixture_der[3]={'D','E','R'},copied_der[3];PAPACC_SIZE copied_size=0;
+    CHECK(port.read(o,id,&before,&observed,&exists)==0&&exists&&!before.proofs);
+    record=observed;
+    if(i==0U){record.state=PAPACC_ISSUER_SERIAL_RESERVED;record.counter=2;memcpy(record.serial,iv.prefix,8);record.serial[15]=2;}
+    else if(i==1U)record.state=PAPACC_ISSUER_SIGN_REQUESTED;
+    else{record.state=PAPACC_ISSUER_ISSUED_UNPUBLISHED;record.certificate_size=3;CHECK(papacc_configuration_issuer_hash06(&o->configuration_commit,fixture_der,3,record.certificate_digest));}
+    CHECK(port.cas(o,&before,&observed,&record,2,i==2U?fixture_der:NULL,i==2U?3U:0U,0)==PAPACC_ISSUER_PENDING);
+    memset(fixture_der,0,sizeof(fixture_der)); /* staged bytes already copied */
+    started=GetTickCount();do{status=port.poll(o,&before,&record,0);if(status==PAPACC_ISSUER_PENDING)Sleep(1);CHECK(GetTickCount()-started<10000U);}while(status==PAPACC_ISSUER_PENDING);
+    CHECK(status==0&&t->current_policy_epoch==original_p);
+    CHECK(port.read(o,id,&after,&observed,&exists)==0&&exists&&observed.state==record.state&&after.high_water==2&&!after.proofs);
+    if(i==2U){CHECK(port.copy_certificate(o,id,record.certificate_digest,copied_der,sizeof(copied_der),&copied_size)==0&&copied_size==3&&!memcmp(copied_der,"DER",3));}
+   }
+   if(strstr(argv[1],"-v2")){
+    PAPACC_ISSUER_VIEW origin=after;PAPACC_ISSUER_RECORD published;PAPACC_ISSUER_LINK link;
+    record=observed;record.state=PAPACC_ISSUER_PUBLISHED;
+    if(strstr(argv[1],"-loss-before")){puts("PASS PROCESS_LOSS_FIXTURE BEFORE_INTENT no_controlled_close_receipt UNKNOWN NO_RETRY");return 0;}
+    CHECK(port.cas(o,&origin,&observed,&record,2,NULL,0,1)==PAPACC_ISSUER_PENDING);
+    CHECK(port.read(o,id,&after,&published,&exists)==PAPACC_ISSUER_PENDING);
+    started=GetTickCount();do{
+     int loss_now=strstr(argv[1],"-loss-")!=NULL&&o->issuer_port_pending.continuation==(strstr(argv[1],"checkpoint")?3U:strstr(argv[1],"ack")?2U:1U);
+     int stop_now=strstr(argv[1],"-publish-")!=NULL&&o->issuer_port_pending.continuation==(strstr(argv[1],"checkpoint")?3U:strstr(argv[1],"ack")?2U:1U);
+     if(loss_now){
+      while(WaitForSingleObject(o->configuration_commit.pending_commit.thread,0)==WAIT_TIMEOUT){Sleep(1);CHECK(GetTickCount()-started<10000U);}
+      CHECK(o->configuration_commit.pending_commit.committed);
+      printf("PASS PROCESS_LOSS_FIXTURE phase=%u COMMIT_CONFIRMED CONTROLLED_CLOSE_UNKNOWN NO_RETRY\n",o->issuer_port_pending.continuation);return 0;
+     }
+     if(stop_now&&strstr(argv[1],"late")){
+      while(WaitForSingleObject(o->configuration_commit.pending_commit.thread,0)==WAIT_TIMEOUT){Sleep(1);CHECK(GetTickCount()-started<10000U);}
+      CHECK(o->configuration_commit.pending_commit.committed);
+     }
+     status=port.poll(o,&origin,&record,stop_now);if(status==PAPACC_ISSUER_PENDING)Sleep(1);CHECK(GetTickCount()-started<10000U);
+    }while(status==PAPACC_ISSUER_PENDING);
+    if(strstr(argv[1],"-publish-")){
+     CHECK(status!=PAPACC_ISSUER_OK&&o->issuer_port_pending.active==2U&&o->configuration_commit.authority_lost);
+     CHECK(port.read(o,id,&after,&published,&exists)!=PAPACC_ISSUER_OK);
+     CHECK(port.poll(o,&origin,&record,0)==PAPACC_ISSUER_RETAINED);
+     CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)!=0);
+     printf("PASS NATIVE_PORT=%s POST_INTENT_STOP_RETAINED NO_RETRY checks=%u\n",argv[1],checks);return 0;
+    }
+    CHECK(status==PAPACC_ISSUER_OK&&port.read(o,id,&after,&published,&exists)==0&&exists&&!after.proofs);
+    CHECK(published.state==PAPACC_ISSUER_PUBLISHED&&published.published_epoch&&after.revision==origin.revision+2U&&after.epoch==origin.epoch);
+    CHECK(published.published_epoch==o->issuer_port_publication.administrative_epoch&&published.published_epoch!=after.administrative_epoch);
+    CHECK(port.confirm_publication(o,&origin,&record,&after,&published)==PAPACC_ISSUER_OK);
+    wrong_view=after;wrong_view.epoch++;CHECK(port.confirm_publication(o,&origin,&record,&wrong_view,&published)!=PAPACC_ISSUER_OK);
+    wrong_record=published;wrong_record.published_epoch++;CHECK(port.confirm_publication(o,&origin,&record,&after,&wrong_record)!=PAPACC_ISSUER_OK);
+    CHECK(papacc_configuration_checkpoint_data07(&o->configuration_commit,&link)==PAPACC_RESULT_NOT_SUPPORTED&&link.revision==after.revision&&link.administrative_epoch==after.administrative_epoch);
+    CHECK(!memcmp(o->configuration_commit.committed+16384,"PACICP02",8));
+    CHECK(port.cas(o,&origin,&observed,&record,2,NULL,0,1)==PAPACC_ISSUER_CONFLICT);
+    /* Positive native history/port with EMPTY dependent cohort. No synthetic
+     * authentication or grant is installed. Cohort effects tested separately. */
+    CHECK(papacc_server_c2_owner_win32_retire_sessions(consumer)==0&&!older->initialized&&!o->session_revision_pins[0].pin.ticket);
+    before=after;record=published;record.state=PAPACC_ISSUER_REVOKED;
+    CHECK(port.cas(o,&before,&published,&record,2,NULL,0,0)==PAPACC_ISSUER_PENDING);
+    started=GetTickCount();do{status=port.poll(o,&before,&record,0);if(status==PAPACC_ISSUER_PENDING)Sleep(1);CHECK(GetTickCount()-started<10000U);}while(status==PAPACC_ISSUER_PENDING);
+    CHECK(status==PAPACC_ISSUER_OK&&port.read(o,id,&after,&observed,&exists)==0&&exists&&observed.state==PAPACC_ISSUER_REVOKED&&!after.proofs);
+    CHECK(port.revoke_dependents(o,&after,&observed)==PAPACC_ISSUER_OK);
+    CHECK(!o->credential_revocation.uncertain&&!o->credential_revocation.sessions_invalidated&&!o->credential_revocation.operations_stop_requested&&!o->credential_revocation.controls_stop_requested);
+    CHECK(port.revoke_dependents(o,&after,&observed)==PAPACC_ISSUER_OK); /* revalidate, no native Stop */
+   }else CHECK(port.cas(o,&after,&observed,&record,2,NULL,0,1)==PAPACC_ISSUER_UNSUPPORTED);
+   CHECK(papacc_server_launcher_configuration_current_unpin(o,&pin)==0);
+   /* Synthetic Session is not granted; original pin is released by its reaper. */
+   CHECK(papacc_server_c2_owner_win32_retire_sessions(consumer)==0&&!older->initialized&&!o->session_revision_pins[0].pin.ticket);
+   CHECK(papacc_server_launcher_detach_closed(o)==0);
+   CHECK(papacc_server_launcher_configuration_transaction_close(o)==0);
+   CHECK(papacc_server_launcher_owner_finish(o,&network,PAPACC_TRUE)==0);
+   printf("PASS NATIVE_PORT=%s CURRENT_A_CONFIRMED P_PRESERVED PROOFS_ABSENT NO_NETWORK NO_SIGNING checks=%u\n",argv[1],checks);return 0;
+  }
   if(!strncmp(argv[1],"catalog-live-checkpoint-",24)){
    int conflict=!strcmp(argv[1],"catalog-live-checkpoint-conflict");
    int unknown=!strcmp(argv[1],"catalog-live-checkpoint-unknown");
@@ -450,7 +598,7 @@ int main(int argc,char **argv)
   CHECK(o->configuration_commit.store02==6&&o->configuration_commit.committed_pending&&t->current_policy_epoch==original_epoch);
   {PAPACC_ISSUER_ROOT_PORT issuer_port;PAPACC_ISSUER_VIEW observed;PAPACC_ISSUER_RECORD absent;PAPACC_U8 no_request[16]={0};int exists=1;
    CHECK(papacc_server_launcher_configuration_issuer_port(o,&issuer_port)==0&&issuer_port.ctx==o&&!issuer_port.test_only);
-   CHECK(issuer_port.read(issuer_port.ctx,no_request,&observed,&absent,&exists)==0&&!exists&&!observed.proofs&&!observed.epoch&&observed.revision==2);
+   CHECK(issuer_port.read(issuer_port.ctx,no_request,&observed,&absent,&exists)==PAPACC_ISSUER_PENDING&&!exists&&!observed.proofs&&!observed.epoch&&!observed.revision);
    CHECK(issuer_port.cas(issuer_port.ctx,&observed,NULL,&absent,1,NULL,0,1)==PAPACC_ISSUER_UNSUPPORTED);}
   CHECK(papacc_server_launcher_configuration_transaction_publish(o)!=0);CHECK(papacc_configuration_publish(&o->configuration_commit)==PAPACC_RESULT_NOT_SUPPORTED);
   CHECK(papacc_server_launcher_listener_publication_preflight(o)!=0&&!o->network.is_active&&!o->io_loop.initialized);

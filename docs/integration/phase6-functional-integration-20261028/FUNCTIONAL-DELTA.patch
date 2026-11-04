@@ -1,0 +1,380 @@
+--- a/src/issuer/issuer_core.c
++++ b/src/issuer/issuer_core.c
+@@ -11,9 +11,21 @@
+  !memcmp(a->key_digest,b->key_digest,32)&&!memcmp(a->predecessor,b->predecessor,16)&&a->purpose==b->purpose&&a->not_before==b->not_before&&a->not_after==b->not_after;
+ }
+ static void serial(PAPACC_U8 out[16],const PAPACC_U8 prefix[8],PAPACC_U64 n){unsigned i;memcpy(out,prefix,8);for(i=0;i<8;i++){out[15-i]=(PAPACC_U8)n;n>>=8;}}
++int papacc_issuer_view_proofs_valid(const PAPACC_ISSUER_VIEW *v,PAPACC_U32 profile){
++ PAPACC_U32 required;
++ if(!v||v->continuity_profile!=profile)return 0;
++ if(profile==PAPACC_ISSUER_CONTINUITY_RECOVERY){
++  required=PAPACC_ISSUER_ROOT_PROOFS;
++  if(v->proofs&~PAPACC_ISSUER_ROOT_PROOFS)return 0;
++ }else if(profile==PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL){
++  required=PAPACC_ISSUER_NORMAL_PROOFS;
++  if(v->proofs&~PAPACC_ISSUER_NORMAL_PROOFS)return 0;
++ }else return 0;
++ return (v->proofs&required)==required;
++}
+ static int view_ok(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_VIEW *v){
+  if(!nz(v->root,32)||!nz(v->authority,16)||!nz(v->generation,16)||!nz(v->policy,32)||!nz(v->ca_spki_digest,32)||!nz(v->prefix,8)||(v->prefix[0]&128U)||
+-  !v->revision||!v->epoch||!v->high_water||!v->ca_not_after||(v->proofs&PAPACC_ISSUER_ROOT_PROOFS)!=PAPACC_ISSUER_ROOT_PROOFS)return 0;
++  !v->revision||!v->epoch||!v->high_water||!v->ca_not_after||!papacc_issuer_view_proofs_valid(v,c->continuity_profile))return 0;
+  if(c->initialized&& (memcmp(c->root_id,v->root,32)||memcmp(c->authority,v->authority,16)||memcmp(c->generation,v->generation,16)||memcmp(c->prefix,v->prefix,8)||memcmp(c->ca_spki_digest,v->ca_spki_digest,32)||
+   v->revision<c->minimum_revision||v->high_water<c->minimum_counter))return 0;
+  return 1;
+@@ -68,17 +80,20 @@
+  *selected=requested<limit?requested:limit;
+  return requested>*selected?PAPACC_ISSUER_CONFIRMATION_REQUIRED:PAPACC_ISSUER_OK;
+ }
+-PAPACC_ISSUER_RESULT papacc_issuer_init(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_ROOT_PORT *root,const PAPACC_ISSUER_BACKEND *b){
++static PAPACC_ISSUER_RESULT init_profile(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_ROOT_PORT *root,const PAPACC_ISSUER_BACKEND *b,PAPACC_U32 profile){
+  PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RECORD r;PAPACC_U8 id[16]={0};int found;PAPACC_ISSUER_RESULT s;
+  if(!c||c->initialized||c->busy||c->retained||c->lease||c->retained_output)return PAPACC_ISSUER_INVALID;
+  if(!root||!root->ctx||!root->read||!root->cas||!b||!b->authorize||!b->utc)return PAPACC_ISSUER_UNSUPPORTED;
+ #ifndef PAPACC_ISSUER_OFFLINE_TEST
+  if(root->test_only||b->test_only)return PAPACC_ISSUER_DENIED;
+ #endif
+- c->busy=1;c->root=*root;c->backend=b;s=load(c,id,&v,&r,&found);if(s!=PAPACC_ISSUER_OK){c->busy=0;return s;}
++ c->busy=1;c->root=*root;c->backend=b;c->continuity_profile=profile;
++ s=load(c,id,&v,&r,&found);if(s!=PAPACC_ISSUER_OK){c->busy=0;return s;}
+  memcpy(c->root_id,v.root,32);memcpy(c->authority,v.authority,16);memcpy(c->generation,v.generation,16);memcpy(c->prefix,v.prefix,8);memcpy(c->ca_spki_digest,v.ca_spki_digest,32);
+  c->initialized=1;c->busy=0;return PAPACC_ISSUER_OK;
+ }
++PAPACC_ISSUER_RESULT papacc_issuer_init(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_ROOT_PORT *r,const PAPACC_ISSUER_BACKEND *b){return init_profile(c,r,b,PAPACC_ISSUER_CONTINUITY_RECOVERY);}
++PAPACC_ISSUER_RESULT papacc_issuer_init_normal(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_ROOT_PORT *r,const PAPACC_ISSUER_BACKEND *b){return init_profile(c,r,b,PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL);}
+ PAPACC_ISSUER_RESULT papacc_issuer_prepare(PAPACC_ISSUER_CORE *c,const PAPACC_ISSUER_REQUEST *q){
+  PAPACC_ISSUER_VIEW v,pv;PAPACC_ISSUER_RECORD r,prev;PAPACC_ISSUER_RESULT s;int found;PAPACC_U64 now,selected;
+  s=enter(c,0);if(s)return s;
+@@ -169,22 +184,40 @@
+  if(!s)*out=r;return leave(c,s);
+ }
+ PAPACC_ISSUER_RESULT papacc_issuer_transition(PAPACC_ISSUER_CORE *c,const PAPACC_U8 id[16],PAPACC_ISSUER_STATE target){
+- PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RECORD r,n;PAPACC_ISSUER_RESULT s;int found;unsigned action;PAPACC_U64 now;
++ PAPACC_ISSUER_VIEW v,after;PAPACC_ISSUER_RECORD r,n;PAPACC_ISSUER_RESULT s;int found;unsigned action;PAPACC_U64 now;
+  s=enter(c,0);if(s)return s;if(!id)return leave(c,PAPACC_ISSUER_INVALID);
+  if(target!=PAPACC_ISSUER_PUBLISHED&&target!=PAPACC_ISSUER_REVOKED&&target!=PAPACC_ISSUER_ABANDONED)return leave(c,PAPACC_ISSUER_INVALID);
+  s=load(c,id,&v,&r,&found);if(s||!found)return leave(c,s?s:PAPACC_ISSUER_ABSENT);
+  action=target==PAPACC_ISSUER_PUBLISHED?PAPACC_ISSUER_PUBLISH:target==PAPACC_ISSUER_REVOKED?PAPACC_ISSUER_REVOKE:PAPACC_ISSUER_RECOVER;
+  s=authorized(c,&v,&r.request,action);if(s)return leave(c,s);
+- if(r.state==target)return leave(c,PAPACC_ISSUER_OK);
++ if(target==PAPACC_ISSUER_REVOKED&&c->continuity_profile==PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL&&!c->root.revoke_dependents)return leave(c,PAPACC_ISSUER_UNSUPPORTED);
++ if(r.state==target){
++  /* A persisted revoked row alone is not evidence of runtime fanout. */
++  if(target!=PAPACC_ISSUER_REVOKED||c->continuity_profile!=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL)return leave(c,PAPACC_ISSUER_OK);
++  goto revoked;
++ }
+  if((target==PAPACC_ISSUER_PUBLISHED&&(r.state!=PAPACC_ISSUER_ISSUED_UNPUBLISHED||memcmp(r.policy,v.policy,32)))||
+  (target==PAPACC_ISSUER_REVOKED&&r.state!=PAPACC_ISSUER_PUBLISHED)||
+  (target==PAPACC_ISSUER_ABANDONED&&r.state!=PAPACC_ISSUER_PREPARED&&r.state!=PAPACC_ISSUER_SERIAL_RESERVED))return leave(c,PAPACC_ISSUER_DENIED);
+  if(target==PAPACC_ISSUER_PUBLISHED){s=c->backend->utc(c->backend->ctx,&now);if(s||c->stopped||now<r.request.not_before||now>=r.request.not_after)return leave(c,s?s:c->stopped?PAPACC_ISSUER_STOPPED:PAPACC_ISSUER_DENIED);}
+- n=r;n.state=target;return leave(c,store(c,&v,&r,&n,v.high_water,NULL,0,target==PAPACC_ISSUER_PUBLISHED));
++ n=r;n.state=target;s=store(c,&v,&r,&n,v.high_water,NULL,0,target==PAPACC_ISSUER_PUBLISHED);
++ if(s||target!=PAPACC_ISSUER_REVOKED||c->continuity_profile!=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL)return leave(c,s);
++ s=load(c,id,&v,&r,&found);
++ if(s||!found||r.state!=PAPACC_ISSUER_REVOKED){c->blocked=1;return leave(c,PAPACC_ISSUER_UNCERTAIN);}
++ revoked:
++ s=c->root.revoke_dependents(c->root.ctx,&v,&r);
++ if(s==PAPACC_ISSUER_OK){
++  s=load(c,id,&after,&n,&found);
++  if(s!=PAPACC_ISSUER_OK||!found||n.state!=PAPACC_ISSUER_REVOKED||after.revision!=v.revision||after.epoch!=v.epoch||
++     after.high_water!=v.high_water||!same_request(&r.request,&n.request)||memcmp(r.certificate_digest,n.certificate_digest,32))s=PAPACC_ISSUER_UNCERTAIN;
++ }
++ if(s!=PAPACC_ISSUER_OK){c->blocked=1;if(s==PAPACC_ISSUER_RETAINED)c->retained=1;}
++ return leave(c,s);
+ }
+ PAPACC_ISSUER_RESULT papacc_issuer_recover(PAPACC_ISSUER_CORE *c,const PAPACC_U8 id[16]){
+  PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RECORD r,n;PAPACC_ISSUER_RESULT s;int found;
+  s=enter(c,1);if(s)return s;if(!id)return leave(c,PAPACC_ISSUER_INVALID);
++ if(c->continuity_profile!=PAPACC_ISSUER_CONTINUITY_RECOVERY)return leave(c,PAPACC_ISSUER_DENIED);
+  if(c->retained||c->lease||c->retained_output)return leave(c,PAPACC_ISSUER_RETAINED);
+  s=load(c,id,&v,&r,&found);if(s)return leave(c,s);
+  if(!found)return leave(c,PAPACC_ISSUER_ABSENT);
+--- a/src/issuer/issuer_core.h
++++ b/src/issuer/issuer_core.h
+@@ -22,13 +22,22 @@
+  PAPACC_ISSUER_PROOF_FENCED_HIGH_WATER=4U,PAPACC_ISSUER_PROOF_KEY_BINDING=8U,
+  PAPACC_ISSUER_PROOF_PREFIX_HISTORY=16U};
+ #define PAPACC_ISSUER_ROOT_PROOFS 31U
++/* Personal M3 NORMAL continuity is not recovery/fencing. These facts must be
++ * produced by the original administrative root; never inferred from disk
++ * hashes, a profile selector or synthetic COMPLETE_CHAIN/FENCED bits. */
++#define PAPACC_ISSUER_CONTINUITY_RECOVERY 0U
++#define PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL 1U
++#define PAPACC_ISSUER_PROOF_ORIGINAL_HISTORY 32U
++#define PAPACC_ISSUER_PROOF_EXCLUSIVE_WRITER 64U
++#define PAPACC_ISSUER_PROOF_DURABLE_SERIALS 128U
++#define PAPACC_ISSUER_NORMAL_PROOFS (1U|8U|16U|32U|64U|128U)
+ /* proof bits: CURRENT, verified complete recovery chain, fenced latest
+  * high-water, key/generation correspondence, prefix uniqueness/history.
+  * Facts supplied ONLY by same administrative root adapter, never config flags. */
+ typedef struct PAPACC_ISSUER_VIEW {
+  PAPACC_U8 root[32],authority[16],generation[16],prefix[8],policy[32],ca_spki_digest[32];
+  PAPACC_U64 revision,epoch,high_water,ca_not_after;
+- PAPACC_U32 proofs;
++ PAPACC_U32 proofs,continuity_profile; /* private only, never serialized */
+ } PAPACC_ISSUER_VIEW;
+ typedef struct PAPACC_ISSUER_REQUEST {
+  PAPACC_U8 id[16],device[16],csr_digest[32],key_digest[32],predecessor[16];
+@@ -54,6 +63,13 @@
+  PAPACC_ISSUER_RESULT (*cas)(void *,const PAPACC_ISSUER_VIEW *,const PAPACC_ISSUER_RECORD *,const PAPACC_ISSUER_RECORD *,PAPACC_U64,const PAPACC_U8 *,PAPACC_SIZE,int);
+  PAPACC_ISSUER_RESULT (*copy_certificate)(void *,const PAPACC_U8[16],const PAPACC_U8[32],PAPACC_U8 *,PAPACC_SIZE,PAPACC_SIZE *);
+  int test_only;
++ /* M7 same-root integration after factual REVOKED/CURRENT re-read. Success
++  * means dependent admissions were invalidated and Stop was requested under
++  * their owners, NOT that native closure/quiescence has completed. No generic
++  * observer may implement this port. Repeated known revocation must only
++  * revalidate the root's latched fanout, never repeat native Stop/release.
++  * Missing source denies NORMAL revoke; uncertainty blocks further effects. */
++ PAPACC_ISSUER_RESULT (*revoke_dependents)(void *,const PAPACC_ISSUER_VIEW *,const PAPACC_ISSUER_RECORD *);
+ } PAPACC_ISSUER_ROOT_PORT;
+ typedef struct PAPACC_ISSUER_BACKEND {
+  void *ctx;int test_only;
+@@ -75,10 +91,14 @@
+  PAPACC_U64 minimum_revision,minimum_counter;
+  void *lease;PAPACC_U8 *retained_output;PAPACC_SIZE output_capacity;
+  int initialized,busy,stopped,blocked,retained;
++ PAPACC_U32 continuity_profile; /* fixed at init; cannot promote to recovery */
+ } PAPACC_ISSUER_CORE;
+ /* Pure proposal helper: never authorizes/normalizes a persisted request. */
+ PAPACC_ISSUER_RESULT papacc_issuer_interval(PAPACC_U64,PAPACC_U64,PAPACC_U64,PAPACC_U64 *);
++/* Shared proof consumer for core/backend, not a producer or an authority. */
++int papacc_issuer_view_proofs_valid(const PAPACC_ISSUER_VIEW *,PAPACC_U32);
+ PAPACC_ISSUER_RESULT papacc_issuer_init(PAPACC_ISSUER_CORE *,const PAPACC_ISSUER_ROOT_PORT *,const PAPACC_ISSUER_BACKEND *);
++PAPACC_ISSUER_RESULT papacc_issuer_init_normal(PAPACC_ISSUER_CORE *,const PAPACC_ISSUER_ROOT_PORT *,const PAPACC_ISSUER_BACKEND *);
+ PAPACC_ISSUER_RESULT papacc_issuer_prepare(PAPACC_ISSUER_CORE *,const PAPACC_ISSUER_REQUEST *);
+ PAPACC_ISSUER_RESULT papacc_issuer_reserve(PAPACC_ISSUER_CORE *,const PAPACC_U8[16]);
+ PAPACC_ISSUER_RESULT papacc_issuer_issue(PAPACC_ISSUER_CORE *,const PAPACC_U8[16],const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U8 *,PAPACC_SIZE);
+--- a/apps/server/server_issuer_cng_backend_win32.c
++++ b/apps/server/server_issuer_cng_backend_win32.c
+@@ -9,7 +9,7 @@
+ static int req_equal(const PAPACC_ISSUER_REQUEST *a,const PAPACC_ISSUER_REQUEST *b)
+ {return !memcmp(a->id,b->id,16)&&!memcmp(a->device,b->device,16)&&!memcmp(a->csr_digest,b->csr_digest,32)&&!memcmp(a->key_digest,b->key_digest,32)&&!memcmp(a->predecessor,b->predecessor,16)&&a->purpose==b->purpose&&a->not_before==b->not_before&&a->not_after==b->not_after;}
+ static int view_equal(const PAPACC_ISSUER_VIEW *a,const PAPACC_ISSUER_VIEW *b)
+-{return a->revision==b->revision&&a->epoch==b->epoch&&a->high_water==b->high_water&&a->ca_not_after==b->ca_not_after&&
++{return a->revision==b->revision&&a->epoch==b->epoch&&a->high_water==b->high_water&&a->ca_not_after==b->ca_not_after&&a->proofs==b->proofs&&a->continuity_profile==b->continuity_profile&&
+  !memcmp(a->root,b->root,32)&&!memcmp(a->authority,b->authority,16)&&!memcmp(a->generation,b->generation,16)&&
+  !memcmp(a->prefix,b->prefix,8)&&!memcmp(a->policy,b->policy,32)&&!memcmp(a->ca_spki_digest,b->ca_spki_digest,32);}
+ static int ready(PAPACC_ISSUER_CNG_BACKEND *b)
+@@ -19,7 +19,7 @@
+  PAPACC_ISSUER_RECORD actual;int found=0;PAPACC_ISSUER_RESULT s;
+  if(!ready(b))return b&&b->retained?PAPACC_ISSUER_RETAINED:PAPACC_ISSUER_DENIED;
+  s=b->root.read(b->root.ctx,r->request.id,v,&actual,&found);if(s)return s;
+- if(!found||(v->proofs&PAPACC_ISSUER_ROOT_PROOFS)!=PAPACC_ISSUER_ROOT_PROOFS||!v->revision||!v->epoch||!req_equal(&actual.request,&r->request)||
++ if(!found||!papacc_issuer_view_proofs_valid(v,b->owner->continuity_profile)||!v->revision||!v->epoch||!req_equal(&actual.request,&r->request)||
+    memcmp(actual.authority,r->authority,16)||memcmp(actual.generation,r->generation,16)||memcmp(actual.serial,r->serial,16)||
+    memcmp(actual.policy,r->policy,32)||actual.counter!=r->counter||actual.approved_epoch!=r->approved_epoch||actual.state!=r->state||
+    memcmp(v->authority,r->authority,16)||memcmp(v->generation,r->generation,16)||memcmp(v->policy,r->policy,32)||r->counter>v->high_water)return PAPACC_ISSUER_DENIED;
+--- a/src/provisioning/enrollment.c
++++ b/src/provisioning/enrollment.c
+@@ -99,6 +99,25 @@
+  if(connection!=p->connection||generation!=p->generation||!code||n!=10U||!chars(code,10)||papacc_c2_compare(code,p->code,10)){p->invalid=1;return EP_DENIED;}p->claimed=1;return EP_DATA_ONLY;
+ }
+ void ep_pair_stop(EP_PAIR *p){if(p){p->stopped=1;p->invalid=1;}}
++EP_RESULT ep_trace_claim_pair(EP_TRACE *t,EP_PAIR *p,const EP_FRAME *f,PAPACC_U64 connection,PAPACC_U64 generation,PAPACC_U64 now){
++ EP_RESULT result;const PAPACC_U8 *b;
++ if(!t||!p||!f||cross(t,sizeof(*t),p,sizeof(*p))||cross(t,sizeof(*t),f,sizeof(*f))||
++    cross(p,sizeof(*p),f,sizeof(*f))||!span(f->payload.data,f->payload.size)||
++    cross(t,sizeof(*t),f->payload.data,f->payload.size)||cross(p,sizeof(*p),f->payload.data,f->payload.size))return EP_INVALID;
++ if(t->stopped||p->stopped)return EP_STOPPED;
++ if(!p->initialized)return EP_INVALID;
++ if(p->submitted||p->invalid)return EP_REPLAY;
++ b=f->payload.data;
++ if(t->terminal||t->phase!=2U||f->kind!=3U||!payload(3U,b,f->payload.size)||
++    memcmp(t->request,p->request,16)||memcmp(t->server_nonce,p->server_nonce,32)||memcmp(t->client_nonce,p->client_nonce,32)){
++  p->submitted=1;p->invalid=1;t->terminal=1;return EP_DENIED;
++ }
++ result=ep_pair_claim_data(p,b+48,10U,connection,generation,now);
++ if(result!=EP_DATA_ONLY){t->terminal=1;return result;}
++ result=ep_trace_observe(t,f,EP_C2S);
++ if(result!=EP_DATA_ONLY){p->invalid=1;t->terminal=1;}
++ return result;
++}
+ EP_RESULT ep_origin_set(EP_ORIGIN *o,unsigned family,const PAPACC_U8 *a,PAPACC_U32 scope){
+  static const PAPACC_U8 mapped[12]={0,0,0,0,0,0,0,0,0,0,255,255};EP_ORIGIN n;
+  if(!o||!a||(family!=4U&&family!=6U)||cross(o,sizeof(*o),a,family==4U?4U:16U))return EP_INVALID;
+--- a/src/provisioning/enrollment.h
++++ b/src/provisioning/enrollment.h
+@@ -46,6 +46,10 @@
+  * immutable, including invalid-but-retained pairs. No caller boolean is auth. */
+ EP_RESULT ep_pair_prepare_data(EP_PAIR *,const PAPACC_U8[55],const PAPACC_U8[32],PAPACC_U64,PAPACC_U64,PAPACC_U64,const EP_PAIR *,PAPACC_SIZE);
+ EP_RESULT ep_pair_claim_data(EP_PAIR *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U64,PAPACC_U64,PAPACC_U64);
++/* Same serialized owner and original connection/generation. First decoded CONFIRM
++ * consumes the pair even on invalid order/code. This is DATA composition,
++ * never password validation, administrative approval or issuance authority. */
++EP_RESULT ep_trace_claim_pair(EP_TRACE *,EP_PAIR *,const EP_FRAME *,PAPACC_U64,PAPACC_U64,PAPACC_U64);
+ void ep_pair_stop(EP_PAIR *);
+ /* Native Windows adapter generates public pairing secret only; no keys/CA.
+  * It is not registered at startup or connected to root/CLI. */
+--- a/tests/issuer_core_test.c
++++ b/tests/issuer_core_test.c
+@@ -4,7 +4,8 @@
+ /* Isolated SAME-root transaction model; no native storage/crypto/runtime. */
+ typedef struct MODEL {
+  PAPACC_ISSUER_VIEW view;PAPACC_ISSUER_RECORD records[16];PAPACC_U8 der[16][32];unsigned count;
+- unsigned commits,signs,acquires,releases,auths,clock_calls;
++ unsigned commits,signs,acquires,releases,auths,clock_calls,fanouts;
++ int fail_fanout;
+  int fail_cas,fail_sign,fail_release,deny_auth,bad_request,bad_cert,allow_publish,stop_on_sign,expire_on_acquire,reenter,reenter_result;
+  PAPACC_U64 now;PAPACC_ISSUER_CORE *owner,*competitor;PAPACC_U8 competing_id[16];
+ } MODEL;
+@@ -49,6 +50,12 @@
+ static PAPACC_ISSUER_RESULT verify_cert(void *p,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE n,PAPACC_U8 digest[32]){MODEL *x=p;(void)r;
+  if(x->bad_cert||n!=3||memcmp(der,"DER",3))return PAPACC_ISSUER_DENIED;memset(digest,9,32);return PAPACC_ISSUER_OK;}
+ static PAPACC_ISSUER_RESULT release(void *p,void *lease){MODEL *x=p;(void)lease;x->releases++;return x->fail_release?PAPACC_ISSUER_RETAINED:PAPACC_ISSUER_OK;}
++static PAPACC_ISSUER_RESULT revoke_dependents(void *p,const PAPACC_ISSUER_VIEW *v,const PAPACC_ISSUER_RECORD *r){
++ MODEL *x=p;int i=slot(x,r->request.id);
++ if(i<0||x->records[i].state!=PAPACC_ISSUER_REVOKED||v->revision!=x->view.revision||v->epoch!=x->view.epoch)return PAPACC_ISSUER_CONFLICT;
++ x->fanouts++;
++ return x->fail_fanout?PAPACC_ISSUER_UNCERTAIN:PAPACC_ISSUER_OK; /* synthetic fanout, no native closure claim */
++}
+ static void setup(void){
+  memset(&m,0,sizeof(m));memset(&root,0,sizeof(root));memset(&backend,0,sizeof(backend));
+  m.view.root[0]=1;m.view.authority[0]=2;m.view.generation[0]=3;m.view.prefix[0]=4;m.view.policy[0]=5;m.view.ca_spki_digest[0]=6;
+@@ -67,6 +74,37 @@
+  CHECK(papacc_issuer_init(&c,NULL,&backend)==PAPACC_ISSUER_UNSUPPORTED);
+  printf("PASS production_test_backend_rejection=%u\n",checks);return 0;
+ #else
++ /* M3: NORMAL runs the same prepare/reserve/publish core, but cannot recover.
++  * Root/authorization/sign callbacks here remain an explicit isolated MODEL. */
++ setup();memset(&c,0,sizeof(c));m.view.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;
++ m.view.proofs=PAPACC_ISSUER_NORMAL_PROOFS;
++ CHECK(papacc_issuer_init_normal(&c,&root,&backend)==PAPACC_ISSUER_OK);q=request(1);
++ CHECK(papacc_issuer_prepare(&c,&q)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_reserve(&c,q.id)==PAPACC_ISSUER_OK);
++ CHECK(papacc_issuer_issue(&c,q.id,&csr,1,output,sizeof(output))==PAPACC_ISSUER_OK&&m.signs==1);
++ m.allow_publish=1;CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_PUBLISHED)==PAPACC_ISSUER_OK);
++ before=m.auths;CHECK(papacc_issuer_recover(&c,q.id)==PAPACC_ISSUER_DENIED&&m.auths==before);
++ before=m.commits;CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_REVOKED)==PAPACC_ISSUER_UNSUPPORTED&&m.commits==before);
++ c.root.revoke_dependents=revoke_dependents;
++ CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_REVOKED)==PAPACC_ISSUER_OK&&m.fanouts==1);
++ m.fail_fanout=1;CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_REVOKED)==PAPACC_ISSUER_UNCERTAIN&&c.blocked&&m.fanouts==2);
++ CHECK(papacc_issuer_transition(&c,q.id,PAPACC_ISSUER_REVOKED)==PAPACC_ISSUER_UNCERTAIN&&m.fanouts==2);
++ CHECK(papacc_issuer_query(&c,q.id,&r)==PAPACC_ISSUER_OK&&r.state==PAPACC_ISSUER_REVOKED);
++ m.view.continuity_profile=0;m.view.proofs=PAPACC_ISSUER_ROOT_PROOFS;
++ CHECK(papacc_issuer_query(&c,q.id,&r)==PAPACC_ISSUER_UNCERTAIN&&c.blocked);
++ for(before=0;before<8;before++){
++  setup();memset(&c,0,sizeof(c));m.view.continuity_profile=1;m.view.proofs=PAPACC_ISSUER_NORMAL_PROOFS&~(1U<<before);
++  if(PAPACC_ISSUER_NORMAL_PROOFS&(1U<<before))CHECK(papacc_issuer_init_normal(&c,&root,&backend)==PAPACC_ISSUER_UNCERTAIN);
++ }
++ setup();memset(&c,0,sizeof(c));m.view.continuity_profile=1;m.view.proofs=PAPACC_ISSUER_NORMAL_PROOFS|PAPACC_ISSUER_PROOF_FENCED_HIGH_WATER;
++ CHECK(papacc_issuer_init_normal(&c,&root,&backend)==PAPACC_ISSUER_UNCERTAIN);
++ setup();memset(&c,0,sizeof(c));m.view.continuity_profile=1;m.view.proofs=PAPACC_ISSUER_NORMAL_PROOFS;
++ CHECK(papacc_issuer_init(&c,&root,&backend)==PAPACC_ISSUER_UNCERTAIN);
++ setup();memset(&c,0,sizeof(c));m.view.continuity_profile=1;m.view.proofs=PAPACC_ISSUER_NORMAL_PROOFS;
++ CHECK(papacc_issuer_init_normal(&c,&root,&backend)==PAPACC_ISSUER_OK);q=request(1);m.fail_cas=2;
++ CHECK(papacc_issuer_prepare(&c,&q)==PAPACC_ISSUER_UNCERTAIN&&c.blocked&&m.commits==1&&!m.signs);
++ CHECK(papacc_issuer_recover(&c,q.id)==PAPACC_ISSUER_DENIED);
++ setup();memset(&c,0,sizeof(c));
+  CHECK(papacc_issuer_init(&c,NULL,&backend)==PAPACC_ISSUER_UNSUPPORTED);
+  CHECK(papacc_issuer_init(&c,&root,&backend)==PAPACC_ISSUER_OK);q=request(1);
+  CHECK(papacc_issuer_prepare(&c,&q)==PAPACC_ISSUER_OK);before=m.commits;
+--- a/tests/issuer_production_gate_test.c
++++ b/tests/issuer_production_gate_test.c
+@@ -11,8 +11,10 @@
+  memset(&c,0,sizeof(c));memset(&r,0,sizeof(r));memset(&b,0,sizeof(b));
+  r.ctx=&reads;r.read=read_port;r.cas=cas_port;r.test_only=1;b.authorize=auth_port;b.utc=clock_port;
+  if(papacc_issuer_init(&c,&r,&b)!=PAPACC_ISSUER_DENIED||reads)return 1;
++ if(papacc_issuer_init_normal(&c,&r,&b)!=PAPACC_ISSUER_DENIED||reads)return 5;
+  r.test_only=0;b.test_only=1;if(papacc_issuer_init(&c,&r,&b)!=PAPACC_ISSUER_DENIED||reads)return 2;
++ if(papacc_issuer_init_normal(&c,&r,&b)!=PAPACC_ISSUER_DENIED||reads)return 6;
+  if(papacc_issuer_init(&c,NULL,&b)!=PAPACC_ISSUER_UNSUPPORTED)return 3;
+  b.test_only=0;if(papacc_issuer_init(&c,&r,&b)!=PAPACC_ISSUER_UNSUPPORTED||reads!=1)return 4;
+- puts("PASS production_gate_checks=4; test_adapters_rejected_before_root_access; absent_live_root=UNSUPPORTED");return 0;
++ puts("PASS production_gate_checks=6; test_adapters_rejected_before_root_access_including_NORMAL; absent_live_root=UNSUPPORTED");return 0;
+ }
+--- a/tests/issuer_cng_x509_test.c
++++ b/tests/issuer_cng_x509_test.c
+@@ -8,7 +8,7 @@
+ #include <string.h>
+ static CERT_PUBLIC_KEY_INFO ca_public;
+ static unsigned checks,private_calls,validation_calls;static SECURITY_STATUS fail_sign;
+-static int bad_signature,deny_admin,stop_on_sign,fail_return;
++static int bad_signature,deny_admin,stop_on_sign,fail_return,normal_profile;
+ static PAPACC_ISSUER_CORE core;
+ static BOOL WINAPI model_verify(HCRYPTPROV_LEGACY p,DWORD e,DWORD s,void *a,DWORD i,void *b,DWORD f,void *x)
+ {(void)p;(void)e;(void)s;(void)a;(void)i;(void)b;(void)f;(void)x;return !bad_signature;}
+@@ -67,6 +67,7 @@
+  memset(&core,0,sizeof(core));memset(&backend,0,sizeof(backend));memset(&record,0,sizeof(record));memset(&v,0,sizeof(v));memset(&ca,0,sizeof(ca));memset(&key,0,sizeof(key));memset(&administrative,0,sizeof(administrative));memset(&root,0,sizeof(root));
+  private_calls=validation_calls=0;fail_sign=0;bad_signature=deny_admin=stop_on_sign=fail_return=0;
+  v.root[0]=1;v.authority[0]=2;v.generation[0]=3;v.prefix[0]=4;v.policy[0]=5;v.revision=1;v.epoch=9;v.high_water=2;v.ca_not_after=1690000000ULL+1825ULL*86400ULL;v.proofs=31;
++ if(normal_profile){v.continuity_profile=PAPACC_ISSUER_CONTINUITY_PERSONAL_NORMAL;v.proofs=PAPACC_ISSUER_NORMAL_PROOFS;}
+  record.request.id[0]=1;record.request.device[0]=7;record.request.purpose=PAPACC_ISSUER_CLIENT;record.request.not_before=1700000000ULL;record.request.not_after=1700003600ULL;
+  memcpy(record.authority,v.authority,16);memcpy(record.generation,v.generation,16);memcpy(record.policy,v.policy,32);memcpy(record.serial,v.prefix,8);record.serial[15]=2;record.counter=2;record.approved_epoch=9;record.state=PAPACC_ISSUER_SERIAL_RESERVED;
+  CHECK(xspki(&ca_public,v.ca_spki_digest,pubder,sizeof(pubder)));CHECK(xspki(client,record.request.key_digest,pubder,sizeof(pubder)));
+@@ -88,7 +89,7 @@
+  key.state=PAPACC_CA_KEY_READY;key.key=101;key.provider=202;key.thread=GetCurrentThreadId();k=0;{const wchar_t *prefix=L"PapinhoAccelerator.CA.";while(*prefix)key.name[k++]=*prefix++;}
+  for(i=0;i<16;i++){key.name[k++]=hex[v.authority[i]>>4];key.name[k++]=hex[v.authority[i]&15];}key.name[k++]=L'.';for(i=0;i<16;i++){key.name[k++]=hex[v.generation[i]>>4];key.name[k++]=hex[v.generation[i]&15];}key.name[k]=0;
+  CHECK(papacc_issuer_cng_backend_init(&backend,&root,&administrative,&core,&key,&ca,workspace.bytes,sizeof(workspace.bytes),2084039)==PAPACC_ISSUER_OK);
+- CHECK(papacc_issuer_init(&core,&root,&backend.ports)==PAPACC_ISSUER_OK);return 0;
++ CHECK((normal_profile?papacc_issuer_init_normal(&core,&root,&backend.ports):papacc_issuer_init(&core,&root,&backend.ports))==PAPACC_ISSUER_OK);return 0;
+ }
+ static int inspect_leaf(int package)
+ {
+@@ -170,6 +171,12 @@
+ {
+  PCCERT_CONTEXT caf,client;PAPACC_ISSUER_RESULT result;DWORD n;PAPACC_SIZE saved;unsigned before;
+  if(argc!=3)return 2;caf=fixture(argv[1]);client=fixture(argv[2]);CHECK(caf&&client);ca_public=caf->pCertInfo->SubjectPublicKeyInfo;
++ normal_profile=1;CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));
++ CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_OK&&private_calls==1);
++ CHECK(papacc_issuer_recover(&core,record.request.id)==PAPACC_ISSUER_DENIED);
++ CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));v.proofs|=PAPACC_ISSUER_PROOF_COMPLETE_CHAIN;
++ CHECK(papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out))==PAPACC_ISSUER_UNCERTAIN&&!private_calls);
++ normal_profile=0;
+  CHECK(!initialize(&client->pCertInfo->SubjectPublicKeyInfo));
+  result=papacc_issuer_issue(&core,record.request.id,csr,csr_size,out,sizeof(out));CHECK(result==PAPACC_ISSUER_OK);CHECK(private_calls==1&&record.state==PAPACC_ISSUER_ISSUED_UNPUBLISHED&&backend.active==0&&!key.borrower);
+  CHECK(!inspect_leaf(0));printf("MODEL_PUBLIC_DER_BYTES=%Iu CSR_BYTES=%lu NO_VALID_NATIVE_SIGNATURE\n",record.certificate_size,csr_size);
+--- a/tests/enrollment_test.c
++++ b/tests/enrollment_test.c
+@@ -94,4 +94,23 @@
+  CHECK(ep_enrollment_quote(2103847,262144,0,&q)==(PAPACC_ED11_PROCESS_LIMIT==3145728U?EP_DATA_ONLY:EP_LIMIT));
+  return 0;
+ }
+-int main(void){if(framing()||trace()||pairing()||limits())return 1;printf("PASS %u DATA_MODEL assertions; native_BCrypt_CSPRNG_pairing_secret_only; NO_CURRENT_APPROVAL_SIGNATURE_TLS_NETWORK\n",checks);printf("SIZES reader=%zu trace=%zu pair=%zu limiter=%zu RX_TX_two=%u process_limit=%u\n",sizeof(EP_READER),sizeof(EP_TRACE),sizeof(EP_PAIR),sizeof(EP_LIMITER),65600U,(unsigned)PAPACC_ED11_PROCESS_LIMIT);return 0;}
++static int composed_claim(void){
++ EP_PAIR p,original;EP_TRACE t,saved;EP_FRAME f;PAPACC_U8 random[55],client[32];PAPACC_SIZE n;unsigned i;
++ memset(random,0,sizeof(random));memset(random+7,3,16);memset(random+23,4,32);memset(client,1,32);
++ memset(&p,0,sizeof(p));CHECK(ep_pair_prepare_data(&p,random,client,11,12,100,NULL,0)==EP_DATA_ONLY);original=p;
++ memset(&t,0,sizeof(t));n=make(1);f.kind=1;f.sequence=1;f.payload.data=body;f.payload.size=n;CHECK(ep_trace_observe(&t,&f,EP_C2S)==EP_DATA_ONLY);
++ n=make(2);f.kind=2;f.payload.size=n;CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_DATA_ONLY);saved=t;
++ n=make(3);f.kind=3;f.sequence=2;f.payload.size=n;
++ CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,101)==EP_DATA_ONLY&&p.claimed&&t.phase==3U);
++ CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,102)==EP_REPLAY);
++ for(i=0;i<5U;i++){
++  p=original;t=saved;n=make(3);f.kind=3;f.sequence=2;f.payload.size=n;
++  if(i==0)body[48]='1';if(i==1)f.sequence=3;if(i==2)t.client_nonce[0]^=1;if(i==3)f.payload.size--;
++  CHECK(ep_trace_claim_pair(&t,&p,&f,i==4?99:11,12,101)!=EP_DATA_ONLY&&p.submitted&&t.terminal);
++  CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,102)==EP_REPLAY);
++ }
++ p=original;t=saved;f.payload.size=make(3);CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,300100)==EP_EXPIRED&&p.invalid);
++ p=original;t=saved;ep_trace_stop(&t);CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,101)==EP_STOPPED&&!p.submitted);
++ return 0;
++}
++int main(void){if(framing()||trace()||pairing()||limits()||composed_claim())return 1;printf("PASS %u DATA_MODEL assertions; native_BCrypt_CSPRNG_pairing_secret_only; NO_CURRENT_APPROVAL_SIGNATURE_TLS_NETWORK\n",checks);printf("SIZES reader=%zu trace=%zu pair=%zu limiter=%zu RX_TX_two=%u process_limit=%u\n",sizeof(EP_READER),sizeof(EP_TRACE),sizeof(EP_PAIR),sizeof(EP_LIMITER),65600U,(unsigned)PAPACC_ED11_PROCESS_LIMIT);return 0;}
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -57,6 +57,13 @@
+     tests/issuer_production_gate_test.c PROPERTIES OBJECT_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/src/issuer/issuer_core.h;${CMAKE_CURRENT_SOURCE_DIR}/include/papacc/types.h")
+ add_library(papacc_issuer STATIC src/issuer/issuer_core.c src/issuer/issuer_codec.c src/issuer/qualified_utc.c)
++# Private in-memory proof/profile/root-port layout is shared by these consumers.
++# Keep indirect includes explicit for the localized MSVC/Ninja build boundary.
++set_property(SOURCE src/issuer/issuer_codec.c apps/server/server_launcher_owner_win32.c
++    apps/server/server_c2_owner_win32.c apps/server/server_configuration_commit_win32.c
++    apps/server/server_issuer_cng_backend_win32.c apps/server/server_issuer_x509_win32.c
++    tests/issuer_checkpoint_test.c tests/issuer_cng_x509_test.c
++    APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/issuer/issuer_core.h")
+ target_include_directories(papacc_issuer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/issuer)
+ target_link_libraries(papacc_issuer PUBLIC papacc_core)
+ set_target_properties(papacc_issuer PROPERTIES C_STANDARD 90 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+@@ -3222,6 +3229,10 @@
+ # Personal ceremony independent DATA in the existing owner, no native effects.
+ if(TARGET papacc_configuration_commit AND PAPACC_ENABLE_OFFLINE_D3_WORKER)
+  target_sources(papacc_configuration_commit PRIVATE apps/server/personal_plan_data.c apps/server/server_ca_key_win32.c)
++ # This component fixture compiles commit directly rather than borrowing the
++ # configuration archive; it must also link the same personal DATA helpers.
++ target_sources(papacc_issuer_root_store_test PRIVATE apps/server/personal_plan_data.c apps/server/server_ca_key_win32.c)
++ target_link_libraries(papacc_issuer_root_store_test PRIVATE ncrypt advapi32)
+  target_link_libraries(papacc_configuration_commit PRIVATE ncrypt advapi32)
+  target_sources(papacc_configuration_commit PRIVATE apps/server/server_configuration_personal_custody_data_win32.c)
+  set_property(SOURCE apps/server/server_configuration_commit_win32.c APPEND PROPERTY OBJECT_DEPENDS

@@ -35,5 +35,24 @@ int main(void)
  CHECK(!papacc_personal_effect_consume(&p,id,plan,n)&&!papacc_personal_effect_upgrade(&p,plan,n));
  papacc_personal_data_invalidate(&p);CHECK(p.consumed&&!papacc_personal_effect_consume(&p,id,plan,n));CHECK(papacc_personal_data_retire(&p));
  for(i=0;i<sizeof(p.plan);i++)CHECK(p.plan[i]==0U);
- puts("PASS EFFECT_PLAN_DATA_ONLY EXPLICIT_CA_SCOPE READ_ONLY_NOT_REUSABLE STOP_REPLAY_DENY NO_NATIVE_EFFECT");return 0;
+ {PAPACC_PERSONAL_PREPARED_SPEC f;unsigned char target[12]={3},image[12]={4},digest[32]={5};
+  memset(&f,0,sizeof(f));f.selection=v;f.selection.leaf=(const unsigned char *)"Accelerator";f.selection.leaf_bytes=11;
+  f.target_id=target;f.source_id=parent;f.image_id=image;f.image_digest=digest;
+  n=papacc_personal_prepared_build(&f,plan,sizeof(plan));CHECK(n&&papacc_personal_prepared_matches(plan,n,&f));
+  CHECK(papacc_personal_effect_source(plan,n,&source,&bytes)&&bytes==sizeof(config)-1U);
+  image[1]=1;CHECK(!papacc_personal_prepared_matches(plan,n,&f));image[1]=0;
+  CHECK(!papacc_personal_prepared_build(&f,plan,n-1U));
+  memset(&p,0,sizeof(p));CHECK(papacc_personal_data_capture(&p,id,config,sizeof(config)-1U));
+  CHECK(papacc_personal_prepared_upgrade(&p,plan,n)&&p.effectful==3U&&papacc_personal_data_present(&p));
+  CHECK(!papacc_personal_effect_confirm(&p,id,plan,n,reply,z+64U));
+  memset(&p,0,sizeof(p));CHECK(papacc_personal_data_capture(&p,id,config,sizeof(config)-1U));
+  CHECK(papacc_personal_prepared_upgrade(&p,plan,n)&&papacc_personal_data_present(&p));
+  z=strlen("OWNER_PREPARED_INSTANCE_VALIDATE ");memcpy(reply,"OWNER_PREPARED_INSTANCE_VALIDATE ",z);
+  for(i=0;i<32U;i++){reply[z+2U*i]=hex[id[i]>>4];reply[z+2U*i+1U]=hex[id[i]&15U];}
+  CHECK(papacc_personal_prepared_confirm(&p,id,plan,n,reply,z+64U));
+  CHECK(!papacc_personal_data_consume(&p,id,plan,n));CHECK(papacc_personal_effect_consume(&p,id,plan,n));
+  CHECK(!papacc_personal_effect_consume(&p,id,plan,n)&&!papacc_personal_prepared_upgrade(&p,plan,n));
+  f.selection.leaf=(const unsigned char *)"Papinho";f.selection.leaf_bytes=7;CHECK(!papacc_personal_prepared_build(&f,plan,sizeof(plan)));
+ }
+ puts("PASS EFFECT_PLAN_DATA_ONLY FCR_SCOPE REPLAY_SUBSTITUTION_CROSS_PURPOSE_DENY NO_NATIVE_EFFECT");return 0;
 }

@@ -1,0 +1,101 @@
+/* Necessary observations plus independent D0-D7 admission. Legacy numeric diagnostic stops remain conservative until a complete policy is qualified. */
+#include "server_personal_resource_sample_win32.inc"
+typedef NTSTATUS (NTAPI *STAGING_QUERY_VOLUME)(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,ULONG);
+static DWORD staging_resource_fail(DWORD error)
+{
+ PAPACC_STAGING_RESOURCES *r=&staging_act()->resources;
+ if(!error)error=ERROR_INVALID_DATA;if(!r->first)r->first=error;return staging_fail(error);
+}
+static DWORD staging_observe(DWORD phase)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();DWORD error;
+ if(!staging_owned()||s->resources.first)return ERROR_INVALID_STATE;
+ error=personal_resource_sample(&s->resources.observation,phase);
+ if(error)return staging_resource_fail(error);
+ s->resources.missing&=~PAPACC_STAGE_MISSING_OBSERVATION;return 0;
+}
+/* D0-D7: independent staging policy, not a LAB/TPM/SCQ quota alias.
+ * Missing native policy sources cannot be supplied by caller-owned DATA.
+ * In particular clearing the diagnostic mask never produces admission. */
+static DWORD staging_policy_missing(void)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();PAPACC_STAGING_RESOURCES *r=&s->resources;
+ DWORD missing=PAPACC_STAGE_MISSING_NATIVE_ENVELOPE|PAPACC_STAGE_MISSING_HOST_MARGIN|
+ PAPACC_STAGE_MISSING_RETENTION|PAPACC_STAGE_MISSING_ADMIN_COHORT|PAPACC_STAGE_MISSING_FS_METADATA;
+ if(!r->observation.samples||r->observation.first_error||!r->observation.last.physical_available||
+ !r->observation.last.commit_available)missing|=PAPACC_STAGE_MISSING_OBSERVATION;
+ if(!r->volume_known||!r->unit_bytes||r->caller_free<r->payload_allocated)missing|=PAPACC_STAGE_MISSING_VOLUME;
+ return missing;
+}
+static DWORD staging_admit(void)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();
+ if(!staging_owned()||s->phase!=3U||s->consumed)return ERROR_INVALID_STATE;
+ if(papacc_server_console_win32_stop_requested()||root.configuration_commit.pending_commit.stop)return ERROR_CANCELLED;
+ if(s->first)return s->first;if(s->resources.first)return s->resources.first;
+ s->resources.missing=staging_policy_missing();
+ /* No qualified source currently exists for the five material policy classes.
+  * A future integration must prove them; neither handles=80 nor 132 is a grant. */
+ return s->resources.missing?ERROR_NOT_SUPPORTED:ERROR_ACCESS_DENIED;
+}
+static DWORD staging_volume(void)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();PAPACC_STAGING_RESOURCES *r=&s->resources;
+ STAGING_QUERY_VOLUME query;FARPROC proc;HMODULE module;NTSTATUS status;ULONGLONG unit,total,rounded,blocks,bytes;unsigned i;
+ if(!staging_owned()||!s->ancestor_count||r->volume_attempted||r->first)return staging_resource_fail(ERROR_INVALID_STATE);
+ r->volume_attempted=1U;
+ module=GetModuleHandleW(L"ntdll.dll");if(!module)return staging_resource_fail(ERROR_NOT_SUPPORTED);
+ proc=GetProcAddress(module,"NtQueryVolumeInformationFile");if(!proc)return staging_resource_fail(ERROR_NOT_SUPPORTED);memcpy(&query,&proc,sizeof(query));
+ status=query(s->objects[s->ancestor_count-1U].handle,&r->volume_io,&r->volume,sizeof(r->volume),7U);
+ if(status!=0){
+  DWORD error=staging_resource_fail((DWORD)status);
+  if(status>0){s->phase=8U;root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);}return error;
+ }
+ if(r->volume_io.Status!=0){DWORD error=staging_resource_fail(ERROR_INVALID_DATA);s->phase=8U;root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return error;}
+ if(r->volume_io.Information!=sizeof(r->volume)||r->volume.total.QuadPart<0||
+ r->volume.caller_available.QuadPart<0||r->volume.actual_available.QuadPart<0||
+ r->volume.caller_available.QuadPart>r->volume.total.QuadPart||r->volume.caller_available.QuadPart>r->volume.actual_available.QuadPart||
+ !r->volume.sectors_per_unit||!r->volume.bytes_per_sector)return staging_resource_fail(ERROR_INVALID_DATA);
+ unit=(ULONGLONG)r->volume.sectors_per_unit*r->volume.bytes_per_sector;
+ total=(ULONGLONG)r->volume.caller_available.QuadPart;
+ if(total>((ULONGLONG)-1)/unit||(ULONGLONG)r->volume.actual_available.QuadPart>((ULONGLONG)-1)/unit)return staging_resource_fail(ERROR_ARITHMETIC_OVERFLOW);
+ r->unit_bytes=unit;r->caller_free=total*unit;r->actual_free=(ULONGLONG)r->volume.actual_available.QuadPart*unit;
+ total=rounded=0;
+ for(i=0;i<3U;i++){
+  BY_HANDLE_FILE_INFORMATION *f=&s->objects[8U+i].identity;
+  bytes=((ULONGLONG)f->nFileSizeHigh<<32)|f->nFileSizeLow;
+  if(total>((ULONGLONG)-1)-bytes)return staging_resource_fail(ERROR_ARITHMETIC_OVERFLOW);total+=bytes;
+  blocks=bytes/unit+(bytes%unit?1U:0U);
+  if(blocks>((ULONGLONG)-1)/unit||rounded>((ULONGLONG)-1)-blocks*unit)return staging_resource_fail(ERROR_ARITHMETIC_OVERFLOW);rounded+=blocks*unit;
+ }
+ r->logical_bytes=total;r->payload_allocated=rounded;r->volume_known=1U;r->missing&=~PAPACC_STAGE_MISSING_VOLUME;
+ /* Full payload cluster rounding is an uncompressed allocation planning
+  * quantity, not a universal floor/ceiling, metadata bound or reservation.
+  * Reject below it; never accept above it as sufficient capacity. */
+ if(r->caller_free<rounded)return staging_resource_fail(ERROR_DISK_FULL);
+ return 0;
+}
+static void staging_resource_report(FILE *out)
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();PAPACC_STAGING_RESOURCES *r=&s->resources;unsigned i,live=0;
+ for(i=0;i<16U;i++)if(s->objects[i].handle)live++;
+ fprintf(out,"STAGING_RESOURCES samples=%lu first=%lu missing=%lu peak_handles=%lu private_peak=%llu minimum_physical=%llu minimum_commit=%llu volume_known=%u cluster=%llu caller_free=%llu actual_free=%llu logical=%llu rounded_payload=%llu controlled_stage_refs=%u phase=%u consumed=%u effects=%u; APPLY=DENY; FS_METADATA=UNKNOWN; OBSERVED_PEAK_NOT_CEILING\n",
+ (unsigned long)r->observation.samples,(unsigned long)(s->first?s->first:r->first),(unsigned long)r->missing,
+ (unsigned long)r->observation.peak_handles,r->observation.peak_private,r->observation.min_physical,r->observation.min_commit,
+ r->volume_known,r->unit_bytes,r->caller_free,r->actual_free,r->logical_bytes,r->payload_allocated,live,s->phase,s->consumed,s->effects);
+ fprintf(out,"STAGING_DESCRIPTOR_BYTES parent=%lu new_protection=%lu scratch_peak_observed=%lu; NATIVE_ALLOCATOR_OVERHEAD=UNKNOWN; ALLOCATION_BEFORE_LENGTH_CHECK_NOT_BOUNDED_BY_VALIDATOR\n",
+ (unsigned long)r->parent_descriptor_bytes,(unsigned long)r->protection_bytes,(unsigned long)r->scratch_peak_bytes);
+ fprintf(out,"STAGING_CONTROLLED_CLOSE known=%u retained=%u; OS_INTERNAL_QUIESCENCE=UNKNOWN\n",r->close_known,s->phase==8U?1U:0U);
+ fprintf(out,"STAGING_NATIVE_CONTEXT first_predicate=%lu native_error=%lu failure_kind=%lu; TOKEN_NOT_OPERATIONAL_AUTHORIZATION\n",
+ (unsigned long)root.configuration_commit.pending_commit.personal_native.diagnostic_first,
+ (unsigned long)root.configuration_commit.pending_commit.personal_native.diagnostic_error,
+ (unsigned long)root.configuration_commit.pending_commit.personal_native.diagnostic_kind);
+ fprintf(out,"STAGING_FIRST_LOCATION=%lu; CURRENT_LOCATION=%lu; CAPTURE_DIAGNOSTIC_NOT_AUTHORITY\n",(unsigned long)r->first_location,(unsigned long)r->location);
+ fprintf(out,"STAGING_HANDLE_GUARD query_attempted=%lu query_succeeded=%lu count_known=%lu own_count=%lu query_error=%lu reserve_guard=124 own_cap=128 required_controlled_refs=1 guard_denied=%lu object_index=%lu; ORIGINAL_PRE_OPEN_QUERY_NOT_A_NEW_QUERY; UNKNOWN_NOT_ZERO\n",
+ (unsigned long)r->guard_attempted,(unsigned long)r->guard_succeeded,(unsigned long)r->guard_succeeded,(unsigned long)r->guard_count,
+ (unsigned long)r->guard_error,(unsigned long)r->guard_denied,(unsigned long)r->guard_index);
+ fprintf(out,"STAGING_POST_ENTRY_HANDLES query_attempted=%lu query_succeeded=%lu count_known=%lu own_count=%lu query_error=%lu; SCOPE=AFTER_FIRST_FRAME_BEFORE_LAYOUT; NO_ATTRIBUTION_TO_LATER_PHASES\n",
+ (unsigned long)r->post_entry_attempted,(unsigned long)r->post_entry_succeeded,(unsigned long)r->post_entry_succeeded,
+ (unsigned long)r->post_entry_count,(unsigned long)r->post_entry_error);
+}
+

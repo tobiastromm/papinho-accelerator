@@ -1,0 +1,9 @@
+# Continuação — fechar plano B3 do ensaio LIMITED
+
+Projeto C:\Projetos\PapinhoAccelerator, mesmo owner/branch/WIP. B0–B8 já ACCEPTED em DECISION-personal-limited-staging-assurance-b0-b8-20261031; não pedir reaprovação. Ler candidato/hash incorporado, CLOSEOUT.md, PACKAGE-CANDIDATE.json e ONE-LIMITED-STAGING-REQUEST.DRAFT.md desta integração.
+
+Concluir o plano B3 de três arquivos, fonte/destino, tentativa/autoridade originais e critérios quantitativos fundamentados de monitoramento/interrupção/margem/volume, freshness/duração/lifetime e alcance/custo do observador. Diferenciar valores propostos, seleção operacional do proprietário e gates frescos. Não inventar thresholds nem copiar LAB/TPM/SCQ/Browser ou transformar132 em teto. Se faltarem escolhas específicas do proprietário, consolidar todas no mesmo plano revisável; não pedir nova decisão normativa para ajustes técnicos cobertos por B0–B8.
+
+Integrar/qualificar offline apenas fontes/predicados fundamentados, sem setter positivo ou grant sintético. UNKNOWN opaco continua registrado; falta de plano/autoridade nega. Guard conservador só pode ser revisto com política legítima suficiente; manter limites dos demais domínios. Não usar o coletor antigo com promessa de alcançar fases além do corte124. Não selecionar novo artefato operacional enquanto houver mudança técnica relevante.
+
+Preparar pedido byte-exato e comando manual apenas quando plano/artefatos/gates estiverem completos e autorização operacional específica válida; nunca executar automaticamente ou reusar aprovações consumidas. Sem staging/coleta/tracing, diretórios/contas/CA operacionais, SCM/ACL, Start/Stop, endpoint, CURRENT/rede/KSP/TPM/NV/Q4, cleanup/refund ou recuperação. Não promover qualificação a produção/SCM/NEW_INSTALL. Preservar UNKNOWN/DENY, HEAD/WIP/históricos/pins/chave fixture/PST0.6.4. Entregar plano concreto e o primeiro gate efetivamente faltante.

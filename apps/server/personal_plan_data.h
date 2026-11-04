@@ -37,4 +37,19 @@ int papacc_personal_effect_source(const unsigned char *,size_t,const unsigned ch
 int papacc_personal_effect_upgrade(PAPACC_PERSONAL_PLAN_DATA *,const unsigned char *,size_t);
 int papacc_personal_effect_confirm(PAPACC_PERSONAL_PLAN_DATA *,const unsigned char *,const unsigned char *,size_t,const char *,size_t);
 int papacc_personal_effect_consume(PAPACC_PERSONAL_PLAN_DATA *,const unsigned char *,const unsigned char *,size_t);
+/* PDP private DATA scope, disjoint from CA_INITIALIZE; never authority. */
+size_t papacc_personal_parent_build(const PAPACC_PERSONAL_EFFECT_SPEC *,unsigned char *,size_t);
+int papacc_personal_parent_matches(const unsigned char *,size_t,const PAPACC_PERSONAL_EFFECT_SPEC *);
+int papacc_personal_parent_upgrade(PAPACC_PERSONAL_PLAN_DATA *,const unsigned char *,size_t);
+int papacc_personal_parent_confirm(PAPACC_PERSONAL_PLAN_DATA *,const unsigned char *,const unsigned char *,size_t,const char *,size_t);
+/* FCR private read-only plan; no created bit, grant or wire format. */
+typedef struct PAPACC_PERSONAL_PREPARED_SPEC {
+ PAPACC_PERSONAL_EFFECT_SPEC selection;
+ const unsigned char *target_id,*source_id,*image_id,*image_digest;
+} PAPACC_PERSONAL_PREPARED_SPEC;
+size_t papacc_personal_prepared_build(const PAPACC_PERSONAL_PREPARED_SPEC *,unsigned char *,size_t);
+int papacc_personal_prepared_matches(const unsigned char *,size_t,const PAPACC_PERSONAL_PREPARED_SPEC *);
+int papacc_personal_prepared_source(const unsigned char *,size_t,const unsigned char **,size_t *);
+int papacc_personal_prepared_upgrade(PAPACC_PERSONAL_PLAN_DATA *,const unsigned char *,size_t);
+int papacc_personal_prepared_confirm(PAPACC_PERSONAL_PLAN_DATA *,const unsigned char *,const unsigned char *,size_t,const char *,size_t);
 #endif

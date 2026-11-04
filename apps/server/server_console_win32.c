@@ -9,10 +9,37 @@
  */
 static volatile LONG papacc_server_console_stop_requested = 0;
 static volatile LONG papacc_server_console_handler_installed = 0;
+static PVOID volatile papacc_server_console_wait_event = NULL;
+static volatile LONG papacc_server_console_wait_users = 0;
+static volatile LONG papacc_server_console_wait_error = 0;
+typedef char papacc_console_census_exact[(PAPACC_CONSOLE_BRIDGE_STORAGE_BYTES==
+ sizeof(papacc_server_console_stop_requested)+sizeof(papacc_server_console_handler_installed)+
+ sizeof(papacc_server_console_wait_event)+sizeof(papacc_server_console_wait_users)+sizeof(papacc_server_console_wait_error))?1:-1];
 
 void papacc_server_console_win32_request_stop(void)
 {
+    HANDLE wake;
     (void)InterlockedExchange(&papacc_server_console_stop_requested, 1);
+    (void)InterlockedIncrement(&papacc_server_console_wait_users);
+    wake=(HANDLE)InterlockedCompareExchangePointer(&papacc_server_console_wait_event,NULL,NULL);
+    if(wake&&!SetEvent(wake))(void)InterlockedCompareExchange(&papacc_server_console_wait_error,1,0);
+    (void)InterlockedDecrement(&papacc_server_console_wait_users);
+}
+PAPACC_RESULT papacc_server_console_win32_wait_original(void *event,void *peer,unsigned long timeout,unsigned long *observed)
+{
+    HANDLE handles[2];DWORD flags,result,count=peer?2U:1U;
+    if(!event||!observed||event==peer||!GetHandleInformation((HANDLE)event,&flags)||(flags&HANDLE_FLAG_INHERIT))return PAPACC_RESULT_INVALID_ARGUMENT;
+    *observed=WAIT_FAILED;
+    if(InterlockedCompareExchange(&papacc_server_console_wait_error,0,0)||
+       InterlockedCompareExchangePointer(&papacc_server_console_wait_event,event,NULL))return PAPACC_RESULT_INVALID_STATE;
+    handles[0]=(HANDLE)event;handles[1]=(HANDLE)peer;
+    if(papacc_server_console_win32_stop_requested())result=WAIT_OBJECT_0;
+    else result=WaitForMultipleObjects(count,handles,FALSE,timeout);
+    (void)InterlockedCompareExchangePointer(&papacc_server_console_wait_event,NULL,event);
+    /* A callback that already borrowed the event may still be using it. Do
+     * not spin, close it or infer completion; caller retains on this result. */
+    if(InterlockedCompareExchange(&papacc_server_console_wait_users,0,0)||InterlockedCompareExchange(&papacc_server_console_wait_error,0,0))return PAPACC_RESULT_INVALID_STATE;
+    *observed=result;return result==WAIT_FAILED?PAPACC_RESULT_INTERNAL_ERROR:PAPACC_RESULT_OK;
 }
 
 PAPACC_BOOL papacc_server_console_win32_stop_requested(void)

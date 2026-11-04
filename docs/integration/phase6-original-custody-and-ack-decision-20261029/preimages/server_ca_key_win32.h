@@ -1,0 +1,63 @@
+#ifndef PAPACC_SERVER_CA_KEY_WIN32_H
+#define PAPACC_SERVER_CA_KEY_WIN32_H
+/* Private administrative key owner. No startup hook, signing API or TLS use.
+ * Caller supplies zeroed durable storage; no copies/aliases while initialized.
+ * Public issuer signing is deliberately unavailable without root reservation. */
+#include <windows.h>
+#include <ncrypt.h>
+typedef enum PAPACC_CA_KEY_STATE {
+ PAPACC_CA_KEY_EMPTY=0,PAPACC_CA_KEY_READY,PAPACC_CA_KEY_RETAINED,PAPACC_CA_KEY_CLOSED
+} PAPACC_CA_KEY_STATE;
+/* Diagnostic values only: never consulted for authorization or cleanup. */
+typedef enum PAPACC_CA_DIAG_STAGE {
+ CA_D_ENTRY=1,CA_D_SID_VALID,CA_D_THREAD_TOKEN,CA_D_PROCESS_TOKEN,
+ CA_D_TOKEN_INFO,CA_D_TOKEN_CLOSE,CA_D_IDENTITY_EQUAL,CA_D_SID_SIZE,CA_D_SID_COPY,
+ CA_D_OPEN_PROVIDER,CA_D_CREATE_KEY,CA_D_OPEN_KEY,CA_D_SET_LENGTH,
+ CA_D_SET_EXPORT,CA_D_SET_USAGE,CA_D_SID_TEXT,CA_D_SD_FORMAT,CA_D_SD_PARSE,
+ CA_D_SET_DACL,CA_D_FINALIZE,CA_D_GET_LENGTH,CA_D_GET_EXPORT,CA_D_GET_USAGE,
+ CA_D_PROPERTY_VALUE,CA_D_EXPORT_PUBLIC,CA_D_PUBLIC_VALUE,CA_D_GET_DACL,
+ CA_D_SD_VALID,CA_D_ACE_READ,CA_D_ACE_FLAGS,CA_D_ACE_TYPE,CA_D_ACE_SID,
+ CA_D_ACE_ALLOWED,CA_D_ACE_MASK,CA_D_FREE_KEY,CA_D_FREE_PROVIDER,
+ CA_D_RETAINED_TOKEN,CA_D_ALREADY_RETAINED,CA_D_LOCAL_FREE_ADMIN,
+ CA_D_LOCAL_FREE_SERVICE,CA_D_LOCAL_FREE_SD,CA_D_LENGTH_VALUE,CA_D_EXPORT_VALUE,CA_D_USAGE_VALUE,CA_D_SD_SIZE
+} PAPACC_CA_DIAG_STAGE;
+enum {CA_D_LOCAL_GUARD=1,CA_D_NATIVE_NCRYPT=2};
+enum {CA_D_BEGIN_CREATE=1,CA_D_BEGIN_OPEN,CA_D_VALIDATE,CA_D_CLOSE,
+ CA_D_IDENTITY,CA_D_PROPERTY,CA_D_ACL};
+enum {CA_API_NONE=0,CA_API_OPEN_PROVIDER,CA_API_CREATE_KEY,CA_API_OPEN_KEY,
+ CA_API_SET_PROPERTY,CA_API_GET_PROPERTY,CA_API_EXPORT_PUBLIC,CA_API_FINALIZE,
+ CA_API_FREE_OBJECT};
+typedef struct PAPACC_CA_FAILURE {
+ DWORD present,function,stage,origin,native_api;
+ SECURITY_STATUS original_code,backend_code;
+ DWORD win32_error; /* original GetLastError only for failed Win32 calls */
+ DWORD state,created,finalization,key_owned,provider_owned,ownership;
+ /* ownership: 0 no native handles;1 owned handles;2 retained;3 closed.
+  * finalization:0 not observed;1 attempted/unconfirmed;2 returned SUCCESS. */
+} PAPACC_CA_FAILURE;
+typedef struct PAPACC_CA_KEY {
+ NCRYPT_PROV_HANDLE provider;
+ NCRYPT_KEY_HANDLE key;
+ HANDLE retained_token;
+ HLOCAL retained_local[3];
+ DWORD thread;
+ PAPACC_CA_KEY_STATE state;
+ SECURITY_STATUS error;
+ wchar_t name[96];
+ BYTE operator_sid[SECURITY_MAX_SID_SIZE],service_sid[SECURITY_MAX_SID_SIZE];
+ DWORD operator_size,service_size;
+ int created,close_attempted,close_confirmed;
+ DWORD diagnostic_finalization;
+ PAPACC_CA_FAILURE first_failure;
+ const void *borrower; /* one factual private lease, not authority or a key copy */
+} PAPACC_CA_KEY;
+/* Explicit operation only: no overwrite, fallback, deletion or regeneration.
+ * operator/service are actual configured SIDs, not display names. Native ACL
+ * validation is mandatory. Unknown close result retains owner for diagnosis. */
+SECURITY_STATUS papacc_ca_key_create(PAPACC_CA_KEY *,const BYTE[16],const BYTE[16],PSID,PSID);
+SECURITY_STATUS papacc_ca_key_open(PAPACC_CA_KEY *,const BYTE[16],const BYTE[16],PSID,PSID);
+SECURITY_STATUS papacc_ca_key_validate(PAPACC_CA_KEY *);
+SECURITY_STATUS papacc_ca_key_close(PAPACC_CA_KEY *);
+SECURITY_STATUS papacc_ca_key_borrow(PAPACC_CA_KEY *,const void *);
+SECURITY_STATUS papacc_ca_key_return(PAPACC_CA_KEY *,const void *);
+#endif

@@ -17,51 +17,7 @@ static int bootstrap_admin(PAPACC_CONFIG_PENDING *p)
  return CreateWellKnownSid(WinBuiltinAdministratorsSid,NULL,sid,&bytes)&&
   CheckTokenMembership(NULL,sid,&member)&&member;
 }
-static int bootstrap_identity(HANDLE h,DWORD *volume,DWORD *high,DWORD *low,int first)
-{
- BY_HANDLE_FILE_INFORMATION f;
- if(!GetFileInformationByHandle(h,&f)||!(f.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)||
-    (f.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT))return 0;
- if(first){*volume=f.dwVolumeSerialNumber;*high=f.nFileIndexHigh;*low=f.nFileIndexLow;return 1;}
- return *volume==f.dwVolumeSerialNumber&&*high==f.nFileIndexHigh&&*low==f.nFileIndexLow;
-}
-/* Shared exclusive child primitive: caller retains the SAME parent handle.
- * No parent reopen, authority capture, key operation, commit or publication. */
-static int bootstrap_create_child(PAPACC_CONFIG_PENDING *p)
-{
- HMODULE module;FARPROC address;BOOTSTRAP_NT_CREATE create;
- WCHAR leaf[65];UNICODE_STRING name;OBJECT_ATTRIBUTES attr;IO_STATUS_BLOCK io;
- NTSTATUS status;unsigned i,n;
- if(!p->bootstrap_parent||p->bootstrap_container||p->bootstrap_created||
-    InterlockedCompareExchange(&p->stop,0,0))return 0;
- if(!bootstrap_identity(p->bootstrap_parent,&p->bootstrap_parent_volume,&p->bootstrap_parent_high,&p->bootstrap_parent_low,0)){
-  p->result=PAPACC_CAS_CONFLICT;return 0;}
- for(n=0;n<65U&&p->previous[n];n++);
- if(!n||n>64U||p->previous[n-1U]=='.')return 0;
- for(i=0;i<n;i++){
-  unsigned char c=p->previous[i];
-  if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='-'||c=='_'||c=='.'))return 0;
-  leaf[i]=(WCHAR)c;
- }
- leaf[n]=0;module=GetModuleHandleA("ntdll.dll");if(!module)return 0;
- address=GetProcAddress(module,"NtCreateFile");if(!address)return 0;memcpy(&create,&address,sizeof(create));
- memset(&attr,0,sizeof(attr));memset(&io,0,sizeof(io));name.Buffer=leaf;name.Length=(USHORT)(n*2U);name.MaximumLength=name.Length;
- attr.Length=sizeof(attr);attr.RootDirectory=p->bootstrap_parent;attr.ObjectName=&name;attr.Attributes=OBJ_CASE_INSENSITIVE|OBJ_DONT_REPARSE;
- if(InterlockedCompareExchange(&p->stop,0,0))return 0;
- status=create(&p->bootstrap_container,FILE_LIST_DIRECTORY|FILE_TRAVERSE|FILE_ADD_FILE|FILE_READ_ATTRIBUTES|SYNCHRONIZE,
-  &attr,&io,NULL,FILE_ATTRIBUTE_DIRECTORY,FILE_SHARE_READ,2U,0x00200021U,NULL,0U);
- if(status<0){
-  p->native_error=(DWORD)status;
-  /* Name collision is definite nonreplacement. Other failures are not
-   * promoted to proven absence/rollback; preserve any returned reference. */
-  p->result=(status==(NTSTATUS)0xc0000035L&&!p->bootstrap_container)?PAPACC_CAS_CONFLICT:PAPACC_CAS_UNKNOWN;
-  return 0;
- }
- p->bootstrap_created=1U;
- if(io.Information!=2U||!bootstrap_identity(p->bootstrap_container,&p->bootstrap_volume,&p->bootstrap_high,&p->bootstrap_low,1)){
-  p->result=PAPACC_CAS_UNKNOWN;return 0;}
- return 1;
-}
+#include "server_configuration_bootstrap_child_win32.inc"
 #include "server_configuration_bootstrap_commit_win32.inc"
 static void bootstrap_worker(PAPACC_CONFIG_PENDING *p)
 {

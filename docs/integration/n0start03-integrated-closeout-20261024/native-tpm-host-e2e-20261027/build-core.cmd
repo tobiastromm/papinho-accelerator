@@ -1,0 +1,7 @@
+@echo off
+call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat" >nul
+cl /nologo /W4 /WX /Od /Zi /MDd /Itools/qualification/tpm-native-proof /Fodocs\integration\n0start03-integrated-closeout-20261024\native-tpm-host-e2e-20261027\Debug\ /Fd"docs\integration\n0start03-integrated-closeout-20261024\native-tpm-host-e2e-20261027\Debug\proof.pdb" /Fe"docs\integration\n0start03-integrated-closeout-20261024\native-tpm-host-e2e-20261027\Debug\proof_test.exe" tools/qualification/tpm-native-proof/proof_core.c tools/qualification/tpm-native-proof/json_data.c tools/qualification/tpm-native-proof/proof_test.c /link bcrypt.lib psapi.lib > "docs\integration\n0start03-integrated-closeout-20261024\native-tpm-host-e2e-20261027\Debug\build.log" 2>&1
+if errorlevel 1 exit /b 1
+cl /nologo /W4 /WX /O2 /MD /Itools/qualification/tpm-native-proof /Fodocs\integration\n0start03-integrated-closeout-20261024\native-tpm-host-e2e-20261027\Release\ /Fd"docs\integration\n0start03-integrated-closeout-20261024\native-tpm-host-e2e-20261027\Release\proof.pdb" /Fe"docs\integration\n0start03-integrated-closeout-20261024\native-tpm-host-e2e-20261027\Release\proof_test.exe" tools/qualification/tpm-native-proof/proof_core.c tools/qualification/tpm-native-proof/json_data.c tools/qualification/tpm-native-proof/proof_test.c /link bcrypt.lib psapi.lib > "docs\integration\n0start03-integrated-closeout-20261024\native-tpm-host-e2e-20261027\Release\build.log" 2>&1
+if errorlevel 1 exit /b 1
+exit /b 0

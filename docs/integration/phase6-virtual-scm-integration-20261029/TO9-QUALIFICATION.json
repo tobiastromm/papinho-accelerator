@@ -1,0 +1,98 @@
+{
+  "task": "PACC-PHASE6-TO0-TO9-ACCEPTANCE-AND-OFFLINE-INTEGRATION",
+  "normative": "ACCEPTED_TO0_TO9",
+  "proposal_sha256": "0702a2e733024118bdad7c0993b4993e20cf44e825a872ad50245e8fd2b45d30",
+  "configurations": [
+    {
+      "configuration": "Selected-Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 12,
+      "result": "PASS",
+      "managed_census_bytes": 1979784,
+      "managed_limit_bytes": 3145728,
+      "SCM_separate_static_bytes": 12924,
+      "static_sum_components_bytes": 1992708,
+      "physical_commit_headroom": "UNKNOWN"
+    },
+    {
+      "configuration": "Selected-Release",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 12,
+      "result": "PASS",
+      "managed_census_bytes": 1979784,
+      "managed_limit_bytes": 3145728,
+      "SCM_separate_static_bytes": 12924,
+      "static_sum_components_bytes": 1992708,
+      "physical_commit_headroom": "UNKNOWN"
+    },
+    {
+      "configuration": "Legacy-Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 12,
+      "result": "PASS",
+      "managed_census_bytes": 1811216,
+      "managed_limit_bytes": 2097152,
+      "SCM_separate_static_bytes": 12924,
+      "static_sum_components_bytes": 1824140,
+      "physical_commit_headroom": "UNKNOWN"
+    },
+    {
+      "configuration": "Legacy-Release",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 12,
+      "result": "PASS",
+      "managed_census_bytes": 1811216,
+      "managed_limit_bytes": 2097152,
+      "SCM_separate_static_bytes": 12924,
+      "static_sum_components_bytes": 1824140,
+      "physical_commit_headroom": "UNKNOWN"
+    }
+  ],
+  "mutants": [
+    {
+      "mutant": "noncanonical_key_accepted",
+      "compile": "PASS",
+      "exit": 1,
+      "rejected": true,
+      "scope": "OFFLINE_MODEL_ONLY"
+    },
+    {
+      "mutant": "transport_reaches_ksp_dispatch",
+      "compile": "PASS",
+      "exit": 1,
+      "rejected": true,
+      "scope": "OFFLINE_MODEL_ONLY"
+    },
+    {
+      "mutant": "administrative_purpose_not_revalidated",
+      "compile": "PASS",
+      "exit": 1,
+      "rejected": true,
+      "scope": "OFFLINE_MODEL_ONLY"
+    }
+  ],
+  "chain": {
+    "cases": 47,
+    "transport_cases": 26,
+    "checks_per_configuration": 1980,
+    "closed_ready_models": 8,
+    "retained_host_models": 39,
+    "premature_or_productive_running": 0
+  },
+  "private_profile_checks": 3470,
+  "dispatch_checks": 1284,
+  "native_bilateral": "NOT_DEMONSTRATED",
+  "KSP_in_transport": "ZERO_MODELED_PROVIDER_CALLS_WITH_DIRECT_ENTRY_NEGATIVES",
+  "real_endpoints": "NONE_CREATED_OR_CONNECTED",
+  "operational_registrations": "ALL_THREE_NULL",
+  "operational_request": "NOT_READY",
+  "E21": "PENDING",
+  "ED11": "PARTIAL",
+  "Phase6": "PARTIAL",
+  "authority": "DENY",
+  "build_correction": "Unused variable warning caught by /WX during development and corrected; earlier stale CTests after that failed incremental build were not used as final evidence. Mutant helper newline issue corrected before valid mutation results."
+}

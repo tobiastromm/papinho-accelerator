@@ -9,8 +9,8 @@
 /* Storage capacity only: format/admission/authority guards remain independent.
  * Historical codec constants and non-selected targets are unchanged. */
 #if defined(PAPACC_ED11_WINDOWS_3MIB)
-#include "../../src/config/config_root8_v4.h"
-#define PAPACC_CONFIG_TRANSACTION_BYTES PC_ROOT8_V4_MAX
+#include "../../src/config/config_root8_v5.h"
+#define PAPACC_CONFIG_TRANSACTION_BYTES PC_ROOT8_V5_MAX
 #else
 #define PAPACC_CONFIG_TRANSACTION_BYTES PAPACC_ISSUER_LINKED_ROOT_BYTES
 #endif
@@ -25,6 +25,9 @@ typedef struct PAPACC_CONFIG_PENDING {
  PAPACC_PERSONAL_NATIVE_CONTEXT personal_native;
  /* Borrow only; canonical CA owner stays durable on the writer thread. */
  PAPACC_CA_KEY *personal_ca;
+ PAPACC_CA_KEY *personal_ca_candidate; /* caller-owned native key, never copied */
+ unsigned ca_initialize_phase; /* 0 untouched, 1 taken, 2 created, 3 borrowed, 4 retained */
+ SECURITY_STATUS ca_initialize_first; /* first result, not operational permission */
  unsigned personal_ca_used; /* monotonic one borrow acquisition per attempt */
  PAPACC_PERSONAL_PLAN_DATA personal_data; /* owned DATA only, never native permission */
  PAPACC_STORE_HASH store_hash;

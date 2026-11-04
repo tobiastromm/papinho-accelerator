@@ -1,0 +1,4 @@
+# Próximo prompt executável — reconciliação UPDATE FCA preflight
+Ler integralmente a saída manual do UPDATE aprovado pelo pedido877f8a5c4a5d4991703a5bd87e431f6415f8b5d93d7e9817f350e6635c4e4896. Não repetir.
+Conferir primeira falha, confirmação/consumo, criação exclusiva, dois renames, anterior preservado, novo canônico911360bytes/SHA256747ba426d55af50947169a178c8366def46cb57ad4a8c29308ff44664aeaee96 e identidade real futura, proteção/readback, SCM parado, fechamento/retenção. Não inventar identidade nem sucesso a partir do exit. Preservar UNKNOWN em prova ausente e os históricos/consumos/PST0.6.4.
+Somente depois de reconciliação suficiente preparar o menor ato independente para capturar etapa FCA; não repetir a FCA histórica e não executar automaticamente UPDATE/novo ensaio/Start/SCQ/CA/CURRENT/limpeza ou demais operações.

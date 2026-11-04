@@ -1,0 +1,38 @@
+{
+  "status": "SPECIFIC_CANDIDATE_NOT_EXECUTABLE_NOT_APPROVED",
+  "purpose": "one fresh local EK credential-activation proof only; no NV/Q4/LAB/publication",
+  "observed_EK": {
+    "raw_key_sha256": "406874753bd60db238226c888765b49940cc6f0229b8a0296f4ad1547e92aba2",
+    "certificate_der_sha256": "965f56aa0d4c5b5772b423d65d8a06a623109f5828c0eddcb8ec4ae8fa3de761",
+    "derived_canonical_spki_sha256": "1c643066b17bdf9e81c09870661aeb7c9cfff1f2ffbef71b43532c14a25c474e",
+    "EK_algorithm": "RSA",
+    "EK_bits": 2048,
+    "EK_exponent": 65537,
+    "root_sha256": "2e1b3ba79af56d758be51697621bc4b9e8cee0983db3e749c55eb9b37c6d2ae0"
+  },
+  "bounded_sequence_candidate": [
+    "obtain separately authorized hierarchy/session custody without extraction or guessing",
+    "create at most one transient EK primary with approved standard profile and require exact observed EK public match",
+    "create at most one transient restricted AK primary with explicitly reviewed public attributes and complete Name recomputation",
+    "fresh random 30-byte challenge locally, bound to EK/AK Name/current context and invocation",
+    "offline MakeCredential using actual EK; TPM ActivateCredential exactly once with qualified authenticated authorization sessions",
+    "verify recovered challenge once in original live invocation; no signature/quote/certificate issuance",
+    "close only newly owned transient sessions/objects when factually permitted under separate approval; preserve UNKNOWN/no retry"
+  ],
+  "persistent_effects_allowed": false,
+  "NV_commands_allowed": false,
+  "remote_CA_allowed": false,
+  "private_material_export_allowed": false,
+  "new_operational_identity": null,
+  "new_approval": null,
+  "command": null,
+  "missing": [
+    "approved exact EK/AK public templates and transient cleanup/session command profile",
+    "actual hierarchy/AK/session authorization and protected custody; administrator status is insufficient",
+    "qualified native sender and response-channel authentication, not a software fixture",
+    "current host/token/boot/live process and resource envelope at separately approved execution",
+    "trust/revocation decision: leaf CRL HTTP403 not good status"
+  ],
+  "failure": "any ambiguity freezes, first error retained, no resend/adoption/rebaseline",
+  "fixture_evidence": "23 assertions/config; concurrent16verifiers exactly1winner; no native possession claim"
+}

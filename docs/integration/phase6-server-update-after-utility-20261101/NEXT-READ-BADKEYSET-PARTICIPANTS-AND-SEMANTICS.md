@@ -1,0 +1,3 @@
+# Próximo trabalho
+
+Reconciliar consulta manual read-only BADKEYSET, sem repetir sessão ou consulta. Conferir primeiroerro/consumo/controladorcriação-tokenoriginais/runtimecandidatoSCM/revalidações/observerclose. Eventual G5 específico somente após objetos factuais e aprovação própria. Não reutilizar G5 antigo. Ler READ-BADKEYSET-OFFLINE-AUDIT-REPORT.md: nenhum defeito demonstrado nos nomes/provider/flags/token; erro runtimeBAD_KEYSET não equivale normativamente a NTE_PERM. Não emitir novo UPDATE ou repetir KSP por hipótese. Delimitar somente evidência/proposta focal indispensável à decisão de semântica, sem mudança accepted silenciosa. Preservar UNKNOWN/DENY/históricos/PST0.6.4.

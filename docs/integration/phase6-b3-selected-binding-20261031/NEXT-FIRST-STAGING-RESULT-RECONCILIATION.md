@@ -1,0 +1,7 @@
+# Próxima etapa — reconciliar a única execução manual autorizada
+
+Pedidoa9280bc14623dfdf23e4c67caf65b4baa58d0109c34afd348ae7223e5c173d16 e registrofa7c3c1da45159a562057d354ada43df10746b9a9e376ad02d9923b56ce5b11f já conferidos/autorizados. Não pedir nova seleção B3 ou aceitar nova autorização por inferência. Não executar script/native/retry: somente proprietário, uma vez, conforme handoff.
+
+Sem saída manual, conservar EXECUTION_PENDING/UNKNOWN; não declarar sucesso/consumo/efeitos. Após saída: salvar evidência e reconciliação separadas, preservar literal da aprovação; distinguir uso administrativo de consumed nativo, first/stage, script/nativeexit, contexto original/pins, READY eH+5/private+9094144/WS+9094144, pisos6296461312/8479985664, unidade/R/2Rinicial/Rdurante,500ms/120000ms, arquivos criados/status/readback/SD, close/retidos/refs e receipt incompletoUNKNOWN. Campo effects é submissão, não prova isolada de cinco arquivos íntegros.
+
+Falha ou resultado incerto não autoriza retry. Corrigir offline apenas defeitos demonstrados/autorizados; não executar novamente aprovação consumida. Sem limpar/apagar/recriar, alterar ACL/SCM, Start/Stop, CA/CURRENT, rede/endpoint, TPM/NV/Q4, refund ou recuperação. Sucesso de cópia qualifica somente esta instância; se suficiente, preparar próximo pedido independente para qualificação/registro SCM parado, sem registrar/iniciar automaticamente. Preservar HEAD/WIP/pins/históricos/UNKNOWN/reservas/chave fixture/PST0.6.4.

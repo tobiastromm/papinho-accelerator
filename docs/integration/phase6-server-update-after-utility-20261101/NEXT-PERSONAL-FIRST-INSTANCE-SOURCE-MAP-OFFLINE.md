@@ -1,0 +1,9 @@
+# Próximo prompt — fontes da primeira instância
+
+ContinuarPhase6 com PERSONAL-LOCAL-REMAINING-GATES-CONSOLIDATED.md. Objetivo exclusivo: mapear caller/owner/produceroriginal de admissibilidadeF0–F9 da primeira instância até CA_INITIALIZE jáintegrado, semoperação. Não reabrirprimeiroStartdiagnósticofechado, quotasK7 ouK5 semevidêncianova. Binários/SCM/UPDATE/QUERY/lifecyclejáconcluídos não serão reconstruídos.
+
+Ler acceptedaplicáveis, closeout phase6-ca-initialize-native-20261029 e seu NEXT-NATIVE-FIRST-INSTANCE-COMPOSITION.md, fontes/owner/pending/root/custódia/sourceassurance. Não supor fontepositiva porguard0, DATA/argv/hash/fixtures/contasnominais. Identificar cada fato necessário/produtor existente/caller/lifetime/consumo/Stop e primeiroburacoreal. SepararP4/K5factualaindanãoqualificado das integraçõesofflinepossíveis. Não promoverfixtureTEST_ONLY aCA ouseleçãoREAD aNEW_INSTALL.
+
+Se menor ligação técnica jácobertaexistir, apresentar estado/restrições/plano conformeAGENTS antes da implementação e qualificar somenteafetados commocksAPIsmutantes, mantendoDENY naausênciadasfontes. Não trocar personal_native_ceremony_ready portrue, abrirCLIgenérica, instalarcallbackspermissivos ou alterarnormas/quotas. Se fontefaltanteforindispensável, entregar lacunaexata e menor integraçãoautorizável, semnovoowner/serviço/canal/infraestrutura. Não repetirbuildstestescampanhasinalterados.
+
+NenhumaexecuçãoCA_INITIALIZE/root/CA/key/certificado/assinatura/CURRENT/rede/serviço/StartStop/SCM-ACL/UPDATE/coleta/TPM-NV-Q4/limpeza/refund/recuperação/produção. PreservarHEAD/WIP/históricos/pins/EXEsanteriores/fixture/originais/autorizaçõesconsumidas/UNKNOWNhistórico/quiescênciaOS/PST0.6.4. Entregar mapaoriginal, primeiragate, deltaapenas sequalificado e próximoprompt, semfragmentaçãoemnovainfraestrutura.

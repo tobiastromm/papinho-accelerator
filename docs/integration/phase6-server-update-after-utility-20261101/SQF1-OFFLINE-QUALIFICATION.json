@@ -1,0 +1,111 @@
+{
+  "state": "SQF1_ACCEPTED_FINAL_OFFLINE_QUALIFIED_NOT_INSTALLED",
+  "proposal_sha256": "96b2d26f83cecc7688eeb9e3543a6b19d6660978b31b62ae175fe604f41a3643",
+  "normative_record": "docs/adr/DECISION-personal-scq-p1-receiver-first-failure-sqf1-20261102.md",
+  "builds": [
+    {
+      "profile": "Selected",
+      "configuration": "Debug",
+      "tests": 20,
+      "warnings": 0,
+      "root_bytes": 375256,
+      "known_bytes": 2002304,
+      "ingress_checks": 231,
+      "cold_chain_checks": 5294,
+      "build_log": "sqf1-Selected-Debug-build.log",
+      "build_sha256": "1fdf330c73b9d37284b032d07fbd54ea793ec3d2f313a2007dc288f316d1e374",
+      "test_log": "sqf1-Selected-Debug-tests.log",
+      "test_sha256": "c5c8a413632cc8792d1547ce0c7ed79aa204452d1927954195cad783ec523727"
+    },
+    {
+      "profile": "Selected",
+      "configuration": "Release",
+      "tests": 20,
+      "warnings": 0,
+      "root_bytes": 375256,
+      "known_bytes": 2002304,
+      "ingress_checks": 231,
+      "cold_chain_checks": 5294,
+      "build_log": "sqf1-Selected-Release-build.log",
+      "build_sha256": "1fdf330c73b9d37284b032d07fbd54ea793ec3d2f313a2007dc288f316d1e374",
+      "test_log": "sqf1-Selected-Release-tests.log",
+      "test_sha256": "f68e5036d25dc2774e573dd73d1c75016da9adb4e81940d95238eb712fba587c"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Debug",
+      "tests": 20,
+      "warnings": 0,
+      "root_bytes": 206688,
+      "known_bytes": 1833736,
+      "ingress_checks": 231,
+      "cold_chain_checks": 5294,
+      "build_log": "sqf1-Legacy-Debug-build.log",
+      "build_sha256": "1fdf330c73b9d37284b032d07fbd54ea793ec3d2f313a2007dc288f316d1e374",
+      "test_log": "sqf1-Legacy-Debug-tests.log",
+      "test_sha256": "46c7fb5ce39df9f9c254c818cc68f52432d1c45a510e36c370fb671a10799550"
+    },
+    {
+      "profile": "Legacy",
+      "configuration": "Release",
+      "tests": 20,
+      "warnings": 0,
+      "root_bytes": 206688,
+      "known_bytes": 1833736,
+      "ingress_checks": 231,
+      "cold_chain_checks": 5294,
+      "build_log": "sqf1-Legacy-Release-build.log",
+      "build_sha256": "1fdf330c73b9d37284b032d07fbd54ea793ec3d2f313a2007dc288f316d1e374",
+      "test_log": "sqf1-Legacy-Release-tests.log",
+      "test_sha256": "3befe46d9134bb338a71e9990d08b93a9cdc1dce6bd9db2a6aa49b0cdfaf106a"
+    }
+  ],
+  "test_configuration_pairs": 80,
+  "candidate": {
+    "bytes": 809472,
+    "sha256": "81a849dc51bf2e7fd0455c09f30c926329ef4c30196b36747f1429e5fdecee86",
+    "frozen": "papacc_server.sqf1-qualified-809472.exe"
+  },
+  "source_pins": {
+    "CMakeLists.txt": "31ae3606631778ac908a0d189071073a694351d0e9c54908550430aab8d0922b",
+    "apps/server/personal_scq_transport_win32.h": "6ab657787d8219c77791b79e2ccf5e7bff2543c404bfcc0877ae35d9a1a78850",
+    "apps/server/personal_scq_transport_win32.inc": "c6fac89a74fb93bf189ae24e6f0425204d7e562474c4c74d41cf0a5e9fcdbb64",
+    "apps/server/personal_scq_bootstrap_win32.inc": "5a4373011ed010249df473f127170f6039bfe63b2eae84368dd17749f1c1b2f3",
+    "apps/server/personal_scq_failure_win32.inc": "836c7d886e888005a9d27bf8d2de39138fdb20bffc5dffd964ed7e4d41b83ae0",
+    "apps/server/personal_scq_ingress_win32.inc": "4c560fef932dcf5f25617f492bbde129a1e2a31f3ea68260d380645954359ccf",
+    "apps/server/server_configuration_personal_native_win32.inc": "7d70f87c74e2b648a5c4a94c70f8157426e00ef35e927850766f540fcab6e85b",
+    "tests/scq_query_cold_chain_test.c": "ab3b3b2b066acb87c57490d971fa43807283078faaf2dbd63f7917efccf3cef4",
+    "tests/scq_failure_ingress_test.c": "02f72e35983c71a76340ced633fc88b1ab6586f9b65a3f22f38aa33ae97d3452"
+  },
+  "memory": {
+    "transport_before": 1152,
+    "transport_after": 1240,
+    "driver_before": 2336,
+    "driver_after": 2424,
+    "additional_bytes_per_packet": 88,
+    "additional_explicit_handles": 0,
+    "controlled_slots_unchanged": 44
+  },
+  "scope": {
+    "p1_only": true,
+    "legacy_formats_unchanged": true,
+    "quotas_unchanged": true,
+    "productive_readiness": "DENY"
+  },
+  "tests": {
+    "actual_ingress_fault_stages": 18,
+    "actual_ingress_positive_order": true,
+    "actual_wait_unresolved_diagnostic_only": true,
+    "sender_cases": 16,
+    "receiver_cases": 14,
+    "codec_mutations": 56,
+    "native_api_boundaries": "MOCKED_NO_TARGET_OPERATIONS"
+  },
+  "native_kind": "UNKNOWN_FOR_COMPOSITE_RETURNS_NO_GUESSED_STATUS",
+  "installed_id": "417614100:2097152:411753",
+  "installed_sha256": "174db00a075b55433fdc793f23d9c9412f982814eef8c650579a824afc567f8c",
+  "current_disposition": "NOT_QUERIED_UNKNOWN",
+  "historical_cause": "UNKNOWN",
+  "historical_retention": "UNKNOWN",
+  "os_quiescence": "UNKNOWN"
+}

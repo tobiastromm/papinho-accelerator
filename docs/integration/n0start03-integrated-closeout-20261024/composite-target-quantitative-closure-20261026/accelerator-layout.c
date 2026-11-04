@@ -1,0 +1,12 @@
+#include "server_c8_private_storage_layout_win32.h"
+const unsigned long quant_layout[] = {
+sizeof(PAPACC_C2_FLOW),
+sizeof(PAPACC_C2_OPERATION),
+sizeof(PAPACC_C2_OPERATION_MANAGER),
+sizeof(PAPACC_C3_QUEUE),
+sizeof(PAPACC_C3_BRIDGE),
+sizeof(PAPACC_C8_PRIVATE_STORAGE_LAYOUT),
+PAPACC_C8_KNOWN_MANAGED_BYTES,
+PAPACC_C8_STORAGE_LIMIT,
+4U*PAPACC_C2_PAYLOAD_CAPACITY+2U*PAPACC_C3_QUEUE_CAPACITY
+};

@@ -1,0 +1,11 @@
+# Phase 6 — decisão focal do ack e aquisição original NORMAL
+
+Ler CONSOLIDATED-CLOSEOUT.md, QUALIFICATION.json e PUBLISHED-INTENT-AND-ACK.CANDIDATE.md deste pacote. O consumidor já separa A/P; CAS/poll, status exato e cohort M7 já estão implementados. Não recomeçar essas frentes nem criar uma nova auditoria/TPM/root fictícia.
+
+1. Conferir os bytes/hash da proposta focal de intenção+ack. Ela permanece PROPOSED até decisão explícita. Se aprovada, registrar nos limites exatos e preparar/revisar a representação versionada no mesmo codec/root, preservando v1 e históricos. Não preencher published_epoch com P, revisão ou valor futuro; não reinterpretar ROOT07 como ato de credencial. Os bytes exatos devem seguir a revisão exigida por P1.2, sem aceitação automática de formato futuro.
+2. Identificar a aquisição original CA/key/cert/generation e o custodiante/lifetime transferível da cerimônia para o owner live. Não aceitar ponteiro/hash/fixture/flag como autoridade. Sem fonte original, preparar somente o pedido separado e delimitado para materializar um fixture legítimo de custódia, se necessário; não executar key MACHINE/bootstrap/ACL/assinatura por inferência. Não reutilizar N0 ou RECOVERY.
+3. Com representação e fontes válidas, implementar e qualificar a confirmação nativa positiva: intenção autorizada, commit, seleção A/P, ack original, persistência, re-read, replay/Stop/falhas e retenção. Manter grants produtivos DENY. O modelo atual não prova essa rota real.
+4. Exercitar o port M7 existente com publicação/revogação canônica legítima. Não duplicar consulta/cohort. Receipts de invalidação/Stop/wake são distintos de quiescência/close; re-read deve preservar o mesmo A/R/P e a credencial exata.
+5. Rodar apenas builds/regressões afetadas e consolidar evidências/capability/matriz. Sem promoção ED11/Phase 6 por contagem de testes. Preservar Selected/Legacy, API2/API3/R2, limites existentes, HEAD/WIP, históricos e produção PST 0.6.4.
+
+Não executar operações produtivas/root/CURRENT reais, bootstrap, assinatura produtiva, Start/Stop real, SCM/ACL, rede operacional, TPM/NV/Q4/ownerAuth, limpeza/refund, publicação PST ou recuperação autoritativa. Decisão normativa e autorização operacional continuam independentes. Não solicitar segredos.

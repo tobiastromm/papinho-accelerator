@@ -1,0 +1,13 @@
+# Consulta de forma do token — erro24 e correção focal do observador
+
+Saída integral enviada pelo proprietário, transcrita estruturalmente em RUNTIME-ELEVATION-SHAPE-FAILED-RESULT.json. Pedido c9fe877d... utilizado uma vez, first24/SHAPE_QUERY_CLASS_20/consumedTrue/completeFalse/observer_close_knownTrue/wrapper2. Não obtida a forma completa do token nem PID/criação do runtime impressos. Não repetir a consulta consumida. Fechamento conhecido somente das referências do observador; processos/retidos/applicationclose/quiescência permanecem UNKNOWN.
+
+Erro24 é ERROR_BAD_LENGTH. O observador preparado pelo agente passava8192bytes também a campos escalares4bytes. O modelo anterior aceitava esse tamanho e não detectou a divergência. É defeito focal do observador, não evidência de ACL ruim ou mudança na causa TokenIsElevated!=0 demonstrada no runtime. Fonte original c9fe.../artefatos/pins/históricos preservados.
+
+V2 usa GetTokenInformation com capacidade4 e exige retorno4 para20/18/21/12;8192 permanece apenas nas consultas de dados variáveis. Não faz sizing probe, segunda tentativa ou fallback. Nenhuma API/direito/campo/token/contexto adicional; apenas nomes de versão/confirmacão e helper Scalar mudaram. Produto/guard/SCQ/profile/G3/image/SCM/ACL inalterados. Nenhuma coleta/Start/Stop/kill/UPDATE executado pelo agente.
+
+Fonte real compilada sem executar RunFixed.13APIs/console/errorcache modelados;38cenários/20checks de comprimento PASS. Modelo estrito reproduz24 no caminho antigo e aceita4bytes; também preserva DENY se a consulta4bytes falhar ou retornar comprimento divergente. Não afirmar correção validada nativamente ou equivalência histórica antes de execução autorizada. Core/AST/delta exato conferidos; nenhum build/campanha do produto repetido.
+
+Pedido novo ONE-RUNTIME-ELEVATION-SHAPE-V2-READONLY-REQUEST.CANDIDATE.md/SHA2561b7f61c15019748cdab5b1e021ca39d2faa5c03e2d1a33b065cff55f57ed9fd7 aguarda autorização específica de UMA nova observação manual corrigida; a autorização anterior não é reutilizada. Sem decisão nova, DENY. Não autoriza admitir elevated1, remover guard, UPDATE, Start/Stop/kill, CA/CURRENT ou limpeza. Primeiro gap continua a forma factual do token para decidir correção coberta ou especialização focal realmente necessária.
+
+Fontes primárias: https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-token_elevation (um DWORD); https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499- (ERROR_BAD_LENGTH24). Não confundir TokenElevationTypeDefault com ausência de elevação. Preservar DENY/UNKNOWN/históricos/reservas/PST0.6.4.

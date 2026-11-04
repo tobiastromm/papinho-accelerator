@@ -1,0 +1,6 @@
+@echo off
+set VSLANG=1033
+call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+if errorlevel 1 exit /b %errorlevel%
+cl /nologo /MD /WX /W4 /O2 /I"C:\Projetos\PapinhoAccelerator\build\ed08-r4-integrated-20261012\sdk-normal\include" /Fo"C:\Projetos\PapinhoAccelerator\build\composite-target-quantitative-20261026\OpenSSL-x64\Release\fixture.obj" /Fd"C:\Projetos\PapinhoAccelerator\build\composite-target-quantitative-20261026\OpenSSL-x64\Release\fixture.pdb" /Fe"C:\Projetos\PapinhoAccelerator\build\composite-target-quantitative-20261026\OpenSSL-x64\Release\runtime-core-observation.exe" "C:\Projetos\PapinhoAccelerator\docs\integration\n0start03-integrated-closeout-20261024\composite-target-quantitative-closure-20261026\runtime-core-observation.c" "C:\Projetos\PapinhoAccelerator\build\ed08-r4-integrated-20261012\sdk-normal\lib\win32-x64-msvc-19.51-openssl3\papinho_secure_transport.lib" "C:\Projetos\PapinhoAccelerator\build\ed08-r4-integrated-20261012\sdk-normal\lib\win32-x64-msvc-19.51-openssl3\libssl.lib" "C:\Projetos\PapinhoAccelerator\build\ed08-r4-integrated-20261012\sdk-normal\lib\win32-x64-msvc-19.51-openssl3\libcrypto.lib" ws2_32.lib crypt32.lib advapi32.lib /link /subsystem:console /incremental:no
+exit /b %errorlevel%

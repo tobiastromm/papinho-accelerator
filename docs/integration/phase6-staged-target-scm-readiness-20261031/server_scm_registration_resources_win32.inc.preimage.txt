@@ -1,0 +1,21 @@
+#include "server_personal_resource_sample_win32.inc"
+static DWORD scm_register_observe(PAPACC_SCM_REGISTRATION_ACT *a,DWORD phase)
+{
+ if(a->self!=a||a->thread!=GetCurrentThreadId())return ERROR_INVALID_STATE;
+ return personal_resource_sample(&a->resources,phase);
+}
+DWORD papacc_server_launcher_scm_registration_resource_report(const PAPACC_SERVICE_REGISTRATION_VIEW *v,PAPACC_SCM_RESOURCE_REPORT *out)
+{
+ PAPACC_SCM_REGISTRATION_ACT *a=&root.configuration_commit.pending_commit.personal_native.scm_registration;
+ PAPACC_SCM_RESOURCE_OBSERVATION *o=&a->resources;
+ if(!out)return ERROR_INVALID_PARAMETER;memset(out,0,sizeof(*out));
+ out->missing=PAPACC_SCM_RESOURCE_MISSING_PRE_ENTRY|PAPACC_SCM_RESOURCE_MISSING_TRANSITIVE|
+ PAPACC_SCM_RESOURCE_MISSING_HOST_POLICY|PAPACC_SCM_RESOURCE_MISSING_RETENTION_ENVELOPE|
+ PAPACC_SCM_RESOURCE_MISSING_ADMIN_COHORT|PAPACC_SCM_RESOURCE_MISSING_SCM_ACTIVE|PAPACC_SCM_RESOURCE_MISSING_OBSERVATION;
+ if(root.owner_thread!=GetCurrentThreadId()||a->self!=a||a->original!=v||a->invocation!=root.invocation)return ERROR_INVALID_STATE;
+ out->samples=o->samples;out->first_error=o->first_error;out->peak_handles=o->peak_handles;
+ out->peak_private=o->peak_private;out->minimum_physical=o->min_physical;out->minimum_commit=o->min_commit;
+ out->frequency=o->first.frequency;out->begin=o->first.begin;out->end=o->last.end;
+ if(o->samples&&!o->first_error)out->missing&=~PAPACC_SCM_RESOURCE_MISSING_OBSERVATION;
+ return 0; /* report generated, NOT admission or freshness renewal */
+}

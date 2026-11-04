@@ -1,0 +1,38 @@
+& {
+    $ErrorActionPreference = 'Stop'
+    $stagingScript = 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-b3-selected-binding-20261031\run-selected-staging.MANUAL.ps1'
+    $stagingScriptSha256 = '88dfb7e8f0de05ca745aecc7fe39d6a9082532260fad2d917aa794c222e4502e'
+    $stagingApproval = 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-b3-selected-binding-20261031\OWNER-STAGING-EXECUTION-AUTHORIZATION.json'
+    $stagingApprovalSha256 = 'fa7c3c1da45159a562057d354ada43df10746b9a9e376ad02d9923b56ce5b11f'
+
+    if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSEdition -ne 'Desktop' -or -not [Environment]::Is64BitProcess) {
+        throw 'POWERSHELL_51_X64_REQUIRED'
+    }
+    $stagingIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    try {
+        if (-not ([Security.Principal.WindowsPrincipal]::new($stagingIdentity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            throw 'ALREADY_ELEVATED_OWNER_REQUIRED'
+        }
+    } finally {
+        $stagingIdentity.Dispose()
+    }
+    if ((Get-FileHash -LiteralPath $stagingScript -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant() -cne $stagingScriptSha256) {
+        throw 'SCRIPT_HASH_DENY'
+    }
+    if ((Get-FileHash -LiteralPath $stagingApproval -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant() -cne $stagingApprovalSha256) {
+        throw 'APPROVAL_HASH_DENY'
+    }
+
+    $stagingSavedPolicy = Get-ExecutionPolicy -Scope Process
+    try {
+        if ((Get-ExecutionPolicy) -notin @('Bypass', 'Unrestricted')) {
+            Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction Stop
+            if ((Get-ExecutionPolicy) -ne 'Bypass') { throw 'EXECUTION_POLICY_DENY' }
+        }
+        & $stagingScript -ExpectedScriptSha256 $stagingScriptSha256 -ExpectedApprovalSha256 $stagingApprovalSha256
+    } finally {
+        if ((Get-ExecutionPolicy -Scope Process) -ne $stagingSavedPolicy) {
+            Set-ExecutionPolicy -Scope Process -ExecutionPolicy $stagingSavedPolicy -Force -ErrorAction Stop
+        }
+    }
+}

@@ -1,0 +1,7 @@
+& {
+    $updateRequest = 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-binary-update-u1-u7-20261101\ONE-BINARY-UPDATE-REQUEST.CANDIDATE.md'
+    $updateProcedure = 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-binary-update-u1-u7-20261101\update-binary.MANUAL.CANDIDATE.ps1'
+    if ((Get-FileHash -LiteralPath $updateRequest -Algorithm SHA256 -ErrorAction Stop).Hash -ne 'baa501ad97fb1c5cbf65c96d2ecfc338ea0f7c55a872ad0443b74580f08f4726') { throw 'REQUEST_HASH_DENY' }
+    if ((Get-FileHash -LiteralPath $updateProcedure -Algorithm SHA256 -ErrorAction Stop).Hash -ne '85531965578ba126200bfab6d2168226dfdaadd9c4e1b96135411d01d1e6ac55') { throw 'SCRIPT_HASH_DENY' }
+    & 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoLogo -NoProfile -ExecutionPolicy Bypass -File $updateProcedure -ExpectedScriptSha256 '85531965578ba126200bfab6d2168226dfdaadd9c4e1b96135411d01d1e6ac55' -ExpectedRequestSha256 'baa501ad97fb1c5cbf65c96d2ecfc338ea0f7c55a872ad0443b74580f08f4726'
+}

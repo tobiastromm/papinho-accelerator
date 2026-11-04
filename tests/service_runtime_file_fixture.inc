@@ -1,4 +1,5 @@
 /* All OS file/descriptor effects below are modelled, never native. */
+#include "../tools/qualification/scm-lab-attempt-binding.h"
 static unsigned dm,dm_pos,dm_size,dm_writes,dm_closes,dm_creates;static BYTE dm_disk[2048];static volatile LONG *dm_stop;
 static PSECURITY_DESCRIPTOR dm_parent_sd,dm_file_sd,dm_bad_sd;
 static BOOL WINAPI dm_info(HANDLE h,LPBY_HANDLE_FILE_INFORMATION id)
@@ -18,7 +19,7 @@ static HANDLE WINAPI dm_create(LPCWSTR path,DWORD access,DWORD share,LPSECURITY_
 static DWORD WINAPI dm_name(HANDLE h,LPWSTR out,DWORD size,DWORD flags)
 {
  const WCHAR *parent=L"\\\\?\\C:\\Projetos\\PapinhoAccelerator\\build\\scm-protected-installation-binding-20261022\\Selected\\Release";
- const WCHAR *leaf=dm==20?L"\\papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag":L"\\papacc-psr-0b1de869e11493b7cb08fb329578f6ce.diag";size_t n=wcslen(parent),m=h==(HANDLE)(ULONG_PTR)2001?0:wcslen(leaf);(void)flags;
+ const WCHAR *leaf=dm==20?L"\\papacc-psr-75330d11cc7e4123ae62eadc9a59c2f5.diag":L"\\papacc-psr-" PACC_LAB_ATTEMPT_W L".diag";size_t n=wcslen(parent),m=h==(HANDLE)(ULONG_PTR)2001?0:wcslen(leaf);(void)flags;
  if(size<=n+m)return size+1;memcpy(out,parent,n*sizeof(WCHAR));memcpy(out+n,leaf,m*sizeof(WCHAR));out[n+m]=0;if(dm==15&&m)out[n+1]=L'X';return (DWORD)(n+m);
 }
 static BOOL WINAPI dm_security(HANDLE h,SECURITY_INFORMATION flags,PSECURITY_DESCRIPTOR out,DWORD size,LPDWORD used)

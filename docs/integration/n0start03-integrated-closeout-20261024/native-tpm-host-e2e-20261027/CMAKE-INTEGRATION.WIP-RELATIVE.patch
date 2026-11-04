@@ -1,0 +1,61 @@
+--- CMakeLists.txt.before-task-WIP
++++ CMakeLists.txt
+@@ -3710,3 +3710,58 @@
+   target_sources(${t} PRIVATE apps/server/personal_plan_data.c)
+  endif()
+ endforeach()
++
++# Scoped modern Windows diagnostic only. Default DENY; no operational CTest.
++option(PAPACC_ENABLE_NATIVE_TPM_PROOF_CANDIDATE "Build native TPM mathematical-proof candidate and offline fixtures" OFF)
++if(PAPACC_ENABLE_NATIVE_TPM_PROOF_CANDIDATE)
++ if(NOT WIN32 OR NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
++  message(FATAL_ERROR "Native TPM diagnostic requires modern Windows x64 MSVC; no legacy/backend fallback")
++ endif()
++ set(tp_native tools/qualification/tpm-native-proof)
++ add_library(papacc_tpm_native_core STATIC ${tp_native}/proof_core.c ${tp_native}/json_data.c)
++ target_include_directories(papacc_tpm_native_core PUBLIC ${tp_native})
++ target_link_libraries(papacc_tpm_native_core PUBLIC bcrypt psapi)
++ set_target_properties(papacc_tpm_native_core PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++ target_compile_options(papacc_tpm_native_core PRIVATE /W4 /WX /GS /sdl)
++ add_executable(papacc_tpm_native_proof ${tp_native}/native_host.c ${tp_native}/host_platform.c)
++ target_link_libraries(papacc_tpm_native_proof PRIVATE papacc_tpm_native_core advapi32 crypt32 wevtapi user32)
++ target_compile_options(papacc_tpm_native_proof PRIVATE /W4 /WX /GS /sdl)
++ if(BUILD_TESTING)
++  add_executable(papacc_tpm_native_core_test ${tp_native}/proof_test.c)
++  target_link_libraries(papacc_tpm_native_core_test PRIVATE papacc_tpm_native_core)
++  target_compile_options(papacc_tpm_native_core_test PRIVATE /W4 /WX /GS /sdl)
++  add_executable(papacc_tpm_native_platform_test ${tp_native}/platform_test.c)
++  target_link_libraries(papacc_tpm_native_platform_test PRIVATE papacc_tpm_native_core advapi32 crypt32 wevtapi user32)
++  target_compile_options(papacc_tpm_native_platform_test PRIVATE /W4 /WX /GS /sdl)
++  add_executable(papacc_tpm_native_artifact_test ${tp_native}/artifact_test.c)
++  target_link_libraries(papacc_tpm_native_artifact_test PRIVATE papacc_tpm_native_core advapi32 crypt32 wevtapi user32)
++  target_compile_options(papacc_tpm_native_artifact_test PRIVATE /W4 /WX /GS /sdl)
++  add_executable(papacc_tpm_native_e2e_fixture ${tp_native}/host_e2e_fixture.c ${tp_native}/host_platform.c)
++  target_link_libraries(papacc_tpm_native_e2e_fixture PRIVATE papacc_tpm_native_core advapi32 crypt32 wevtapi user32)
++  target_compile_options(papacc_tpm_native_e2e_fixture PRIVATE /W4 /WX /GS /sdl)
++  add_test(NAME papacc.tpm_native.artifacts_faults COMMAND ${CMAKE_COMMAND}
++   -DEXECUTABLE=$<TARGET_FILE:papacc_tpm_native_artifact_test> -DBASE=${CMAKE_CURRENT_BINARY_DIR}/Testing
++   -DCERTIFICATE=${CMAKE_CURRENT_SOURCE_DIR}/${tp_native}/fixtures/ek-certificate.PUBLIC.der
++   -DMODE=artifacts -P ${CMAKE_CURRENT_SOURCE_DIR}/${tp_native}/run_fixture.cmake)
++  option(PAPACC_TPM_NATIVE_HOST_BOUND_TESTS "Run isolated metadata/console fixtures bound to the observed host; never TBS" OFF)
++  if(PAPACC_TPM_NATIVE_HOST_BOUND_TESTS)
++   add_test(NAME papacc.tpm_native.metadata_readonly COMMAND papacc_tpm_native_platform_test --current-metadata-readonly)
++   add_test(NAME papacc.tpm_native.console_mock_e2e COMMAND ${CMAKE_COMMAND}
++    -DEXECUTABLE=$<TARGET_FILE:papacc_tpm_native_e2e_fixture> -DBASE=${CMAKE_CURRENT_BINARY_DIR}/Testing
++    -DMODE=console -P ${CMAKE_CURRENT_SOURCE_DIR}/${tp_native}/run_fixture.cmake)
++  endif()
++  add_test(NAME papacc.tpm_native.protocol_offline COMMAND papacc_tpm_native_core_test ${CMAKE_CURRENT_SOURCE_DIR}/${tp_native}/fixtures/csharp-vectors.bin)
++  add_test(NAME papacc.tpm_native.guards_offline COMMAND papacc_tpm_native_platform_test)
++  add_test(NAME papacc.tpm_native.selfcheck_no_tpm COMMAND papacc_tpm_native_proof --selfcheck)
++  add_test(NAME papacc.tpm_native.default_deny COMMAND papacc_tpm_native_proof)
++  set_tests_properties(papacc.tpm_native.default_deny PROPERTIES WILL_FAIL TRUE)
++ endif()
++endif()
++
++if(PAPACC_ENABLE_NATIVE_TPM_PROOF_CANDIDATE)
++ foreach(t papacc_tpm_native_proof papacc_tpm_native_core_test papacc_tpm_native_platform_test papacc_tpm_native_artifact_test papacc_tpm_native_e2e_fixture)
++  if(TARGET ${t})
++   set_target_properties(${t} PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++  endif()
++ endforeach()
++endif()

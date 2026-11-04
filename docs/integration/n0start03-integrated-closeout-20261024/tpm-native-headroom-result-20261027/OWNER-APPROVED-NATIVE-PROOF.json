@@ -1,0 +1,30 @@
+{
+  "kind": "OWNER_APPROVAL_TPM_SALTED_PROOF_ONLY",
+  "decision_date": "2026-10-27",
+  "task": "PACC-PHASE6-ED11-TPM-CORRECTED-PROOF-AUTHORIZATION",
+  "candidate_operation": "TPMPROOF-HEADROOM-20261027-01_INERT",
+  "request_sha256": "4aa1d74fc4dce21e17ae057b8b2c72ddcefc00a5a3a225b23c6cea24a78fe1d8",
+  "executable_sha256": "58e70df53c9beec30bc23f85d3dd936eabeedc99193cf41d907d51eef0a4270f",
+  "one_manual_execution": true,
+  "ack_unknown_revocation": true,
+  "ack_no_hardware_admission": true,
+  "ack_internal_tpm_accounting_unknown": true,
+  "source": "Explicit owner decision in current TASK authorizes one manual corrective invocation exclusively under the exact request and all its conditions",
+  "conditions": "fresh operator/token/host/boot/console/security/resource gates; exact interactive confirmation; no automatic execution or retry",
+  "previous_approval_sha256": "d7417145a73a2b8ec03fd4b57df23ecc10b045178d02eac543557be3fa76a146",
+  "previous_approval_state": "USED_MANUAL_INVOCATION_DENIED_BEFORE_TPM_NOT_REUSABLE",
+  "not_authorized": [
+    "NV_DefineSpace",
+    "NV_Increment",
+    "NV_UndefineSpace",
+    "Clear",
+    "CreatePrimary",
+    "AK creation",
+    "hierarchy authorization/change",
+    "signing/quote/certificates/remote CA",
+    "Q4/LAB/Start/Stop",
+    "SCM/ACL/quotas",
+    "CURRENT/refund/cleanup/recovery"
+  ],
+  "L1_separate": true
+}

@@ -1,0 +1,11 @@
+# Phase 6 — fonte original CA e representação focal do ack PUBLISHED
+
+Retomar PACC-PHASE6-NATIVE-NORMAL-PRODUCERS-AND-PUBLISHED-CONFIRMATION pelo closeout e pelas duas fronteiras concretas deste pacote. Não reiniciar auditoria geral, CAS, status/consulta exata ou cohort M7; já estão implementados e qualificados nos escopos declarados. Não repetir campanhas inalteradas.
+
+1. Resolver a aquisição original CA/key/cert/generation e a transferência de custódia para o owner live. A função personal_ca_bind rejeita published e sua borrow reside no pacote da cerimônia: desenhar a transferência exata, inclusive lifetime/falha, sem resetar esse pacote ou perder referências. Uma key/nome/digest/fixture não constitui a fonte. Sem instância original disponível, separar a preparação de uma cerimônia isolada dos efeitos protegidos que exigem autorização própria; não executá-los implicitamente.
+2. Preparar a revisão focal exata da representação de publicação/ack no codec/root existentes, usando PUBLISHED-ACK-FRONTIER.md. Identificar intenção autorizada, commit, A pós-commit, P, ack vinculado e releitura. Não preencher published_epoch com P, revisão ou valor futuro; não alterar PACIS601/v1 ou declarar novos bytes accepted por inferência. ROOT07 não autentica sozinho um ato específico de publicação de credencial. Submeter somente a decisão versionada indispensável se o formato precisar mudar; não criar nova família de ADRs.
+3. Depois das fontes/representação válidas, conectar as provas NORMAL e qualificar o caminho positivo completo. RECOVERY continua separado. Não instalar wrappers positivos para converter DATA de teste em autoridade real.
+4. Exercitar o port M7 já concreto com uma revogação canônica legítima. Negação por status e o cohort já existem; não duplicá-los. Distinguir pedidos Stop/wake/receipts, quiescência e close. Retenção/UNKNOWN não liberam recursos nem créditos.
+5. Builds/regressões afetadas, live docs/matriz e relatório único. Preservar Selected/Legacy e os diferentes limites, API2/API3/R2, históricos, WIP e produção 0.6.4. Não declarar ED11 ou Phase 6 completos por testes de modelo.
+
+Sem operações root/CURRENT produtivas, bootstrap produtivo, criação/assinatura produtivas, rede/serviço/Start/Stop real, SCM/ACL, TPM/NV/Q4/ownerAuth, cleanup/refund, publicação PST ou recuperação autoritativa. Não solicitar nem registrar segredos.

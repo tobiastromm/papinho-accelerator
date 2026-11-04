@@ -1,0 +1,67 @@
+PS C:\Projetos\PapinhoAccelerator\docs\integration\phase6-root-chain-procedure-20261031> & {
+>>     $ErrorActionPreference = 'Stop'
+>>     $folder = 'C:\Projetos\PapinhoAccelerator\docs\integration\phase6-server-update-after-utility-20261101'
+>>     $pins = @{
+>>         'ONE-P1-THREE-ACTS-REQUEST.CANDIDATE.md' = '86303aac1bf3b040a5949e8947a2bee2cb157fdbde472f31d5f2830b469a2a34'
+>>         'OWNER-P1-THREE-ACTS-APPROVAL.txt' = 'a7d3544dd19c0639e9799486efe70b976d3ab543de0d11ab15edd2d424148607'
+>>         'P1-THREE-ACTS-AUTHORIZATION.md' = '226db3e18c58ee20cc12bf321ab147df9b028eb850ed686f89d07cde32f14b72'
+>>         'p1-session-originals.cs' = '07d1feb413be1685763f1ea5fc5cedfdfce3570604ae7860d1c46796909efc6b'
+>>         'prepare-p1-originals.MANUAL.CANDIDATE.ps1' = '4c4110d8d36f92d3871c9e87b15c6d6a7bd0c7690f16df4f0a1d33d38824dd9d'
+>>         'run-p1-diagnostic.MANUAL.CANDIDATE.ps1' = 'c4242f434730df652ec7043fcef8313e0e4a8ebbd961690bcd65a6d85cf3d79b'
+>>         'P1-ACT-ENDPOINT.REQUEST.CANDIDATE.md' = '89343c75847d37734e582abc30656ccbdd37055d7667cad90b521c75ee85b04f'
+>>         'P1-ACT-SCQ.REQUEST.CANDIDATE.md' = '842c9d862a116e5d5ff1990d10927341b8441b799639cfb906d4a52fd2c2a7f7'
+>>         'P1-ACT-START.REQUEST.CANDIDATE.md' = 'b1877bd5c5ecc397fee5e927ed19b32567d0986d383c2ebf4d539fd9bad76c01'
+>>     }
+>>     foreach ($name in $pins.Keys) {
+>>         if ((Get-FileHash -LiteralPath (Join-Path $folder $name) -Algorithm SHA256 -ErrorAction Stop).Hash -ne $pins[$name]) { throw ('P1_DOCUMENT_PIN_DENY: ' + $name) }
+>>     }
+>>     $binaries = @{
+>>         'C:\Program Files\Papinho\Accelerator\papacc_server.exe' = '54d374b2fddac81e30b4f8bb574fbaf3446b5a52cbdb002769fe5cdcfe1b4a50'
+>>         'C:\Program Files\Papinho\Accelerator\libssl-3-x64.dll' = '3fb3cd7804dbe3216c801b470e14461d80214ece99c637ae42ea3d8caf75d7ed'
+>>         'C:\Program Files\Papinho\Accelerator\libcrypto-3-x64.dll' = '09eec573c9adea156ba2073f8cd61720d0aabeb7562d8498b4ecd21b710a3044'
+>>     }
+>>     foreach ($path in $binaries.Keys) {
+>>         if ((Get-FileHash -LiteralPath $path -Algorithm SHA256 -ErrorAction Stop).Hash -ne $binaries[$path]) { throw ('P1_BINARY_PIN_DENY: ' + $path) }
+>>     }
+>>     $procedure = Join-Path $folder 'run-p1-diagnostic.MANUAL.CANDIDATE.ps1'
+>>     & 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoLogo -NoProfile -ExecutionPolicy Bypass -File $procedure -ExpectedScriptSha256 'c4242f434730df652ec7043fcef8313e0e4a8ebbd961690bcd65a6d85cf3d79b' -ExpectedOperationalRequestSha256 '86303aac1bf3b040a5949e8947a2bee2cb157fdbde472f31d5f2830b469a2a34' -ExpectedDecisionSha256 'a7d3544dd19c0639e9799486efe70b976d3ab543de0d11ab15edd2d424148607'
+>>     if ($LASTEXITCODE -ne 0) { throw 'P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY' }
+>> }
+ONE_MANUAL_P1_SESSION; TWO_NEW_ORIGINALS_THEN_E_Q_S_SEPARATE; NO_RETRY_NO_STOP_NO_PRODUCTION; ON_DISK_PINS_NOT_MAPPED_IMAGE_ATTESTATION
+TWO_NEW_P1_ORIGINALS_DATA_ONLY; NO_START_NO_ENDPOINT_NO_SCM; NO_RETRY_NO_DELETE; HASHES_NOT_AUTHORITY
+Request SHA256: 86303aac1bf3b040a5949e8947a2bee2cb157fdbde472f31d5f2830b469a2a34
+Actual owner decision SHA256: a7d3544dd19c0639e9799486efe70b976d3ab543de0d11ab15edd2d424148607
+Confirm ONLY the two documentary copies after actual approval of this package. This does not perform the three native E/Q/S confirmations.
+OWNER_P1_SESSION_DOCUMENTS 86303aac1bf3b040a5949e8947a2bee2cb157fdbde472f31d5f2830b469a2a34 a7d3544dd19c0639e9799486efe70b976d3ab543de0d11ab15edd2d424148607
+OWNER_P1_SESSION_DOCUMENTS 86303aac1bf3b040a5949e8947a2bee2cb157fdbde472f31d5f2830b469a2a34 a7d3544dd19c0639e9799486efe70b976d3ab543de0d11ab15edd2d424148607
+EXCLUSIVE_CREATE_CONFIRMED index=0; PERSISTENT_UNTIL_RECONCILED
+CREATED index=0 identity=417614100:8978432:356716
+EXCLUSIVE_CREATE_CONFIRMED index=1; PERSISTENT_UNTIL_RECONCILED
+CREATED index=1 identity=417614100:6815744:363445
+P1_ORIGINALS prepared=True first=NONE consumed=True created_mask=3 verified_mask=3 close_known=True; DATA_COPIES_ONLY; E_Q_S_NOT_CONFIRMED; OS_QUIESCENCE=UNKNOWN; NO_RETRY_NO_DELETE
+MANUAL_P1_ORIGINALS_EXIT=0; NO_RETRY; EXIT_ALONE_NOT_AUTHORITY
+Compare request/decision IDs with the pair output and every native plan. Cancel on any mismatch. No response is supplied automatically.
+At the native P1 DATA prompt, manually enter ONLY the approved tuple below. DATA is not E/Q/S confirmation or authority:
+P1 TRANSPORT_ONLY AMD64 417614100:131072:226316 417614100:8257536:71209 417614100:1769472:132345 43fb6712be30ce5b7afca8111512bd284672efa4bb4b8678b21a04eb7b36dd87
+Runtime PID/token, bilateral, receipt/close and finite shutdown are pending native proofs. G3/guard124/cap128 may deny; no capacity is inferred.
+P1 SELECTOR DATA ONLY: copy the TO/AMD64 object tuple and provenance from the NEW approved original request. Not an approval; E/Q/S remain separate.
+> P1 TRANSPORT_ONLY AMD64 417614100:131072:226316 417614100:8257536:71209 417614100:1769472:132345 43fb6712be30ce5b7afca8111512bd284672efa4bb4b8678b21a04eb7b36dd87
+SCQ_COLD_ORIGINAL=DENY; WIN32=5; NO_SCM_START; NO_RETRY
+SCQ_COLD_FIRST_CAUSE stage=0 reference=0 mapped=0 native_error=0 query_attempted=1 query_succeeded=1 count_known=1 own_count=113 query_reference=0 guard=124 cap=128; SCOPE=ORIGINAL_PRE_OPEN_QUERY_NOT_NEW_OBSERVATION; UNKNOWN_NOT_ZERO
+MANUAL_P1_DIAGNOSTIC_NATIVE_EXIT=2; NO_RETRY; NO_STOP; NO_PRODUCTIVE_PROMOTION; OS_QUIESCENCE=UNKNOWN
+P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY
+No C:\Projetos\PapinhoAccelerator\docs\integration\phase6-server-update-after-utility-20261101\run-p1-diagnostic.MANUAL
+.CANDIDATE.ps1:82 caractere:21
++ if($nativeExit-ne0){throw 'P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY'}
++                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY:String) [], RuntimeException
+    + FullyQualifiedErrorId : P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY
+
+P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY
+No linha:28 caractere:32
++ ... LASTEXITCODE -ne 0) { throw 'P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY' }
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY:String) [], RuntimeException
+    + FullyQualifiedErrorId : P1_SESSION_FAILED_OR_UNKNOWN_NO_RETRY
+
+PS C:\Projetos\PapinhoAccelerator\docs\integration\phase6-root-chain-procedure-20261031>

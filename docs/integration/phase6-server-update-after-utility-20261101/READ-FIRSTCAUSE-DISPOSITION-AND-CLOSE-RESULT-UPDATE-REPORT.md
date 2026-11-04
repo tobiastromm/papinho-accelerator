@@ -1,0 +1,7 @@
+# Disposição reconciliada e UPDATE preparado
+
+Disposição específica9004/17856: first0/consumo/duas submissões/exits observados/observerclose conhecido, SCMSTOPPED1067 observado duas vezes pelo procedimento original. Autorização G5 consumida, sem retry ou autoridade futura. Término abrupto não é applicationclose/SCQclose/READsuccess; UNKNOWN histórico e quiescência preservados. Resultado transcrito em READ-FIRSTCAUSE-DISPOSITION-RESULT.json.
+
+Candidato diagnóstico878080/SHA256dc4e65fbbf13dcc432ce6b66581ca4fafac9f665d7a272d8af2e496b36c02ef9 qualificado4builds/72pares/zero warnings, não instalado. Instalada876032/ID417614100:1245184:925636 permanece. Pacote UPDATE existente U1-U7/U2 reutilizado, helpers byte-identical/AST e bindings PASS/16args/uma chamada. Nenhum build/teste inalterado repetido, nenhum UPDATE ou consulta real pelo agente.
+
+Autoridade prospectiva efetiva de UPDATE registrada fielmente; não inventa aprovação histórica de hash posterior. Pedido e comando congelados em READ-CLOSE-RESULT-UPDATE-AUTHORIZED-MANUAL.md. Primeiro gate: aquisição/proteção/identidades/continuidade/SCMSTOPPED/recursos frescos e confirmação OWNER_BINARY_UPDATE original. Exige uma execução manual, não retry; previous preservado/close UNKNOWN quando inconclusivo. Depois reconciliar nova identidade factual antes de novos originais/sessão READ independente. Próximo prompt NEXT-READ-CLOSE-RESULT-UPDATE-RECONCILIATION.md. ProduçãoDENY/PST0.6.4/históricos preservados.

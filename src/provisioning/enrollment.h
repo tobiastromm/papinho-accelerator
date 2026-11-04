@@ -28,6 +28,7 @@ EP_RESULT ep_reader_push(EP_READER *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U64,un
  * approval/policy/CURRENT/CSR-to-issuer binding remains UNBOUND and DENIED. */
 typedef struct EP_TRACE {
  unsigned sequence[2],phase,access,approval,wait_seen,pending,terminal,stopped;
+ unsigned credential_released; /* one recipient copy by existing owner, never an approval */
  PAPACC_SIZE bytes[2],csr_size;
  PAPACC_U8 client_nonce[32],server_nonce[32],server_fingerprint[32],request[16],csr[4096];
 } EP_TRACE;
@@ -46,6 +47,14 @@ typedef struct EP_PAIR {
  * immutable, including invalid-but-retained pairs. No caller boolean is auth. */
 EP_RESULT ep_pair_prepare_data(EP_PAIR *,const PAPACC_U8[55],const PAPACC_U8[32],PAPACC_U64,PAPACC_U64,PAPACC_U64,const EP_PAIR *,PAPACC_SIZE);
 EP_RESULT ep_pair_claim_data(EP_PAIR *,const PAPACC_U8 *,PAPACC_SIZE,PAPACC_U64,PAPACC_U64,PAPACC_U64);
+/* Same serialized owner and original connection/generation. First decoded CONFIRM
+ * consumes the pair even on invalid order/code. This is DATA composition,
+ * never password validation, administrative approval or issuance authority. */
+EP_RESULT ep_trace_claim_pair(EP_TRACE *,EP_PAIR *,const EP_FRAME *,PAPACC_U64,PAPACC_U64,PAPACC_U64);
+/* Borrow the original owned CSR after DATA correlation only. No approval,
+ * PoP verification, issuer authorization, L2 persistence or trust is granted.
+ * Caller retains trace/pair immutable until the slice's factual release. */
+EP_RESULT ep_trace_csr_candidate(const EP_TRACE *,const EP_PAIR *,PAPACC_U64,PAPACC_U64,PAPACC_U64,EP_SLICE *);
 void ep_pair_stop(EP_PAIR *);
 /* Native Windows adapter generates public pairing secret only; no keys/CA.
  * It is not registered at startup or connected to root/CLI. */

@@ -1,0 +1,93 @@
+{
+  "status": "NOT_READY_NOT_EXECUTABLE_DEVICE_GENERATION_CUSTODY_NATIVE_NV_SENDER_PENDING",
+  "purpose": "isolated real TPM counter provision/persistence experiment only, no Q4 reader or root publication",
+  "historical_reference_only": "N0TOKEN-20261025-01 /10584f02e11f92c92b43cddf0d9d316f; no consumed authority reused",
+  "index": "0x01804143",
+  "definition": {
+    "hierarchy": "TPM_RH_OWNER",
+    "name_alg": "SHA256",
+    "data_bytes": 8,
+    "attributes": "0x00040014",
+    "authPolicy": "empty; AUTHREAD/AUTHWRITE with independently approved 32-byte auth credential and HMAC session",
+    "ORDERLY": false
+  },
+  "permitted_future_effects_if_exactly_approved": {
+    "NV_DefineSpace_maximum": 1,
+    "NV_Increment_total_maximum": 2,
+    "increment_roles": [
+      "one initialization burn; observe actual baseline, never assume zero or one",
+      "at most one synthetic consumption increment; must match pinned baseline+1"
+    ],
+    "NV_ReadPublic": "same newly created index only",
+    "NV_Read": "8-byte counter of new owned index only",
+    "reboot": "not authorized by this candidate; separate owner-controlled persistence observation after current result",
+    "real_failure_injection": "NONE; destructive/reset/close faults simulated only"
+  },
+  "preconditions": {
+    "W0_W7_acceptance": "ACCEPTED docs/adr/DECISION-q4-w0-w7-20261026.md",
+    "L0_L7_designation": "ACCEPTED docs/adr/DECISION-q4-l0-l7-20261026.md",
+    "new_exact_operational_approval": null,
+    "actual_host_boot_operator_token": null,
+    "authenticated_device_generation": "Native mathematical possession PASS request b575; certificate key correspondence PASS; root anchor NOT_DESIGNATED, EK revocation UNKNOWN, authenticated non-restorable device/NV generation NOT_ESTABLISHED",
+    "NV_hierarchy_authorization_custody": "actual owner hierarchy auth availability UNKNOWN; no extraction, no guessed empty password",
+    "per_index_auth_custody": "DPAPI CurrentUser with exact context binding is an isolated tested CANDIDATE; actual operator/account, protected same-root payload/custody and native original-object proof not established; no operational secret generated",
+    "native_write_adapter_and_hash": "Existing isolated define/increment packets reused; new isolated NV_Read 8-byte framing/HMAC and exact phase-dependent public/Name validator qualified. No native authorized NV sender or real custody session established.",
+    "approved_resource_envelope": null,
+    "native_readonly_adapter": "ReadOnlyAdapter.cs; native metadata + GetCapability + candidate NV_ReadPublic; structural tests qualified",
+    "local_ledger": "L1 ACCEPTED carrier5/component512/worker14 integrated and qualified on synthetic native CAS files; eight sources unchanged. No factual root manifest/authority producer or root publication.",
+    "custodian_designation": null,
+    "trust_anchor_designation": null,
+    "nonrestorable_generation_manifest": null
+  },
+  "STOP": [
+    "index present/collision => no adoption, no alternative index",
+    "cannot authenticate device/generation => no write",
+    "owner hierarchy auth unavailable => no empty-password attempt or registry secret extraction",
+    "credential custody unproved => no definition",
+    "blocked command or auth failure => no policy edits or retries",
+    "increment request sent but result ambiguous => burn/UNKNOWN, no resend",
+    "baseline mismatch, readback failure, overflow, local commit/close UNKNOWN => no further effects",
+    "no credential/lease wipe or dependency release before factual closure; preserve UNKNOWN"
+  ],
+  "prohibited": [
+    "TPM2_Clear",
+    "undefine/redefine or reuse index",
+    "change hierarchy/GPO/SCM/ACL",
+    "attempt real wrong auth or DA-lockout tests",
+    "adopt other existing NV objects",
+    "operational intent/Q4/LAB/Start/Stop",
+    "root/CURRENT publication",
+    "delete/overwrite/rollback/retry/refund",
+    "new infrastructure or generic authority"
+  ],
+  "retention": "index persists on completion/failure; no automatic deletion or cleanup approved; spent authority never reused; any future disposal requires separate exact authorization",
+  "manual_command": null,
+  "approval_created_by_agent": false,
+  "candidate_native_observation": {
+    "index": "0x01804143",
+    "capability_absent": true,
+    "NV_ReadPublic_TPM_RC": "0x0000008b",
+    "close": true,
+    "retained": false,
+    "first": "TPM_0000008b",
+    "exit": 2,
+    "scope": "missing/unavailable handle negative; no public area observed, not ownership proof"
+  },
+  "parameter_review": {
+    "index": "unchanged; absence not reservation",
+    "attributes": "unchanged candidate0x00040014, ORDERLY clear; actual future readback required",
+    "initial_counter": "never assumed zero/one; actual first increment value must be observed",
+    "increments": "unchanged max2; no concurrency-induced extra increments",
+    "authorization": "AUTHREAD/AUTHWRITE; hierarchy secret and index auth never guessed or retrieved by this task; HMAC command transport still required before write readiness",
+    "retention": "defined index remains; no auto deletion, credential custody must survive authorized restart, no refund",
+    "Name_lifetime": "Definition public attrs0x00040014; after first write attrs0x20040014 includes WRITTEN. Re-read exact public area and Name under authenticated session before subsequent command; only reviewed WRITTEN transition accepted, never general attribute masking or generation inference."
+  },
+  "prior_candidate_sha256": "f17c0b76ab517f62b78e2209e2b22ce0287108ea6c9e80f0538ca4d035d578e1",
+  "technical_evidence": {
+    "root_binding": "37checks/config across Selected/Legacy Debug/Release,148 total; actual new body with simulated authority helpers/native lock/thread. Logical data only; no store or NV effects",
+    "hmac_write": "288increment assertions/config plus77encrypted-define assertions/config, Debug/Release; no TPM calls; existing native readonly transport denies both packet classes",
+    "custody": "DPAPI synthetic10process cases; sandbox failure retained; no real secret",
+    "read_adapter": "prior254checks reused unchanged",
+    "EK_manual_collector_sha256": "3dde7158b02141cc2028a447914cdc2e33f371168088df3e8a6a92c2ec6465a6"
+  }
+}

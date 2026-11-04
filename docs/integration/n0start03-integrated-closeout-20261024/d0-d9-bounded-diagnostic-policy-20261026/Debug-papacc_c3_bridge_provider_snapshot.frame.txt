@@ -1,0 +1,211 @@
+papacc_c3_bridge_provider_snapshot PROC
+
+; 26   : {
+
+$LN13:
+	mov	QWORD PTR [rsp+32], r9
+	mov	QWORD PTR [rsp+24], r8
+	mov	QWORD PTR [rsp+16], rdx
+	mov	QWORD PTR [rsp+8], rcx
+	push	rsi
+	push	rdi
+	sub	rsp, 168				; 000000a8H
+	lea	rdi, QWORD PTR [rsp+32]
+	mov	ecx, 34					; 00000022H
+	mov	eax, -858993460				; ccccccccH
+	rep stosd
+	mov	rcx, QWORD PTR [rsp+192]
+	mov	rax, QWORD PTR __security_cookie
+	xor	rax, rsp
+	mov	QWORD PTR __$ArrayPad$[rsp], rax
+
+; 27   :  PST_PROVIDER_INFO f;PST_RESULT rc;const pst_connection *connection;
+; 28   :  ULONG_PTR a=(ULONG_PTR)b,z=(ULONG_PTR)out;
+
+	mov	rax, QWORD PTR b$[rsp]
+	mov	QWORD PTR a$[rsp], rax
+	mov	rax, QWORD PTR out$[rsp]
+	mov	QWORD PTR z$[rsp], rax
+
+; 29   :  if(!b||!out)return PST_RESULT_INVALID_ARGUMENT;
+
+	cmp	QWORD PTR b$[rsp], 0
+	je	SHORT $LN3@papacc_c3_
+	cmp	QWORD PTR out$[rsp], 0
+	jne	SHORT $LN2@papacc_c3_
+$LN3@papacc_c3_:
+	mov	eax, 1
+	jmp	$LN1@papacc_c3_
+$LN2@papacc_c3_:
+
+; 30   :  if((z>=a&&z-a<sizeof(*b))||(z<a&&a-z<sizeof(*out)))return PST_RESULT_INVALID_ARGUMENT;
+
+	mov	rax, QWORD PTR a$[rsp]
+	cmp	QWORD PTR z$[rsp], rax
+	jb	SHORT $LN6@papacc_c3_
+	mov	rax, QWORD PTR a$[rsp]
+	mov	rcx, QWORD PTR z$[rsp]
+	sub	rcx, rax
+	mov	rax, rcx
+	cmp	rax, 132448				; 00020560H
+	jb	SHORT $LN5@papacc_c3_
+$LN6@papacc_c3_:
+	mov	rax, QWORD PTR a$[rsp]
+	cmp	QWORD PTR z$[rsp], rax
+	jae	SHORT $LN4@papacc_c3_
+	mov	rax, QWORD PTR z$[rsp]
+	mov	rcx, QWORD PTR a$[rsp]
+	sub	rcx, rax
+	mov	rax, rcx
+	cmp	rax, 60					; 0000003cH
+	jae	SHORT $LN4@papacc_c3_
+$LN5@papacc_c3_:
+	mov	eax, 1
+	jmp	$LN1@papacc_c3_
+$LN4@papacc_c3_:
+
+; 31   :  if(!owner(b)||b->revoked||b->retained||b->child_destroyed||!b->child_acquired||
+; 32   :     !operation||operation!=b->operation||generation!=b->generation||!b->processor.connection)
+
+	mov	rcx, QWORD PTR b$[rsp]
+	call	owner
+	test	eax, eax
+	je	$LN8@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+132400], 0
+	jne	SHORT $LN8@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+132404], 0
+	jne	SHORT $LN8@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+132388], 0
+	jne	SHORT $LN8@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+132220], 0
+	je	SHORT $LN8@papacc_c3_
+	cmp	QWORD PTR operation$[rsp], 0
+	je	SHORT $LN8@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	mov	rax, QWORD PTR [rax+8]
+	cmp	QWORD PTR operation$[rsp], rax
+	jne	SHORT $LN8@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	mov	rax, QWORD PTR [rax+16]
+	cmp	QWORD PTR generation$[rsp], rax
+	jne	SHORT $LN8@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	QWORD PTR [rax+160], 0
+	jne	SHORT $LN7@papacc_c3_
+$LN8@papacc_c3_:
+
+; 33   :   return PST_RESULT_INVALID_STATE;
+
+	mov	eax, 2
+	jmp	$LN1@papacc_c3_
+$LN7@papacc_c3_:
+
+; 34   :  connection=b->processor.connection;memset(&f,0,sizeof(f));f.struct_size=sizeof(f);f.api_version=PST_API_VERSION;
+
+	mov	rax, QWORD PTR b$[rsp]
+	mov	rax, QWORD PTR [rax+160]
+	mov	QWORD PTR connection$[rsp], rax
+	mov	r8d, 60					; 0000003cH
+	xor	edx, edx
+	lea	rcx, QWORD PTR f$[rsp]
+	call	memset
+	mov	DWORD PTR f$[rsp], 60			; 0000003cH
+	mov	DWORD PTR f$[rsp+4], 196608		; 00030000H
+
+; 35   :  rc=pst_connection_get_provider_info(connection,&f);
+
+	lea	rdx, QWORD PTR f$[rsp]
+	mov	rcx, QWORD PTR connection$[rsp]
+	call	pst_connection_get_provider_info
+	mov	DWORD PTR rc$[rsp], eax
+
+; 36   :  if(rc!=PST_RESULT_OK)return rc;
+
+	cmp	DWORD PTR rc$[rsp], 0
+	je	SHORT $LN9@papacc_c3_
+	mov	eax, DWORD PTR rc$[rsp]
+	jmp	$LN1@papacc_c3_
+$LN9@papacc_c3_:
+
+; 37   :  if(!owner(b)||b->revoked||b->retained||b->child_destroyed||!b->child_acquired||b->processor.connection!=connection||
+; 38   :     operation!=b->operation||generation!=b->generation||
+; 39   :     !memchr(f.provider_id,0,sizeof(f.provider_id))||strcmp(f.provider_id,"openssl")||
+; 40   :     f.available!=1U||f.initialized>1U)return PST_RESULT_INVALID_STATE;
+
+	mov	rcx, QWORD PTR b$[rsp]
+	call	owner
+	test	eax, eax
+	je	$LN11@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+132400], 0
+	jne	$LN11@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+132404], 0
+	jne	$LN11@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+132388], 0
+	jne	$LN11@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+132220], 0
+	je	SHORT $LN11@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR connection$[rsp]
+	cmp	QWORD PTR [rax+160], rcx
+	jne	SHORT $LN11@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	mov	rax, QWORD PTR [rax+8]
+	cmp	QWORD PTR operation$[rsp], rax
+	jne	SHORT $LN11@papacc_c3_
+	mov	rax, QWORD PTR b$[rsp]
+	mov	rax, QWORD PTR [rax+16]
+	cmp	QWORD PTR generation$[rsp], rax
+	jne	SHORT $LN11@papacc_c3_
+	mov	r8d, 32					; 00000020H
+	xor	edx, edx
+	lea	rcx, QWORD PTR f$[rsp+20]
+	call	memchr
+	test	rax, rax
+	je	SHORT $LN11@papacc_c3_
+	lea	rdx, OFFSET FLAT:$SG39670
+	lea	rcx, QWORD PTR f$[rsp+20]
+	call	strcmp
+	test	eax, eax
+	jne	SHORT $LN11@papacc_c3_
+	cmp	DWORD PTR f$[rsp+8], 1
+	jne	SHORT $LN11@papacc_c3_
+	cmp	DWORD PTR f$[rsp+12], 1
+	jbe	SHORT $LN10@papacc_c3_
+$LN11@papacc_c3_:
+	mov	eax, 2
+	jmp	SHORT $LN1@papacc_c3_
+$LN10@papacc_c3_:
+
+; 41   :  *out=f;return PST_RESULT_OK;
+
+	lea	rax, QWORD PTR f$[rsp]
+	mov	rdi, QWORD PTR out$[rsp]
+	mov	rsi, rax
+	mov	ecx, 60					; 0000003cH
+	rep movsb
+	xor	eax, eax
+$LN1@papacc_c3_:
+
+; 42   : }
+
+	mov	rdi, rax
+	mov	rcx, rsp
+	lea	rdx, OFFSET FLAT:papacc_c3_bridge_provider_snapshot$rtcFrameData
+	call	_RTC_CheckStackVars
+	mov	rax, rdi
+	mov	rcx, QWORD PTR __$ArrayPad$[rsp]
+	xor	rcx, rsp
+	call	__security_check_cookie
+	add	rsp, 168				; 000000a8H
+	pop	rdi
+	pop	rsi
+	ret	0
+papacc_c3_bridge_provider_snapshot ENDP

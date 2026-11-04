@@ -367,6 +367,8 @@ static PAPACC_RESULT papacc_secure_candidate_try_close(
     papacc_connection_security_context_release(
         &candidate->connection_security);
     papacc_session_security_context_release(&candidate->session_security);
+    memset(candidate->authenticated_credential_sha256, 0, sizeof(candidate->authenticated_credential_sha256));
+    candidate->authenticated_credential_bound = PAPACC_FALSE;
     candidate->state = PAPACC_SERVER_SECURE_CANDIDATE_CLOSED;
     candidate->close_requested = PAPACC_FALSE;
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
@@ -956,6 +958,11 @@ static PAPACC_RESULT papacc_secure_candidate_ready(
             candidate->connection_security.state !=
                 PAPACC_SECURITY_CONTEXT_AUTHORIZED)
             return PAPACC_RESULT_INVALID_STATE;
+        memcpy(candidate->authenticated_credential_sha256, evidence.certificate_sha256, sizeof(candidate->authenticated_credential_sha256));
+        candidate->authenticated_credential_bound = PAPACC_TRUE;
+#ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
+        if(papacc_server_launcher_owns_secure(candidate->owner)&&papacc_server_launcher_credential_admit(candidate)!=PAPACC_RESULT_OK)return PAPACC_RESULT_INVALID_STATE;
+#endif
         return papacc_secure_publish(candidate, now_ns);
     }
     if (candidate->state == PAPACC_SERVER_SECURE_CANDIDATE_PROTOCOL) {

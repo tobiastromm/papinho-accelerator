@@ -1,0 +1,24 @@
+{
+  "task": "PACC-PHASE6-ED11-TPM-IDENTITY-CUSTODY-CLOSURE",
+  "status": "CANDIDATE_PUBLIC_BYTES_ONLY_NOT_EXECUTED_NO_PROVISIONING_AUTHORITY",
+  "purpose": "obtain missing public ASN.1/DER bytes for key/certificate/issuer analysis; not repeat metadata-only query",
+  "script": "collect-ek-public-bytes.NOT-EXECUTED.ps1",
+  "script_sha256": "f11bc94bc903623a865e7731b48b62c1a682e8a5e8d8f9d62de318edad54aacd",
+  "execution": "owner manual only in already elevated Windows PowerShell5.1 x64; never Codex automatic",
+  "output": "only exact prior EK/certificate fingerprints matched; public bytes remain local, no public paste; no private key, hierarchy secret or credential",
+  "TPM_NV_writes": 0,
+  "Q4": false,
+  "trust_anchor_install": false,
+  "proof_of_possession": false,
+  "STOP": [
+    "script/helper/module pin mismatch",
+    "wrong operator elevation or impersonation",
+    "EK raw type/encoding/hash mismatch",
+    "certificate absent/multiple/mismatch",
+    "query/clock/close failure"
+  ],
+  "internal_cmdlet_context_close": "UNOBSERVED; no factual close assertion",
+  "authority": "DENY",
+  "approval_record": null,
+  "operational_command_activated": false
+}

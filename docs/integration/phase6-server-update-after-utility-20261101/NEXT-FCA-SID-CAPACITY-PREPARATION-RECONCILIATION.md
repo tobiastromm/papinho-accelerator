@@ -1,0 +1,4 @@
+# Próximo prompt executável — reconciliar preparação FCA SID corrigido
+Ler saída integral da apresentação/preparação657c977b40e2fce67faff02223901c56749856416cba0006898f149b81af09c5. Não repetir.
+Conferir se alcançou plano/confirmacão ORIGINAL OWNER_NEW_INSTALL_CA_INITIALIZE, consumo/criação exclusiva Accelerator/ID/SD/readback, chave realmente criada/finalizada/nome/identidade pública e close/retenção. Sem inferir sucesso/ausência pelo exit/flags. Em rejeição, mapear primeiro ramo factual e preservar UNKNOWN nas expressões compostas; corrigir offline somente defeito demonstrado, sem dispensar guards ou coletar automaticamente.
+Após sucesso suficiente preparar próximos atos concretos rumo ao Start sob autorização de continuidade já registrada, sem reaprovações redundantes nem inventar identidades/prontidão/confirmacões independentes. Reutilizar originais, preservar históricos/consumos/PST0.6.4/UNKNOWN/DENY.

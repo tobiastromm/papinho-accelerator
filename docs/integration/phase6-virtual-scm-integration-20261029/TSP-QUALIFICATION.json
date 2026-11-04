@@ -1,0 +1,95 @@
+{
+  "task": "PACC-PHASE6-TO9-EXACT-TRANSPORT-SESSION-READINESS",
+  "configurations": [
+    {
+      "configuration": "Selected-Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 9,
+      "status": "PASS",
+      "managed_bytes": 1979784,
+      "limit_bytes": 3145728
+    },
+    {
+      "configuration": "Selected-Release",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 9,
+      "status": "PASS",
+      "managed_bytes": 1979784,
+      "limit_bytes": 3145728
+    },
+    {
+      "configuration": "Legacy-Debug",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 9,
+      "status": "PASS",
+      "managed_bytes": 1811216,
+      "limit_bytes": 2097152
+    },
+    {
+      "configuration": "Legacy-Release",
+      "build": "PASS",
+      "warnings": 0,
+      "affected_ctests": 9,
+      "status": "PASS",
+      "managed_bytes": 1811216,
+      "limit_bytes": 2097152
+    }
+  ],
+  "total_ctests": 36,
+  "continuation": {
+    "cases": 22,
+    "checks_per_configuration": 1290,
+    "completed_models": 5,
+    "retained_models": 17,
+    "max_IO_submission_or_poll_per_step": 1
+  },
+  "readiness_chain": {
+    "cases": 47,
+    "transport_cases": 26,
+    "checks_per_configuration": 2019,
+    "closed_ready_models": 8,
+    "retained_models": 39
+  },
+  "mutants": [
+    {
+      "mutant": "DATA_receipt_claims_close",
+      "compile": "PASS",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "mutant": "pending_io_resubmitted",
+      "compile": "PASS",
+      "rejected": true,
+      "exit": 1
+    },
+    {
+      "mutant": "readiness_before_controller_return",
+      "compile": "PASS",
+      "rejected": true,
+      "exit": 1
+    }
+  ],
+  "native_bilateral": "NOT_DEMONSTRATED",
+  "endpoint_real": "NOT_CREATED_NOT_CONNECTED",
+  "KSP": "NOT_EXECUTED",
+  "operational_registrations": "ALL_NULL",
+  "operational_request": "NOT_READY",
+  "E21": "PENDING",
+  "ED11": "PARTIAL",
+  "Phase6": "PARTIAL",
+  "authority": "DENY",
+  "development_corrections": [
+    "Fixture literal escaping corrected under /WX before final builds",
+    "Foreign-thread test now uses original native wait helper rather than modeled peer wait",
+    "Native readiness sufficiency corrected by original controller return over existing duplex transport; no normative change",
+    "Pre-write substitution reproduced by negative test; original close return is now validated before WriteFile, zero write on divergence."
+  ],
+  "readiness_return": "SCQ_SQC1_ORIGINAL_CONTROLLER_ACCEPTANCE_RETURN_REQUIRED",
+  "persistent_layout_growth_bytes": 0,
+  "quantitative_native_policy": "NOT_JUSTIFIED",
+  "artifact_freeze": "DEFERRED_UNTIL_COMPLETE_PLAN_NO_OWNER_SELECTION_REQUESTED"
+}

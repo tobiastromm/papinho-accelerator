@@ -1,0 +1,38 @@
+#ifndef PAPACC_SERVER_SERVICE_STARTUP_WIN32_H
+#define PAPACC_SERVER_SERVICE_STARTUP_WIN32_H
+/* Private productive-admission report: closed preparation is a separate
+ * original-evidence path, never approval, constructor or authority setter. */
+#include <windows.h>
+enum { PS_STARTUP_ORIGINAL_UNAVAILABLE=1U,
+ PS_STARTUP_ORIGINAL_UNDESIGNATED=PS_STARTUP_ORIGINAL_UNAVAILABLE, /* historical value */
+ PS_STARTUP_WRONG_LAB_SCOPE,
+ PS_STARTUP_WRONG_THREAD,PS_STARTUP_STOPPED,PS_STARTUP_RETAINED_UNKNOWN,
+ PS_STARTUP_POST_RUNNING_CIRCULAR };
+enum { PS_STARTUP_IMAGE_METADATA=1U,PS_STARTUP_SCM_METADATA=2U,
+ PS_STARTUP_HOST_METADATA=4U,PS_STARTUP_RUNNING_METADATA=8U };
+enum { PS_STARTUP_NEEDS_ORIGINAL=1U,PS_STARTUP_NEEDS_INSTALLATION=2U,
+ PS_STARTUP_NEEDS_SCOPE=4U,PS_STARTUP_NEEDS_LIFETIME=8U,
+ PS_STARTUP_NEEDS_READINESS_EVIDENCE=16U,
+ PS_STARTUP_NEEDS_READINESS_CONTRACT=PS_STARTUP_NEEDS_READINESS_EVIDENCE /* historical diagnostic bit */ };
+typedef struct PAPACC_SERVICE_STARTUP_SOURCE_REPORT {
+ DWORD reason,first_reason,available_metadata,missing_source_fields;
+} PAPACC_SERVICE_STARTUP_SOURCE_REPORT;
+/* Resolves available native owner observations, NOT startup authorization.
+ * Returns DENY until a governed original source is implemented and independently delivered. */
+DWORD papacc_server_service_startup_source_status(PAPACC_SERVICE_STARTUP_SOURCE_REPORT *);
+/* Registration is an earlier, separate action. No runtime PID/token/readiness
+ * can exist as a prerequisite of CreateService. These are missing-source
+ * diagnostics only; no setter, loader or positive approval constructor. */
+enum { PS_REGISTRATION_ORIGINAL_UNAVAILABLE=1U,PS_REGISTRATION_WRONG_LAB_SCOPE,
+ PS_REGISTRATION_WRONG_THREAD,PS_REGISTRATION_STOPPED,
+ PS_REGISTRATION_RETAINED_UNKNOWN,PS_REGISTRATION_CONSUMED,
+ PS_REGISTRATION_INVALID_PROFILE,PS_REGISTRATION_RESOURCES_UNQUALIFIED,PS_REGISTRATION_RESOURCE_OBSERVATION_FAILED };
+enum { PS_REGISTRATION_NEEDS_ORIGINAL=1U,PS_REGISTRATION_NEEDS_TARGET_IMAGE=2U,
+ PS_REGISTRATION_NEEDS_EXACT_SCOPE=4U,PS_REGISTRATION_NEEDS_LIVE_ACT=8U,
+ PS_REGISTRATION_NEEDS_RESOURCES=16U };
+typedef struct PAPACC_SERVICE_REGISTRATION_SOURCE_REPORT {
+ DWORD reason,missing_source_fields,selected_profile,image_metadata;
+ DWORD resource_observations,resource_error,resource_missing;
+} PAPACC_SERVICE_REGISTRATION_SOURCE_REPORT;
+DWORD papacc_server_service_registration_source_status(PAPACC_SERVICE_REGISTRATION_SOURCE_REPORT *);
+#endif

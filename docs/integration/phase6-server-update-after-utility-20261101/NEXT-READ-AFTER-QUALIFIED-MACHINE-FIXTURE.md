@@ -1,0 +1,9 @@
+# Próximo trabalho — sessão READ após fixture qualificada
+
+Continuar integralmente no projeto C:\Projetos\PapinhoAccelerator, lendo resultado/saída e MACHINE-FIXTURE-GA-READBACK-PREPARATION-RECONCILIATION.md. D1/F consumidos e concluídos, não repetir.
+
+Preparar offline novos originais READ e pedido independente da sessão diagnóstica conforme K0–K9/T0–T6/F0–F5/R0–R4/S0–S5 e contratos QUERY/G3/SSO-B/SCQ/OHI aplicáveis. Reutilizar caller READ/lifecycle/producer integrados, mesma imagem instalada872960bytes/ID417614100:21823488:64941/SHA256 f2aa63a82e92137be15438d60dae3b4f0332330b9b8df9a51617211e060c772d. Auditar mecanismos e bindings existentes antes de assumir delta; não reconstruir updater/transporte/SCM/autoridade. Não repetir campanhas inalteradas.
+
+Fixture selecionável: PapinhoAccelerator.CA.f3f7579f3e90851845264abbb7991500.9b845d6b6c8e909e5f226c65b321987c; PublicSHA256877e3f7d80794459586e6d1b977127cd6537f8287c5087055f508f6e95863278. São DATA/proveniência; futura READ exige originalidade/continuidade e controle positivo fresco da MESMA identidade, não adoção por string/hash. Não usar chave parcial anterior. Novos request/decisão reais, proteção READ apropriada, confirmações E/Q/S/P independentes/consumo único/Stop/deadlines/retention, sem fabricar decisão emitida ou token/PID futuro. Runtime real/bilateral/probe/receipt/close só podem ser provados durante sessão, nunca presumidos PASS.
+
+Se completo, apresentar pedido operacional com hashes/efeitos/riscos/gates frescos para decisão específica; comando sem placeholders só após aprovação real. Não executar criação protegida, consulta, KSP/READ/E/Q/S/P/StartStop, UPDATE, endpoint/SCM/ACL, CA/CURRENT, rede, TPM/NV/Q4, limpeza/refund/kill ou produção. Preservar históricos/originais/chaves/EXEs/consumos e PST0.6.4; histórico/application-close/retenção/quiescência OS UNKNOWN, produção DENY.

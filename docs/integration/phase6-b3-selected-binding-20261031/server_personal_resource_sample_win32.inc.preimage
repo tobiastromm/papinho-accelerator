@@ -1,0 +1,57 @@
+#ifndef PAPACC_PERSONAL_RESOURCE_SAMPLE_DEFINED
+#define PAPACC_PERSONAL_RESOURCE_SAMPLE_DEFINED
+#include <psapi.h>
+#define SCM_RESOURCE_KNOWN_AUTOMATIC_BYTES (sizeof(PAPACC_SCM_RESOURCE_SAMPLE)+sizeof(PROCESS_MEMORY_COUNTERS_EX)+sizeof(PERFORMANCE_INFORMATION)+sizeof(MEMORYSTATUSEX)+3U*sizeof(LARGE_INTEGER)+sizeof(ULONGLONG)+sizeof(DWORD)+2U*sizeof(void *))
+/* Query only this controller, no SCM/peer acquisition or resource authority.
+ * No thresholds imported from LAB/Browser. 124 is the existing necessary own
+ * handle guard; satisfying it does not qualify headroom or unknown costs. */
+static DWORD personal_resource_error(PAPACC_SCM_RESOURCE_OBSERVATION *o,DWORD stage,DWORD error)
+{
+ if(!error)error=ERROR_GEN_FAILURE;
+ if(!o->first_error){o->first_error=error;o->error_stage=stage;}
+ if(o->sink)(void)fprintf(o->sink,"CONTROLLER_RESOURCE query_complete=%u sample_known=%u stage=%lu error=%lu; CAPACITY=UNKNOWN; AUTHORITY=DENY\n",
+ o->error_stage>=8U&&o->error_stage<=10U?1U:0U,o->error_stage==9U||o->error_stage==10U?1U:0U,
+ (unsigned long)o->error_stage,(unsigned long)o->first_error);
+ return o->first_error;
+}
+static DWORD personal_resource_sample(PAPACC_SCM_RESOURCE_OBSERVATION *o,DWORD phase)
+{
+ PAPACC_SCM_RESOURCE_SAMPLE s;
+ PROCESS_MEMORY_COUNTERS_EX memory;PERFORMANCE_INFORMATION system;MEMORYSTATUSEX global;
+ LARGE_INTEGER frequency,began,ended;ULONGLONG pages;DWORD stage=1U;
+ if(o->first_error)return o->first_error; /* no retry or renewal after failure */
+ if(o->attempts==(DWORD)-1)return personal_resource_error(o,0,ERROR_ARITHMETIC_OVERFLOW);
+ o->attempts++;memset(&s,0,sizeof(s));s.phase=phase;
+ if(!QueryPerformanceFrequency(&frequency))goto query_failed;
+ if(frequency.QuadPart<=0)return personal_resource_error(o,stage,ERROR_INVALID_DATA);
+ stage=2U;if(!QueryPerformanceCounter(&began))goto query_failed;
+ if(began.QuadPart<0)return personal_resource_error(o,stage,ERROR_INVALID_DATA);
+ stage=3U;if(!GetProcessHandleCount(GetCurrentProcess(),&s.handles))goto query_failed;
+ memset(&memory,0,sizeof(memory));memory.cb=sizeof(memory);stage=4U;
+ if(!GetProcessMemoryInfo(GetCurrentProcess(),(PROCESS_MEMORY_COUNTERS *)&memory,sizeof(memory)))goto query_failed;
+ memset(&global,0,sizeof(global));global.dwLength=sizeof(global);stage=5U;if(!GlobalMemoryStatusEx(&global))goto query_failed;
+ memset(&system,0,sizeof(system));system.cb=sizeof(system);stage=6U;if(!GetPerformanceInfo(&system,sizeof(system)))goto query_failed;
+ stage=7U;if(!QueryPerformanceCounter(&ended))goto query_failed;
+ if(ended.QuadPart<began.QuadPart||!system.PageSize||system.CommitLimit<system.CommitTotal||
+ !global.ullTotalPhys||global.ullAvailPhys>global.ullTotalPhys)return personal_resource_error(o,8U,ERROR_INVALID_DATA);
+ pages=(ULONGLONG)(system.CommitLimit-system.CommitTotal);
+ if(pages>((ULONGLONG)-1)/(ULONGLONG)system.PageSize)return personal_resource_error(o,8U,ERROR_ARITHMETIC_OVERFLOW);
+ s.frequency=(ULONGLONG)frequency.QuadPart;s.begin=(ULONGLONG)began.QuadPart;s.end=(ULONGLONG)ended.QuadPart;
+ s.private_bytes=(ULONGLONG)memory.PrivateUsage;s.working_set=(ULONGLONG)memory.WorkingSetSize;
+ s.physical_available=global.ullAvailPhys;s.commit_available=pages*(ULONGLONG)system.PageSize;
+ if(o->samples&&(s.frequency!=o->first.frequency||s.begin<o->last.end))return personal_resource_error(o,8U,ERROR_INVALID_DATA);
+ if(!o->samples){o->first=s;o->min_physical=s.physical_available;o->min_commit=s.commit_available;}
+ o->last=s;o->samples++;
+ if(s.handles>o->peak_handles)o->peak_handles=s.handles;
+ if(s.private_bytes>o->peak_private)o->peak_private=s.private_bytes;
+ if(s.working_set>o->peak_working)o->peak_working=s.working_set;
+ if(s.physical_available<o->min_physical)o->min_physical=s.physical_available;
+ if(s.commit_available<o->min_commit)o->min_commit=s.commit_available;
+ if(o->sink&&fprintf(o->sink,"CONTROLLER_RESOURCE phase=%lu known=1 sample=%lu handles=%lu private=%llu working=%llu physical_available=%llu commit_available=%llu qpc_begin=%llu qpc_end=%llu frequency=%llu; SCOPE=CONTROLLER_SOURCE_PHASE_NOT_PROCESS_BASELINE; OBSERVATION_NOT_CAPACITY\n",
+ (unsigned long)phase,(unsigned long)o->samples,(unsigned long)s.handles,s.private_bytes,s.working_set,s.physical_available,s.commit_available,s.begin,s.end,s.frequency)<0)return personal_resource_error(o,10U,ERROR_WRITE_FAULT);
+ if(s.handles>124U)return personal_resource_error(o,9U,ERROR_NOT_ENOUGH_QUOTA);
+ if(!s.physical_available||!s.commit_available)return personal_resource_error(o,9U,ERROR_NOT_ENOUGH_MEMORY);
+ return 0;
+query_failed:return personal_resource_error(o,stage,GetLastError());
+}
+#endif

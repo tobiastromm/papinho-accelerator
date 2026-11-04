@@ -1,0 +1,3 @@
+# Reconciliação da única disposição autorizada
+
+Após saída manual integral, conferir primeira falha/consumo/runtime_submitted/runtime_exit/controller_submitted/controller_exit/SCM/observerclose. Preservar pending e decisão, registrar USED separado. Erro/partial/timeout mantém UNKNOWN sem retry/completar por outro comando. Exits não demonstram application-close/SCQclose/bilateral/retention/quiescência. Só se gates compatíveis preparar UPDATE governado da imagem READ-CLOSE-RESULT offline878080 pelo executor existente, sob autoridade prospectiva já emitida, sem executar automaticamente; nova sessão e provas independentes. Não reutilizar G5 ou autorizações consumidas. Preservar históricos/PST0.6.4/produçãoDENY.

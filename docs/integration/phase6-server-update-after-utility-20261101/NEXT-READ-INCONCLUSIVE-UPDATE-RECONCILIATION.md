@@ -1,0 +1,5 @@
+# Próximo trabalho — reconciliar UPDATE I0-I6
+
+Ler pedido/decisão real autorizada e saída manual integral. Uma tentativa, sem retry. Conferir primeira falha/consumo/criação/doisrenames/previous/novo canônico880128-SHA2567ccb080b564ae331a5e212bd455b3b5aff636cae28089c5a4c306268d8687acc/identidade factual/owner-DACL/proteção/readback/SCMSTOPPED/close e efeitos parciais. Preservar pending e registrar USED separado. Erro/UNKNOWN não autoriza completar por comando alternativo, rollback, limpeza ou G5antigo.
+
+Se VERIFIED_CLOSED, preparar apenas pedido de nova sessãoREAD independente/novosoriginais/mesmafixturequalificada/EQSPindependentes com I0-I6 aceito, mantendoBADKEYSET inconclusivoDENY e nuncaRUNNING nesse terminal. Wrapper deverá distinguir nativecode3SESSION_CLOSED_INCONCLUSIVE,0qualificado,2falhaUNKNOWN; confirmar provas originais/close/SCM e runtimeexit1168 separado de resultado. AprovaçãoUPDATE não autoriza execução dessa sessão. Não inventar identidadefutura/autoridade/consumo. Sem operaçãoautomática ou campanhasinalteradas. PreservarHEAD-WIP/históricos/pins/keys/EXEs/originais/PST0.6.4/UNKNOWN/produçãoDENY.

@@ -1,0 +1,28 @@
+diff --git a/docs/integration/phase6-update-utility-20261101/CMakeLists.txt.preimage b/CMakeLists.txt
+index bf47f2e..62ee695 100644
+--- a/docs/integration/phase6-update-utility-20261101/CMakeLists.txt.preimage
++++ b/CMakeLists.txt
+@@ -3557,6 +3557,23 @@ if(WIN32 AND PAPACC_ENABLE_CONFIG_ADMIN_CLI)
+  # Exact same canonical owner supplies closed evidence; both libraries are STATIC.
+  target_link_libraries(papacc_server_service PRIVATE papacc_server_run_win32)
+  target_link_libraries(papacc_server PRIVATE papacc_server_service)
++ # One restricted administrative adapter, linking the SAME canonical owner.
++ # No second root implementation, service dispatcher or authority provider.
++ # The utility is never a LAB shortcut; protection/provenance remain U2 gates.
++ if(NOT PAPACC_ENABLE_SINGLE_LAB_ADMISSION)
++  add_executable(papacc_update apps/server/update_main.c)
++  target_include_directories(papacc_update PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} apps/server)
++  target_link_libraries(papacc_update PRIVATE papacc_server_run_win32)
++  target_compile_options(papacc_update PRIVATE /W4 /WX)
++  set_target_properties(papacc_update PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++  if(BUILD_TESTING)
++   add_executable(papacc_update_entry_test tests/update_entry_test.c)
++   target_include_directories(papacc_update_entry_test PRIVATE ${PAPACC_GRAPH_INCLUDE_DIRS} apps/server)
++   target_compile_options(papacc_update_entry_test PRIVATE /W4 /WX)
++   set_target_properties(papacc_update_entry_test PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
++   add_test(NAME papacc.personal.update_entry COMMAND papacc_update_entry_test)
++  endif()
++ endif()
+  set_property(SOURCE apps/server/main.c APPEND PROPERTY OBJECT_DEPENDS
+   "${CMAKE_CURRENT_SOURCE_DIR}/apps/server/main.c.api3.inc;${CMAKE_CURRENT_SOURCE_DIR}/apps/server/server_service_win32.h")
+  if(BUILD_TESTING)

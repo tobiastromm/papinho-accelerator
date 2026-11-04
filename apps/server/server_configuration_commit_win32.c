@@ -14,7 +14,9 @@ static int owner(PAPACC_CONFIGURATION_COMMIT *o)
 static int pending_blocks(PAPACC_CONFIGURATION_COMMIT *o)
 {
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
- return o->pending_commit.personal_ca||(o->pending_commit.personal_native.phase&&o->pending_commit.personal_native.phase!=3U)||(o->pending_commit.personal_data.phase&&o->pending_commit.personal_data.phase!=PAPACC_PERSONAL_DATA_FINISHED)||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&o->pending_commit.store_hash)||o->pending_commit.active||o->authority_lost||o->pending_commit.bootstrap_parent||o->pending_commit.bootstrap_container||o->pending_commit.bootstrap_token;
+ if(o->pending_commit.personal_native.scm_registration.phase&&o->pending_commit.personal_native.scm_registration.phase!=5U)return 1;
+ if(papacc_store_hash_blocked(&o->pending_commit.personal_native.machine_fixture.hash)||o->pending_commit.personal_native.machine_fixture.key.state==PAPACC_CA_KEY_READY||o->pending_commit.personal_native.machine_fixture.key.state==PAPACC_CA_KEY_RETAINED)return 1;
+ return (o->pending_commit.personal_native.scq_recipient.phase&&o->pending_commit.personal_native.scq_recipient.phase!=3U)||(o->pending_commit.personal_native.scq_session.phase&&o->pending_commit.personal_native.scq_session.phase!=5U)||(o->pending_commit.personal_native.scq_admin.phase&&o->pending_commit.personal_native.scq_admin.phase!=5U)||(o->pending_commit.personal_native.scq_profile_data.phase&&o->pending_commit.personal_native.scq_profile_data.phase!=3U)||(o->pending_commit.personal_native.scq_inputs.phase&&o->pending_commit.personal_native.scq_inputs.phase!=3U)||(o->pending_commit.personal_native.scq_receiver.original||o->pending_commit.personal_native.scq_receiver.phase==4U)||(o->pending_commit.personal_native.scq_dispatch.phase&&o->pending_commit.personal_native.scq_dispatch.phase!=3U)||(o->pending_commit.personal_native.runtime_cng_probe.phase&&o->pending_commit.personal_native.runtime_cng_probe.phase!=3U)||(o->pending_commit.personal_native.runtime_identity.phase&&o->pending_commit.personal_native.runtime_identity.phase!=3U)||o->pending_commit.personal_ca||o->pending_commit.personal_ca_candidate||(o->pending_commit.personal_native.phase&&o->pending_commit.personal_native.phase!=3U)||(o->pending_commit.personal_data.phase&&o->pending_commit.personal_data.phase!=PAPACC_PERSONAL_DATA_FINISHED)||papacc_store_hash_blocked(&o->store_hash)||papacc_store_hash_blocked(&o->pending_commit.store_hash)||o->pending_commit.active||o->authority_lost||o->pending_commit.bootstrap_parent||o->pending_commit.bootstrap_container||o->pending_commit.bootstrap_token;
 #else
  return papacc_store_hash_blocked(&o->store_hash);
 #endif
@@ -395,4 +397,5 @@ PAPACC_RESULT papacc_configuration_prepare03(PAPACC_CONFIGURATION_COMMIT *o,cons
 
 #ifdef PAPACC_C8_PRIVATE_STORAGE_PROFILE
 #include "server_configuration_pending_win32.inc"
+#include "server_configuration_q4_data_win32.inc"
 #endif

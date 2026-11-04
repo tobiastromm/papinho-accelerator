@@ -1,0 +1,243 @@
+/* U1-U7 accepted9fb5318d...: one native attributed UPDATE, same owner/packet.
+ * No writer API accepts a boolean grant. Native confirmation constructs the
+ * live act; pins, CLI, admin membership and samples alone cannot do so. */
+#define UPDATE_KNOWN_AUTOMATIC_BYTES (SCM_RESOURCE_KNOWN_AUTOMATIC_BYTES+sizeof(PACC_STORAGE_SHA256)+1024U+96U+\
+ 4U*MAX_PATH+4U*65U+6U*11U+65U*sizeof(WCHAR)+(MAX_PATH+32U)*sizeof(WCHAR)+\
+ 2U*sizeof(BY_HANDLE_FILE_INFORMATION)+sizeof(PAPACC_UPDATE_RENAME_INFO)+\
+ 128U+64U*sizeof(void *)+64U*sizeof(DWORD)+16U*sizeof(ULONGLONG))
+typedef NTSTATUS (NTAPI *UPDATE_NT_SET)(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,ULONG);
+typedef NTSTATUS (NTAPI *UPDATE_NT_VOLUME)(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,ULONG);
+typedef char UPDATE_RENAME_LAYOUT[(FIELD_OFFSET(PAPACC_UPDATE_RENAME_INFO,name)==FIELD_OFFSET(FILE_RENAME_INFO,FileName))?1:-1];
+static DWORD staged_update_retain(DWORD e)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();u->phase=8U;u->act_state=8U;staging_act()->phase=8U;
+ root.configuration_commit.unresolved=1;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return staged_update_fail(e);
+}
+static int staged_update_plan(BYTE digest[32])
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_QUALIFICATION_STAGING *s=staging_act();
+ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+ PACC_STORAGE_SHA256 h;unsigned i;DWORD bytes;int ok=0;
+ static const char policy[]="BINARY_UPDATE_CLOSED:9fb5318dd740430ebd7ffe9307b6348826417d73b8fcd35aaac71c768e5bb234:U2:58493c93f590282b0e47ee35d8c51c61169adde482562763298b78ac133875da";
+ ZeroMemory(&h,sizeof(h));if(!s->protection||pacc_storage_sha_init(&h)!=PACC_HASH_OK)return 0;
+#define UPDATE_HASH(p,z) do{if(pacc_storage_sha_update(&h,(const BYTE *)(p),(z),NULL,NULL)!=PACC_HASH_OK)goto done;}while(0)
+ UPDATE_HASH(policy,sizeof(policy));UPDATE_HASH(u->attempt,sizeof(u->attempt));
+ UPDATE_HASH(&root.reserved_bytes,sizeof(root.reserved_bytes));UPDATE_HASH(&u->unit,sizeof(u->unit));UPDATE_HASH(&u->rounded,sizeof(u->rounded));
+ UPDATE_HASH(u->old_hash,32);UPDATE_HASH(u->new_hash,32);UPDATE_HASH(u->dll_hash,64);
+ UPDATE_HASH(u->executor_id,sizeof(u->executor_id));UPDATE_HASH(u->executor_hash,32);
+ UPDATE_HASH(&u->executor_pid,sizeof(u->executor_pid));UPDATE_HASH(&u->executor_creation,sizeof(u->executor_creation));
+ UPDATE_HASH(u->executor_path,(wcslen(u->executor_path)+1U)*sizeof(WCHAR));
+ UPDATE_HASH(u->expected_old_id,sizeof(u->expected_old_id));UPDATE_HASH(&u->old_bytes,sizeof(u->old_bytes));UPDATE_HASH(&u->new_bytes,sizeof(u->new_bytes));
+ UPDATE_HASH(u->expected_parent_id,sizeof(u->expected_parent_id));
+ UPDATE_HASH(u->candidate,(wcslen(u->candidate)+1U)*sizeof(WCHAR));UPDATE_HASH(u->previous,(wcslen(u->previous)+1U)*sizeof(WCHAR));
+ UPDATE_HASH(u->source_path,(wcslen(u->source_path)+1U)*sizeof(WCHAR));UPDATE_HASH(n->install_paths.binary,(wcslen(n->install_paths.binary)+1U)*sizeof(WCHAR));
+ UPDATE_HASH(&u->invocation,sizeof(u->invocation));UPDATE_HASH(&u->thread,sizeof(u->thread));UPDATE_HASH(&n->token,sizeof(n->token));UPDATE_HASH(n->sid,n->sid_bytes);
+ for(i=0;i<14U;i++)if(i<s->ancestor_count||i==7U||i==8U||i==9U||i==10U||i==13U){
+  /* Local same-invocation reference identity, never serialized or transported. */
+  UPDATE_HASH(&s->objects[i].handle,sizeof(HANDLE));UPDATE_HASH(&s->objects[i].identity,sizeof(s->objects[i].identity));UPDATE_HASH(s->objects[i].acl,32);
+ }
+ bytes=GetSecurityDescriptorLength(s->protection);if(!bytes||bytes>65536U)goto done;UPDATE_HASH(s->protection,bytes);
+ ok=pacc_storage_sha_final(&h,digest,32,NULL,NULL)==PACC_HASH_OK;
+done:SecureZeroMemory(&h,sizeof(h));return ok;
+#undef UPDATE_HASH
+}
+static DWORD staged_update_candidate_current(void)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_QUALIFICATION_STAGING *s=staging_act();BY_HANDLE_FILE_INFORMATION f,previous;
+ if(!u->created)return 0;
+ if(!GetFileInformationByHandle(s->objects[14].handle,&f))return staged_update_fail(GetLastError());
+ previous=s->objects[14].identity;
+ if(f.dwVolumeSerialNumber!=previous.dwVolumeSerialNumber||f.nFileIndexHigh!=previous.nFileIndexHigh||f.nFileIndexLow!=previous.nFileIndexLow||
+ f.dwFileAttributes!=previous.dwFileAttributes||(((ULONGLONG)f.nFileSizeHigh<<32)|f.nFileSizeLow)!=u->written)return staged_update_fail(ERROR_REVISION_MISMATCH);
+ /* Only candidate size/last-write can advance during this owned copy. SD,
+  * native ID and attributes stay unchanged; never rebaseline a replacement. */
+ s->objects[14].identity=f;
+ if(staged_update_object(14U,0)){s->objects[14].identity=previous;return u->first;}return 0;
+}
+static DWORD staged_update_current(void)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_QUALIFICATION_STAGING *s=staging_act();BYTE digest[32];unsigned i;
+ if(!staged_update_owned()||!u->execute_mode||!u->confirmed||u->first||staged_update_stop())return staged_update_fail(ERROR_ACCESS_DENIED);
+ if(!staged_update_plan(digest)||memcmp(digest,u->plan_hash,32))return staged_update_fail(ERROR_REVISION_MISMATCH);
+ if(papacc_configuration_personal_layout_binary_current(&root.configuration_commit)!=PAPACC_RESULT_OK||
+ papacc_configuration_personal_native_current(&root.configuration_commit)!=PAPACC_RESULT_OK)return staged_update_fail(ERROR_ACCESS_DENIED);
+ if(staged_update_service())return u->first;
+ for(i=0;i<16U;i++)if(s->objects[i].handle&&i!=14U&&staged_update_object(i,0))return u->first;
+ return staged_update_candidate_current();
+}
+static DWORD staged_update_resources(ULONGLONG remaining)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_QUALIFICATION_STAGING *s=staging_act();UPDATE_NT_VOLUME fn;
+ HMODULE module;FARPROC proc;NTSTATUS status;ULONGLONG unit,rounded;LARGE_INTEGER now,frequency;
+ u->location=300U;
+ /* Same pure observer, own U4 policy; never R3, B3 or the legacy124 sampler. */
+ if(personal_resource_collect(&u->resources,10U+u->effects,0))return staged_update_fail(u->resources.first_error);
+ if(!root.reserved_bytes||root.reserved_bytes>PAPACC_LAUNCHER_MANAGED_LIMIT||
+ u->resources.last.physical_available<root.reserved_bytes||u->resources.last.commit_available<root.reserved_bytes)return staged_update_fail(ERROR_NOT_ENOUGH_MEMORY);
+ module=GetModuleHandleW(L"ntdll.dll");proc=module?GetProcAddress(module,"NtQueryVolumeInformationFile"):NULL;
+ if(!proc)return staged_update_fail(ERROR_NOT_SUPPORTED);memcpy(&fn,&proc,sizeof(fn));
+ ZeroMemory(&s->resources.volume_io,sizeof(s->resources.volume_io));ZeroMemory(&s->resources.volume,sizeof(s->resources.volume));
+ status=fn(s->objects[s->ancestor_count-1U].handle,&s->resources.volume_io,&s->resources.volume,sizeof(s->resources.volume),7U);
+ if(status>0||s->resources.volume_io.Status==(NTSTATUS)0x103L)return staged_update_retain(ERROR_IO_PENDING);
+ if(status||s->resources.volume_io.Status||s->resources.volume_io.Information!=sizeof(s->resources.volume))return staged_update_fail(ERROR_INVALID_DATA);
+ if(s->resources.volume.total.QuadPart<=0||s->resources.volume.actual_available.QuadPart<0||s->resources.volume.caller_available.QuadPart<0||
+ s->resources.volume.actual_available.QuadPart>s->resources.volume.total.QuadPart||s->resources.volume.caller_available.QuadPart>s->resources.volume.actual_available.QuadPart||
+ !s->resources.volume.sectors_per_unit||!s->resources.volume.bytes_per_sector)return staged_update_fail(ERROR_INVALID_DATA);
+ unit=(ULONGLONG)s->resources.volume.sectors_per_unit*s->resources.volume.bytes_per_sector;
+ if(!unit||remaining>((ULONGLONG)-1)-(unit-1U)||u->new_bytes>((ULONGLONG)-1)-(unit-1U))return staged_update_fail(ERROR_ARITHMETIC_OVERFLOW);
+ if(u->unit&&unit!=u->unit)return staged_update_fail(ERROR_REVISION_MISMATCH);u->unit=unit;
+ u->rounded=((u->new_bytes+unit-1U)/unit)*unit;rounded=((remaining+unit-1U)/unit)*unit;
+ if((ULONGLONG)s->resources.volume.actual_available.QuadPart>((ULONGLONG)-1)/unit)return staged_update_fail(ERROR_ARITHMETIC_OVERFLOW);
+ u->actual_free=(ULONGLONG)s->resources.volume.actual_available.QuadPart*unit;u->caller_free=(ULONGLONG)s->resources.volume.caller_available.QuadPart*unit;
+ if(u->caller_free<rounded||u->actual_free<rounded)return staged_update_fail(ERROR_DISK_FULL);
+ if(!QueryPerformanceCounter(&now)||!QueryPerformanceFrequency(&frequency)||now.QuadPart<0||frequency.QuadPart<=0||
+ (ULONGLONG)frequency.QuadPart!=u->resources.last.frequency||(ULONGLONG)now.QuadPart<u->resources.last.end||
+ (u->gate_tick&&(ULONGLONG)now.QuadPart<u->gate_tick))return staged_update_fail(ERROR_INVALID_DATA);
+ u->gate_tick=(ULONGLONG)now.QuadPart;return staged_update_stop()?staged_update_fail(ERROR_CANCELLED):0;
+}
+static DWORD staged_update_barrier(ULONGLONG remaining)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();
+ if(!u->consumed||u->act_state!=3U)return staged_update_fail(ERROR_ACCESS_DENIED);
+ if(staged_update_current())return u->first;
+ return staged_update_resources(remaining);
+}
+static DWORD staged_update_present(FILE *out)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;
+ HANDLE input=GetStdHandle(STD_INPUT_HANDLE),output=GetStdHandle(STD_OUTPUT_HANDLE);DWORD mode;unsigned i,z;BYTE nonzero=0;
+ WCHAR suffix[65],command[MAX_PATH+32U];char text[1024],reply[96];static const char hex[]="0123456789abcdef";
+ u->location=400U;
+ if(!staged_update_owned()||!u->execute_mode||u->act_state||u->consumed||staged_update_stop())return staged_update_fail(ERROR_INVALID_STATE);
+ if(!GetConsoleMode(input,&mode)||!GetConsoleMode(output,&mode))return staged_update_fail(ERROR_INVALID_HANDLE);
+ {HMODULE module=GetModuleHandleW(L"ntdll.dll");if(!module||!GetProcAddress(module,"NtSetInformationFile"))return staged_update_fail(ERROR_NOT_SUPPORTED);}
+ if(BCryptGenRandom(NULL,u->attempt,32U,BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0)return staged_update_fail(ERROR_GEN_FAILURE);
+ for(i=0;i<32U;i++){nonzero|=u->attempt[i];suffix[2U*i]=(WCHAR)hex[u->attempt[i]>>4];suffix[2U*i+1U]=(WCHAR)hex[u->attempt[i]&15U];}suffix[64]=0;
+ if(!nonzero)return staged_update_fail(ERROR_INVALID_DATA);
+ if(swprintf_s(u->candidate,96,L"papacc_server.%s.candidate",suffix)<0||swprintf_s(u->previous,96,L"papacc_server.%s.previous",suffix)<0)return staged_update_fail(ERROR_INVALID_NAME);
+ if(!ConvertStringSecurityDescriptorToSecurityDescriptorW(L"O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;GRGX;;;AU)",SDDL_REVISION_1,&staging_act()->protection,NULL)||
+ staged_update_files()||staged_update_resources(u->new_bytes)||!staged_update_plan(u->plan_hash))return staged_update_fail(ERROR_ACCESS_DENIED);
+ u->location=400U;
+ if(!personal_console_write(output,"\nBINARY_UPDATE_CLOSED - PERSONAL_LOCAL - ONE LIMITED U1-U7 ATTEMPT\nOperator: ")||!personal_console_write(output,n->sid_text))return staged_update_fail(ERROR_WRITE_FAULT);
+ if(!WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,n->install_paths.binary,-1,text,sizeof(text),NULL,NULL)||
+ !personal_console_write(output,"\nDestination: ")||!personal_console_token(output,text)||
+ !WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,u->source_path,-1,text,sizeof(text),NULL,NULL)||
+ !personal_console_write(output,"\nSource EXE: ")||!personal_console_token(output,text))return staged_update_fail(ERROR_WRITE_FAULT);
+ if(!WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,u->executor_path,-1,text,sizeof(text),NULL,NULL)||
+  !personal_console_write(output,"\nIndependent protected executor: ")||!personal_console_token(output,text)||
+  sprintf_s(text,sizeof(text),"\nExecutor ID=%lu:%lu:%lu PID=%lu creation=%lu:%lu; original process/file association since acquisition, NOT mapped-image attestation. Source is DATA only, never executed.\n",
+  (unsigned long)u->executor_id[0],(unsigned long)u->executor_id[1],(unsigned long)u->executor_id[2],(unsigned long)u->executor_pid,
+  (unsigned long)u->executor_creation.dwHighDateTime,(unsigned long)u->executor_creation.dwLowDateTime)<0||!personal_console_write(output,text))return staged_update_fail(ERROR_WRITE_FAULT);
+ if(sprintf_s(text,sizeof(text),"\nOld ID=%lu:%lu:%lu bytes=%llu; new bytes=%llu; K=%llu physical/commit floor=K; R=%llu; opaque maxima UNKNOWN.\n",
+ (unsigned long)u->expected_old_id[0],(unsigned long)u->expected_old_id[1],(unsigned long)u->expected_old_id[2],u->old_bytes,u->new_bytes,(ULONGLONG)root.reserved_bytes,u->rounded)<0||!personal_console_write(output,text))return staged_update_fail(ERROR_WRITE_FAULT);
+ if(sprintf_s(text,sizeof(text),"Parent ID=%lu:%lu:%lu; no directory adoption.\n",(unsigned long)u->expected_parent_id[0],(unsigned long)u->expected_parent_id[1],(unsigned long)u->expected_parent_id[2])<0||!personal_console_write(output,text))return staged_update_fail(ERROR_WRITE_FAULT);
+ for(i=0;i<5U;i++){
+  const BYTE *pin=i==0U?u->old_hash:i==1U?u->new_hash:i==4U?u->executor_hash:u->dll_hash[i-2U];
+  const char *label=i==0U?"Old SHA256: ":i==1U?"New SHA256: ":i==2U?"Unchanged libssl SHA256: ":i==3U?"Unchanged libcrypto SHA256: ":"Independent executor SHA256: ";
+  if(!personal_console_write(output,label))return staged_update_fail(ERROR_WRITE_FAULT);
+  for(z=0;z<32U;z++){text[z*2U]=hex[pin[z]>>4];text[z*2U+1U]=hex[pin[z]&15U];}text[64]=0;
+  if(!personal_console_write(output,text)||!personal_console_write(output,"\n"))return staged_update_fail(ERROR_WRITE_FAULT);
+ }
+ if(!WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,u->candidate,-1,text,sizeof(text),NULL,NULL)||!personal_console_write(output,"Exclusive new leaf: ")||!personal_console_token(output,text)||
+ !WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,u->previous,-1,text,sizeof(text),NULL,NULL)||!personal_console_write(output,"\nExclusive retained old leaf: ")||!personal_console_token(output,text)||
+ !personal_console_write(output,"\nService PapinhoAccelerator; NT SERVICE\\PapinhoAccelerator; OWN_PROCESS/DEMAND_START/UNRESTRICTED; exact command: "))return staged_update_fail(ERROR_WRITE_FAULT);
+ if(swprintf_s(command,MAX_PATH+32U,L"\"%s\\papacc_server.exe\" service host scq-closed",n->install_paths.binary)<0||
+ !WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,command,-1,text,sizeof(text),NULL,NULL)||!personal_console_token(output,text)||
+ !personal_console_write(output,"\nNew DACL BA/SY full, AU read/execute. One exclusive file/copy/flush; old->retained, new->canonical, NO OVERWRITE. Partial operation can leave canonical absent; old/new retained. No atomicity/durability/latency guarantee, no rollback/delete/retry. No DLL/SCM/ACL edit, Start, endpoint, CA, CURRENT or network. ON_DISK_PINS_NOT_MAPPED_IMAGE_ATTESTATION.\nDeclare legitimate ownership/administration and confirm ONLY this UPDATE and opaque risk. Esc cancels.\n"))return staged_update_fail(ERROR_WRITE_FAULT);
+ strcpy_s(reply,sizeof(reply),"OWNER_BINARY_UPDATE ");z=(unsigned)strlen(reply);for(i=0;i<32U;i++){reply[z+i*2U]=hex[u->attempt[i]>>4];reply[z+i*2U+1U]=hex[u->attempt[i]&15U];}reply[z+64U]=0;
+ u->act_state=1U;
+ if(!personal_console_write(output,reply)||!personal_console_write(output,"\n")||!personal_console_confirm(input,output,reply))return staged_update_fail(ERROR_CANCELLED);
+ if(staged_update_files()||staged_update_stop())return staged_update_fail(ERROR_ACCESS_DENIED);
+ {BYTE hash[32];if(!staged_update_plan(hash)||memcmp(hash,u->plan_hash,32))return staged_update_fail(ERROR_REVISION_MISMATCH);}
+ u->confirmed=1U;u->act_state=2U;u->missing=PAPACC_UPDATE_MISSING_NATIVE; /* opaque, not rewritten to PASS */
+ (void)out;return 0;
+}
+static DWORD staged_update_create(void)
+{
+ PAPACC_PERSONAL_NATIVE_CONTEXT *n=&root.configuration_commit.pending_commit.personal_native;PAPACC_QUALIFICATION_STAGING *s=staging_act();
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();STAGING_NT_CREATE fn;FARPROC proc;HMODULE module;NTSTATUS status;
+ if(u->created||s->objects[14].handle)return staged_update_fail(ERROR_INVALID_STATE);
+ module=GetModuleHandleW(L"ntdll.dll");proc=module?GetProcAddress(module,"NtCreateFile"):NULL;if(!proc)return staged_update_fail(ERROR_NOT_SUPPORTED);memcpy(&fn,&proc,sizeof(fn));
+ wcscpy_s(s->source,MAX_PATH,u->candidate);n->scq_cold_unicode.Buffer=s->source;n->scq_cold_unicode.Length=(USHORT)(wcslen(s->source)*sizeof(WCHAR));n->scq_cold_unicode.MaximumLength=n->scq_cold_unicode.Length;
+ ZeroMemory(&n->scq_cold_attributes,sizeof(n->scq_cold_attributes));n->scq_cold_attributes.Length=sizeof(n->scq_cold_attributes);
+ n->scq_cold_attributes.RootDirectory=s->objects[s->ancestor_count-1U].handle;n->scq_cold_attributes.ObjectName=&n->scq_cold_unicode;
+ n->scq_cold_attributes.Attributes=OBJ_CASE_INSENSITIVE|0x1000U;n->scq_cold_attributes.SecurityDescriptor=s->protection;
+ if(staged_update_barrier(u->new_bytes))return u->first;
+ u->location=500U;
+ ZeroMemory(&s->resources.volume_io,sizeof(s->resources.volume_io));u->effects++;
+ status=fn(&s->objects[14].handle,READ_CONTROL|SYNCHRONIZE|FILE_READ_ATTRIBUTES|FILE_READ_DATA|FILE_WRITE_DATA|DELETE,
+ &n->scq_cold_attributes,&s->resources.volume_io,NULL,FILE_ATTRIBUTE_NORMAL,FILE_SHARE_READ,2U,0x00200060U,NULL,0);
+ if(status>0||s->resources.volume_io.Status==(NTSTATUS)0x103L)return staged_update_retain(ERROR_IO_PENDING);
+ if(status||s->resources.volume_io.Status||s->resources.volume_io.Information!=2U||!s->objects[14].handle)return staged_update_fail(status?(DWORD)status:ERROR_INVALID_DATA);
+ u->created=1U;s->objects[14].created=1U;
+ if(staged_update_object(14U,1))return u->first;
+ {const unsigned ids[4]={8U,9U,10U,13U};unsigned i;for(i=0;i<4U;i++)if(s->objects[14].identity.nFileIndexHigh==s->objects[ids[i]].identity.nFileIndexHigh&&s->objects[14].identity.nFileIndexLow==s->objects[ids[i]].identity.nFileIndexLow)return staged_update_fail(ERROR_ACCESS_DENIED);}
+ return 0;
+}
+static DWORD staged_update_rename(unsigned bit,unsigned object,const WCHAR *leaf)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_QUALIFICATION_STAGING *s=staging_act();UPDATE_NT_SET fn;
+ HMODULE module;FARPROC proc;NTSTATUS status;size_t len=wcslen(leaf);ULONG bytes;
+ if((u->rename_submitted&bit)||(bit==2U&&u->rename_done!=1U)||!len||len>=96U)return staged_update_fail(ERROR_INVALID_STATE);
+ module=GetModuleHandleW(L"ntdll.dll");proc=module?GetProcAddress(module,"NtSetInformationFile"):NULL;if(!proc)return staged_update_fail(ERROR_NOT_SUPPORTED);memcpy(&fn,&proc,sizeof(fn));
+ ZeroMemory(&u->rename_info,sizeof(u->rename_info));ZeroMemory(&u->rename_io,sizeof(u->rename_io));
+ u->rename_info.parent=s->objects[s->ancestor_count-1U].handle;u->rename_info.bytes=(ULONG)(len*sizeof(WCHAR));memcpy(u->rename_info.name,leaf,len*sizeof(WCHAR));
+ bytes=(ULONG)FIELD_OFFSET(PAPACC_UPDATE_RENAME_INFO,name)+u->rename_info.bytes;
+ if(staged_update_barrier(0))return u->first;
+ u->location=700U+bit;
+ u->rename_submitted|=bit;u->effects++;
+ status=fn(s->objects[object].handle,&u->rename_io,&u->rename_info,bytes,10U); /* FileRenameInformation; replace FALSE */
+ if(status>0||u->rename_io.Status==(NTSTATUS)0x103L)return staged_update_retain(ERROR_IO_PENDING);
+ if(status||u->rename_io.Status)return staged_update_fail(status?(DWORD)status:ERROR_INVALID_DATA);
+ u->rename_done|=bit;return 0;
+}
+static DWORD staged_update_readback(unsigned slot,const WCHAR *leaf,unsigned expected,const BYTE pin[32])
+{
+ PAPACC_QUALIFICATION_STAGING *s=staging_act();BYTE hash[32];
+ if(staged_update_open(slot,s->objects[s->ancestor_count-1U].handle,leaf,0)||
+ !scm_register_id(&s->objects[slot].identity,&s->objects[expected].identity)||memcmp(s->objects[slot].acl,s->objects[expected].acl,32)||
+ !scm_register_hash(s->objects[slot].handle,hash)||memcmp(hash,pin,32))return staged_update_fail(ERROR_CRC);
+ return 0;
+}
+static DWORD staged_update_apply(void)
+{
+ PAPACC_STAGED_UPDATE_STATE *u=staged_update_state();PAPACC_QUALIFICATION_STAGING *s=staging_act();DWORD n,w,offset;LARGE_INTEGER zero;BYTE hash[32];ULONGLONG read=0;
+ if(!staged_update_owned()||!u->execute_mode||u->act_state!=2U||!u->confirmed||u->consumed||u->first)return ERROR_ACCESS_DENIED;
+ if(staged_update_current()||staged_update_files()||staged_update_resources(u->new_bytes))return u->first;
+ if(InterlockedCompareExchange((volatile LONG *)&u->consumed,1,0)!=0)return ERROR_ACCESS_DENIED;u->act_state=3U;
+ if(staged_update_create())return u->first;
+ zero.QuadPart=0;if(!SetFilePointerEx(s->objects[8].handle,zero,NULL,FILE_BEGIN))return staged_update_fail(GetLastError());
+ while(read<u->new_bytes){
+  DWORD requested=(DWORD)((u->new_bytes-read)>sizeof(s->block)?sizeof(s->block):(u->new_bytes-read));
+  if(staged_update_stop()||!ReadFile(s->objects[8].handle,s->block,requested,&n,NULL)||!n||n>requested)return staged_update_fail(ERROR_READ_FAULT);
+  read+=n;
+  for(offset=0;offset<n;offset+=w){w=0;if(staged_update_barrier(u->new_bytes-u->written))return u->first;
+   u->location=601U;
+   u->effects++;if(!WriteFile(s->objects[14].handle,s->block+offset,n-offset,&w,NULL)||!w||w>n-offset)return staged_update_fail(ERROR_WRITE_FAULT);
+   u->written+=w;
+  }
+ }
+ if(u->written!=u->new_bytes||staged_update_barrier(0))return staged_update_fail(ERROR_INVALID_DATA);
+ u->location=602U;
+ u->effects++;if(!FlushFileBuffers(s->objects[14].handle))return staged_update_fail(GetLastError());
+ if(staged_update_candidate_current()||!scm_register_hash(s->objects[14].handle,hash)||memcmp(hash,u->new_hash,32)||staged_update_files())return staged_update_fail(ERROR_CRC);
+ if(staged_update_rename(1U,13U,u->previous)||staged_update_readback(11U,u->previous,13U,u->old_hash))return u->first;
+ if(staged_update_rename(2U,14U,L"papacc_server.exe")||staged_update_readback(15U,L"papacc_server.exe",14U,u->new_hash))return u->first;
+ if(staged_update_current()||staged_update_files())return u->first;return 0;
+}
+static int staged_update_hex(const char *s,BYTE out[32])
+{unsigned i;if(!s||strlen(s)!=64U)return 0;for(i=0;i<32U;i++){unsigned a,b;char x=s[2U*i],y=s[2U*i+1U];if(!((x>='0'&&x<='9')||(x>='a'&&x<='f'))||!((y>='0'&&y<='9')||(y>='a'&&y<='f')))return 0;a=x<='9'?(unsigned)(x-'0'):(unsigned)(x-'a'+10);b=y<='9'?(unsigned)(y-'0'):(unsigned)(y-'a'+10);out[i]=(BYTE)((a<<4)|b);}return 1;}
+static int staged_update_decimal(const char *s,DWORD *out)
+{ULONGLONG n=0;size_t i;if(!s||!s[0]||(s[0]=='0'&&s[1]))return 0;for(i=0;s[i];i++){if(s[i]<'0'||s[i]>'9'||n>(MAXDWORD-(unsigned)(s[i]-'0'))/10U)return 0;n=n*10U+(unsigned)(s[i]-'0');}*out=(DWORD)n;return 1;}
+int papacc_server_launcher_binary_update_cli(int argc,const char *const *argv,FILE *out,FILE *err)
+{
+ WCHAR source[MAX_PATH];DWORD id[9];BYTE pins[5][32];unsigned i;(void)err;
+ if(argc<2||!argv||!argv[1]||strcmp(argv[1],"--owner-manual-binary-update"))return -1;
+ if(argc!=17)return 2; /* old consumed handoff cannot admit an executor */
+ for(i=0;i<6U;i++)if(!staged_update_decimal(argv[3U+i],&id[i]))return 2;
+ for(i=0;i<4U;i++)if(!staged_update_hex(argv[9U+i],pins[i]))return 2;
+ for(i=0;i<3U;i++)if(!staged_update_decimal(argv[13U+i],&id[6U+i]))return 2;
+ if(!staged_update_hex(argv[16],pins[4]))return 2;
+ if(!MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,argv[2],-1,source,MAX_PATH))return 2;
+ return staged_update_entry(source,id,id+3,pins[0],pins[1],(const BYTE (*)[32])&pins[2],id+6,pins[4],out,1);
+}

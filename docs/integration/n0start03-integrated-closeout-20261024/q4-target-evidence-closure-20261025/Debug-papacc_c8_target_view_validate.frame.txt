@@ -1,0 +1,471 @@
+papacc_c8_target_view_validate PROC
+
+; 228  : {
+
+$LN24:
+	mov	QWORD PTR [rsp+32], r9
+	mov	QWORD PTR [rsp+24], r8
+	mov	QWORD PTR [rsp+16], rdx
+	mov	QWORD PTR [rsp+8], rcx
+	push	rdi
+	sub	rsp, 1344				; 00000540H
+	lea	rdi, QWORD PTR [rsp+32]
+	mov	ecx, 328				; 00000148H
+	mov	eax, -858993460				; ccccccccH
+	rep stosd
+	mov	rcx, QWORD PTR [rsp+1360]
+	mov	rax, QWORD PTR __security_cookie
+	xor	rax, rsp
+	mov	QWORD PTR __$ArrayPad$[rsp], rax
+
+; 229  :  PAPACC_C8_RESOURCE_REASON raw;const PAPACC_C8_PROCESS_PROVENANCE *p;PAPACC_C8_PROCESS_PROVENANCE current;PAPACC_U64 finish;unsigned i;
+; 230  :  if(!s||!b||!v||view_overlap(v,sizeof(*v),s,sizeof(*s))||view_overlap(v,sizeof(*v),b,sizeof(*b)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	cmp	QWORD PTR s$[rsp], 0
+	je	SHORT $LN6@papacc_c8_
+	cmp	QWORD PTR b$[rsp], 0
+	je	SHORT $LN6@papacc_c8_
+	cmp	QWORD PTR v$[rsp], 0
+	je	SHORT $LN6@papacc_c8_
+	mov	r9d, 4512				; 000011a0H
+	mov	r8, QWORD PTR s$[rsp]
+	mov	edx, 1624				; 00000658H
+	mov	rcx, QWORD PTR v$[rsp]
+	call	view_overlap
+	test	eax, eax
+	jne	SHORT $LN6@papacc_c8_
+	mov	r9d, 112				; 00000070H
+	mov	r8, QWORD PTR b$[rsp]
+	mov	edx, 1624				; 00000658H
+	mov	rcx, QWORD PTR v$[rsp]
+	call	view_overlap
+	test	eax, eax
+	je	SHORT $LN5@papacc_c8_
+$LN6@papacc_c8_:
+	mov	eax, 4
+	jmp	$LN1@papacc_c8_
+$LN5@papacc_c8_:
+
+; 231  :  if(s->process!=GetCurrentProcessId()||s->thread!=GetCurrentThreadId()||b->owner!=s->thread)return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	call	QWORD PTR __imp_GetCurrentProcessId
+	mov	rcx, QWORD PTR s$[rsp]
+	cmp	DWORD PTR [rcx+472], eax
+	jne	SHORT $LN8@papacc_c8_
+	call	QWORD PTR __imp_GetCurrentThreadId
+	mov	rcx, QWORD PTR s$[rsp]
+	cmp	DWORD PTR [rcx+476], eax
+	jne	SHORT $LN8@papacc_c8_
+	mov	rax, QWORD PTR s$[rsp]
+	mov	eax, DWORD PTR [rax+476]
+	mov	rcx, QWORD PTR b$[rsp]
+	cmp	QWORD PTR [rcx+8], rax
+	je	SHORT $LN7@papacc_c8_
+$LN8@papacc_c8_:
+	mov	eax, 4
+	jmp	$LN1@papacc_c8_
+$LN7@papacc_c8_:
+
+; 232  :  p=&v->provenance;
+
+	mov	rax, QWORD PTR v$[rsp]
+	add	rax, 64					; 00000040H
+	mov	QWORD PTR p$[rsp], rax
+
+; 233  :  if(v->version!=PAPACC_C8_TARGET_VIEW_VERSION||v->bytes!=sizeof(*v)||v->origin!=2U||v->origin!=s->evidence.origin||
+; 234  :  v->policy!=PAPACC_C8_VIEW_POLICY_ABSENT||v->provider_runtime||v->image_identity!=PAPACC_C8_VIEW_IMAGE_PATHS_ONLY||
+; 235  :  v->package_backend!=PAPACC_C8_VIEW_PACKAGE_OPENSSL_X64||v->pointer_bytes!=sizeof(void*)||v->pointer_bytes!=8U||
+; 236  :  v->series!=s->series_id||v->first_sequence!=s->series_first_sequence||v->owner!=b->owner||!binding_equal(&v->binding,b)||
+; 237  :  b->stopping||(b->phase!=PAPACC_C8_OBSERVATION_BASELINE&&b->phase!=PAPACC_C8_OBSERVATION_PREPARED)||
+; 238  :  p->creation!=s->creation||p->process!=s->process||p->thread!=s->thread||p->invocation!=b->invocation||p->sequence!=s->sequence||
+; 239  :  p->revision!=b->revision||p->epoch!=b->epoch||p->configured!=b->configured||p->current!=b->current||p->phase!=b->phase||
+; 240  :  p->build_debug!=PAPACC_OBSERVED_BUILD_DEBUG||p->time_presence!=7U||p->clock_source!=1U||
+; 241  :  memcmp(p->domain,b->domain,32U)||memcmp(p->sdk_inventory,s->evidence.sdk_sha256,32U)||memcmp(v->recipe,s->evidence.provenance,32U)||
+; 242  :  !p->image_path[0]||!p->mapped_path[0]||p->image_path[MAX_PATH-1]||p->mapped_path[MAX_PATH-1])return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	mov	rax, QWORD PTR v$[rsp]
+	cmp	DWORD PTR [rax], 1
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	mov	eax, DWORD PTR [rax+4]
+	cmp	rax, 1624				; 00000658H
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	cmp	DWORD PTR [rax+8], 2
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	mov	ecx, DWORD PTR [rcx+276]
+	cmp	DWORD PTR [rax+8], ecx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	cmp	DWORD PTR [rax+12], 0
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	cmp	DWORD PTR [rax+28], 0
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	cmp	DWORD PTR [rax+16], 1
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	cmp	DWORD PTR [rax+20], 1
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	mov	eax, DWORD PTR [rax+24]
+	cmp	rax, 8
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	cmp	DWORD PTR [rax+24], 8
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	mov	rcx, QWORD PTR [rcx+504]
+	cmp	QWORD PTR [rax+32], rcx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	mov	rcx, QWORD PTR [rcx+512]
+	cmp	QWORD PTR [rax+40], rcx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	mov	rcx, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR [rcx+8]
+	cmp	QWORD PTR [rax+48], rcx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	add	rax, 1264				; 000004f0H
+	mov	rdx, QWORD PTR b$[rsp]
+	mov	rcx, rax
+	call	binding_equal
+	test	eax, eax
+	je	$LN10@papacc_c8_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+104], 0
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+84], 7
+	je	SHORT $LN11@papacc_c8_
+	mov	rax, QWORD PTR b$[rsp]
+	cmp	DWORD PTR [rax+84], 1
+	jne	$LN10@papacc_c8_
+$LN11@papacc_c8_:
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	mov	rcx, QWORD PTR [rcx+440]
+	cmp	QWORD PTR [rax], rcx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	mov	ecx, DWORD PTR [rcx+472]
+	cmp	DWORD PTR [rax+72], ecx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	mov	ecx, DWORD PTR [rcx+476]
+	cmp	DWORD PTR [rax+76], ecx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR [rcx]
+	cmp	QWORD PTR [rax+8], rcx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	mov	rcx, QWORD PTR [rcx+448]
+	cmp	QWORD PTR [rax+16], rcx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR [rcx+16]
+	cmp	QWORD PTR [rax+24], rcx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR [rcx+24]
+	cmp	QWORD PTR [rax+32], rcx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR b$[rsp]
+	mov	ecx, DWORD PTR [rcx+88]
+	cmp	DWORD PTR [rax+80], ecx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR b$[rsp]
+	mov	ecx, DWORD PTR [rcx+92]
+	cmp	DWORD PTR [rax+84], ecx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR b$[rsp]
+	mov	ecx, DWORD PTR [rcx+84]
+	cmp	DWORD PTR [rax+88], ecx
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	cmp	DWORD PTR [rax+92], 1
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	cmp	DWORD PTR [rax+64], 7
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	cmp	DWORD PTR [rax+68], 1
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR b$[rsp]
+	add	rax, 48					; 00000030H
+	mov	rcx, QWORD PTR p$[rsp]
+	add	rcx, 96					; 00000060H
+	mov	r8d, 32					; 00000020H
+	mov	rdx, rax
+	call	memcmp
+	test	eax, eax
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR s$[rsp]
+	add	rax, 144				; 00000090H
+	mov	rcx, QWORD PTR p$[rsp]
+	add	rcx, 128				; 00000080H
+	mov	r8d, 32					; 00000020H
+	mov	rdx, rax
+	call	memcmp
+	test	eax, eax
+	jne	$LN10@papacc_c8_
+	mov	rax, QWORD PTR s$[rsp]
+	add	rax, 176				; 000000b0H
+	mov	rcx, QWORD PTR v$[rsp]
+	add	rcx, 1376				; 00000560H
+	mov	r8d, 32					; 00000020H
+	mov	rdx, rax
+	call	memcmp
+	test	eax, eax
+	jne	SHORT $LN10@papacc_c8_
+	mov	eax, 2
+	imul	rax, rax, 0
+	mov	rcx, QWORD PTR p$[rsp]
+	movzx	eax, WORD PTR [rcx+rax+160]
+	test	eax, eax
+	je	SHORT $LN10@papacc_c8_
+	mov	eax, 2
+	imul	rax, rax, 0
+	mov	rcx, QWORD PTR p$[rsp]
+	movzx	eax, WORD PTR [rcx+rax+680]
+	test	eax, eax
+	je	SHORT $LN10@papacc_c8_
+	mov	eax, 2
+	imul	rax, rax, 259				; 00000103H
+	mov	rcx, QWORD PTR p$[rsp]
+	movzx	eax, WORD PTR [rcx+rax+160]
+	test	eax, eax
+	jne	SHORT $LN10@papacc_c8_
+	mov	eax, 2
+	imul	rax, rax, 259				; 00000103H
+	mov	rcx, QWORD PTR p$[rsp]
+	movzx	eax, WORD PTR [rcx+rax+680]
+	test	eax, eax
+	je	SHORT $LN9@papacc_c8_
+$LN10@papacc_c8_:
+	mov	eax, 4
+	jmp	$LN1@papacc_c8_
+$LN9@papacc_c8_:
+
+; 243  :  if(p->observed_ms!=s->evidence.sampled_ms||p->valid_until_ms!=s->evidence.expires_ms||p->validated_ms<p->observed_ms||
+; 244  :  p->validated_ms>p->valid_until_ms||v->verified_ms<p->validated_ms||v->verified_ms>p->valid_until_ms||now<v->verified_ms)return PAPACC_C8_RESOURCE_STALE;
+
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	mov	rcx, QWORD PTR [rcx+216]
+	cmp	QWORD PTR [rax+40], rcx
+	jne	$LN13@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	mov	rcx, QWORD PTR [rcx+224]
+	cmp	QWORD PTR [rax+56], rcx
+	jne	SHORT $LN13@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR [rcx+40]
+	cmp	QWORD PTR [rax+48], rcx
+	jb	SHORT $LN13@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR [rcx+56]
+	cmp	QWORD PTR [rax+48], rcx
+	ja	SHORT $LN13@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	mov	rcx, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR [rcx+48]
+	cmp	QWORD PTR [rax+56], rcx
+	jb	SHORT $LN13@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	mov	rcx, QWORD PTR p$[rsp]
+	mov	rcx, QWORD PTR [rcx+56]
+	cmp	QWORD PTR [rax+56], rcx
+	ja	SHORT $LN13@papacc_c8_
+	mov	rax, QWORD PTR v$[rsp]
+	mov	rax, QWORD PTR [rax+56]
+	cmp	QWORD PTR now$[rsp], rax
+	jae	SHORT $LN12@papacc_c8_
+$LN13@papacc_c8_:
+	mov	eax, 2
+	jmp	$LN1@papacc_c8_
+$LN12@papacc_c8_:
+
+; 245  :  for(i=0U;i<PAPACC_C8_RESOURCE_METRICS;i++)if(!view_metric_valid(i,&s->evidence.metrics[i])||v->metrics[i].unit!=view_unit(i)||v->metrics[i].scope!=view_scope(i)||
+
+	mov	DWORD PTR i$[rsp], 0
+	jmp	SHORT $LN4@papacc_c8_
+$LN2@papacc_c8_:
+	mov	eax, DWORD PTR i$[rsp]
+	inc	eax
+	mov	DWORD PTR i$[rsp], eax
+$LN4@papacc_c8_:
+	cmp	DWORD PTR i$[rsp], 9
+	jae	$LN3@papacc_c8_
+	mov	eax, DWORD PTR i$[rsp]
+	imul	rax, rax, 16
+	mov	rcx, QWORD PTR s$[rsp]
+	lea	rax, QWORD PTR [rcx+rax+296]
+	mov	rdx, rax
+	mov	ecx, DWORD PTR i$[rsp]
+	call	view_metric_valid
+	test	eax, eax
+	je	$LN15@papacc_c8_
+	mov	eax, DWORD PTR i$[rsp]
+	imul	rax, rax, 24
+	mov	QWORD PTR tv274[rsp], rax
+	mov	ecx, DWORD PTR i$[rsp]
+	call	view_unit
+	mov	rcx, QWORD PTR v$[rsp]
+	mov	rdx, QWORD PTR tv274[rsp]
+	cmp	DWORD PTR [rcx+rdx+1424], eax
+	jne	$LN15@papacc_c8_
+	mov	eax, DWORD PTR i$[rsp]
+	imul	rax, rax, 24
+	mov	QWORD PTR tv282[rsp], rax
+	mov	ecx, DWORD PTR i$[rsp]
+	call	view_scope
+	mov	rcx, QWORD PTR v$[rsp]
+	mov	rdx, QWORD PTR tv282[rsp]
+	cmp	DWORD PTR [rcx+rdx+1428], eax
+	jne	SHORT $LN15@papacc_c8_
+	mov	eax, DWORD PTR i$[rsp]
+	imul	rax, rax, 16
+	mov	rcx, QWORD PTR s$[rsp]
+	lea	rax, QWORD PTR [rcx+rax+296]
+	mov	ecx, DWORD PTR i$[rsp]
+	imul	rcx, rcx, 24
+	mov	rdx, QWORD PTR v$[rsp]
+	lea	rcx, QWORD PTR [rdx+rcx+1408]
+	mov	r8d, 16
+	mov	rdx, rax
+	call	memcmp
+	test	eax, eax
+	je	SHORT $LN14@papacc_c8_
+$LN15@papacc_c8_:
+
+; 246  :  memcmp(&v->metrics[i].observed,&s->evidence.metrics[i],sizeof(v->metrics[i].observed)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	mov	eax, 4
+	jmp	$LN1@papacc_c8_
+$LN14@papacc_c8_:
+	jmp	$LN2@papacc_c8_
+$LN3@papacc_c8_:
+
+; 247  :  raw=papacc_c8_target_validate_raw(s,b,s->evidence.target,now);if(raw!=PAPACC_C8_RESOURCE_OK)return raw;
+
+	mov	rax, QWORD PTR s$[rsp]
+	add	rax, 112				; 00000070H
+	mov	r9, QWORD PTR now$[rsp]
+	mov	r8, rax
+	mov	rdx, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	call	papacc_c8_target_validate_raw
+	mov	DWORD PTR raw$[rsp], eax
+	cmp	DWORD PTR raw$[rsp], 0
+	je	SHORT $LN16@papacc_c8_
+	mov	eax, DWORD PTR raw$[rsp]
+	jmp	$LN1@papacc_c8_
+$LN16@papacc_c8_:
+
+; 248  :  /* Identity revalidation cannot renew the immutable original timestamps. */
+; 249  :  if(papacc_c8_target_process_provenance(s,b,&current)!=PAPACC_RESULT_OK)return PAPACC_C8_RESOURCE_UNKNOWN;
+
+	lea	r8, QWORD PTR current$[rsp]
+	mov	rdx, QWORD PTR b$[rsp]
+	mov	rcx, QWORD PTR s$[rsp]
+	call	papacc_c8_target_process_provenance
+	test	eax, eax
+	je	SHORT $LN17@papacc_c8_
+	mov	eax, 1
+	jmp	$LN1@papacc_c8_
+$LN17@papacc_c8_:
+
+; 250  :  if(memcmp(current.image_path,p->image_path,sizeof(p->image_path))||memcmp(current.mapped_path,p->mapped_path,sizeof(p->mapped_path)))return PAPACC_C8_RESOURCE_STATE_ERROR;
+
+	mov	rax, QWORD PTR p$[rsp]
+	add	rax, 160				; 000000a0H
+	mov	r8d, 520				; 00000208H
+	mov	rdx, rax
+	lea	rcx, QWORD PTR current$[rsp+160]
+	call	memcmp
+	test	eax, eax
+	jne	SHORT $LN19@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	add	rax, 680				; 000002a8H
+	mov	r8d, 520				; 00000208H
+	mov	rdx, rax
+	lea	rcx, QWORD PTR current$[rsp+680]
+	call	memcmp
+	test	eax, eax
+	je	SHORT $LN18@papacc_c8_
+$LN19@papacc_c8_:
+	mov	eax, 4
+	jmp	SHORT $LN1@papacc_c8_
+$LN18@papacc_c8_:
+
+; 251  :  if(papacc_pal_monotonic_time_ns(&finish)!=PAPACC_RESULT_OK)return PAPACC_C8_RESOURCE_UNKNOWN;
+
+	lea	rcx, QWORD PTR finish$[rsp]
+	call	papacc_pal_monotonic_time_ns
+	test	eax, eax
+	je	SHORT $LN20@papacc_c8_
+	mov	eax, 1
+	jmp	SHORT $LN1@papacc_c8_
+$LN20@papacc_c8_:
+
+; 252  :  finish/=1000000U;if(finish<v->verified_ms||finish>p->valid_until_ms)return PAPACC_C8_RESOURCE_STALE;
+
+	xor	edx, edx
+	mov	rax, QWORD PTR finish$[rsp]
+	mov	ecx, 1000000				; 000f4240H
+	div	rcx
+	mov	QWORD PTR finish$[rsp], rax
+	mov	rax, QWORD PTR v$[rsp]
+	mov	rax, QWORD PTR [rax+56]
+	cmp	QWORD PTR finish$[rsp], rax
+	jb	SHORT $LN22@papacc_c8_
+	mov	rax, QWORD PTR p$[rsp]
+	mov	rax, QWORD PTR [rax+56]
+	cmp	QWORD PTR finish$[rsp], rax
+	jbe	SHORT $LN21@papacc_c8_
+$LN22@papacc_c8_:
+	mov	eax, 2
+	jmp	SHORT $LN1@papacc_c8_
+$LN21@papacc_c8_:
+
+; 253  :  /* No admission, reservation, credit, numerical policy or recipe is created. */
+; 254  :  return PAPACC_C8_RESOURCE_UNKNOWN;
+
+	mov	eax, 1
+$LN1@papacc_c8_:
+
+; 255  : }
+
+	mov	rdi, rax
+	mov	rcx, rsp
+	lea	rdx, OFFSET FLAT:papacc_c8_target_view_validate$rtcFrameData
+	call	_RTC_CheckStackVars
+	mov	rax, rdi
+	mov	rcx, QWORD PTR __$ArrayPad$[rsp]
+	xor	rcx, rsp
+	call	__security_check_cookie
+	add	rsp, 1344				; 00000540H
+	pop	rdi
+	ret	0
+papacc_c8_target_view_validate ENDP

@@ -1,0 +1,52 @@
+{
+  "format": "MODE_C_HYBRID_POLICY_CANDIDATE",
+  "version": 1,
+  "status": "PROPOSED_INCOMPLETE",
+  "authority": null,
+  "support": {
+    "logical_operations": 1,
+    "browser": "VC6/x86 normal PST065 NSS",
+    "accelerator": "Selected/x64 normal PST065 OpenSSL",
+    "workload": "single approved text/plain HTTPS response, no redirect/assets/retry"
+  },
+  "hard_controlled": {
+    "unit": "bytes",
+    "browser_cap": 2097152,
+    "browser_reservation_expression": 1858020,
+    "accelerator_selected_known_macro": 1965128,
+    "accelerator_selected_cap": 3145728,
+    "scope": "existing fixed ledger only; includes overlapping substructures; no allocator/provider/kernel total"
+  },
+  "empirical": {
+    "active_provider": null,
+    "kernel_socket": null,
+    "initialization": null,
+    "handshake": null,
+    "active": null,
+    "stop": null,
+    "retained_failure": null,
+    "core_uninitialized": "../composite-target-quantitative-closure-20261026/RUNTIME-QUANTITATIVE-SUMMARY.json"
+  },
+  "required_parameters": {
+    "target_maximum_age_ms": null,
+    "collection_validity_ms": null,
+    "local_validation_points": null,
+    "physical_minimum_bytes": null,
+    "commit_minimum_bytes": null,
+    "retained_charge_recipe": null,
+    "mapped_modules": null,
+    "root_current_epoch": null,
+    "destination_site_tls_profile": null
+  },
+  "rules": [
+    "No sampled maximum is a ceiling",
+    "Do not add private+commit+working_set or duplicate embedded/shared resources",
+    "Unknown controlled lifetime denies and retains original charge",
+    "Incomplete or contradictory identity, policy, phase or native proof denies",
+    "Retention does not renew validity",
+    "No LAB allowance or C8 threshold inherited",
+    "No capacity authority from this candidate"
+  ],
+  "admission": "DENY",
+  "ready_for_acceptance": false
+}

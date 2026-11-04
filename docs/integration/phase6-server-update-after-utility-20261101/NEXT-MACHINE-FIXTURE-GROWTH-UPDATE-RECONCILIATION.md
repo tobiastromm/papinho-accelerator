@@ -1,0 +1,9 @@
+# Próximo trabalho — reconciliar único UPDATE consolidado fixture R0–R4
+
+Aguardar saída manual integral; não executar UPDATE automaticamente ou repetir comando. Pedido cf664c82779af6faaf605be03722cfca74dff9f6454ee8500cafdc23e9ce284c, decisão f6347e98c020a0a705e534f4c3304700c9bb3bc457db6259a1794197ec36d021, candidato871936/SHAa6b8ee1ac5ef3e7b6908686f3690ce2a6ca6c4171812a201b7d3024ea6f2ab8a. Conferir primeira falha/consumo/criação exclusiva/doisrenames/antigoretido/novoID-hash-SD/readback/SCM/close/retenção. Exit isolado não prova fechamento. Preservar fonte integral byte-exata e snapshot inicial; registrar resultado/consumo em artefatos novos, sem reescrever história.
+
+Se resultado conhecido e suficiente, preparar pacote fixture independente R0–R4 no mesmo owner/mecanismo: pedido histórico DATA, NOVA decisão operacional efetiva e eventual UMA cópia exclusiva em leaf novo explicitamente delimitado. Preservar as decisões417614100:37617664:12786/417614100:5177344:169433 e todas as autorizações utilizadas; não reutilizar e2e47... ou aprovações UPDATE como fixture, não sobrescrever destino existente ou adotar nome candidato não criado. Vincular nova imagem ao ID realmente obtido; não fabricar hash/ID/keyname/publicSHA.
+
+Concluir apenas integrações/qualificações offline afetadas e apresentar pedido operacional específico da nova preparação. Nenhuma criação/cópia/fixture/KSP/READ/E/Q/S/P/Start autorizada pelo UPDATE. Após fixture/controle positivo/close suficientes, preparar READ E/Q/S/P independente, sem prontidão produtiva presumida.
+
+Sem coleta/cleanup/refund/rollback/kill, ACL-SCM/CA-CURRENT/rede/TPM-NV-Q4/produção. Preservar HEAD/WIP/históricos/pins/EXEs/DLLs/SCM/consumos, causa1816antiga/métrica individual última/application-close/retenção/reservas/quiescênciaOS UNKNOWN e PST0.6.4.

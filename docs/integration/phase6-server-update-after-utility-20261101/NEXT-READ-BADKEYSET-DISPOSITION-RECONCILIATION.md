@@ -1,0 +1,3 @@
+# Próxima reconciliação
+
+Após saída manual integral, conferir primeira falha/consumo/duas submissões e exits/SCM/observerclose/efeitos parciais. Preservar pending/decisão e registrar USED separado. Sem retry/completar por outro comando. Exits não demonstram applicationclose/SCQclose/bilateral/retention/quiescência. Não há novo UPDATE justificado: auditar a lacuna KSP/critério K5 com READ-BADKEYSET-OFFLINE-AUDIT-REPORT.md, sem aceitar BAD_KEYSET como NTE_PERM ou criar nova fixture por hipótese. Qualquer evidência adicional/proposta normativa focal exige delimitação antes de operação. Preservar UNKNOWN/DENY/históricos/PST0.6.4.

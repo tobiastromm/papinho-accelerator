@@ -1,0 +1,119 @@
+/* Existing personal presenter/owner, separate attributed SCM_REGISTER act.
+ * Same native operator/parent primitives as F1-F6, never reuse a NEW_INSTALL,
+ * CA_INITIALIZE, LAB or SCQ confirmation. No protected effect here. */
+#include "personal_console_token_win32.inc"
+#include "server_scm_registration_resources_win32.inc"
+#include "server_original_file_win32.inc"
+static int scm_register_text(const WCHAR *s,size_t capacity)
+{size_t i;if(!s)return 0;for(i=0;i<capacity;i++){if(!s[i])return i!=0U;if(s[i]<32U)return 0;}return 0;}
+static int scm_register_scope(const PAPACC_SERVICE_REGISTRATION_VIEW *v)
+{
+ size_t n;static const WCHAR suffix[]=L"\" service host scq-closed";
+ if(!v||!papacc_server_service_registration_view_current(v)||!v->recipient||!v->image.handle||!v->image.sha256||v->image.owner_thread!=GetCurrentThreadId()||
+ !scm_register_text(v->image.path,MAX_PATH)||!scm_register_text(v->command,MAX_PATH+32U)||
+ !scm_register_text(v->service,64U)||!scm_register_text(v->account,96U)||
+ wcscmp(v->service,L"PapinhoAccelerator")||wcscmp(v->account,L"NT SERVICE\\PapinhoAccelerator")||
+ v->start_type!=SERVICE_DEMAND_START||v->sid_type!=SERVICE_SID_TYPE_UNRESTRICTED)return 0;
+ n=wcslen(v->image.path);
+ return v->command[0]==L'"'&&wcslen(v->command)==1U+n+wcslen(suffix)&&
+ !memcmp(v->command+1,v->image.path,n*sizeof(WCHAR))&&!wcscmp(v->command+1+n,suffix);
+}
+static DWORD scm_register_fail(PAPACC_SCM_REGISTRATION_ACT *a,DWORD error)
+{if(!a->first)a->first=error;if(a->phase!=6U)a->phase=7U;return error;}
+static DWORD scm_register_current(const PAPACC_SERVICE_REGISTRATION_VIEW *v,unsigned minimum)
+{
+ PAPACC_CONFIGURATION_COMMIT *c=&root.configuration_commit;PAPACC_PERSONAL_NATIVE_CONTEXT *n=&c->pending_commit.personal_native;
+ PAPACC_SCM_REGISTRATION_ACT *a=&n->scm_registration;BY_HANDLE_FILE_INFORMATION f,g;BYTE digest[32],acl[32];
+ if(state!=PAPACC_LAUNCHER_ACTIVE||root.owner_thread!=GetCurrentThreadId()||a->self!=a||a->thread!=GetCurrentThreadId()||
+ a->invocation!=root.invocation||a->original!=v||a->phase<minimum||a->phase>4U)return ERROR_INVALID_STATE;
+ if((a->phase==4U)!=(a->consumed!=0U))return scm_register_fail(a,ERROR_INVALID_STATE);
+ if(papacc_server_console_win32_stop_requested()||c->pending_commit.stop)return scm_register_fail(a,ERROR_CANCELLED);
+ if(!scm_register_scope(v)||v->recipient!=a->captured.recipient||v->image.handle!=a->captured.image.handle||
+ !scm_register_id(&v->image.identity,&a->captured.image.identity)||wcscmp(v->image.path,a->path)||wcscmp(v->command,a->command)||
+ memcmp(v->image.sha256,a->digest,32)||papacc_configuration_personal_layout_current(c)!=PAPACC_RESULT_OK||
+ papacc_configuration_personal_native_current(c)!=PAPACC_RESULT_OK||!n->scm_image||
+ !GetFileInformationByHandle(v->image.handle,&f)||!GetFileInformationByHandle(n->scm_image,&g)||
+ !scm_register_id(&f,&a->captured.image.identity)||!scm_register_id(&f,&g)||
+ (f.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT))||
+ !scm_acl_hash(n,n->scm_image,acl)||memcmp(acl,a->image_acl,32)||
+ !scm_register_hash(n->scm_image,digest)||memcmp(digest,a->digest,32))return scm_register_fail(a,ERROR_ACCESS_DENIED);
+ return 0;
+}
+DWORD papacc_server_launcher_scm_registration_current(const PAPACC_SERVICE_REGISTRATION_VIEW *v)
+{return scm_register_current(v,3U);}
+DWORD papacc_server_launcher_scm_registration_take(const PAPACC_SERVICE_REGISTRATION_VIEW *v)
+{
+ PAPACC_SCM_REGISTRATION_ACT *a=&root.configuration_commit.pending_commit.personal_native.scm_registration;DWORD e;
+ if(root.owner_thread!=GetCurrentThreadId())return ERROR_INVALID_STATE;
+ if(a->phase!=3U||a->consumed)return ERROR_ALREADY_EXISTS;
+ e=scm_register_current(v,3U);if(e)return e;
+ e=scm_register_observe(a,PAPACC_SCM_RESOURCE_PRE_CREATE);if(e)return scm_register_fail(a,e);
+ a->consumed=1U;a->phase=4U; /* irreversible, before CreateService */
+ return scm_register_current(v,4U);
+}
+DWORD papacc_server_launcher_scm_registration_finish(const PAPACC_SERVICE_REGISTRATION_VIEW *v,int originals_closed)
+{
+ PAPACC_CONFIGURATION_COMMIT *c=&root.configuration_commit;PAPACC_SCM_REGISTRATION_ACT *a=&c->pending_commit.personal_native.scm_registration;
+ if(root.owner_thread!=GetCurrentThreadId()||a->self!=a||a->original!=v||a->invocation!=root.invocation||a->phase==5U||a->phase==6U)return ERROR_INVALID_STATE;
+ if(!originals_closed){a->phase=6U;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return ERROR_INVALID_HANDLE;}
+ (void)scm_register_observe(a,PAPACC_SCM_RESOURCE_BEFORE_CLOSE);
+ /* Borrowing SCM owner has closed or proved no pending API. Only then close
+  * canonical image/token/parent. No revalidation of already closed borrows. */
+ if(papacc_configuration_personal_native_close(c)!=PAPACC_RESULT_OK){a->phase=6U;InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return ERROR_INVALID_HANDLE;}
+ (void)scm_register_observe(a,PAPACC_SCM_RESOURCE_CLOSED);
+ a->phase=5U;InterlockedExchange(&state,PAPACC_LAUNCHER_FINISHED);return 0;
+}
+int papacc_server_launcher_scm_registration_present(const PAPACC_SERVICE_REGISTRATION_VIEW *v,FILE *out,FILE *err)
+{
+ PAPACC_CONFIGURATION_COMMIT *c;PAPACC_PERSONAL_NATIVE_CONTEXT *n;PAPACC_SCM_REGISTRATION_ACT *a;
+ HANDLE input=GetStdHandle(STD_INPUT_HANDLE),output=GetStdHandle(STD_OUTPUT_HANDLE);DWORD console_mode;
+ WCHAR expected_path[MAX_PATH];char parent[MAX_PATH],text[MAX_PATH*4+128],reply[96];size_t i,z;int ready=0;
+ static const char hex[]="0123456789abcdef";
+ if(!out||!err||!scm_register_scope(v)||!GetConsoleMode(input,&console_mode)||!GetConsoleMode(output,&console_mode))return 2;
+ if(InterlockedCompareExchange(&state,PAPACC_LAUNCHER_ACTIVE,0)!=0)return 2;
+ if(next_invocation==(PAPACC_U64)-1){InterlockedExchange(&state,PAPACC_LAUNCHER_RETAINED);return 2;}
+ memset(&root,0,sizeof(root));root.invocation=++next_invocation;root.owner_thread=GetCurrentThreadId();
+ c=&root.configuration_commit;c->writer=root.owner_thread;c->pending_commit.file=INVALID_HANDLE_VALUE;
+ n=&c->pending_commit.personal_native;a=&n->scm_registration;a->self=a;a->original=v;a->captured=*v;
+ a->thread=root.owner_thread;a->invocation=root.invocation;a->phase=1U;
+ a->resources.sink=out;
+ if(scm_register_observe(a,PAPACC_SCM_RESOURCE_ENTRY))goto done;
+ /* Known local arrays only, not a compiler/CRT/provider/kernel stack ceiling.
+  * Unknown operational capacity is still denied by the SCM admission gate. */
+ root.reserved_bytes=PAPACC_C8_KNOWN_MANAGED_BYTES+papacc_server_service_storage_bytes()+sizeof(LONG)+
+ sizeof(expected_path)+sizeof(parent)+sizeof(text)+sizeof(reply)+sizeof(PACC_STORAGE_SHA256)+1024U+2U*sizeof(BY_HANDLE_FILE_INFORMATION)+64U+
+ SCM_RESOURCE_KNOWN_AUTOMATIC_BYTES+sizeof(PAPACC_SCM_RESOURCE_REPORT);
+ if(root.reserved_bytes>PAPACC_LAUNCHER_MANAGED_LIMIT||papacc_server_console_win32_stop_requested()||
+ papacc_configuration_personal_layout_new(c)!=PAPACC_RESULT_OK)goto done;
+ /* No staging/adoption: exact known-folder target must already be protected.
+  * This observes the original image beneath that directory, not a fixture path. */
+ z=wcslen(n->install_paths.binary);if(z+sizeof(L"\\papacc_server.exe")/sizeof(WCHAR)>MAX_PATH)goto done;
+ memcpy(expected_path,n->install_paths.binary,z*sizeof(WCHAR));memcpy(expected_path+z,L"\\papacc_server.exe",sizeof(L"\\papacc_server.exe"));
+ if(_wcsicmp(expected_path,v->image.path)||!WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,n->install_paths.binary,-1,parent,sizeof(parent),NULL,NULL)||
+ papacc_configuration_personal_native_open(c,parent)!=PAPACC_RESULT_OK||!scm_descriptor(n->descriptor,n->sid)||
+ papacc_configuration_scm_registration_image_open(c,L"papacc_server.exe")!=PAPACC_RESULT_OK||
+ !scm_acl_hash(n,n->scm_image,a->image_acl))goto done;
+ if(scm_register_observe(a,PAPACC_SCM_RESOURCE_ORIGINALS))goto done;
+ memcpy(a->path,v->image.path,(wcslen(v->image.path)+1U)*sizeof(WCHAR));memcpy(a->command,v->command,(wcslen(v->command)+1U)*sizeof(WCHAR));memcpy(a->digest,v->image.sha256,32);
+ if(BCryptGenRandom(NULL,a->attempt,32,BCRYPT_USE_SYSTEM_PREFERRED_RNG)<0)goto done;
+ {BYTE nonzero=0;for(i=0;i<32;i++)nonzero|=a->attempt[i];if(!nonzero)goto done;}
+ if(scm_register_current(v,1U))goto done;
+ if(!personal_console_write(output,"\nSCM_REGISTER_CLOSED - PERSONAL_LOCAL\nOperator SID: ")||!personal_console_write(output,n->sid_text)||
+ !personal_console_write(output,"\nService: PapinhoAccelerator\nAccount: NT SERVICE\\PapinhoAccelerator\nStart: DEMAND_START (3)\nService SID type: UNRESTRICTED (1)\nOriginal image: "))goto done;
+ if(!WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,a->path,-1,text,sizeof(text),NULL,NULL)||!personal_console_token(output,text)||
+ !personal_console_write(output,"\nExact diagnostic command: ")||!WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,a->command,-1,text,sizeof(text),NULL,NULL)||!personal_console_token(output,text))goto done;
+ sprintf_s(text,sizeof(text),"\nProtected binary target identity: %lu:%lu:%lu\nOriginal image identity: %lu:%lu:%lu\nImage SHA256: ",n->parent.dwVolumeSerialNumber,n->parent.nFileIndexHigh,n->parent.nFileIndexLow,v->image.identity.dwVolumeSerialNumber,v->image.identity.nFileIndexHigh,v->image.identity.nFileIndexLow);
+ if(!personal_console_write(output,text))goto done;
+ for(i=0;i<32;i++){text[i*2U]=hex[a->digest[i]>>4];text[i*2U+1U]=hex[a->digest[i]&15U];}text[64]=0;
+ if(!personal_console_write(output,text)||!personal_console_write(output,"\nPurpose: register this service once and configure/read back this SID type. No Start, endpoint, parent creation, CA, CURRENT or network.\nPolicy: M5/P3 + virtual SCM; local attributed mechanics F1-F6.\nDeclare legitimate ownership/administration and confirm ONLY the registration plan. Existing service/conflict or uncertainty denies; no retry/deletion.\nQuantitative and separate operational gates remain required. Esc cancels.\n"))goto done;
+ strcpy_s(reply,sizeof(reply),"OWNER_SCM_REGISTER ");z=strlen(reply);for(i=0;i<32;i++){reply[z+i*2U]=hex[a->attempt[i]>>4];reply[z+i*2U+1U]=hex[a->attempt[i]&15U];}reply[z+64U]=0;
+ a->phase=2U;
+ if(!personal_console_write(output,reply)||!personal_console_write(output,"\n")||!personal_console_confirm(input,output,reply)||scm_register_current(v,2U))goto done;
+ if(scm_register_observe(a,PAPACC_SCM_RESOURCE_CONFIRMED))goto done;
+ a->phase=3U;ready=1;
+ fprintf(out,"SCM_REGISTER_ACT=ATTRIBUTED_CONFIRMED; SOURCE=NATIVE_REFERENCES; CONSUMED=NO; SCM_EFFECT=NONE; OPERATIONAL_ADMISSION=SEPARATE\n");
+done:
+ if(!ready){(void)scm_register_fail(a,ERROR_ACCESS_DENIED);(void)papacc_server_launcher_scm_registration_finish(v,1);}
+ fprintf(err,"SCM_REGISTER_PRESENTER=%s; PHASE=%lu; AUTHORITY_NOT_IMPLIED_BY_METADATA\n",ready?"CONFIRMED":"DENY_OR_CANCELLED",(unsigned long)a->phase);
+ return ready?0:2;
+}

@@ -51,9 +51,10 @@ static int transition(const PAPACC_U8 *b,unsigned count,const PAPACC_ISSUER_RECO
  if(n->state==PAPACC_ISSUER_PUBLISHED){if(!n->published_epoch)return 0;}else if(n->published_epoch!=old.published_epoch)return 0;
  return 1;
 }
+#include "issuer_publication_v2.inc"
 PAPACC_ISSUER_RESULT papacc_issuer_image_validate(const PAPACC_U8 *b,PAPACC_ISSUER_VIEW *v,PAPACC_ISSUER_HASH hash,void *ctx){
  PAPACC_U8 d[32],chain[32]={0};PAPACC_SIZE p=256,len,der;unsigned i,n;PAPACC_U64 high=1,base;PAPACC_ISSUER_RECORD r;
- if(!b||!v||!hash)return PAPACC_ISSUER_INVALID;memset(v,0,sizeof(*v));
+ if(!b||!v||!hash)return PAPACC_ISSUER_INVALID;if(image_v2(b))return image_validate_v2(b,v,hash,ctx);memset(v,0,sizeof(*v));
  if(memcmp(b,"PACIS601",8)||r32(b+8)!=1||r32(b+12)<256||r32(b+12)>FOOT||!zero(b+20,4)||zero(b+32,32)||zero(b+64,16)||zero(b+80,16)||zero(b+96,8)||(b[96]&128U)||zero(b+104,32)||zero(b+136,32)||zero(b+192,32))return PAPACC_ISSUER_INVALID;
  if(!hash(ctx,b,FOOT,d))return PAPACC_ISSUER_UNCERTAIN;if(memcmp(d,b+FOOT,32))return PAPACC_ISSUER_INVALID;
  base=r64(b+24);n=r32(b+16);if(!base||n>(FOOT-256)/PAPACC_ISSUER_EVENT_FIXED||base>(PAPACC_U64)-1-n||r64(b+184)!=base+n||!r64(b+176))return PAPACC_ISSUER_INVALID;
@@ -78,9 +79,37 @@ PAPACC_ISSUER_RESULT papacc_issuer_image_init(PAPACC_U8 *b,const PAPACC_ISSUER_V
  if(!hash(ctx,b,FOOT,b+FOOT))return PAPACC_ISSUER_UNCERTAIN;return papacc_issuer_image_validate(b,&check,hash,ctx);
 }
 PAPACC_ISSUER_RESULT papacc_issuer_image_find(const PAPACC_U8 *b,const PAPACC_U8 id[16],PAPACC_ISSUER_RECORD *r,PAPACC_ISSUER_HASH hash,void *ctx){PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RESULT s;if(!id||!r)return PAPACC_ISSUER_INVALID;s=papacc_issuer_image_validate(b,&v,hash,ctx);if(s)return s;return latest(b,r32(b+16),id,r)?PAPACC_ISSUER_OK:PAPACC_ISSUER_ABSENT;}
+PAPACC_ISSUER_RESULT papacc_issuer_credential_snapshot_data(const PAPACC_U8 *b,const PAPACC_U8 digest[32],PAPACC_ISSUER_RECORD *out){
+ PAPACC_ISSUER_RECORD r,selected;PAPACC_SIZE p=256,len,used;unsigned i,n;int found=0;
+ if(!b||!out||!digest||zero(digest,32))return PAPACC_ISSUER_INVALID;memset(out,0,sizeof(*out));
+ if(!image_v2(b)&&(memcmp(b,"PACIS601",8)||r32(b+8)!=1))return PAPACC_ISSUER_INVALID;
+ used=r32(b+12);n=r32(b+16);if(used<256||used>FOOT||n>(FOOT-256)/PAPACC_ISSUER_EVENT_FIXED)return PAPACC_ISSUER_INVALID;
+ /* All offsets used by latest() are bounded before the first nested scan. */
+ for(i=0;i<n;i++){
+  if(p>used||used-p<PAPACC_ISSUER_EVENT_FIXED)return PAPACC_ISSUER_INVALID;
+  len=r32(b+p+8);if(len<PAPACC_ISSUER_EVENT_FIXED||len>used-p)return PAPACC_ISSUER_INVALID;p+=len;
+ }
+ if(p!=used)return PAPACC_ISSUER_INVALID;p=256;
+ memset(&selected,0,sizeof(selected));
+ for(i=0;i<n;i++){
+  if(!latest(b,n,b+p+48,&r))return PAPACC_ISSUER_INVALID;
+  if(r.certificate_size&&!memcmp(r.certificate_digest,digest,32)){
+   if(found&&memcmp(selected.request.id,r.request.id,16))return PAPACC_ISSUER_CONFLICT;
+   selected=r;found=1;
+  }
+  p+=r32(b+p+8);
+ }
+ if(!found)return PAPACC_ISSUER_ABSENT;*out=selected;return PAPACC_ISSUER_OK;
+}
+PAPACC_ISSUER_RESULT papacc_issuer_image_credential(const PAPACC_U8 *b,const PAPACC_U8 digest[32],PAPACC_ISSUER_RECORD *out,PAPACC_ISSUER_HASH hash,void *ctx){
+ PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RESULT result;
+ if(!out)return PAPACC_ISSUER_INVALID;memset(out,0,sizeof(*out));
+ result=papacc_issuer_image_validate(b,&v,hash,ctx);if(result)return result;
+ return papacc_issuer_credential_snapshot_data(b,digest,out);
+}
 PAPACC_ISSUER_RESULT papacc_issuer_image_append(PAPACC_U8 *b,const PAPACC_ISSUER_RECORD *r,const PAPACC_U8 *der,PAPACC_SIZE size,PAPACC_ISSUER_HASH hash,void *ctx){
  PAPACC_ISSUER_VIEW v;PAPACC_ISSUER_RESULT s;PAPACC_SIZE p,len;PAPACC_U64 high;PAPACC_U32 n;
- if(!r||(!der&&size))return PAPACC_ISSUER_INVALID;s=papacc_issuer_image_validate(b,&v,hash,ctx);if(s)return s;
+ if(!r||(!der&&size))return PAPACC_ISSUER_INVALID;if(image_v2(b))return image_append_v2(b,r,der,size,0,NULL,hash,ctx);s=papacc_issuer_image_validate(b,&v,hash,ctx);if(s)return s;
  p=r32(b+12);n=r32(b+16);if(size>FOOT||PAPACC_ISSUER_EVENT_FIXED+size>FOOT-p||v.revision==(PAPACC_U64)-1)return PAPACC_ISSUER_LIMIT;
  high=v.high_water;if(!transition(b,n,r,&high))return PAPACC_ISSUER_CONFLICT;
  if(r->state==PAPACC_ISSUER_ISSUED_UNPUBLISHED){PAPACC_U8 d[32];if(size!=r->certificate_size||!hash(ctx,der,size,d)||memcmp(d,r->certificate_digest,32))return PAPACC_ISSUER_INVALID;}else if(size)return PAPACC_ISSUER_INVALID;
@@ -91,7 +120,7 @@ PAPACC_ISSUER_RESULT papacc_issuer_image_append(PAPACC_U8 *b,const PAPACC_ISSUER
 }
 PAPACC_ISSUER_RESULT papacc_issuer_image_certificate(const PAPACC_U8 *b,const PAPACC_U8 id[16],PAPACC_U8 *out,PAPACC_SIZE cap,PAPACC_SIZE *size,PAPACC_ISSUER_HASH hash,void *ctx){
  PAPACC_ISSUER_RECORD r;PAPACC_SIZE p=256,n;PAPACC_ISSUER_RESULT s;if(!out||!size)return PAPACC_ISSUER_INVALID;s=papacc_issuer_image_find(b,id,&r,hash,ctx);if(s)return s;
- while(p<r32(b+12)){n=r32(b+p+12);if(n&&!memcmp(b+p+48,id,16)){*size=n;if(cap<n)return PAPACC_ISSUER_LIMIT;memcpy(out,b+p+324,n);return PAPACC_ISSUER_OK;}p+=r32(b+p+8);}return PAPACC_ISSUER_ABSENT;
+ while(p<r32(b+12)){n=r32(b+p+12);if(n&&!memcmp(b+p+48,id,16)){*size=n;if(cap<n)return PAPACC_ISSUER_LIMIT;memcpy(out,b+p+(image_v2(b)?436U:324U),n);return PAPACC_ISSUER_OK;}p+=r32(b+p+8);}return PAPACC_ISSUER_ABSENT;
 }
 /* Validate before reading offsets. No API can grant recovery authority here. */
 PAPACC_ISSUER_RESULT papacc_issuer_checkpoint_assess(
@@ -111,7 +140,7 @@ PAPACC_ISSUER_RESULT papacc_issuer_checkpoint_assess(
  if(s!=PAPACC_ISSUER_OK){out->state=PAPACC_ISSUER_CHECKPOINT_INCOMPLETE;return s;}
  /* Immutable image origin includes root/CA/generation/prefix/policy/key/base.
   * This data-only comparison deliberately refuses a changed identity/policy. */
- if(memcmp(image+24,floor+24,144)||memcmp(image+176,floor+176,8)||
+ if(memcmp(image,floor,12)||memcmp(image+24,floor+24,144)||memcmp(image+176,floor+176,8)||
   memcmp(image+192,floor+192,32)){
   out->state=PAPACC_ISSUER_CHECKPOINT_DIVERGENT;return PAPACC_ISSUER_CONFLICT;
  }
@@ -146,13 +175,13 @@ PAPACC_ISSUER_RESULT papacc_issuer_link_encode(PAPACC_U8 *out,PAPACC_SIZE cap,
  s=link_root(root,size,&v,hash,ctx);if(s)return s;
  if(!link->revision||link->revision!=v.revision||link->predecessor!=(link->revision-1)||
   !link->administrative_epoch||!link->policy_epoch||zero(link->previous_commit_digest,32))return PAPACC_ISSUER_INVALID;
- memset(out,0,PAPACC_ISSUER_LINK_BYTES);memcpy(out,"PACICP01",8);w32(out+8,1);w32(out+12,512);
+ memset(out,0,PAPACC_ISSUER_LINK_BYTES);memcpy(out,image_v2(root+8192)?"PACICP02":"PACICP01",8);w32(out+8,image_v2(root+8192)?2U:1U);w32(out+12,512);
  memcpy(out+16,v.root,32);w64(out+48,link->revision);w64(out+56,link->predecessor);
  w64(out+64,link->administrative_epoch);w64(out+72,link->policy_epoch);
  w64(out+80,v.revision);w64(out+88,v.high_water);memcpy(out+96,v.authority,16);
  memcpy(out+112,v.generation,16);memcpy(out+128,v.prefix,8);w64(out+136,link->revision);
  if(!hash(ctx,root,size,out+144)||!hash(ctx,root+8192,8192,out+176))return PAPACC_ISSUER_UNCERTAIN;
- memcpy(out+208,link->previous_commit_digest,32);
+ memcpy(out+208,link->previous_commit_digest,32);if(image_v2(root+8192))w32(out+240,2);
  if(!hash(ctx,out,480,out+480))return PAPACC_ISSUER_UNCERTAIN;
  return PAPACC_ISSUER_OK;
 }
@@ -160,7 +189,9 @@ PAPACC_ISSUER_RESULT papacc_issuer_link_decode(const PAPACC_U8 *b,PAPACC_SIZE si
  const PAPACC_U8 *root,PAPACC_SIZE root_size,PAPACC_ISSUER_LINK *link,PAPACC_ISSUER_HASH hash,void *ctx){
  PAPACC_ISSUER_VIEW v;PAPACC_U8 digest[32];PAPACC_ISSUER_RESULT s;
  if(!link)return PAPACC_ISSUER_INVALID;memset(link,0,sizeof(*link));
- if(!b||size!=PAPACC_ISSUER_LINK_BYTES||!hash||memcmp(b,"PACICP01",8)||r32(b+8)!=1||r32(b+12)!=512||!zero(b+240,240))return PAPACC_ISSUER_INVALID;
+ if(!b||!root||root_size!=16384U||size!=PAPACC_ISSUER_LINK_BYTES||!hash||r32(b+12)!=512)return PAPACC_ISSUER_INVALID;
+ if(image_v2(root+8192)){if(memcmp(b,"PACICP02",8)||r32(b+8)!=2||r32(b+240)!=2||!zero(b+244,236))return PAPACC_ISSUER_INVALID;}
+ else if(memcmp(b,"PACICP01",8)||r32(b+8)!=1||!zero(b+240,240))return PAPACC_ISSUER_INVALID;
  if(!hash(ctx,b,480,digest))return PAPACC_ISSUER_UNCERTAIN;
  if(memcmp(digest,b+480,32))return PAPACC_ISSUER_INVALID;
  s=link_root(root,root_size,&v,hash,ctx);if(s)return s;

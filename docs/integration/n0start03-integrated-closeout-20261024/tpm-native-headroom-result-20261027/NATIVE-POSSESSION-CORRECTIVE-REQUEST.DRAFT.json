@@ -1,0 +1,134 @@
+{
+  "kind": "OWNER_MANUAL_DIAGNOSTIC_REQUEST_NOT_APPROVAL",
+  "status": "CORRECTIVE_CANDIDATE_NOT_APPROVED_NOT_EXECUTED",
+  "purpose": "one mathematical proof of knowledge of EK private decryption material through a salted unbound HMAC session; no hardware admission",
+  "historical_reference_only": "Q4 consumed10584f02e11f92c92b43cddf0d9d316f; no reuse of authority/intent",
+  "executable": "NativeProofCandidateRelease.exe",
+  "executable_sha256": "58e70df53c9beec30bc23f85d3dd936eabeedc99193cf41d907d51eef0a4270f",
+  "source_sha256": "b9bc4649a8c8c1795e88a98d5e30095d2d91e9b3856b69164c729cedc95761b3",
+  "profile_sources": {
+    "SaltedProofFixture.cs": "5466095f58ffff6cdaa100235f92a087752aec0d8180e272d6929aa2c549067f",
+    "PublicAreaGateFixture.cs": "ee70712718e72b37bc7f98d978457d7ba5fe12f9aa79165b9e2087c53418bc51",
+    "SaltedSessionPlanFixture.cs": "c9a9c3a78b6e5e498683bbb968a183e3781ae88020d7f8d0e3b188162bf281ba",
+    "CredentialActivationFixture.cs": "4cfedb27ab96e204b3800ef0d20114cbb19123528ccae0318442497d04983ada",
+    "NativeCfb.REUSED.cs": "036156e656d8019c337bac904759802e1854c8ebc8c695473234fe6a3d197d35",
+    "NativeCfbDecrypt.FIXTURE.cs": "56a0511a3a68c739200ce31d273f2519310ca15260c882a1fc07af569c7858b2"
+  },
+  "observed_EK": {
+    "raw_key_sha256": "406874753bd60db238226c888765b49940cc6f0229b8a0296f4ad1547e92aba2",
+    "certificate_der_sha256": "965f56aa0d4c5b5772b423d65d8a06a623109f5828c0eddcb8ec4ae8fa3de761",
+    "derived_canonical_spki_sha256": "1c643066b17bdf9e81c09870661aeb7c9cfff1f2ffbef71b43532c14a25c474e",
+    "EK_algorithm": "RSA",
+    "EK_bits": 2048,
+    "EK_exponent": 65537,
+    "root_sha256": "2e1b3ba79af56d758be51697621bc4b9e8cee0983db3e749c55eb9b37c6d2ae0"
+  },
+  "current_metadata_pins": {
+    "operator_sid": "S-1-5-21-785699550-1440458426-1682014700-1108",
+    "current_machine_name_sha256": "fc2d00eb95bdc15ee7f56c7abd78f1c88670ba8359a0786ab4b49523fd91f482",
+    "boot_event_computer_sha256": "2b9bba4c16c1010239890f61ad2247544186e928623446ad40470cba28fcbcff",
+    "boot_record": 237900,
+    "boot_start_utc": "2026-10-26T21:35:16.5000000Z",
+    "scope": "metadata continuity not authenticated device generation; no automatic pin change"
+  },
+  "runtime_bindings": "live PID/creation, current token TokenId/AuthId/ModifiedId, approval/request hashes, qualified public Name; fresh random salt and both caller nonces; never exported",
+  "command_limits": [
+    {
+      "command": "TPM2_GetCapability",
+      "code": "0x17a",
+      "maximum": 1,
+      "scope": "first complete page, at most8persistent object handles; moreData/absence denies"
+    },
+    {
+      "command": "TPM2_ReadPublic",
+      "code": "0x173",
+      "maximum": 9,
+      "scope": "at most8initial candidates plus1selected final revalidation; require one exact matching EK"
+    },
+    {
+      "command": "TPM2_StartAuthSession",
+      "code": "0x176",
+      "maximum": 1,
+      "scope": "one HMAC session, existing EK tpmKey, NULL bind, SHA256,AES128CFB; no hierarchy authorization; OAEP SECRET label"
+    },
+    {
+      "command": "TPM2_GetRandom",
+      "code": "0x17b",
+      "maximum": 1,
+      "scope": "request32bytes; accept authenticated0..32byte output, no RNG quality claim; encrypted HMAC session0x40, continue clear"
+    }
+  ],
+  "owned_native_resources": {
+    "TBS_context_max": 1,
+    "TPM_session_max": 1,
+    "created_TPM_keys": 0,
+    "created_NV_indices": 0,
+    "stable_own_Windows_handle_ceiling": 128,
+    "response_buffer_bytes": 4096,
+    "note": "no total RAM/kernel/administrative budget granted; existing128/1024/four-role obligations are not enlarged or credited"
+  },
+  "success": "exact public area/Name and key match before/after; one valid challenge-derived response HMAC; factual TBS close. Session end is authenticated protocol semantics, not global quiescence/NV generation",
+  "stop": "Escape before each synchronous call; no cancellation guarantee within native call. No new command/retry after Stop/error. If session/context ownership uncertain keep original context and key/nonces in live process; host loss UNKNOWN",
+  "retention": "no FlushContext guessing, no EvictControl/Clear/new key fallback; never dispose an unknown original TBS reference. Receipt retained after failure, no retry",
+  "one_use_admin_receipt": "CREATE_NEW local NATIVE-PROOF-ATTEMPT.ONCE.receipt before TBS; administrative supplemental one-run evidence only, not rollback-resistant Q4 ledger or a new persistent authority",
+  "secrets": "fresh ephemeral salt/session key only in memory; no ownerAuth,index auth,private export,argv/log secret",
+  "revocation": "UNKNOWN_HTTP403_NO_OCSP; explicitly acknowledged; proof is mathematical only and cannot satisfy W2/W4 trust/admission by itself",
+  "unknown_internal_effects": "no explicit NV/hierarchy/audit-config/persistent-object command. TPM internal RNG/accounting/global pre-existing audit implementation not observed and not asserted to be zero NV activity",
+  "authorization_required": "one specific manual experiment with literal request/executable/approval SHA; not acceptance of L1 amendment, NV provisioning, Q4 or positive LAB",
+  "L1_approval_dependency": false,
+  "prohibited": [
+    "NV_DefineSpace",
+    "NV_Increment",
+    "NV_UndefineSpace",
+    "Clear",
+    "CreatePrimary",
+    "AK creation",
+    "hierarchy authorization/change",
+    "signing/quote/certificates/remote CA",
+    "Q4/LAB/Start/Stop",
+    "SCM/ACL/quotas",
+    "CURRENT/refund/cleanup/recovery"
+  ],
+  "approval_created": false,
+  "manual_command_activated": false,
+  "native_mode_executed": false,
+  "authority": "DENY",
+  "direct_TBS_submit_maximum": 12,
+  "TBS_internal_commands": "UNOBSERVED; limit counts caller Submit operations only",
+  "resource_observation": "GetProcessHandleCount before each caller Submit, sampled gate128; samples reported, unsampled/internal peak UNKNOWN, no budget granted",
+  "administrative_resource_gate": {
+    "topology": "exactly owner parent and this proof process as console clients, plus distinct console-window process; metadata not authenticated console",
+    "maximum_participants": 3,
+    "native_own_sample_limit": 128,
+    "native_before_observer_reserve_limit": 124,
+    "controlled_observer_handle_reserve": 4,
+    "shared_parent_console_sample_limit": 1024,
+    "identity": "PID/creation of parent+console pinned across observations; exact token LUIDs rechecked before each Submit",
+    "uncertainty": "samples are not universal peaks or an independent budget grant; kernel/provider/transitive remains UNKNOWN",
+    "retention": "original observer handles retained on uncertain CloseHandle; no new Submit after freeze"
+  },
+  "approval_conditions": "NEW exact owner approval only; previous one-run approval used; one manual invocation; same identity/security/resource gates; no automatic execution or retry; ack unknown revocation/no hardware admission/internal accounting",
+  "closure_scope": "context_state distinguishes NOT_OPENED/failed-open/confirmed-close/unknown-retained; retained covers controlled TBS+observer refs only. Opaque managed/crypto/native internal closure not exhaustively observed.",
+  "first_error_receipt": "exact first stage retained; observer close native code separate; no later error overwrites first",
+  "candidate_operation": "TPMPROOF-HEADROOM-20261027-01_INERT",
+  "prior_attempt_disposition": {
+    "request_sha256": "357c33ceafb7e5a33c69c87f7a70e0db685a16547e0e7fe8741b33e0d07d77a1",
+    "approval_sha256": "d7417145a73a2b8ec03fd4b57df23ecc10b045178d02eac543557be3fa76a146",
+    "status": "ONE_MANUAL_INVOCATION_USED_DENIED_BEFORE_TPM_NO_RETRY",
+    "one_shot_file": "ABSENT_AT_REVIEW_NOT_UNUSED_APPROVAL",
+    "first": "NATIVE_OBSERVER_HEADROOM",
+    "count_or_api_failure": "UNKNOWN"
+  },
+  "diagnostic_change": {
+    "scope": "same single GetProcessHandleCount result split and four scalar final receipt fields; no additional native query; no limit relaxation",
+    "fields": [
+      "observer_query_attempted",
+      "observer_query_succeeded",
+      "observer_own_count nullable when query failed",
+      "observer_query_error",
+      "observer_reserve_limit124"
+    ],
+    "discriminant": "query failure vs successful count>124, actual observed count/error",
+    "resource_effect": "scalar managed storage added; total CLR/provider costs not bounded or credited; samples not universal peak"
+  }
+}

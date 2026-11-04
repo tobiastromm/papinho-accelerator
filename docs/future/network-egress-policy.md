@@ -759,3 +759,17 @@ O worker existente agora compara integralmente CAS/read-back em blocos de512 byt
 ### Perfil Windows ED11 3 MiB — 2026-10-20
 
 [W1–W6 accepted](../adr/DECISION-ed11-windows-3mib-process-profile-20261020.md) especializam somente o teto gerenciado por PROCESSO Windows do Accelerator explicitamente selecionado:3145728. Default/legacy/outros targets permanecem2097152; Browser e quotas individuais não mudam. CMake PAPACC_ENABLE_WINDOWS_3MIB_MANAGED_PROFILE=ON exige o candidato Windows API3/C8; inválidos rejeitam sem fallback. Guards usam uma constante privada única. Selected/Legacy Debug/Release e16 suítes por configuração passam; pressão de crédito/Stop/retenção são modelos, CAS/IO locais são nativos sobre fixtures. Censo conhecido2067655, cenário futuro ROOT08/issuer2142951; diferenças1078073/1002777 são aritméticas, não reservas nem qualificação. Estruturas/buffers não cresceram; worker atual16896 e binding CURRENT/pin/source ainda pendentes. ED11 total PARTIAL/provider-kernel UNKNOWN; CURRENT, assinatura, recuperação e admissão DENY. Pin0.6.4 e PST0.6.5 candidato preservados; box/ISA/NT4 não qualificados. Ver [prova e handoff](../integration/ed11-windows-3mib-profile-20261020/profile-proof-and-handoff.md).
+
+
+### 2026-11-03 — referência de estado da preparação fixture diagnóstica
+
+A especialização [F0–F5 accepted](../adr/DECISION-personal-machine-fixture-resource-envelope-f0-f5-20261103.md) foi integrada e qualificada offline, preservando T0–T6/K0–K9 e isolando o envelope da preparação. Não concede rede, CA/CURRENT ou readiness produtiva. Imagem nova e UPDATE ainda dependem de decisão operacional própria; fixture e READ são atos posteriores independentes. Estado/evidência e lacunas em [relatório focal](../integration/phase6-server-update-after-utility-20261101/MACHINE-FIXTURE-ENVELOPE-INTEGRATION-REPORT.md) e [live documentation](../capabilities/canonical-phase6-consolidation.md). Esta nota não substitui a norma nem prova execução operacional.
+
+
+### 2026-11-03 — especialização do crescimento da preparação fixture
+
+[R0–R4 accepted](../adr/DECISION-personal-machine-fixture-growth-r0-r4-20261103.md) foi integrada exclusivamente offline no produtor fixture existente, consolidada com a apresentação corrigida. Tolerância privada/working16MiB não é quota gerenciada ED11, teto nativo ou garantia de suficiência. Outros perfis/rede/CA-CURRENT/readiness produtiva não são ampliados. Quatro builds/52pares afetados PASS; instalação permanece anterior e novo UPDATE exige aprovação operacional própria. Ver [relatório](../integration/phase6-server-update-after-utility-20261101/MACHINE-FIXTURE-GROWTH-INTEGRATION-REPORT.md) e [estado vivo](../capabilities/canonical-phase6-consolidation.md). Nota de direção não concede operação nem substitui norma.
+# Estado correlato — 2026-11-03 — fixture S0–S5
+
+O readback diagnóstico das duas representações uniformes de SD foi aceito em [decisão S0–S5](../adr/DECISION-personal-machine-fixture-ga-readback-s0-s5-20261103.md) e integrado/qualificado somente offline (quatro builds/60 pares PASS). [Estado vivo](../capabilities/canonical-phase6-consolidation.md) e [relatório](../integration/phase6-server-update-after-utility-20261101/MACHINE-FIXTURE-GA-READBACK-INTEGRATION-REPORT.md). UPDATE ainda depende de autorização própria; chave parcial não adotada, fixture/READ/Start não executados. Nenhuma autoridade de rede, CA/CURRENT ou readiness produtiva decorre desta integração. Esta nota não altera a direção futura nem substitui contratos accepted.
+

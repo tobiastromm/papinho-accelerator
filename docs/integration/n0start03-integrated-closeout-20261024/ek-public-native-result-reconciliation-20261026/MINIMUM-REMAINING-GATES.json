@@ -1,0 +1,39 @@
+{
+  "resolved": [
+    "W0-W7 ACCEPTED",
+    "L0-L7 ACCEPTED",
+    "one manual typed public EK observation received",
+    "known old boot pins differ from current reported boot",
+    "operator SID and on-disk module hash consistent at observation"
+  ],
+  "not_resolved": [
+    {
+      "gate": "TPM_AUTHENTICATED_GENERATION",
+      "missing": "trusted EK origin and live possession/continuity; one AdditionalCertificates digest supplies neither DER/public-key match nor chain proof",
+      "constraint": "do not repeat identical Get-Tpm/EK query to reconfirm same metadata; any next observation must answer missing binding/trust/possession question and use permitted public-only/authorized mechanisms"
+    },
+    {
+      "gate": "AUTHORIZATION_CUSTODY",
+      "missing": "actual owner hierarchy authorization availability and approved protected per-index custody; DPAPI synthetic tests are not those secrets",
+      "constraint": "no ownerAuth extraction/guessing or secret in chat/argv/log; no secret created here"
+    },
+    {
+      "gate": "DURABLE_ROOT_AND_LIVE_SESSION",
+      "missing": "versioned persistent Q4 participant/worker and exact native/current root binding; actual salted TPM session and native sender not enabled",
+      "constraint": "DATA binding and isolated packets are not durable consumption or operational authority"
+    },
+    {
+      "gate": "HARDWARE_PROVISIONING",
+      "missing": "complete exact new request and separate approval, actual index still not reserved",
+      "constraint": "no define/increment or retry; keep candidate one definition/max2increments only when prerequisites proved"
+    },
+    {
+      "gate": "Q4_READBACK_AND_DISPOSITION",
+      "missing": "independent exact manual readback and R7 original-object/closure proof, then separate documentary application approval",
+      "constraint": "EK query is not Q4 and grants no cleanup/refund"
+    }
+  ],
+  "next": "resolve authenticated device/credential and durable binding prerequisites; then submit one complete exact hardware request",
+  "ED11": "PARTIAL",
+  "E21": "PENDING"
+}

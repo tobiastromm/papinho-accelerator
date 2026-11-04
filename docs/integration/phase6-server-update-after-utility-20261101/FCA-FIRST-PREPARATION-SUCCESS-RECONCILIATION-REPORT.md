@@ -1,0 +1,24 @@
+# Primeira preparação FCA concluída — 2026-11-04
+Estado PREPARATION_FCA_CONTAINER_AND_CA_KEY_VERIFIED_CLOSED.
+Evidência completa byte-exata OWNER-FCA-SID-CAPACITY-PREPARATION-OUTPUT.txt SHA256305442030f80676108424232f81bd3011f03eb5d71d412d19b2eda160f7cf464.
+Plano original decodificado e conferido: NEW_INSTALL/CREATE_EXCLUSIVE_TARGET/CA_INITIALIZE/INITIAL_ROOT_PREPARE/COMMIT=DENY/CURRENT=DENY; operador/source/parent correspondentes; configuração43bytes format_version1/client_admissionDISABLED. Nome final da chave corresponde exatamente aos IDs a/g do plano, não inventados.
+Confirmação atribuída OWNER_NEW_INSTALL_CA_INITIALIZE com noncef369c0ee58d082d2cb447af44ada9f2428ac2d23b321c7e5118d4e4276ad8b9b exibida e respondida; receipt purpose/attempt correspondentes.
+prepared1/container_created1/ID417614100:2752512:607285; key_created1/nomePapinhoAccelerator.CA.81d43a1d5bc758626b7e24a3b9a084a5.d586834a2ec37e42049cf97142a93695; first0/key_error0/close1 e wrapper closeTrue/exit0.
+Consumo confirmado pelos efeitos originais exclusivos após confirmação e protocolo qualificado consume-before-submission; a linha final não contém booleano consumed literal. Não usar exit0 isolado como autoridade.
+CUSTODY_METADATA_ONLY target1/ca0/effect_denied1 preserva limites produtivos; não invalida a preparação FCA especializada que passou seu próprio owner/worker/keyowner/readback/close. Nenhum grant/custódia produtiva derivado desses metadados.
+Caminho criado C:\ProgramData\Papinho\Accelerator. Configuração417614100:2490368:315690 e parentPapinho417614100:1310720:452619 reutilizados, não recriados.
+Guards nativos qualificados de SD/owner/proteção/ancestrais/identidade/continuidade/diretório/chave e fechamento pertencem à transição prepared1 do código selecionado. Não afirmar dump independente de ACL/public key digest ou identidade persistente do key handle, pois não foram emitidos. P4/K5 e token operacional real não foram testados por este ato.
+Imagem instalada912384bytes/417614100:1835008:1093619/SHA256a3adc6a253bae9fd6589c7e6f74a9b2d4cc04ea17dcf13882f2e84ef28767f8c. Nenhuma nova consulta ou campanha/build/UPDATE executada pelo agente. Correção SID permitiu este percurso completar; não transforma em prova individual do cbSid histórico da tentativa anterior.
+
+## Objetos agora existentes não são NEW novamente
+F5 accepted: "Se o objeto foi criado, não se torna novo novamente por nova aprovação." Não repetir qualquer script FCA/PDP/D1, não criar outra chave/diretório, não limpar/recuperar ou usar consumed anterior como grant. Autorizações desta preparação e UPDATE permanecem usadas; retenção histórica/quiescência OS UNKNOWN.
+FCA0–FCA7 explicitamente não concede assinatura/CURRENT/NORMAL/Start/readiness. papacc_configuration_personal_ca_bind e papacc_ca_key_borrow/transfer rejeitam first_preparation; guards deliberados, não defeito a remover por conveniência.
+O procedimento atual fecha referências originais em sucesso, portanto não se podem reutilizar handles/receipts de uma sessão encerrada como autoridade. Nome/ID/hash histórico são locators/evidência, não referência original corrente.
+Existe papacc_ca_key_open ordinário e mecanismos normais de material/issuer, mas ainda não foi demonstrado um caller que reacquire ESTE par preparado fechado, valida fonte/proveniência/proteção/identidade pública e o associa legitimamente ao próximo ato sem reabrir criação, simular instalação admitida ou dispensar P4/K5/custódia. Esse é o primeiro requisito factual restante, não outro problema de quotas/lookup.
+
+## Próximo trabalho mínimo
+Auditar e qualificar OFFLINE a continuidade da instância preparada pelo owner existente: localizar contratos F5/F7, P4/K5/MVP e caminhos ordinários de abertura/binding/material/issuer, separar preparação/custódia de uso/publicação. Reutilizar chave/diretório existentes com nova prova original, não criar outra infraestrutura/serviço/protocolo ou rodada de READfixture/recursos.
+Implementar somente ligação já coberta, sem remover first_preparation guards; se houver decisão normativa indispensável para readquirir/usar recursos fechados preparados, apresentar uma única proposta focal, não ampliar autoridade por "autorizo update e start".
+Não exigir backup/restore completo antes de MVP só por documento histórico: direção acceptedM0–M11 defere essas capabilities, conforme futurepersonal-backup-and-identity-recovery. Isso não dispensa isolamento/assinatura/CURRENT e coerência de serial.
+Após evidência suficiente, preparar atos concretos independentes rumo ao Start sob autorização de continuidade já registrada, com planos/confirmacões e gates próprios. Não executar operações automaticamente. Nenhum novo UPDATE necessário apenas por este sucesso.
+Preservar HEAD/WIP/históricos/pins/EXEs/consumos/PST0.6.4, UNKNOWN/retenção/quiescência OS/DENY produtivo.

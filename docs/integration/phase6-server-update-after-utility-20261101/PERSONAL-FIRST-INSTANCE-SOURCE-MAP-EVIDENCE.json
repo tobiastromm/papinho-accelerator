@@ -1,0 +1,76 @@
+{
+  "state": "DETERMINISTIC_PRODUCT_PATH_UNIMPLEMENTED_NOT_MYSTERIOUS_START_FAILURE",
+  "native_operations": false,
+  "code_changed": false,
+  "evidence": {
+    "apps/server/server_configuration_personal_data_win32.inc": {
+      "sha256": "ad9e7e550e9fbed88923daef7a3365ee1ad99228de6e2b318e61d04b4b5bc807",
+      "anchors": {
+        "static int personal_native_ceremony_ready": [
+          1
+        ],
+        "return 0;": [
+          2
+        ]
+      }
+    },
+    "apps/server/server_launcher_personal_win32.inc": {
+      "sha256": "7279c29bc67edc7dd8f6cdae3a58f73cf3451eace16866dc93daa12a91dd6c6e",
+      "anchors": {
+        "papacc_configuration_personal_handoff_begin": [
+          74
+        ],
+        "OPERATIONAL_AUTHORITY=DENY": [
+          94
+        ],
+        "CURRENT_PUBLICATION=DENY": [
+          97
+        ]
+      }
+    },
+    "apps/server/server_configuration_pending_win32.inc": {
+      "sha256": "bbbf57448df163f1fd7571d848f17b115c27640ebf4ea7829a94eb3aa0aebe91",
+      "anchors": {
+        "PAPACC_RESULT papacc_configuration_personal_target_begin": [
+          196
+        ],
+        "if(!personal_native_ceremony_ready": [
+          204,
+          457
+        ]
+      }
+    },
+    "apps/server/server_configuration_personal_ca_win32.inc": {
+      "sha256": "50bb8146a9129f5e02b581a711e0b85ae496a476b6cd95ff67d4dc8209ee46f8",
+      "anchors": {
+        "SECURITY_STATUS papacc_configuration_personal_ca_initialize": [
+          56
+        ],
+        "!personal_ca_native_current(o)": [
+          74,
+          81,
+          87,
+          99,
+          100,
+          112
+        ],
+        "papacc_ca_key_create": [
+          85
+        ]
+      }
+    },
+    "apps/server/server_service_startup_win32.inc": {
+      "sha256": "60586ac00435ae18dad663c6a9af2ed22bd960eb77bc5ff4cf6bc001ace8ef4a",
+      "anchors": {
+        "PS_STARTUP_ORIGINAL_UNAVAILABLE": [
+          29
+        ],
+        "return ERROR_ACCESS_DENIED;": [
+          31,
+          95,
+          142
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,313 @@
+{
+    "task":  "PACC-PHASE6-G0-G9-ACCEPTANCE-AND-COLD-CHAIN-COMPLETION",
+    "branch":  "main",
+    "head":  "f341985924d29870d8ff627ed37c8a0874ad6469",
+    "normative":  "G0_G9_ACCEPTED",
+    "controller":  "NATIVE_CALLER_INTEGRATED_OFFLINE",
+    "receiver":  "INDEPENDENT_PRE_ENDPOINT_SOURCE_ABSENT",
+    "cold_chain":  "NOT_COMPLETE",
+    "operational_request":  "NOT_READY",
+    "authority":  "DENY",
+    "endpoint_created":  false,
+    "start_executed":  false,
+    "staged_updated":  false,
+    "G3_operational_values":  "NOT_SELECTED",
+    "native_bilateral":  "NOT_DEMONSTRATED",
+    "opaque_costs":  "UNKNOWN",
+    "os_quiescence":  "UNKNOWN",
+    "E21":  "PENDING",
+    "ED11":  "PARTIAL",
+    "phase6":  "PARTIAL",
+    "builds":  [
+                   {
+                       "profile":  "Selected-Debug",
+                       "build":  "PASS",
+                       "warnings":  0,
+                       "test_configuration_pairs":  27,
+                       "tests":  "PASS",
+                       "build_log":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Debug-final-build.log",
+                       "test_log":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Debug-tests.log"
+                   },
+                   {
+                       "profile":  "Selected-Release",
+                       "build":  "PASS",
+                       "warnings":  0,
+                       "test_configuration_pairs":  27,
+                       "tests":  "PASS",
+                       "build_log":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Release-final-build.log",
+                       "test_log":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Release-tests.log"
+                   },
+                   {
+                       "profile":  "Legacy-Debug",
+                       "build":  "PASS",
+                       "warnings":  0,
+                       "test_configuration_pairs":  27,
+                       "tests":  "PASS",
+                       "build_log":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Debug-final-build.log",
+                       "test_log":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Debug-tests.log"
+                   },
+                   {
+                       "profile":  "Legacy-Release",
+                       "build":  "PASS",
+                       "warnings":  0,
+                       "test_configuration_pairs":  27,
+                       "tests":  "PASS",
+                       "build_log":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Release-final-build.log",
+                       "test_log":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Release-tests.log"
+                   }
+               ],
+    "final_test_configuration_pairs":  108,
+    "new_scenarios_per_configuration":  {
+                                            "cold_open":  13,
+                                            "cold_controller":  17,
+                                            "start_assurance":  33
+                                        },
+    "models":  "Native acquisition, console, RNG, SCM, pipe and sensitive effects modeled; no operational proof",
+    "files":  [
+                  {
+                      "path":  "apps/server/main.c.api3.inc",
+                      "bytes":  12580,
+                      "sha256":  "a5780597c045eae5332ce18d8f85cebdf29a241d83a8533404de0b1ad2b73731"
+                  },
+                  {
+                      "path":  "apps/server/personal_native_win32.h",
+                      "bytes":  3662,
+                      "sha256":  "e2d3af0f6c7c1c4122133ae772951e3fedd490aa0ede6316588db495cf75f156"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_cold_acquisition_win32.inc",
+                      "bytes":  9266,
+                      "sha256":  "2af7f85c3b878d4e6094b7b62479e8b5728f49d79d2efd5f78e6831651fe1d76"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_cold_start_win32.h",
+                      "bytes":  512,
+                      "sha256":  "acf9b38fb938abd3a1ccba20a7245e430452abb5847c9bfb7d92a81e6d50d226"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_cold_start_win32.inc",
+                      "bytes":  2469,
+                      "sha256":  "9fbc37cca890274a5f7b4770c62617733c474554f1d75be4fa8cc1fa147f1e7b"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_start_assurance_win32.h",
+                      "bytes":  919,
+                      "sha256":  "42eeaff347b1a176ab85091818443e46796f9c8b442e9e1c5fc4f322c7bb36c1"
+                  },
+                  {
+                      "path":  "apps/server/personal_scq_start_assurance_win32.inc",
+                      "bytes":  4715,
+                      "sha256":  "2288fc75aa1d47bfbdd94a93357ed9c5465fddc762d8410654c5e4e7d09cd84d"
+                  },
+                  {
+                      "path":  "apps/server/server_configuration_commit_win32.h",
+                      "bytes":  35093,
+                      "sha256":  "4ef00ffb365dc8d09fb2d965aab736405bb91c6efc861a44cd632e3c4a6a37a8"
+                  },
+                  {
+                      "path":  "apps/server/server_configuration_personal_native_win32.inc",
+                      "bytes":  88937,
+                      "sha256":  "68cd28bf7cf1696d01587eedbe92cd3ac378de1f83387700844d69f9df0ba29a"
+                  },
+                  {
+                      "path":  "apps/server/server_launcher_owner_win32.c",
+                      "bytes":  82092,
+                      "sha256":  "7ae5a25a951342c73ef2528460e1f8f62e162873b794c49f176f3907a5d1b16a"
+                  },
+                  {
+                      "path":  "apps/server/server_launcher_owner_win32.h",
+                      "bytes":  31814,
+                      "sha256":  "96df246291411b499fe300437af43e6cc4cdfc14d0362bbac7668536c91463f5"
+                  },
+                  {
+                      "path":  "apps/server/server_launcher_scq_cold_start_win32.inc",
+                      "bytes":  4093,
+                      "sha256":  "147af75d02455855887c807a9385004aea85fd4393f2d11e759fd4da372d66d3"
+                  },
+                  {
+                      "path":  "apps/server/server_service_startup_win32.h",
+                      "bytes":  4726,
+                      "sha256":  "9c38a5346411569841c18e6d32ed37fdcaf275d55d73d9e2e5071a79c8194038"
+                  },
+                  {
+                      "path":  "apps/server/server_service_startup_win32.inc",
+                      "bytes":  9672,
+                      "sha256":  "fc197ad1f86876a86ac432abde4b317ca722f6781e276866c9b2e592413a55df"
+                  },
+                  {
+                      "path":  "apps/server/server_service_win32.c",
+                      "bytes":  30166,
+                      "sha256":  "7ae076fd9cbad0c502c04098b568c6b1a95871695f19697f7fec9f04d5d2bc6e"
+                  },
+                  {
+                      "path":  "apps/server/server_service_win32.h",
+                      "bytes":  4397,
+                      "sha256":  "b41f6728b192e4a409ca222737cafe6965d8e3a3e000aab54bb9f5274dceb3dd"
+                  },
+                  {
+                      "path":  "build/windows-virtual-scm-integration-20261022/Selected/Release/libcrypto-3-x64.dll",
+                      "bytes":  7217664,
+                      "sha256":  "09eec573c9adea156ba2073f8cd61720d0aabeb7562d8498b4ecd21b710a3044"
+                  },
+                  {
+                      "path":  "build/windows-virtual-scm-integration-20261022/Selected/Release/libssl-3-x64.dll",
+                      "bytes":  1321472,
+                      "sha256":  "3fb3cd7804dbe3216c801b470e14461d80214ece99c637ae42ea3d8caf75d7ed"
+                  },
+                  {
+                      "path":  "build/windows-virtual-scm-integration-20261022/Selected/Release/papacc_server.exe",
+                      "bytes":  701440,
+                      "sha256":  "3c90c3adb8e427a16b65670b4ecad07912c62b2f86f17508af3cbdbb22ac530d"
+                  },
+                  {
+                      "path":  "CMakeLists.txt",
+                      "bytes":  238434,
+                      "sha256":  "0c4cc3c4d5e51d0e2ef055b80a9232326eaf020ab1112d3085d5c1835c7b86b1"
+                  },
+                  {
+                      "path":  "docs/adr/DECISION-personal-first-diagnostic-start-assurance-g0-g9-20261031.md",
+                      "bytes":  2426,
+                      "sha256":  "225a5c1b3735bf52cc51a202a7fa841ab4072ec4c55853862601bf5141912f2e"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-bootstrap-source-assurance-20261031/FIRST-DIAGNOSTIC-START-ASSURANCE.CANDIDATE.md",
+                      "bytes":  10800,
+                      "sha256":  "d65da3287ac5c1da7f59e6a467498ae2198f0896db801584b4b6c5fedad0ad1b"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/build.cmd",
+                      "bytes":  1292,
+                      "sha256":  "9645d5c6d2e4a3b18d46a94650f251ce0440e9292e91563613d2b82d625ead48"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/capture-evidence.ps1",
+                      "bytes":  4212,
+                      "sha256":  "3e5261ed3bd4b3c1914a0c112f87a841b4ca7b04d0c7328f944160e8438a2027"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/CLOSEOUT.md",
+                      "bytes":  5654,
+                      "sha256":  "17512f5dd8ba5b0fdf9bb38d9b5b41b8e9eb0df5b852d3805285c27cf64889db"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/COLD-RECEIVER-CUT.md",
+                      "bytes":  3172,
+                      "sha256":  "c56c59b23f86dab0bca33dbf462a4ff12e6a3705e8bc159822656d58569b7257"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Debug-details.log",
+                      "bytes":  27689,
+                      "sha256":  "8db09e36ccdbc52d683832f083d4e2a9a4595d51299c63252940807fab788d71"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Debug-final-build.log",
+                      "bytes":  3548,
+                      "sha256":  "b76ad1f98e9f324c57c6e921994cddf7ce65be99ae5c4348f9630f5087db6fd4"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Debug-tests.log",
+                      "bytes":  8558,
+                      "sha256":  "3448c9af0a2d81dfeb1aeb513fa13eede0facdf76b9f2bc324cee312b0d5b449"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Release-details.log",
+                      "bytes":  27797,
+                      "sha256":  "8d7e847d04bbfdd86fe4f9c2f2fcc9413c9586b09a6cbf4b201536b9b3291d87"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Release-final-build.log",
+                      "bytes":  3548,
+                      "sha256":  "b76ad1f98e9f324c57c6e921994cddf7ce65be99ae5c4348f9630f5087db6fd4"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Legacy-Release-tests.log",
+                      "bytes":  8566,
+                      "sha256":  "f46d161b7eb3e2cd7f592039e8375e94e2bf413625e61cd68197cc222012f438"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/NEXT-RECEIVER-ORIGINAL-ADMISSION.md",
+                      "bytes":  2348,
+                      "sha256":  "0594289cf51cdc199c7d31fd22177608083711a25ef7a567537d770401de2c2b"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/qualify.ps1",
+                      "bytes":  1389,
+                      "sha256":  "cd544b14d7ba2e42d92402a5102c54407533269919020a1d86c6683575bb8bc1"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Debug-details.log",
+                      "bytes":  27840,
+                      "sha256":  "b4c2ff15edabbad9e53ff12b07208b2753274f25d844b7b96c76838a3cc9e33f"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Debug-final-build.log",
+                      "bytes":  3548,
+                      "sha256":  "b76ad1f98e9f324c57c6e921994cddf7ce65be99ae5c4348f9630f5087db6fd4"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Debug-initial-cold-type-error.log",
+                      "bytes":  3449,
+                      "sha256":  "ebf1f1db8f14c3a15a71163c18d60719d9a7c94b8817366b22c1f7c8e9d46928"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Debug-initial-model-prototype-error.log",
+                      "bytes":  2814,
+                      "sha256":  "e6278ebab79da9a7301b4a73e692d5954bc0c253a1333313c94b225be25f922f"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Debug-initial-raw-model-literal-error.log",
+                      "bytes":  4485,
+                      "sha256":  "f41c8da3923c88aa172ff415590a6a07fddcd990f0d9b634bc529dd41d141cc1"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Debug-initial-test-symbol-error.log",
+                      "bytes":  4508,
+                      "sha256":  "a568b08976f033925e60a2f1cee238174e609b537d60ce237b5227ed26cfb60e"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Debug-tests.log",
+                      "bytes":  8566,
+                      "sha256":  "ca517370a6b9313fe838567f3c2b7634e102b91a37645ccd42a124ac8336fc30"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Release-details.log",
+                      "bytes":  27948,
+                      "sha256":  "579f644377435ba17742ae309c23cff994e71cf21dacd0d4c4eb6f75a450b7d7"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Release-final-build.log",
+                      "bytes":  3548,
+                      "sha256":  "b76ad1f98e9f324c57c6e921994cddf7ce65be99ae5c4348f9630f5087db6fd4"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/Selected-Release-tests.log",
+                      "bytes":  8574,
+                      "sha256":  "ba87f59e908fe16fb0c9ea21290dcee2fa7393db9551eb47b2289fa96b96c905"
+                  },
+                  {
+                      "path":  "docs/integration/phase6-g0-g9-integration-20261031/STAGED-IMAGE-DELTA.md",
+                      "bytes":  1115,
+                      "sha256":  "acfcdf657f0b8ff109738f171990306924d22834aa8602a577ad0e71385cae68"
+                  },
+                  {
+                      "path":  "tests/scq_cold_controller_test.c",
+                      "bytes":  7059,
+                      "sha256":  "39d0b9ad04a80a08e2257e95817f16ee389668f03c36243efe9432d715595362"
+                  },
+                  {
+                      "path":  "tests/scq_cold_open_test.c",
+                      "bytes":  3218,
+                      "sha256":  "61d97965baa69e094e6101339705c51fd89ce57589edb5db21db95fb496a0547"
+                  },
+                  {
+                      "path":  "tests/scq_first_controller_test.c",
+                      "bytes":  9324,
+                      "sha256":  "6f47bc99f0b5252f7d7181bcdcd03590d0a8d08cb0baba6f376d111c3d6cd80c"
+                  },
+                  {
+                      "path":  "tests/scq_start_assurance_test.c",
+                      "bytes":  5059,
+                      "sha256":  "76aefc565ebcb534cdd5386232897e11951eef87d5ccb12c862e3a71eb1bd1ce"
+                  }
+              ]
+}

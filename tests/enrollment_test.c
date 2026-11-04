@@ -94,4 +94,45 @@ static int limits(void){
  CHECK(ep_enrollment_quote(2103847,262144,0,&q)==(PAPACC_ED11_PROCESS_LIMIT==3145728U?EP_DATA_ONLY:EP_LIMIT));
  return 0;
 }
-int main(void){if(framing()||trace()||pairing()||limits())return 1;printf("PASS %u DATA_MODEL assertions; native_BCrypt_CSPRNG_pairing_secret_only; NO_CURRENT_APPROVAL_SIGNATURE_TLS_NETWORK\n",checks);printf("SIZES reader=%zu trace=%zu pair=%zu limiter=%zu RX_TX_two=%u process_limit=%u\n",sizeof(EP_READER),sizeof(EP_TRACE),sizeof(EP_PAIR),sizeof(EP_LIMITER),65600U,(unsigned)PAPACC_ED11_PROCESS_LIMIT);return 0;}
+static int composed_claim(void){
+ EP_PAIR p,original;EP_TRACE t,saved;EP_FRAME f;PAPACC_U8 random[55],client[32];PAPACC_SIZE n;unsigned i;
+ memset(random,0,sizeof(random));memset(random+7,3,16);memset(random+23,4,32);memset(client,1,32);
+ memset(&p,0,sizeof(p));CHECK(ep_pair_prepare_data(&p,random,client,11,12,100,NULL,0)==EP_DATA_ONLY);original=p;
+ memset(&t,0,sizeof(t));n=make(1);f.kind=1;f.sequence=1;f.payload.data=body;f.payload.size=n;CHECK(ep_trace_observe(&t,&f,EP_C2S)==EP_DATA_ONLY);
+ n=make(2);f.kind=2;f.payload.size=n;CHECK(ep_trace_observe(&t,&f,EP_S2C)==EP_DATA_ONLY);saved=t;
+ n=make(3);f.kind=3;f.sequence=2;f.payload.size=n;
+ CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,101)==EP_DATA_ONLY&&p.claimed&&t.phase==3U);
+ {
+ EP_TRACE csr_trace=t,bad;EP_PAIR csr_pair=p,bad_pair;EP_SLICE slice,unchanged;unsigned fault;
+ slice.data=(const PAPACC_U8 *)"unchanged";slice.size=9;unchanged=slice;
+ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,102,&slice)==EP_DENIED&&slice.data==unchanged.data&&slice.size==unchanged.size);
+ f.kind=4;f.sequence=2;f.payload.size=make(4);body[16]=2;CHECK(ep_trace_observe(&csr_trace,&f,EP_S2C)==EP_DATA_ONLY);
+ f.kind=5;f.sequence=3;f.payload.size=make(5);CHECK(ep_trace_observe(&csr_trace,&f,EP_C2S)==EP_DATA_ONLY);
+ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,102,&slice)==EP_DATA_ONLY&&slice.data==csr_trace.csr&&slice.size==1);
+ body[52]^=1;CHECK(slice.data[0]==0x30); /* original owner copy, never recycled RX */
+ for(fault=0;fault<9;fault++){
+  bad=csr_trace;bad_pair=csr_pair;slice=unchanged;
+  if(fault==0)bad.request[0]^=1;if(fault==1)bad.server_nonce[0]^=1;if(fault==2)bad_pair.claimed=0;
+  if(fault==3)bad.terminal=1;if(fault==4)bad.pending=1;if(fault==5)bad.csr_size=sizeof(bad.csr)+1;
+  if(fault==6)bad_pair.invalid=1;if(fault==7)bad.client_nonce[0]^=1;if(fault==8)bad_pair.stopped=1;
+  CHECK(ep_trace_csr_candidate(&bad,&bad_pair,11,12,102,&slice)!=EP_DATA_ONLY&&slice.data==unchanged.data&&slice.size==unchanged.size);
+ }
+ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,99,12,102,&slice)==EP_DENIED);
+ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,99,102,&slice)==EP_DENIED);
+ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,csr_pair.deadline,&slice)==EP_EXPIRED);
+ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,100,&slice)==EP_EXPIRED);
+ CHECK(ep_trace_csr_candidate(&csr_trace,&csr_pair,11,12,102,(EP_SLICE *)&csr_trace)==EP_INVALID);
+ f.kind=3;f.sequence=2;f.payload.size=make(3);
+ }
+ CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,102)==EP_REPLAY);
+ for(i=0;i<5U;i++){
+  p=original;t=saved;n=make(3);f.kind=3;f.sequence=2;f.payload.size=n;
+  if(i==0)body[48]='1';if(i==1)f.sequence=3;if(i==2)t.client_nonce[0]^=1;if(i==3)f.payload.size--;
+  CHECK(ep_trace_claim_pair(&t,&p,&f,i==4?99:11,12,101)!=EP_DATA_ONLY&&p.submitted&&t.terminal);
+  CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,102)==EP_REPLAY);
+ }
+ p=original;t=saved;f.payload.size=make(3);CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,300100)==EP_EXPIRED&&p.invalid);
+ p=original;t=saved;ep_trace_stop(&t);CHECK(ep_trace_claim_pair(&t,&p,&f,11,12,101)==EP_STOPPED&&!p.submitted);
+ return 0;
+}
+int main(void){if(framing()||trace()||pairing()||limits()||composed_claim())return 1;printf("PASS %u DATA_MODEL assertions; native_BCrypt_CSPRNG_pairing_secret_only; NO_CURRENT_APPROVAL_SIGNATURE_TLS_NETWORK\n",checks);printf("SIZES reader=%zu trace=%zu pair=%zu limiter=%zu RX_TX_two=%u process_limit=%u\n",sizeof(EP_READER),sizeof(EP_TRACE),sizeof(EP_PAIR),sizeof(EP_LIMITER),65600U,(unsigned)PAPACC_ED11_PROCESS_LIMIT);return 0;}

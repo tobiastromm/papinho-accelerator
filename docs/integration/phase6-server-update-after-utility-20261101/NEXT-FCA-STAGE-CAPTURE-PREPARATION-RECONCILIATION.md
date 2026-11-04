@@ -1,0 +1,4 @@
+# Próximo prompt executável — reconciliar nova FCA com captura de etapa
+Ler a saída integral da única execução manual do pedidoae3b8ea2937a01bf2498b3c19c48b4058529c691c43d9f83b07e93df84073ec0. Não repetir.
+Se rejeitou antes da apresentação: interpretar FCA_PREFLIGHT_REJECT pela etapa real, sem tomar operation_result das etapas4/11 como errno/NTSTATUS de outras etapas. Identificar a primeira lacuna precisa a partir do código e capturas originais; não executar nova consulta.
+Se alcançou confirmação: conferir autoria/consumo, criação exclusiva e ID/SD/readback de Accelerator, criação/finalização/nome/identidade pública da chave, close/retenção. Não inferir sucesso/ausência/consumo/readiness só por exit/flags. Corrigir offline somente defeito comprovado dentro dos accepted; preservar UNKNOWN, históricos, consumos e PST0.6.4, sem operações automáticas.
